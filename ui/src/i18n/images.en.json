@@ -18,5 +18,10 @@
       "failed": "The image could not be embedded: {{reason}}",
       "saved": "Image saved to {{path}}"
     }
+  },
+  "pictureView": {
+    "close": "Close",
+    "fit": "Click to fit the picture into the window",
+    "natural": "Click to see the picture at its natural size"
   }
 }

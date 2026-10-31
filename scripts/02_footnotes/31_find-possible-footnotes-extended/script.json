@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "02/find-possible-footnotes-extended",
+  "name": {
+    "ru": "Расширенный поиск возможных сносок",
+    "en": "Extended search for possible footnotes",
+    "uk": "Розширений пошук можливих приміток"
+  },
+  "description": {
+    "ru": "Ищет от курсора к концу книги места, похожие на неразмеченные сноски: скобку или звездочку в начале абзаца, звездочки и скобки после букв, цифр и знаков препинания, цифры, прилипшие к словам и знакам препинания, - и выделяет первое из них",
+    "en": "Searches from the caret to the end of the book for places that look like unmarked footnotes - a bracket or asterisk at the start of a paragraph, asterisks and brackets after letters, digits and punctuation, digits stuck to words and punctuation - and selects the first one",
+    "uk": "Шукає від курсора до кінця книги місця, схожі на нерозмічені примітки: дужку або зірочку на початку абзацу, зірочки й дужки після літер, цифр і розділових знаків, цифри, що прилипли до слів і розділових знаків, - і виділяє перше з них"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Расширенный поиск возможных сносок",
+    "en": "Extended search for possible footnotes"
+  },
+  "legacy": {
+    "source": "02_Примечания/31_Расширенный поиск возможных сносок.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

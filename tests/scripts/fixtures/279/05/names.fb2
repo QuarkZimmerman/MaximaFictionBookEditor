@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Иллюстрации</last-name>
+			</author>
+			<book-title>Коррекция имён картинок</book-title>
+			<annotation>
+				<p>Аннотация с <image l:href="#pic3.png"/> картинкой.</p>
+			</annotation>
+			<coverpage>
+				<image l:href="#cover.png"/>
+			</coverpage>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>fixture</program-used>
+			<date value="2026-10-31">2026-10-31</date>
+			<id>fixture-279-05-names</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Коррекция имён картинок</p>
+		</title>
+		<section>
+			<title>
+				<p>Глава 1</p>
+			</title>
+			<image l:href="#pic1.jpg"/>
+			<p>Картинки, чьи файлы переформатированы.</p>
+			<image l:href="#pic2.jpg"/>
+			<image l:href="#pic3.png" alt="третья"/>
+			<image l:href="#pic4.tif"/>
+			<image l:href="#pic5"/>
+			<image l:href="#pic5.bmp"/>
+			<image l:href="#pic2.jpg_1"/>
+			<image l:href="#nothing.jpg"/>
+			<image l:href="#extra.png"/>
+			<image l:href="#Pic6.jpeg"/>
+			<p>Внутри текста <strong><image l:href="#pic4.gif"/></strong> картинка.</p>
+			<image l:href="#cover.jpg"/>
+			<p>Конец.</p>
+		</section>
+	</body>
+	<binary id="cover.png" content-type="image/png">iVBORw0KGgoAAAANSUhEUgAAAAQAAAAGCAIAAABrW6giAAAAEElEQVR42mOokJODIwZKOQCa/BDh1Bdf5QAAAABJRU5ErkJggg==</binary>
+	<binary id="pic1.jpg" content-type="image/jpeg">/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAAGAAgDAREAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAABf/EACMQAAACCQUAAAAAAAAAAAAAABMWAAQHEhUXITEzIiZUVWH/xAAUAQEAAAAAAAAAAAAAAAAAAAAF/8QAKREAAAALCAMAAAAAAAAAAAAAABESExQVFiExMjMCAwUGIiRSUyVhYv/aAAwDAQACEQMRAD8APO7NpMEwobt7aHq/LEzPC4tFvLVRVmczNsu0zx/ScvOkimI3U1R+pnAYssNUqEZ3HMmzzHMMqV0PUA//2Q==</binary>
+	<binary id="pic2.png" content-type="image/png">iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAEElEQVR42mM4oaEBRwzEcQDRQxGBoNNuZAAAAABJRU5ErkJggg==</binary>
+	<binary id="pic3.jpeg" content-type="image/jpeg">/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAAGAAgDAREAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAABf/EACMQAAACCQUAAAAAAAAAAAAAABMWAAQHEhUXITEzIiZUVWH/xAAUAQEAAAAAAAAAAAAAAAAAAAAF/8QAKREAAAALCAMAAAAAAAAAAAAAABESExQVFiExMjMCAwUGIiRSUyVhYv/aAAwDAQACEQMRAD8APO7NpMEwobt7aHq/LEzPC4tFvLVRVmczNsu0zx/ScvOkimI3U1R+pnAYssNUqEZ3HMmzzHMMqV0PUA//2Q==</binary>
+	<binary id="pic4.jpg" content-type="image/jpeg">/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAAGAAgDAREAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAABf/EACMQAAACCQUAAAAAAAAAAAAAABMWAAQHEhUXITEzIiZUVWH/xAAUAQEAAAAAAAAAAAAAAAAAAAAF/8QAKREAAAALCAMAAAAAAAAAAAAAABESExQVFiExMjMCAwUGIiRSUyVhYv/aAAwDAQACEQMRAD8APO7NpMEwobt7aHq/LEzPC4tFvLVRVmczNsu0zx/ScvOkimI3U1R+pnAYssNUqEZ3HMmzzHMMqV0PUA//2Q==</binary>
+	<binary id="pic5.png" content-type="image/png">iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAEElEQVR42mPQ0DgBRwzEcQC9QxGBOAwIsQAAAABJRU5ErkJggg==</binary>
+	<binary id="extra.gif" content-type="image/gif">R0lGODlhCAAGAPAAAP/QQEBgoCH5BAAAAAAALAAAAAAIAAYAAAIJjI+gkNv6GJoFADs=</binary>
+	<binary id="Pic6.JPG" content-type="image/jpeg">/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAAGAAgDAREAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAABf/EACMQAAACCQUAAAAAAAAAAAAAABMWAAQHEhUXITEzIiZUVWH/xAAUAQEAAAAAAAAAAAAAAAAAAAAF/8QAKREAAAALCAMAAAAAAAAAAAAAABESExQVFiExMjMCAwUGIiRSUyVhYv/aAAwDAQACEQMRAD8APO7NpMEwobt7aHq/LEzPC4tFvLVRVmczNsu0zx/ScvOkimI3U1R+pnAYssNUqEZ3HMmzzHMMqV0PUA//2Q==</binary>
+</FictionBook>

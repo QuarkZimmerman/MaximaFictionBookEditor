@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "21/regexp-set-znak",
+  "name": {
+    "ru": "Поиск (без замены) по набору регэкспов_Znak",
+    "en": "Search (without replacing) by a set of regexps: characters (Znak)",
+    "uk": "Пошук (без заміни) за набором регулярних виразів_Znak"
+  },
+  "description": {
+    "ru": "Выделяет следующую после курсора ошибку знаков по набору регэкспов JonVic: строки без точки, мусор после скана, неверные дефисы и тире, смесь алфавитов и регистров, пробелы у знаков препинания, форматирование внутри слов.",
+    "en": "Selects the next character error after the caret by JonVic's regexp set: lines without a full stop, scan garbage, wrong hyphens and dashes, mixed alphabets and case, spaces around punctuation, formatting inside words.",
+    "uk": "Виділяє наступну після курсору помилку знаків за набором регулярних виразів JonVic: рядки без крапки, сміття після сканування, неправильні дефіси й тире, суміш алфавітів і регістрів, пробіли біля розділових знаків, форматування всередині слів."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Поиск (без замены) по набору регэкспов_Znak",
+    "en": "Search (without replacing) by a set of regexps: characters (Znak)"
+  },
+  "legacy": {
+    "source": "21_Поиск и замена/08_Поиск (без замены) по набору регэкспов_Znak.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "5.1"
+  }
+}

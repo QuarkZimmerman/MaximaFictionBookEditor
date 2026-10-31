@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Иван</first-name>
+				<last-name>Сидоров</last-name>
+			</author>
+			<book-title>История изменений</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>Зорро</nickname>
+			</author>
+			<program-used>fixture, Maxima Fiction Book Editor</program-used>
+			<date value="2025-06-01">1 июня 2025</date>
+			<id>B2F0B1E2-0000-4000-8000-000000000101</id>
+			<version>1.0</version>
+			<history>
+				<p>v.1.0 — Скрипт: Почистить структуру 3.14 — 24.10.2026</p>
+			</history>
+		</document-info>
+	</description>
+	<body>
+		<section>
+			<p>Текст книги.</p>
+		</section>
+	</body>
+</FictionBook>

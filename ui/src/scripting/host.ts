@@ -26,6 +26,14 @@
  * `RunResult.document`; a nested run cancelled from the banner cancels the whole request (the
  * outer session's `cancel()`), a failed one returns the error to the caller and leaves the
  * request running.
+ *
+ * Feature 007 (script API version 2, contracts/script-api.md §5): a script runs another through
+ * `mfbe.scripts.run(ref, args)`. The callee runs in a worker the host creates - the script has
+ * no worker API - on the run's working copy, so the whole chain is one run: one undo entry under
+ * the root's label, one Cancel that stops every script of it and restores the document. Its
+ * `ctx` says `startedBy: 'script'`, `caller` and `args`; its return value comes back to the
+ * caller, its error rejects the caller's call. A chain is at most 8 scripts deep. Reading the
+ * clipboard follows the chain's root: refused unless the user started it.
  */
 
 import type { TFunction } from 'i18next';
@@ -44,14 +52,18 @@ import {
   JsonText,
   SCRIPT_PROGRESS_JOB,
   ScriptApiError,
+  type ClipboardLike,
+  type ReportSpec,
   type ScriptApi,
 } from './api-impl';
+import { resolveScriptRef } from './scriptRefs';
 import { DEFAULT_TICK_MS, startRunSession, type RunSession } from './runSession';
 import type {
   HostMessage,
   InitMessage,
   NodeRef,
   RunEnd,
+  ScriptContextData,
   ScriptErrorInfo,
   ScriptInfo,
   ScriptSourceResult,
@@ -114,7 +126,16 @@ export interface ScriptHostDeps {
   tickMs?: number;
   /** Receives `console.*` output of scripts (development builds log it to the console). */
   onLog?: (level: string, args: unknown[]) => void;
+  /** The Scripts menu's scripts, which `mfbe.scripts.run` resolves references in. */
+  scripts?: () => readonly ScriptInfo[];
+  /** The system clipboard for `mfbe.clipboard` (default: the page's). */
+  clipboard?: ClipboardLike;
+  /** Opens a report window for `mfbe.ui.report` (ReportWindow.tsx). */
+  openReport?: (report: ReportSpec) => void;
 }
+
+/** How deep a chain of `mfbe.scripts.run` calls may go (contracts/script-api.md §5). */
+export const MAX_CHAIN_DEPTH = 8;
 
 export interface RunOptions {
   rpc: RpcClient | null;
@@ -122,6 +143,11 @@ export interface RunOptions {
   t: TFunction;
   uiLanguage: string;
   treeNode?: NodeRef;
+  /**
+   * Who starts the run (script API version 2): the user's menus, toolbar, hotkeys and tree
+   * commands leave it out ('user'); the assistant's `run_script` passes 'assistant'.
+   */
+  startedBy?: 'user' | 'assistant';
 }
 
 /**
@@ -224,6 +250,23 @@ interface ActiveRun {
   finished: boolean;
   end: RunEnd & { finish(): void };
   resolve: (result: RunResult) => void;
+  /** The scripts this run started through `mfbe.scripts.run` that still run (feature 007). */
+  callees: CalleeRun[];
+}
+
+/** A script another started through `mfbe.scripts.run`, in its root run (feature 007). */
+interface CalleeRun {
+  root: ActiveRun;
+  script: ScriptInfo;
+  depth: number;
+  context: ScriptContextData;
+  worker: WorkerLike;
+  port: MessagePort;
+  api: ScriptApi;
+  entryUrl: string;
+  end: RunEnd & { finish(): void };
+  finished: boolean;
+  settle: { resolve: (value: unknown) => void; reject: (error: Error) => void };
 }
 
 /** The end of a run, observed by its open dialogs. */
@@ -312,9 +355,7 @@ export class ScriptHost {
 
     let source: ScriptSourceResult;
     try {
-      source = (await rpc.call('scripts.source', {
-        scriptId: script.id,
-      })) as unknown as ScriptSourceResult;
+      source = await rpc.call('scripts.source', { scriptId: script.id });
     } catch (error) {
       const message = t('scripting.error.loadFailed', {
         name,
@@ -409,6 +450,7 @@ export class ScriptHost {
         finished: false,
         end,
         resolve,
+        callees: [],
         api: createScriptApi({
           store,
           document: before,
@@ -418,6 +460,10 @@ export class ScriptHost {
           t,
           scriptName: name,
           uiLanguage: options.uiLanguage,
+          rootStartedBy: options.startedBy ?? 'user',
+          clipboard: this.deps.clipboard,
+          openReport: this.deps.openReport,
+          runScript: (ref, args) => this.runCallee(active, script.id, 0, ref, args),
           ...(nested
             ? {
                 publish: false,
@@ -477,6 +523,195 @@ export class ScriptHost {
     void this.finish(run, 'cancelled');
   }
 
+  /* -------------------------------------------- run chains (feature 007) */
+
+  /**
+   * `mfbe.scripts.run(ref, args)` of a script at `depth` in the chain of `root`: the callee runs
+   * in a worker the host creates, on the root's working copy; resolves with its run()'s value.
+   */
+  private async runCallee(
+    root: ActiveRun,
+    callerId: string,
+    callerDepth: number,
+    ref: string,
+    args: unknown,
+  ): Promise<unknown> {
+    const depth = callerDepth + 1;
+    const { rpc, t, dialogs } = root.options;
+    if (depth > MAX_CHAIN_DEPTH) {
+      throw new ScriptApiError(
+        t('scripting.error.depthExceeded', { depth: MAX_CHAIN_DEPTH }) as string,
+        'scripts.depthExceeded',
+      );
+    }
+    const target = resolveScriptRef(ref, this.deps.scripts?.() ?? []);
+    if (!target) {
+      throw new ScriptApiError(
+        t('scripting.error.notFound', { ref }) as string,
+        'scripts.notFound',
+      );
+    }
+    if (target.needsSelection && !this.hasSelection()) {
+      throw new ScriptApiError(
+        t('scripting.error.needsSelection', {
+          name: scriptName(target, root.options.uiLanguage),
+        }) as string,
+        'scripts.needsSelection',
+      );
+    }
+    if (!rpc) throw new ScriptApiError('scripts.run: the editor is not connected');
+    let source: ScriptSourceResult;
+    try {
+      source = await rpc.call('scripts.source', { scriptId: target.id });
+    } catch (error) {
+      throw new ScriptApiError(
+        `scripts.run: "${target.id}" cannot be loaded: ${error instanceof Error ? error.message : String(error)}`,
+        'scripts.notFound',
+      );
+    }
+    if (root.finished) throw new ScriptApiError('scripts.run: the run has ended');
+    const origin = this.deps.origin?.() ?? window.location.origin;
+    const entryUrl = new URL(source.entryUrl, origin).toString();
+    const name = scriptName(target, root.options.uiLanguage);
+    const worker = this.deps.createWorker();
+    const channel = new MessageChannel();
+    const init: InitMessage = { type: 'init', port: channel.port2 };
+    worker.postMessage(init, [channel.port2]);
+    const end = createRunEnd();
+    return new Promise<unknown>((resolve, reject) => {
+      const callee: CalleeRun = {
+        root,
+        script: target,
+        depth,
+        context: {
+          script: { id: target.id, name, group: target.group, kind: target.kind },
+          uiLanguage: root.options.uiLanguage,
+          startedBy: 'script',
+          caller: callerId,
+          ...(args === undefined ? {} : { args }),
+        },
+        worker,
+        port: channel.port1,
+        entryUrl,
+        end,
+        finished: false,
+        settle: { resolve, reject },
+        api: createScriptApi({
+          store: this.deps.store,
+          document: null,
+          shared: root.api.shared,
+          controller: this.deps.getController(),
+          dialogs,
+          rpc,
+          t,
+          scriptName: name,
+          uiLanguage: root.options.uiLanguage,
+          rootStartedBy: root.options.startedBy ?? 'user',
+          clipboard: this.deps.clipboard,
+          openReport: this.deps.openReport,
+          runScript: (next, nextArgs) => this.runCallee(root, target.id, depth, next, nextArgs),
+          ...(root.nested
+            ? {
+                publish: false,
+                dialogCaption: (caption: string) =>
+                  t('ai.script.nestedCaption', { name: caption }) as string,
+              }
+            : {}),
+          onUiActivity: (isActive) => this.onUiActivity(root, isActive),
+          onProgress: () => this.onActivity(root),
+          isCancelRequested: () => root.cancelRequested,
+          runEnd: end,
+        }),
+      };
+      root.callees.push(callee);
+      channel.port1.onmessage = (event: MessageEvent<WorkerMessage>) => {
+        void this.onCalleeMessage(callee, event.data);
+      };
+      worker.onerror = (event: ErrorEvent) => {
+        event.preventDefault?.();
+        this.endCallee(callee);
+        reject(
+          new ScriptApiError(
+            `scripts.run: "${target.id}" failed: ${event.message || 'unknown error'}`,
+          ),
+        );
+      };
+      this.onActivity(root);
+    });
+  }
+
+  private async onCalleeMessage(callee: CalleeRun, message: WorkerMessage): Promise<void> {
+    if (callee.finished || !message || typeof message !== 'object') return;
+    const post = (reply: HostMessage) => {
+      if (!callee.finished) callee.port.postMessage(reply);
+    };
+    switch (message.type) {
+      case 'ready':
+        post({ type: 'run', entryUrl: callee.entryUrl, context: callee.context });
+        return;
+      case 'call': {
+        this.onActivity(callee.root);
+        try {
+          const value = await callee.api.call(message.method, message.args);
+          if (value instanceof JsonText) {
+            post({ type: 'result', id: message.id, value: value.text, json: true });
+          } else {
+            post({ type: 'result', id: message.id, value: value ?? null });
+          }
+        } catch (error) {
+          post({
+            type: 'error',
+            id: message.id,
+            message: error instanceof Error ? error.message : String(error),
+            ...(error instanceof ScriptApiError ? { name: error.name, code: error.code } : {}),
+          });
+        }
+        return;
+      }
+      case 'done':
+        this.endCallee(callee);
+        callee.settle.resolve(message.value);
+        return;
+      case 'fail': {
+        this.endCallee(callee);
+        const where = message.error.line !== undefined ? ` (line ${message.error.line})` : '';
+        callee.settle.reject(
+          new ScriptApiError(
+            `scripts.run: "${callee.script.id}" failed: ${message.error.message}${where}`,
+          ),
+        );
+        return;
+      }
+      case 'log':
+        this.deps.onLog?.(message.level, message.args);
+        return;
+      default:
+        return;
+    }
+  }
+
+  /** Ends a callee: its worker, its port, its dialogs; it leaves the root's list. */
+  private endCallee(callee: CalleeRun): void {
+    if (callee.finished) return;
+    callee.finished = true;
+    try {
+      callee.port.close();
+    } catch {
+      // ignore
+    }
+    callee.worker.terminate();
+    callee.end.finish();
+    callee.api.finish();
+    const index = callee.root.callees.indexOf(callee);
+    if (index >= 0) callee.root.callees.splice(index, 1);
+  }
+
+  /** Whether the Body view holds a non-empty selection (a callee's `needsSelection`). */
+  private hasSelection(): boolean {
+    const state = this.deps.getController()?.editorState;
+    return !!state && !state.selection.empty;
+  }
+
   /* ------------------------------------------------------------ internals */
 
   private get watchdogMs(): number {
@@ -505,6 +740,7 @@ export class ScriptHost {
             },
             uiLanguage: options.uiLanguage,
             treeNode: options.treeNode,
+            startedBy: options.startedBy ?? 'user',
           },
         });
         return;
@@ -586,6 +822,11 @@ export class ScriptHost {
   private async finish(run: ActiveRun, status: RunStatus, error?: ScriptErrorInfo): Promise<void> {
     if (run.finished) return;
     run.finished = true;
+    // The scripts it started end with it: their workers, their dialogs.
+    for (const callee of [...run.callees]) {
+      this.endCallee(callee);
+      callee.settle.reject(new ScriptApiError('scripts.run: the run has ended'));
+    }
     const durationMs = Date.now() - run.state.startedAt;
     if (run.watchdog) {
       clearTimeout(run.watchdog);

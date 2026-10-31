@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "40/show-next-table-html",
+  "name": {
+    "ru": "Показать следующую таблицу в HTML-виде",
+    "en": "Show the next table as HTML",
+    "uk": "Показати наступну таблицю у вигляді HTML"
+  },
+  "description": {
+    "ru": "Выделяет следующую после курсора таблицу и показывает её в окне отчёта как HTML-таблицу.",
+    "en": "Selects the next table after the caret and shows it as an HTML table in a report window.",
+    "uk": "Виділяє наступну після курсора таблицю і показує її у вікні звіту як HTML-таблицю."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Показать следующую таблицу в HTML-виде",
+    "en": "Show the next table as HTML"
+  },
+  "legacy": {
+    "source": "40_Таблицы/01_Показать следующую таблицу в HTML-виде.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
+  }
+}

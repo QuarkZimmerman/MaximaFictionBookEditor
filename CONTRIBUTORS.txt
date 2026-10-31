@@ -15,6 +15,17 @@ Sclex, http://scripts.fictionbook.org/, sclex2@gmail.com
 Jurgen
 Алекс Савельев
 
+Scripts of FictionBook Editor 2.7.x by:
+Sclex
+TaKir
+stokber
+Jurgen (jurgennt)
+Faiber
+Алекс Савельев (Alex Saveliev)
+Александр Ка (Alexander Ka)
+mkb
+Haliz
+
 Ukrainian translation by:
 vitalis, http://chtyvo.org.ua/, chtyvo@gmail.com
 

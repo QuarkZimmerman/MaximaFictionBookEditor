@@ -1,0 +1,9 @@
+{
+  "manifestVersion": 1,
+  "id": "test03/chain-check",
+  "name": {
+    "ru": "Цепочка: проверка комментариев",
+    "en": "Chain: the check of the comments"
+  },
+  "kind": "menu"
+}

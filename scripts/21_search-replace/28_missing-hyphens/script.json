@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "21/missing-hyphens",
+  "name": {
+    "ru": "Поиск пропавших дефисов",
+    "en": "Search for missing hyphens",
+    "uk": "Пошук зниклих дефісів"
+  },
+  "description": {
+    "ru": "Выделяет следующее после курсора место, где, вероятно, пропущен дефис: «-либо», «-нибудь», «кое-», «-то», стороны света и слова вроде «чтото» или «попрежнему», — и показывает описание в строке состояния.",
+    "en": "Selects the next place after the caret where a hyphen is probably missing - \"-либо\", \"-нибудь\", \"кое-\", \"-то\", compass directions and words like \"чтото\" or \"попрежнему\" - and shows its description in the status bar.",
+    "uk": "Виділяє наступне після курсору місце, де, ймовірно, пропущено дефіс: «-либо», «-нибудь», «кое-», «-то», сторони світу та слова на кшталт «чтото» чи «попрежнему», — і показує опис у смузі стану."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Поиск пропавших дефисов",
+    "en": "Search for missing hyphens"
+  },
+  "legacy": {
+    "source": "21_Поиск и замена/28_Поиск пропавших дефисов.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.4"
+  }
+}

@@ -1,0 +1,11 @@
+[
+  {
+    "snapshot": "01/titles-case.nothing-found.xml",
+    "script": "scripts/01_case/08_titles-case",
+    "book": "tests/scripts/fixtures/books/conv-a-01.fb2",
+    "args": [
+      "--answer",
+      "{\"bodySectionTitles\":false,\"sectionSubtitles\":false}"
+    ]
+  }
+]

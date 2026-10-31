@@ -32,7 +32,7 @@ struct AppConfig {
     std::string url;                      // initial URL of the main window
     std::string app_origin;               // loopback origin that may be navigated
     std::filesystem::path resources_dir;  // for window icons
-    bool devtools_enabled = false;        // F12 -> DevTools
+    bool devtools_enabled = false;        // a developer run: the developer tools pass the gate
     bool no_sandbox = false;              // --no-sandbox
     std::string ozone_platform;           // "" (auto), "x11" or "wayland" (Linux)
     std::string lang;                     // "" (system), "en", "ru" or "uk": Chromium's locale

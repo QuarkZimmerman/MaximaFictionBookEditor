@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "02/find-possible-footnote-markers",
+  "name": {
+    "ru": "Поиск возможных маркеров сносок",
+    "en": "Search for possible footnote markers",
+    "uk": "Пошук можливих маркерів приміток"
+  },
+  "description": {
+    "ru": "Ищет от курсора к концу книги возможные маркеры сносок - надстрочные индексы, цифры, апострофы и звездочки, прилипшие к тексту, звездочку в начале абзаца - и выделяет первый из них",
+    "en": "Searches from the caret to the end of the book for what may be footnote markers - superscripts, digits, apostrophes and asterisks stuck to text, an asterisk at the start of a paragraph - and selects the first one",
+    "uk": "Шукає від курсора до кінця книги можливі маркери приміток - надрядкові індекси, цифри, апострофи й зірочки, що прилипли до тексту, зірочку на початку абзацу - і виділяє перший з них"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Поиск возможных маркеров сносок",
+    "en": "Search for possible footnote markers"
+  },
+  "legacy": {
+    "source": "02_Примечания/35_Поиск возможных маркеров сносок.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.0"
+  }
+}

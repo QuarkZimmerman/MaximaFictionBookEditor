@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>sci_linguistic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Символы</last-name>
+			</author>
+			<book-title>Таблицы символов</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Таблицы символов</p>
+		</title>
+		<section>
+			<title>
+				<p>Транскрипция</p>
+			</title>
+			<p>Слово apple читается [æpl], ударение ставится перед гласной.</p>
+			<p>Слово pen читается [<emphasis>pen</emphasis>], буква e здесь открытая.</p>
+			<p>Первая строка выделения кончается здесь: [≈]: think.</p>
+		</section>
+		<section>
+			<title>
+				<p>Математика</p>
+			</title>
+			<p>Число пи приблизительно 3,14, а корень из двух 1,41.</p>
+			<p>Семь восьмых пишут дробью 7/8 или знаком.</p>
+			<p>Сумма углов треугольника <strong>180 градусов</strong>.</p>
+		</section>
+	</body>
+</FictionBook>

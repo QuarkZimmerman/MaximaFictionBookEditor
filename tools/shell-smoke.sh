@@ -121,6 +121,27 @@
 #                               the table's box is the same with the mark's caption hidden; no
 #                               regular table has a mark. Exclusive with the restart, close, Save
 #                               As, self-test and table-layout scenarios
+#   MFBE_SMOKE_ENGINE_KEYS      1 = the browser engine's own keys (feature 007, contracts/shell.md
+#                               §3-§5; real UI with MFBE_SMOKE_OPEN_FILE; needs openbox, xdotool
+#                               and xprop): the book is opened from a copy in this run's
+#                               temporary folder; shell-smoke.mjs types an edit into the Body
+#                               view and presses the key sets of its KEY_SETS table as real X
+#                               keys (xdotool - keys injected over CDP never reach the engine's
+#                               accelerators), with the focus in the Body view and with Help >
+#                               About open. After each key: the page was not replaced (a marker
+#                               set over CDP is still there), the unsaved edit is kept, no new
+#                               top-level window appeared (the developer tools on F12 excepted
+#                               in this developer run) and the key's own outcome holds (Ctrl+S
+#                               rewrote the book file, ...). A test-hook shell must also have
+#                               logged the gate's decision ("shelltest: chrome-command <IDC_…>
+#                               blocked"); a shell without test hooks is judged by the outcomes
+#                               alone. A second short run then starts MFBE_SMOKE_NONDEV_BIN
+#                               without --remote-debugging-port - not a developer run - and
+#                               asserts that F12, Ctrl+Shift+I, Ctrl+Shift+J and Ctrl+Shift+C
+#                               open no window
+#   MFBE_SMOKE_NONDEV_BIN       the shell of that second run (default: MFBE_APP_BIN, or
+#                               build/linux-app-release/bin/mfbe when MFBE_APP_BIN is a Debug
+#                               build - in which every run is a developer run)
 #   (every run)                 The browser engine's own spell checking is off (feature 004 US9,
 #                               FR-081): the shell sets browser.enable_spellchecking=false at
 #                               every start and a test-hook build prints "shelltest: spellcheck
@@ -396,6 +417,43 @@ if [[ "$SAVE_AS" == "1" ]]; then
     fi
   done
 fi
+ENGINE_KEYS="${MFBE_SMOKE_ENGINE_KEYS:-0}"
+NONDEV_BIN=""
+if [[ "$ENGINE_KEYS" == "1" ]]; then
+  if [[ "${MFBE_SMOKE_REAL_UI:-0}" != "1" || -z "${MFBE_SMOKE_OPEN_FILE:-}" ]]; then
+    echo "shell-smoke: MFBE_SMOKE_ENGINE_KEYS needs MFBE_SMOKE_REAL_UI=1 and MFBE_SMOKE_OPEN_FILE" >&2
+    exit 1
+  fi
+  if [[ "$RESTART" == "1" || "$CLOSE" == "1" || "$SAVE_AS" == "1" || -n "$SELFTEST" ||
+        "${MFBE_SMOKE_CLIPBOARD:-0}" == "1" || -n "$PORTABLE_DIR" ]]; then
+    echo "shell-smoke: MFBE_SMOKE_ENGINE_KEYS is exclusive with the restart, close, Save As, portable and self-test scenarios" >&2
+    exit 1
+  fi
+  # Real X keys under a window manager that gives the editor's window the focus.
+  for tool in openbox xdotool xprop; do
+    if ! command -v "$tool" >/dev/null 2>&1; then
+      echo "shell-smoke: MFBE_SMOKE_ENGINE_KEYS needs '$tool' (apt-get install openbox xdotool x11-utils)" >&2
+      exit 1
+    fi
+  done
+  NONDEV_BIN="${MFBE_SMOKE_NONDEV_BIN:-}"
+  if [[ -z "$NONDEV_BIN" ]]; then
+    NONDEV_BIN="$MFBE_APP_BIN"
+    if [[ "$MFBE_APP_BIN" == *linux-app-debug* ]]; then
+      NONDEV_BIN="$ROOT/build/linux-app-release/bin/mfbe"
+    fi
+  fi
+  if [[ ! -x "$NONDEV_BIN" ]]; then
+    echo "shell-smoke: MFBE_SMOKE_ENGINE_KEYS needs a shell that is no developer run: $NONDEV_BIN (build linux-app-release or set MFBE_SMOKE_NONDEV_BIN)" >&2
+    exit 1
+  fi
+  # Ctrl+S rewrites the book: the shell opens a copy, never the given file.
+  mkdir -p "$TMP/book"
+  cp "$MFBE_SMOKE_OPEN_FILE" "$TMP/book/"
+  MFBE_SMOKE_OPEN_FILE="$TMP/book/$(basename "$MFBE_SMOKE_OPEN_FILE")"
+  FILE_ARGS=("$MFBE_SMOKE_OPEN_FILE")
+  export MFBE_SMOKE_OPEN_FILE MFBE_SMOKE_ENGINE_KEYS=1
+fi
 TABLE_LAYOUT="${MFBE_SMOKE_TABLE_LAYOUT:-0}"
 if [[ "$TABLE_LAYOUT" == "1" ]]; then
   if [[ "${MFBE_SMOKE_REAL_UI:-0}" != "1" || -z "${MFBE_SMOKE_OPEN_FILE:-}" ]]; then
@@ -462,7 +520,7 @@ fi
 # the close request of the title-bar button (WM_DELETE_WINDOW), to give the GTK Save dialog the
 # focus; the wrapper starts openbox and writes the display's address (DISPLAY, XAUTHORITY of
 # xvfb-run) for shell-smoke.mjs, which drives xdotool.
-if [[ "$CLOSE" == "1" || "$SAVE_AS" == "1" ]]; then
+if [[ "$CLOSE" == "1" || "$SAVE_AS" == "1" || "$ENGINE_KEYS" == "1" ]]; then
   export MFBE_SMOKE_DISPLAY_FILE="$TMP/display.env"
   cat >"$TMP/launch.sh" <<SH
 #!/bin/bash
@@ -653,6 +711,68 @@ start_shell
 # --- Playwright over CDP ----------------------------------------------------------------------
 node "$ROOT/tools/shell-smoke.mjs" "$CDP_PORT"
 check_spellcheck_engine
+
+if [[ "$ENGINE_KEYS" == "1" ]]; then
+  # --- the developer tools outside a developer run (feature 007, FR-006) ----------------------
+  # A shell started without --remote-debugging-port, from a build without MFBE_SHELL_DEVTOOLS:
+  # F12 and Ctrl+Shift+I/J/C must open no window. No CDP here: the window is found and the keys
+  # are pressed through the X server alone.
+  stop_shell
+  echo "shell-smoke: engine keys: $NONDEV_BIN without --remote-debugging-port (no developer run)"
+  rm -f "$MFBE_SMOKE_DISPLAY_FILE"
+  # The wrapper's own $1, $2 and $DISPLAY expand inside it, hence the single quotes.
+  # shellcheck disable=SC2016
+  HOME="$TMP/home" XDG_CONFIG_HOME="$TMP/home/.config" XDG_DATA_HOME="$TMP/home/.local/share" \
+  XDG_STATE_HOME="$TMP/home/.local/state" \
+  setsid xvfb-run -a -s "-screen 0 1280x800x24" bash -c '
+    openbox >"$1/wm-nondev.log" 2>&1 &
+    sleep 0.5
+    printf "DISPLAY=%s\nXAUTHORITY=%s\n" "$DISPLAY" "${XAUTHORITY:-}" >"$2"
+    shift 2
+    exec "$@"' smoke-nondev "$TMP" "$MFBE_SMOKE_DISPLAY_FILE" \
+    "$NONDEV_BIN" "${SANDBOX_ARGS[@]}" "${FILE_ARGS[@]}" >>"$TMP/mfbe-nondev.log" 2>&1 &
+  APP_PID=$!
+  for _ in $(seq 1 120); do
+    [[ -s "$MFBE_SMOKE_DISPLAY_FILE" ]] && break
+    sleep 0.25
+  done
+  NONDEV_DISPLAY=$(grep '^DISPLAY=' "$MFBE_SMOKE_DISPLAY_FILE" | cut -d= -f2-)
+  NONDEV_XAUTH=$(grep '^XAUTHORITY=' "$MFBE_SMOKE_DISPLAY_FILE" | cut -d= -f2-)
+  nondev_x() { DISPLAY="$NONDEV_DISPLAY" XAUTHORITY="$NONDEV_XAUTH" "$@"; }
+  window=""
+  for _ in $(seq 1 $((TIMEOUT_S * 2))); do
+    window=$(nondev_x xdotool search --onlyvisible --name "$(basename "$MFBE_SMOKE_OPEN_FILE")" 2>/dev/null | head -n1 || true)
+    [[ -n "$window" ]] && break
+    if ! kill -0 "$APP_PID" 2>/dev/null; then
+      echo "shell-smoke: the shell without a debugging port exited before its window came up" >&2
+      tail -n 30 "$TMP/mfbe-nondev.log" >&2 || true
+      exit 1
+    fi
+    sleep 0.5
+  done
+  if [[ -z "$window" ]]; then
+    echo "shell-smoke: no window showing $(basename "$MFBE_SMOKE_OPEN_FILE") after ${TIMEOUT_S}s (no developer run)" >&2
+    exit 1
+  fi
+  sleep 2  # the page settles before the keys
+  before=$(nondev_x xdotool search --onlyvisible --name . 2>/dev/null | sort | tr '\n' ' ')
+  for chord in F12 ctrl+shift+i ctrl+shift+j ctrl+shift+c; do
+    nondev_x xdotool windowactivate --sync "$window" >/dev/null 2>&1 || true
+    nondev_x xdotool key --clearmodifiers "$chord"
+    sleep 1.5
+    after=$(nondev_x xdotool search --onlyvisible --name . 2>/dev/null | sort | tr '\n' ' ')
+    names=""
+    for id in $after; do
+      names+="$(nondev_x xdotool getwindowname "$id" 2>/dev/null || true); "
+    done
+    if [[ "$after" != "$before" || "$names" == *DevTools* ]]; then
+      echo "shell-smoke: $chord opened a window outside a developer run: $names" >&2
+      exit 1
+    fi
+    echo "shell-smoke: engine keys: $chord outside a developer run - no window (${names%; })"
+  done
+  stop_shell
+fi
 
 if [[ "$CLOSE" == "1" ]]; then
   # The scenario ended with the editor closing itself (No in the save prompt): the shell - and

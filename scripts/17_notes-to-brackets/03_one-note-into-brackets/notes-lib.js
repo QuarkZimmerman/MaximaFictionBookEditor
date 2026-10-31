@@ -1,6 +1,6 @@
 // Shared engine of the three "Перенос примечаний в скобки" scripts (17_Перенос примечаний в
-// скобки, FictionBook Editor 2.7, Tier 2). Each package folder carries its own copy (the sandbox
-// loads modules from the script's folder only).
+// скобки, FictionBook Editor 2.7, brought up to 2.7.9, Tier 2). Each package folder carries its
+// own copy (the sandbox loads modules from the script's folder only).
 //
 // The originals replaced a footnote reference (a link into a `notes` / `comments` body) with the
 // text of the note itself in square ([…]) or curly ({…}) brackets: the note's paragraphs joined
@@ -192,7 +192,7 @@ export async function unify(ctx, kind) {
   if (sections.some((s) => (s.content ?? []).some((n) => n.type === 'section'))) {
     await mfbe.ui.message(
       t(ctx,
-        `В body ${kind} есть секции второго уровня вложения. Такие файлы не обрабатываются данным скриптом. Работа скрипта завершена.`,
+        `В body ${kind} есть разделы второго уровня вложения. Такие файлы не обрабатываются данным скриптом. Работа скрипта завершена.`,
         `The "${kind}" body contains nested sections. Such files are not processed by this script; the script has finished.`),
       { icon: 'warning' },
     );

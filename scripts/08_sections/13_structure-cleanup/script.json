@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "08/structure-cleanup",
+  "name": {
+    "ru": "Почистить структуру",
+    "en": "Clean up the structure",
+    "uk": "Почистити структуру"
+  },
+  "description": {
+    "ru": "Чистит структуру всей книги: лишние и пустые строки, разделы и контейнеры, подзаголовки из символов, иллюстрации в пустых абзацах и рядом с подразделами, форматирование сносок и комментариев",
+    "en": "Cleans up the structure of the whole book: superfluous and empty lines, sections and containers, subtitles made of symbols, pictures in empty paragraphs and before subsections, the formatting of note and comment links",
+    "uk": "Чистить структуру всієї книги: зайві й порожні рядки, розділи та контейнери, підзаголовки із символів, ілюстрації в порожніх абзацах і перед підрозділами, форматування приміток і коментарів"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Почистить структуру",
+    "en": "Clean up the structure"
+  },
+  "legacy": {
+    "source": "08_Структура разделов/13_Почистить структуру.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.12"
+  }
+}

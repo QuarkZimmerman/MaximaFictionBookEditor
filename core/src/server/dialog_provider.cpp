@@ -360,6 +360,11 @@ std::vector<std::string> QueuedDialogProvider::opened_paths() const {
     return opened_paths_;
 }
 
+std::vector<std::string> QueuedDialogProvider::opened_urls() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return opened_urls_;
+}
+
 std::vector<json> QueuedDialogProvider::dialog_requests() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return requests_;
@@ -455,6 +460,12 @@ void QueuedDialogProvider::message(const MessageRequest&, Callback<MessageResult
 bool QueuedDialogProvider::open_path(const std::string& path) {
     std::lock_guard<std::mutex> lock(mutex_);
     opened_paths_.push_back(path);
+    return true;
+}
+
+bool QueuedDialogProvider::open_url(const std::string& url) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    opened_urls_.push_back(url);
     return true;
 }
 

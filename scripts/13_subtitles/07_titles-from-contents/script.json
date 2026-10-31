@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "13/titles-from-contents",
+  "name": {
+    "ru": "Разметить заголовки разделов согласно оглавлению документа",
+    "en": "Mark up section titles from the document's table of contents",
+    "uk": "Розмітити заголовки розділів згідно зі змістом документа"
+  },
+  "description": {
+    "ru": "Превращает абзацы и подзаголовки, совпадающие со строками выделенного оглавления книги, в заголовки новых разделов; оглавление можно очистить от номеров страниц и отточий.",
+    "en": "Turns the paragraphs and subtitles that match the lines of the selected table of contents into titles of new sections; the contents can be cleaned of page numbers and dot leaders first.",
+    "uk": "Перетворює абзаци та підзаголовки, що збігаються з рядками виділеного змісту книги, на заголовки нових розділів; зміст можна очистити від номерів сторінок і крапок-заповнювачів."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": true,
+  "undoLabel": {
+    "ru": "Разметить заголовки разделов согласно оглавлению документа",
+    "en": "Mark up section titles from the document's table of contents"
+  },
+  "legacy": {
+    "source": "13_Заголовки, подзаголовки, пустые строки/07_Разметить заголовки разделов согласно оглавлению документа....js",
+    "fbeVersion": "2.7.9"
+  }
+}

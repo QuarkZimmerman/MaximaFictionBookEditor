@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "03/add-last-comment",
+  "name": {
+    "ru": "Добавить последний комментарий, остаться на его ссылке",
+    "en": "Add the last comment and stay at its reference",
+    "uk": "Додати останній коментар, залишитися на його посиланні"
+  },
+  "description": {
+    "ru": "Вставляет в позиции курсора (после всех прочих ссылок на комментарии) ссылку на новый комментарий и добавляет его раздел в конец body комментариев без перенумерации; курсор остается у ссылки",
+    "en": "Inserts a link to a new comment at the caret (which must follow every other comment link) and appends its section to the comments body without renumbering; the caret stays at the link",
+    "uk": "Вставляє в позиції курсора (після всіх інших посилань на коментарі) посилання на новий коментар і додає його розділ у кінець body коментарів без перенумерації; курсор залишається біля посилання"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Добавить последний комментарий, остаться на его ссылке",
+    "en": "Add the last comment and stay at its reference"
+  },
+  "legacy": {
+    "source": "03_Комментарии/04_Добавить последний комментарий, остаться на его ссылке.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "2.8"
+  }
+}

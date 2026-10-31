@@ -20,10 +20,10 @@ import type { EditorView, NodeView } from 'prosemirror-view';
 import {
   binaryLookup,
   createImageNodeViews,
-  previewSize,
   type ImageViewOptions,
 } from '@/editor/nodeviews/image';
 import { fb2Schema } from '@/editor/schema';
+import { forgetBinaries, observeBinaries, previewSize } from '@/model/binaryUrls';
 import type { BinaryMeta } from '@/model/document';
 
 function meta(id: string, width?: number, height?: number, decodable = true): BinaryMeta {
@@ -185,11 +185,49 @@ describe('the image node view reserves a picture’s box until its preview loads
 /* The display rules' scope (research R9.1)                                 */
 /* ------------------------------------------------------------------------ */
 
-describe('the display rules of pictures in cells (ui/src/editor/styles.css)', () => {
-  const css = readFileSync(
-    path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../src/editor/styles.css'),
-    'utf8',
-  ).replace(/\/\*[\s\S]*?\*\//g, '');
+describe('the image node view follows the binary list - no refresh command (feature 007)', () => {
+  it('shows a dangling picture once its binary is added, and listens no more once destroyed', () => {
+    let list: BinaryMeta[] = [];
+    const listeners = new Set<() => void>();
+    observeBinaries('d1', list);
+    const view = viewOf(inlineImage('#photo.png'), {
+      getBinary: binaryLookup(() => list),
+      onBinariesChange: (listener) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    });
+    const before = imgOf(view).getAttribute('src');
+    expect(before).not.toContain('r=');
+    imgOf(view).dispatchEvent(new Event('error'));
+    expect(view.dom.classList.contains('fb-image-missing')).toBe(true);
+
+    // The binary arrives: the store records it, the editor tells its picture views.
+    list = [meta('photo.png', 40, 30)];
+    observeBinaries('d1', list);
+    for (const listener of [...listeners]) listener();
+    const after = imgOf(view).getAttribute('src');
+    expect(after).toContain('r=1');
+    expect(after).not.toBe(before);
+    expect(properties(imgOf(view))).toEqual(['40', '30']);
+    loadAs(imgOf(view), 40, 30);
+    expect(view.dom.classList.contains('fb-image-missing')).toBe(false);
+
+    view.destroy!();
+    expect(listeners.size).toBe(0);
+    forgetBinaries(null);
+  });
+});
+
+describe('the display rules of pictures (ui/src/editor/pictures.css, styles.css)', () => {
+  const read = (name: string) =>
+    readFileSync(
+      path.resolve(path.dirname(fileURLToPath(import.meta.url)), `../../../src/editor/${name}`),
+      'utf8',
+    ).replace(/\/\*[\s\S]*?\*\//g, '');
+  const styles = read('styles.css');
+  const pictures = read('pictures.css');
+  const css = `${pictures}\n${styles}`;
   const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({
     selectors: m[1]!
       .split(',')
@@ -197,24 +235,50 @@ describe('the display rules of pictures in cells (ui/src/editor/styles.css)', ()
       .filter(Boolean),
     body: m[2]!,
   }));
+  const ruleFor = (selector: string) => rules.find(({ selectors }) => selectors.includes(selector));
+
+  it('keeps every picture rule in pictures.css, imported by styles.css (feature 007, DP-4)', () => {
+    expect(styles).toMatch(/@import '\.\/pictures\.css';/);
+    expect(styles).not.toMatch(/fb-image|fb-inline-image|fb-sized|--mfbe-nw/);
+  });
 
   it('scopes every rule of the cell display to .fb-editor .fb-table', () => {
-    const cellRules = rules.filter(
-      ({ selectors, body }) =>
-        /--mfbe-nw|--mfbe-body-line-height\)\s*\*\s*10|fb-sized/.test(body) ||
-        selectors.some((s) => s.includes('fb-sized')),
-    );
+    // The cell display is the one that uses the cell's height cap or floor.
+    const cellRules = rules.filter(({ body }) => /var\(--mfbe-pic-cell-(lines|floor)\)/.test(body));
     expect(cellRules.length).toBeGreaterThanOrEqual(3);
     for (const { selectors } of cellRules) {
       for (const selector of selectors) expect(selector).toContain('.fb-editor .fb-table');
     }
+    // The constants are defined once, on the editor.
+    expect(ruleFor('.fb-editor')?.body).toMatch(/--mfbe-pic-cell-floor:\s*1\.6em/);
+    expect(ruleFor('.fb-editor')?.body).toMatch(/--mfbe-pic-cell-lines:\s*10/);
+    // Cells keep their own alignment: centred picture, box hanging from the top of its line.
+    expect(ruleFor('.fb-editor .fb-table .fb-inline-image img')?.body).toMatch(
+      /vertical-align:\s*middle/,
+    );
+    expect(ruleFor('.fb-editor .fb-table .fb-inline-image')?.body).toMatch(/vertical-align:\s*top/);
   });
 
-  it('keeps the 1.6em cap of inline pictures outside cells (FR-031, last sentence)', () => {
-    const outside = rules.find(({ selectors }) =>
-      selectors.includes('.fb-editor .fb-inline-image img'),
-    );
-    expect(outside?.body).toMatch(/max-height:\s*1\.6em/);
+  it('gives inline pictures outside cells their natural size: no height cap (FR-060)', () => {
+    for (const selector of ['.fb-editor .fb-inline-image img', '.fb-editor .fb-inline-image']) {
+      const rule = ruleFor(selector);
+      expect(rule?.body).toMatch(/max-width:\s*100%/);
+      expect(rule?.body).not.toMatch(/max-height/);
+      expect(rule?.body).toMatch(/vertical-align:\s*baseline/);
+    }
+    expect(ruleFor('.fb-editor .fb-inline-image')?.body).toMatch(/text-indent:\s*0/);
+    expect(ruleFor('.fb-editor .fb-starts-with-picture')?.body).toMatch(/text-indent:\s*0/);
+  });
+
+  it('reserves the natural box of block and inline pictures until their preview loads', () => {
+    for (const selector of [
+      '.fb-editor .fb-image img.fb-sized',
+      '.fb-editor .fb-inline-image img.fb-sized',
+    ]) {
+      const body = ruleFor(selector)?.body ?? '';
+      expect(body).toMatch(/width:\s*calc\(var\(--mfbe-nw\) \* 1px\)/);
+      expect(body).toMatch(/aspect-ratio:\s*var\(--mfbe-nw\) \/ var\(--mfbe-nh\)/);
+    }
   });
 
   it('uses only long-standing CSS: no :has(), container queries or calc-size()', () => {

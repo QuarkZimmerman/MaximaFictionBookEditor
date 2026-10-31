@@ -2,23 +2,26 @@
   "manifestVersion": 1,
   "id": "05/unify-binaries",
   "name": {
-    "en": "Unify binary objects and illustrations",
-    "ru": "Унификация вложений и иллюстраций"
+    "ru": "Унифицировать иллюстрации и вложения",
+    "en": "Unify the illustrations and binary objects",
+    "uk": "Уніфікувати ілюстрації та вкладення"
   },
   "description": {
-    "en": "Gives binary objects uniform ids (cover.*, i_001.*, unused_*, nonjpegpng_*) and updates the images; reports the plan where the API cannot rename binaries",
-    "ru": "Приводит id вложений к единому виду (cover.*, i_001.*, unused_*, nonjpegpng_*) и обновляет картинки; сообщает план, если API не может переименовать вложения"
+    "ru": "Составляет единые имена вложений (cover.*, cover_src.*, i_001.*, unused_*, nonjpegpng_*) и сообщает их; применяет то, что позволяет интерфейс скриптов: адреса #nobin_ картинок без вложения и обложку из вложения cover.*, если обложки нет",
+    "en": "Works out uniform ids for the binary objects (cover.*, cover_src.*, i_001.*, unused_*, nonjpegpng_*) and reports them; applies what the script interface allows: the addresses #nobin_ of the pictures without a binary and a cover from a binary named cover.* where none is set",
+    "uk": "Складає однакові імена вкладень (cover.*, cover_src.*, i_001.*, unused_*, nonjpegpng_*) і повідомляє їх; застосовує те, що дозволяє інтерфейс скриптів: адреси #nobin_ малюнків без вкладення та обкладинку з вкладення cover.*, якщо обкладинку не задано"
   },
   "kind": "menu",
   "entry": "index.js",
   "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Unify binary objects and illustrations",
-    "ru": "Унификация вложений и иллюстраций"
+    "ru": "Унифицировать иллюстрации и вложения",
+    "en": "Unify the illustrations and binary objects"
   },
   "legacy": {
-    "source": "05_Иллюстрации/02_Унификация вложений и иллюстраций.js",
-    "fbeVersion": "2.7"
+    "source": "05_Иллюстрации/02_Унифицировать иллюстрации и вложения.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.6"
   }
 }

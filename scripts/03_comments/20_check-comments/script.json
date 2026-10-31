@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "03/check-comments",
+  "name": {
+    "ru": "Проверить корректность оформления комментариев",
+    "en": "Check how the comments are marked up",
+    "uk": "Перевірити правильність оформлення коментарів"
+  },
+  "description": {
+    "ru": "Проверяет комментарии книги: у каждого раздела комментариев есть id, каждая ссылка ведет на раздел комментариев, ссылки идут по порядку разделов, на каждый раздел ровно одна ссылка; о первой ошибке сообщает и ставит на нее курсор",
+    "en": "Checks the comments of the book: every comment section has an id, every link points to a comment section, the links follow the order of the sections, each section has exactly one link; reports the first problem and puts the caret on it",
+    "uk": "Перевіряє коментарі книги: кожен розділ коментарів має id, кожне посилання веде на розділ коментарів, посилання йдуть за порядком розділів, на кожен розділ рівно одне посилання; повідомляє про першу помилку й ставить на неї курсор"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Проверить корректность оформления комментариев",
+    "en": "Check how the comments are marked up"
+  },
+  "legacy": {
+    "source": "03_Комментарии/20_Проверить корректность оформления комментариев.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.4"
+  }
+}

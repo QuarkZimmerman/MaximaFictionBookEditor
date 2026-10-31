@@ -1,0 +1,16 @@
+{
+  "manifestVersion": 1,
+  "id": "test.279.chain-runner",
+  "name": {
+    "ru": "Цепочка скриптов (тест)",
+    "en": "Script chain (test)",
+    "uk": "Ланцюжок скриптів (тест)"
+  },
+  "description": {
+    "ru": "Тестовый пакет набора снимков: запускает скрипты по очереди и показывает, что каждый вернул и какое выделение оставил.",
+    "en": "Test package of the snapshot suite: runs scripts one after another and reports what each returned and the selection it left.",
+    "uk": "Тестовий пакет набору знімків: запускає скрипти по черзі й показує, що кожен повернув і яке виділення залишив."
+  },
+  "kind": "menu",
+  "entry": "index.js"
+}

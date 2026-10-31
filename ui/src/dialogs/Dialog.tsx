@@ -4,8 +4,9 @@
  * cycling, `&` button accelerators and stable testids. Every dialog moves by its title bar
  * (mouse, pen and touch through Pointer Events; feature 005 FR-107) and keeps the place while
  * it is open, inside the window. A `modeless` dialog (the original's Find and Replace) has no
- * backdrop and no focus trap and opens where the last modeless dialog was closed. No
- * user-visible literals here.
+ * backdrop and no focus trap and opens where the last modeless dialog was closed.
+ * `ViewerFrame` is the frame of the `viewer` kind (feature 007, the picture view): the whole
+ * window, with the same focus guard, Tab cycling and Escape. No user-visible literals here.
  */
 
 import {
@@ -52,7 +53,7 @@ export function DialogHost({ service }: { service: DialogService }) {
           {modal.map((dialog, index) => (
             <div
               key={dialog.id}
-              className="mfbe-dialog-backdrop"
+              className={`mfbe-dialog-backdrop${dialog.kind === 'viewer' ? ' mfbe-dialog-backdrop-viewer' : ''}`}
               inert={index < modal.length - 1 ? true : undefined}
               data-testid={`dialog-backdrop-${index}`}
             >
@@ -201,6 +202,42 @@ function focusableElements(root: HTMLElement): HTMLElement[] {
   );
 }
 
+/**
+ * Keeps the focus inside the top-most modal layer `root` (clicks outside land on its
+ * backdrop); a layer covered by another one is `inert` and does not compete for the focus.
+ * Returns the function that stops the guard.
+ */
+function guardFocus(root: HTMLElement): () => void {
+  const onFocusIn = (event: FocusEvent) => {
+    if (!root.isConnected || root.closest('[inert]')) return;
+    if (root.contains(event.target as Node)) return;
+    const first = focusableElements(root)[0];
+    (first ?? root).focus();
+  };
+  document.addEventListener('focusin', onFocusIn);
+  return () => document.removeEventListener('focusin', onFocusIn);
+}
+
+/** Tab and Shift+Tab wrap around the controls of `root`. */
+function cycleFocus(event: ReactKeyboardEvent<HTMLElement>, root: HTMLElement): void {
+  const focusable = focusableElements(root);
+  if (focusable.length === 0) {
+    event.preventDefault();
+    return;
+  }
+  const first = focusable[0]!;
+  const last = focusable[focusable.length - 1]!;
+  const active = document.activeElement;
+  if (event.shiftKey && (active === first || active === root)) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && active === last) {
+    event.preventDefault();
+    first.focus();
+  }
+  event.stopPropagation();
+}
+
 function isEditable(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   if (target instanceof HTMLTextAreaElement) return true;
@@ -251,18 +288,10 @@ export function Dialog({
     if (!target) target = focusableElements(root)[0] ?? null;
     (target ?? root).focus();
 
-    // Keep focus inside the top-most modal dialog (clicks outside land on the backdrop).
-    // Dialogs covered by another one are `inert` and must not compete for the focus.
-    const onFocusIn = (event: FocusEvent) => {
-      if (!root.isConnected || root.closest('[inert]')) return;
-      if (root.contains(event.target as Node)) return;
-      const first = focusableElements(root)[0];
-      (first ?? root).focus();
-    };
-    if (!modeless) document.addEventListener('focusin', onFocusIn);
+    const stopGuard = modeless ? null : guardFocus(root);
 
     return () => {
-      document.removeEventListener('focusin', onFocusIn);
+      stopGuard?.();
       const active = document.activeElement;
       if (modeless && !position) {
         const box = root.getBoundingClientRect();
@@ -307,22 +336,7 @@ export function Dialog({
       }
 
       if (event.key === 'Tab') {
-        const focusable = focusableElements(root);
-        if (focusable.length === 0) {
-          event.preventDefault();
-          return;
-        }
-        const first = focusable[0]!;
-        const last = focusable[focusable.length - 1]!;
-        const active = document.activeElement;
-        if (event.shiftKey && (active === first || active === root)) {
-          event.preventDefault();
-          last.focus();
-        } else if (!event.shiftKey && active === last) {
-          event.preventDefault();
-          first.focus();
-        }
-        event.stopPropagation();
+        cycleFocus(event, root);
         return;
       }
 
@@ -480,5 +494,86 @@ function AcceleratorButton({
         text
       )}
     </button>
+  );
+}
+
+/* ------------------------------------------------------------------------ */
+/* Viewer                                                                   */
+/* ------------------------------------------------------------------------ */
+
+export interface ViewerFrameProps {
+  /** The accessible name of the layer (the picture's id for the picture view). */
+  label: string;
+  /** Escape; the content closes it through its own controls too. */
+  onClose: () => void;
+  children?: ReactNode;
+  /** CSS selector of the element to focus first; the first control otherwise. */
+  initialFocus?: string;
+  testId?: string;
+  className?: string;
+}
+
+/**
+ * The frame of a `viewer` (open it with `{ kind: 'viewer' }`): it fills the window - the host
+ * gives it a backdrop of its own, with no 640 px cap - keeps the focus inside, cycles Tab,
+ * closes on Escape and gives the focus back where it was. The content draws everything else.
+ */
+export function ViewerFrame({
+  label,
+  onClose,
+  children,
+  initialFocus,
+  testId = 'viewer',
+  className,
+}: ViewerFrameProps) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
+  useLayoutEffect(() => {
+    const previous = document.activeElement;
+    const root = rootRef.current;
+    if (!root) return;
+    const target =
+      (initialFocus ? root.querySelector<HTMLElement>(initialFocus) : null) ??
+      focusableElements(root)[0] ??
+      root;
+    target.focus();
+    const stopGuard = guardFocus(root);
+    return () => {
+      stopGuard();
+      if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
+    };
+    // Only on mount, as for a dialog.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const onKeyDown = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
+    const root = rootRef.current;
+    if (!root) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      onCloseRef.current();
+    } else if (event.key === 'Tab') {
+      cycleFocus(event, root);
+    }
+  }, []);
+
+  return (
+    <div
+      ref={rootRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label={label}
+      tabIndex={-1}
+      className={`mfbe-viewer${className ? ` ${className}` : ''}`}
+      data-testid={testId}
+      onKeyDown={onKeyDown}
+    >
+      {children}
+    </div>
   );
 }

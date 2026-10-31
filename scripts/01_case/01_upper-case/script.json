@@ -2,23 +2,28 @@
   "manifestVersion": 1,
   "id": "01/upper-case",
   "name": {
-    "en": "Upper case",
-    "ru": "Верхний регистр"
+    "en": "To upper case",
+    "ru": "В верхний регистр",
+    "uk": "У верхній регістр"
   },
   "description": {
     "en": "Converts the selected text (or the word under the caret) to upper case, keeping the formatting",
-    "ru": "Переводит выделенный текст (или слово под курсором) в верхний регистр, сохраняя форматирование"
+    "ru": "Переводит выделенный текст (или слово под курсором) в верхний регистр, сохраняя форматирование",
+    "uk": "Переводить виділений текст (або слово під курсором) у верхній регістр, зберігаючи форматування"
   },
   "kind": "menu",
   "entry": "index.js",
   "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Upper case",
-    "ru": "Верхний регистр"
+    "en": "To upper case",
+    "ru": "В верхний регистр"
   },
   "legacy": {
     "source": "01_Регистр/01_Верхний регистр.js",
-    "fbeVersion": "2.7"
+    "fbeVersion": "2.7",
+    "aliases": [
+      "01_Регистр/01_В верхний регистр.js"
+    ]
   }
 }

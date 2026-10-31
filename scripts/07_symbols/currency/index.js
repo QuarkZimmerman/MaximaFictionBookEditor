@@ -1,44 +1,67 @@
-// Converted from 07_Символы/Валюта.js (FictionBook Editor): the modeless symbol table
-// "Валюта" became a form with a list of the same symbols. The original appended the clicked
-// symbol after the current selection; here the chosen symbol is inserted at the end of the
-// selection (the selected text and its formatting are kept), one symbol per run.
-// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+// Converted from FictionBook Editor 2.7.9: Scripts/07_Символы/04_Валюты.js (2.7beta1's
+// Scripts/07_Символы/Валюта.js before feature 007). The table of currency signs (£ ¢ € ¥ ₢ ₣ ₤ ₧ ₨
+// ₩ ₪ ₫ ₠ ₡ ₥ ₦ ¤). The original opened it as a modeless HTML dialog (HTML/Валюты.html): a click on
+// a cell put the symbol in place of the selection of the Body view and the caret after it, and the
+// dialog stayed open for the next click; 2.7beta1's dialog (валюты.htm) kept the selected text and
+// added the symbol after it. Here the table is a list in a form (modal, one symbol per run, the run
+// one undo step as each click was): the chosen symbol replaces the selection, a caret gets it
+// inserted, and the caret goes after it; with the caret outside the book text the script says so
+// (the original did nothing).
+// The original's notice, kept as written (FR-029):
 //Таблица символов валют
 //                                jurgennt™, май 2008 г.
-//                          script engene by Sclex v.1.2
+//                          script engene by Sclex v.1.3
+
 import { SYMBOLS } from './symbols.js';
 
+/** Russian in the Russian interface, English otherwise (FR-026 of feature 007). */
+function t(ctx, ru, en) {
+  return ctx.uiLanguage === 'ru' ? ru : en;
+}
+
+/** The start of a selection in document order (its caret when it is collapsed). */
+function startOf(selection) {
+  const { anchor, head, nodes } = selection;
+  if (anchor.nodeId === head.nodeId) return anchor.offset <= head.offset ? anchor : head;
+  return nodes.length && nodes[0].nodeId === head.nodeId ? head : anchor;
+}
+
 export default async function run(ctx) {
-  const ru = ctx.uiLanguage === 'ru';
   const options = SYMBOLS.map(([symbol, title]) => ({
     value: symbol,
     // U+0301 (combining acute) is shown on a dotted circle so the row is not blank.
     label: `${symbol === '\u0301' ? '\u25CC\u0301' : symbol}${title ? `  \u2014  ${title}` : ''}`,
   }));
   const values = await mfbe.ui.form({
-    title: ru ? 'Валюта' : 'Currency',
+    title: t(ctx, 'Валюта', 'Currency'),
     width: 360,
     fields: [
-      { kind: 'list', id: 'symbol', label: ru ? 'Символ' : 'Symbol', options, value: [options[0].value] },
+      { kind: 'list', id: 'symbol', label: t(ctx, 'Символ', 'Symbol'), options, value: [options[0].value] },
     ],
-    okLabel: ru ? 'Вставить' : 'Insert',
+    okLabel: t(ctx, 'Вставить', 'Insert'),
   });
   if (!values) return;
   const chosen = Array.isArray(values.symbol) ? values.symbol[0] : values.symbol;
   if (!chosen) return;
 
+  const notInText = () =>
+    mfbe.ui.message(t(ctx, 'Курсор должен находиться в тексте книги.', 'Place the caret in the book text first.'), {
+      icon: 'warning',
+    });
   const selection = await mfbe.selection.get();
   if (!selection) {
-    await mfbe.ui.message(ru ? 'Курсор должен находиться в тексте книги.' : 'Place the caret in the book text first.', { icon: 'warning' });
+    await notInText();
     return;
   }
-  // Collapse to the end of the selection so the selected text (with its marks) survives,
-  // exactly like the legacy `pasteHTML(range.htmlText + symbol)`.
-  const { anchor, head, nodes } = selection;
-  let end = head;
-  if (anchor.nodeId === head.nodeId) end = anchor.offset > head.offset ? anchor : head;
-  else if (nodes.length && nodes[nodes.length - 1].nodeId === anchor.nodeId) end = anchor;
-  await mfbe.selection.set(end);
-  await mfbe.selection.replaceText(chosen);
-  await mfbe.selection.set({ nodeId: end.nodeId, offset: end.offset + chosen.length });
+  // rng.pasteHTML(symbol) of the 2.7.9 dialog: the symbol takes the place of the selection
+  // (2.7beta1 pasted rng.htmlText + symbol, keeping it), then the caret goes after the symbol.
+  const start = startOf(selection);
+  try {
+    await mfbe.selection.replaceText(chosen);
+  } catch (error) {
+    if (!error || error.name !== 'ScriptApiError') throw error;
+    await notInText();
+    return;
+  }
+  await mfbe.selection.set({ nodeId: start.nodeId, offset: start.offset + chosen.length });
 }

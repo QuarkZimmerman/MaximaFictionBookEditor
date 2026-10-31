@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "21/find-clipboard-text",
+  "name": {
+    "ru": "Поиск текста из буфера обмена",
+    "en": "Find the text from the clipboard",
+    "uk": "Пошук тексту з буфера обміну"
+  },
+  "description": {
+    "ru": "Выделяет следующее после курсора вхождение текста из буфера обмена (одна строка; ряд пробелов совпадает с любым рядом пробелов), а если до конца книги его нет, предлагает перейти в начало.",
+    "en": "Selects the next occurrence after the caret of the text on the clipboard (one line; a run of spaces matches any run of spaces) and, when there is none up to the end of the book, offers to go to its start.",
+    "uk": "Виділяє наступне після курсору входження тексту з буфера обміну (один рядок; ряд пробілів збігається з будь-яким рядом пробілів), а якщо до кінця книги його немає, пропонує перейти на початок."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Поиск текста из буфера обмена",
+    "en": "Find the text from the clipboard"
+  },
+  "legacy": {
+    "source": "21_Поиск и замена/75_Поиск текста из буфера обмена.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
+  }
+}

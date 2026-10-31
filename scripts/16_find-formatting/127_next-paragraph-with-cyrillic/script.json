@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-paragraph-with-cyrillic",
+  "name": {
+    "ru": "Выделить следующий абзац с кириллицей",
+    "en": "Select next paragraph with Cyrillic",
+    "uk": "Виділити наступний абзац із кирилицею"
+  },
+  "description": {
+    "ru": "Выделяет следующий абзац, в котором есть буквы кириллицы (русского алфавита)",
+    "en": "Selects the next paragraph that contains Cyrillic letters (of the Russian alphabet)",
+    "uk": "Виділяє наступний абзац, у якому є літери кирилиці (російської абетки)"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить следующий абзац с кириллицей",
+    "en": "Select next paragraph with Cyrillic"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/127_Выделить следующий абзац с кириллицей.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "5.1"
+  }
+}

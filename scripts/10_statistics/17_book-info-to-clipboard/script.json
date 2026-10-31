@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "10/book-info-to-clipboard",
+  "name": {
+    "ru": "Информацию о книге - в буфер обмена",
+    "en": "Book information to the clipboard",
+    "uk": "Інформацію про книгу - у буфер обміну"
+  },
+  "description": {
+    "ru": "Собирает основные сведения о книге (авторы, название, серия, аннотация, жанры, перевод, печатное издание, оглавление…) и по согласию отправляет их текстом в буфер обмена.",
+    "en": "Gathers the main facts about the book (authors, title, series, annotation, genres, translation, print edition, contents…) and, when asked to, sends them to the clipboard as text.",
+    "uk": "Збирає основні відомості про книгу (автори, назва, серія, анотація, жанри, переклад, друковане видання, зміст…) і за згодою надсилає їх текстом до буфера обміну."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Информацию о книге - в буфер обмена",
+    "en": "Book information to the clipboard"
+  },
+  "legacy": {
+    "source": "10_Статистика/17_Информацию о книге - в буфер обмена.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
+  }
+}

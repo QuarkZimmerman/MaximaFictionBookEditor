@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "05/empty-lines-next-to-images",
+  "name": {
+    "ru": "Пустые строки рядом с иллюстрациями",
+    "en": "Empty lines next to the illustrations",
+    "uk": "Порожні рядки поруч з ілюстраціями"
+  },
+  "description": {
+    "ru": "Чистит пустые строки во всей книге и между иллюстрациями и вероятными подписями к ним добавляет или удаляет пустую строку - по настройкам, по умолчанию с вопросом для каждой; затем повышает версию файла и пишет строку в историю.",
+    "en": "Tidies the empty lines of the whole book and adds or removes the empty line between the illustrations and their probable captions - as set, by default asking for each; then raises the file's version with a line in the history.",
+    "uk": "Чистить порожні рядки в усій книзі й між ілюстраціями та ймовірними підписами до них додає або видаляє порожній рядок - за налаштуваннями, типово з питанням для кожного; потім підвищує версію файлу й пише рядок в історію."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Пустые строки рядом с иллюстрациями",
+    "en": "Empty lines next to the illustrations"
+  },
+  "legacy": {
+    "source": "05_Иллюстрации/13_Пустые строки рядом с иллюстрациями.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "2.1"
+  }
+}

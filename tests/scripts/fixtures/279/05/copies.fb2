@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Иллюстрации</last-name>
+			</author>
+			<book-title>Копии вложений</book-title>
+			<annotation>
+				<p>Аннотация с копией <image l:href="#a-copy.png"/> картинки.</p>
+			</annotation>
+			<coverpage>
+				<image l:href="#cover.jpg"/>
+			</coverpage>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>fixture</program-used>
+			<date value="2026-10-31">2026-10-31</date>
+			<id>fixture-279-05-copies</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Копии вложений</p>
+		</title>
+		<section>
+			<title>
+				<p>Глава 1</p>
+			</title>
+			<image l:href="#a.png"/>
+			<p>Оригинал выше, копия ниже.</p>
+			<image l:href="#a-copy.png" alt="копия" title="Копия"/>
+			<p>Внутри текста <image l:href="#a-copy2.png"/> вторая копия.</p>
+			<image l:href="#b.png"/>
+			<p>Другие картинки.</p>
+			<image l:href="#c.png"/>
+			<image l:href="#d.png"/>
+			<image l:href="#e.png"/>
+			<p>Обложка в тексте и копия картинки jpg.</p>
+			<image l:href="#cover.jpg"/>
+			<image l:href="#picture-copy.jpg"/>
+			<p>Конец.</p>
+		</section>
+	</body>
+	<binary id="cover.jpg" content-type="image/jpeg">/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAAGAAgDAREAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAABf/EACMQAAACCQUAAAAAAAAAAAAAABMWAAQHEhUXITEzIiZUVWH/xAAUAQEAAAAAAAAAAAAAAAAAAAAF/8QAKREAAAALCAMAAAAAAAAAAAAAABESExQVFiExMjMCAwUGIiRSUyVhYv/aAAwDAQACEQMRAD8APO7NpMEwobt7aHq/LEzPC4tFvLVRVmczNsu0zx/ScvOkimI3U1R+pnAYssNUqEZ3HMmzzHMMqV0PUA//2Q==</binary>
+	<binary id="a.png" content-type="image/png">iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAI3RFWHRDb21tZW50AHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eGfmLlMAAAAQSURBVHjaYzihoQFHDMRxANFDEYGg025kAAAAAElFTkSuQmCC</binary>
+	<binary id="a-copy.png" content-type="image/png">iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAI3RFWHRDb21tZW50AHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eGfmLlMAAAAQSURBVHjaYzihoQFHDMRxANFDEYGg025kAAAAAElFTkSuQmCC</binary>
+	<binary id="a-copy2.png" content-type="image/png">iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAI3RFWHRDb21tZW50AHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eGfmLlMAAAAQSURBVHjaYzihoQFHDMRxANFDEYGg025kAAAAAElFTkSuQmCC</binary>
+	<binary id="b.png" content-type="image/png">iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAI3RFWHRDb21tZW50AHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eGfmLlMAAAAQSURBVHjaY9DQOAFHDMRxAL1DEYE4DAixAAAAAElFTkSuQmCC</binary>
+	<binary id="c.png" content-type="image/png">iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAJHRFWHRDb21tZW50AHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh+2fDjAAAAEElEQVR42mPQOKEBRwzEcQDHQxGB0E3yjgAAAABJRU5ErkJggg==</binary>
+	<binary id="d.png" content-type="image/png">iVBORw0KGgoAAAANSUhEUgAAAAYAAAAECAIAAAAiZtkUAAAAInRFWHRDb21tZW50AHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4NA7vxQAAABFJREFUeNpj0DihgYYYyBUCAOX5GkGrVkJKAAAAAElFTkSuQmCC</binary>
+	<binary id="e.png" content-type="image/png">iVBORw0KGgoAAAANSUhEUgAAAAYAAAAGCAIAAABvrngfAAAALnRFWHRDb21tZW50AHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4Yfn03gAAAA9JREFUeNpjiMIADLQVAgB1IiX5Kl+GDAAAAABJRU5ErkJggg==</binary>
+	<binary id="e2.png" content-type="image/png">iVBORw0KGgoAAAANSUhEUgAAAAYAAAAGCAIAAABvrngfAAAALnRFWHRDb21tZW50AHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4Yfn03gAAAA9JREFUeNpjiMIADLQVAgB1IiX5Kl+GDAAAAABJRU5ErkJggg==</binary>
+	<binary id="picture.jpg" content-type="image/jpeg">/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAAGAAgDAREAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAABf/EACMQAAACCQUAAAAAAAAAAAAAABMWAAQHEhUXITEzIiZUVWH/xAAUAQEAAAAAAAAAAAAAAAAAAAAF/8QAKREAAAALCAMAAAAAAAAAAAAAABESExQVFiExMjMCAwUGIiRSUyVhYv/aAAwDAQACEQMRAD8APO7NpMEwobt7aHq/LEzPC4tFvLVRVmczNsu0zx/ScvOkimI3U1R+pnAYssNUqEZ3HMmzzHMMqV0PUA//2Q==</binary>
+	<binary id="picture-copy.jpg" content-type="image/jpeg">/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAAGAAgDAREAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAABf/EACMQAAACCQUAAAAAAAAAAAAAABMWAAQHEhUXITEzIiZUVWH/xAAUAQEAAAAAAAAAAAAAAAAAAAAF/8QAKREAAAALCAMAAAAAAAAAAAAAABESExQVFiExMjMCAwUGIiRSUyVhYv/aAAwDAQACEQMRAD8APO7NpMEwobt7aHq/LEzPC4tFvLVRVmczNsu0zx/ScvOkimI3U1R+pnAYssNUqEZ3HMmzzHMMqV0PUA//2Q==</binary>
+	<binary id="font.ttf" content-type="application/octet-stream">AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+Pw==</binary>
+	<binary id="font2.ttf" content-type="application/octet-stream">AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+Pw==</binary>
+</FictionBook>

@@ -71,7 +71,7 @@ import { RpcErrorCode, type AiOutcome, type ChatRequest, type FragmentNode } fro
 import { plainText } from '@/scripting/api-impl';
 import { getScriptsFeature, type ScriptsFeature } from '@/scripting/catalog';
 import { scriptName, type ScriptHost } from '@/scripting/host';
-import type { ScriptInfo, ScriptSourceResult } from '@/scripting/types';
+import type { ScriptInfo } from '@/scripting/types';
 import type { WorkingCopy } from '@/scripting/workingCopy';
 import {
   getBodyController,
@@ -103,6 +103,8 @@ import {
   type ModelSelection,
   type NestedRunOutcome,
   type ProposalDecision,
+  type RestoreDecision,
+  type RestoreRequest,
   type ScriptFileContent,
   type ScriptsDeps,
   type SelectionHolder,
@@ -149,7 +151,7 @@ import {
   type ScriptProposal,
   type WrittenScript,
 } from './proposal';
-import { showProposal } from './proposal.tsx';
+import { showProposal, showRestoreConfirm } from './proposal.tsx';
 import {
   failureText,
   maskKey,
@@ -1886,28 +1888,53 @@ class RequestRun {
     return feature;
   }
 
-  /** A script of the feature's list as the catalogue lists it (names in the UI language). */
-  private catalogueScript(script: ScriptInfo): CatalogueScript {
+  /**
+   * A script of the feature's list as the catalogue lists it: the name and description in the
+   * UI language, and since feature 007 every language of them, the group's names, the origin,
+   * what it overrides and its legacy source (`list_scripts`, `read_script`).
+   */
+  private catalogueScript(
+    script: ScriptInfo,
+    groupNames?: Record<string, string>,
+  ): CatalogueScript {
     const language = this.store.getState().uiLanguage;
     const description = script.description?.[language] ?? script.description?.en;
     return {
       id: script.id,
       name: scriptName(script, language),
+      names: script.name,
       ...(description ? { description } : {}),
+      descriptions: script.description ?? {},
       kind: script.kind,
       needsSelection: script.needsSelection,
       group: script.group,
+      ...(groupNames ? { groupNames } : {}),
       source: script.source,
+      origin: script.origin,
+      ...(script.overrides ? { overrides: { origin: script.overrides.origin } } : {}),
+      ...(script.legacy ? { legacy: script.legacy } : {}),
       folder: script.dir,
     };
   }
 
-  /** The loader's issues as one line each (`list_scripts.issues`, `reload_scripts.issues`). */
-  private scriptIssues(feature: ScriptsFeature): string[] {
-    return feature.issues.map(
-      (issue) =>
-        `${issue.reason}: ${issue.message}${issue.id ? ` (${issue.id})` : ''}${issue.path ? ` - ${issue.path}` : ''}`,
+  /** Every script of the feature's list as the catalogue lists it, in menu order. */
+  private catalogueScripts(feature: ScriptsFeature): CatalogueScript[] {
+    return feature.groups.flatMap((group) =>
+      group.scripts.map((script) => this.catalogueScript(script, group.names)),
     );
+  }
+
+  /**
+   * The loader's problems as one line each (`reload_scripts.issues`): an `info` issue - a
+   * script another layer's copy replaced (feature 007) - is no problem and stays out.
+   */
+  private scriptIssues(feature: ScriptsFeature): string[] {
+    return feature.issues
+      .filter((issue) => issue.severity !== 'info')
+      .map(
+        (issue) =>
+          `${issue.reason}: ${issue.message}${issue.id ? ` (${issue.id})` : ''}${issue.path ? ` - ${issue.path}` : ''}`,
+      );
   }
 
   /**
@@ -1922,15 +1949,10 @@ class RequestRun {
       list: async () => {
         const feature = this.scriptsFeature();
         if (!feature.loaded) await feature.refresh();
-        return {
-          scripts: feature.all().map((script) => this.catalogueScript(script)),
-          issues: this.scriptIssues(feature),
-        };
+        return { scripts: this.catalogueScripts(feature), issues: this.scriptIssues(feature) };
       },
       files: async (id) => {
-        const source = (await this.rpc.call('scripts.source', {
-          scriptId: id,
-        })) as unknown as ScriptSourceResult;
+        const source = await this.rpc.call('scripts.source', { scriptId: id });
         return { folder: source.dir, entry: source.entry, files: source.files };
       },
       readFile: (id, file) => readScriptFile(id, file),
@@ -1948,10 +1970,12 @@ class RequestRun {
         return dataDir;
       },
       uiLanguage: () => store.getState().uiLanguage,
-      run: (script, treeNode) => this.runNestedScript(session, script, treeNode),
+      run: (script, options) => this.runNestedScript(session, script, options),
       runAllowed: (id) =>
         runAllowed(writtenScripts.get(id), { id: this.id, instructionAt: this.instructionAt }),
       propose: (proposal) => this.proposeScript(session, proposal),
+      backups: async (id) => (await this.rpc.call('scripts.backups.list', { id })).backups,
+      restore: (request) => this.restoreScript(session, request),
     };
   }
 
@@ -1965,8 +1989,9 @@ class RequestRun {
   private async runNestedScript(
     session: RequestSession,
     script: CatalogueScript,
-    treeNode?: { nodeId: string; type: string },
+    options: { treeNode?: { nodeId: string; type: string }; startedBy: 'assistant' },
   ): Promise<NestedRunOutcome> {
+    const { treeNode } = options;
     const { t, store, ctx } = this;
     const feature = this.scriptsFeature();
     const info = feature.find(script.id);
@@ -1995,6 +2020,8 @@ class RequestRun {
           dialogs: ctx.dialogs,
           t,
           uiLanguage: store.getState().uiLanguage,
+          // Feature 007 (FR-082): an assistant's run reads no clipboard.
+          startedBy: options.startedBy,
           ...(treeNode ? { treeNode } : {}),
         },
         { nested: { workingCopy: session.copy, session: session.run } },
@@ -2010,6 +2037,7 @@ class RequestRun {
           return {
             status: 'failed',
             message: result.message ?? result.error?.message ?? 'the script failed',
+            ...(result.error?.code ? { code: result.error.code } : {}),
             durationMs,
           };
         case 'cancelled':
@@ -2043,7 +2071,12 @@ class RequestRun {
       run: session.run,
     });
     if (result.decision === 'decline' || this.cancelled) {
-      this.activity('script.proposed', { id: proposal.scriptId, files, written: false });
+      this.activity('script.proposed', {
+        id: proposal.scriptId,
+        files,
+        written: false,
+        mode: proposal.mode,
+      });
       return { written: false, declined: true };
     }
     const written = await this.rpc.call('scripts.write', {
@@ -2069,6 +2102,8 @@ class RequestRun {
       written: true,
       runRequested,
       path: written.path,
+      mode: proposal.mode,
+      ...(written.backupId ? { backupId: written.backupId } : {}),
     });
     return {
       written: true,
@@ -2076,7 +2111,29 @@ class RequestRun {
       path: written.path,
       warnings: written.warnings,
       runRequested,
+      ...(written.backupId ? { backupId: written.backupId } : {}),
     };
+  }
+
+  /**
+   * `restore_script_backup` after its pre-check (feature 007, FR-084): the confirmation
+   * dialog over the locked document; *Restore* → `scripts.backups.restore`, the feature's list
+   * refreshed (the menu follows `resources.changed` too); *Don't restore* (the button, Escape,
+   * the banner's Cancel) → declined, nothing changed. A restore the core refuses rejects with
+   * its `RpcError` (the catalogue maps it).
+   */
+  private async restoreScript(
+    session: RequestSession,
+    request: RestoreRequest,
+  ): Promise<RestoreDecision> {
+    const confirmed = await showRestoreConfirm(this.ctx, request, { run: session.run });
+    if (!confirmed || this.cancelled) return { restored: false, declined: true };
+    const restored = await this.rpc.call('scripts.backups.restore', {
+      id: request.script.id,
+      backupId: request.backup.backupId,
+    });
+    await this.scriptsFeature().refresh();
+    return { restored: true, ...(restored.backupId ? { backupId: restored.backupId } : {}) };
   }
 
   /**

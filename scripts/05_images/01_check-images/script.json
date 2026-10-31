@@ -2,23 +2,26 @@
   "manifestVersion": 1,
   "id": "05/check-images",
   "name": {
-    "en": "Check illustrations",
-    "ru": "Проверка иллюстраций"
+    "ru": "Проверить иллюстрации",
+    "en": "Check the illustrations",
+    "uk": "Перевірити ілюстрації"
   },
   "description": {
-    "en": "Reports unused binary objects and images whose binary object is missing",
-    "ru": "Сообщает о неиспользуемых бинарных объектах и о картинках без вложения"
+    "ru": "Сообщает о вложениях, которые не использует ни одна картинка и ни одна обложка, и о картинках, вложения которых нет; книгу не меняет",
+    "en": "Reports the binary objects that no picture and no cover uses and the pictures whose binary object is missing; the book is not changed",
+    "uk": "Повідомляє про вкладення, яких не використовує жоден малюнок і жодна обкладинка, і про малюнки, вкладення яких немає; книгу не змінює"
   },
   "kind": "menu",
   "entry": "index.js",
   "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Check illustrations",
-    "ru": "Проверка иллюстраций"
+    "ru": "Проверить иллюстрации",
+    "en": "Check the illustrations"
   },
   "legacy": {
-    "source": "05_Иллюстрации/01_Проверка иллюстраций.js",
-    "fbeVersion": "2.7"
+    "source": "05_Иллюстрации/01_Проверить иллюстрации.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.11"
   }
 }

@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-empty-line",
+  "name": {
+    "ru": "Выделить следующую пустую строку",
+    "en": "Select next empty line",
+    "uk": "Виділити наступний порожній рядок"
+  },
+  "description": {
+    "ru": "Переходит к следующей пустой строке или строке из одних пробелов",
+    "en": "Goes to the next empty line or line of spaces only",
+    "uk": "Переходить до наступного порожнього рядка або рядка з самих пробілів"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить следующую пустую строку",
+    "en": "Select next empty line"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/132_Выделить следующую пустую строку.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "5.3"
+  }
+}

@@ -1,0 +1,434 @@
+[
+  {
+    "snapshot": "05/remove-image-tags.xml",
+    "script": "scripts/05_images/10_remove-image-tags",
+    "book": "tests/scripts/fixtures/279/05/tags.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "05/remove-images-without-binary.xml",
+    "script": "scripts/05_images/16_remove-images-without-binary",
+    "book": "tests/scripts/fixtures/279/05/tags.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "05/previous-block-image.xml",
+    "script": "scripts/05_images/11_previous-block-image",
+    "book": "tests/scripts/fixtures/279/05/navigation.fb2",
+    "args": [
+      "--select",
+      "n16:5:5"
+    ]
+  },
+  {
+    "snapshot": "05/next-block-image.xml",
+    "script": "scripts/05_images/12_next-block-image",
+    "book": "tests/scripts/fixtures/279/05/navigation.fb2",
+    "args": [
+      "--select",
+      "n9:5:5"
+    ]
+  },
+  {
+    "snapshot": "05/previous-inline-image.xml",
+    "script": "scripts/05_images/18_previous-inline-image",
+    "book": "tests/scripts/fixtures/279/05/navigation.fb2",
+    "args": [
+      "--select",
+      "n9:20:20"
+    ]
+  },
+  {
+    "snapshot": "05/next-inline-image.xml",
+    "script": "scripts/05_images/19_next-inline-image",
+    "book": "tests/scripts/fixtures/279/05/navigation.fb2",
+    "args": [
+      "--select",
+      "n9:20:20"
+    ]
+  },
+  {
+    "snapshot": "05/chain-navigation.xml",
+    "script": "tests/scripts/fixtures/279/05/chains/navigation",
+    "book": "tests/scripts/fixtures/279/05/navigation.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "05/save-binaries.xml",
+    "script": "scripts/05_images/04_save-binaries",
+    "book": "tests/scripts/fixtures/279/05/tags.fb2",
+    "args": [
+      "--answer",
+      "yes",
+      "--pick-folder",
+      "pictures"
+    ]
+  },
+  {
+    "snapshot": "05/save-binaries.no.xml",
+    "script": "scripts/05_images/04_save-binaries",
+    "book": "tests/scripts/fixtures/279/05/tags.fb2",
+    "args": [
+      "--answer",
+      "no"
+    ]
+  },
+  {
+    "snapshot": "05/save-binaries.cancel.xml",
+    "script": "scripts/05_images/04_save-binaries",
+    "book": "tests/scripts/fixtures/279/05/tags.fb2",
+    "args": [
+      "--answer",
+      "yes",
+      "--pick-folder",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "05/chain-save-twice.xml",
+    "script": "tests/scripts/fixtures/279/05/chains/save-twice",
+    "book": "tests/scripts/fixtures/279/05/tags.fb2",
+    "args": [
+      "--pick-folder",
+      "pictures",
+      "--pick-folder",
+      "pictures",
+      "--answer",
+      "yes",
+      "--answer",
+      "ok",
+      "--answer",
+      "yes",
+      "--answer",
+      "skip",
+      "--answer",
+      "skip",
+      "--answer",
+      "skip",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "05/exclude-binary-copies.xml",
+    "script": "scripts/05_images/17_exclude-binary-copies",
+    "book": "tests/scripts/fixtures/279/05/copies.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "05/exclude-binary-copies.none.xml",
+    "script": "scripts/05_images/17_exclude-binary-copies",
+    "book": "tests/scripts/fixtures/279/05/navigation.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "05/fix-jpg-png-names.xml",
+    "script": "scripts/05_images/25_fix-jpg-png-names",
+    "book": "tests/scripts/fixtures/279/05/names.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "05/fix-jpg-png-names.none.xml",
+    "script": "scripts/05_images/25_fix-jpg-png-names",
+    "book": "tests/scripts/fixtures/279/05/navigation.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "05/refresh-images-alexander-ka.xml",
+    "script": "scripts/05_images/20_refresh-images-alexander-ka",
+    "book": "tests/scripts/fixtures/279/05/covers.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "05/refresh-images-alexander-ka.cover-set.xml",
+    "script": "scripts/05_images/20_refresh-images-alexander-ka",
+    "book": "tests/scripts/fixtures/279/05/tags.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "05/insert-empty-images.xml",
+    "script": "scripts/05_images/30_insert-empty-images",
+    "book": "tests/scripts/fixtures/279/05/sections.fb2",
+    "args": [
+      "--answer",
+      "{\"insertStart\":true,\"insertEnd\":true}"
+    ]
+  },
+  {
+    "snapshot": "05/insert-empty-images.start.xml",
+    "script": "scripts/05_images/30_insert-empty-images",
+    "book": "tests/scripts/fixtures/279/05/sections.fb2",
+    "args": [
+      "--answer",
+      "{\"insertStart\":true,\"insertEnd\":false}"
+    ]
+  },
+  {
+    "snapshot": "05/insert-empty-images.end.xml",
+    "script": "scripts/05_images/30_insert-empty-images",
+    "book": "tests/scripts/fixtures/279/05/sections.fb2",
+    "args": [
+      "--answer",
+      "{\"insertStart\":false,\"insertEnd\":true}"
+    ]
+  },
+  {
+    "snapshot": "05/insert-empty-images.none.xml",
+    "script": "scripts/05_images/30_insert-empty-images",
+    "book": "tests/scripts/fixtures/279/05/sections.fb2",
+    "args": [
+      "--answer",
+      "{\"insertStart\":false,\"insertEnd\":false}"
+    ]
+  },
+  {
+    "snapshot": "05/insert-empty-images.cancel.xml",
+    "script": "scripts/05_images/30_insert-empty-images",
+    "book": "tests/scripts/fixtures/279/05/sections.fb2",
+    "args": [
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "05/save-binaries.none.xml",
+    "script": "scripts/05_images/04_save-binaries",
+    "book": "tests/scripts/fixtures/279/05/sections.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "05/place-images-1-3.xml",
+    "script": "scripts/05_images/15_place-images-1-3",
+    "book": "tests/scripts/fixtures/279/05/placement.fb2",
+    "args": [
+      "--answer",
+      "ok",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "05/place-images-at-placeholders.xml",
+    "script": "scripts/05_images/15_place-images-at-placeholders",
+    "book": "tests/scripts/fixtures/279/05/placement.fb2",
+    "args": [
+      "--answer",
+      "ok",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "05/place-images-at-placeholders.no-details.xml",
+    "script": "scripts/05_images/15_place-images-at-placeholders",
+    "book": "tests/scripts/fixtures/279/05/placement.fb2",
+    "args": [
+      "--answer",
+      "ok",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "05/place-images-at-placeholders.cancel.xml",
+    "script": "scripts/05_images/15_place-images-at-placeholders",
+    "book": "tests/scripts/fixtures/279/05/placement.fb2",
+    "args": [
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "05/place-images-at-placeholders.edge.xml",
+    "script": "scripts/05_images/15_place-images-at-placeholders",
+    "book": "tests/scripts/fixtures/279/05/placement-edge.fb2",
+    "args": [
+      "--answer",
+      "ok",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "05/place-images-at-placeholders.mismatch.xml",
+    "script": "scripts/05_images/15_place-images-at-placeholders",
+    "book": "tests/scripts/fixtures/279/05/tags.fb2",
+    "args": [
+      "--answer",
+      "ok",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "05/place-images-at-placeholders.mismatch-no-details.xml",
+    "script": "scripts/05_images/15_place-images-at-placeholders",
+    "book": "tests/scripts/fixtures/279/05/tags.fb2",
+    "args": [
+      "--answer",
+      "ok",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "05/empty-lines-next-to-images.xml",
+    "script": "scripts/05_images/13_empty-lines-next-to-images",
+    "book": "tests/scripts/fixtures/279/05/sections.fb2",
+    "args": [
+      "--answer",
+      "no"
+    ]
+  },
+  {
+    "snapshot": "05/chain-empty-lines-keep.xml",
+    "script": "tests/scripts/fixtures/279/05/chains/empty-lines-keep",
+    "book": "tests/scripts/fixtures/279/05/empty-lines.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "05/chain-empty-lines-auto-add.xml",
+    "script": "tests/scripts/fixtures/279/05/chains/empty-lines-auto-add",
+    "book": "tests/scripts/fixtures/279/05/empty-lines.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "05/chain-empty-lines-auto-remove.xml",
+    "script": "tests/scripts/fixtures/279/05/chains/empty-lines-auto-remove",
+    "book": "tests/scripts/fixtures/279/05/empty-lines.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "05/chain-empty-lines-ask.xml",
+    "script": "tests/scripts/fixtures/279/05/chains/empty-lines-ask",
+    "book": "tests/scripts/fixtures/279/05/empty-lines.fb2",
+    "args": [
+      "--answer",
+      "yes",
+      "--answer",
+      "yes",
+      "--answer",
+      "no",
+      "--answer",
+      "cancel",
+      "--answer",
+      "yes",
+      "--answer",
+      "yes",
+      "--answer",
+      "no",
+      "--answer",
+      "cancel",
+      "--answer",
+      "yes",
+      "--answer",
+      "yes",
+      "--answer",
+      "no",
+      "--answer",
+      "yes",
+      "--answer",
+      "no",
+      "--answer",
+      "yes",
+      "--answer",
+      "yes",
+      "--answer",
+      "yes",
+      "--answer",
+      "no",
+      "--answer",
+      "yes",
+      "--answer",
+      "yes",
+      "--answer",
+      "yes",
+      "--answer",
+      "yes",
+      "--answer",
+      "no",
+      "--answer",
+      "cancel",
+      "--answer",
+      "no",
+      "--answer",
+      "yes",
+      "--answer",
+      "no",
+      "--answer",
+      "yes",
+      "--answer",
+      "no",
+      "--answer",
+      "yes",
+      "--answer",
+      "yes",
+      "--answer",
+      "yes",
+      "--answer",
+      "yes",
+      "--answer",
+      "yes",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "05/check-images.no-binaries.xml",
+    "script": "scripts/05_images/01_check-images",
+    "book": "tests/scripts/fixtures/279/05/sections.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "05/check-images.recheck-binaries.xml",
+    "script": "scripts/05_images/01_check-images",
+    "book": "tests/scripts/fixtures/279/05/recheck-binaries.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "05/unify-binaries.recheck-binaries.xml",
+    "script": "scripts/05_images/02_unify-binaries",
+    "book": "tests/scripts/fixtures/279/05/recheck-binaries.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "05/empty-lines-near-images.inline.add.xml",
+    "script": "scripts/05_images/06_empty-lines-near-images",
+    "book": "tests/scripts/fixtures/279/05/recheck-captions.fb2",
+    "args": [
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "05/empty-lines-near-images.inline.remove.xml",
+    "script": "scripts/05_images/06_empty-lines-near-images",
+    "book": "tests/scripts/fixtures/279/05/recheck-captions.fb2",
+    "args": [
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "05/remove-unused-binaries.recheck-binaries.xml",
+    "script": "scripts/05_images/07_remove-unused-binaries",
+    "book": "tests/scripts/fixtures/279/05/recheck-binaries.fb2",
+    "args": [
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "05/image-captions.inline-pictures.xml",
+    "script": "scripts/05_images/08_image-captions",
+    "book": "tests/scripts/fixtures/279/05/recheck-captions.fb2",
+    "args": [
+      "--answer",
+      "{\"start\":\"begin\"}",
+      "--answer",
+      "yes",
+      "--answer",
+      "skip"
+    ]
+  }
+]

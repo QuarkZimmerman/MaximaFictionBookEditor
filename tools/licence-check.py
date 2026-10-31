@@ -651,13 +651,16 @@ def collect_data(problems: list[str]) -> list[Component]:
     )
     fbe = component(
         "Material derived from the original FictionBook Editor 2.7 (genre lists, symbols, blank "
-        "template, icons) and the converted bundled scripts",
-        "FBE 2.7",
+        "template, icons) and the converted bundled scripts; since feature 007 also the scripts "
+        "and the script and script-group icons of the classic editor's 2.7.9 release "
+        "(sensboston/fictionbookeditor, tag v2.7.9, files/Scripts and files/TreeCmd)",
+        "FBE 2.7, 2.7.9",
         "GPL-3.0-only",
         REPO / "LICENSE",
-        "the original editor's licence and the project's; its copyright notices and contributor "
-        "list are in CONTRIBUTORS.txt, the scripts keep their authors' notices; installed as "
-        "share/doc/mfbe/LICENSE and CONTRIBUTORS.txt",
+        "the original editor's licence (2.7.9: files/copying.txt, GPL v3) and the project's; its "
+        "copyright notices and contributor list are in CONTRIBUTORS.txt, which credits the "
+        "authors of the 2.7.x scripts; the scripts keep their authors' notices "
+        "(tests/scripts/notices.json); installed as share/doc/mfbe/LICENSE and CONTRIBUTORS.txt",
     )
     contributors = REPO / "CONTRIBUTORS.txt"
     if contributors.is_file():

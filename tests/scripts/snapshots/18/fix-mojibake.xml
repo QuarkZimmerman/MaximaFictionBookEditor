@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Мелочи</last-name>
+			</author>
+			<book-title>Мелочи редактирования</book-title>
+			<annotation>
+				<p>Аннотация книги.</p>
+				<poem>
+					<stanza>
+						<v>Стих в аннотации без заголовка</v>
+					</stanza>
+				</poem>
+			</annotation>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+			<history>
+				<p>История документа.</p>
+			</history>
+		</document-info>
+	</description>
+	<body>
+		<image l:href="#pic"/>
+		<epigraph>
+			<p>Эпиграф книги без заголовка.</p>
+		</epigraph>
+		<section>
+			<title>
+				<p>Глава первая</p>
+			</title>
+			<p>Текст_с_подчеркиваниями и <emphasis>курсив_с_подчеркиванием</emphasis>___ конец.</p>
+			<p>Второй_абзац_выделения, <strong>жирный_текст</strong>_остаток.</p>
+			<poem>
+				<epigraph>
+					<p>Эпиграф стиха без заголовка</p>
+				</epigraph>
+				<stanza>
+					<v>Первая строка стиха без заголовка</v>
+					<v>Вторая строка</v>
+				</stanza>
+			</poem>
+			<poem>
+				<title>
+					<p>Заголовок стиха</p>
+				</title>
+				<stanza>
+					<v>Строка стиха с заголовком</v>
+				</stanza>
+			</poem>
+			<poem>
+				<stanza>
+					<v>Строка третьего стиха</v>
+				</stanza>
+				<text-author>Автор третьего стиха</text-author>
+			</poem>
+			<p>Привет, мир! Что-то Яблоко, Ёжик и ёлка. Ÿ остаётся.</p>
+			<p><strong>Жирный</strong> текст и ×àé ñ <emphasis>ßÃÎÄÀÌÈ</emphasis>.</p>
+		</section>
+	</body>
+	<body name="notes">
+		<section id="n1">
+			<p>Примечание в body без заголовка.</p>
+		</section>
+	</body>
+	<binary id="pic" content-type="image/png">…</binary>
+</FictionBook>

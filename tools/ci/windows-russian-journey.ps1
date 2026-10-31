@@ -5,7 +5,13 @@
 # protocol (cdp-client.ps1) and files only, and fails unless
 #   - the window title shows the book's name and the interface is Russian (the editor takes its
 #     language from the user's regional format, GetUserDefaultLocaleName);
-#   - Save (F2, the original editor's key; Ctrl+S has no command) rewrites the book in place;
+#   - Save (F2, the original editor's key) rewrites the book in place, and so does Ctrl+S sent as a
+#     real keystroke (SendInput, feature 007 FR-001) after an edit - never the browser engine's
+#     "save the page";
+#   - the browser engine's keys sent as real keystrokes (feature 007 FR-002 to FR-005) keep an
+#     unsaved edit, the process and the window: Ctrl+R, F5 with Help > About open, Ctrl+F4, and
+#     Ctrl+W with About open; no key opens a window: Ctrl+N with About open, and F12 in a run without
+#     the debugging port, which is no developer run (US5);
 #   - View > Status Bar, chosen with the Russian accelerators (Alt+В, С), hides the status bar and
 #     settings.json records it;
 #   - File > New, the author "Толстой Лев Николаевич" and the title "Война и мир" typed into the
@@ -82,6 +88,7 @@ $keyX = @{ key = 'x'; code = 'KeyX'; windowsVirtualKeyCode = 0x58 }
 $keyF2 = @{ key = 'F2'; code = 'F2'; windowsVirtualKeyCode = 0x71 }
 $keyF10 = @{ key = 'F10'; code = 'F10'; windowsVirtualKeyCode = 0x79 }
 $keyDown = @{ key = 'ArrowDown'; code = 'ArrowDown'; windowsVirtualKeyCode = 0x28 }
+$keyEscape = @{ key = 'Escape'; code = 'Escape'; windowsVirtualKeyCode = 0x1B }
 $temp = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { $env:TEMP }
 $script:cdp = $null
 $script:editor = $null
@@ -371,6 +378,83 @@ function Close-EditorThroughWindow {
     }
 }
 
+# The virtual-key codes of a chord written "Ctrl+Shift+I", "F5", "Alt+Left" (feature 007), with
+# the extended-key flag of the keys that have one.
+function Get-ChordKeys([string]$Chord) {
+    $named = @{
+        Ctrl = 0x11; Shift = 0x10; Alt = 0x12; Esc = 0x1B; Enter = 0x0D; Tab = 0x09; Space = 0x20
+        Left = 0x25; Up = 0x26; Right = 0x27; Down = 0x28; Home = 0x24; End = 0x23
+        PageUp = 0x21; PageDown = 0x22; Insert = 0x2D; Delete = 0x2E
+        Plus = 0xBB; Minus = 0xBD
+    }
+    $extendedKeys = @(0x25, 0x26, 0x27, 0x28, 0x24, 0x23, 0x21, 0x22, 0x2D, 0x2E)
+    $codes = @()
+    foreach ($part in $Chord.Split('+')) {
+        if ($named.ContainsKey($part)) { $codes += $named[$part] }
+        elseif ($part -match '^F([1-9]|1[0-9]|2[0-4])$') { $codes += 0x6F + [int]$Matches[1] }
+        elseif ($part -match '^[A-Z0-9]$') { $codes += [int][char]$part }
+        else { throw "unknown key '$part' in the chord '$Chord'" }
+    }
+    @{ Keys = [uint16[]]$codes; Extended = [bool[]]@($codes | ForEach-Object { $extendedKeys -contains $_ }) }
+}
+
+# A real key chord to the editor's window (feature 007, contracts/shell.md "Windows journey"):
+# the main window is brought to the foreground, the chord sent with SendInput - the keyboard's
+# own input, which reaches the browser engine's accelerators as a user's key does - and the
+# editor given a second to react.
+function Send-Chord([string]$Chord) {
+    Wait-Until 'the main window of the editor' {
+        $script:editor.Refresh()
+        $script:editor.MainWindowHandle -ne [IntPtr]::Zero
+    }
+    $window = $script:editor.MainWindowHandle
+    if (-not [MfbeWin32]::BringToFront($window)) {
+        throw ("the editor's window 0x{0:X} could not be brought to the foreground for {1}" -f $window.ToInt64(), $Chord)
+    }
+    $keys = Get-ChordKeys $Chord
+    [MfbeWin32]::SendChord($keys.Keys, $keys.Extended)
+    Start-Sleep -Seconds 1
+}
+
+# Help > About through the page's own menu, and Escape to close it (feature 007).
+function Open-About {
+    Press-Element 'menu-help'
+    Click-Element 'menu-help-about'
+    Wait-Until 'the About dialog' { Test-Element 'dialog-about' }
+}
+
+function Close-About {
+    Send-CdpKey $script:cdp $keyEscape
+    Wait-Until 'the About dialog closed' { -not (Test-Element 'dialog-about') }
+}
+
+# After an engine key (feature 007): the editor's process and main window are still there, and
+# the page still shows the unsaved edit - not reloaded, not navigated, not closed.
+function Assert-EditKept([string]$What, [string]$ModifiedTitle, [string]$Marker) {
+    if ($script:editor.HasExited) { throw "$What ended the editor" }
+    $script:editor.Refresh()
+    if ($script:editor.MainWindowHandle -eq [IntPtr]::Zero) { throw "$What closed the editor's window" }
+    $title = Get-CdpValue $script:cdp 'document.title'
+    if ($title -cne $ModifiedTitle) { throw "$What lost the unsaved edit: the title reads '$title'" }
+    $kept = Get-CdpValue $script:cdp "document.querySelector('[data-testid=`"body-editor`"]').innerText.includes('$Marker')"
+    if ($kept -ne $true) { throw "$What lost the unsaved edit: the Body view no longer holds '$Marker'" }
+    Write-Host "engine key: $What kept the process, the window and the unsaved edit"
+}
+
+# The visible top-level windows of the editor's processes, "0x<handle> <class> <title>" each
+# (feature 007, US5: no key may add one).
+function Get-EditorWindows {
+    $ids = @(Get-Process -Name mfbe -ErrorAction SilentlyContinue | ForEach-Object { [uint32]$_.Id })
+    @([MfbeWin32]::TopLevelWindows() | Where-Object { $_.Visible -and $ids -contains $_.ProcessId } |
+        ForEach-Object { '0x{0:X} {1} {2}' -f $_.Handle.ToInt64(), $_.ClassName, $_.Title })
+}
+
+function Assert-NoNewWindow([string]$What, [string[]]$Before) {
+    $added = @(Get-EditorWindows | Where-Object { $Before -notcontains $_ })
+    if ($added.Count -gt 0) { throw "$What opened a window: $($added -join '; ')" }
+    Write-Host "engine key: $What opened no window"
+}
+
 # Clicks the element with $TestId in the page (menus and dialogs of the interface react to clicks
 # as to the mouse).
 function Click-Element([string]$TestId) {
@@ -495,6 +579,54 @@ public static class MfbeWin32 {
         if (!PostMessage(button, 0x00F5 /* BM_CLICK */, IntPtr.Zero, IntPtr.Zero)) {
             throw new InvalidOperationException("BM_CLICK could not be posted to the Save button (error " + Marshal.GetLastWin32Error() + ")");
         }
+    }
+
+    // Real keystrokes (feature 007): SendInput puts them into the input stream as the keyboard
+    // does, so they reach the browser engine's accelerators - keys sent over the DevTools
+    // protocol never do. Each key carries its virtual-key code and its scan code: Chromium takes
+    // the page's KeyboardEvent.code (the physical key the editor's shortcuts follow) from the
+    // scan code.
+    [StructLayout(LayoutKind.Sequential)] public struct KEYBDINPUT { public ushort wVk; public ushort wScan; public uint dwFlags; public uint time; public IntPtr dwExtraInfo; }
+    [StructLayout(LayoutKind.Sequential)] public struct MOUSEINPUT { public int dx; public int dy; public uint mouseData; public uint dwFlags; public uint time; public IntPtr dwExtraInfo; }
+    [StructLayout(LayoutKind.Explicit)] public struct INPUTUNION { [FieldOffset(0)] public MOUSEINPUT mi; [FieldOffset(0)] public KEYBDINPUT ki; }
+    [StructLayout(LayoutKind.Sequential)] public struct INPUT { public uint type; public INPUTUNION u; }
+    [DllImport("user32.dll", SetLastError = true)] public static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
+    [DllImport("user32.dll")] public static extern uint MapVirtualKey(uint uCode, uint uMapType);
+    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+    [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr hWnd);
+
+    const uint INPUT_KEYBOARD = 1, KEYEVENTF_EXTENDEDKEY = 0x0001, KEYEVENTF_KEYUP = 0x0002;
+
+    static INPUT Key(ushort vk, bool up, bool extended) {
+        var input = new INPUT { type = INPUT_KEYBOARD };
+        input.u.ki.wVk = vk;
+        input.u.ki.wScan = (ushort)MapVirtualKey(vk, 0 /* MAPVK_VK_TO_VSC */);
+        input.u.ki.dwFlags = (up ? KEYEVENTF_KEYUP : 0) | (extended ? KEYEVENTF_EXTENDEDKEY : 0);
+        return input;
+    }
+
+    // Presses the keys in order and releases them in reverse: a chord such as Ctrl+Shift+I.
+    public static void SendChord(ushort[] keys, bool[] extended) {
+        var inputs = new List<INPUT>();
+        for (int i = 0; i < keys.Length; i++) inputs.Add(Key(keys[i], false, extended[i]));
+        for (int i = keys.Length - 1; i >= 0; i--) inputs.Add(Key(keys[i], true, extended[i]));
+        var array = inputs.ToArray();
+        if (SendInput((uint)array.Length, array, Marshal.SizeOf(typeof(INPUT))) != (uint)array.Length) {
+            throw new InvalidOperationException("SendInput sent less than the chord (error " + Marshal.GetLastWin32Error() + ")");
+        }
+    }
+
+    // Brings the window to the foreground. Windows lets a process do it only while it may - a
+    // key it sent itself (Alt pressed and released) gives it that right.
+    public static bool BringToFront(IntPtr window) {
+        if (IsIconic(window)) ShowWindow(window, 9 /* SW_RESTORE */);
+        if (GetForegroundWindow() == window) return true;
+        SendChord(new ushort[] { 0x12 /* VK_MENU */ }, new bool[] { false });
+        SetForegroundWindow(window);
+        for (int i = 0; i < 20 && GetForegroundWindow() != window; i++) System.Threading.Thread.Sleep(50);
+        return GetForegroundWindow() == window;
     }
 }
 '@
@@ -876,6 +1008,52 @@ Invoke-EditorRun 'Start with the book' "`"$bookPath`"" {
         throw 'the saved book does not hold its title in UTF-8'
     }
 
+    # Feature 007 (FR-001): Ctrl+S as the keyboard sends it - on this Russian keyboard layout
+    # the S key types "ы" - saves the edited book in place.
+    $null = Get-CdpValue $script:cdp @"
+(() => { const p = document.querySelector('[data-testid="body-editor"] p'); const range = document.createRange(); range.selectNodeContents(p); range.collapse(true); const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(range); p.closest('[data-testid="body-editor"]').focus(); return true; })()
+"@
+    $null = Invoke-Cdp $script:cdp 'Input.insertText' @{ text = 'CtrlS-saves ' }
+    Wait-Until 'the modified marker in the title' { (Get-CdpValue $script:cdp 'document.title') -ceq "$bookName* - $appName" }
+    Send-Chord 'Ctrl+S'
+    Wait-Until 'the book saved in place by Ctrl+S' { (Get-CdpValue $script:cdp 'document.title') -ceq $title }
+    if (-not (Test-Bytes ([IO.File]::ReadAllBytes($bookPath)) ([Text.Encoding]::UTF8.GetBytes('CtrlS-saves ')))) {
+        throw 'Ctrl+S did not write the edit into the book'
+    }
+
+    # Feature 007 (FR-002 to FR-005): no engine key reloads, navigates or closes the editor; an
+    # unsaved edit survives each, in the Body view and with a modal dialog open.
+    $marker = 'Kept-by-the-gate'
+    $modifiedTitle = "$bookName* - $appName"
+    $null = Get-CdpValue $script:cdp @"
+(() => { const p = document.querySelector('[data-testid="body-editor"] p'); const range = document.createRange(); range.selectNodeContents(p); range.collapse(true); const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(range); p.closest('[data-testid="body-editor"]').focus(); return true; })()
+"@
+    $null = Invoke-Cdp $script:cdp 'Input.insertText' @{ text = "$marker " }
+    Wait-Until 'the modified marker in the title' { (Get-CdpValue $script:cdp 'document.title') -ceq $modifiedTitle }
+    Send-Chord 'Ctrl+R'
+    Assert-EditKept 'Ctrl+R' $modifiedTitle $marker
+    Open-About
+    Send-Chord 'F5'
+    Assert-EditKept 'F5 with About open' $modifiedTitle $marker
+    Close-About
+    Send-Chord 'Ctrl+F4'
+    Assert-EditKept 'Ctrl+F4' $modifiedTitle $marker
+    Open-About
+    Send-Chord 'Ctrl+W'
+    Assert-EditKept 'Ctrl+W with About open' $modifiedTitle $marker
+    # Feature 007, US5 (FR-002, FR-008): no key opens a window of the engine. With About open
+    # the keys reach the engine: Ctrl+N (a new window) adds no top-level window of the editor's
+    # processes. (F12 is checked in a run without the debugging port below: this run has the
+    # port, which makes it a developer run, where F12 may open the developer tools.)
+    $windowsBefore = Get-EditorWindows
+    Send-Chord 'Ctrl+N'
+    Assert-NoNewWindow 'Ctrl+N with About open' $windowsBefore
+    Assert-EditKept 'Ctrl+N with About open' $modifiedTitle $marker
+    Close-About
+    # Saved again: the steps that follow start from an unmodified book.
+    Send-CdpKey $script:cdp $keyF2
+    Wait-Until 'the book saved again' { (Get-CdpValue $script:cdp 'document.title') -ceq $title }
+
     Send-CdpKey $script:cdp $keyVe -Modifiers 1
     Wait-Until 'the View menu open with Status Bar checked' {
         (Get-FocusedTestId) -ceq 'menu-view-popup' -and
@@ -891,6 +1069,26 @@ Invoke-EditorRun 'Start with the book' "`"$bookPath`"" {
 
     # The window's close button with a modified document runs the Exit flow (FR-017).
     Close-EditorThroughWindow
+}
+
+# Feature 007, US5 (FR-006): the release package started as a user starts it - without a
+# debugging port, so no developer run (contracts/shell.md §5) - opens no window on F12, the
+# developer tools included. The other runs need the port for their page connection.
+Write-Host 'No developer run: the editor without a debugging port'
+$script:editor = Start-ProcessAsUser -Account $account -FilePath $Exe -ArgumentList "`"$bookPath`"" `
+    -WorkingDirectory (Split-Path -Parent $Exe) `
+    -StandardOutput (Join-Path $temp 'mfbe-journey-nondev-stdout.txt') `
+    -StandardError (Join-Path $temp 'mfbe-journey-nondev-stderr.txt')
+try {
+    Wait-Until 'the editor window without a debugging port' {
+        @(Get-EditorWindows | Where-Object { $_ -like "* - $appName" }).Count -gt 0
+    } $TimeoutSeconds
+    Start-Sleep -Seconds 2  # the page loaded and focused
+    $windowsBefore = Get-EditorWindows
+    Send-Chord 'F12'
+    Assert-NoNewWindow 'F12 outside a developer run' $windowsBefore
+} finally {
+    Stop-Editor $script:editor $Exe
 }
 
 Invoke-EditorRun 'Restart' '' {

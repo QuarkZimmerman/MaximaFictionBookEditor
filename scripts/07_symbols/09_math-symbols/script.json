@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "07/math-symbols",
+  "name": {
+    "ru": "Математические символы",
+    "en": "Mathematical symbols",
+    "uk": "Математичні символи"
+  },
+  "description": {
+    "ru": "Вставляет математический символ (° ± × ÷ ∑ √ ∞ ≠ ≤ ≥ ≈ ∫ ½ ⅞ …) на место выделенного текста или в позицию курсора",
+    "en": "Inserts a mathematical symbol (° ± × ÷ ∑ √ ∞ ≠ ≤ ≥ ≈ ∫ ½ ⅞ …) in place of the selected text or at the caret",
+    "uk": "Вставляє математичний символ (° ± × ÷ ∑ √ ∞ ≠ ≤ ≥ ≈ ∫ ½ ⅞ …) на місце виділеного тексту або на місці курсору"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Математические символы",
+    "en": "Mathematical symbols"
+  },
+  "legacy": {
+    "source": "07_Символы/09_Математические символы.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
+  }
+}

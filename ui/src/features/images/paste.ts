@@ -1,7 +1,7 @@
 /**
  * Clipboard image paste (T093, FR-038, US7 scenario 2): when a paste into the Body editor
  * carries an image file (a screenshot, a bitmap copied from another application, an image
- * dragged from a browser), its bytes are uploaded to the core with `POST /binary/{docId}` -
+ * dragged from a browser), its bytes are uploaded to the core's upload route (`binaryUploadUrl`) -
  * never base64 inside JSON-RPC - and the stored binary is referenced by an inline image at the
  * caret (a block image when the caret's paragraph takes none), as the original editor did with
  * `CF_BITMAP`. The core applies the "paste images as" setting (JPEG with the configured quality

@@ -378,9 +378,18 @@ textarea {
   outline: none;
 }
 
+/* A submenu lies in the window's coordinates, placed by popupFit.ts from its item's rectangle
+   (feature 007): a menu taller than the window scrolls, and a scrolling menu would clip a
+   submenu positioned inside it. */
 .mfbe-menu-submenu {
-  top: -5px;
-  left: 100%;
+  position: fixed;
+}
+
+/* A submenu that covers part of its item waits, opened by the pointer, before it shows: the
+   pointer passing over the item is not caught by it (popupFit.ts). Hidden, it takes no pointer
+   events either. */
+.mfbe-menu-submenu[data-waiting] {
+  visibility: hidden;
 }
 
 /* Context menus at the pointer (inline left/top, viewport coordinates), above the dialogs'
@@ -421,6 +430,16 @@ textarea {
 .mfbe-menu-check {
   text-align: center;
   font-weight: 700;
+}
+
+/* A menu item's icon (feature 007, FR-043): 16 x 16 CSS pixels in the 22 px column of the
+   check mark, so the names stay aligned; high-density screens: see the Scripts toolbar below. */
+.mfbe-menu-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: 0 auto;
+  image-rendering: auto;
 }
 
 .mfbe-menu-hotkey {
@@ -544,13 +563,14 @@ textarea {
 
 /*
  * High-DPI (T153): the original toolbar bitmaps exist at 24 px (Commands toolbar) and 16 px
- * (Scripts toolbar, Document Tree). At integer scale factors the small set is drawn with
+ * (Scripts toolbar, Document Tree, and since feature 007 the menus' icons). At integer scale factors the small set is drawn with
  * nearest-neighbour scaling so its pixel art stays crisp instead of blurring; the 24 px set
  * keeps the default smooth scaling. Fractional factors (125 %, 150 %) keep smooth scaling,
  * where nearest-neighbour would produce uneven pixels.
  */
 @media (min-resolution: 2dppx) {
   .mfbe-toolbar-scripts .mfbe-toolbar-button img,
+  .mfbe-menu-icon,
   .mfbe-tree-icon,
   .mfbe-tree-toolbar-button img {
     image-rendering: pixelated;

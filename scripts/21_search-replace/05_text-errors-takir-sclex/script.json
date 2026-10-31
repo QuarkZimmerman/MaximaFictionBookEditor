@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "21/text-errors-takir-sclex",
+  "name": {
+    "ru": "Поиск (без замены) ошибок текста (TaKir-Sclex)",
+    "en": "Search (without replacing) for text errors (TaKir-Sclex)",
+    "uk": "Пошук (без заміни) помилок тексту (TaKir-Sclex)"
+  },
+  "description": {
+    "ru": "Выделяет следующую после курсора вероятную ошибку русского текста по набору регэкспов TaKir и Sclex (опечатки, смесь алфавитов, огрехи пунктуации, строки без точки, форматирование внутри слов, странные символы) и показывает её описание в строке состояния.",
+    "en": "Selects the next probable error of Russian text after the caret by the regexp set of TaKir and Sclex (misprints, mixed alphabets, punctuation slips, lines without a full stop, formatting inside words, strange characters) and shows its description in the status bar.",
+    "uk": "Виділяє наступну після курсору ймовірну помилку російського тексту за набором регулярних виразів TaKir і Sclex (друкарські помилки, суміш алфавітів, огріхи пунктуації, рядки без крапки, форматування всередині слів, дивні символи) і показує її опис у смузі стану."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Поиск (без замены) ошибок текста (TaKir-Sclex)",
+    "en": "Search (without replacing) for text errors (TaKir-Sclex)"
+  },
+  "legacy": {
+    "source": "21_Поиск и замена/05_Поиск (без замены) ошибок текста (TaKir-Sclex).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "5.1"
+  }
+}

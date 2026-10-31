@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "19/unformat-all-epigraphs",
+  "name": {
+    "ru": "Расформатировать все эпиграфы",
+    "en": "Unformat all epigraphs",
+    "uk": "Розформатувати всі епіграфи"
+  },
+  "description": {
+    "ru": "Превращает все эпиграфы книги в обычный текст: их содержимое остаётся на их месте, авторы эпиграфов становятся абзацами.",
+    "en": "Turns every epigraph of the book into plain text: its content stays in its place and its text authors become paragraphs.",
+    "uk": "Перетворює всі епіграфи книги на звичайний текст: їхній вміст лишається на їхньому місці, автори епіграфів стають абзацами."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Расформатировать все эпиграфы",
+    "en": "Unformat all epigraphs"
+  },
+  "legacy": {
+    "source": "19_Обработка форматирования/16_Расформатировать все эпиграфы.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

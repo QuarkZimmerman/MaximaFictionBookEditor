@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "16/previous-strikethrough",
+  "name": {
+    "ru": "Перейти на предыдущее зачеркивание",
+    "en": "Go to previous strikethrough",
+    "uk": "Перейти до попереднього закреслення"
+  },
+  "description": {
+    "ru": "Переводит курсор в конец предыдущего зачеркнутого фрагмента; по достижении начала книги предлагает продолжить с конца",
+    "en": "Moves the caret to the end of the previous run of strikethrough text; at the beginning of the book offers to continue from the end",
+    "uk": "Переводить курсор у кінець попереднього закресленого фрагмента; на початку книги пропонує продовжити з кінця"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Перейти на предыдущее зачеркивание",
+    "en": "Go to previous strikethrough"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/017_Перейти на предыдущее зачеркивание.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

@@ -2,22 +2,27 @@
   "manifestVersion": 1,
   "id": "11/caption-subtitle",
   "name": {
-    "en": "Image title to caption (subtitle)",
-    "ru": "Заголовок картинки в подпись (subtitle)"
+    "en": "Make picture captions from their title attribute (mark as a subtitle)",
+    "ru": "Сделать подписи к картинкам из их атрибута title (разметить как подзаголовок)",
+    "uk": "Зробити підписи до малюнків з їхнього атрибута title (розмітити як підзаголовок)"
   },
   "description": {
     "en": "Moves the title of every block image into a subtitle below the image (plus an empty line) and removes the title attribute",
-    "ru": "Переносит заголовок (title) каждой картинки под неё как подзаголовок (плюс пустая строка) и удаляет атрибут title"
+    "ru": "Переносит заголовок (title) каждой картинки под неё как подзаголовок (плюс пустая строка) и удаляет атрибут title",
+    "uk": "Переносить заголовок (title) кожного малюнка під нього як підзаголовок (плюс порожній рядок) і видаляє атрибут title"
   },
   "kind": "menu",
   "entry": "index.js",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Image title to caption (subtitle)",
-    "ru": "Заголовок картинки в подпись (subtitle)"
+    "en": "Make picture captions from their title attribute (mark as a subtitle)",
+    "ru": "Сделать подписи к картинкам из их атрибута title (разметить как подзаголовок)"
   },
   "legacy": {
     "source": "11_Заголовки картинок в подписи/602_Заголовок картинки в подпись (subtitle).js",
-    "fbeVersion": "2.7"
+    "fbeVersion": "2.7",
+    "aliases": [
+      "11_Сделать подписи к картинкам из их атрибута title/602_Сделать подписи к картинкам из их атрибута title (разметить как подзаголовок).js"
+    ]
   }
 }

@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "20/show-whole-code",
+  "name": {
+    "ru": "Показать весь код",
+    "en": "Show whole code",
+    "uk": "Показати весь код"
+  },
+  "description": {
+    "ru": "Показывает в окне отчета полный JSON документной модели элемента, в котором стоит курсор, — для отладки скриптов",
+    "en": "Shows the complete document-model JSON of the element under the caret in a report window - a debugging aid for script authors",
+    "uk": "Показує у вікні звіту повний JSON документної моделі елемента, у якому стоїть курсор, — для налагодження скриптів"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Показать весь код",
+    "en": "Show whole code"
+  },
+  "legacy": {
+    "source": "95_Для программистов/02_Показать весь код.js",
+    "fbeVersion": "2.7.9"
+  }
+}

@@ -2,6 +2,9 @@
 
 The 147 scripts shipped with FictionBook Editor 2.7 (`FBE/files/Scripts`, JScript over the
 Internet Explorer DOM) were converted to `mfbe` packages under `scripts/<group>/<script>/`.
+The scripts of FictionBook Editor 2.7.9 - the new ones and the recheck of these packages against
+their 2.7.9 versions (feature 007) - are in [conversion-notes-279.md](conversion-notes-279.md).
+
 This page is the index: the totals, the deviations every group shares, the limits of the
 scripting runtime found on the way and how to run the equivalence suite. The per-script notes
 (behaviour, justified differences, snapshot of every run) are split by task range:

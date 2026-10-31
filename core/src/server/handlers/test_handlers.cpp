@@ -3,7 +3,8 @@
 // test.enqueueClipboardImage; feature 002: test.dialogRequests, test.beeps,
 // test.enqueueRelease; feature 003: test.requests, test.restartRequests, test.requestClose;
 // feature 004: test.setKeyboardLayouts, test.keyboardLayoutRequests; feature 005:
-// test.aiRequests, test.resetAiRequests, test.setAiResolve, test.setAiTimeouts.
+// test.aiRequests, test.resetAiRequests, test.setAiResolve, test.setAiTimeouts; feature 007:
+// test.openedUrls.
 #ifdef MFBE_TEST_HOOKS
 
 #include "server/services.hpp"
@@ -120,6 +121,17 @@ void register_test_handlers(rpc::RpcRouter& router, Services& services) {
                                 json{{"reason", "queued dialog provider not active"}});
         }
         return json(services.queued_dialogs->network_requests());
+    });
+
+    // test.openedUrls() -> [url]: the addresses app.openUrl handed to the test provider since
+    // start, in order - recorded, nothing is opened (feature 007: About's links, the AI
+    // assistant's terms links), so journeys click a link without starting a browser.
+    router.add_method("test.openedUrls", [&services](const json&, rpc::RpcContext&) {
+        if (!services.queued_dialogs) {
+            throw rpc::RpcError(rpc::codes::kDialogUnavailable, "",
+                                json{{"reason", "queued dialog provider not active"}});
+        }
+        return json(services.queued_dialogs->opened_urls());
     });
 
     // test.restartRequests() -> [{reopen?, argv}]: the app.restart calls the test provider

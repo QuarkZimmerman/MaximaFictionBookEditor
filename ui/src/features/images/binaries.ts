@@ -1,7 +1,7 @@
 /**
  * Binary object helpers shared by the image flows and the Description forms (T093/T094):
  *
- *  - `uploadBinary()`: `POST /binary/{docId}` with the raw bytes (`Content-Type` = source type,
+ *  - `uploadBinary()`: the core's upload route (`binaryUploadUrl`) with the raw bytes (`Content-Type` = source type,
  *    optional `X-MFBE-Suggested-Id`) for clipboard paste and drag-and-drop - binary payloads
  *    never travel through JSON-RPC (rpc-api.md §2);
  *  - `addBinaryFromFile()`: `dialog.openFile` with the image types (`dialogs/fileTypes.ts`) +
@@ -12,6 +12,7 @@
  *    `referenceCounts()` counts `href="#id"` references in bodies and cover pages.
  */
 
+import { binaryUploadUrl } from '@/model/binaryUrls';
 import type { BinaryMeta, Document } from '@/model/document';
 import type { AppStore } from '@/model/store';
 import { resolveToken, type RpcClient } from '@/rpc/client';
@@ -73,9 +74,8 @@ export async function uploadBinary(
   bytes: Blob | ArrayBuffer,
   options: UploadOptions,
 ): Promise<BinaryMeta> {
-  const base = options.baseUrl ?? import.meta.env.BASE_URL ?? '/';
   const token = resolveToken();
-  const url = `${base}binary/${encodeURIComponent(docId)}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+  const url = binaryUploadUrl(docId, options.baseUrl);
   const headers: Record<string, string> = { 'Content-Type': options.contentType };
   if (token) headers['X-MFBE-Token'] = token;
   if (options.suggestedId) headers['X-MFBE-Suggested-Id'] = encodeHeaderValue(options.suggestedId);

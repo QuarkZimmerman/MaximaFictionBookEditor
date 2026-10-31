@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-cyrillic",
+  "name": {
+    "ru": "Выделить следующую кириллицу",
+    "en": "Select next Cyrillic",
+    "uk": "Виділити наступну кирилицю"
+  },
+  "description": {
+    "ru": "Выделяет следующие буквы кириллицей (русского алфавита) от курсора",
+    "en": "Selects the next letters in Cyrillic (of the Russian alphabet) after the caret",
+    "uk": "Виділяє наступні літери кирилицею (російської абетки) від курсора"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить следующую кириллицу",
+    "en": "Select next Cyrillic"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/126_Выделить следующую кириллицу.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "5.1"
+  }
+}

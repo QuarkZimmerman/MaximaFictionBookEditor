@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-text-authors",
+  "name": {
+    "ru": "Выделить следующих авторов текста",
+    "en": "Select next text authors",
+    "uk": "Виділити наступних авторів тексту"
+  },
+  "description": {
+    "ru": "Выделяет следующую группу идущих подряд авторов текста (text-author)",
+    "en": "Selects the next group of consecutive text authors",
+    "uk": "Виділяє наступну групу авторів тексту (text-author), що йдуть поспіль"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить следующих авторов текста",
+    "en": "Select next text authors"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/168_Выделить следующих авторов текста.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.7"
+  }
+}

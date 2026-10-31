@@ -1,0 +1,344 @@
+[
+  {
+    "snapshot": "06/external-links-to-text.279.xml",
+    "script": "scripts/06_cleanup/17_external-links-to-text",
+    "book": "tests/scripts/fixtures/279/06/ids-styles-links.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "06/remove-paragraph-ids.xml",
+    "script": "scripts/06_cleanup/30_remove-paragraph-ids",
+    "book": "tests/scripts/fixtures/279/06/ids-styles-links.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "06/remove-section-ids.xml",
+    "script": "scripts/06_cleanup/35_remove-section-ids",
+    "book": "tests/scripts/fixtures/279/06/ids-styles-links.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "06/remove-image-ids.xml",
+    "script": "scripts/06_cleanup/38_remove-image-ids",
+    "book": "tests/scripts/fixtures/279/06/ids-styles-links.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "06/remove-styles-and-ids.xml",
+    "script": "scripts/06_cleanup/40_remove-styles-and-ids",
+    "book": "tests/scripts/fixtures/279/06/ids-styles-links.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "06/remove-styles-and-ids.marks-006.xml",
+    "script": "scripts/06_cleanup/40_remove-styles-and-ids",
+    "book": "tests/scripts/fixtures/books/marks-006.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "06/remove-unreferenced-ids-and-styles.xml",
+    "script": "scripts/06_cleanup/45_remove-unreferenced-ids-and-styles",
+    "book": "tests/scripts/fixtures/279/06/ids-styles-links.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "06/remove-unreferenced-ids-and-styles.marks-006.xml",
+    "script": "scripts/06_cleanup/45_remove-unreferenced-ids-and-styles",
+    "book": "tests/scripts/fixtures/books/marks-006.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "06/unformat-empty-links.xml",
+    "script": "scripts/06_cleanup/50_unformat-empty-links",
+    "book": "tests/scripts/fixtures/279/06/ids-styles-links.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "06/remove-fbd-bookmark-links.xml",
+    "script": "scripts/06_cleanup/55_remove-fbd-bookmark-links",
+    "book": "tests/scripts/fixtures/279/06/notes-sections.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "06/remove-title-only-sections.xml",
+    "script": "scripts/06_cleanup/60_remove-title-only-sections",
+    "book": "tests/scripts/fixtures/279/06/notes-sections.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "06/fractions-powers-ranges-sizes.xml",
+    "script": "scripts/06_cleanup/65_fractions-powers-ranges-sizes",
+    "book": "tests/scripts/fixtures/279/06/numbers.fb2",
+    "args": [
+      "--select",
+      "n6:0:0",
+      "--answer",
+      "м<sup>2</sup>",
+      "--answer",
+      "",
+      "--answer",
+      "см<sup>3</sup>",
+      "--answer",
+      "120×30×40",
+      "--answer",
+      "21 × 29",
+      "--answer",
+      "¼",
+      "--answer",
+      "½",
+      "--answer",
+      "¾",
+      "--answer",
+      "",
+      "--answer",
+      "⅔",
+      "--answer",
+      "1941–1945",
+      "--answer",
+      "10–15",
+      "--answer",
+      "2–3",
+      "--answer",
+      "5–7",
+      "--answer",
+      "8–9",
+      "--answer",
+      "–",
+      "--answer",
+      "–",
+      "--answer",
+      "–"
+    ]
+  },
+  {
+    "snapshot": "06/fractions-powers-ranges-sizes.cancel.xml",
+    "script": "scripts/06_cleanup/65_fractions-powers-ranges-sizes",
+    "book": "tests/scripts/fixtures/279/06/numbers.fb2",
+    "args": [
+      "--select",
+      "n6:0:0",
+      "--answer",
+      "м<sup>2</sup>",
+      "--answer",
+      "",
+      "--answer",
+      "см<sup>3</sup>",
+      "--answer",
+      "120×30×40",
+      "--answer",
+      "21 × 29",
+      "--answer",
+      "¼",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "06/cyrillic-latin.xml",
+    "script": "tests/scripts/fixtures/279/06/06_tests/71_cyrillic-latin-dated",
+    "book": "tests/scripts/fixtures/279/06/cyrillic-latin.fb2",
+    "args": [
+      "--answer",
+      "yes",
+      "--answer",
+      "На",
+      "--answer",
+      "кто",
+      "--answer",
+      "",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "06/cyrillic-latin.cancel.xml",
+    "script": "tests/scripts/fixtures/279/06/06_tests/71_cyrillic-latin-dated",
+    "book": "tests/scripts/fixtures/279/06/cyrillic-latin.fb2",
+    "args": [
+      "--answer",
+      "yes",
+      "--answer",
+      "cancel",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "06/cyrillic-latin.none.xml",
+    "script": "scripts/06_cleanup/71_cyrillic-latin",
+    "book": "tests/scripts/fixtures/279/06/cyrillic-latin-none.fb2",
+    "args": [
+      "--answer",
+      "no",
+      "--answer",
+      "",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "06/general-cleanup-alexander-ka.xml",
+    "script": "scripts/06_cleanup/68_general-cleanup-alexander-ka",
+    "book": "tests/scripts/fixtures/279/06/general-cleanup-auto.fb2",
+    "args": [
+      "--answer",
+      "yes",
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "06/general-cleanup-alexander-ka.ask.xml",
+    "script": "scripts/06_cleanup/68_general-cleanup-alexander-ka",
+    "book": "tests/scripts/fixtures/279/06/general-cleanup-ask.fb2",
+    "args": [
+      "--answer",
+      "no",
+      "--answer",
+      "no",
+      "--answer",
+      "yes",
+      "--answer",
+      "yes",
+      "--answer",
+      "yes",
+      "--answer",
+      "1990 Сентябре",
+      "--answer",
+      "зАмок",
+      "--answer",
+      "yes",
+      "--answer",
+      "разрядка в",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "06/general-cleanup-alexander-ka.ask-other.xml",
+    "script": "scripts/06_cleanup/68_general-cleanup-alexander-ka",
+    "book": "tests/scripts/fixtures/279/06/general-cleanup-ask.fb2",
+    "args": [
+      "--answer",
+      "yes",
+      "--answer",
+      "yes",
+      "--answer",
+      "yes",
+      "--answer",
+      "no",
+      "--answer",
+      "no",
+      "--answer",
+      "cancel",
+      "--answer",
+      "",
+      "--answer",
+      "no",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "06/general-cleanup.279.xml",
+    "script": "scripts/06_cleanup/02_general-cleanup",
+    "book": "tests/scripts/fixtures/279/06/general-cleanup-279.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "06/surname-initials.279.xml",
+    "script": "scripts/06_cleanup/04_surname-initials",
+    "book": "tests/scripts/fixtures/279/06/interactive-279.fb2",
+    "args": [
+      "--select",
+      "n5:0:0",
+      "--answer",
+      "Пётр I",
+      "--answer",
+      "Карл XII"
+    ]
+  },
+  {
+    "snapshot": "06/guided-paragraph-breaks.auto.xml",
+    "script": "scripts/06_cleanup/06_guided-paragraph-breaks",
+    "book": "tests/scripts/fixtures/279/06/paragraph-breaks.fb2",
+    "args": [
+      "--answer",
+      "{\"case1\":\"10\",\"case2\":\"9\",\"case3\":\"9\",\"case4\":\"6\",\"case5\":\"12\",\"case6\":\"1\",\"case7\":\"1\"}"
+    ]
+  },
+  {
+    "snapshot": "06/guided-paragraph-breaks.manual.xml",
+    "script": "scripts/06_cleanup/06_guided-paragraph-breaks",
+    "book": "tests/scripts/fixtures/279/06/paragraph-breaks.fb2",
+    "args": [
+      "--answer",
+      "{\"case1\":\"0\",\"case2\":\"0\",\"case3\":\"manual\",\"case4\":\"0\",\"case5\":\"0\",\"case6\":\"0\",\"case7\":\"manual\"}",
+      "--answer",
+      "{\"action\":\"3\"}",
+      "--answer",
+      "{\"action\":\"1\"}",
+      "--answer",
+      "{\"action\":\"1\"}",
+      "--answer",
+      "{\"action\":\"0\"}"
+    ]
+  },
+  {
+    "snapshot": "06/missing-full-stop.279.xml",
+    "script": "scripts/06_cleanup/10_missing-full-stop",
+    "book": "tests/scripts/fixtures/279/06/interactive-279.fb2",
+    "args": [
+      "--select",
+      "n12:0:0",
+      "--answer",
+      "домой. Было"
+    ]
+  },
+  {
+    "snapshot": "06/win1252-letters.all.xml",
+    "script": "scripts/06_cleanup/19_win1252-letters",
+    "book": "tests/scripts/fixtures/279/06/win1252.fb2",
+    "args": [
+      "--select",
+      "n5:0:0",
+      "--answer",
+      "{\"action\":\"all\"}"
+    ]
+  },
+  {
+    "snapshot": "06/win1252-words.all.xml",
+    "script": "scripts/06_cleanup/20_win1252-words",
+    "book": "tests/scripts/fixtures/279/06/win1252.fb2",
+    "args": [
+      "--select",
+      "n5:0:0",
+      "--answer",
+      "{\"action\":\"all\"}"
+    ]
+  },
+  {
+    "snapshot": "06/win1252-words.caret.xml",
+    "script": "scripts/06_cleanup/20_win1252-words",
+    "book": "tests/scripts/fixtures/279/06/win1252.fb2",
+    "args": [
+      "--select",
+      "n5:7:7",
+      "--answer",
+      "{}",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "06/win1252-words.all-last.xml",
+    "script": "scripts/06_cleanup/20_win1252-words",
+    "book": "tests/scripts/fixtures/279/06/win1252.fb2",
+    "args": [
+      "--select",
+      "n6:28:28",
+      "--answer",
+      "{\"action\":\"all\"}"
+    ]
+  }
+]

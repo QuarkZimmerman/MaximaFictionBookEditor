@@ -274,3 +274,20 @@
 .mfbe-customize-toolbar-list option {
   padding: 2px 6px;
 }
+
+/* The `viewer` kind (feature 007, the picture view): a modal layer over the whole window, with
+   no 640 px cap; its content draws the rest. */
+.mfbe-dialog-backdrop-viewer {
+  align-items: stretch;
+  justify-content: stretch;
+  background: var(--mfbe-viewer-backdrop, rgba(0, 0, 0, 0.82));
+}
+
+.mfbe-viewer {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  outline: none;
+}

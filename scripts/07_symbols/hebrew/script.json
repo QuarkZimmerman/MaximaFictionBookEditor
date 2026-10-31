@@ -3,11 +3,13 @@
   "id": "07/hebrew",
   "name": {
     "en": "Hebrew",
-    "ru": "Иврит"
+    "ru": "Иврит",
+    "uk": "Іврит"
   },
   "description": {
-    "en": "Inserts a letter of the Hebrew alphabet at the caret",
-    "ru": "Вставляет букву еврейского алфавита в позицию курсора"
+    "en": "Inserts a letter of the Hebrew alphabet in place of the selected text or at the caret",
+    "ru": "Вставляет букву еврейского алфавита на место выделенного текста или в позицию курсора",
+    "uk": "Вставляє літеру єврейського алфавіту на місце виділеного тексту або на місці курсору"
   },
   "kind": "menu",
   "entry": "index.js",
@@ -18,7 +20,8 @@
     "ru": "Иврит"
   },
   "legacy": {
-    "source": "07_Символы/Иврит.js",
-    "fbeVersion": "2.7"
+    "source": "07_Символы/07_Иврит.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
   }
 }

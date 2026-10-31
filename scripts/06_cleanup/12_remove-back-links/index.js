@@ -1,14 +1,17 @@
-// Converted from 06_Чистка/12_Удаление возвратов.js (FictionBook Editor): "Удаление возвратных ссылок".
-// Converters such as Word export leave "back links" in the notes body (links to _ftnref1 /
-// _ednref1 anchors in the main text) and the matching ids on paragraphs. The script removes
-// those links (with their text) from the notes body and the ids from the paragraphs of the
-// other bodies, unless a regular link in the main text still points at the id. When a notes
-// section has not exactly one back link the user is warned first.
+// Converted from FictionBook Editor 2.7.9: Scripts/06_Чистка/12_Удалить возвратные ссылки, созданные FBD.js
+// ("Удаление возвратных ссылок", version 1.3; 2.7beta1's 12_Удаление возвратов.js, 1.2, before
+// feature 007). Converters such as Word export leave "back links" in the notes body (links to
+// _ftnref1 / _ednref1 anchors in the main text) and the matching ids on paragraphs. The script
+// removes those links (with their text) from the notes body and the ids from the paragraphs of the
+// other bodies, unless a regular link in the main text still points at the id. When a notes section
+// has not exactly one back link the user is warned first. 2.7.9 says «раздел» where 2.7beta1 said
+// «секция» and shows the run time.
 //
-// Deviations (see conversion-notes-b.md): the original removed every link that followed a
-// back link inside the same notes section because of a counter that was never reset; only
-// the links matching the patterns are removed here.
-// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+// Deviations (see conversion-notes-b.md): the original removed every link that followed a back
+// link inside the same notes section because of a counter that was never reset; only the links
+// matching the patterns are removed here. The result message shows the run time once (2.7.9
+// appends it twice, where 2.7beta1 appended a list of binaries of another script and failed).
+// The original's notice, kept as written (FR-029):
 //скрипт "Удаление возвратных ссылок"
 //удаляем ссылки в боди нотесов, которые подходят под регэкспы
 //удаляем id абзацев, которые подходят под регэкспы
@@ -25,6 +28,19 @@ function localHref(href) {
   if (hash < 0) return '1';
   const main = /main\.html#/i.exec(text);
   return main ? text.slice(main.index + 10) : text.slice(hash + 1);
+}
+
+/** The run time as the original writes it (its own rounding). */
+function timeString(started, ru) {
+  const seconds = (Date.now() - started) / 1000;
+  const min = Math.floor(seconds / 60);
+  const rest = seconds - min * 60;
+  const up = (factor) => Math.ceil(factor * rest) / factor;
+  const sec = ru ? 'сек' : 's';
+  if (up(100) < 1 && min < 1) return `${up(1000)} ${sec}`;
+  if (up(10) < 10 && min < 1) return `${up(100)} ${sec}`;
+  if (min < 1) return `${up(10)} ${sec}`;
+  return ru ? `${min} мин ${Math.ceil(rest)} с` : `${min} min ${Math.ceil(rest)} s`;
 }
 
 function isBackHref(local) {
@@ -63,6 +79,7 @@ function linksOf(block) {
 
 export default async function run(ctx) {
   const ru = ctx.uiLanguage === 'ru';
+  const started = Date.now();
   const snapshot = await mfbe.doc.get();
   const bodies = snapshot.bodies ?? [];
   const notes = bodies.find((b) => b.attrs?.name === 'notes');
@@ -99,7 +116,7 @@ export default async function run(ctx) {
   });
   if (odd.length) {
     const question = ru
-      ? 'В самом правильном случае в каждой секции body примечаний есть одна возвратная ссылка.\nНо в данном случае это не так.\nНиже перечислены пары "номер секции:количество возвратных ссылок" для тех секций,\nв которых количество обнаруженных возвратных ссылок отличается от единицы.\nПроконтролировать их размещение не представляется возможным.\n\n'
+      ? 'В самом правильном случае в каждом разделе body примечаний есть одна возвратная ссылка.\nНо в данном случае это не так.\nНиже перечислены пары "номер раздела:количество возвратных ссылок" для тех разделов,\nв которых количество обнаруженных возвратных ссылок отличается от единицы.\nПроконтролировать их размещение не представляется возможным.\n\n'
         + `${odd.join(', ')}\n\nВы все еще хотите произвести удаление возвратных ссылок и id абзацев?`
       : 'Ideally every section of the notes body contains exactly one back link.\nHere this is not the case.\nBelow are the pairs "section number:number of back links" for the sections\nwhose number of back links differs from one.\n\n'
         + `${odd.join(', ')}\n\nDo you still want to remove the back links and the paragraph ids?`;
@@ -142,8 +159,8 @@ export default async function run(ctx) {
 
   await mfbe.ui.message(
     ru
-      ? `           –= Sclex Script =–\n "Удаление возвратных ссылок"\n                      v1.2\n\n Удалено\n\n         Возвратных ссылок: ${deletedLinks}\n                     ID абзацев: ${deletedIds}`
-      : `           –= Sclex Script =–\n "Removal of back links"\n                      v1.2\n\n Removed\n\n         Back links: ${deletedLinks}\n         Paragraph ids: ${deletedIds}`,
+      ? `           –= Sclex Script =–\n "Удаление возвратных ссылок"\n                      v1.3\n\n Удалено\n\n         Возвратных ссылок: ${deletedLinks}\n                     ID абзацев: ${deletedIds}\n\nВремя выполнения: ${timeString(started, true)}.`
+      : `           –= Sclex Script =–\n "Removal of back links"\n                      v1.3\n\n Removed\n\n         Back links: ${deletedLinks}\n         Paragraph ids: ${deletedIds}\n\nRun time: ${timeString(started, false)}.`,
     { caption: ctx.script.name, icon: 'info' },
   );
 }

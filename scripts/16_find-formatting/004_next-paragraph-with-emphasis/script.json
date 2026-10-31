@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-paragraph-with-emphasis",
+  "name": {
+    "ru": "Перейти на следующий абзац с курсивом",
+    "en": "Go to next paragraph with italics",
+    "uk": "Перейти до наступного абзацу з курсивом"
+  },
+  "description": {
+    "ru": "Переходит на следующий абзац, содержащий курсив, и ставит курсор в начало первого курсива в нём; по достижении конца книги предлагает продолжить с начала",
+    "en": "Goes to the next paragraph that contains italics and puts the caret at the start of its first italics; at the end of the book offers to continue from the beginning",
+    "uk": "Переходить до наступного абзацу, що містить курсив, і ставить курсор на початок першого курсиву в ньому; наприкінці книги пропонує продовжити з початку"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Перейти на следующий абзац с курсивом",
+    "en": "Go to next paragraph with italics"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/004_Перейти на следующий абзац с курсивом.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

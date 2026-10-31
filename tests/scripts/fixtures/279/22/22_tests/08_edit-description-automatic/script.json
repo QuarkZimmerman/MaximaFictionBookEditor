@@ -1,0 +1,10 @@
+{
+  "manifestVersion": 1,
+  "id": "test-22/edit-description-automatic",
+  "name": {
+    "en": "Test: edit the description as text, automatic clean-up (Pause = 0)",
+    "ru": "Test: edit the description as text, automatic clean-up (Pause = 0)"
+  },
+  "kind": "menu",
+  "entry": "index.js"
+}

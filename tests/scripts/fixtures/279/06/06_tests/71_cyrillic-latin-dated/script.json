@@ -1,0 +1,8 @@
+{
+  "manifestVersion": 1,
+  "id": "tests-279-06/cyrillic-latin-dated",
+  "name": { "ru": "Тест: Кириллица-латиница с датой 10.05.2025", "en": "Test: Cyrillic-Latin dated 10.05.2025", "uk": "Тест: Кирилиця-латиниця з датою 10.05.2025" },
+  "description": { "ru": "Тестовый запуск 06/cyrillic-latin с фиксированной датой записи в историю.", "en": "Test run of 06/cyrillic-latin with a fixed date for its history entry.", "uk": "Тестовий запуск 06/cyrillic-latin із фіксованою датою запису в історію." },
+  "kind": "menu",
+  "entry": "index.js"
+}

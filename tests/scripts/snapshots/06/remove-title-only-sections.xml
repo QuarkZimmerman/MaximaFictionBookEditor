@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Чистка</last-name>
+			</author>
+			<book-title>Примечания FBD и пустые разделы</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Книга</p>
+		</title>
+		<section id="a">
+			<title>
+				<p>Глава 1</p>
+			</title>
+			<p><a l:href="#n1" type="note">1</a> В основном тексте ссылка стоит в начале абзаца.</p>
+		</section>
+		<section id="d">
+			<empty-line/>
+		</section>
+		<section id="f">
+			<title>
+				<p>Глава 6</p>
+			</title>
+			<empty-line/>
+			<image l:href="#pic.png"/>
+		</section>
+		<section id="g">
+			<title>
+				<p>Часть 1</p>
+			</title>
+			<section id="g2">
+				<title>
+					<p>Глава 8</p>
+				</title>
+				<p>Текст главы 8.</p>
+			</section>
+		</section>
+		<section id="i">
+			<title>
+				<p>Часть 3</p>
+			</title>
+			<epigraph>
+				<p>Эпиграф части.</p>
+			</epigraph>
+			<empty-line/>
+		</section>
+		<section id="j">
+			<title>
+				<p>Глава 13</p>
+			</title>
+			<p><image l:href="#pic.png"/></p>
+		</section>
+		<section id="l">
+			<title>
+				<p>Глава 15</p>
+			</title>
+			<p>	</p>
+		</section>
+	</body>
+	<body name="notes">
+		<title>
+			<p>Примечания</p>
+		</title>
+		<section id="n1">
+			<title>
+				<p>1</p>
+			</title>
+			<p><a l:href="#bookmark1">1</a> Первое примечание.</p>
+		</section>
+		<section id="n2">
+			<title>
+				<p>2</p>
+			</title>
+			<p>  <a l:href="#bookmark2">2</a>  Второе примечание, с пробелами вокруг ссылки.</p>
+		</section>
+		<section id="n3">
+			<title>
+				<p>3</p>
+			</title>
+			<p><a l:href="#bookmark3"><emphasis>3</emphasis></a><emphasis> Курсивное</emphasis> примечание.</p>
+		</section>
+		<section id="n4">
+			<title>
+				<p>4</p>
+			</title>
+			<p><a l:href="#bookmark4">4</a></p>
+			<p>Четвёртое примечание, в котором ссылка занимала весь абзац.</p>
+		</section>
+		<section id="n5">
+			<title>
+				<p>5</p>
+			</title>
+			<p>Примечание со <a l:href="#bookmark5">ссылкой</a> в середине.</p>
+			<p><a l:href="#bookmark6"><image l:href="#pic.png"/></a> Картинка-ссылка в начале.</p>
+			<p><image l:href="#pic.png"/><a l:href="#bookmark7">7</a> Картинка перед ссылкой.</p>
+			<p> <a l:href="#bookmark8">8</a> Неразрывные пробелы вокруг ссылки.</p>
+			<cite>
+				<p><a l:href="#bookmark9">9</a> Абзац цитаты.</p>
+			</cite>
+		</section>
+	</body>
+	<binary id="pic.png" content-type="image/png">…</binary>
+</FictionBook>

@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "06/remove-paragraph-ids",
+  "name": {
+    "ru": "Удалить id абзацев",
+    "en": "Remove paragraph ids",
+    "uk": "Видалити id абзаців"
+  },
+  "description": {
+    "ru": "Удаляет атрибуты id у всех абзацев, строк стихов, подзаголовков, авторов текста и ячеек таблиц во всех body, включая body примечаний.",
+    "en": "Removes the id attributes of all paragraphs, verse lines, subtitles, text authors and table cells in every body, the notes body included.",
+    "uk": "Видаляє атрибути id усіх абзаців, рядків віршів, підзаголовків, авторів тексту та клітинок таблиць у всіх body, зокрема в body приміток."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Удалить id абзацев",
+    "en": "Remove paragraph ids"
+  },
+  "legacy": {
+    "source": "06_Чистка/30_Удалить id абзацев.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

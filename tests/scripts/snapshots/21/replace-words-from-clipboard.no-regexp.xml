@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Слова</last-name>
+			</author>
+			<book-title>Замена слов по списку</book-title>
+			<annotation>
+				<p>Аннотация: молоко и ошибка.</p>
+			</annotation>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+			<history>
+				<p>История: опечатка.</p>
+			</history>
+		</document-info>
+	</description>
+	<body>
+		<section>
+			<title>
+				<p>Замена слов</p>
+			</title>
+			<p>Здесь ошибка и опечатка.</p>
+			<p>Курсив <emphasis>ошибка</emphasis> целиком.</p>
+			<p>Смешанное аши<emphasis>пка</emphasis> не трогаем.</p>
+			<p>Слово при<emphasis>ашипка</emphasis>.</p>
+			<p>Машипка с заглавной.</p>
+			<p>Последний абзац.</p>
+		</section>
+	</body>
+</FictionBook>

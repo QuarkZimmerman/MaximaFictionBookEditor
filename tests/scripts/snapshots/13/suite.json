@@ -1,0 +1,261 @@
+[
+  {
+    "snapshot": "13/chapter-titles.xml",
+    "script": "scripts/13_subtitles/30_chapter-titles",
+    "book": "tests/scripts/fixtures/279/13/chapters.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "13/chapter-titles.edge.xml",
+    "script": "scripts/13_subtitles/30_chapter-titles",
+    "book": "tests/scripts/fixtures/279/13/chapters-edge.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "13/part-titles.xml",
+    "script": "scripts/13_subtitles/40_part-titles",
+    "book": "tests/scripts/fixtures/279/13/parts.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "13/book-section-titles.xml",
+    "script": "scripts/13_subtitles/50_book-section-titles",
+    "book": "tests/scripts/fixtures/279/13/parts.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "13/regexp-titles-extended.titles.xml",
+    "script": "scripts/13_subtitles/06_regexp-titles-extended",
+    "book": "tests/scripts/fixtures/279/13/regexp-titles.fb2",
+    "args": [
+      "--answer",
+      "{\"regexp\":\"^[ \\\\xA0]*Глава[ \\\\xA0]+\\\\d+(\\\\..*)?[ \\\\xA0]*$\",\"captureAfter\":\"1\"}"
+    ]
+  },
+  {
+    "snapshot": "13/regexp-titles-extended.subtitles.xml",
+    "script": "scripts/13_subtitles/06_regexp-titles-extended",
+    "book": "tests/scripts/fixtures/279/13/regexp-titles.fb2",
+    "args": [
+      "--answer",
+      "{\"regexp\":\"^[ \\\\xA0]*(\\\\*[ \\\\xA0]*){3}[ \\\\xA0]*$\",\"action\":\"subtitles\"}"
+    ]
+  },
+  {
+    "snapshot": "13/regexp-titles-extended.bold-untitled.xml",
+    "script": "scripts/13_subtitles/06_regexp-titles-extended",
+    "book": "tests/scripts/fixtures/279/13/regexp-titles.fb2",
+    "args": [
+      "--answer",
+      "{\"bold\":true,\"inUntitledSection\":true}"
+    ]
+  },
+  {
+    "snapshot": "13/regexp-titles-extended.empty-lines.xml",
+    "script": "scripts/13_subtitles/06_regexp-titles-extended",
+    "book": "tests/scripts/fixtures/279/13/regexp-titles.fb2",
+    "args": [
+      "--answer",
+      "{\"inEmptyLines\":true}"
+    ]
+  },
+  {
+    "snapshot": "13/regexp-titles-extended.after-title.xml",
+    "script": "scripts/13_subtitles/06_regexp-titles-extended",
+    "book": "tests/scripts/fixtures/279/13/regexp-titles.fb2",
+    "args": [
+      "--answer",
+      "{\"regexp\":\"^[ \\\\xA0]*\\\\d+[ \\\\xA0]*\\\\.?$\",\"afterTitle\":true,\"action\":\"subtitles\"}"
+    ]
+  },
+  {
+    "snapshot": "13/titles-from-contents.xml",
+    "script": "scripts/13_subtitles/07_titles-from-contents",
+    "book": "tests/scripts/fixtures/279/13/contents.fb2",
+    "args": [
+      "--select-range",
+      "n7:0-n13:5",
+      "--answer",
+      "{\"action\":\"removeSymbols\"}",
+      "--answer",
+      "{\"action\":\"markup\"}",
+      "--answer",
+      "ok",
+      "--answer",
+      "{\"action\":\"markup\",\"processingType\":\"ignoring\"}",
+      "--answer",
+      "ok",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "13/titles-from-contents.plain.xml",
+    "script": "scripts/13_subtitles/07_titles-from-contents",
+    "book": "tests/scripts/fixtures/279/13/contents.fb2",
+    "args": [
+      "--select-range",
+      "n7:0-n13:5",
+      "--answer",
+      "{\"action\":\"removeSymbols\"}",
+      "--answer",
+      "{\"action\":\"markup\",\"adaptCase\":false,\"mergeAdjacent\":false}",
+      "--answer",
+      "ok",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "13/titles-from-contents.toc-title.xml",
+    "script": "scripts/13_subtitles/07_titles-from-contents",
+    "book": "tests/scripts/fixtures/279/13/contents.fb2",
+    "args": [
+      "--select-range",
+      "n6:0-n13:5",
+      "--answer",
+      "{\"action\":\"markup\"}",
+      "--answer",
+      "ok",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "13/remove-all-empty-lines.xml",
+    "script": "scripts/13_subtitles/540_remove-all-empty-lines",
+    "book": "tests/scripts/fixtures/279/13/empty-lines.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "13/remove-empty-lines-in-selection.xml",
+    "script": "scripts/13_subtitles/543_remove-empty-lines-in-selection",
+    "book": "tests/scripts/fixtures/279/13/empty-lines.fb2",
+    "args": [
+      "--select-range",
+      "n9:0-n34:5"
+    ]
+  },
+  {
+    "snapshot": "13/remove-empty-lines-in-selection.caret.xml",
+    "script": "scripts/13_subtitles/543_remove-empty-lines-in-selection",
+    "book": "tests/scripts/fixtures/279/13/empty-lines.fb2",
+    "args": [
+      "--select",
+      "n12:0:0"
+    ]
+  },
+  {
+    "snapshot": "13/unify-asterisk-subtitles.xml",
+    "script": "scripts/13_subtitles/560_unify-asterisk-subtitles",
+    "book": "tests/scripts/fixtures/279/13/asterisks.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "13/remove-asterisks-near-titles.xml",
+    "script": "scripts/13_subtitles/580_remove-asterisks-near-titles",
+    "book": "tests/scripts/fixtures/279/13/asterisks.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "13/remove-subtitle-bold-italics.xml",
+    "script": "scripts/13_subtitles/530_remove-subtitle-bold-italics",
+    "book": "tests/scripts/fixtures/279/13/formatting.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "13/remove-title-formatting.xml",
+    "script": "scripts/13_subtitles/529_remove-title-formatting",
+    "book": "tests/scripts/fixtures/279/13/formatting.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "13/book-title-from-description.xml",
+    "script": "scripts/13_subtitles/550_book-title-from-description",
+    "book": "tests/scripts/fixtures/279/13/book-title.fb2",
+    "args": [
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "13/book-title-from-description.no-patronymic.xml",
+    "script": "scripts/13_subtitles/550_book-title-from-description",
+    "book": "tests/scripts/fixtures/279/13/book-title.fb2",
+    "args": [
+      "--answer",
+      "no"
+    ]
+  },
+  {
+    "snapshot": "13/book-title-from-description.existing.xml",
+    "script": "scripts/13_subtitles/550_book-title-from-description",
+    "book": "tests/scripts/fixtures/279/13/book-title-existing.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "13/book-title-from-description.two-bodies.xml",
+    "script": "scripts/13_subtitles/550_book-title-from-description",
+    "book": "tests/scripts/fixtures/279/13/book-title-two-bodies.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "13/find-possible-titles.xml",
+    "script": "scripts/13_subtitles/570_find-possible-titles",
+    "book": "tests/scripts/fixtures/279/13/keywords.fb2",
+    "args": [
+      "--select",
+      "n7:0:0"
+    ]
+  },
+  {
+    "snapshot": "13/find-possible-titles.end.xml",
+    "script": "scripts/13_subtitles/570_find-possible-titles",
+    "book": "tests/scripts/fixtures/279/13/keywords.fb2",
+    "args": [
+      "--select",
+      "n27:6:6",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "13/subtitles-empty-lines.recheck.xml",
+    "script": "scripts/13_subtitles/525_subtitles-empty-lines",
+    "book": "tests/scripts/fixtures/279/13/subtitles-recheck.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "13/subtitles-empty-lines-plain-titles.recheck.xml",
+    "script": "scripts/13_subtitles/528_subtitles-empty-lines-plain-titles",
+    "book": "tests/scripts/fixtures/279/13/subtitles-recheck.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "13/split-into-sections.titles.xml",
+    "script": "scripts/13_subtitles/05_split-into-sections",
+    "book": "tests/scripts/fixtures/279/13/regexp-titles-basic.fb2",
+    "args": [
+      "--answer",
+      "{\"regexp\":\"^[ \\\\xA0]*Глава[ \\\\xA0]+\\\\d+(\\\\..*)?[ \\\\xA0]*$\",\"before\":\"1\",\"after\":\"1\"}"
+    ]
+  },
+  {
+    "snapshot": "13/split-into-sections.subtitles.xml",
+    "script": "scripts/13_subtitles/05_split-into-sections",
+    "book": "tests/scripts/fixtures/279/13/regexp-titles-basic.fb2",
+    "args": [
+      "--answer",
+      "{\"regexp\":\"^[ \\\\xA0]*(\\\\*[ \\\\xA0]*){3}[ \\\\xA0]*$\",\"before\":\"1\",\"after\":\"1\",\"action\":\"subtitles\"}"
+    ]
+  },
+  {
+    "snapshot": "13/split-into-sections.empty.xml",
+    "script": "scripts/13_subtitles/05_split-into-sections",
+    "book": "tests/scripts/fixtures/279/13/regexp-titles-basic.fb2",
+    "args": [
+      "--answer",
+      "{\"regexp\":\"\"}"
+    ]
+  }
+]

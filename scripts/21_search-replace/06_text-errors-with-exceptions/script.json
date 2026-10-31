@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "21/text-errors-with-exceptions",
+  "name": {
+    "ru": "Поиск (без замены) ошибок текста (версия с исключениями) (TaKir-Sclex-stokber)",
+    "en": "Search (without replacing) for text errors (version with exceptions) (TaKir-Sclex-stokber)",
+    "uk": "Пошук (без заміни) помилок тексту (версія з виключеннями) (TaKir-Sclex-stokber)"
+  },
+  "description": {
+    "ru": "Как «Поиск ошибок текста (TaKir-Sclex)», но с регэкспами-исключениями stokber: адреса, ссылки на источники, сокращения и другие ложные срабатывания пропускаются, и выделяется следующая настоящая ошибка после курсора.",
+    "en": "Like \"Search for text errors (TaKir-Sclex)\", but with stokber's exception expressions: addresses, references, abbreviations and other false alarms are passed over and the next real error after the caret is selected.",
+    "uk": "Як «Пошук помилок тексту (TaKir-Sclex)», але з регулярними виразами-виключеннями stokber: адреси, посилання на джерела, скорочення та інші хибні спрацьовування пропускаються, і виділяється наступна справжня помилка після курсору."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Поиск (без замены) ошибок текста (версия с исключениями) (TaKir-Sclex-stokber)",
+    "en": "Search (without replacing) for text errors (version with exceptions) (TaKir-Sclex-stokber)"
+  },
+  "legacy": {
+    "source": "21_Поиск и замена/06_Поиск (без замены) ошибок текста (версия с исключениями) (TaKir-Sclex-stokber).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "5.2"
+  }
+}

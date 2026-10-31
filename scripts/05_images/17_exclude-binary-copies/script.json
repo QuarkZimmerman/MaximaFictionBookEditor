@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "05/exclude-binary-copies",
+  "name": {
+    "ru": "Исключение копий вложенных файлов",
+    "en": "Exclusion of copies of the binary objects",
+    "uk": "Виключення копій вкладених файлів"
+  },
+  "description": {
+    "ru": "Находит вложения одинакового размера в байтах и пикселях - вероятные копии, кроме обложек - и переводит иллюстрации с копий на оригинал, после чего копии остаются неиспользуемыми.",
+    "en": "Finds the binary objects of equal size in bytes and pixels - probable copies, covers aside - and points the illustrations that use a copy to the original, leaving the copies unused.",
+    "uk": "Знаходить вкладення однакового розміру в байтах і пікселях - імовірні копії, крім обкладинок - і переводить ілюстрації з копій на оригінал, після чого копії лишаються невикористаними."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Исключение копий вложенных файлов",
+    "en": "Exclusion of copies of the binary objects"
+  },
+  "legacy": {
+    "source": "05_Иллюстрации/17_Исключение копий вложенных файлов.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

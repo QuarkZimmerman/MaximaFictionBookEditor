@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-caps",
+  "name": {
+    "ru": "Выделить следующий КАПС (рус-лат)",
+    "en": "Select next CAPS (Russian/Latin)",
+    "uk": "Виділити наступний КАПС (рос-лат)"
+  },
+  "description": {
+    "ru": "Выделяет следующие две и более заглавные буквы подряд (русские или латинские)",
+    "en": "Selects the next run of two or more capital letters (Russian or Latin)",
+    "uk": "Виділяє наступні дві й більше великі літери поспіль (російські або латинські)"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить следующий КАПС (рус-лат)",
+    "en": "Select next CAPS (Russian/Latin)"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/130_Выделить следующий КАПС (рус-лат).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "5.1"
+  }
+}

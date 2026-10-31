@@ -41,7 +41,11 @@
       "caption": "Script error",
       "atLine": "Script error: {{message}} at line {{line}}, column {{column}}",
       "noLocation": "Script error: {{message}}",
-      "loadFailed": "The script \"{{name}}\" could not be loaded: {{reason}}"
+      "loadFailed": "The script \"{{name}}\" could not be loaded: {{reason}}",
+      "clipboardReadNotAllowed": "A script reads the clipboard only in a run you started yourself.",
+      "depthExceeded": "A script may run other scripts at most {{depth}} deep.",
+      "notFound": "There is no script \"{{ref}}\".",
+      "needsSelection": "The script \"{{name}}\" needs a selection."
     },
     "issue": {
       "$comment": "scripts.list().issues[].reason (core/src/resources/scripts.cpp): why a script package or group was skipped or loaded with warnings.",
@@ -55,6 +59,23 @@
       "warning": "{{path}}: {{reason}} - {{message}}"
     },
     "busy": "Another script (\"{{name}}\") is still running. Wait for it to finish or cancel it first.",
-    "noDocument": "Open a document before running a script."
+    "noDocument": "Open a document before running a script.",
+    "files": {
+      "overwriteTitle": "Replace the file?",
+      "overwriteBody": "The file \"{{name}}\" is already in the folder. Overwrite it?",
+      "overwrite": "Overwrite",
+      "skip": "Skip",
+      "overwriteAll": "Overwrite all"
+    },
+    "report": {
+      "copy": "Copy",
+      "saveAs": "Save as...",
+      "copied": "Copied to the clipboard",
+      "saveTitle": "Save the report"
+    },
+    "form": {
+      "regexpPresets": "Ready-made patterns",
+      "regexpInvalid": "Not a regular expression: {{message}}"
+    }
   }
 }

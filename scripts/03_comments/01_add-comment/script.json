@@ -2,23 +2,26 @@
   "manifestVersion": 1,
   "id": "03/add-comment",
   "name": {
-    "en": "Add a comment, staying at its reference",
-    "ru": "Добавить комментарий, оставшись на его ссылке"
+    "ru": "Добавить комментарий, остаться на его ссылке",
+    "en": "Add a comment and stay at its reference",
+    "uk": "Додати коментар, залишитися на його посиланні"
   },
   "description": {
-    "en": "Inserts a comment link {N} at the caret, renumbers the comments and creates the comment section; the caret stays in the text",
-    "ru": "Вставляет ссылку комментария {N} в позиции курсора, перенумеровывает комментарии и создает секцию комментария; курсор остается в тексте"
+    "ru": "Вставляет в позиции курсора ссылку {N} на новый комментарий, перенумеровывает комментарии и создает раздел комментария; курсор остается у ссылки",
+    "en": "Inserts a link {N} to a new comment at the caret, renumbers the comments and creates the comment's section; the caret stays at the link",
+    "uk": "Вставляє в позиції курсора посилання {N} на новий коментар, перенумеровує коментарі і створює розділ коментаря; курсор залишається біля посилання"
   },
   "kind": "menu",
   "entry": "index.js",
   "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Add a comment, staying at its reference",
-    "ru": "Добавить комментарий, оставшись на его ссылке"
+    "ru": "Добавить комментарий, остаться на его ссылке",
+    "en": "Add a comment and stay at its reference"
   },
   "legacy": {
-    "source": "03_Добавление комментария/01_Добавить комментарий, оставшись на его ссылке.js",
-    "fbeVersion": "2.7"
+    "source": "03_Комментарии/01_Добавить комментарий, остаться на его ссылке.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "2.8"
   }
 }

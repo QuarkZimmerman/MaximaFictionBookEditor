@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "12/next-guillemets",
+  "name": {
+    "ru": "Перейти на следующие елочки",
+    "en": "Go to next guillemets",
+    "uk": "Перейти до наступних ялинок"
+  },
+  "description": {
+    "ru": "Выделяет ближайшую ёлочку (« или ») после курсора или выделения; в конце книги предлагает продолжить с начала",
+    "en": "Selects the nearest guillemet (« or ») after the caret or the selection; at the end of the book it offers to go on from the start",
+    "uk": "Виділяє найближчу ялинку (« або ») після курсора чи виділення; у кінці книги пропонує продовжити з початку"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Перейти на следующие елочки",
+    "en": "Go to next guillemets"
+  },
+  "legacy": {
+    "source": "12_Обработка кавычек/009_Перейти на следующие елочки.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "2.9"
+  }
+}

@@ -2,23 +2,28 @@
   "manifestVersion": 1,
   "id": "09/merge-adjacent-poems",
   "name": {
-    "en": "Merge consecutive poems",
-    "ru": "Слияние подряд идущих стихов"
+    "en": "Merge the selected consecutive poems into one poem",
+    "ru": "Объединить выделенные подряд идущие стихи в один стих",
+    "uk": "Об'єднати виділені вірші, що йдуть поспіль, в один вірш"
   },
   "description": {
     "en": "Within the selection, appends every poem that directly follows another poem (only empty lines between them) to that poem, when the result stays valid",
-    "ru": "В выделении присоединяет каждое стихотворение, идущее сразу за другим (между ними только пустые строки), к предыдущему, если это не нарушит валидность"
+    "ru": "В выделении присоединяет каждое стихотворение, идущее сразу за другим (между ними только пустые строки), к предыдущему, если это не нарушит валидность",
+    "uk": "У виділенні приєднує кожен вірш, що йде одразу за іншим (між ними лише порожні рядки), до попереднього, якщо це не порушить валідність"
   },
   "kind": "menu",
   "entry": "index.js",
   "icon": "icon.png",
   "needsSelection": true,
   "undoLabel": {
-    "en": "Merge consecutive poems",
-    "ru": "Объединение стихов"
+    "en": "Merge the selected consecutive poems into one poem",
+    "ru": "Объединить выделенные подряд идущие стихи в один стих"
   },
   "legacy": {
     "source": "09_Стихи/01_Слияние подряд идущих стихов.js",
-    "fbeVersion": "2.7"
+    "fbeVersion": "2.7",
+    "aliases": [
+      "09_Стихи/01_Объединить выделенные подряд идущие стихи в один стих.js"
+    ]
   }
 }

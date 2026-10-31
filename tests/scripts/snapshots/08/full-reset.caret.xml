@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Структура</last-name>
+			</author>
+			<book-title>Структура разделов</book-title>
+			<annotation>
+				<p>Аннотация книги.</p>
+			</annotation>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+			<history>
+				<p>v1.0 — создание файла</p>
+			</history>
+		</document-info>
+	</description>
+	<body>
+		<image l:href="#cover.png"/>
+		<title>
+			<p>Структура разделов</p>
+			<p>Сборник</p>
+		</title>
+		<epigraph>
+			<p>Эпиграф книги.</p>
+			<text-author>Автор эпиграфа книги</text-author>
+		</epigraph>
+		<section id="part1">
+			<p>Часть первая</p>
+			<p>Эпиграф части.</p>
+			<p>Автор эпиграфа части</p>
+			<p>Аннотация части.</p>
+			<p>Глава 1</p>
+			<p>Текст главы 1 со сноской<a l:href="#n1" type="note">[1]</a>.</p>
+			<poem>
+				<title>
+					<p>Стихотворение</p>
+				</title>
+				<epigraph>
+					<p>Эпиграф стихотворения.</p>
+				</epigraph>
+				<stanza>
+					<title>
+						<p>I</p>
+					</title>
+					<v>Строка первая,</v>
+					<v>строка вторая.</v>
+				</stanza>
+				<stanza>
+					<v>Строка третья.</v>
+				</stanza>
+				<text-author>Поэт</text-author>
+				<date>1999</date>
+			</poem>
+			<empty-line/>
+			<p style="smallcaps">Абзац со стилем.</p>
+			<p>Глава 2</p>
+			<image l:href="#pic.png"/>
+			<p>Текст главы 2.</p>
+			<cite>
+				<p>Цитата.</p>
+				<text-author>Автор цитаты</text-author>
+			</cite>
+			<table>
+				<tr align="center">
+					<th colspan="2">Заголовок таблицы</th>
+				</tr>
+				<tr>
+					<td>A</td>
+					<td align="right">B</td>
+				</tr>
+			</table>
+			<subtitle>* * *</subtitle>
+			<p>Последний абзац главы 2.</p>
+			<p>Часть вторая</p>
+			<p>Раздел без заголовка.</p>
+			<p>Глава 4</p>
+			<p>4.1</p>
+			<p>Текст 4.1.</p>
+			<p>4.2</p>
+			<empty-line/>
+			<p>Подзаголовок 4.2</p>
+			<p>Текст 4.2.</p>
+			<p>Эпилог</p>
+			<p>Текст эпилога.</p>
+		</section>
+	</body>
+	<body name="notes">
+		<title>
+			<p>Примечания</p>
+		</title>
+		<section id="n1">
+			<title>
+				<p>1</p>
+			</title>
+			<section>
+				<p>Вложенный раздел примечания.</p>
+			</section>
+		</section>
+	</body>
+	<binary id="cover.png" content-type="image/png">…</binary>
+	<binary id="pic.png" content-type="image/png">…</binary>
+</FictionBook>

@@ -77,7 +77,9 @@ export function ToolbarButton({ commandId, size = 24 }: ToolbarButtonProps) {
   const enabled = services.commands.isEnabled(commandId, ctx);
   const checked = services.commands.isChecked(commandId, ctx);
   const tooltip = commandTooltip(command, t);
-  const hotkey = services.hotkeys.display(commandId);
+  // Every chord of the command - the assignable one, then a fixed one (feature 007: Save shows
+  // "F2, Ctrl+S"); the menus show one.
+  const hotkey = services.hotkeys.displayAll(commandId);
   const reason = enabled ? null : services.commands.unavailableReason(commandId, ctx);
   const unavailable = reason ? unavailableTitle(command, reason, t) : null;
   const title = unavailable ?? (hotkey ? `${tooltip} (${hotkey})` : tooltip);

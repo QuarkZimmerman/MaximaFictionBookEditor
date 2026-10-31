@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-annotation",
+  "name": {
+    "ru": "Выделить следующую аннотацию",
+    "en": "Select next annotation",
+    "uk": "Виділити наступну анотацію"
+  },
+  "description": {
+    "ru": "Выделяет следующую аннотацию (раздела или книги)",
+    "en": "Selects the next annotation (of a section or of the book)",
+    "uk": "Виділяє наступну анотацію (розділу або книги)"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить следующую аннотацию",
+    "en": "Select next annotation"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/146_Выделить следующую аннотацию.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

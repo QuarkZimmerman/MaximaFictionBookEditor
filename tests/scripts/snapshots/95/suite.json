@@ -1,0 +1,26 @@
+[
+  {
+    "snapshot": "95/code-to-clipboard.xml",
+    "script": "scripts/95_programmers/03_code-to-clipboard",
+    "book": "tests/scripts/fixtures/279/95/code.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "95/show-code.history.xml",
+    "script": "scripts/95_programmers/01_show-code",
+    "book": "tests/scripts/fixtures/279/95/annotation.fb2",
+    "args": [
+      "--select",
+      "n7:3:3"
+    ]
+  },
+  {
+    "snapshot": "95/show-whole-code.annotation.xml",
+    "script": "scripts/95_programmers/02_show-whole-code",
+    "book": "tests/scripts/fixtures/279/95/annotation.fb2",
+    "args": [
+      "--select",
+      "n5:3:3"
+    ]
+  }
+]

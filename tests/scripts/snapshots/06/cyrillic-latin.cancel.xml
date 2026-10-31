@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Чистка</last-name>
+			</author>
+			<book-title>Кириллица и латиница</book-title>
+			<annotation>
+				<p>Книга о Москве и Лондоне.</p>
+			</annotation>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.1</version>
+			<history>
+				<p>v.1.0 — первая версия</p>
+				<p>v.1.1 —  Скрипт: «Кириллица-латиница» 1.6 — (10.05.25)</p>
+			</history>
+		</document-info>
+	</description>
+	<body>
+		<section>
+			<title>
+				<p>Глава 1</p>
+			</title>
+			<p>В XIX и XX веках жили люди.</p>
+			<p>Москва — Здесь, Он сказал.</p>
+			<p>Он жил в London и Αθήνα.</p>
+			<p>Дом а сад, кот с собакой. А потом пришёл он.</p>
+			<p>Глава X. Карл X, король.</p>
+			<p>Ha столе стоял KTO-то.</p>
+			<p>Он сказал: Ho нет.</p>
+			<p>Ho всё же Ha месте.</p>
+			<p>Hello world 2024 и просто текст.</p>
+		</section>
+	</body>
+</FictionBook>

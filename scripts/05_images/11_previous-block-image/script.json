@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "05/previous-block-image",
+  "name": {
+    "ru": "Перейти на предыдущую 'блочную' иллюстрацию",
+    "en": "Go to the previous 'block' illustration",
+    "uk": "Перейти до попередньої 'блокової' ілюстрації"
+  },
+  "description": {
+    "ru": "Ставит курсор перед предыдущей блочной иллюстрацией - картинкой между абзацами.",
+    "en": "Puts the caret right before the previous block illustration - a picture between paragraphs.",
+    "uk": "Ставить курсор перед попередньою блоковою ілюстрацією - малюнком між абзацами."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Перейти на предыдущую 'блочную' иллюстрацию",
+    "en": "Go to the previous 'block' illustration"
+  },
+  "legacy": {
+    "source": "05_Иллюстрации/11_Перейти на предыдущую 'блочную' иллюстрацию.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.1"
+  }
+}

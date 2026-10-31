@@ -1,0 +1,265 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<genre>det_classic</genre>
+			<author>
+				<first-name>Иван</first-name>
+				<middle-name>Петрович</middle-name>
+				<last-name>Сидоров</last-name>
+				<home-page>http://sidorov.example</home-page>
+				<email>ivan@example.com</email>
+				<id>AUTHOR-1</id>
+			</author>
+			<author>
+				<first-name/>
+				<last-name/>
+				<email>noname@example.com</email>
+			</author>
+			<author>
+				<first-name>Анна</first-name>
+				<last-name>Ёлкина</last-name>
+			</author>
+			<book-title>Редакция  описания</book-title>
+			<annotation>
+				<p>Аннотация не импортируется.</p>
+			</annotation>
+			<keywords>редакция,  описание </keywords>
+			<date>17.05.2025</date>
+			<lang>ru</lang>
+			<src-lang>en</src-lang>
+			<translator>
+				<first-name>Пётр</first-name>
+				<last-name>Переводов</last-name>
+				<id>TR-1</id>
+			</translator>
+			<sequence name="Цикл" number="2">
+				<sequence name="Подцикл" number="1"/>
+			</sequence>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>Зорро</nickname>
+				<email>zorro@example.com</email>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<src-url>http://source.example/1</src-url>
+			<src-ocr>Распознал  Кто-то</src-ocr>
+			<id>…</id>
+			<version>1.3</version>
+			<history>
+				<p>v.1.0 — Создание файла — 1.06.2025</p>
+				<p>v.1.3 — Вычитка — 20.10.2026</p>
+			</history>
+		</document-info>
+		<publish-info>
+			<book-name>Редакция описания</book-name>
+			<publisher>Издательство</publisher>
+			<city>Москва</city>
+			<year>2020</year>
+			<isbn> 978-5-00000-000-0 </isbn>
+			<sequence name="Библиотека" number="7"/>
+		</publish-info>
+			<custom-info info-type="note">Первая строка
+  Вторая строка
+
+
+Третья строка</custom-info>
+	</description>
+	<body>
+		<title>
+			<p>Редакция описания</p>
+		</title>
+		<section>
+			<p>Текст книги.</p>
+		</section>
+	</body>
+	<body name="Раздел «description-1.z.4087»">
+		<title>
+			<p>&lt;DESCRIPTION&gt;</p>
+		</title>
+		<section>
+			<cite>
+				<p>Разрешено отображение пустых данных.</p>
+				<p>Имена авторов и переводчиков записываются по форме: Фамилия Имя Отчество.</p>
+				<p>Сохраняется исходный порядок в списках имён авторов и переводчиков.</p>
+				<p>При импорте в &lt;body&gt;, деление на «Фамилия Имя Отчество» сохраняется.</p>
+			</cite>
+		</section>
+		<section>
+			<title>
+				<p>===&lt;title-info&gt;===</p>
+			</title>
+			<section>
+				<title>
+					<p>• Название: Редакция  описания</p>
+				</title>
+				<empty-line/>
+			</section>
+			<section>
+				<p><strong>• Авторы:</strong></p>
+				<p>Сидоров | Иван | Петрович | Ник: | Почта: ivan@example.com | Сайт: http://sidorov.example | <code>ID: AUTHOR-1</code></p>
+				<p>Ёлкина | Анна | | Ник: | Почта: | Сайт: | <code>ID:</code></p>
+			</section>
+			<section>
+				<p><strong>• Ключевые слова:</strong></p>
+				<p>редакция,  описание </p>
+			</section>
+			<section>
+				<p><strong>• Переводчики:</strong></p>
+				<p>Переводов | Пётр | | Ник: | Почта: | Сайт:</p>
+			</section>
+			<section>
+				<title>
+					<p>• Серия: Цикл</p>
+					<p><sup>• Номер: 2</sup></p>
+				</title>
+				<section>
+					<title>
+						<p>• Серия: Подцикл</p>
+						<p><sup>• Номер: 1</sup></p>
+					</title>
+					<empty-line/>
+				</section>
+			</section>
+		</section>
+		<section>
+			<title>
+				<p>===&lt;src-title-info&gt;===</p>
+			</title>
+			<section>
+				<title>
+					<p>• Название:</p>
+				</title>
+				<empty-line/>
+			</section>
+			<section>
+				<p><strong>• Авторы:</strong></p>
+				<p></p>
+			</section>
+			<section>
+				<p><strong>• Ключевые слова:</strong></p>
+				<p></p>
+			</section>
+			<section>
+				<p><strong>• Переводчики:</strong></p>
+				<p></p>
+			</section>
+			<section>
+				<title>
+					<p>• Серия:</p>
+					<p><sup>• Номер:</sup></p>
+				</title>
+				<empty-line/>
+			</section>
+		</section>
+		<section>
+			<title>
+				<p>===&lt;document-info&gt;===</p>
+			</title>
+			<section>
+				<p><strong>• Авторы:</strong></p>
+				<p> | | | Ник: Зорро | Почта: zorro@example.com | Сайт:</p>
+			</section>
+			<section>
+				<p><strong>• Использованы программы:</strong></p>
+				<p>FictionBook Editor Release 2.7.9, Maxima Fiction Book Editor</p>
+			</section>
+			<section>
+				<p><strong>• Source OCR:</strong></p>
+				<p>Распознал  Кто-то</p>
+			</section>
+		</section>
+		<section>
+			<title>
+				<p>===&lt;publish-info&gt;===</p>
+			</title>
+			<section>
+				<p><strong>• Заголовок книги:</strong></p>
+				<p>Редакция описания</p>
+			</section>
+			<section>
+				<p><strong>• Издатель:</strong></p>
+				<p>Издательство</p>
+			</section>
+			<section>
+				<p><strong>• Город:</strong></p>
+				<p>Москва</p>
+			</section>
+			<section>
+				<p><strong>• Год:</strong></p>
+				<p>2020</p>
+			</section>
+			<section>
+				<title>
+					<p>• Серия: Библиотека</p>
+					<p><sup>• Номер: 7</sup></p>
+				</title>
+				<empty-line/>
+			</section>
+		</section>
+		<section>
+			<title>
+				<p>===&lt;custom-info&gt;===</p>
+			</title>
+			<section>
+				<p><strong>• Тип:</strong></p>
+				<p>note</p>
+				<p><strong>• Значение:</strong></p>
+				<p>Первая строка</p>
+				<p>Вторая строка</p>
+				<p></p>
+				<p>Третья строка</p>
+			</section>
+		</section>
+		<section>
+			<title>
+				<p>= = = = = = = = = = = = = =</p>
+			</title>
+			<annotation>
+				<subtitle>Пояснение к скрипту «Редакция описания документа»</subtitle>
+				<p>Работает скрипт в два этапа. На первом этапе, скрипт импортирует текстовые данные &lt;description&gt; в специальный раздел &lt;body&gt;. Затем скрипт отключается.</p>
+				<p>Полученный раздел можно редактировать текстовыми скриптами, проверить грамматику, произвести ручную правку, добавить или удалить данные.</p>
+				<p>При повторном запуске этого скрипта, включается второй этап, во время которого скрипт возвращает измененные данные обратно в &lt;description&gt;.</p>
+				<empty-line/>
+				<p>Скрипт никогда не импортирует следующие разделы: «Жанр», «Дата текстом», «Значение даты», «Язык», «Язык оригинала», «Source URLs», «ISBN», «Обложка», «Стили», «Бинарные файлы», «Аннотация», «История».</p>
+				<empty-line/>
+				<p>Для расширения функциональности, скрипт имеет несколько режимов работы. Изменить их можно в разделе «Настройки», которой расположен в начале самого скрипта.</p>
+				<p>Например, чтобы добавить заготовленный список авторов в пустой файл, необходимо включить отображение пустых данных, включить отображение нужного раздела с авторами, и выбрать порядок в имени (ФИО или ИОФ), который подходит для заготовленного списка. Затем после импорта &lt;description&gt;, добавить заготовленный список имён в подходящий раздел и вернуть &lt;description&gt; на место.</p>
+				<p>При разделении текста имени, скрипт сначала находит фамилию, в которую должно входить одно слово, которое начинается с заглавной буквы, плюс все слова строчными буквами перед ним, затем по тем же принципам находит имя, а весь оставшийся текст скрипт отправляет в отчество. В сложном тексте можно самостоятельно поставить разделители в нужных местах. Для деления на Имя-Фамилия достаточно одного разделителя, во всех остальных случаях — потребуются два.</p>
+				<empty-line/>
+				<p>Если настройки, которые влияют на &lt;body&gt;, изменялись во время паузы между этапами, то скрипт сначала заменит недавно созданное &lt;body&gt; на новое.</p>
+				<empty-line/>
+				<p>Возможные ошибки:</p>
+				<p>Для возвращения &lt;description&gt;, скрипт должен найти раздел, который он создавал на первом этапе, и правильно определить разделы.</p>
+				<p>Основными ориентирами для скрипта служит имя (name) &lt;body&gt; и названия разделов (&lt;title-info&gt;, Серия, Заголовок и т. д.)</p>
+				<p>Изменение имени &lt;body&gt; может привести к созданию ещё одного &lt;body&gt;.</p>
+				<p>Изменение названий разделов, приведет к удалению всех данных соответствующего раздела в &lt;description&gt;.</p>
+				<empty-line/>
+				<p>Автоматическая обработка:</p>
+				<p>Автоматическая обработка охватывает более широкий спектр &lt;description&gt;.</p>
+				<p>В сферу этой обработки включено всё кроме разделов «Обложка», «Стили», «Бинарные файлы», «Аннотация», «История».</p>
+				<p>В автоматические операции входит замена всех неразрывных пробелов на обычные, замена ряда из нескольких пробелов на один, удаление начальных и конечных пробелов или пробельных символов, замена ряда пустых строк на одну.</p>
+				<p>Для списков имён авторов и переводчиков удаляются полные дубли имен, а так же можно включить сортировку. Кроме того, имена, которые не разделены на Имя-Отчество-Фамилия, скрипт разделит самостоятельно.</p>
+				<p>Скрипт может самостоятельно заполнять пустые поля «Дата текстом» и «Значение даты». Но только в том случае, когда есть одно уже заполненное поле, опираясь на которое, скрипт и будет заполнять второе поле. Кроме того, скрипт заменяет шаблонную дату в формате ГГГГ-ММ-ДД в поле «Дата текстом» на более удобную для восприятия.</p>
+				<p>Если в разделе &lt;title-info&gt; отсутствует «Язык оригинала», скрипт может скопировать недостающее значение из поля «Язык», раздела &lt;src-title-info&gt;. Если же в одном и том же разделе «Язык оригинала» повторяет значение «Язык», то скрипт может удалить это значение (зависит от настроек скрипта).</p>
+				<p>В случае, когда раздел &lt;src-title-info&gt; заполнен только частично, скрипт может скопировать недостающие значения жанра и языка из раздела &lt;title-info&gt;</p>
+				<empty-line/>
+				<p>Скрипт не отображает в статистике, какие именно операции производились, но какие именно значения &lt;description&gt; были изменены, определяет точно.</p>
+				<empty-line/>
+				<p>(Отображение этого пояснения можно отключить в разделе настроек)</p>
+			</annotation>
+			<empty-line/>
+		</section>
+	</body>
+	<body name="notes">
+		<section id="n1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Примечание.</p>
+		</section>
+	</body>
+</FictionBook>

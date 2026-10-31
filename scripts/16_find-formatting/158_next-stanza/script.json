@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-stanza",
+  "name": {
+    "ru": "Выделить следующую строфу (stanza)",
+    "en": "Select next stanza",
+    "uk": "Виділити наступну строфу (stanza)"
+  },
+  "description": {
+    "ru": "Выделяет следующую строфу (stanza)",
+    "en": "Selects the next stanza",
+    "uk": "Виділяє наступну строфу (stanza)"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить следующую строфу (stanza)",
+    "en": "Select next stanza"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/158_Выделить следующую строфу (stanza).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
+  }
+}

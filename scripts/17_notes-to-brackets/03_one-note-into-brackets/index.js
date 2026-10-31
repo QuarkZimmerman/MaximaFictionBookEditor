@@ -1,11 +1,14 @@
-// Converted from 17_Перенос примечаний в скобки/03_Перенос одного примечания в скобки.js
-// (FictionBook Editor 2.7), Tier 2. With the caret inside a note (a section with an id in the
-// notes or comments body) every reference to that note is replaced by its text in brackets
-// (with a leading space), the note section is removed and the remaining notes and comments
-// are renumbered (ids n_N / c_N, titles N, link texts [N] / {N}). Outside a note the original
-// did nothing at all; a status line says so here.
-// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
-// var versionStr="Перенос одного примечания в скобки v1.0. Автор Sclex."
+// Converted from FictionBook Editor 2.7: Scripts/17_Перенос примечаний в скобки/03_Перенос
+// одного примечания в скобки.js, brought up to FictionBook Editor 2.7.9: Scripts/17_Перенос
+// примечаний в скобки/03_Перенести одно примечание в скобки.js (v1.1, which fixed the escaping
+// of the note text as script 01 did; the inline nodes are copied here), Tier 2. With the caret
+// inside a note (a section with an id in the notes or comments body) every reference to that
+// note is replaced by its text in brackets (with a leading space), the note section is removed
+// and the remaining notes and comments are renumbered (ids n_N / c_N, titles N, link texts
+// [N] / {N}). Outside a note the original did nothing at all; a status line says so here.
+// Differences from the original: docs/scripting/conversion-notes-279-b.md (group 17).
+// The original's notice, kept as written (FR-029):
+// var versionStr="Перенос одного примечания в скобки v1.1. Автор Sclex."
 import { indexTargets, loadBodies, localHref, moveReferencesOfBlock, t, textBlocksOf, unify } from './notes-lib.js';
 
 export default async function run(ctx) {
@@ -43,7 +46,7 @@ export default async function run(ctx) {
     await mfbe.doc.removeNode(section);
   } catch {
     await mfbe.ui.message(
-      t(ctx, `Секцию примечания «${id}» удалить не удалось — это единственная секция тела; удалите её вручную.`,
+      t(ctx, `Раздел примечания «${id}» удалить не удалось — это единственный раздел тела; удалите его вручную.`,
         `The note section "${id}" could not be removed - it is the only section of its body; delete it by hand.`),
       { icon: 'warning' },
     );

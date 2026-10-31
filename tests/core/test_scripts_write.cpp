@@ -1,9 +1,10 @@
 // Feature 005 (T024): scripts.write - the segment rule and the limits (invalidParams before
 // anything is written), canonical containment, symlinked ancestors and targets (1002), the
-// manifest validated first (1031, the id mismatch), 1202 for a bundled id, 1203 unless
-// overwrite targets the same folder, all or nothing through the aside folder (old set gone,
-// leftovers removed at the next rescan), the default group 90_assistant, the rescan and the
-// notification.
+// manifest validated first (1031, the id mismatch), 1202 for a bundled id (outside the
+// assistant's folder since feature 007, whose replacing copies test_scripts.cpp covers), 1203
+// unless overwrite targets the same folder, all or nothing through the aside folder (old set
+// gone, leftovers removed at the next rescan), the default group 90_assistant, the rescan and
+// the notification.
 #include "test_support.hpp"
 #include "ws_test_client.hpp"
 
@@ -296,15 +297,18 @@ TEST_CASE(
              R"json({"manifestVersion": 1, "id": "assistant/other", "name": {"en": "x"}, "kind": "menu"})json")}});
     CHECK(error["code"] == -32602);
     CHECK(error["data"]["field"] == "files.script.json.id");
-    // A bundled id is never modified: 1202.
+    // A bundled id outside the assistant's folder: 1202 (feature 007: from the assistant's
+    // folder it is a replacing copy with a backup - test_scripts.cpp).
     error = f.refused(json{
         {"id", "18/remove-spaces"},
+        {"group", "50_mine"},
         {"files",
          package(
              R"json({"manifestVersion": 1, "id": "18/remove-spaces", "name": {"en": "x"}, "kind": "menu"})json")}});
     CHECK(error["code"] == 1202);
     CHECK(error["message"] == "ai.scriptIdBundled");
     CHECK(error["data"] == json{{"id", "18/remove-spaces"}});
+    CHECK_FALSE(fs::exists(f.scripts_root() / "50_mine"));
     CHECK_FALSE(fs::exists(f.scripts_root() / "18_editing"));
 
     // A first write succeeds; the same id again is 1203 naming the package folder.
@@ -321,22 +325,32 @@ TEST_CASE(
         json{{"id", id}, {"folder", "hello-2"}, {"files", package()}, {"overwrite", true}});
     CHECK(error["code"] == 1203);
     CHECK(error["data"]["path"] == path);
-    // A same-id package in the settings layer (another layer): 1203 with its folder.
+    // A same-id package in the settings layer (another layer): from another user group 1203
+    // with its folder; from the assistant's folder a replacing copy after a backup of the
+    // settings layer's version (feature 007, rpc-api §3.6 of the feature).
     const fs::path custom = f.data / "custom-scripts";
     test::write_text(
         custom / "05_Mine" / "01_Bye" / "script.json",
         R"json({"manifestVersion": 1, "id": "assistant/bye", "name": {"en": "Bye"}, "kind": "menu"})json");
     test::write_text(custom / "05_Mine" / "01_Bye" / "index.js", kEntry);
     f.ws.call("settings.set", json{{"patch", {{"other", {{"scriptsFolder", custom.string()}}}}}});
-    error = f.refused(json{
-        {"id", "assistant/bye"},
-        {"files",
-         package(
-             R"json({"manifestVersion": 1, "id": "assistant/bye", "name": {"en": "x"}, "kind": "menu"})json")},
-        {"overwrite", true}});
+    const json bye = package(
+        R"json({"manifestVersion": 1, "id": "assistant/bye", "name": {"en": "x"}, "kind": "menu"})json");
+    error = f.refused(
+        json{{"id", "assistant/bye"}, {"group", "50_mine"}, {"files", bye}, {"overwrite", true}});
     CHECK(error["code"] == 1203);
     CHECK(error["data"]["id"] == "assistant/bye");
     CHECK(fs::path(error["data"]["path"].get<std::string>()) == custom / "05_Mine" / "01_Bye");
+    const json replacing =
+        f.write(json{{"id", "assistant/bye"}, {"files", bye}, {"overwrite", true}});
+    REQUIRE(replacing.contains("result"));
+    CHECK(fs::path(replacing["result"]["path"].get<std::string>()) ==
+          f.scripts_root() / "90_assistant" / "bye");
+    const std::string bye_backup = replacing["result"]["backupId"];
+    CHECK(json::parse(test::read_text(f.data / "script-backups" / "assistant%2Fbye" / bye_backup /
+                                      "backup.json"))["origin"] == "settings");
+    CHECK(test::read_text(custom / "05_Mine" / "01_Bye" / "script.json").find("\"Bye\"") !=
+          std::string::npos);
     // An existing target folder that holds another package: 1203 with that id, overwrite or
     // not; one without a valid manifest: 1203 with the requested id, lifted by overwrite.
     error = f.refused(json{

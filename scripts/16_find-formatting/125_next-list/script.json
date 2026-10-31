@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-list",
+  "name": {
+    "ru": "Выделить следующий список",
+    "en": "Select next list",
+    "uk": "Виділити наступний список"
+  },
+  "description": {
+    "ru": "Выделяет следующий абзац, начинающийся как пункт нумерованного или маркированного списка (цифры или буква со скобкой либо точкой, графический маркер)",
+    "en": "Selects the next paragraph that starts like an item of a numbered or bulleted list (digits or a letter with a bracket or a full stop, a bullet sign)",
+    "uk": "Виділяє наступний абзац, що починається як пункт нумерованого або маркованого списку (цифри чи літера з дужкою або крапкою, графічний маркер)"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить следующий список",
+    "en": "Select next list"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/125_Выделить следующий список.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "5.1"
+  }
+}

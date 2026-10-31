@@ -52,6 +52,30 @@
       "writeAndRun": "Write and &run",
       "dontWrite": "&Don't write"
     },
+    "scripts": {
+      "$comment": "Feature 007 (User Story 9; ai/proposal.tsx, ai/AiPanel.tsx): the modify mode of the proposal dialog with its per-file diff, the restore confirmation and the backups of the assistant's changes.",
+      "modifyTitle": "Change the script: {{name}}",
+      "overridesNote": "The changed script is saved in the assistant's folder under the same id and takes the place of “{{name}}” in the Scripts menu, with its hotkey and toolbar button. The version in effect now ({{origin}}) stays as it is and is kept as a backup.",
+      "backupCreated": "The version it replaced is kept as backup {{backupId}}.",
+      "restoreTitle": "Restore a script: {{name}}",
+      "restoreConfirm": "Bring back the version of “{{name}}” kept on {{date}} ({{origin}})? The version in effect now is kept as a backup.",
+      "restore": "&Restore",
+      "dontRestore": "Do&n't restore",
+      "origin": {
+        "bundled": "bundled with the editor",
+        "settings": "from the scripts folder of the settings",
+        "user": "from your scripts folder",
+        "portable": "from the portable scripts folder",
+        "assistant": "an earlier change by the assistant"
+      },
+      "diff": {
+        "changed": "changed",
+        "unchanged": "unchanged",
+        "added": "new file",
+        "removed": "left out",
+        "binary": "binary file, not part of the change: the script keeps showing its icon"
+      }
+    },
     "ask": {
       "label": "Ask AI..."
     },
@@ -193,6 +217,14 @@
         "proposeScript_one": "Proposed the script {{id}} ({{count}} file)",
         "proposeScript_other": "Proposed the script {{id}} ({{count}} files)",
         "reloadScripts": "Re-read the scripts",
+        "listScriptsQuery": "Searched the scripts for “{{query}}”",
+        "listScriptsGroup": "Listed the scripts of the group {{group}}",
+        "listScriptsGroupQuery": "Searched the scripts of the group {{group}} for “{{query}}”",
+        "listScriptsCount": "{{summary}} ({{shown}} of {{total}})",
+        "listScriptBackups": "Listed the backups of the script {{id}}",
+        "restoreScriptBackup": "Restored the backup {{backupId}} of the script {{id}}",
+        "modifyScript_one": "Proposed a change of the script {{id}} ({{count}} file)",
+        "modifyScript_other": "Proposed a change of the script {{id}} ({{count}} files)",
         "where": {
           "before": "before",
           "after": "after",

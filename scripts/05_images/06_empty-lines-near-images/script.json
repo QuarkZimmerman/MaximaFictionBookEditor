@@ -2,23 +2,26 @@
   "manifestVersion": 1,
   "id": "05/empty-lines-near-images",
   "name": {
-    "en": "Empty lines around illustrations...",
-    "ru": "Пустые строки возле иллюстраций..."
+    "ru": "Добавить либо удалить пустые строки возле иллюстраций...",
+    "en": "Add or remove the empty lines around the illustrations...",
+    "uk": "Додати або видалити порожні рядки біля ілюстрацій..."
   },
   "description": {
-    "en": "Adds exactly one empty line before and after every block image, or removes the empty lines around images",
-    "ru": "Добавляет ровно одну пустую строку до и после каждой картинки или удаляет пустые строки возле картинок"
+    "ru": "Добавляет ровно одну пустую строку до и после каждой иллюстрации или удаляет пустые строки возле иллюстраций - на выбор в начале",
+    "en": "Adds exactly one empty line before and after every illustration, or removes the empty lines around the illustrations - as chosen at the start",
+    "uk": "Додає рівно один порожній рядок до і після кожної ілюстрації або видаляє порожні рядки біля ілюстрацій - на вибір на початку"
   },
   "kind": "menu",
   "entry": "index.js",
   "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Empty lines around illustrations",
-    "ru": "Пустые строки возле иллюстраций"
+    "ru": "Добавить либо удалить пустые строки возле иллюстраций",
+    "en": "Add or remove the empty lines around the illustrations"
   },
   "legacy": {
-    "source": "05_Иллюстрации/06_Пустые строки возле иллюстраций....js",
-    "fbeVersion": "2.7"
+    "source": "05_Иллюстрации/06_Добавить либо удалить пустые строки возле иллюстраций....js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.7"
   }
 }

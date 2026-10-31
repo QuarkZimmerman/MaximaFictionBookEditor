@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/previous-all-bold-paragraph",
+  "name": {
+    "ru": "Выделить предыдущий целиком жирный абзац",
+    "en": "Select previous entirely bold paragraph",
+    "uk": "Виділити попередній цілком жирний абзац"
+  },
+  "description": {
+    "ru": "Выделяет предыдущий абзац, набранный целиком жирным",
+    "en": "Selects the previous paragraph that is bold throughout",
+    "uk": "Виділяє попередній абзац, набраний цілком жирним"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить предыдущий целиком жирный абзац",
+    "en": "Select previous entirely bold paragraph"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/137_Выделить предыдущий целиком жирный абзац.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

@@ -26,23 +26,60 @@ export interface ScriptInfo {
   defaultHotkey?: string;
   needsSelection: boolean;
   undoLabel?: Record<string, string>;
-  legacy?: { source: string; fbeVersion?: string };
+  /**
+   * The classic FictionBook Editor script the package was converted from: its path in the
+   * original's Scripts folder, the FBE release (`2.7` for 2.7beta1, `2.7.9`) and the version
+   * its header states (feature 007).
+   */
+  legacy?: ScriptLegacy;
   /** Group id (folder name, `''` for ungrouped scripts, `tree` for tree commands). */
   group: string;
   dir: string;
   folder: string;
   /** Layer that provided the package: bundled | user | settings | portable. */
   source: string;
+  /** Where the script comes from; `assistant` is the assistant's folder (feature 007). */
+  origin: ScriptOrigin;
+  /**
+   * The script of a lower layer this one replaces (feature 007, FR-085): it then shows in that
+   * script's group and place, and keeps that script's icon when it has none of its own.
+   */
+  overrides?: ScriptOverride;
   entryUrl: string;
   warnings: string[];
 }
+
+/** `ScriptInfo.overrides`: the replaced script's origin and package folder. */
+export interface ScriptOverride {
+  origin: ScriptOrigin;
+  dir: string;
+}
+
+export interface ScriptLegacy {
+  source: string;
+  fbeVersion?: string;
+  sourceVersion?: string;
+  /**
+   * Other paths of the same classic script (feature 007): the 2.7.9 path of a package unchanged
+   * since 2.7beta1, whose `source` stays 2.7beta1's. References resolve them like `source`.
+   */
+  aliases?: string[];
+}
+
+export type ScriptOrigin = 'bundled' | 'settings' | 'user' | 'portable' | 'assistant';
 
 export interface ScriptGroup {
   id: string;
   order: number;
   names: Record<string, string>;
   dir: string;
+  /** The icon file group.json declares. */
   icon?: string;
+  /**
+   * `/script-groups/<folder>/icon` (relative to the core origin): the merged group's declared
+   * icon, from the layer whose declaration it uses (feature 007, rpc-api §2).
+   */
+  iconUrl?: string;
   scripts: ScriptInfo[];
 }
 
@@ -51,7 +88,8 @@ export interface ScriptIssue {
   id?: string;
   reason: string;
   message: string;
-  severity: 'error' | 'warning';
+  /** `info` (feature 007): `overridden` - the script at `path` is replaced by another layer's. */
+  severity: 'error' | 'warning' | 'info';
 }
 
 export interface ScriptsListResult {
@@ -145,7 +183,21 @@ export type FormField =
       value?: string[];
       multiple?: boolean;
     }
-  | { kind: 'static'; id: string; text: string };
+  | { kind: 'static'; id: string; text: string }
+  | {
+      /**
+       * A pattern with named presets and a validity check (feature 007, contracts/script-api.md
+       * §4): choosing a preset puts its value in the field; OK is disabled while the pattern
+       * does not compile with `flags`. The value is the pattern string.
+       */
+      kind: 'regexp';
+      id: string;
+      label: string;
+      value?: string;
+      presets?: FormOption[];
+      presetsLabel?: string;
+      flags?: string;
+    };
 
 export interface FormOption {
   value: string;
@@ -191,11 +243,23 @@ export interface RunEnd {
   subscribe(listener: () => void): () => void;
 }
 
+/**
+ * Who started a run (script API version 2, contracts/script-api.md §1 of feature 007): a menu,
+ * toolbar, hotkey or tree command ('user'), the AI assistant ('assistant'), or another script
+ * through `mfbe.scripts.run` ('script').
+ */
+export type StartedBy = 'user' | 'assistant' | 'script';
+
 /** `ctx` handed to `run(ctx)`; `cancelled` is a live getter in the worker. */
 export interface ScriptContextData {
   script: { id: string; name: string; group: string; kind: ScriptKind };
   uiLanguage: string;
   treeNode?: NodeRef;
+  startedBy: StartedBy;
+  /** The calling script's id when `startedBy` is 'script'. */
+  caller?: string;
+  /** The `args` of `mfbe.scripts.run`, structured-cloned, when `startedBy` is 'script'. */
+  args?: unknown;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -231,10 +295,17 @@ export type ApiMethod =
   | 'ui.form'
   | 'ui.status'
   | 'ui.progress'
+  | 'ui.report'
   | 'edit.label'
   | 'edit.symbols'
   | 'env.settings'
-  | 'env.docLanguage';
+  | 'env.docLanguage'
+  // Script API version 2 (feature 007, contracts/script-api.md §2-§5).
+  | 'clipboard.readText'
+  | 'clipboard.writeText'
+  | 'files.saveText'
+  | 'files.saveBinaries'
+  | 'scripts.run';
 
 export const API_METHODS: readonly ApiMethod[] = [
   'doc.get',
@@ -264,10 +335,16 @@ export const API_METHODS: readonly ApiMethod[] = [
   'ui.form',
   'ui.status',
   'ui.progress',
+  'ui.report',
   'edit.label',
   'edit.symbols',
   'env.settings',
   'env.docLanguage',
+  'clipboard.readText',
+  'clipboard.writeText',
+  'files.saveText',
+  'files.saveBinaries',
+  'scripts.run',
 ];
 
 /** Messages from the host to the worker (over the private MessagePort). */
@@ -281,6 +358,8 @@ export type HostMessage =
 export interface ScriptErrorInfo {
   name: string;
   message: string;
+  /** The `code` of a `ScriptApiError` the script let through (`clipboard.readNotAllowed`, …). */
+  code?: string;
   line?: number;
   column?: number;
   /** File of the location when it is not the entry module (relative to the package). */
@@ -292,7 +371,8 @@ export interface ScriptErrorInfo {
 export type WorkerMessage =
   | { type: 'ready' }
   | { type: 'call'; id: number; method: ApiMethod; args: unknown[] }
-  | { type: 'done' }
+  /** `value`: what the script's run() returned (structured-cloned) - for mfbe.scripts.run. */
+  | { type: 'done'; value?: unknown }
   | { type: 'fail'; error: ScriptErrorInfo }
   | { type: 'log'; level: 'log' | 'info' | 'warn' | 'error' | 'debug'; args: unknown[] };
 

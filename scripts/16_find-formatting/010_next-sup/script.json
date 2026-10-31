@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-sup",
+  "name": {
+    "ru": "Перейти на следующий верхний индекс",
+    "en": "Go to next superscript",
+    "uk": "Перейти до наступного верхнього індексу"
+  },
+  "description": {
+    "ru": "Переводит курсор в начало следующего верхнего индекса; по достижении конца книги предлагает продолжить с начала",
+    "en": "Moves the caret to the start of the next superscript; at the end of the book offers to continue from the beginning",
+    "uk": "Переводить курсор на початок наступного верхнього індексу; наприкінці книги пропонує продовжити з початку"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Перейти на следующий верхний индекс",
+    "en": "Go to next superscript"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/010_Перейти на следующий верхний индекс.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>sf_fantasy</genre>
+			<genre>adventure</genre>
+			<author>
+				<first-name>Мария</first-name>
+				<last-name>Иванова</last-name>
+			</author>
+			<author>
+				<nickname>Гость</nickname>
+				<email>guest@example.com</email>
+				<id>AUTHOR-NEW</id>
+			</author>
+			<author>
+				<first-name>Третий</first-name>
+				<last-name>Автор</last-name>
+			</author>
+			<book-title>Новое название</book-title>
+			<annotation>
+				<p>Первая строка аннотации.</p>
+				<p>Вторая строка с <emphasis>курсивом</emphasis>.</p>
+				<empty-line/>
+				<p>Новая <strong>жирная</strong> строка &amp; <emphasis>курсив</emphasis></p>
+			</annotation>
+			<keywords>шаблон, дескрипшен</keywords>
+			<date value="2026-01-01">2026</date>
+			<lang>ru</lang>
+			<src-lang>de</src-lang>
+			<translator>
+				<first-name>Отто</first-name>
+				<last-name>Шмидт</last-name>
+			</translator>
+			<sequence name="Новая серия" number="3"/>
+		</title-info>
+		<src-title-info>
+			<genre/>
+			<author>
+				<first-name>John</first-name>
+				<last-name>Smith</last-name>
+			</author>
+			<book-title>Original Title</book-title>
+			<lang>en</lang>
+		</src-title-info>
+		<document-info>
+			<author>
+				<first-name>Новый</first-name>
+				<last-name>Верстальщик</last-name>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<src-url>http://new.example</src-url>
+			<src-ocr>Распознал Кто-то</src-ocr>
+			<id>…</id>
+			<version>1.3</version>
+			<history>
+				<p>v.1.0 — Создание файла — 1.06.2025</p>
+				<p>v.1.3 — Вычитка — 20.10.2026</p>
+				<p>v.1.4 — Правка по шаблону &lt;тест&gt; — Зорро</p>
+			</history>
+		</document-info>
+		<publish-info>
+			<book-name>Описание для шаблонов</book-name>
+			<publisher>Новое издательство</publisher>
+			<city>Москва</city>
+			<year>2026</year>
+			<isbn>978-5-00000-000-0</isbn>
+			<sequence name="Серия издательства"/>
+		</publish-info>
+			<custom-info info-type="template">Строка 1
+Строка 2</custom-info>
+	</description>
+	<body>
+		<title>
+			<p>Описание для шаблонов</p>
+		</title>
+		<section>
+			<p>Текст книги.</p>
+		</section>
+	</body>
+</FictionBook>

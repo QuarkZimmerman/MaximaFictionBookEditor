@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-paragraph-with-latin",
+  "name": {
+    "ru": "Выделить следующий абзац с латиницей",
+    "en": "Select next paragraph with Latin",
+    "uk": "Виділити наступний абзац із латиницею"
+  },
+  "description": {
+    "ru": "Выделяет следующий абзац, в котором есть латинские буквы",
+    "en": "Selects the next paragraph that contains Latin letters",
+    "uk": "Виділяє наступний абзац, у якому є латинські літери"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить следующий абзац с латиницей",
+    "en": "Select next paragraph with Latin"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/129_Выделить следующий абзац с латиницей.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "5.1"
+  }
+}

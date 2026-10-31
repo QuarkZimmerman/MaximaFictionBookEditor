@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "19/unformat-section-annotations",
+  "name": {
+    "ru": "Расформатировать все аннотации разделов",
+    "en": "Unformat all section annotations",
+    "uk": "Розформатувати всі анотації розділів"
+  },
+  "description": {
+    "ru": "Превращает аннотации всех разделов в обычный текст в начале своих разделов; аннотация самой книги остаётся.",
+    "en": "Turns the annotation of every section into plain text at the start of its section; the book's own annotation stays.",
+    "uk": "Перетворює анотації всіх розділів на звичайний текст на початку їхніх розділів; анотація самої книги лишається."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Расформатировать все аннотации разделов",
+    "en": "Unformat all section annotations"
+  },
+  "legacy": {
+    "source": "19_Обработка форматирования/18_Расформатировать все аннотации разделов.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.0"
+  }
+}

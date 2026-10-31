@@ -1,0 +1,8 @@
+{
+  "reports": [
+    {
+      "title": "Script chain",
+      "text": "[\n  {\n    \"ref\": \"07/currency\",\n    \"returned\": null,\n    \"anchor\": {\n      \"nodeId\": \"n8\",\n      \"offset\": 9\n    },\n    \"head\": {\n      \"nodeId\": \"n8\",\n      \"offset\": 9\n    },\n    \"text\": \"\"\n  }\n]"
+    }
+  ]
+}

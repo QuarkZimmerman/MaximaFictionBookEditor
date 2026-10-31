@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-sub",
+  "name": {
+    "ru": "Перейти на следующий нижний индекс",
+    "en": "Go to next subscript",
+    "uk": "Перейти до наступного нижнього індексу"
+  },
+  "description": {
+    "ru": "Переводит курсор в начало следующего нижнего индекса; по достижении конца книги предлагает продолжить с начала",
+    "en": "Moves the caret to the start of the next subscript; at the end of the book offers to continue from the beginning",
+    "uk": "Переводить курсор на початок наступного нижнього індексу; наприкінці книги пропонує продовжити з початку"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Перейти на следующий нижний индекс",
+    "en": "Go to next subscript"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/014_Перейти на следующий нижний индекс.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

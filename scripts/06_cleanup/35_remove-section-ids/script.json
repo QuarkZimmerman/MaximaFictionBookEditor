@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "06/remove-section-ids",
+  "name": {
+    "ru": "Удалить id разделов",
+    "en": "Remove section ids",
+    "uk": "Видалити id розділів"
+  },
+  "description": {
+    "ru": "Удаляет атрибуты id у всех разделов всех body, кроме body примечаний, где на id разделов ссылаются сноски.",
+    "en": "Removes the id attributes of all sections of every body except the notes body, whose section ids the note links point to.",
+    "uk": "Видаляє атрибути id усіх розділів усіх body, крім body приміток, на id розділів якого посилаються примітки."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Удалить id разделов",
+    "en": "Remove section ids"
+  },
+  "legacy": {
+    "source": "06_Чистка/35_Удалить id разделов.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

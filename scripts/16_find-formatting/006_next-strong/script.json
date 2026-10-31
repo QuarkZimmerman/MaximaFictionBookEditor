@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-strong",
+  "name": {
+    "ru": "Перейти на следующую жирность",
+    "en": "Go to next bold",
+    "uk": "Перейти до наступного жирного шрифту"
+  },
+  "description": {
+    "ru": "Переводит курсор в начало следующего фрагмента, набранного жирным; по достижении конца книги предлагает продолжить с начала",
+    "en": "Moves the caret to the start of the next run of bold text; at the end of the book offers to continue from the beginning",
+    "uk": "Переводить курсор на початок наступного фрагмента, набраного жирним шрифтом; наприкінці книги пропонує продовжити з початку"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Перейти на следующую жирность",
+    "en": "Go to next bold"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/006_Перейти на следующую жирность.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

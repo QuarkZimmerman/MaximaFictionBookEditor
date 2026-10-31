@@ -1,11 +1,18 @@
-// Converted from 06_Чистка/04_Фамилия И. О..js (FictionBook Editor): initials before and after
-// surnames. Starting at the paragraph with the caret, every "И.О.Фамилия", "Фамилия И. О." and
-// "Пётр I" is shown to the user with a proposal that joins the parts with non-breaking spaces;
-// Yes takes the text of the input box, No leaves the place alone (and remembers it), Cancel
-// stops the script. Accepted replacements are remembered too and applied automatically later.
-// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+// Converted from FictionBook Editor 2.7.9: Scripts/06_Чистка/04_Фамилия И. О..js - initials before
+// and after surnames, version 2.3 (2.7beta1's 2.2 before feature 007). Starting at the paragraph
+// with the caret, every "И.О.Фамилия", "Фамилия И. О." and "Пётр I" is shown to the user with a
+// proposal that joins the parts with non-breaking spaces; Yes takes the text of the input box, No
+// leaves the place alone (and remembers it), Cancel stops the script. Accepted replacements are
+// remembered too and applied automatically later.
+// 2.7.9 changed the "Пётр I" pattern (re70): the numeral is one or more of I, V, X, and what follows
+// it must start with a character that is neither a letter, a digit nor a dash, or be nothing; so
+// "Пётр I" at the end of a paragraph is found, "Карл XII" is offered whole, and "Tom Victor" or
+// "XIV-й" are no longer offered. The expressions compile with JScript's meaning of \s and .
+// (lib/jscript-regexp.js), as in the original.
+// The original's notice, kept as written (FR-029):
 //======================================
 //               Инициалы до и после фамилий
+//               Автор скрипта - jurgennt
 //                                    Engine by ©Sclex
 //                                                                   02.05.2008
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -15,28 +22,30 @@
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // v.1.4 — кастомизированные неразрывные пробелы — Sclex (20.03.2010)
 //======================================
-// v.1.5 — прерывание процесса
+// v.1.5 — прерывание процесса 
 //======================================
 // v.2.0 — самообучение — jurgennt, май 2010
 //======================================
 // v.2.1 — проверка от курсора — sclex, май 2010
 //======================================
-// v.2.2 — доработка движкапод прерывание и выход — sclex, май 2010
+// v.2.2 — доработка движка под прерывание и выход — sclex, май 2010
 //======================================
 import { legacyTimeString } from './lib/legacy-html.js';
 import { piece, runInteractive } from './lib/interactive.js';
+import { jscriptRegExp } from './lib/jscript-regexp.js';
 
 const NB = '\u00A0';
 const NBSP = '&nbsp;'; // the legacy inline-HTML notation of the non-breaking space
 
-// The seven legacy patterns with the replacement templates that extract their pieces.
-const re10 = /^(.*?[^А-яЁёA-z;]){0,1}([А-ЯЁA-Z][а-яёa-z]{0,1})(\.\s{0,1})([А-ЯЁA-Z][а-яёa-z]{0,1})(\.\s{0,1})([А-ЯЁA-Z][а-яёa-z]{0,1})(\.\s{0,1})([А-ЯЁA-Z][А-яЁёA-z]+)(.*?)$/g;
-const re20 = new RegExp(`^(.*?[^А-яЁёA-z;]){0,1}([А-ЯЁA-Z][а-яёa-z]{0,1})(\\.\\s{0,1})([А-ЯЁA-Z][а-яёa-z]{0,1})(\\.(\\s|${NBSP}){0,1})([А-ЯЁA-Z][А-яЁёA-z]+)(.*?)$`, 'g');
-const re30 = /^(.*?[^А-яЁёA-z;]){0,1}([А-ЯЁA-Z][а-яёa-z]{0,1})(\.\s{0,1})([А-ЯЁA-Z][А-яЁёA-z]+)(.*?)$/g;
-const re40 = /^(.*?[^А-яЁёA-z]){0,1}([А-ЯЁA-Z][а-яёa-z]+) ([А-ЯЁA-Z][а-яёa-z]{0,1})(\.\s{0,1})([А-ЯЁA-Z][а-яёa-z]{0,1})(\.\s{0,1})([А-ЯЁA-Z][а-яёa-z]{0,1})\.([^&].*?){0,1}$/g;
-const re50 = /^(.*?[^А-яЁёA-z]){0,1}([А-ЯЁA-Z][а-яёa-z]+) ([А-ЯЁA-Z][а-яёa-z]{0,1})(\.\s{0,1})([А-ЯЁA-Z][а-яёa-z]{0,1})\.([^&].*?){0,1}$/g;
-const re60 = /^(.*?[^А-яЁёA-z]){0,1}([А-ЯЁA-Z][а-яёa-z]+) ([А-ЯЁA-Z][а-яёa-z]{0,1})\.([^&].*?){0,1}$/g;
-const re70 = /^(.*?[^А-яЁёA-z\d]){0,1}([А-ЯA-Z][а-яёa-z]+) ([IVX])(.+)$/g;
+// The seven legacy patterns with the replacement templates that extract their pieces (2.7.9's).
+const re10 = jscriptRegExp('^(.*?[^А-яЁёA-z;]){0,1}([А-ЯЁA-Z][а-яёa-z]{0,1})(\\.\\s{0,1})([А-ЯЁA-Z][а-яёa-z]{0,1})(\\.\\s{0,1})([А-ЯЁA-Z][а-яёa-z]{0,1})(\\.\\s{0,1})([А-ЯЁA-Z][А-яЁёA-z]+)(.*?)$', 'g');
+const re20 = jscriptRegExp(`^(.*?[^А-яЁёA-z;]){0,1}([А-ЯЁA-Z][а-яёa-z]{0,1})(\\.\\s{0,1})([А-ЯЁA-Z][а-яёa-z]{0,1})(\\.(\\s|${NBSP}){0,1})([А-ЯЁA-Z][А-яЁёA-z]+)(.*?)$`, 'g');
+const re30 = jscriptRegExp('^(.*?[^А-яЁёA-z;]){0,1}([А-ЯЁA-Z][а-яёa-z]{0,1})(\\.\\s{0,1})([А-ЯЁA-Z][А-яЁёA-z]+)(.*?)$', 'g');
+const re40 = jscriptRegExp('^(.*?[^А-яЁёA-z]){0,1}([А-ЯЁA-Z][а-яёa-z]+) ([А-ЯЁA-Z][а-яёa-z]{0,1})(\\.\\s{0,1})([А-ЯЁA-Z][а-яёa-z]{0,1})(\\.\\s{0,1})([А-ЯЁA-Z][а-яёa-z]{0,1})\\.([^&].*?){0,1}$', 'g');
+const re50 = jscriptRegExp('^(.*?[^А-яЁёA-z]){0,1}([А-ЯЁA-Z][а-яёa-z]+) ([А-ЯЁA-Z][а-яёa-z]{0,1})(\\.\\s{0,1})([А-ЯЁA-Z][а-яёa-z]{0,1})\\.([^&].*?){0,1}$', 'g');
+const re60 = jscriptRegExp('^(.*?[^А-яЁёA-z]){0,1}([А-ЯЁA-Z][а-яёa-z]+) ([А-ЯЁA-Z][а-яёa-z]{0,1})\\.([^&].*?){0,1}$', 'g');
+// 2.7.9: "Пётр I и всякие другие пронумерованные личности", now with the numeral's end checked.
+const re70 = jscriptRegExp('^(.*?[^А-яЁёA-z\\d]){0,1}([А-ЯA-Z][а-яёa-z]+) ([IVX]+)([^А-ЯЁа-яёA-Za-z\\d–—-].*?){0,1}$', 'g');
 
 function before(re, prompt, suggestion, display, prefix, suffix, rejectPrefix, rejectValue) {
   return {
@@ -101,8 +110,8 @@ export default async function run(ctx) {
   });
   await mfbe.ui.message(
     ru
-      ? `  –= Jürgen Script =–\n «Фамилия И. О.» v2.2\n\n Произведено замен: ${state.count}\n\n Время: ${legacyTimeString(started)}.\n`
-      : `  –= Jürgen Script =–\n "Surname I. O." v2.2\n\n Replacements made: ${state.count}\n\n Time: ${legacyTimeString(started)}.\n`,
+      ? `  –= Jürgen Script =–\n «Фамилия И. О.» v2.3\n\n Произведено замен: ${state.count}\n\n Время: ${legacyTimeString(started)}.\n`
+      : `  –= Jürgen Script =–\n "Surname I. O." v2.3\n\n Replacements made: ${state.count}\n\n Time: ${legacyTimeString(started)}.\n`,
     { caption: ctx.script.name, icon: 'info' },
   );
 }

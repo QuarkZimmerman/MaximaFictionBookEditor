@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "13/find-possible-titles",
+  "name": {
+    "ru": "Поиск возможных заголовков по ключевым словам",
+    "en": "Find possible titles by keywords",
+    "uk": "Пошук можливих заголовків за ключовими словами"
+  },
+  "description": {
+    "ru": "Выделяет следующий после курсора абзац вне заголовков и подзаголовков, похожий на заголовок («Первая глава», «Глава», «Пролог», «Приложение», «Chapter» и подобные), и показывает в строке состояния, что найдено.",
+    "en": "Selects the next paragraph after the caret, outside titles and subtitles, that looks like a title (\"Первая глава\", \"Глава\", \"Пролог\", \"Приложение\", \"Chapter\" and the like) and shows in the status bar what was found.",
+    "uk": "Виділяє наступний після курсора абзац поза заголовками й підзаголовками, схожий на заголовок («Первая глава», «Глава», «Пролог», «Приложение», «Chapter» тощо), і показує в рядку стану, що знайдено."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Поиск возможных заголовков по ключевым словам",
+    "en": "Find possible titles by keywords"
+  },
+  "legacy": {
+    "source": "13_Заголовки, подзаголовки, пустые строки/570_Поиск возможных заголовков по ключевым словам.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "5.0"
+  }
+}

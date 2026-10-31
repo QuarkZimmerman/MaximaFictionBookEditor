@@ -1,7 +1,7 @@
 /**
  * Image node views (T064): block (`image`) and inline (`inline_image`) pictures loaded from the
- * core's `GET /binary/{docId}/{id}/preview?w=` endpoint (binary payloads never travel through
- * JSON-RPC); a missing binary, an external `href` or the clear-image placeholder (`#undefined`)
+ * core's preview of the binary (`binaryPreviewUrl`, `@/model/binaryUrls`; binary payloads never
+ * travel through JSON-RPC); a missing binary, an external `href` or the clear-image placeholder (`#undefined`)
  * shows a dashed placeholder with the reference. The node is an atom: clicking selects it
  * (selection outline), the title/alt/href appear as tooltip, the caption shows the title.
  *
@@ -17,8 +17,8 @@
 import type { Node as PMNode } from 'prosemirror-model';
 import type { NodeView, NodeViewConstructor } from 'prosemirror-view';
 
+import { binaryPreviewUrl, previewSize, PREVIEW_WIDTH } from '@/model/binaryUrls';
 import type { BinaryMeta } from '@/model/document';
-import { resolveToken } from '@/rpc/client';
 
 export interface ImageViewOptions {
   /** Current document id (binaries are addressed per document). */
@@ -29,24 +29,12 @@ export interface ImageViewOptions {
   getMissingText: () => string;
   /** The document's binary for an id (Document.binaries), or null when there is none. */
   getBinary?: (id: string) => BinaryMeta | null;
-}
-
-/** The width the node views request a preview at when the host passes none. */
-const DEFAULT_PREVIEW_WIDTH = 800;
-
-/**
- * The size `preview?w=` serves (contracts/rpc-api.md §2 "The preview's size"): the binary's own
- * size up to `width`; a wider picture `width` wide, its height scaled, rounded half away from
- * zero and at least 1 px, as the core's `scale_to_fit` does (`core/src/images/converter.cpp`).
- * Null for a binary the core does not decode and for one without both dimensions.
- */
-export function previewSize(
-  meta: BinaryMeta,
-  width = DEFAULT_PREVIEW_WIDTH,
-): [number, number] | null {
-  if (!meta.decodable || !meta.width || !meta.height) return null;
-  if (meta.width <= width) return [meta.width, meta.height];
-  return [width, Math.max(1, Math.round(meta.height * (width / meta.width)))];
+  /**
+   * Registers a listener for every new binary list of the document; returns its removal. The
+   * view draws itself again then, so a picture whose binary appears, goes or changes shows it at
+   * once - no refresh (feature 007).
+   */
+  onBinariesChange?: (listener: () => void) => () => void;
 }
 
 /**
@@ -68,20 +56,12 @@ export function binaryLookup(
   };
 }
 
-/** `#id` -> preview URL on the core; null for external, empty or placeholder references. */
-export function binaryPreviewUrl(docId: string | null, href: string, width = 800): string | null {
-  if (!docId || !href.startsWith('#') || href.length < 2 || href === '#undefined') return null;
-  const id = encodeURIComponent(href.slice(1));
-  const url = `${import.meta.env.BASE_URL}binary/${encodeURIComponent(docId)}/${id}/preview?w=${width}`;
-  const token = resolveToken();
-  return token ? `${url}&token=${encodeURIComponent(token)}` : url;
-}
-
 export class ImageView implements NodeView {
   readonly dom: HTMLElement;
   private readonly img: HTMLImageElement;
   private readonly caption: HTMLElement | null;
   private readonly missing: HTMLElement;
+  private readonly stopListening: (() => void) | undefined;
 
   constructor(
     private node: PMNode,
@@ -114,6 +94,11 @@ export class ImageView implements NodeView {
       this.dom.appendChild(this.caption);
     }
     this.render();
+    this.stopListening = this.options.onBinariesChange?.(() => this.render());
+  }
+
+  destroy(): void {
+    this.stopListening?.();
   }
 
   private render(): void {
@@ -152,9 +137,7 @@ export class ImageView implements NodeView {
    */
   private reserveBox(url: string | null, href: string): void {
     const meta = url && this.options.getBinary ? this.options.getBinary(href.slice(1)) : null;
-    const size = meta
-      ? previewSize(meta, this.options.previewWidth ?? DEFAULT_PREVIEW_WIDTH)
-      : null;
+    const size = meta ? previewSize(meta, this.options.previewWidth ?? PREVIEW_WIDTH) : null;
     const loaded =
       !!url &&
       this.img.getAttribute('src') === url &&

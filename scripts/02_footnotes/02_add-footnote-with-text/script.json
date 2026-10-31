@@ -2,23 +2,26 @@
   "manifestVersion": 1,
   "id": "02/add-footnote-with-text",
   "name": {
+    "ru": "Добавить примечание, введя его текст в окошке",
     "en": "Add a footnote, entering its text in a dialog",
-    "ru": "Добавить сноску, введя ее текст в окошке"
+    "uk": "Додати примітку, ввівши її текст у віконці"
   },
   "description": {
-    "en": "Inserts a footnote link at the caret and creates the note section with the text entered in a prompt",
-    "ru": "Вставляет ссылку сноски в позиции курсора и создает секцию примечания с текстом, введенным в окошке"
+    "ru": "Вставляет в позиции курсора ссылку на новое примечание, перенумеровывает примечания и создает раздел примечания с текстом, введенным в окошке",
+    "en": "Inserts a link to a new footnote at the caret, renumbers the footnotes and creates the footnote's section with the text entered in a dialog",
+    "uk": "Вставляє в позиції курсора посилання на нову примітку, перенумеровує примітки і створює розділ примітки з текстом, введеним у віконці"
   },
   "kind": "menu",
   "entry": "index.js",
   "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Add a footnote, entering its text in a dialog",
-    "ru": "Добавить сноску, введя ее текст в окошке"
+    "ru": "Добавить примечание, введя его текст в окошке",
+    "en": "Add a footnote, entering its text in a dialog"
   },
   "legacy": {
-    "source": "02_Добавление примечания/02_Добавить сноску, введя ее текст в окошке.js",
-    "fbeVersion": "2.7"
+    "source": "02_Примечания/02_Добавить примечание, введя его текст в окошке.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "2.8"
   }
 }

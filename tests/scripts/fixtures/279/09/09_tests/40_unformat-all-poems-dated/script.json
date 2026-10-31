@@ -1,0 +1,8 @@
+{
+  "manifestVersion": 1,
+  "id": "tests-279-09/unformat-all-poems-dated",
+  "name": { "ru": "Тест: Расформатировать все стихи с датой 10.05.2025", "en": "Test: Unformat all poems dated 10.05.2025", "uk": "Тест: Розформатувати всі вірші з датою 10.05.2025" },
+  "description": { "ru": "Тестовый запуск 09/unformat-all-poems с фиксированной датой записи в историю.", "en": "Test run of 09/unformat-all-poems with a fixed date for its history entry.", "uk": "Тестовий запуск 09/unformat-all-poems із фіксованою датою запису в історію." },
+  "kind": "menu",
+  "entry": "index.js"
+}

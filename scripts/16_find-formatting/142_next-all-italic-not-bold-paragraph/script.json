@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-all-italic-not-bold-paragraph",
+  "name": {
+    "ru": "Выделить следующий целиком курсивный, но НЕ целиком жирный абзац",
+    "en": "Select next entirely italic but NOT entirely bold paragraph",
+    "uk": "Виділити наступний цілком курсивний, але НЕ цілком жирний абзац"
+  },
+  "description": {
+    "ru": "Выделяет следующий абзац, набранный целиком курсивом, но не целиком жирным",
+    "en": "Selects the next paragraph that is italic throughout but not bold throughout",
+    "uk": "Виділяє наступний абзац, набраний цілком курсивом, але не цілком жирним"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить следующий целиком курсивный, но НЕ целиком жирный абзац",
+    "en": "Select next entirely italic but NOT entirely bold paragraph"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/142_Выделить следующий целиком курсивный, но НЕ целиком жирный абзац.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

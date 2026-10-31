@@ -49,6 +49,7 @@ import { blockBoundaryPlugin, markControllerTransaction } from '@/editor/plugins
 import { blockCaptionsKey, blockCaptionsPlugin } from '@/editor/plugins/blockCaptions';
 import { clipboardPlugin, type ClipboardOptions } from '@/editor/plugins/clipboard';
 import { DEFAULT_NBSP_DISPLAY_CHAR, nbspMarkerPlugin, nbspPluginKey } from '@/editor/plugins/nbsp';
+import { pictureLayoutPlugin } from '@/editor/plugins/pictureLayout';
 import { nodeIdPlugin } from '@/editor/plugins/nodeIds';
 import { overtypePlugin } from '@/editor/plugins/overtype';
 import { searchMatchPlugin, withSearchMatch } from '@/editor/plugins/searchMatch';
@@ -273,6 +274,8 @@ export function createBodyEditorState(doc: PMNode, options: EditorStateOptions):
       nodeIdPlugin(nextNodeId),
       nbspMarkerPlugin(options.getNbspChar),
       searchMatchPlugin(),
+      // A paragraph that starts with a picture loses its first-line indent (feature 007, DP-4).
+      pictureLayoutPlugin(),
       ...(options.plugins ?? []),
     ],
   });
@@ -416,6 +419,12 @@ export class BodyEditorController {
   /** The table node views' language listeners, called by `setTranslate`. */
   private readonly languageListeners = new Set<() => void>();
   /**
+   * The picture node views' listeners, called on every new binary list of the document: a
+   * picture whose binary appears, goes or changes shows it at once (feature 007, binaryUrls.ts).
+   */
+  private readonly binaryListeners = new Set<() => void>();
+  private readonly stopBinaries: () => void;
+  /**
    * The Body view was shown for the current document, or its caret was placed on purpose
    * (`setCaret`): only then is the caret worth remembering - a document whose Body view was
    * never looked at keeps its previous record (feature 004 FR-100, research R5.6).
@@ -431,6 +440,10 @@ export class BodyEditorController {
     this.getNbspChar = () => this.nbspChar ?? fallback();
     this.extraPlugins = options.plugins ?? [];
     this.translate = options.translate ?? ((key) => key);
+    this.stopBinaries = this.store.subscribe((state, previous) => {
+      if (state.document?.binaries === previous.document?.binaries) return;
+      for (const listener of [...this.binaryListeners]) listener();
+    });
   }
 
   /* ------------------------------------------------------------ snapshot */
@@ -532,6 +545,8 @@ export class BodyEditorController {
 
   destroy(): void {
     this.unmount();
+    this.stopBinaries();
+    this.binaryListeners.clear();
     this.listeners.clear();
     this.contextListeners.clear();
   }
@@ -609,6 +624,12 @@ export class BodyEditorController {
         getMissingText: () => this.translate('views.body.imageMissing'),
         // The pictures' boxes are reserved from the binary list (feature 006, R9.2).
         getBinary: binaryLookup(() => this.store.getState().document?.binaries),
+        onBinariesChange: (listener) => {
+          this.binaryListeners.add(listener);
+          return () => {
+            this.binaryListeners.delete(listener);
+          };
+        },
       }),
       ...createRawXmlNodeViews(() => this.translate('editing.unknownElement')),
       ...createTableNodeViews(

@@ -27,6 +27,7 @@ import {
   findNodeById,
   nodeTypeFor,
   seededScriptIds,
+  type ScriptNodeIds,
 } from '@/editor/schema';
 import { DEFAULT_NBSP_DISPLAY_CHAR } from '@/editor/plugins/nbsp';
 import { nodeToModel } from '@/editor/toModel';
@@ -38,6 +39,7 @@ import type { RpcClient } from '@/rpc/client';
 import type { BodyEditorController } from '@/views/body/bodyEditor';
 
 import { showScriptForm, showScriptMessage, showScriptPrompt } from './dialogs';
+import { openReportWindow } from './openReport';
 import {
   API_METHODS,
   type ApiMethod,
@@ -66,6 +68,13 @@ export const SCRIPT_PROGRESS_JOB = 'script';
 
 const TEXTBLOCK_TYPES = new Set(['p', 'subtitle', 'text-author', 'v', 'td', 'th', 'date']);
 const MARK_NAMES = new Set(['strong', 'emphasis', 'strikethrough', 'sub', 'sup', 'code']);
+/** The encodings `files.saveText` writes (contracts/script-api.md §3 of feature 007). */
+const SAVE_ENCODINGS = new Set(['utf-8', 'utf-16', 'windows-1251']);
+
+function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 const STANDARD_BUTTONS = new Set([
   'ok',
   'cancel',
@@ -84,7 +93,17 @@ const STANDARD_BUTTONS = new Set([
  * invalid (wrong position, last section of a body, first body); `unknownNode` - a nodeId that
  * is not in the document; `apiError` - any other argument or state problem.
  */
-export type ScriptApiErrorCode = 'apiError' | 'invalidNode' | 'notAllowed' | 'unknownNode';
+export type ScriptApiErrorCode =
+  | 'apiError'
+  | 'invalidNode'
+  | 'notAllowed'
+  | 'unknownNode'
+  // Script API version 2 (feature 007, contracts/script-api.md §6).
+  | 'clipboard.readNotAllowed'
+  | 'scripts.notFound'
+  | 'scripts.depthExceeded'
+  | 'scripts.needsSelection'
+  | 'files.failed';
 
 export class ScriptApiError extends Error {
   readonly code: ScriptApiErrorCode;
@@ -138,10 +157,44 @@ export interface ScriptApiDeps {
   runEnd?: RunEnd;
   /** Snapshot size guard override (tests). */
   snapshotLimit?: number;
+  /**
+   * Who started the chain this run belongs to (script API version 2, contracts/script-api.md
+   * §2): a script reads the clipboard only in a chain the user started - what it reads in one
+   * the assistant started would reach the AI service. Default 'user'.
+   */
+  rootStartedBy?: 'user' | 'assistant';
+  /** The system clipboard, plain text (default: the page's `navigator.clipboard`). */
+  clipboard?: ClipboardLike;
+  /** Opens a report window (default: ReportWindow.tsx on the dialogs of the run). */
+  openReport?: (report: ReportSpec) => void;
+  /** Runs another script of the Scripts menu in this run (host.ts); its value comes back. */
+  runScript?: (ref: string, args: unknown) => Promise<unknown>;
+  /** The root run's working copy and node ids, which the scripts it runs share (scripts.run). */
+  shared?: SharedRunState;
+}
+
+export interface ClipboardLike {
+  readText(): Promise<string>;
+  writeText(text: string): Promise<void>;
+}
+
+/** What `mfbe.ui.report` shows: a title and pre-wrapped text or display-only HTML. */
+export interface ReportSpec {
+  title: string;
+  text?: string;
+  html?: string;
+}
+
+/** The state a run chain shares (feature 007): one working copy, one node-id sequence. */
+export interface SharedRunState {
+  copy: WorkingCopy | null;
+  nextNodeId: ScriptNodeIds | (() => string);
 }
 
 export interface ScriptApi {
   call(method: string, args: unknown[]): Promise<unknown>;
+  /** The working copy and node ids of the run, for the scripts it runs (`scripts.run`). */
+  readonly shared: SharedRunState;
   /** True when the script asked for a sticky status (kept after the run). */
   readonly stickyStatus: boolean;
   /**
@@ -298,8 +351,13 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
   const { store, controller, dialogs, rpc, t } = deps;
   // The run's `sc_<N>` ids, past the highest of the document it starts from - the store's, or
   // the AI request's working copy for a nested run (feature 006, I26).
-  const nextNodeId = deps.document ? seededScriptIds(deps.document) : createNodeIdGenerator('sc_');
-  const copy = deps.document ? new WorkingCopy(deps.document) : null;
+  const shared: SharedRunState = deps.shared ?? {
+    // The run's `sc_<N>` ids, past the highest of the document it starts from.
+    nextNodeId: deps.document ? seededScriptIds(deps.document) : createNodeIdGenerator('sc_'),
+    copy: deps.document ? new WorkingCopy(deps.document) : null,
+  };
+  const nextNodeId = shared.nextNodeId;
+  const copy = shared.copy;
   const publish = deps.publish ?? true;
   const captionFor = (caption: string) => deps.dialogCaption?.(caption) ?? caption;
   /** Whether a children list, as it is, fits its parent (reused while only same-type nodes replace its children). */
@@ -623,8 +681,18 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
         }
         return null;
       };
-      const anchor = idOf($anchor);
-      const head = idOf($head);
+      // An end outside every text block - Select All, a selected table or picture - is reported
+      // at the nearest text block inside the selection: the start of the first, the end of the
+      // last (feature 007; a book is open, so the selection is never null).
+      const forward = state.selection.anchor <= state.selection.head;
+      const edge = ($pos: typeof $anchor, dir: 1 | -1) => {
+        const direct = idOf($pos);
+        if (direct) return direct;
+        const near = Selection.findFrom($pos, dir, true);
+        return near ? idOf(near.$head) : null;
+      };
+      const anchor = edge($anchor, forward ? 1 : -1);
+      const head = edge($head, forward ? -1 : 1);
       if (!anchor || !head) return null;
       const nodes: NodeRef[] = [];
       state.doc.nodesBetween(from, to, (node) => {
@@ -651,12 +719,16 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
       const ctrl = requireController();
       showChanges();
       const state = ctrl.editorState!;
-      const { from, to, $from } = state.selection;
+      const { from, to, $from, $to } = state.selection;
       if (!$from.parent.inlineContent) {
         throw new ScriptApiError('selection.replaceText: the selection is not inside text');
       }
+      // The formatting of the replaced text, as typing over a selection keeps it (a whole
+      // emphasised word stays emphasised; feature 007, the 07 recheck); at a caret, the
+      // formatting before it.
+      const marks = from === to ? $from.marks() : ($from.marksAcross($to) ?? $from.marks());
       const tr = state.tr;
-      if (text) tr.replaceWith(from, to, fb2Schema.text(text, $from.marks()));
+      if (text) tr.replaceWith(from, to, fb2Schema.text(text, marks));
       else tr.delete(from, to);
       applySelectionEdit(ctrl, tr);
     },
@@ -800,6 +872,190 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
       deps.onProgress?.(d, tot, text);
       return { cancelled: deps.isCancelRequested?.() ?? false };
     },
+
+    report: async (spec: unknown): Promise<void> => {
+      const o = asObject<Partial<ReportSpec>>(spec, 'ui.report');
+      const title = asString(o.title, 'ui.report: title');
+      if (o.text === undefined && o.html === undefined) {
+        throw new ScriptApiError('ui.report: give text or html');
+      }
+      const open =
+        deps.openReport ?? ((report: ReportSpec) => openReportWindow(dialogs, rpc, report));
+      showChanges();
+      open({
+        title,
+        ...(o.text !== undefined ? { text: asString(o.text, 'ui.report: text') } : {}),
+        ...(o.html !== undefined ? { html: asString(o.html, 'ui.report: html') } : {}),
+      });
+    },
+  };
+
+  /* -------------------------------------------- clipboard (version 2) */
+
+  const systemClipboard = (): ClipboardLike => {
+    const board =
+      deps.clipboard ?? (typeof navigator !== 'undefined' ? navigator.clipboard : undefined);
+    if (!board) throw new ScriptApiError('the clipboard is not available');
+    return board;
+  };
+
+  const clipboard = {
+    readText: async (): Promise<string> => {
+      if ((deps.rootStartedBy ?? 'user') !== 'user') {
+        throw new ScriptApiError(
+          t('scripting.error.clipboardReadNotAllowed') as string,
+          'clipboard.readNotAllowed',
+        );
+      }
+      try {
+        return await systemClipboard().readText();
+      } catch (error) {
+        if (error instanceof ScriptApiError) throw error;
+        throw new ScriptApiError(`clipboard.readText: ${errorText(error)}`);
+      }
+    },
+    writeText: async (text: unknown): Promise<void> => {
+      if (typeof text !== 'string')
+        throw new ScriptApiError('clipboard.writeText: expected a string');
+      const value = text;
+      try {
+        await systemClipboard().writeText(value);
+      } catch (error) {
+        if (error instanceof ScriptApiError) throw error;
+        throw new ScriptApiError(`clipboard.writeText: ${errorText(error)}`);
+      }
+    },
+  };
+
+  /* ------------------------------------------------ files (version 2) */
+
+  const requireRpc = (what: string): RpcClient => {
+    if (!rpc)
+      throw new ScriptApiError(`${what}: the editor's core is not connected`, 'files.failed');
+    return rpc;
+  };
+
+  const files = {
+    saveText: async (options: unknown): Promise<{ saved: boolean; name?: string }> => {
+      const o = asObject<Record<string, unknown>>(options, 'files.saveText');
+      const suggestedName = asString(o.suggestedName, 'files.saveText: suggestedName');
+      const text = asString(o.text, 'files.saveText: text');
+      const encoding = o.encoding;
+      if (encoding !== undefined && !SAVE_ENCODINGS.has(String(encoding))) {
+        throw new ScriptApiError('files.saveText: encoding must be utf-8, utf-16 or windows-1251');
+      }
+      const title = o.title === undefined ? undefined : asString(o.title, 'files.saveText: title');
+      showChanges();
+      deps.onUiActivity?.(true);
+      try {
+        const result = await requireRpc('files.saveText').call('files.saveText', {
+          suggestedName,
+          text,
+          ...(encoding !== undefined
+            ? { encoding: encoding as 'utf-8' | 'utf-16' | 'windows-1251' }
+            : {}),
+          ...(title !== undefined ? { title } : {}),
+        });
+        return result.saved ? { saved: true, name: result.name } : { saved: false };
+      } catch (error) {
+        if (error instanceof ScriptApiError) throw error;
+        throw new ScriptApiError(`files.saveText: ${errorText(error)}`, 'files.failed');
+      } finally {
+        deps.onUiActivity?.(false);
+      }
+    },
+
+    saveBinaries: async (options?: unknown): Promise<{ saved: number; skipped: number }> => {
+      const o = optionalObject<Record<string, unknown>>(options, 'files.saveBinaries');
+      let ids: string[] | undefined;
+      if (o.ids !== undefined) {
+        if (!Array.isArray(o.ids) || o.ids.some((id) => typeof id !== 'string')) {
+          throw new ScriptApiError('files.saveBinaries: ids must be an array of binary ids');
+        }
+        ids = o.ids as string[];
+      }
+      const title =
+        o.title === undefined ? undefined : asString(o.title, 'files.saveBinaries: title');
+      const docId = requireDocument().docId;
+      const core = requireRpc('files.saveBinaries');
+      showChanges();
+      deps.onUiActivity?.(true);
+      try {
+        const first = await core.call('files.saveBinaries', {
+          docId,
+          ...(ids ? { ids } : {}),
+          ...(title !== undefined ? { title } : {}),
+        });
+        let saved = first.saved;
+        let skipped = 0;
+        // Existing files: the user decides, file by file (Overwrite / Skip / Overwrite all /
+        // Cancel), as the original's question did.
+        const confirmed: string[] = [];
+        let all = false;
+        let cancelled = false;
+        for (const id of first.skipped) {
+          if (cancelled) {
+            skipped += 1;
+            continue;
+          }
+          if (all) {
+            confirmed.push(id);
+            continue;
+          }
+          const answer = await showScriptMessage(
+            dialogs,
+            {
+              text: t('scripting.files.overwriteBody', { name: id }) as string,
+              caption: captionFor(t('scripting.files.overwriteTitle') as string),
+              icon: 'question',
+              buttons: [
+                { id: 'overwrite', label: t('scripting.files.overwrite') as string, default: true },
+                { id: 'skip', label: t('scripting.files.skip') as string },
+                { id: 'overwriteAll', label: t('scripting.files.overwriteAll') as string },
+                { id: 'cancel', label: t('dialog.buttons.cancel') as string, cancel: true },
+              ],
+            },
+            deps.runEnd,
+          );
+          if (answer === 'overwrite' || answer === 'overwriteAll') {
+            confirmed.push(id);
+            all = answer === 'overwriteAll';
+          } else if (answer === 'skip') {
+            skipped += 1;
+          } else {
+            cancelled = true;
+            skipped += 1;
+          }
+        }
+        if (confirmed.length > 0) {
+          const second = await core.call('files.saveBinaries', {
+            docId,
+            ids: confirmed,
+            folderToken: first.folderToken,
+            overwrite: true,
+          });
+          saved += second.saved;
+          skipped += second.skipped.length;
+        }
+        return { saved, skipped };
+      } catch (error) {
+        if (error instanceof ScriptApiError) throw error;
+        throw new ScriptApiError(`files.saveBinaries: ${errorText(error)}`, 'files.failed');
+      } finally {
+        deps.onUiActivity?.(false);
+      }
+    },
+  };
+
+  /* ---------------------------------------------- scripts (version 2) */
+
+  const scripts = {
+    run: async (ref: unknown, args?: unknown): Promise<unknown> => {
+      const target = asString(ref, 'scripts.run');
+      if (!deps.runScript) throw new ScriptApiError('scripts.run: not available here');
+      showChanges();
+      return deps.runScript(target, args);
+    },
   };
 
   /* ------------------------------------------------------- edit / env */
@@ -859,13 +1115,20 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
     'ui.form': ui.form,
     'ui.status': ui.status,
     'ui.progress': ui.progress,
+    'ui.report': ui.report,
     'edit.label': edit.label,
     'edit.symbols': edit.symbols,
     'env.settings': env.settings,
     'env.docLanguage': env.docLanguage,
+    'clipboard.readText': clipboard.readText,
+    'clipboard.writeText': clipboard.writeText,
+    'files.saveText': files.saveText,
+    'files.saveBinaries': files.saveBinaries,
+    'scripts.run': scripts.run,
   };
 
   return {
+    shared,
     call(method, args) {
       if (!(API_METHODS as readonly string[]).includes(method)) {
         return Promise.reject(new ScriptApiError(`unknown API method "${method}"`));

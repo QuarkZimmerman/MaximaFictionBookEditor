@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "18/insert-midi-link",
+  "name": {
+    "ru": "Сделать выделенный текст ссылкой на MIDI-файл (для AlReader'а)",
+    "en": "Make the selected text a link to a MIDI file (for AlReader)",
+    "uk": "Зробити виділений текст посиланням на MIDI-файл (для AlReader)"
+  },
+  "description": {
+    "ru": "Запрашивает имя MIDI-файла и превращает выделенный текст в надстрочную ссылку file:<имя> (для AlReader)",
+    "en": "Asks for the name of a MIDI file and turns the selected text into a superscript link file:<name> (for AlReader)",
+    "uk": "Запитує ім’я MIDI-файлу й перетворює виділений текст на надрядкове посилання file:<ім’я> (для AlReader)"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": true,
+  "undoLabel": {
+    "ru": "Сделать выделенный текст ссылкой на MIDI-файл (для AlReader'а)",
+    "en": "Make the selected text a link to a MIDI file (for AlReader)"
+  },
+  "legacy": {
+    "source": "18_Мелочи редактирования/40_Сделать выделенный текст ссылкой на MIDI-файл (для AlReader'а).js",
+    "fbeVersion": "2.7.9"
+  }
+}

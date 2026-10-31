@@ -1,0 +1,8 @@
+{
+  "reports": [
+    {
+      "title": "Footnote marker scripts",
+      "text": "[\n  {\n    \"ref\": \"32/check-endnote-markers-per-page\",\n    \"returned\": null,\n    \"selection\": \"n11:2-n11:3\",\n    \"text\": \"1\"\n  }\n]"
+    }
+  ]
+}

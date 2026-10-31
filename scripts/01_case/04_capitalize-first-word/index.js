@@ -1,0 +1,28 @@
+// Converted from 01_Регистр/06_Капитализация первого слова.js (FictionBook Editor 2.7), Tier 1.
+// Only the first word of the selection is capitalised; every other letter of the selection is
+// lower-cased. With a caret only the word under it is used.
+// FictionBook Editor 2.7.9 ships this code unchanged, renamed and moved to place 04, as
+// "01_Регистр/04_Первую букву - в верхний регистр, остальные - в нижний.js"; the package took
+// that name, place and icon (the folder was 06_capitalize-first-word; the id is unchanged).
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//скрипт смены регистра by Sclex
+//v1.3
+import { LETTERS, NO_SELECTION, capitalize, selectedBlocks, t, transformSelection } from './case-lib.js';
+
+const WORDS = new RegExp(`[${LETTERS}]+`, 'gi');
+
+export default async function run(ctx) {
+  const selection = await selectedBlocks(true);
+  if (!selection) {
+    await mfbe.ui.message(t(ctx, NO_SELECTION.ru, NO_SELECTION.en), { icon: 'warning' });
+    return;
+  }
+  const state = { firstCapitalization: true };
+  await transformSelection(selection, (chunk, s) =>
+    chunk.replace(WORDS, (word) => {
+      if (!s.firstCapitalization) return word.toLowerCase();
+      s.firstCapitalization = false;
+      return capitalize(word);
+    }),
+  state);
+}

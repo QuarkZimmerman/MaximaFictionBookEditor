@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "19/paragraphs-to-strikethrough",
+  "name": {
+    "ru": "Сформатировать абзац(ы) зачеркнутостью",
+    "en": "Format paragraph(s) as strikethrough",
+    "uk": "Відформатувати абзац(и) закресленням"
+  },
+  "description": {
+    "ru": "Делает зачёркнутыми целиком все абзацы, которых касается выделение (или абзац с курсором), сняв прежнюю зачёркнутость внутри них.",
+    "en": "Strikes through the whole of every paragraph the selection touches (or the caret's paragraph), removing the strikethrough already inside it.",
+    "uk": "Робить закресленими цілком усі абзаци, яких торкається виділення (або абзац із курсором), знявши наявне всередині закреслення."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Сформатировать абзац(ы) зачеркнутостью",
+    "en": "Format paragraph(s) as strikethrough"
+  },
+  "legacy": {
+    "source": "19_Обработка форматирования/43_Сформатировать абзац(ы) зачеркнутостью.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.5"
+  }
+}

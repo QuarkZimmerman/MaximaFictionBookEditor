@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>unrecognised</genre>
+			<author>
+				<nickname>Anonymous</nickname>
+			</author>
+			<book-title></book-title>
+			<lang>en</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>fixture</program-used>
+			<date value="2024-01-01">2024</date>
+			<id>fixture-279-10-bare</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<section>
+			<p>Only English text here, no Cyrillic letters.</p>
+		</section>
+	</body>
+</FictionBook>

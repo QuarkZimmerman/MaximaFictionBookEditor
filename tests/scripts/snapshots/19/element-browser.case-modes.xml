@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Элементы</last-name>
+			</author>
+			<book-title>Обзор и превращение элементов: регистр</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Обзор и превращение элементов: регистр</p>
+		</title>
+		<section>
+			<title>
+				<p>Глава девятая. Возвращение домой! конец? нет</p>
+				<p>«Как это было» — рассказ</p>
+			</title>
+			<subtitle>История XIX в. И 1990 г., XIV–XV вв. И Северо-запад</subtitle>
+			<subtitle><strong>Война</strong> и Мир в США и СССР</subtitle>
+			<subtitle>О КПСС, им. Ленина и РСДРП</subtitle>
+			<subtitle>1. В Начале Было Слово</subtitle>
+			<subtitle>второе <emphasis>СЛОВО</emphasis> большими буквами</subtitle>
+			<subtitle>N-ное СЛОВО большими буквами</subtitle>
+			<subtitle>— и снова глава</subtitle>
+			<subtitle>Первая. Вторая. Третья</subtitle>
+			<subtitle>Раз! Два? Три. Четыре</subtitle>
+			<subtitle>все буквы маленькие</subtitle>
+			<subtitle>ВСЕ БУКВЫ БОЛЬШИЕ</subtitle>
+			<p>Текст главы о регистре.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава перед цитатой</p>
+			</title>
+			<p>Текст главы перед цитатой.</p>
+		</section>
+		<section>
+			<cite>
+				<p>Цитата в начале раздела.</p>
+				<subtitle>Подзаголовок в цитате</subtitle>
+			</cite>
+			<p>Текст после цитаты.</p>
+			<subtitle>Подзаголовок после цитаты</subtitle>
+			<p>Последний абзац книги.</p>
+		</section>
+		<section>
+			<epigraph>
+				<p>Эпиграф в начале раздела.</p>
+			</epigraph>
+			<p>Текст после эпиграфа.</p>
+			<subtitle>Подзаголовок после эпиграфа</subtitle>
+			<p>Текст в конце раздела.</p>
+		</section>
+	</body>
+</FictionBook>

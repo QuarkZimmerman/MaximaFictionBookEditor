@@ -12,6 +12,8 @@ import {
   checkProposal,
   DEFAULT_GROUP,
   defaultAuthorLine,
+  diffLines,
+  fileChanges,
   filesToWrite,
   folderOf,
   FORBIDDEN_NAMES,
@@ -573,5 +575,102 @@ describe('the FR-084 gate (review C9)', () => {
   it('allows a later instruction sent after the write', () => {
     expect(runAllowed(written, { id: 'r2', instructionAt: 11 })).toBe(true);
     expect(runAllowed(written, { id: 'r2', instructionAt: 10 })).toBe(false);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Feature 007 (T119): the modify mode and its per-file diff                  */
+/* ------------------------------------------------------------------------ */
+
+describe('the modify mode (feature 007)', () => {
+  const effective = {
+    id: '18/remove-spaces',
+    name: 'Remove spaces',
+    origin: 'bundled' as const,
+    folder: '/app/scripts/18_editing/01_remove-spaces',
+    files: [
+      { path: 'icon.png', binary: true as const, bytes: 153 },
+      { path: 'index.js', content: 'a\nb\nc\n' },
+      { path: 'lib.js', content: 'old\n' },
+    ],
+  };
+  const modifyArgs = args({
+    id: '18/remove-spaces',
+    mode: 'modify',
+    files: files({ 'script.json': manifest({ id: '18/remove-spaces' }), 'index.js': 'a\nB\nc\n' }),
+  });
+
+  it('saves a bundled script’s changed copy under its id in the assistant’s folder', () => {
+    const check = checkProposal(modifyArgs, { ...options, effective });
+    expect(check.ok).toBe(true);
+    if (!check.ok) return;
+    expect(check.proposal).toMatchObject({
+      mode: 'modify',
+      scriptId: '18/remove-spaces',
+      group: DEFAULT_GROUP,
+      folder: 'remove-spaces',
+      existing: false,
+      modifies: effective,
+    });
+    // Without the script in effect, outside the assistant's folder: refused.
+    expect(checkProposal(modifyArgs, options)).toMatchObject({
+      ok: false,
+      refusal: { code: 'invalidArguments', field: 'id' },
+    });
+    expect(
+      checkProposal({ ...modifyArgs, group: '50_mine' }, { ...options, effective }),
+    ).toMatchObject({ ok: false, refusal: { code: 'invalidArguments', field: 'group' } });
+  });
+
+  it('keeps the folder of an assistant’s copy and replaces it whole', () => {
+    const copy = {
+      ...effective,
+      origin: 'assistant' as const,
+      folder: '/data/scripts/90_assistant/my-spaces',
+    };
+    const check = checkProposal(modifyArgs, { ...options, effective: copy });
+    expect(check).toMatchObject({ ok: true, proposal: { folder: 'my-spaces', existing: true } });
+    expect(
+      checkProposal({ ...modifyArgs, folder: 'elsewhere' }, { ...options, effective: copy }),
+    ).toMatchObject({ ok: false, refusal: { code: 'invalidArguments', field: 'folder' } });
+  });
+
+  it('diffs every line: the common head and tail once, the removed before the added', () => {
+    expect(diffLines('a\nb\nc\n', 'a\nB\nc\n')).toEqual([
+      { kind: 'same', text: 'a' },
+      { kind: 'removed', text: 'b' },
+      { kind: 'added', text: 'B' },
+      { kind: 'same', text: 'c' },
+    ]);
+    expect(diffLines('', 'x\r\ny')).toEqual([
+      { kind: 'added', text: 'x' },
+      { kind: 'added', text: 'y' },
+    ]);
+    expect(diffLines('1\n2\n3\n4\n', '1\n3\n4\n5\n')).toEqual([
+      { kind: 'same', text: '1' },
+      { kind: 'removed', text: '2' },
+      { kind: 'same', text: '3' },
+      { kind: 'same', text: '4' },
+      { kind: 'added', text: '5' },
+    ]);
+    expect(diffLines('same\n', 'same\n')).toEqual([{ kind: 'same', text: 'same' }]);
+  });
+
+  it('lists each file of the proposal against the one in effect, then the files left out', () => {
+    const changes = fileChanges(
+      [
+        { path: 'index.js', content: 'a\nB\nc\n' },
+        { path: 'script.json', content: '{}' },
+      ],
+      effective.files,
+    );
+    expect(changes.map((c) => [c.path, c.status])).toEqual([
+      ['index.js', 'changed'],
+      ['script.json', 'added'],
+      ['icon.png', 'removedBinary'],
+      ['lib.js', 'removed'],
+    ]);
+    const unchanged = fileChanges([{ path: 'lib.js', content: 'old\n' }], effective.files);
+    expect(unchanged[0]).toMatchObject({ status: 'unchanged' });
   });
 });

@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "21/paragraph-breaks-english",
+  "name": {
+    "ru": "Поиск разрывов абзацев (АНГЛ)",
+    "en": "Search for broken paragraphs (English)",
+    "uk": "Пошук розривів абзаців (АНГЛ)"
+  },
+  "description": {
+    "ru": "Как «Поиск разрывов абзацев (РУС)», но для английского текста: строка, оканчивающаяся английской закрывающей кавычкой (”), не считается разорванной.",
+    "en": "Like \"Search for broken paragraphs (Russian)\", but for English text: a line ending with the English closing quotation mark (”) is not taken for a broken one.",
+    "uk": "Як «Пошук розривів абзаців (РОС)», але для англійського тексту: рядок, що закінчується англійською закривною лапкою (”), не вважається розірваним."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Поиск разрывов абзацев (АНГЛ)",
+    "en": "Search for broken paragraphs (English)"
+  },
+  "legacy": {
+    "source": "21_Поиск и замена/29_Поиск разрывов абзацев (АНГЛ).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.4"
+  }
+}

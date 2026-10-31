@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-cite",
+  "name": {
+    "ru": "Выделить следующую цитату",
+    "en": "Select next cite",
+    "uk": "Виділити наступну цитату"
+  },
+  "description": {
+    "ru": "Выделяет следующую цитату",
+    "en": "Selects the next cite",
+    "uk": "Виділяє наступну цитату"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить следующую цитату",
+    "en": "Select next cite"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/152_Выделить следующую цитату.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.5"
+  }
+}

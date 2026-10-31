@@ -342,12 +342,35 @@ const TYPING_KEYS = new Set([
   'ArrowRight',
 ]);
 
-export type ChordProblem = 'reserved' | 'typing' | 'invalid';
+export type ChordProblem = 'reserved' | 'typing' | 'invalid' | 'fixed';
 
 export interface ChordValidation {
   ok: boolean;
-  /** Set when `ok` is false; every problem is reported to the user as "Wrong shortcut!". */
+  /**
+   * Set when `ok` is false. A fixed chord is reported as "<chord> always runs <command>", every
+   * other problem as "Wrong shortcut!".
+   */
   problem?: ChordProblem;
+  /** With `problem: 'fixed'`: the command the chord always runs. */
+  fixedTo?: string;
+}
+
+/**
+ * Shortcuts that always run their command and are never assigned to another (feature 007,
+ * FR-001, data-model §2): Ctrl+S - Cmd+S on macOS - is File > Save wherever Save is available,
+ * besides its assignable F2. They are not written to hotkeys.json.
+ */
+export const FIXED_HOTKEYS: readonly { commandId: string; keys: string }[] = [
+  { commandId: 'file.save', keys: 'Mod+S' },
+];
+
+/** The command a fixed chord always runs on the platform, if the chord is a fixed one. */
+export function fixedCommandFor(chord: Chord | string, platform: Platform): string | undefined {
+  const canonical =
+    typeof chord === 'string' ? normalizeChord(chord, platform) : formatChord(chord);
+  if (!canonical) return undefined;
+  return FIXED_HOTKEYS.find((entry) => normalizeChord(entry.keys, platform) === canonical)
+    ?.commandId;
 }
 
 export function isReservedChord(chord: Chord, platform: Platform): boolean {
@@ -376,6 +399,8 @@ export function isTypingChord(chord: Chord): boolean {
 export function validateChord(chord: Chord | null, platform: Platform): ChordValidation {
   if (!chord) return { ok: false, problem: 'invalid' };
   if (isReservedChord(chord, platform)) return { ok: false, problem: 'reserved' };
+  const fixedTo = fixedCommandFor(chord, platform);
+  if (fixedTo) return { ok: false, problem: 'fixed', fixedTo };
   if (isTypingChord(chord)) return { ok: false, problem: 'typing' };
   return { ok: true };
 }
@@ -474,7 +499,8 @@ export const DEFAULT_HOTKEYS: readonly DefaultHotkey[] = [
 /* ------------------------------------------------------------------------ */
 
 export type AssignResult =
-  { ok: true; keys: string; displaced: string[] } | { ok: false; problem: ChordProblem };
+  | { ok: true; keys: string; displaced: string[] }
+  | { ok: false; problem: ChordProblem; fixedTo?: string };
 
 export interface HotkeyMapOptions {
   defaults?: readonly DefaultHotkey[];
@@ -483,7 +509,9 @@ export interface HotkeyMapOptions {
 /**
  * Effective bindings = defaults overridden by user bindings. One chord per command (as in the
  * original editor); a chord may be shared by several commands only through stale user data,
- * which `collisions()` reports.
+ * which `collisions()` reports. The fixed shortcuts (`FIXED_HOTKEYS`, feature 007) come on top:
+ * a fixed chord runs its command first, no binding may take it - a stored or default one that
+ * does is dropped - and it is shown after the command's assignable chord.
  */
 export class HotkeyMap {
   readonly platform: Platform;
@@ -495,7 +523,9 @@ export class HotkeyMap {
     this.platform = platform;
     for (const entry of options.defaults ?? DEFAULT_HOTKEYS) {
       const canonical = normalizeChord(defaultKeysFor(entry, platform), platform);
-      if (canonical) this.defaults.set(entry.commandId, canonical);
+      if (canonical && !fixedCommandFor(canonical, platform)) {
+        this.defaults.set(entry.commandId, canonical);
+      }
     }
   }
 
@@ -517,10 +547,27 @@ export class HotkeyMap {
     return this.defaults.get(commandId);
   }
 
-  /** Effective chord formatted for menus and tooltips. */
+  /** The fixed chord of a command (canonical, `Ctrl+S` / `Meta+S`), if it has one. */
+  fixedFor(commandId: string): string | undefined {
+    const entry = FIXED_HOTKEYS.find((fixed) => fixed.commandId === commandId);
+    return entry ? (normalizeChord(entry.keys, this.platform) ?? undefined) : undefined;
+  }
+
+  /** Effective chord formatted for menus: the assignable one, else the fixed one. */
   display(commandId: string): string | undefined {
-    const keys = this.get(commandId);
-    if (!keys) return undefined;
+    const keys = this.get(commandId) ?? this.fixedFor(commandId);
+    return keys ? this.format(keys) : undefined;
+  }
+
+  /** Every chord of a command for tooltips and the Hotkeys page: assignable, then fixed. */
+  displayAll(commandId: string): string | undefined {
+    const chords = [this.get(commandId), this.fixedFor(commandId)]
+      .filter((keys): keys is string => !!keys)
+      .map((keys) => this.format(keys));
+    return chords.length > 0 ? chords.join(', ') : undefined;
+  }
+
+  private format(keys: string): string {
     const chord = parseChord(keys, this.platform);
     return chord ? formatChordForDisplay(chord, this.platform) : keys;
   }
@@ -555,7 +602,10 @@ export class HotkeyMap {
         continue;
       }
       const canonical = normalizeChord(keys, this.platform);
-      if (canonical) this.overrides.set(commandId, canonical);
+      // A binding that takes a fixed chord (a file of an earlier version) is dropped.
+      if (canonical && !fixedCommandFor(canonical, this.platform)) {
+        this.overrides.set(commandId, canonical);
+      }
     }
     this.emit();
   }
@@ -564,19 +614,22 @@ export class HotkeyMap {
   addDefaults(defaults: readonly DefaultHotkey[]): void {
     for (const entry of defaults) {
       const canonical = normalizeChord(defaultKeysFor(entry, this.platform), this.platform);
-      if (canonical) this.defaults.set(entry.commandId, canonical);
+      if (canonical && !fixedCommandFor(canonical, this.platform)) {
+        this.defaults.set(entry.commandId, canonical);
+      }
     }
     this.emit();
   }
 
-  /** Command ids currently bound to the chord. */
+  /** Command ids currently bound to the chord; a fixed chord's command comes first. */
   lookup(chord: Chord | string): string[] {
     const canonical =
       typeof chord === 'string' ? normalizeChord(chord, this.platform) : formatChord(chord);
     if (!canonical) return [];
-    const ids: string[] = [];
+    const fixed = fixedCommandFor(canonical, this.platform);
+    const ids: string[] = fixed ? [fixed] : [];
     for (const binding of this.bindings()) {
-      if (binding.keys === canonical) ids.push(binding.commandId);
+      if (binding.keys === canonical && binding.commandId !== fixed) ids.push(binding.commandId);
     }
     return ids;
   }
@@ -606,7 +659,13 @@ export class HotkeyMap {
   assign(commandId: string, keys: string | Chord): AssignResult {
     const chord = typeof keys === 'string' ? parseChord(keys, this.platform) : keys;
     const validation = validateChord(chord, this.platform);
-    if (!validation.ok || !chord) return { ok: false, problem: validation.problem ?? 'invalid' };
+    if (!validation.ok || !chord) {
+      return {
+        ok: false,
+        problem: validation.problem ?? 'invalid',
+        ...(validation.fixedTo ? { fixedTo: validation.fixedTo } : {}),
+      };
+    }
     const canonical = formatChord(chord);
     const displaced = this.lookup(canonical).filter((id) => id !== commandId);
     for (const id of displaced) this.setOverride(id, '');

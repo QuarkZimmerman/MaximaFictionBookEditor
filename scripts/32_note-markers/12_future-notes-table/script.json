@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "32/future-notes-table",
+  "name": {
+    "ru": "Создать таблицу соответствия маркеров будущих сносок",
+    "en": "Create a table matching the markers of future footnotes",
+    "uk": "Створити таблицю відповідності маркерів майбутніх приміток"
+  },
+  "description": {
+    "ru": "Показывает в окне отчёта (и предлагает сохранить в файл) таблицу, где n-й маркер знака сноски стоит рядом с n-м маркером текста сноски, а несовпадающие номера отмечены.",
+    "en": "Shows in a report window (and offers to save in a file) a table that puts the n-th note sign marker beside the n-th note text marker and marks the numbers that do not match.",
+    "uk": "Показує у вікні звіту (і пропонує зберегти у файл) таблицю, де n-й маркер знака примітки стоїть поруч із n-м маркером тексту примітки, а розбіжні номери позначено."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Создать таблицу соответствия маркеров будущих сносок",
+    "en": "Create a table matching the markers of future footnotes"
+  },
+  "legacy": {
+    "source": "32_Маркеры сносок/12_Создать таблицу соответствия маркеров будущих сносок.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

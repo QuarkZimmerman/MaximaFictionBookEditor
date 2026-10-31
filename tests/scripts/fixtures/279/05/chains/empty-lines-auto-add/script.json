@@ -1,0 +1,9 @@
+{
+  "manifestVersion": 1,
+  "id": "test05/empty-lines-auto-add",
+  "name": {
+    "ru": "Тест: пустые строки рядом с иллюстрациями (auto-add)",
+    "en": "Test: empty lines next to the illustrations (auto-add)"
+  },
+  "kind": "menu"
+}

@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "05/previous-inline-image",
+  "name": {
+    "ru": "Перейти на предыдущую инлайн-иллюстрацию",
+    "en": "Go to the previous inline illustration",
+    "uk": "Перейти до попередньої вбудованої ілюстрації"
+  },
+  "description": {
+    "ru": "Ставит курсор перед предыдущей иллюстрацией внутри абзаца, не выделяя её.",
+    "en": "Puts the caret right before the previous illustration inside a paragraph, without selecting it.",
+    "uk": "Ставить курсор перед попередньою ілюстрацією всередині абзацу, не виділяючи її."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Перейти на предыдущую инлайн-иллюстрацию",
+    "en": "Go to the previous inline illustration"
+  },
+  "legacy": {
+    "source": "05_Иллюстрации/18_Перейти на предыдущую инлайн-иллюстрацию.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.0"
+  }
+}

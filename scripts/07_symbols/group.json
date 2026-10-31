@@ -1,3 +1,8 @@
 {
-  "names": { "en": "Symbols", "ru": "Символы" }
+  "names": {
+    "en": "Symbols",
+    "ru": "Символы",
+    "uk": "Символи"
+  },
+  "icon": "icon.png"
 }

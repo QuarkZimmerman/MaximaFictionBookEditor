@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "06/cyrillic-latin",
+  "name": {
+    "ru": "Кириллица-латиница",
+    "en": "Cyrillic-Latin",
+    "uk": "Кирилиця-латиниця"
+  },
+  "description": {
+    "ru": "Восстанавливает текст, набранный смесью латиницы, кириллицы, цифр и греческих букв: исправляет слова и римские числа автоматически, а оставшиеся сомнительные слова — по одному с подтверждением.",
+    "en": "Restores text typed in a mix of Latin, Cyrillic and Greek letters and digits: corrects words and Roman numerals automatically and the doubtful words left one by one, asking first.",
+    "uk": "Відновлює текст, набраний сумішшю латиниці, кирилиці, цифр і грецьких літер: виправляє слова й римські числа автоматично, а сумнівні слова, що залишилися, — по одному з підтвердженням."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Кириллица-латиница",
+    "en": "Cyrillic-Latin"
+  },
+  "legacy": {
+    "source": "06_Чистка/71_Кириллица-латиница.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.6"
+  }
+}

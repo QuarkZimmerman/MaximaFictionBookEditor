@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "13/regexp-titles-extended",
+  "name": {
+    "ru": "Разметить заголовки разделов либо подзаголовки, найденные по регэкспу... (расширенная версия)",
+    "en": "Mark up section titles or subtitles found by a regular expression... (extended version)",
+    "uk": "Розмітити заголовки розділів або підзаголовки, знайдені за регулярним виразом... (розширена версія)"
+  },
+  "description": {
+    "ru": "Превращает абзацы разделов, подходящие под регэксп и выбранные условия (жирность, курсив, пустые строки вокруг, положение, длина), в заголовки новых разделов или в подзаголовки.",
+    "en": "Turns the paragraphs of sections that match a regular expression and the chosen conditions (bold, italic, empty lines around, position, length) into titles of new sections or into subtitles.",
+    "uk": "Перетворює абзаци розділів, що відповідають регулярному виразу та обраним умовам (жирний, курсив, порожні рядки довкола, положення, довжина), на заголовки нових розділів або на підзаголовки."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Разметить заголовки разделов либо подзаголовки, найденные по регэкспу... (расширенная версия)",
+    "en": "Mark up section titles or subtitles found by a regular expression... (extended version)"
+  },
+  "legacy": {
+    "source": "13_Заголовки, подзаголовки, пустые строки/06_Разметить заголовки разделов либо подзаголовки, найденные по регэкспу... (расширенная версия).js",
+    "fbeVersion": "2.7.9"
+  }
+}

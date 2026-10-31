@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "14/next-cite-remove-bold-italics",
+  "name": {
+    "ru": "По очереди расформатировать все цитаты от жирности и курсива",
+    "en": "Remove bold and italics from citations one at a time",
+    "uk": "По черзі прибрати жирний шрифт і курсив з усіх цитат"
+  },
+  "description": {
+    "ru": "Пошаговый вариант: выделяет следующую после курсора цитату и снимает жирность и курсив в её абзацах; повторный запуск обрабатывает следующую цитату.",
+    "en": "Step-by-step version: selects the next citation after the caret and removes the bold and italics of its paragraphs; run it again for the next citation.",
+    "uk": "Покроковий варіант: виділяє наступну після курсору цитату й знімає жирний шрифт і курсив у її абзацах; повторний запуск обробляє наступну цитату."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "По очереди расформатировать все цитаты от жирности и курсива",
+    "en": "Remove bold and italics from citations one at a time"
+  },
+  "legacy": {
+    "source": "14_Цитаты/057_По очереди расформатировать все цитаты от жирности и курсива.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.5"
+  }
+}

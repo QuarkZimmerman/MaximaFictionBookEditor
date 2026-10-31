@@ -5,6 +5,15 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 
 ## 0.0.6 - unreleased
 
+### In short
+
+- Improved table editing
+- Ctrl+S saves the book; browser shortcuts no longer interfere
+- Added the scripts of FictionBook Editor 2.7.9 and updated the existing ones
+- Icons in the Scripts menu
+- Pictures: full-size view and natural-size inline pictures
+- The AI assistant can find, explain, run and change scripts
+
 ### Added
 
 - *Add > Table* asks for the columns and for a header column besides the rows and a header
@@ -127,6 +136,35 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   popup and the panel alike), a change that leaves a table irregular tells the assistant so it can
   repair it, and Validate lists the irregular tables. The assistant needs a core of API minor 5;
   a large table's change no longer sends its XML (the requests grow by at most 5% of the table).
+- The picture view (issue #4): a click on a picture's thumbnail in the Description view's
+  *Binary objects* list - or Enter on it - shows the picture at its own size over the editor. A
+  picture larger than the window is shown whole first; a click or a key switches to its natural
+  size, which scrolls, and back. Esc, the close button and a click outside close it. Binaries
+  the editor cannot show as pictures have no view.
+- Icons in the Scripts menu (issue #4): groups and scripts show their icons left of their names -
+  FictionBook Editor 2.7.9's icons for the bundled ones - and the user's own groups and scripts
+  that declare an icon show theirs, at 16 × 16 pixels as on the Scripts toolbar, which keeps
+  offering every script that has an icon.
+- Scripts can read and write the clipboard as plain text (reading only in a run the user
+  started), save text or the book's binaries to files the user picks in a Save or folder dialog,
+  show a report window with *Copy* and *Save as...*, and run another script of the menu as part
+  of the same run - one undo step and one Cancel for the whole chain, at most 8 deep. Script
+  forms gain a regular-expression field (script API version 2, `docs/scripting`).
+- The AI assistant works with the scripts: it lists them by group or by words, explains what one
+  does - its description, the FictionBook Editor script it comes from, its source - and runs the
+  one the user asks for. When asked, it proposes a changed version in its proposal dialog; an
+  approved change is saved in the assistant's own folder under the script's id and takes the
+  original's place in the menu, with its hotkey, toolbar button and Last script, while the
+  original files never change. A dated backup of the version in effect is kept before every
+  change and can be restored, and deleting the assistant's copy brings back the one under it. A
+  script the assistant started cannot read the clipboard.
+- A user's script with the id of a bundled script replaces it in the Scripts menu, in its place.
+- The scripts of FictionBook Editor 2.7.9 (issue #4): 228 scripts are new in the Scripts menu, in
+  2.7.9's groups and order, among them new groups for citations, numbering, note markers, the
+  description and automation - script lists and combos that run other scripts. Three scripts that
+  need the editor's own page are not converted, and four that have nothing to do with editing the
+  book - a quote phrase finder, a game and two obscene-word tools - are left out; the conversion
+  notes (`docs/scripting/conversion-notes-279.md`) list them with their reasons.
 
 ### Changed
 
@@ -212,6 +250,26 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   defaults (2 rows, 2 columns, no header row or column). `hotkeys.json` accepts the 24 table
   commands, none of which has a default chord. The core's API minor is 5; every change is
   additive.
+- Ctrl+S (Cmd+S on macOS) always saves the book wherever File > Save is available - in every
+  view, in the description's fields and on the Document Tree. It is a fixed shortcut of Save; F2
+  stays Save's assignable shortcut, and a user's binding of Ctrl+S to another command is
+  dropped.
+- The browser engine the editor runs in no longer acts on the editor's own page: no key reloads,
+  replaces or closes it, and the engine's save-page, print, find-bar and caret-browsing dialogs,
+  its new windows and tabs, history, downloads, bookmarks, task manager and - outside developer
+  runs - developer tools never appear. Where the editor has a key of its own (Ctrl+P, Ctrl+F,
+  F5, F7, Ctrl+W) its command runs. Zoom (Ctrl+plus, Ctrl+minus, Ctrl+0, Ctrl+mouse wheel), full
+  screen (F11), paste as plain text (Ctrl+Shift+V) and the editing keys of text fields stay.
+- Every web page the interface opens - About's links, the AI assistant's terms, the release page
+  of Help > Check for new version - opens in the system browser in one way, through the core.
+- Every version's notes start with a short list of its main changes (*In short*), which the
+  release text shows first.
+- The 142 scripts converted from FictionBook Editor 2.7beta1 follow 2.7.9: 109 are brought up to
+  their 2.7.9 versions - names, texts and behaviour -, 27 were already as in 2.7.9 and 6 without a
+  2.7.9 counterpart stay. Every script and group has Ukrainian names and descriptions, scripts
+  take their 2.7.9 places in the menu, and hotkeys, toolbar buttons and *Last script* keep
+  working, as a script's id never changes. A script list written for 2.7.9 finds the scripts by
+  their 2.7.9 paths.
 
 ### Fixed
 
@@ -288,8 +346,29 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 - A menu of the menu bar taller than the room below the bar - the *Scripts* menu with many
   script groups - ends inside the window: its padding and border reached a few pixels below
   the window's bottom, so opening the menu scrolled the whole window up by those pixels.
+- Ctrl+S offered to save the editor's page as HTML instead of saving the book (issue #5).
+- Inline pictures outside table cells were shown as specks about 20 pixels across (issue #4).
+  They are shown at their natural size - that of the editor's preview, at most 800 pixels wide -
+  scaled down only to the width of the text and never enlarged, and a picture taller than its
+  line makes the line taller; in the description's annotation and history too. Pictures in table
+  cells and Fast Mode's placeholders are unchanged.
+- About's links and the *Yes* of the version check, which opens the release page, did nothing in
+  the desktop editor; they open the system browser.
+- A picture whose binary was added later - for a reference that had none - or removed and added
+  again showed as missing in the Body view until the view was switched; it shows at once.
+- A script that replaced a whole formatted word - a symbol table inserting over an emphasised
+  word, for example - dropped the word's formatting; the new text keeps it, as typing does.
+- 222 defects of the classic scripts, found while converting or rechecking them, are fixed where
+  their intent was clear; the conversion notes list each one with the open questions.
 
 ## 0.0.5 - 2026-10-23
+
+### In short
+
+- The AI assistant, with free services or your own
+- Ask AI about the selection in the Body and Source views
+- The assistant lists, explains and runs scripts
+- Every request is one undo step and is checked against the schema
 
 ### Added
 
@@ -486,6 +565,16 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 
 ## 0.0.4 - 2026-10-21
 
+### In short
+
+- The Document Tree pane can be resized
+- Other persons in the Description view
+- Description import from another book and export as FBD
+- A proposed file name for new books
+- Annotation and history back at the top of the Body view
+- The caret and the selection carried between the Body and Source views
+- Restore position and the keyboard layout switch fixed
+
 ### Added
 
 - The Document Tree pane can be made narrower or wider: a divider between the pane and the
@@ -617,6 +706,16 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 
 ## 0.0.3 - 2026-10-17
 
+### In short
+
+- Ukrainian interface and spelling dictionary
+- Spelling dictionaries from a folder
+- Scheduled check for a new version
+- Desktop shortcut option in the Windows installer
+- Tag completion in the Source view
+- A running script is clearly shown
+- The window reopens where it was closed
+
 ### Added
 
 - Ukrainian interface, as the original offered: Settings > View lists System default, English,
@@ -736,6 +835,15 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 
 ## 0.0.2 - 2026-10-15
 
+### In short
+
+- Check for a new version from the Help menu
+- Toolbars customised as in the original
+- Your own blank book template
+- A new untitled document at start-up
+- Published under the GNU General Public License version 3
+- Fixes to start-up on Windows, menus, Find and Replace, and file dialogs
+
 ### Added
 
 - Help > Check for new version...: asks the project's release page for the latest published
@@ -830,6 +938,13 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   kept them disabled there.
 
 ## 0.0.1 - first public build
+
+### In short
+
+- The first public build of Maxima Fiction Book Editor
+- System, light or dark theme
+- A portable ZIP for Windows next to the installer
+- The original's scripts in a sandbox
 
 A complete re-implementation of the classic FictionBook Editor for Windows 10/11,
 Linux (Ubuntu 22.04+, X11 and Wayland) and macOS (best effort), with the same

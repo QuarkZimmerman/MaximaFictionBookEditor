@@ -641,6 +641,14 @@ TEST_CASE("images: binary.convert, binary.addFromClipboard, /preview endpoint",
                          "/binary/" + doc_id + "/big.png/preview?w=200&h=200&" + tok,
                          {{"If-None-Match", etag}})
               .status == 304);
+    // Another query parameter - the UI's revision r= (feature 007) - changes nothing.
+    auto revised = test::http_get(server->port(),
+                                  "/binary/" + doc_id + "/big.png/preview?w=200&h=200&r=3&" + tok);
+    CHECK(revised.status == 200);
+    CHECK(revised.headers["etag"] == etag);
+    CHECK(revised.body == preview.body);
+    CHECK(test::http_get(server->port(), "/binary/" + doc_id + "/big.png?r=3&" + tok).status ==
+          200);
     auto other_size =
         test::http_get(server->port(), "/binary/" + doc_id + "/big.png/preview?w=100&" + tok);
     CHECK(other_size.headers["etag"] != etag);

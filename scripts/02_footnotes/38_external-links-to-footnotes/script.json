@@ -1,0 +1,25 @@
+{
+  "manifestVersion": 1,
+  "id": "02/external-links-to-footnotes",
+  "name": {
+    "ru": "Превратить внешние ссылки в примечания",
+    "en": "Turn external links into footnotes",
+    "uk": "Перетворити зовнішні посилання на примітки"
+  },
+  "description": {
+    "ru": "Каждая внешняя ссылка (http, https, ftp, file, mailto) становится обычным текстом со сноской, текст которой - адрес ссылки; сноски перенумеровываются",
+    "en": "Every external link (http, https, ftp, file, mailto) becomes plain text with a footnote holding its address; the footnotes are renumbered",
+    "uk": "Кожне зовнішнє посилання (http, https, ftp, file, mailto) стає звичайним текстом із приміткою, текст якої - адреса посилання; примітки перенумеровуються"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Превратить внешние ссылки в примечания",
+    "en": "Turn external links into footnotes"
+  },
+  "legacy": {
+    "source": "02_Примечания/38_Превратить внешние ссылки в примечания.js",
+    "fbeVersion": "2.7.9"
+  }
+}

@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Форматирование</last-name>
+			</author>
+			<book-title>Поиск форматирования</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Книга с <emphasis>курсивом</emphasis> в заголовке</p>
+		</title>
+		<section>
+			<title>
+				<p>Глава первая</p>
+			</title>
+			<p>Обычный абзац без форматирования.</p>
+			<p>Абзац с <emphasis>первым курсивом</emphasis> и <emphasis>вторым курсивом</emphasis> в одной строке.</p>
+			<p>Абзац с <strong>жирным</strong> словом и <sup>верхним</sup> индексом.</p>
+			<empty-line/>
+			<p>Абзац с <sub>нижним</sub> индексом, <strikethrough>зачёркнутым</strikethrough> текстом и <code>кодом</code>.</p>
+			<p>Вложенное: <strong>жирный <emphasis>и курсивный</emphasis> текст</strong> здесь.</p>
+			<p>Пустой курсив не считается, а <emphasis>этот</emphasis> считается.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава <strong>вторая</strong></p>
+			</title>
+			<epigraph>
+				<p>Эпиграф с <emphasis>курсивом</emphasis>.</p>
+				<text-author>Автор <sup>эпиграфа</sup></text-author>
+			</epigraph>
+			<p>Первый абзац второй главы.</p>
+			<poem>
+				<stanza>
+					<v>Строка стиха с <emphasis>курсивом</emphasis></v>
+					<v>Строка стиха с <strong>жирностью</strong></v>
+				</stanza>
+			</poem>
+			<cite>
+				<p>Цитата с <code>кодом</code> и <sub>индексом</sub>.</p>
+				<text-author>Цитируемый <strikethrough>автор</strikethrough></text-author>
+			</cite>
+			<subtitle>Подзаголовок с <sup>индексом</sup></subtitle>
+			<p>Последний абзац книги с <emphasis>курсивом в конце</emphasis></p>
+		</section>
+	</body>
+	<body name="notes">
+		<title>
+			<p>Примечания</p>
+		</title>
+		<section id="n_1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Примечание с <strong>жирным</strong> текстом.</p>
+		</section>
+	</body>
+</FictionBook>

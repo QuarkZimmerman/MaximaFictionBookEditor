@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "06/remove-unreferenced-ids-and-styles",
+  "name": {
+    "ru": "Удалить атрибуты id, на которые нет ссылок, и теги style",
+    "en": "Remove the id attributes no link points to, and the style tags",
+    "uk": "Видалити атрибути id, на які немає посилань, і теги style"
+  },
+  "description": {
+    "ru": "Удаляет атрибуты id абзацев, картинок и блочных элементов, на которые не ведёт ни одна ссылка книги (кроме id разделов и блоков body примечаний), и все теги style, оставляя их текст.",
+    "en": "Removes the id attributes of paragraphs, pictures and block elements that no link of the book points to (the sections and blocks of the notes body aside) and every style tag, keeping its text.",
+    "uk": "Видаляє атрибути id абзаців, малюнків і блокових елементів, на які не веде жодне посилання книги (крім розділів і блоків body приміток), і всі теги style, залишаючи їхній текст."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Удалить атрибуты id, на которые нет ссылок, и теги style",
+    "en": "Remove the id attributes no link points to, and the style tags"
+  },
+  "legacy": {
+    "source": "06_Чистка/45_Удалить атрибуты id, на которые нет ссылок, и теги style.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.1"
+  }
+}

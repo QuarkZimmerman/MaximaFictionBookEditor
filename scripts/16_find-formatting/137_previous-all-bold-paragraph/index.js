@@ -1,0 +1,25 @@
+// Converted from FictionBook Editor 2.7.9: Scripts/16_Поиск форматирования/137_Выделить предыдущий целиком жирный абзац.js
+// Selects the previous paragraph that is bold throughout (block-search.js), from the start of the
+// selection. Returns "Found", or "NotFound" after saying that none was found (as the original's
+// Run() did). Differences from the original: docs/scripting/conversion-notes-279-b.md (group 16).
+// The original's notice, kept as written (FR-029):
+// Скрипт «Выделить предыдущий целиком жирный абзац»
+// Автор Sclex
+// Версия 1.2
+
+import { entirely, runParagraphSearch } from './block-search.js';
+
+export default async function run(ctx) {
+  return runParagraphSearch(ctx, {
+    forward: false,
+    test: (p) => entirely(p, 'strong'),
+    status: {
+      ru: 'Переходим на предыдущий целиком жирный абзац…',
+      en: 'Going to the previous entirely bold paragraph…',
+    },
+    notFound: {
+      ru: 'До начала документа не нашлось ни одного целиком жирного абзаца.',
+      en: 'No entirely bold paragraph was found up to the beginning of the document.',
+    },
+  });
+}

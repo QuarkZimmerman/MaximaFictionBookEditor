@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "37/epigraphs-remove-bold-italics",
+  "name": {
+    "ru": "Расформатировать все эпиграфы от жирности и курсива",
+    "en": "Remove bold and italics from all epigraphs",
+    "uk": "Прибрати жирний шрифт і курсив з усіх епіграфів"
+  },
+  "description": {
+    "ru": "Снимает жирность и курсив во всех эпиграфах книги: выделяет эпиграф за эпиграфом от начала документа и расформатирует его абзацы.",
+    "en": "Removes bold and italics from every epigraph of the book: selects one epigraph after another from the start of the document and unformats its paragraphs.",
+    "uk": "Знімає жирний шрифт і курсив в усіх епіграфах книги: виділяє епіграф за епіграфом від початку документа й розформатовує його абзаци."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Расформатировать все эпиграфы от жирности и курсива",
+    "en": "Remove bold and italics from all epigraphs"
+  },
+  "legacy": {
+    "source": "37_Эпиграфы/07_Расформатировать все эпиграфы от жирности и курсива.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.5"
+  }
+}

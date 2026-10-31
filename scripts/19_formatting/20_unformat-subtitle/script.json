@@ -1,0 +1,25 @@
+{
+  "manifestVersion": 1,
+  "id": "19/unformat-subtitle",
+  "name": {
+    "ru": "Расформатировать подзаголовок",
+    "en": "Unformat subtitle",
+    "uk": "Розформатувати підзаголовок"
+  },
+  "description": {
+    "ru": "Превращает подзаголовок, в котором стоит курсор (или начинается выделение), в обычный текст: в строфе — в строку стиха, прямо в стихе — в строфу из одной строки, в остальных местах — в абзац.",
+    "en": "Turns the subtitle holding the caret (or the start of the selection) into plain text: a verse in a stanza, a one-verse stanza directly in a poem, a paragraph elsewhere.",
+    "uk": "Перетворює підзаголовок, у якому стоїть курсор (або починається виділення), на звичайний текст: у строфі — на рядок вірша, безпосередньо у вірші — на строфу з одного рядка, деінде — на абзац."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Расформатировать подзаголовок",
+    "en": "Unformat subtitle"
+  },
+  "legacy": {
+    "source": "19_Обработка форматирования/20_Расформатировать подзаголовок.js",
+    "fbeVersion": "2.7.9"
+  }
+}

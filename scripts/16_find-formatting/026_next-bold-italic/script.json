@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-bold-italic",
+  "name": {
+    "ru": "Перейти на следующее совмещение курсива с жирностью",
+    "en": "Go to next bold italics",
+    "uk": "Перейти до наступного поєднання курсиву з жирним"
+  },
+  "description": {
+    "ru": "Переводит курсор в начало следующего фрагмента, набранного одновременно курсивом и жирным; по достижении конца книги предлагает продолжить с начала",
+    "en": "Moves the caret to the start of the next run of text that is both italic and bold; at the end of the book offers to continue from the beginning",
+    "uk": "Переводить курсор на початок наступного фрагмента, набраного водночас курсивом і жирним; наприкінці книги пропонує продовжити з початку"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Перейти на следующее совмещение курсива с жирностью",
+    "en": "Go to next bold italics"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/026_Перейти на следующее совмещение курсива с жирностью.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.0"
+  }
+}

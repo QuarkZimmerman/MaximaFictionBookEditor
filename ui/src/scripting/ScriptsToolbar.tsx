@@ -21,7 +21,7 @@ export function ScriptToolbarButton({ script }: { script: ScriptInfo }) {
   if (!command) return null;
   const enabled = services.commands.isEnabled(commandId, ctx);
   const tooltip = commandTooltip(command, t);
-  const hotkey = services.hotkeys.display(commandId);
+  const hotkey = services.hotkeys.displayAll(commandId);
   const icon = scriptIconUrl(script);
   return (
     <button

@@ -1,10 +1,12 @@
-// Converted from 05_Иллюстрации/09_Сделать обычный рисунок из рисунка в тексте.js (FictionBook
-// Editor 2.7), Tier 2. The selected inline image, when it is the only content of its paragraph,
-// becomes a block image in place of the paragraph (href and alt are kept). Paragraphs that also
-// hold text are left alone, as in the original.
-// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
-//Скрипт «Сделать обычный рисунок из рисунка в тексте.js»
-//Версия 1.0
+// Converted from FictionBook Editor 2.7.9: Scripts/05_Иллюстрации/09_Сделать обычный рисунок из рисунка в тексте.js
+// (version 1.1; 2.7beta1's file of the same name, 1.0, before feature 007). The selected inline
+// image, when it is the only content of its paragraph, becomes a block image in place of the
+// paragraph (href and alt are kept). Paragraphs that also hold text are left alone, as in the
+// original. 2.7.9 changed only the name of its undo step ("uninline image" before): the undo
+// step carries the package's label, the original's is its step name.
+// The original's notice, kept as written (FR-029):
+//Скрипт «Сделать обычный рисунок из рисунка в тексте»
+//Версия 1.1
 
 function t(ctx, ru, en) {
   return ctx.uiLanguage === 'ru' ? ru : en;
@@ -36,6 +38,7 @@ export default async function run(ctx) {
     return;
   }
   if (content.some((c) => c.type === 'text')) return; // the paragraph has text too: not converted
+  await mfbe.edit.label(t(ctx, 'превращение рисунка в тексте в обычный рисунок', 'turning an inline picture into a block picture'));
   const attrs = { href: image.attrs.href };
   if (image.attrs.alt) attrs.alt = image.attrs.alt;
   await mfbe.doc.replaceNode(paragraph.attrs.nodeId, { type: 'image', attrs });

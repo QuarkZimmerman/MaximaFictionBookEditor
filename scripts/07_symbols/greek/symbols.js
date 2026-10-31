@@ -1,4 +1,5 @@
-// Symbol table of the legacy dialog греческий.htm: [symbol, Russian tooltip].
+// Symbol table of the dialog HTML/Греческий.html of FictionBook Editor 2.7.9 (греческий.htm in
+// 2.7beta1, the same table): [symbol, Russian tooltip].
 export const SYMBOLS = [
   ["Α", "альфа"],
   ["α", ""],

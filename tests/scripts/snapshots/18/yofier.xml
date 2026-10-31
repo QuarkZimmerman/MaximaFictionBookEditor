@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Ёфикатор</last-name>
+			</author>
+			<book-title>Ёфикатор</book-title>
+			<annotation>
+				<p>Ещё в аннотации: её слова.</p>
+			</annotation>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+			<history>
+				<p>Причём в истории ничего нового.</p>
+			</history>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Глава, где всё-таки ещё есть её</p>
+		</title>
+		<section>
+			<p>Ещё один день: её дом, моё окно, у неё.</p>
+			<p>Ещё еще — второй не меняется.</p>
+			<p>Ребёнок пришёл, причём шёл быстро; приём окончен.</p>
+			<p>О нём и о нём, но о нем (тонкий пробел) не трогаем.</p>
+			<p><emphasis>Ещё</emphasis> курсив и <strong>чёрный</strong> цвет, иссиня-чёрных волос.</p>
+			<p>Ушёл и нашёл: найденный клад.</p>
+			<p>Пчёл много, пчелы летят; далеко и неподалёку.</p>
+			<p>Своё слово, лёд и ледяной ветер, ёлка и ежик.</p>
+			<p>еще-то и xеще остаются.</p>
+			<poem>
+				<stanza>
+					<v>Вперёд, зелёный лес!</v>
+				</stanza>
+			</poem>
+			<cite>
+				<p>Тётя Мотя и молодёжь.</p>
+			</cite>
+		</section>
+	</body>
+	<body name="notes">
+		<section id="n1">
+			<p>Ещё примечание.</p>
+		</section>
+	</body>
+</FictionBook>

@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-title",
+  "name": {
+    "ru": "Выделить следующий заголовок",
+    "en": "Select next title",
+    "uk": "Виділити наступний заголовок"
+  },
+  "description": {
+    "ru": "Выделяет следующий заголовок (книги, раздела, стиха или строфы)",
+    "en": "Selects the next title (of a body, a section, a poem or a stanza)",
+    "uk": "Виділяє наступний заголовок (книги, розділу, вірша або строфи)"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить следующий заголовок",
+    "en": "Select next title"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/148_Выделить следующий заголовок.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
+  }
+}

@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>poetry</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Цепочки</last-name>
+			</author>
+			<book-title>Стихи с жирностью и курсивом</book-title>
+			<annotation>
+				<p>Аннотация с <strong>жирностью</strong> и <emphasis>курсивом</emphasis>.</p>
+			</annotation>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>fixture</program-used>
+			<date value="2026-10-31">2026</date>
+			<id>fixture-279-chains-poems</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Книга <strong>стихов</strong></p>
+		</title>
+		<section>
+			<title>
+				<p>Глава <emphasis>первая</emphasis></p>
+			</title>
+			<p>Абзац с <strong>жирным</strong> и <emphasis>курсивом</emphasis> до стихов.</p>
+			<poem>
+				<title>
+					<p><strong>Первый</strong> стих</p>
+				</title>
+				<epigraph>
+					<p><emphasis>Эпиграф стиха</emphasis></p>
+					<text-author><strong>Автор эпиграфа</strong></text-author>
+				</epigraph>
+				<stanza>
+					<title>
+						<p><emphasis>Строфа</emphasis> первая</p>
+					</title>
+					<subtitle><strong>Подзаголовок строфы</strong></subtitle>
+					<v><strong>Жирная</strong> строка</v>
+					<v><emphasis>Курсивная</emphasis> строка</v>
+					<v><strong><emphasis>Жирный курсив</emphasis></strong> и <strikethrough>зачёркнутое</strikethrough></v>
+					<v>Строка со ссылкой<a l:href="#n1" type="note"><strong>[1]</strong></a></v>
+				</stanza>
+				<stanza>
+					<v><emphasis xml:lang="en">English italics</emphasis> и <sup>индекс</sup></v>
+				</stanza>
+				<text-author><emphasis>Поэт</emphasis></text-author>
+				<date>1900</date>
+			</poem>
+			<p>Абзац <strong>между</strong> стихами.</p>
+			<poem>
+				<stanza>
+					<v><strong>Второй</strong> стих</v>
+				</stanza>
+			</poem>
+			<poem>
+				<stanza>
+					<v><emphasis>Третий</emphasis> стих</v>
+				</stanza>
+			</poem>
+			<cite>
+				<p><strong>Цитата</strong> со стихом:</p>
+				<poem>
+					<stanza>
+						<v><emphasis>Стих</emphasis> в <strong>цитате</strong></v>
+					</stanza>
+				</poem>
+				<text-author><emphasis>Автор цитаты</emphasis></text-author>
+			</cite>
+			<p>Последний абзац <strong>главы</strong> с <emphasis>курсивом</emphasis>.</p>
+		</section>
+	</body>
+	<body name="notes">
+		<title>
+			<p>Примечания</p>
+		</title>
+		<section id="n1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Примечание со стихом:</p>
+			<poem>
+				<stanza>
+					<v><strong>Стих</strong> в примечании</v>
+				</stanza>
+			</poem>
+			<p>Конец примечания с <strong>жирным</strong> и <emphasis>курсивом</emphasis>.</p>
+		</section>
+	</body>
+</FictionBook>

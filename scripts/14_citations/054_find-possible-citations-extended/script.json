@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "14/find-possible-citations-extended",
+  "name": {
+    "ru": "Расширенный поиск предположительных цитат",
+    "en": "Extended search for possible citations",
+    "uk": "Розширений пошук імовірних цитат"
+  },
+  "description": {
+    "ru": "Выделяет следующий абзац, похожий на цитату: в ёлочках, целиком курсивный или жирный, заглавными буквами, концовку письма, начало или конец цитаты из нескольких абзацев либо абзац после строки со стоп-словом и двоеточием.",
+    "en": "Selects the next paragraph that looks like a citation: in guillemets, wholly italic or bold, in capitals, a letter's closing, the start or end of a citation of several paragraphs, or the paragraph after a line ending with a stop word and a colon.",
+    "uk": "Виділяє наступний абзац, схожий на цитату: у ялинках, повністю курсивний чи жирний, великими літерами, кінцівку листа, початок або кінець цитати з кількох абзаців чи абзац після рядка зі стоп-словом і двокрапкою."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Расширенный поиск предположительных цитат",
+    "en": "Extended search for possible citations"
+  },
+  "legacy": {
+    "source": "14_Цитаты/054_Расширенный поиск предположительных цитат.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.42"
+  }
+}

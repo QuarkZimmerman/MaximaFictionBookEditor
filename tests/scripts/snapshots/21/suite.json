@@ -1,0 +1,642 @@
+[
+  {
+    "snapshot": "21/spaced-letters.xml",
+    "script": "scripts/21_search-replace/62_spaced-letters",
+    "book": "tests/scripts/fixtures/279/21/spaced-letters.fb2",
+    "args": [
+      "--select",
+      "n5:0:0"
+    ]
+  },
+  {
+    "snapshot": "21/spaced-letters.not-found.xml",
+    "script": "scripts/21_search-replace/62_spaced-letters",
+    "book": "tests/scripts/fixtures/279/21/spaced-letters.fb2",
+    "args": [
+      "--select",
+      "n11:0:0",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "21/garbage-characters.xml",
+    "script": "scripts/21_search-replace/22_garbage-characters",
+    "book": "tests/scripts/fixtures/279/21/garbage-characters.fb2",
+    "args": [
+      "--select",
+      "n5:0:0"
+    ]
+  },
+  {
+    "snapshot": "21/garbage-characters.not-found.xml",
+    "script": "scripts/21_search-replace/22_garbage-characters",
+    "book": "tests/scripts/fixtures/279/21/garbage-characters.fb2",
+    "args": [
+      "--select",
+      "n21:15:15",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "21/garbage-characters-backward.xml",
+    "script": "scripts/21_search-replace/23_garbage-characters-backward",
+    "book": "tests/scripts/fixtures/279/21/garbage-characters.fb2",
+    "args": [
+      "--select",
+      "n21:15:15"
+    ]
+  },
+  {
+    "snapshot": "21/garbage-characters-backward.not-found.xml",
+    "script": "scripts/21_search-replace/23_garbage-characters-backward",
+    "book": "tests/scripts/fixtures/279/21/garbage-characters.fb2",
+    "args": [
+      "--select",
+      "n5:0:0",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "21/strange-characters.xml",
+    "script": "scripts/21_search-replace/18_strange-characters",
+    "book": "tests/scripts/fixtures/279/21/strange-characters.fb2",
+    "args": [
+      "--select",
+      "n5:0:0"
+    ]
+  },
+  {
+    "snapshot": "21/strange-characters.not-found.xml",
+    "script": "scripts/21_search-replace/18_strange-characters",
+    "book": "tests/scripts/fixtures/279/21/strange-characters.fb2",
+    "args": [
+      "--select",
+      "n17:0:0",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "21/next-empty-line.xml",
+    "script": "scripts/21_search-replace/32_next-empty-line",
+    "book": "tests/scripts/fixtures/279/21/empty-lines.fb2",
+    "args": [
+      "--select",
+      "n5:0:0"
+    ]
+  },
+  {
+    "snapshot": "21/next-empty-line.not-found.xml",
+    "script": "scripts/21_search-replace/32_next-empty-line",
+    "book": "tests/scripts/fixtures/279/21/empty-lines.fb2",
+    "args": [
+      "--select",
+      "n20:0:0",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "21/regexp-set-backward-template.xml",
+    "script": "scripts/21_search-replace/30_regexp-set-backward-template",
+    "book": "tests/scripts/fixtures/279/21/backward-template.fb2",
+    "args": [
+      "--select",
+      "n8:16:16"
+    ]
+  },
+  {
+    "snapshot": "21/regexp-set-backward-template.not-found.xml",
+    "script": "scripts/21_search-replace/30_regexp-set-backward-template",
+    "book": "tests/scripts/fixtures/279/21/backward-template.fb2",
+    "args": [
+      "--select",
+      "n5:0:0",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "21/missing-hyphens.xml",
+    "script": "scripts/21_search-replace/28_missing-hyphens",
+    "book": "tests/scripts/fixtures/279/21/missing-hyphens.fb2",
+    "args": [
+      "--select",
+      "n5:0:0"
+    ]
+  },
+  {
+    "snapshot": "21/missing-hyphens.not-found.xml",
+    "script": "scripts/21_search-replace/28_missing-hyphens",
+    "book": "tests/scripts/fixtures/279/21/missing-hyphens.fb2",
+    "args": [
+      "--select",
+      "n15:0:0",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "21/unmarked-dates.xml",
+    "script": "scripts/21_search-replace/25_unmarked-dates",
+    "book": "tests/scripts/fixtures/279/21/unmarked-dates.fb2",
+    "args": [
+      "--select",
+      "n5:0:0"
+    ]
+  },
+  {
+    "snapshot": "21/unmarked-dates.not-found.xml",
+    "script": "scripts/21_search-replace/25_unmarked-dates",
+    "book": "tests/scripts/fixtures/279/21/unmarked-dates.fb2",
+    "args": [
+      "--select",
+      "n10:7:7",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "21/paragraph-breaks-russian.xml",
+    "script": "scripts/21_search-replace/19_paragraph-breaks-russian",
+    "book": "tests/scripts/fixtures/279/21/paragraph-breaks.fb2",
+    "args": [
+      "--select",
+      "n5:0:0"
+    ]
+  },
+  {
+    "snapshot": "21/paragraph-breaks-russian.not-found.xml",
+    "script": "scripts/21_search-replace/19_paragraph-breaks-russian",
+    "book": "tests/scripts/fixtures/279/21/paragraph-breaks.fb2",
+    "args": [
+      "--select",
+      "n23:0:0",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "21/paragraph-breaks-english.xml",
+    "script": "scripts/21_search-replace/29_paragraph-breaks-english",
+    "book": "tests/scripts/fixtures/279/21/paragraph-breaks.fb2",
+    "args": [
+      "--select",
+      "n8:0:0"
+    ]
+  },
+  {
+    "snapshot": "21/paragraph-breaks-english.not-found.xml",
+    "script": "scripts/21_search-replace/29_paragraph-breaks-english",
+    "book": "tests/scripts/fixtures/279/21/paragraph-breaks.fb2",
+    "args": [
+      "--select",
+      "n23:0:0",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "21/stray-letter-spacing.xml",
+    "script": "scripts/21_search-replace/71_stray-letter-spacing",
+    "book": "tests/scripts/fixtures/279/21/stray-spacing.fb2",
+    "args": [
+      "--select",
+      "n5:0:0"
+    ]
+  },
+  {
+    "snapshot": "21/stray-letter-spacing.not-found.xml",
+    "script": "scripts/21_search-replace/71_stray-letter-spacing",
+    "book": "tests/scripts/fixtures/279/21/stray-spacing.fb2",
+    "args": [
+      "--select",
+      "n11:0:0",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "21/regexp-set-slovo.xml",
+    "script": "scripts/21_search-replace/07_regexp-set-slovo",
+    "book": "tests/scripts/fixtures/279/21/slovo.fb2",
+    "args": [
+      "--select",
+      "n5:0:0"
+    ]
+  },
+  {
+    "snapshot": "21/regexp-set-slovo.not-found.xml",
+    "script": "scripts/21_search-replace/07_regexp-set-slovo",
+    "book": "tests/scripts/fixtures/279/21/slovo.fb2",
+    "args": [
+      "--select",
+      "n15:0:0",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "21/regexp-set-znak.xml",
+    "script": "scripts/21_search-replace/08_regexp-set-znak",
+    "book": "tests/scripts/fixtures/279/21/znak.fb2",
+    "args": [
+      "--select",
+      "n5:0:0"
+    ]
+  },
+  {
+    "snapshot": "21/regexp-set-znak.not-found.xml",
+    "script": "scripts/21_search-replace/08_regexp-set-znak",
+    "book": "tests/scripts/fixtures/279/21/znak.fb2",
+    "args": [
+      "--select",
+      "n27:0:0",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "21/text-errors-takir-sclex.xml",
+    "script": "scripts/21_search-replace/05_text-errors-takir-sclex",
+    "book": "tests/scripts/fixtures/279/21/text-errors.fb2",
+    "args": [
+      "--select",
+      "n5:0:0"
+    ]
+  },
+  {
+    "snapshot": "21/text-errors-takir-sclex.not-found.xml",
+    "script": "scripts/21_search-replace/05_text-errors-takir-sclex",
+    "book": "tests/scripts/fixtures/279/21/text-errors.fb2",
+    "args": [
+      "--select",
+      "n26:0:0",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "21/text-errors-with-exceptions.xml",
+    "script": "scripts/21_search-replace/06_text-errors-with-exceptions",
+    "book": "tests/scripts/fixtures/279/21/text-errors-exceptions.fb2",
+    "args": [
+      "--select",
+      "n5:0:0"
+    ]
+  },
+  {
+    "snapshot": "21/text-errors-with-exceptions.not-found.xml",
+    "script": "scripts/21_search-replace/06_text-errors-with-exceptions",
+    "book": "tests/scripts/fixtures/279/21/text-errors-exceptions.fb2",
+    "args": [
+      "--select",
+      "n11:8:8",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "21/find-clipboard-text.xml",
+    "script": "scripts/21_search-replace/75_find-clipboard-text",
+    "book": "tests/scripts/fixtures/279/21/clipboard-search.fb2",
+    "args": [
+      "--select",
+      "n5:0:0",
+      "--clipboard",
+      "искомый текст"
+    ]
+  },
+  {
+    "snapshot": "21/find-clipboard-text.nbsp.xml",
+    "script": "scripts/21_search-replace/75_find-clipboard-text",
+    "book": "tests/scripts/fixtures/279/21/clipboard-search.fb2",
+    "args": [
+      "--select",
+      "n5:0:0",
+      "--clipboard",
+      "искомый текст"
+    ]
+  },
+  {
+    "snapshot": "21/find-clipboard-text.not-found.xml",
+    "script": "scripts/21_search-replace/75_find-clipboard-text",
+    "book": "tests/scripts/fixtures/279/21/clipboard-search.fb2",
+    "args": [
+      "--select",
+      "n9:0:0",
+      "--clipboard",
+      "искомый текст",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "21/find-clipboard-text.cancel.xml",
+    "script": "scripts/21_search-replace/75_find-clipboard-text",
+    "book": "tests/scripts/fixtures/279/21/clipboard-search.fb2",
+    "args": [
+      "--select",
+      "n9:0:0",
+      "--clipboard",
+      "искомый текст",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "21/find-clipboard-text.multiline.xml",
+    "script": "scripts/21_search-replace/75_find-clipboard-text",
+    "book": "tests/scripts/fixtures/279/21/clipboard-search.fb2",
+    "args": [
+      "--select",
+      "n5:0:0",
+      "--clipboard",
+      "первая строка\nвторая строка",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "21/find-clipboard-text.empty.xml",
+    "script": "scripts/21_search-replace/75_find-clipboard-text",
+    "book": "tests/scripts/fixtures/279/21/clipboard-search.fb2",
+    "args": [
+      "--select",
+      "n5:0:0",
+      "--clipboard",
+      "",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "21/replace-characters-from-clipboard.xml",
+    "script": "scripts/21_search-replace/64_replace-characters-from-clipboard",
+    "book": "tests/scripts/fixtures/279/21/replace-characters.fb2",
+    "args": [
+      "--select-range",
+      "n5:6-n6:13",
+      "--clipboard",
+      "аА\r\n оО \r\n\r\n.!\r\nбВ"
+    ]
+  },
+  {
+    "snapshot": "21/replace-characters-from-clipboard.too-long.xml",
+    "script": "scripts/21_search-replace/64_replace-characters-from-clipboard",
+    "book": "tests/scripts/fixtures/279/21/replace-characters.fb2",
+    "args": [
+      "--select-range",
+      "n5:6-n6:13",
+      "--clipboard",
+      "аАБ\r\nоО",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "21/replace-characters-from-clipboard.empty.xml",
+    "script": "scripts/21_search-replace/64_replace-characters-from-clipboard",
+    "book": "tests/scripts/fixtures/279/21/replace-characters.fb2",
+    "args": [
+      "--select-range",
+      "n5:6-n6:13",
+      "--clipboard",
+      "",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "21/replace-characters-from-clipboard.blank.xml",
+    "script": "scripts/21_search-replace/64_replace-characters-from-clipboard",
+    "book": "tests/scripts/fixtures/279/21/replace-characters.fb2",
+    "args": [
+      "--select-range",
+      "n5:6-n6:13",
+      "--clipboard",
+      " \r\n  ",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "21/replace-words-from-clipboard.xml",
+    "script": "scripts/21_search-replace/65_replace-words-from-clipboard",
+    "book": "tests/scripts/fixtures/279/21/replace-words.fb2",
+    "args": [
+      "--select",
+      "n5:0:0",
+      "--clipboard",
+      "ашипка ошибка\r\nапичатка  опечатка\r\n\r\n малако молоко ",
+      "--answer",
+      "ok",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "21/replace-words-from-clipboard.all-replaced.xml",
+    "script": "scripts/21_search-replace/65_replace-words-from-clipboard",
+    "book": "tests/scripts/fixtures/279/21/replace-words.fb2",
+    "args": [
+      "--select",
+      "n5:0:0",
+      "--clipboard",
+      "апичатка опечатка",
+      "--answer",
+      "ok",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "21/replace-words-from-clipboard.cancel.xml",
+    "script": "scripts/21_search-replace/65_replace-words-from-clipboard",
+    "book": "tests/scripts/fixtures/279/21/replace-words.fb2",
+    "args": [
+      "--select",
+      "n5:0:0",
+      "--clipboard",
+      "ашипка ошибка\r\nапичатка  опечатка\r\n\r\n малако молоко ",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "21/replace-words-from-clipboard.no-regexp.xml",
+    "script": "scripts/21_search-replace/65_replace-words-from-clipboard",
+    "book": "tests/scripts/fixtures/279/21/replace-words.fb2",
+    "args": [
+      "--select",
+      "n5:0:0",
+      "--clipboard",
+      "ашипка ошибка\r\nапичатка  опечатка\r\n\r\n малако молоко ",
+      "--answer",
+      "ok",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "21/replace-words-from-clipboard.not-a-letter.xml",
+    "script": "scripts/21_search-replace/65_replace-words-from-clipboard",
+    "book": "tests/scripts/fixtures/279/21/replace-words.fb2",
+    "args": [
+      "--select",
+      "n5:0:0",
+      "--clipboard",
+      "ашипка ошибка1",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "21/replace-words-from-clipboard.three-words.xml",
+    "script": "scripts/21_search-replace/65_replace-words-from-clipboard",
+    "book": "tests/scripts/fixtures/279/21/replace-words.fb2",
+    "args": [
+      "--select",
+      "n5:0:0",
+      "--clipboard",
+      "раз два три",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "21/replace-words-from-clipboard.one-word.xml",
+    "script": "scripts/21_search-replace/65_replace-words-from-clipboard",
+    "book": "tests/scripts/fixtures/279/21/replace-words.fb2",
+    "args": [
+      "--select",
+      "n5:0:0",
+      "--clipboard",
+      "ашипка",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "21/stress-marks-from-formatting.xml",
+    "script": "scripts/21_search-replace/70_stress-marks-from-formatting",
+    "book": "tests/scripts/fixtures/279/21/stress-marks.fb2",
+    "args": [
+      "--select",
+      "n5:0:0",
+      "--answer",
+      "ok",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "21/stress-marks-from-formatting.upper-case.xml",
+    "script": "scripts/21_search-replace/70_stress-marks-from-formatting",
+    "book": "tests/scripts/fixtures/279/21/stress-marks.fb2",
+    "args": [
+      "--select",
+      "n5:0:0",
+      "--answer",
+      "cancel",
+      "--answer",
+      "ok",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "21/stress-marks-from-formatting.nothing.xml",
+    "script": "scripts/21_search-replace/70_stress-marks-from-formatting",
+    "book": "tests/scripts/fixtures/279/21/stress-marks.fb2",
+    "args": [
+      "--select",
+      "n5:0:0",
+      "--answer",
+      "cancel",
+      "--answer",
+      "cancel",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "21/script-builder.xml",
+    "script": "scripts/21_search-replace/14_script-builder",
+    "book": "tests/scripts/fixtures/279/21/script-builder.fb2",
+    "args": [
+      "--select",
+      "n3:0:0"
+    ]
+  },
+  {
+    "snapshot": "21/search-script-builder.xml",
+    "script": "scripts/21_search-replace/15_search-script-builder",
+    "book": "tests/scripts/fixtures/279/21/script-builder.fb2",
+    "args": [
+      "--select",
+      "n3:0:0"
+    ]
+  },
+  {
+    "snapshot": "21/search-script-builder-example.xml",
+    "script": "scripts/21_search-replace/16_search-script-builder-example",
+    "book": "tests/scripts/fixtures/279/21/script-builder.fb2",
+    "args": [
+      "--select",
+      "n3:0:0"
+    ]
+  },
+  {
+    "snapshot": "21/text-error-search.caret-at-hit.xml",
+    "script": "scripts/21_search-replace/04_text-error-search",
+    "book": "tests/scripts/fixtures/279/21/text-error-search.fb2",
+    "args": [
+      "--select",
+      "n5:6:6"
+    ]
+  },
+  {
+    "snapshot": "21/text-error-search.picture.xml",
+    "script": "scripts/21_search-replace/04_text-error-search",
+    "book": "tests/scripts/fixtures/279/21/text-error-search.fb2",
+    "args": [
+      "--select",
+      "n6:0:0"
+    ]
+  },
+  {
+    "snapshot": "21/text-error-search.not-found.xml",
+    "script": "scripts/21_search-replace/04_text-error-search",
+    "book": "tests/scripts/fixtures/279/21/text-error-search.fb2",
+    "args": [
+      "--select",
+      "n12:0:0",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "21/regexp-set-search-template.example.xml",
+    "script": "scripts/21_search-replace/10_regexp-set-search-template",
+    "book": "tests/scripts/fixtures/279/21/regexp-set-template.fb2",
+    "args": [
+      "--select",
+      "n5:0:0"
+    ]
+  },
+  {
+    "snapshot": "21/regexp-set-search-template.not-found.xml",
+    "script": "scripts/21_search-replace/10_regexp-set-search-template",
+    "book": "tests/scripts/fixtures/279/21/regexp-set-template.fb2",
+    "args": [
+      "--select",
+      "n7:0:0",
+      "--answer",
+      "ok"
+    ]
+  }
+]

@@ -2,22 +2,26 @@
   "manifestVersion": 1,
   "id": "12/place-quotes-from-caret",
   "name": {
+    "ru": "Проставить елочки и лапки (от позиции курсора)",
     "en": "Place guillemets and low quotes (from the caret)",
-    "ru": "Расстановка елочек и лапок (с позиции курсора)"
+    "uk": "Проставити ялинки й лапки (від позиції курсора)"
   },
   "description": {
-    "en": "Replaces straight quotes with «» (level 0) and „“ (nested) from the caret to the end of the book; stops with a message when the nesting cannot be resolved",
-    "ru": "Заменяет прямые кавычки на «» (0-й уровень) и „“ (вложенные) от позиции курсора до конца книги; при невозможности определить вложенность останавливается с сообщением"
+    "ru": "Заменяет прямые кавычки от курсора до конца книги (или в выделении) на «» и „“ по уровню вложенности; при ошибке останавливается, выделяет место и сообщает о нём",
+    "en": "Replaces the straight quotes from the caret to the end of the book (or of the selection) by «» and „“ according to their nesting level; on an error it stops, selects the place and says what is wrong",
+    "uk": "Замінює прямі лапки від курсора до кінця книги (або у виділенні) на «» і „“ за рівнем вкладеності; у разі помилки зупиняється, виділяє місце й повідомляє про неї"
   },
   "kind": "menu",
   "entry": "index.js",
+  "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Quotes to guillemets v2.0",
-    "ru": "Кавычки на елочки v2.0"
+    "ru": "Проставить елочки и лапки (от позиции курсора)",
+    "en": "Place guillemets and low quotes (from the caret)"
   },
   "legacy": {
-    "source": "12_Обработка кавычек/004_Расстановка елочек и лапок (с позиции курсора).js",
-    "fbeVersion": "2.7"
+    "source": "12_Обработка кавычек/004_Проставить елочки и лапки (от позиции курсора).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "3.9"
   }
 }

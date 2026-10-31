@@ -655,11 +655,26 @@ contract `script-manifest.md` §3):
 
 Desktop shell (`app/src/`):
 
-* Navigation guard (`MfbeClient::OnBeforeBrowse`, `OnOpenURLFromTab`, `OnBeforePopup`):
-  only `about:`, `data:`, devtools and the core's own origin may load in the window; every
-  other URL (links in books, `window.open`, `target=_blank`) is cancelled and handed to the
-  OS browser through `openExternalUrl`, which accepts `http://`, `https://` and `mailto:`
-  only (no `file://`, no custom schemes). Blocked navigations are logged.
+* Navigation guard (`MfbeClient::OnBeforeBrowse`, `OnOpenURLFromTab`, `OnBeforePopup`, with
+  the rules in `app/src/engine_commands.*`): only `about:`, `data:`, devtools and the core's
+  own origin may load in the window, and once the editor's page has committed its first load,
+  every cross-document navigation of the main frame is refused - a reload of any kind, back or
+  forward, another address (feature 007, shell contract §4). An external address on a user
+  gesture is handed to the OS browser through `openExternalUrl`, which accepts `http://`,
+  `https://` and `mailto:` only (no `file://`, no custom schemes); `OnOpenURLFromTab` and
+  `OnBeforePopup` do the same and open no window. The engine of CEF 150 in Chrome style asks
+  for nothing on `window.open` or a `target=_blank` link, though, so the interface opens every
+  web page through the core's `app.openUrl` (`ExternalLink`, `openExternalUrl` of
+  `ui/src/dialogs/externalUrl.ts`; shell contract §6 of feature 007). Blocked navigations are
+  logged.
+* Command gate (`app/src/engine_commands.*`, feature 007, shell contract §3): every command of
+  the browser engine - saving or printing the page, the find bar, caret browsing, reloading,
+  back and forward, new windows, tabs and incognito windows, history, downloads, bookmarks,
+  clearing the browsing data, the task manager, DevTools - is allowed, allowed in developer
+  runs only, or blocked, deny by default; the editor's own keys (Ctrl+S, Ctrl+P, Ctrl+F, F5,
+  F7, Ctrl+W) reach the editor first. Test-hook builds log each decision
+  (`shelltest: chrome-command <IDC_…> allowed|blocked`); `MFBE_SMOKE_ENGINE_KEYS=1
+  tools/shell-smoke.sh` presses every key with real X events.
 * Chromium command-line arguments are not taken from the process command line
   (`command_line_args_disabled`); the shell owns `argv` (`contracts/cli.md`). Remote
   debugging and DevTools exist only when `--remote-debugging-port` is given (or in debug
@@ -883,7 +898,11 @@ Diagnostics and privacy (`core/src/log/error_log.cpp`, FR-131; feature 005 FR-10
 * New worker global or Web API in Chromium that reaches the network or storage: add it to
   `BLOCKED_GLOBALS` and to script-manifest.md §3.
 * New shell navigation or URL handling: route through `IsAllowedUrl` / `openExternalUrl`;
-  never add `file://` or custom schemes to the allowed external set.
+  never add `file://` or custom schemes to the allowed external set. A web page the interface
+  opens goes through `app.openUrl` (`ExternalLink` / `openExternalUrl`), never `window.open`
+  or `target=_blank`, which the engine drops.
+* New engine command (a CEF update): classify it in `engine_commands.cpp` - unknown commands
+  are blocked - and add its key to a set of `tools/shell-smoke.mjs`.
 * Logging: `log::error` / `log::warning` take codes, paths and reasons - never a text
   fragment of the book or a user's word list; an AI service's failure stays a result (an
   `AiOutcome`), never an `RpcError`, so that its words never reach the router's log.

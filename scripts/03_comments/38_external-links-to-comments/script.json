@@ -1,0 +1,25 @@
+{
+  "manifestVersion": 1,
+  "id": "03/external-links-to-comments",
+  "name": {
+    "ru": "Превратить внешние ссылки в комментарии",
+    "en": "Turn external links into comments",
+    "uk": "Перетворити зовнішні посилання на коментарі"
+  },
+  "description": {
+    "ru": "Каждая внешняя ссылка (http, https, ftp, file, mailto) становится обычным текстом с комментарием, текст которого - адрес ссылки; комментарии перенумеровываются",
+    "en": "Every external link (http, https, ftp, file, mailto) becomes plain text with a comment holding its address; the comments are renumbered",
+    "uk": "Кожне зовнішнє посилання (http, https, ftp, file, mailto) стає звичайним текстом із коментарем, текст якого - адреса посилання; коментарі перенумеровуються"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Превратить внешние ссылки в комментарии",
+    "en": "Turn external links into comments"
+  },
+  "legacy": {
+    "source": "03_Комментарии/38_Превратить внешние ссылки в комментарии.js",
+    "fbeVersion": "2.7.9"
+  }
+}

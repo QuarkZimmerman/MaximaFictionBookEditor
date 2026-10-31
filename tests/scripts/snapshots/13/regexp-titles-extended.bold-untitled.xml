@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Разметка</last-name>
+			</author>
+			<book-title>Заголовки по регэкспу</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Книга</p>
+		</title>
+		<section>
+			<p>Предисловие автора.</p>
+			<empty-line/>
+			<p>Глава 1</p>
+			<p>Начало</p>
+			<p>Текст первой главы, в котором ничего не происходит.</p>
+			<p>* * *</p>
+			<p>Ещё текст первой главы.</p>
+			<p>Глава 2</p>
+			<p>Дорога</p>
+			<p>Текст второй главы.</p>
+			<subtitle>Глава 3</subtitle>
+			<p>Глава 4</p>
+			<cite>
+				<p>Цитата сразу после строки «Глава 4».</p>
+			</cite>
+			<p>Глава 5. Очень длинное название главы, которое занимает больше шестидесяти знаков</p>
+			<p>***</p>
+			<subtitle>* * *</subtitle>
+		</section>
+		<section>
+			<title>
+				<p>Вторая часть</p>
+			</title>
+			<p>Глава 7</p>
+			<p>Имя седьмой главы</p>
+			<p>Текст седьмой главы.</p>
+			<p>Глава 8</p>
+			<p>Имя восьмой главы</p>
+		</section>
+		<section id="s3">
+			<p>Глава 9</p>
+			<p>Имя девятой главы</p>
+			<p>Текст девятой главы.</p>
+		</section>
+		<section>
+			<title>
+				<p><strong>Заголовок жирным</strong><a l:href="#n1" type="note">1</a></p>
+			</title>
+			<p>Текст раздела без заголовка.</p>
+			<p><strong>Жирный абзац не в начале</strong></p>
+		</section>
+		<section>
+			<p>Обычный первый абзац.</p>
+			<p><strong>Жирный второй абзац</strong></p>
+		</section>
+		<section>
+			<title>
+				<p>Есть заголовок</p>
+			</title>
+			<p><strong>Жирный абзац после заголовка</strong></p>
+		</section>
+		<section>
+			<p>Текст до отдельной строки.</p>
+			<empty-line/>
+			<p>Отдельная строка</p>
+			<empty-line/>
+			<p>Текст после отдельной строки.</p>
+		</section>
+		<section>
+			<title>
+				<p>Дневник</p>
+			</title>
+			<p>1</p>
+			<p>2</p>
+			<p>Запись.</p>
+			<p>3</p>
+			<p>Ещё запись.</p>
+		</section>
+	</body>
+	<body name="notes">
+		<section id="n1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Глава 10</p>
+			<p>* * *</p>
+		</section>
+	</body>
+</FictionBook>

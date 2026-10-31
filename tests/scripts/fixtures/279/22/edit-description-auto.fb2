@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Иван </first-name>
+				<middle-name>Петрович</middle-name>
+				<last-name>Сидоров</last-name>
+			</author>
+			<author>
+				<first-name>Анна</first-name>
+				<last-name>Ёлкина</last-name>
+			</author>
+			<book-title>Автоматическая обработка</book-title>
+			<date>5 мая 2001 г.</date>
+			<lang>ru</lang>
+			<src-lang>ru</src-lang>
+			<translator>
+				<first-name>Пётр</first-name>
+				<last-name>Переводов</last-name>
+			</translator>
+			<translator>
+				<first-name>Пётр</first-name>
+				<last-name>Переводов</last-name>
+			</translator>
+			<sequence name="Цикл  первый" number="1"/>
+		</title-info>
+		<src-title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>John</first-name>
+				<last-name>Smith</last-name>
+			</author>
+			<book-title>Automatic</book-title>
+			<date>2020-12-01</date>
+			<lang>en</lang>
+			<src-lang>en</src-lang>
+		</src-title-info>
+		<document-info>
+			<author>
+				<nickname>Зорро</nickname>
+			</author>
+			<program-used>fixture, Maxima Fiction Book Editor</program-used>
+			<date value="2025-06-01">1 июня 2025</date>
+			<id>B2F0B1E2-0000-4000-8000-000000000100</id>
+			<version>2.0</version>
+		</document-info>
+	</description>
+	<body>
+		<section>
+			<p>Текст книги.</p>
+		</section>
+	</body>
+</FictionBook>

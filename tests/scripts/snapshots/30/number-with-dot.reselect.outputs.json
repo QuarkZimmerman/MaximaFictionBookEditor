@@ -1,0 +1,8 @@
+{
+  "reports": [
+    {
+      "title": "Selections",
+      "text": "[\n  {\n    \"ref\": \"30/number-with-dot\",\n    \"selected\": \"n10:5-n30:8\",\n    \"returned\": null,\n    \"anchor\": \"n10:8\",\n    \"head\": \"n30:12\",\n    \"text\": \"й абзац главы.\\n2. Второй абзац с курсивом.\\n￼\\n  \\n3. Жирное начало абзаца.\\n4. ￼\\n5. Первый стих,\\n6. второй стих.\\n7. Поэт\\n8. Подзаголовок\\n9. Ячейка А\\n10. Ячейка Б\\n11. Строка цитаты.\\n12. Автор цитаты\\n13. Последни\"\n  },\n  {\n    \"ref\": \"30/remove-numbering-layer\",\n    \"selected\": \"n34:2-n36:0\",\n    \"returned\": null,\n    \"anchor\": \"n34:0\",\n    \"head\": \"n36:0\",\n    \"text\": \"Пункт со скобкой.\\n2) Пункт с двумя слоями.\\n\"\n  },\n  {\n    \"ref\": \"30/remove-dot-numbering-layer\",\n    \"selected\": \"n36:6-n37:3\",\n    \"returned\": null,\n    \"anchor\": \"n36:1\",\n    \"head\": \"n37:0\",\n    \"text\": \"ункт с точкой и двумя пробелами.\\n\"\n  },\n  {\n    \"ref\": \"30/number-with-parenthesis\",\n    \"selected\": \"n59:3-n6:5\",\n    \"returned\": null,\n    \"anchor\": \"n59:6\",\n    \"head\": \"n6:8\",\n    \"text\": \"отация, второй абзац.\\n\\n2) Нумерация абзацев\\n3) Глава\"\n  },\n  {\n    \"ref\": \"30/remove-all-numbering\",\n    \"selected\": \"n41:1-n43:5\",\n    \"returned\": null,\n    \"anchor\": \"n42:0\",\n    \"head\": \"n43:2\",\n    \"text\": \"Пункт со смешанной нумерацией.\\nПу\"\n  }\n]"
+    }
+  ]
+}

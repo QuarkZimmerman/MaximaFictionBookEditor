@@ -1,0 +1,29 @@
+{
+  "manifestVersion": 1,
+  "id": "01/capitalize-first-word",
+  "name": {
+    "en": "First letter to upper case, the rest to lower case",
+    "ru": "Первую букву - в верхний регистр, остальные - в нижний",
+    "uk": "Першу літеру - у верхній регістр, решту - у нижній"
+  },
+  "description": {
+    "en": "The first word of the selection gets a capital first letter; everything else in the selection becomes lower case",
+    "ru": "Первое слово выделения получает прописную первую букву; остальной выделенный текст — строчные",
+    "uk": "Перше слово виділення отримує велику першу літеру; решта виділеного тексту — малі літери"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "First letter to upper case, the rest to lower case",
+    "ru": "Первую букву - в верхний регистр, остальные - в нижний"
+  },
+  "legacy": {
+    "source": "01_Регистр/06_Капитализация первого слова.js",
+    "fbeVersion": "2.7",
+    "aliases": [
+      "01_Регистр/04_Первую букву - в верхний регистр, остальные - в нижний.js"
+    ]
+  }
+}

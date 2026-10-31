@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "21/garbage-characters",
+  "name": {
+    "ru": "Поиск (без замены) мусорных символов",
+    "en": "Search (without replacing) for garbage characters",
+    "uk": "Пошук (без заміни) сміттєвих символів"
+  },
+  "description": {
+    "ru": "Выделяет следующий после курсора мусорный символ — любой, кроме русских и латинских букв, цифр, пробелов и обычных знаков препинания, — или букву со знаком ударения.",
+    "en": "Selects the next garbage character after the caret - anything but Russian and Latin letters, digits, spaces and the usual punctuation - or a letter with a stress mark.",
+    "uk": "Виділяє наступний після курсору сміттєвий символ — будь-який, крім російських і латинських літер, цифр, пробілів і звичайних розділових знаків, — або літеру зі знаком наголосу."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Поиск (без замены) мусорных символов",
+    "en": "Search (without replacing) for garbage characters"
+  },
+  "legacy": {
+    "source": "21_Поиск и замена/22_Поиск (без замены) мусорных символов.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.5"
+  }
+}

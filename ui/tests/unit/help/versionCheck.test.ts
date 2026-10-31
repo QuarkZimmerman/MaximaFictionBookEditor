@@ -37,6 +37,7 @@ function ago(ms: number): string {
 function rpcWith(answer: ReleaseInfo | Error | null, settings: Settings): FakeRpc {
   return fakeRpc({
     ...(answer === null ? {} : { 'app.latestRelease': answer }),
+    'app.openUrl': {},
     'settings.set': (params: unknown) => {
       const patch = (params as { patch: { session?: Partial<Settings['session']> } }).patch;
       Object.assign(settings.session, patch.session);
@@ -129,19 +130,24 @@ describe('fetchLatest - request, comparison and the record (FR-041, FR-045)', ()
 });
 
 describe('checkForNewVersion - Help > Check for new version keeps its three messages', () => {
-  it('newer: the offer; Yes opens the page, No does nothing', async () => {
-    const { ctx, recorded } = await harness({ answer: NEWER });
+  it('newer: the offer; Yes opens the page in the system browser through the core, No does nothing', async () => {
+    const { ctx, rpc, recorded } = await harness({ answer: NEWER });
     const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+    const opened = () =>
+      rpc.calls.filter((call) => call.method === 'app.openUrl').map((call) => call.params);
     ctx.dialogs.messageAnswers.push('no');
     await checkForNewVersion(ctx);
     expect(ctx.dialogs.shown.map((m) => m.testId)).toEqual(['dialog-version-new']);
     expect(ctx.dialogs.shown[0]!.text).toContain('99.0.1');
-    expect(open).not.toHaveBeenCalled();
+    expect(opened()).toEqual([]);
     expect(recorded()).toHaveLength(1);
 
     ctx.dialogs.messageAnswers.push('yes');
     await checkForNewVersion(ctx);
-    expect(open).toHaveBeenCalledWith(NEWER.url, '_blank', 'noopener');
+    // app.openUrl, as every web page the interface opens (feature 007, US5): the shell's engine
+    // opens no window - and no system browser - for window.open.
+    expect(opened()).toEqual([{ url: NEWER.url }]);
+    expect(open).not.toHaveBeenCalled();
     expect(recorded()).toHaveLength(2);
     open.mockRestore();
   });

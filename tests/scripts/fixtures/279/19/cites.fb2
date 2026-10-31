@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Цитаты</last-name>
+			</author>
+			<book-title>Цитаты</book-title>
+			<annotation>
+				<p>Аннотация книги.</p>
+				<cite>
+					<p>Цитата в аннотации книги.</p>
+					<text-author>Автор цитаты в аннотации</text-author>
+				</cite>
+			</annotation>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>fixture</program-used>
+			<date value="2024-01-01">2024</date>
+			<id>fixture-279-19-cites</id>
+			<version>1.0</version>
+			<history>
+				<cite>
+					<p>Цитата в истории.</p>
+				</cite>
+			</history>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Книга с цитатами</p>
+		</title>
+		<epigraph>
+			<p>Эпиграф книги.</p>
+			<cite>
+				<p>Цитата в эпиграфе.</p>
+				<subtitle>Подзаголовок цитаты в эпиграфе</subtitle>
+				<text-author>Автор цитаты в эпиграфе</text-author>
+			</cite>
+			<text-author>Автор эпиграфа</text-author>
+		</epigraph>
+		<section>
+			<title>
+				<p>Глава первая</p>
+			</title>
+			<p>Абзац перед цитатой.</p>
+			<cite id="c1">
+				<p>Первый абзац цитаты с <emphasis>курсивом</emphasis>.</p>
+				<subtitle>Подзаголовок в цитате</subtitle>
+				<poem>
+					<stanza>
+						<v>Строка стиха в цитате</v>
+					</stanza>
+					<text-author>Автор стиха</text-author>
+					<date>1999</date>
+				</poem>
+				<empty-line/>
+				<table>
+					<tr>
+						<td>Ячейка в цитате</td>
+					</tr>
+				</table>
+				<text-author>Автор цитаты</text-author>
+				<text-author>Второй автор цитаты</text-author>
+			</cite>
+			<p>Абзац после цитаты.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава вторая</p>
+			</title>
+			<cite>
+				<p>Цитата — единственное содержимое главы.</p>
+			</cite>
+		</section>
+		<section>
+			<title>
+				<p>Глава третья</p>
+			</title>
+			<annotation>
+				<p>Аннотация третьей главы.</p>
+				<cite>
+					<p>Цитата в аннотации главы.</p>
+					<text-author>Автор цитаты в аннотации главы</text-author>
+				</cite>
+			</annotation>
+			<p>Текст третьей главы.</p>
+			<cite>
+				<p>Цитата со сноской<a l:href="#n1" type="note">[1]</a> в конце главы.</p>
+			</cite>
+		</section>
+		<section>
+			<title>
+				<p>Глава четвёртая</p>
+			</title>
+			<p>Абзац перед вложенными цитатами.</p>
+			<cite>
+				<poem>
+					<epigraph>
+						<cite>
+							<p>Цитата в эпиграфе стиха.</p>
+							<text-author>Автор вложенной цитаты</text-author>
+						</cite>
+					</epigraph>
+					<stanza>
+						<v>Строка стиха с эпиграфом</v>
+					</stanza>
+				</poem>
+				<text-author>Автор внешней цитаты</text-author>
+			</cite>
+		</section>
+	</body>
+	<body name="notes">
+		<section id="n1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Текст сноски.</p>
+		</section>
+	</body>
+</FictionBook>

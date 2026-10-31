@@ -2,22 +2,26 @@
   "manifestVersion": 1,
   "id": "13/subtitles-empty-lines-plain-titles",
   "name": {
+    "ru": "Разметка подзаголовков, чистка пустых строк, удаление жирности и курсива в заголовках",
     "en": "Mark up subtitles, clean up empty lines, remove bold and italics in titles",
-    "ru": "Разметка подзаголовков, чистка пустых строк, удаление жирности и курсива в заголовках"
+    "uk": "Розмітка підзаголовків, очищення порожніх рядків, видалення жирного та курсиву в заголовках"
   },
   "description": {
-    "en": "Same as \"Mark up subtitles, clean up empty lines\", and additionally removes bold and italic formatting inside titles",
-    "ru": "То же, что «Разметка подзаголовков, чистка пустых строк», и дополнительно удаляет жирность и курсив в заголовках"
+    "ru": "То же, что «Разметка подзаголовков, чистка пустых строк», и дополнительно удаляет жирность и курсив в заголовках.",
+    "en": "Same as \"Mark up subtitles, clean up empty lines\", and additionally removes bold and italic formatting inside titles.",
+    "uk": "Те саме, що «Розмітка підзаголовків, очищення порожніх рядків», і додатково видаляє жирне накреслення та курсив у заголовках."
   },
   "kind": "menu",
   "entry": "index.js",
+  "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Mark up subtitles, clean up empty lines, remove bold and italics in titles",
-    "ru": "Разметка подзаголовков, чистка пустых строк, удаление жирности и курсива в заголовках"
+    "ru": "Разметка подзаголовков, чистка пустых строк, удаление жирности и курсива в заголовках",
+    "en": "Mark up subtitles, clean up empty lines, remove bold and italics in titles"
   },
   "legacy": {
-    "source": "13_Подзаголовки, пустые строки/528_Разметка подзаголовков, чистка пустых строк, удаление жирности и курсива в заголовках.js",
-    "fbeVersion": "2.7"
+    "source": "13_Заголовки, подзаголовки, пустые строки/528_Разметка подзаголовков, чистка пустых строк, удаление жирности и курсива в заголовках.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "4.7"
   }
 }

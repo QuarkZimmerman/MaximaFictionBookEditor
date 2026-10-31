@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "12/previous-straight-quotes",
+  "name": {
+    "ru": "Перейти на предыдущие прямые кавычки",
+    "en": "Go to previous straight quotes",
+    "uk": "Перейти до попередніх прямих лапок"
+  },
+  "description": {
+    "ru": "Выделяет ближайшую прямую кавычку (\") перед курсором или выделением; в начале книги предлагает продолжить с конца",
+    "en": "Selects the nearest straight quote (\") before the caret or the selection; at the start of the book it offers to go on from the end",
+    "uk": "Виділяє найближчу пряму лапку (\") перед курсором чи виділенням; на початку книги пропонує продовжити з кінця"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Перейти на предыдущие прямые кавычки",
+    "en": "Go to previous straight quotes"
+  },
+  "legacy": {
+    "source": "12_Обработка кавычек/012_Перейти на предыдущие прямые кавычки.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "2.9"
+  }
+}

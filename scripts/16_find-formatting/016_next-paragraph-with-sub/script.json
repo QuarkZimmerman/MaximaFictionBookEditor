@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-paragraph-with-sub",
+  "name": {
+    "ru": "Перейти на следующий абзац с нижним индексом",
+    "en": "Go to next paragraph with subscript",
+    "uk": "Перейти до наступного абзацу з нижнім індексом"
+  },
+  "description": {
+    "ru": "Переходит на следующий абзац, содержащий нижний индекс, и ставит курсор в начало первого нижнего индекса в нём; по достижении конца книги предлагает продолжить с начала",
+    "en": "Goes to the next paragraph that contains subscript and puts the caret at the start of its first subscript; at the end of the book offers to continue from the beginning",
+    "uk": "Переходить до наступного абзацу, що містить нижній індекс, і ставить курсор на початок першого нижнього індексу в ньому; наприкінці книги пропонує продовжити з початку"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Перейти на следующий абзац с нижним индексом",
+    "en": "Go to next paragraph with subscript"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/016_Перейти на следующий абзац с нижним индексом.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

@@ -261,8 +261,15 @@ export function callSummary(t: TFunction, call: SummarisedCall, document: Docume
     case 'set_description':
       return t('ai.activity.summary.setDescription');
     // US6: the script tools name the script id or the resource URI - never a file's content.
-    case 'list_scripts':
+    case 'list_scripts': {
+      // Feature 007: what the list was narrowed to.
+      const query = asString(args.query).trim();
+      const group = asString(args.group).trim();
+      if (query && group) return t('ai.activity.summary.listScriptsGroupQuery', { group, query });
+      if (query) return t('ai.activity.summary.listScriptsQuery', { query });
+      if (group) return t('ai.activity.summary.listScriptsGroup', { group });
       return t('ai.activity.summary.listScripts');
+    }
     case 'read_script':
       return t('ai.activity.summary.readScript', { id: asString(args.id) });
     case 'read_resource':
@@ -271,10 +278,23 @@ export function callSummary(t: TFunction, call: SummarisedCall, document: Docume
       return t('ai.activity.summary.runScript', { id: asString(args.id) });
     case 'propose_script': {
       const files = Array.isArray(args.files) ? args.files.length : 0;
-      return t('ai.activity.summary.proposeScript', { id: asString(args.id), count: files });
+      return t(
+        args.mode === 'modify'
+          ? 'ai.activity.summary.modifyScript'
+          : 'ai.activity.summary.proposeScript',
+        { id: asString(args.id), count: files },
+      );
     }
     case 'reload_scripts':
       return t('ai.activity.summary.reloadScripts');
+    // Feature 007: the backups of a script.
+    case 'list_script_backups':
+      return t('ai.activity.summary.listScriptBackups', { id: asString(args.id) });
+    case 'restore_script_backup':
+      return t('ai.activity.summary.restoreScriptBackup', {
+        id: asString(args.id),
+        backupId: asString(args.backupId),
+      });
     // Feature 006 (US11): the table by its path, the rows of a window, the operation.
     case 'read_table': {
       const table = tableOf(document, asString(args.table));
@@ -333,6 +353,17 @@ function ownResultSummary(
 ): string | null {
   const { name, args } = call;
   switch (name) {
+    case 'list_scripts': {
+      // Feature 007: the part of the list it got.
+      const total = asNumber(result.total);
+      const shown = Array.isArray(result.entries) ? result.entries.length : undefined;
+      if (total === undefined || shown === undefined || !document) return null;
+      return t('ai.activity.summary.listScriptsCount', {
+        summary: callSummary(t, call, document),
+        shown,
+        total,
+      });
+    }
     case 'read_table': {
       const target = tableOf(document, asString(args.table)).path;
       const rows = asNumber(result.rowCount);

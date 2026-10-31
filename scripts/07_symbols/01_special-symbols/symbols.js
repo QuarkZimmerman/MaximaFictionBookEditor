@@ -1,4 +1,5 @@
-// Symbol table of the legacy dialog spez.htm: [symbol, Russian tooltip].
+// Symbol table of the dialog HTML/Спецсимволы.html of FictionBook Editor 2.7.9 (spez.htm in
+// 2.7beta1, the same table): [symbol, Russian tooltip].
 export const SYMBOLS = [
   ["¡", "Перевернутый восклицательный знак iexl"],
   ["¿", "Перевернутый вопросительный знак iquest"],

@@ -67,6 +67,10 @@ export default defineConfig<CoreOptions>({
         'us1-table-create.spec.ts',
         'us3-table-images-layout.spec.ts',
         'us8-table-marks.spec.ts',
+        // Feature 007: the groups and scripts of FictionBook Editor 2.7.9 under their names in
+        // each language, and the renamed scripts that keep their hotkeys, buttons and Last script.
+        'us3-scripts-279.spec.ts',
+        'us4-recheck.spec.ts',
       ],
       use: { ...devices['Desktop Chrome'], locale: 'ru-RU', uiLang: 'ru' },
     },
@@ -88,6 +92,8 @@ export default defineConfig<CoreOptions>({
         'us1-table-create.spec.ts',
         'us3-table-images-layout.spec.ts',
         'us8-table-marks.spec.ts',
+        'us3-scripts-279.spec.ts',
+        'us4-recheck.spec.ts',
       ],
       use: { ...devices['Desktop Chrome'], locale: 'uk-UA', uiLang: 'uk' },
     },

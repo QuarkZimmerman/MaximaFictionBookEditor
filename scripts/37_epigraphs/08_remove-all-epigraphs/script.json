@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "37/remove-all-epigraphs",
+  "name": {
+    "ru": "Удалить все эпиграфы и их содержимое",
+    "en": "Remove all epigraphs with their content",
+    "uk": "Видалити всі епіграфи разом із вмістом"
+  },
+  "description": {
+    "ru": "Удаляет все эпиграфы книги — тел, разделов и стихов — вместе с их содержимым.",
+    "en": "Removes every epigraph of the book - of bodies, sections and poems - with its content.",
+    "uk": "Видаляє всі епіграфи книги — тіл, розділів і віршів — разом із їхнім вмістом."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Удалить все эпиграфы и их содержимое",
+    "en": "Remove all epigraphs with their content"
+  },
+  "legacy": {
+    "source": "37_Эпиграфы/08_Удалить все эпиграфы и их содержимое.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.0"
+  }
+}

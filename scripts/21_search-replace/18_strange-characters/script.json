@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "21/strange-characters",
+  "name": {
+    "ru": "Поиск странных символов (TaKir-Sclex)",
+    "en": "Search for strange characters (TaKir-Sclex)",
+    "uk": "Пошук дивних символів (TaKir-Sclex)"
+  },
+  "description": {
+    "ru": "Выделяет следующий после курсора странный символ: букву со знаком ударения, символ вне кириллицы, латиницы, греческого и математического набора и обычной пунктуации, ударение, набранное цифрой 2 или апострофом.",
+    "en": "Selects the next strange character after the caret: a letter with a stress mark, a character outside the Cyrillic, Latin, Greek and mathematical sets and the usual punctuation, a stress typed as the digit 2 or an apostrophe.",
+    "uk": "Виділяє наступний після курсору дивний символ: літеру зі знаком наголосу, символ поза кирилицею, латиницею, грецьким і математичним набором та звичайною пунктуацією, наголос, набраний цифрою 2 або апострофом."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Поиск странных символов (TaKir-Sclex)",
+    "en": "Search for strange characters (TaKir-Sclex)"
+  },
+  "legacy": {
+    "source": "21_Поиск и замена/18_Поиск странных символов (TaKir-Sclex).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "5.3"
+  }
+}

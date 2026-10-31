@@ -382,6 +382,7 @@ struct CoreServer::Impl : rpc::Notifier {
         server::register_spell_handlers(router, *services);
         server::register_words_handlers(router, *services);
         server::register_scripts_handlers(router, *services);
+        server::register_files_handlers(router, *services);
         server::register_system_handlers(router, *services);
         server::register_schema_handlers(router, *services);
         server::register_ai_handlers(router, *services);

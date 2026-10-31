@@ -2,22 +2,28 @@
   "manifestVersion": 1,
   "id": "05/remove-unused-binaries",
   "name": {
+    "ru": "Удалить неиспользуемые вложения...",
     "en": "Remove unused binary objects...",
-    "ru": "Удаление неиспользуемых вложений..."
+    "uk": "Видалити невикористані вкладення..."
   },
   "description": {
-    "en": "Removes the binary objects no image or cover refers to (needs a binary-removal call in the script API)",
-    "ru": "Удаляет вложения, на которые не ссылается ни одна картинка или обложка (требует вызов удаления вложений в API скриптов)"
+    "ru": "Удаляет вложения, на которые не ссылается ни одна картинка и ни одна обложка (требует вызов удаления вложений в интерфейсе скриптов)",
+    "en": "Removes the binary objects that no picture and no cover refers to (needs a binary-removal call in the script interface)",
+    "uk": "Видаляє вкладення, на які не посилається жоден малюнок і жодна обкладинка (потребує виклику видалення вкладень в інтерфейсі скриптів)"
   },
   "kind": "menu",
   "entry": "index.js",
+  "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Remove unused binary objects",
-    "ru": "Удаление неиспользуемых вложений"
+    "ru": "Удалить неиспользуемые вложения",
+    "en": "Remove unused binary objects"
   },
   "legacy": {
     "source": "05_Иллюстрации/07_Удаление неиспользуемых вложений....js",
-    "fbeVersion": "2.7"
+    "fbeVersion": "2.7",
+    "aliases": [
+      "05_Иллюстрации/07_Удалить неиспользуемые вложения....js"
+    ]
   }
 }

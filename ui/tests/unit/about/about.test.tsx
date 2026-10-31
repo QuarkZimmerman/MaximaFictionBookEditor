@@ -161,6 +161,22 @@ async function setup(
 }
 
 describe('AboutDialog', () => {
+  it('opens its links in the system browser through the core (feature 007, US5)', async () => {
+    // The browser engine hands no link of the interface to the system browser by itself (a
+    // target=_blank link opened nothing in the shell): every link goes through app.openUrl.
+    const { rpc, user } = await setup();
+    for (const [testId, url] of [
+      ['about-repository', REPOSITORY_URL],
+      ['about-maxima-library', 'https://www.maxima-library.com'],
+      ['about-licence-link', 'https://www.gnu.org/licenses/gpl-3.0.html'],
+    ] as const) {
+      const link = screen.getByTestId(testId);
+      expect(link).not.toHaveAttribute('target');
+      await user.click(link);
+      expect(rpc.calls.filter((c) => c.method === 'app.openUrl').at(-1)?.params).toEqual({ url });
+    }
+  });
+
   it('shows name, version, build, platform, engine, repository link and the GPL-3.0 notices', async () => {
     await setup();
     expect(screen.getByTestId('about-name')).toHaveTextContent('Maxima Fiction Book Editor');
@@ -173,8 +189,6 @@ describe('AboutDialog', () => {
     expect(screen.getByTestId('about-api-version')).toHaveTextContent('1');
     const link = screen.getByTestId('about-repository');
     expect(link).toHaveAttribute('href', REPOSITORY_URL);
-    expect(link).toHaveAttribute('target', '_blank');
-    expect(link).toHaveAttribute('rel', 'noreferrer');
     expect(screen.getByTestId('about-licence')).toHaveTextContent(
       'Licence: GNU General Public License version 3 (GPL-3.0-only)',
     );
@@ -185,7 +199,6 @@ describe('AboutDialog', () => {
     expect(screen.getByTestId('about-gpl-notice')).toHaveTextContent(/WITHOUT ANY WARRANTY/);
     const licenceLink = screen.getByTestId('about-licence-link');
     expect(licenceLink).toHaveAttribute('href', 'https://www.gnu.org/licenses/gpl-3.0.html');
-    expect(licenceLink).toHaveAttribute('target', '_blank');
     expect(screen.getByTestId('about-log-folder')).toHaveTextContent(INFO.logDir);
     // The original's contributor notice, word for word, in a read-only box.
     const contributors = screen.getByTestId('about-contributors');

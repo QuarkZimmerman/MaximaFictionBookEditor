@@ -1,0 +1,19 @@
+// Converted from FictionBook Editor 2.7.9: Scripts/16_Поиск форматирования/009_Перейти на предыдущий верхний индекс.js
+// (converted from 2.7beta1's Scripts/16_Поиск форматирования/09_Переход на предыдущий верхний индекс.js first, brought up to 2.7.9 in feature 007).
+// Moves the caret to the end of the previous run of superscript (format-search.js); at the beginning
+// of the book it asks whether to go on from the end.
+// Returns "Found", or "NotFound" when nothing is found or the user declines to go on; nothing
+// for a selected picture (as the original's Run() did), so that other scripts can run it in
+// loops (mfbe.scripts.run). Differences from the original: docs/scripting/conversion-notes-279-b.md
+// (group 16).
+// The original's notice, kept as written (FR-029):
+//Скрипт набора «Поиск форматирования»
+//Автор Sclex
+//Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412
+//Мой сайт про мои скрипты: http://scripts.fictionbook.org
+
+import { runFormatSearch } from './format-search.js';
+
+export default async function run(ctx) {
+  return runFormatSearch(ctx, { mark: 'sup', forward: false, paragraph: false });
+}

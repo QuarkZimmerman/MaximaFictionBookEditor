@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/previous-poem-title",
+  "name": {
+    "ru": "Выделить предыдущий заголовок стиха",
+    "en": "Select previous poem title",
+    "uk": "Виділити попередній заголовок вірша"
+  },
+  "description": {
+    "ru": "Выделяет предыдущий заголовок стиха (не строфы)",
+    "en": "Selects the previous title of a poem (not of a stanza)",
+    "uk": "Виділяє попередній заголовок вірша (не строфи)"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить предыдущий заголовок стиха",
+    "en": "Select previous poem title"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/155_Выделить предыдущий заголовок стиха.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.4"
+  }
+}

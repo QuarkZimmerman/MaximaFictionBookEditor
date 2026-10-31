@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "05/remove-all-images-combo",
+  "name": {
+    "ru": "Удалить все иллюстрации, их тэги и пустые строки (комбо)",
+    "en": "Remove all illustrations, their tags and empty lines (combo)",
+    "uk": "Видалити всі ілюстрації, їхні теги та порожні рядки (комбо)"
+  },
+  "description": {
+    "ru": "Комбо: запускает по очереди семь скриптов чистки, чтобы убрать из книги иллюстрации, их теги и пустые строки вокруг них, а также вложения, теги style и id и лишнее форматирование заголовков.",
+    "en": "Combo: runs seven clean-up scripts one after another to remove the illustrations, their tags and the empty lines around them from the book, together with the binary objects, the style tags and ids and the extra formatting of the titles.",
+    "uk": "Комбо: запускає по черзі сім скриптів чищення, щоб прибрати з книги ілюстрації, їхні теги й порожні рядки довкола них, а також вкладення, теги style та id і зайве форматування заголовків."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Удалить все иллюстрации, их тэги и пустые строки (комбо)",
+    "en": "Remove all illustrations, their tags and empty lines (combo)"
+  },
+  "legacy": {
+    "source": "05_Иллюстрации/14_Удалить все иллюстрации, их тэги и пустые строки (комбо).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
+  }
+}

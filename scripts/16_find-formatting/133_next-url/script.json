@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-url",
+  "name": {
+    "ru": "Выделить следующую ссылку",
+    "en": "Select next link",
+    "uk": "Виділити наступне посилання"
+  },
+  "description": {
+    "ru": "Выделяет текст от следующего адреса (http, https, www, ftp, file, mail или со знаком @) до конца абзаца",
+    "en": "Selects the text from the next address (http, https, www, ftp, file, mail or with an @ sign) to the end of its paragraph",
+    "uk": "Виділяє текст від наступної адреси (http, https, www, ftp, file, mail або зі знаком @) до кінця абзацу"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить следующую ссылку",
+    "en": "Select next link"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/133_Выделить следующую ссылку.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "5.1"
+  }
+}

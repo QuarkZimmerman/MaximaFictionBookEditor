@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "05/refresh-images-alexander-ka",
+  "name": {
+    "ru": "Обновить иллюстрации (версия Александра Ка)",
+    "en": "Refresh the illustrations (Alexander Ka's version)",
+    "uk": "Оновити ілюстрації (версія Олександра Ка)"
+  },
+  "description": {
+    "ru": "Ставит обложками вложения со стандартными именами cover.jpg/png и cover_src.jpg/png, если обложка не задана, и сообщает число иллюстраций и вложений; сами картинки в этом редакторе обновлять не нужно.",
+    "en": "Sets the binaries with the standard names cover.jpg/png and cover_src.jpg/png as the covers where none is set and reports the numbers of illustrations and binaries; the pictures themselves need no refreshing in this editor.",
+    "uk": "Ставить обкладинками вкладення зі стандартними іменами cover.jpg/png і cover_src.jpg/png, якщо обкладинку не задано, і повідомляє кількість ілюстрацій і вкладень; самі малюнки в цьому редакторі оновлювати не треба."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Обновить иллюстрации (версия Александра Ка)",
+    "en": "Refresh the illustrations (Alexander Ka's version)"
+  },
+  "legacy": {
+    "source": "05_Иллюстрации/20_Обновить иллюстрации (версия Александра Ка).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
+  }
+}

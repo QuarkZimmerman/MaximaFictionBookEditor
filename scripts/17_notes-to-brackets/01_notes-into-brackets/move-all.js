@@ -19,9 +19,9 @@ export async function moveAllNotes(ctx, { spaceBefore }) {
       }
     }
   }
-  // The original deleted the notes and comments bodies wholesale. The script API cannot remove
-  // a body (doc.removeNode refuses bodies), so the inlined note sections are removed instead
-  // and the user is told when a body is left behind.
+  // The original deleted the notes and comments bodies wholesale, and so does doc.removeNode.
+  // Should it refuse a body, the inlined note sections are removed one by one instead and the
+  // user is told that the body is left behind.
   let bodiesLeft = 0;
   for (const body of bodies.filter(isNoteBody)) {
     try {
@@ -39,7 +39,7 @@ export async function moveAllNotes(ctx, { spaceBefore }) {
     }
   }
   const lines = [
-    t(ctx, `Перенос примечаний в скобки v1.1. Автор Sclex.\n\nПеренесено примечаний и комментариев: ${moved.length}`, `Move notes into brackets v1.1. Author: Sclex.\n\nNotes and comments moved into brackets: ${moved.length}`),
+    t(ctx, `Перенос примечаний в скобки v1.2. Автор Sclex.\n\nПеренесено примечаний и комментариев: ${moved.length}`, `Move notes into brackets v1.2. Author: Sclex.\n\nNotes and comments moved into brackets: ${moved.length}`),
   ];
   if (bodiesLeft) {
     lines.push('', t(ctx,

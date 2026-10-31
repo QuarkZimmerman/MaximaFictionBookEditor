@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Части</last-name>
+			</author>
+			<book-title>Книги и части</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Книга 1</p>
+			<p>Часть 1</p>
+		</title>
+		<section>
+			<title>
+				<p>Книга I</p>
+			</title>
+			<section>
+				<title>
+					<p>Часть 1</p>
+				</title>
+				<section>
+					<title>
+						<p>Глава 1</p>
+					</title>
+					<p>Заголовок главы не меняется.</p>
+				</section>
+			</section>
+			<section>
+				<title>
+					<p>ЧАСТЬ 2</p>
+				</title>
+				<p>Прописными буквами.</p>
+			</section>
+			<section>
+				<title>
+					<p>Часть третья</p>
+				</title>
+				<p>Числительное словом.</p>
+			</section>
+			<section>
+				<title>
+					<p>Часть четвёртая.</p>
+				</title>
+				<p>С буквой «ё» и точкой.</p>
+			</section>
+			<section>
+				<title>
+					<p>Часть 5. Начало</p>
+				</title>
+				<p>Номер и название.</p>
+			</section>
+			<section>
+				<title>
+					<p>Часть 6: Середина</p>
+				</title>
+				<p>Двоеточие.</p>
+			</section>
+			<section>
+				<title>
+					<p>Часть седьмая. Конец</p>
+				</title>
+				<p>Числительное и название.</p>
+			</section>
+			<section>
+				<title>
+					<p>Восьмая часть</p>
+				</title>
+				<p>Числительное перед словом.</p>
+			</section>
+			<section>
+				<title>
+					<p>Часть IX</p>
+				</title>
+				<p>Уже в нужном виде.</p>
+			</section>
+			<section>
+				<title>
+					<p>Часть 10 Перелом</p>
+				</title>
+				<p>Без знака после номера.</p>
+			</section>
+			<section>
+				<title>
+					<p><strong>Часть</strong> 11</p>
+				</title>
+				<p>Жирное слово «Часть».</p>
+			</section>
+			<section>
+				<title>
+					<p>Двадцать первая часть</p>
+				</title>
+				<p>Составное числительное.</p>
+			</section>
+			<section>
+				<title>
+					<p>Часть 1001</p>
+				</title>
+				<p>Больше тысячи: нет в таблице.</p>
+			</section>
+			<section>
+				<title>
+					<p>Часть 007</p>
+				</title>
+				<p>Ведущие нули: нет в таблице.</p>
+			</section>
+		</section>
+		<section>
+			<title>
+				<p>Книга II</p>
+			</title>
+			<section>
+				<title>
+					<p>Часть двенадцатая</p>
+				</title>
+				<p>Часть во второй книге.</p>
+			</section>
+		</section>
+		<section>
+			<title>
+				<p>Книга III. Путь</p>
+			</title>
+			<p>Номер и название.</p>
+		</section>
+		<section>
+			<title>
+				<p>Книга IV: Дом</p>
+			</title>
+			<p>Числительное, двоеточие и название.</p>
+		</section>
+		<section>
+			<title>
+				<p>Книга V</p>
+			</title>
+			<p>Числительное перед словом.</p>
+		</section>
+		<section>
+			<title>
+				<p>Книга VI</p>
+			</title>
+			<p>Прописными буквами, с точкой.</p>
+		</section>
+		<section>
+			<title>
+				<p>Книга VII</p>
+			</title>
+			<p>Уже в нужном виде.</p>
+		</section>
+		<section>
+			<title>
+				<p>Книга VIII Финал</p>
+			</title>
+			<p>Без знака после номера; абзац «Часть 2» и «Книга 2» в тексте не меняется.</p>
+		</section>
+	</body>
+	<body name="notes">
+		<section id="n1">
+			<title>
+				<p>Часть 1</p>
+				<p>Книга 1</p>
+			</title>
+			<p>Заголовки в примечаниях не меняются.</p>
+		</section>
+	</body>
+</FictionBook>

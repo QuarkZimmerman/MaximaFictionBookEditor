@@ -252,7 +252,8 @@ export function msgBoxResult(buttonId: string): number {
 }
 
 export interface MfbeObject {
-  readonly version: 1;
+  /** Script API version 2 (feature 007): version-1 scripts run unchanged. */
+  readonly version: 2;
   readonly doc: Record<string, (...args: unknown[]) => Promise<unknown>>;
   readonly selection: Record<string, (...args: unknown[]) => Promise<unknown>>;
   readonly ui: Record<string, (...args: unknown[]) => Promise<unknown>>;
@@ -262,6 +263,10 @@ export interface MfbeObject {
     readonly symbols: () => Promise<unknown>;
   };
   readonly env: Record<string, (...args: unknown[]) => Promise<unknown>>;
+  /** Version 2 (feature 007): plain-text clipboard, files, other scripts. */
+  readonly clipboard: Record<string, (...args: unknown[]) => Promise<unknown>>;
+  readonly files: Record<string, (...args: unknown[]) => Promise<unknown>>;
+  readonly scripts: Record<string, (...args: unknown[]) => Promise<unknown>>;
   MsgBox(text: string, caption?: string, flags?: number): Promise<number>;
   InputBox(prompt: string, caption?: string, defaultValue?: string): Promise<string | null>;
   BeginUndoUnit(label?: string): Promise<void>;
@@ -294,8 +299,11 @@ const SELECTION_METHODS = [
   'selectNode',
   'scrollIntoView',
 ] as const;
-const UI_METHODS = ['message', 'prompt', 'form', 'status', 'progress'] as const;
+const UI_METHODS = ['message', 'prompt', 'form', 'status', 'progress', 'report'] as const;
 const ENV_METHODS = ['settings', 'docLanguage'] as const;
+const CLIPBOARD_METHODS = ['readText', 'writeText'] as const;
+const FILES_METHODS = ['saveText', 'saveBinaries'] as const;
+const SCRIPTS_METHODS = ['run'] as const;
 
 function section(
   bridge: Bridge,
@@ -314,7 +322,7 @@ function section(
 export function createMfbe(bridge: Bridge): MfbeObject {
   const ui = section(bridge, 'ui', UI_METHODS);
   const mfbe: MfbeObject = {
-    version: 1,
+    version: 2,
     doc: section(bridge, 'doc', DOC_METHODS),
     selection: section(bridge, 'selection', SELECTION_METHODS),
     ui,
@@ -324,6 +332,9 @@ export function createMfbe(bridge: Bridge): MfbeObject {
       symbols: () => bridge.call('edit.symbols', []),
     }),
     env: section(bridge, 'env', ENV_METHODS),
+    clipboard: section(bridge, 'clipboard', CLIPBOARD_METHODS),
+    files: section(bridge, 'files', FILES_METHODS),
+    scripts: section(bridge, 'scripts', SCRIPTS_METHODS),
     async MsgBox(text: string, caption?: string, flags = 0): Promise<number> {
       const pressed = await ui.message!(String(text), {
         caption,
@@ -348,6 +359,9 @@ export function createContext(bridge: Bridge, data: ScriptContextData) {
     script: Object.freeze({ ...data.script }),
     uiLanguage: data.uiLanguage,
     treeNode: data.treeNode ? Object.freeze({ ...data.treeNode }) : undefined,
+    startedBy: data.startedBy,
+    caller: data.caller,
+    args: data.args,
     get cancelled() {
       return bridge.cancelRequested;
     },
@@ -404,6 +418,9 @@ export function describeError(error: unknown, entryUrl: string): ScriptErrorInfo
   const entryFile = decodeURIComponent(entryUrl.slice(packageUrl.length));
   if (error instanceof Error) {
     const info: ScriptErrorInfo = { name: error.name || 'Error', message: error.message };
+    // The machine-readable code of an API error the script let through (script API §6).
+    const { code } = error as Error & { code?: unknown };
+    if (typeof code === 'string' && code !== '') info.code = code;
     if (typeof error.stack === 'string') info.stack = error.stack;
     const location: ErrorLocation | null =
       parseErrorLocation(error.stack, packageUrl) ??

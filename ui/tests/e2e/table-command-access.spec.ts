@@ -1028,8 +1028,14 @@ async function sendAndWait(page: Page, instruction: string): Promise<void> {
   await expect(page.getByTestId('script-run-banner')).toHaveCount(0, { timeout: 30_000 });
 }
 
-/** *Customize toolbar* of the Commands toolbar, from its right-click menu. */
+/**
+ * *Customize toolbar* of the Commands toolbar, from its right-click menu - once the toolbar is
+ * complete: the AI assistant's toggle joins its list when the assistant's feature has registered,
+ * after the settings arrive (feature 005), and the dialog's lists follow the toolbar live, so a
+ * list read before that would miss it.
+ */
 async function openCustomize(page: Page): Promise<void> {
+  await expect(page.getByTestId('toolbar-ai.toggle')).toBeVisible();
   await page.getByTestId('toolbar-commands').locator('[data-toolbar-index]').first().click({
     button: 'right',
   });

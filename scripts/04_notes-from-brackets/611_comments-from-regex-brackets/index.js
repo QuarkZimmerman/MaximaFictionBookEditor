@@ -1,8 +1,9 @@
-// Converted from 04_Примечания и комментарии из скобок/611_Комментарии из скобок, заданных регэкспами.js (FictionBook Editor 2.7), Tier 2.
+// Converted from FictionBook Editor 2.7: Scripts/04_Примечания и комментарии из скобок/611_Комментарии из скобок, заданных регэкспами.js,
+// brought up to FictionBook Editor 2.7.9 (the same file name; see brackets-engine.js), Tier 2.
 // Asks two regular expressions (opening and closing bracket) and turns every bracketed fragment of the book into a comment.
 // The twelve scripts of this group share one engine (brackets-engine.js) and differ only in the
 // bracket pair and the footnote/comment settings, like the originals' settings block.
-// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+// The original's notice, kept as written (FR-029):
 // извлечение сносок из разных скобок
 // написал Sclex
 import { askBrackets, COMMENTS, runBracketsScript } from './brackets-engine.js';

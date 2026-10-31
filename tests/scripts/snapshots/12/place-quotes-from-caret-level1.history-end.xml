@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Кавычки</last-name>
+			</author>
+			<book-title>Кавычки 2.7.9</book-title>
+			<annotation>
+				<p>Аннотация про "кавычки" и «ёлочки».</p>
+			</annotation>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+			<history>
+				<p>Правка "первая".</p>
+				<p>Правка "вторая".</p>
+			</history>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Проверка „кавычек“</p>
+		</title>
+		<section>
+			<title>
+				<p>Раздел первый</p>
+			</title>
+			<p>Он сказал: „Привет“ и ушёл.</p>
+			<p>Многоточие с одной стороны: „Начало„…потом…“конец“.</p>
+			<p>„Тонкий пробел “ перед кавычкой.</p>
+			<p>С обеих сторон: ждал…"…и дождался.</p>
+			<p>Уже "типографские" и "лапки".</p>
+		</section>
+		<section>
+			<title>
+				<p>Раздел второй</p>
+			</title>
+			<p>Здесь "кавычка не закрыта до конца раздела.</p>
+			<p>Последний абзац раздела.</p>
+		</section>
+		<section>
+			<title>
+				<p>Раздел третий</p>
+			</title>
+			<p>Он процитировал: "начало</p>
+			<cite>
+				<p>и конец цитаты" внутри.</p>
+			</cite>
+			<p>После цитаты.</p>
+		</section>
+		<section>
+			<title>
+				<p>Раздел четвёртый</p>
+			</title>
+			<p>"Первая реплика" и "вторая".</p>
+			<p>"Открытая кавычка в выделении.</p>
+			<p>Закрытие" в следующем абзаце.</p>
+		</section>
+	</body>
+</FictionBook>

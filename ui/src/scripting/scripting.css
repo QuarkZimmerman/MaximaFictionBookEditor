@@ -47,6 +47,19 @@
   min-height: 4em;
 }
 
+.mfbe-script-form-pattern {
+  font-family: var(--mfbe-font-mono, ui-monospace, monospace);
+}
+
+.mfbe-script-form-pattern[aria-invalid='true'] {
+  border-color: var(--mfbe-color-danger, #c42b1c);
+}
+
+.mfbe-script-form-error {
+  color: var(--mfbe-color-danger, #c42b1c);
+  white-space: pre-wrap;
+}
+
 .mfbe-script-form-group {
   margin: 0;
   padding: 4px 8px 6px;
@@ -203,4 +216,37 @@
     border-right-color: var(--mfbe-color-accent);
     animation: mfbe-script-banner-pulse 2s ease-in-out infinite;
   }
+}
+
+/* The report window of mfbe.ui.report (feature 007, ReportWindow.tsx): modeless, of a fixed
+   size (2.7.9's resizable windows are a recorded difference), its text pre-wrapped, its HTML in
+   a sandboxed frame. */
+.mfbe-report-window {
+  width: min(680px, calc(100vw - 32px));
+  max-width: none;
+}
+
+.mfbe-report-frame,
+.mfbe-report-text {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: min(60vh, 520px);
+  margin: 0;
+  border: 1px solid var(--mfbe-border, #c8c8c8);
+  background: #fff;
+  color: #1e1e1e;
+}
+
+.mfbe-report-text {
+  padding: 8px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font: 13px/1.45 var(--mfbe-font-mono, ui-monospace, monospace);
+}
+
+.mfbe-report-status {
+  min-height: 1.4em;
+  margin-top: 4px;
+  font-size: 12px;
 }

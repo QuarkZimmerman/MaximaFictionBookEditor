@@ -1,0 +1,94 @@
+[
+  {
+    "snapshot": "40/show-next-table-html.xml",
+    "script": "scripts/40_tables/01_show-next-table-html",
+    "book": "tests/scripts/fixtures/279/40/tables.fb2",
+    "args": [
+      "--select",
+      "n7:3:3"
+    ]
+  },
+  {
+    "snapshot": "40/show-next-table-html.in-table.xml",
+    "script": "scripts/40_tables/01_show-next-table-html",
+    "book": "tests/scripts/fixtures/279/40/tables.fb2",
+    "args": [
+      "--select",
+      "n13:1:1"
+    ]
+  },
+  {
+    "snapshot": "40/show-next-table-html.not-found.xml",
+    "script": "scripts/40_tables/01_show-next-table-html",
+    "book": "tests/scripts/fixtures/279/40/tables.fb2",
+    "args": [
+      "--select",
+      "n67:0:4"
+    ]
+  },
+  {
+    "snapshot": "40/show-all-tables-html.xml",
+    "script": "scripts/40_tables/02_show-all-tables-html",
+    "book": "tests/scripts/fixtures/279/40/tables.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "40/replace-tables-with-pictures.xml",
+    "script": "scripts/40_tables/03_replace-tables-with-pictures",
+    "book": "tests/scripts/fixtures/279/40/tables.fb2",
+    "args": [
+      "--answer",
+      "ok",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "40/replace-tables-with-pictures.delete.xml",
+    "script": "scripts/40_tables/03_replace-tables-with-pictures",
+    "book": "tests/scripts/fixtures/279/40/tables.fb2",
+    "args": [
+      "--answer",
+      "cancel",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "40/replace-tables-with-pictures.help.xml",
+    "script": "scripts/40_tables/03_replace-tables-with-pictures",
+    "book": "tests/scripts/fixtures/279/40/tables.fb2",
+    "args": [
+      "--answer",
+      "ok",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "40/replace-tables-with-pictures.no-tables.xml",
+    "script": "scripts/40_tables/03_replace-tables-with-pictures",
+    "book": "tests/scripts/fixtures/279/40/tables-none.fb2",
+    "args": [
+      "--answer",
+      "cancel",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "40/replace-tables-with-pictures.both-passes.xml",
+    "script": "tests/scripts/fixtures/279/40/40_tests/01_pictures-both-passes",
+    "book": "tests/scripts/fixtures/279/40/tables.fb2",
+    "args": [
+      "--answer",
+      "ok",
+      "--answer",
+      "ok",
+      "--answer",
+      "cancel",
+      "--answer",
+      "ok"
+    ]
+  }
+]

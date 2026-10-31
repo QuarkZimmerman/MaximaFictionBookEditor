@@ -1,11 +1,14 @@
-// Converted from 06_Чистка/07_10.000.000.000.js (FictionBook Editor): large numbers written
-// with spaces or dots as group separators ("10 000 000", "1.500.000"), digit ranges with a
-// hyphen or a spaced em dash ("1941-1945", "10 — 15"). Starting at the paragraph with the
-// caret each finding is highlighted and proposed with non-breaking spaces (or an en dash);
-// Yes takes the text of the input box, No keeps the place, Cancel stops the script.
-// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+// Converted from FictionBook Editor 2.7.9: Scripts/06_Чистка/07_10.000.000.000.js - «Большие числа»
+// (large numbers written in a foreign manner), version 2.3 (2.7beta1's 2.12 before feature 007).
+// Starting at the paragraph with the caret, numbers whose digit groups are separated by spaces or
+// dots, and number ranges, are offered one by one with their typographic form (non-breaking spaces
+// between the groups, an en dash in a range). 2.7.9's fix of the highlight was already this
+// conversion's behaviour; the expressions compile with JScript's meaning of \s and .
+// (lib/jscript-regexp.js).
+// The original's notice, kept as written (FR-029):
 //=========================================
 //     Большие числа, записанные в иностранной манере и пр.
+//     Автор скрипта - jurgennt
 //                                                           Engine by ©Sclex
 //                                                                           02.05.2008
 //~~~~~~~~~~~~~~~~~~~
@@ -25,7 +28,7 @@
 //~~~~~~~~~~~~~~~~~~~
 // v.1.8 — кастомизированные неразрывные пробелы — Sclex (20.03.2010)
 //=========================================
-// v.1.9 — прерывание процесса
+// v.1.9 — прерывание процесса 
 //======================================
 // v.2.0 — проверка от курсора — sclex, май 2010
 //======================================
@@ -56,8 +59,8 @@ export default async function run(ctx) {
   const state = await runInteractive(ctx, { caption: ctx.script.name, patterns });
   await mfbe.ui.message(
     ru
-      ? `–= Jürgen Script =–\n«10.000.000.000» v.2.12\n\nПроизведено замен: ${state.count}\n\nВремя: ${legacyTimeString(started)}\n`
-      : `–= Jürgen Script =–\n"10.000.000.000" v.2.12\n\nReplacements made: ${state.count}\n\nTime: ${legacyTimeString(started)}\n`,
+      ? `–= Jürgen Script =–\n«Большие числа» v.2.3\n\nПроизведено замен: ${state.count}\n\nВремя: ${legacyTimeString(started)}.\n`
+      : `–= Jürgen Script =–\n"Large numbers" v.2.3\n\nReplacements made: ${state.count}\n\nTime: ${legacyTimeString(started)}.\n`,
     { caption: ctx.script.name, icon: 'info' },
   );
 }

@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "14/find-possible-citations",
+  "name": {
+    "ru": "Поиск предположительных цитат (по встроенным регэкспам)",
+    "en": "Find possible citations (by the built-in regexps)",
+    "uk": "Пошук імовірних цитат (за вбудованими регулярними виразами)"
+  },
+  "description": {
+    "ru": "Выделяет следующий абзац, похожий на цитату: целиком в кавычках (со знаками препинания и маркером сноски или без них) или начало либо конец цитаты из нескольких абзацев.",
+    "en": "Selects the next paragraph that looks like a citation: entirely in quotation marks (with or without punctuation and a footnote marker) or the start or end of a citation of several paragraphs.",
+    "uk": "Виділяє наступний абзац, схожий на цитату: повністю в лапках (зі знаками пунктуації та маркером виноски чи без них) або початок чи кінець цитати з кількох абзаців."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Поиск предположительных цитат (по встроенным регэкспам)",
+    "en": "Find possible citations (by the built-in regexps)"
+  },
+  "legacy": {
+    "source": "14_Цитаты/053_Поиск предположительных цитат (по встроенным регэкспам).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "5.0"
+  }
+}

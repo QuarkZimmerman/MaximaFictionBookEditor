@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "19/paragraphs-to-bold-italics",
+  "name": {
+    "ru": "Сформатировать абзац(ы) курсивом и жирностью",
+    "en": "Format paragraph(s) as italics and bold",
+    "uk": "Відформатувати абзац(и) курсивом і жирним шрифтом"
+  },
+  "description": {
+    "ru": "Делает курсивом и жирными целиком все абзацы, которых касается выделение (или абзац с курсором), сняв прежние курсив и жирность внутри них.",
+    "en": "Makes the whole of every paragraph the selection touches (or the caret's paragraph) bold italic, removing the italics and bold already inside it.",
+    "uk": "Робить курсивом і жирним шрифтом цілком усі абзаци, яких торкається виділення (або абзац із курсором), знявши наявні всередині курсив і жирний шрифт."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Сформатировать абзац(ы) курсивом и жирностью",
+    "en": "Format paragraph(s) as italics and bold"
+  },
+  "legacy": {
+    "source": "19_Обработка форматирования/42_Сформатировать абзац(ы) курсивом и жирностью.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.5"
+  }
+}

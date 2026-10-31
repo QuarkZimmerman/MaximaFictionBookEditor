@@ -35,7 +35,11 @@
 export const TOL = 1;
 /** The height cap of a picture in a cell: 10 lines of Body text (FR-031). */
 export const CAP_LINES = 10;
-/** The floor's middle term: 1.6em, the height of inline pictures outside cells (decision 18). */
+/**
+ * The floor's middle term: 1.6em (decision 18), `--mfbe-pic-cell-floor` of
+ * `ui/src/editor/pictures.css` - its own constant since feature 007, when inline pictures
+ * outside cells stopped being 1.6em high.
+ */
 export const FLOOR_EM = 1.6;
 
 /** Every gate with what it checks and the requirement behind it (quickstart §3). */

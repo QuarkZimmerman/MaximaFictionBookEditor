@@ -1,0 +1,8 @@
+{
+  "reports": [
+    {
+      "title": " :: Tables as HTML :: ",
+      "html": "<style type=\"text/css\">\r\nbody{ color: #000000; font-family: Arial Unicode MS, Candara, Verdana, Arial, Tahoma, Arial, sans-serif; font-size: 10px; text-align:justify;\n background-color:#FFFFFF; }\n\n table {\n margin-left: 25px;\n margin-right: auto;\n margin-top: 25px;\n margin-bottom: auto;\n }\n table, th, td, tr {\n  border: 1px solid black;\n  border-collapse: collapse;\n  padding-left: 15px;\n  padding-right: 15px;\n  padding-bottom: 5px;\n  padding-top: 5px;\n\n}\r\n</style>\r\n<P>Table 1 of 8</P>\r\n<table>\r\n<tr>\r\n<td>в аннотации</td></tr></table><BR><BR><BR><BR>\r\n<P>Table 2 of 8</P>\r\n<table>\r\n<tr align=\"center\">\r\n<th>Заголовок <EM>курсив</EM></th>\r\n<th colspan=\"2\">Объединено</th></tr>\r\n<tr>\r\n<td>A1</td>\r\n<td></td>\r\n<td rowspan=\"2\" align=\"right\" valign=\"top\">C1–C2 <STRONG>жирно</STRONG></td></tr>\r\n<tr>\r\n<td>A2 с пробелом</td>\r\n<td>B2 <A class=note href=\"#n1\">[1]</A> и <IMG alt=\"#pic.png\"></td></tr></table><BR><BR><BR><BR>\r\n<P>Table 3 of 8</P>\r\n<table>\r\n<tr>\r\n<td>Одна ячейка</td></tr></table><BR><BR><BR><BR>\r\n<P>Table 4 of 8</P>\r\n<table>\r\n<tr>\r\n<td>Сразу после заголовка</td></tr></table><BR><BR><BR><BR>\r\n<P>Table 5 of 8</P>\r\n<table>\r\n<tr>\r\n<td>После аннотации раздела</td></tr></table><BR><BR><BR><BR>\r\n<P>Table 6 of 8</P>\r\n<table>\r\n<tr>\r\n<td>В цитате</td></tr></table><BR><BR><BR><BR>\r\n<P>Table 7 of 8</P>\r\n<table>\r\n<tr>\r\n<td>Одна в разделе</td></tr></table><BR><BR><BR><BR>\r\n<P>Table 8 of 8</P>\r\n<table>\r\n<tr>\r\n<td>В примечании</td></tr></table><BR><BR><BR><BR>"
+    }
+  ]
+}

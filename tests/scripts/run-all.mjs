@@ -7,6 +7,7 @@
  *
  *   node tests/scripts/run-all.mjs [--group <NN>]... [--filter <text>] [--update]
  *        [--timeout <ms>] [--core <mfbe-core>] [--ui-dist <dir>] [--verbose] [--json <file>]
+ *        [--allow-missing-uk]
  *
  *   --group     only the snapshots of this group folder (`01`, `17`, `tree`, `fixtures`); repeatable
  *   --filter    only the snapshots whose path contains the text
@@ -15,12 +16,19 @@
  *   --timeout   per-snapshot time limit in milliseconds (default 120000)
  *   --verbose   print the harness log of every run (default: only of the failed ones)
  *   --json      also write the per-snapshot results to this file
+ *   --allow-missing-uk  report bundled packages and groups without Ukrainian names and
+ *               descriptions instead of failing (feature 007: until the recheck of its US4 is
+ *               done, T089)
  *
  * `suite.json` entries are `{ snapshot, script, book, args }` (paths relative to the repository
  * root); `tests/scripts/tools/extract-suite.mjs` documents how they were derived from the
- * conversion notes. The summary counts the converted packages (`scripts/<group>/<script>/
- * script.json`), the snapshots, the passed / failed runs and the legacy scripts the notes list
- * as dropped (`**dropped**` / `- dropped` entries of docs/scripting/conversion-notes-*.md).
+ * conversion notes. A group may keep its entries in `snapshots/<group>/suite.json` instead
+ * (feature 007: the 2.7.9 groups), which the run adds to the main manifest. The summary counts the converted packages (`scripts/<group>/<script>/
+ * script.json`), the snapshots, the passed / failed runs and, from the inventory of the classic
+ * scripts (`tests/scripts/audit/inventory-279.json`, feature 007), the scripts by status - the
+ * not converted ones among them. The run also fails when an inventory entry names a package
+ * without a `script.json` or without a snapshot, and when a bundled package lacks its Ukrainian
+ * name or description or a bundled group its Ukrainian name (spec FR-026 of feature 007).
  * Requires the built UI (`cd ui && npm run build`) and the core binary (`MFBE_CORE_BIN` or
  * `--core`); `run-all.sh` is a thin wrapper for CI.
  */
@@ -40,13 +48,13 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, "..", "..");
 const SUITE = path.join(HERE, "snapshots", "suite.json");
 const HARNESS = path.join(HERE, "run-script.mjs");
-const NOTES_DIR = path.join(REPO_ROOT, "docs", "scripting");
+const INVENTORY = path.join(HERE, "audit", "inventory-279.json");
 
 function usage(message) {
   if (message) console.error(`run-all: ${message}`);
   console.error(
     "usage: node tests/scripts/run-all.mjs [--group NN]... [--filter text] [--update] " +
-      "[--timeout ms] [--core bin] [--ui-dist dir] [--verbose] [--json file]",
+      "[--timeout ms] [--core bin] [--ui-dist dir] [--verbose] [--json file] [--allow-missing-uk]",
   );
   process.exit(2);
 }
@@ -61,6 +69,7 @@ function parseArgs(argv) {
     uiDist: null,
     verbose: false,
     json: null,
+    allowMissingUk: false,
   };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
@@ -94,6 +103,9 @@ function parseArgs(argv) {
       case "--json":
         options.json = next();
         break;
+      case "--allow-missing-uk":
+        options.allowMissingUk = true;
+        break;
       case "--help":
       case "-h":
         usage();
@@ -123,15 +135,67 @@ function convertedPackages() {
   return out.sort();
 }
 
-/** Legacy scripts the conversion notes list as dropped (with a reason). */
-function droppedScripts() {
-  let count = 0;
-  for (const file of readdirSync(NOTES_DIR)) {
-    if (!/^conversion-notes-[a-z]\.md$/.test(file)) continue;
-    const text = readFileSync(path.join(NOTES_DIR, file), "utf8");
-    count += (text.match(/\*\*dropped\*\*|^## .* - dropped\b/gm) ?? []).length;
+/**
+ * The inventory of the classic scripts (feature 007, data-model §7.4): the entries by status,
+ * and every entry whose package is missing (no `script.json`) or has no snapshot in the suite.
+ */
+function inventoryReport(suite, groups = []) {
+  const inventory = JSON.parse(readFileSync(INVENTORY, "utf8"));
+  const counts = {};
+  const problems = [];
+  const covered = new Set(suite.map((entry) => entry.script));
+  for (const entry of inventory.entries) {
+    counts[entry.status] = (counts[entry.status] ?? 0) + 1;
+    if (!entry.package || !inSelectedGroups(entry.package, groups)) continue;
+    if (!existsSync(path.join(REPO_ROOT, entry.package, "script.json")))
+      problems.push(
+        `${entry.source}: package ${entry.package} has no script.json`,
+      );
+    else if (!covered.has(entry.package))
+      problems.push(
+        `${entry.source}: package ${entry.package} has no snapshot`,
+      );
   }
-  return count;
+  return { counts, problems };
+}
+
+/**
+ * Spec FR-026 of feature 007: every bundled package carries `name.uk` and `description.uk`, every
+ * bundled group's `group.json` its `names.uk`.
+ */
+/**
+ * Whether a package folder (`scripts/<NN>_<name>/<package>`) or a group folder
+ * (`scripts/<NN>_<name>`) belongs to the groups of `--group` (all when none is given): with
+ * `--group` the run is that group's gate, blind to packages of other groups still in progress.
+ */
+function inSelectedGroups(dir, groups) {
+  if (!groups.length) return true;
+  const folder = dir.split("/")[1] ?? "";
+  return groups.some(
+    (group) => folder === group || folder.startsWith(`${group}_`),
+  );
+}
+
+function missingUkrainian(packages, groups = []) {
+  const missing = [];
+  const hasUk = (texts) =>
+    Boolean(texts) && typeof texts.uk === "string" && texts.uk.trim() !== "";
+  for (const dir of packages) {
+    const manifest = JSON.parse(
+      readFileSync(path.join(REPO_ROOT, dir, "script.json"), "utf8"),
+    );
+    if (!hasUk(manifest.name)) missing.push(`${dir}: name.uk`);
+    if (!hasUk(manifest.description)) missing.push(`${dir}: description.uk`);
+  }
+  const root = path.join(REPO_ROOT, "scripts");
+  for (const group of readdirSync(root, { withFileTypes: true })) {
+    const file = path.join(root, group.name, "group.json");
+    if (!group.isDirectory() || !existsSync(file)) continue;
+    if (!inSelectedGroups(`scripts/${group.name}`, groups)) continue;
+    const data = JSON.parse(readFileSync(file, "utf8"));
+    if (!hasUk(data.names)) missing.push(`scripts/${group.name}: names.uk`);
+  }
+  return missing;
 }
 
 function runOne(entry, options) {
@@ -178,10 +242,22 @@ function pad(text, width) {
     : value + " ".repeat(width - value.length);
 }
 
+/** The main manifest and every group's own `snapshots/<group>/suite.json`. */
+function loadSuite() {
+  const suite = JSON.parse(readFileSync(SUITE, "utf8"));
+  const snapshots = path.dirname(SUITE);
+  for (const entry of readdirSync(snapshots, { withFileTypes: true })) {
+    const own = path.join(snapshots, entry.name, "suite.json");
+    if (entry.isDirectory() && existsSync(own))
+      suite.push(...JSON.parse(readFileSync(own, "utf8")));
+  }
+  return suite;
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (!existsSync(SUITE)) usage(`manifest not found: ${SUITE}`);
-  const suite = JSON.parse(readFileSync(SUITE, "utf8"));
+  const suite = loadSuite();
   const selected = suite.filter((entry) => {
     const group = entry.snapshot.split("/")[0];
     if (options.groups.length && !options.groups.includes(group)) return false;
@@ -193,7 +269,12 @@ async function main() {
 
   const packages = convertedPackages();
   const covered = new Set(suite.map((entry) => entry.script));
-  const uncovered = packages.filter((dir) => !covered.has(dir));
+  const ownPackages = packages.filter((dir) =>
+    inSelectedGroups(dir, options.groups),
+  );
+  const uncovered = ownPackages.filter((dir) => !covered.has(dir));
+  const inventory = inventoryReport(suite, options.groups);
+  const ukMissing = missingUkrainian(ownPackages, options.groups);
   for (const entry of suite) {
     if (!existsSync(path.join(REPO_ROOT, entry.script, "script.json")))
       console.error(
@@ -243,18 +324,57 @@ async function main() {
   console.log(`failed             : ${failed}`);
   console.log(`packages without a snapshot : ${uncovered.length}`);
   for (const dir of uncovered) console.log(`  ${dir}`);
+  const statuses = Object.entries(inventory.counts)
+    .sort()
+    .map(([status, count]) => `${status} ${count}`)
+    .join(", ");
+  console.log(`classic scripts (inventory-279.json) : ${statuses}`);
   console.log(
-    `dropped legacy scripts (per the conversion notes) : ${droppedScripts()}`,
+    `not converted (per the inventory)   : ${inventory.counts.notConverted ?? 0}`,
   );
+  console.log(`inventory problems : ${inventory.problems.length}`);
+  for (const problem of inventory.problems) console.log(`  ${problem}`);
+  console.log(
+    `missing Ukrainian names and descriptions : ${ukMissing.length}` +
+      (ukMissing.length && options.allowMissingUk
+        ? " (allowed until the recheck is done: --allow-missing-uk)"
+        : ""),
+  );
+  for (const item of ukMissing.slice(
+    0,
+    options.allowMissingUk ? 10 : ukMissing.length,
+  ))
+    console.log(`  ${item}`);
+  if (options.allowMissingUk && ukMissing.length > 10)
+    console.log(`  ... and ${ukMissing.length - 10} more`);
 
   if (options.json) {
     mkdirSync(path.dirname(path.resolve(options.json)), { recursive: true });
     writeFileSync(
       options.json,
-      `${JSON.stringify({ packages: packages.length, uncovered, results }, null, 2)}\n`,
+      `${JSON.stringify(
+        {
+          packages: packages.length,
+          uncovered,
+          inventory: inventory.counts,
+          inventoryProblems: inventory.problems,
+          missingUkrainian: ukMissing,
+          results,
+        },
+        null,
+        2,
+      )}\n`,
     );
   }
-  process.exit(failed > 0 || uncovered.length > 0 ? 1 : 0);
+  const ukFails = ukMissing.length > 0 && !options.allowMissingUk;
+  process.exit(
+    failed > 0 ||
+      uncovered.length > 0 ||
+      inventory.problems.length > 0 ||
+      ukFails
+      ? 1
+      : 0,
+  );
 }
 
 main().catch((error) => {

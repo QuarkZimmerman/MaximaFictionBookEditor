@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "21/paragraph-breaks-russian",
+  "name": {
+    "ru": "Поиск разрывов абзацев (РУС)",
+    "en": "Search for broken paragraphs (Russian)",
+    "uk": "Пошук розривів абзаців (РОС)"
+  },
+  "description": {
+    "ru": "Выделяет следующее после курсора место, где абзац русского текста, вероятно, разорван: конец строки без знака препинания, строчная буква после точки, строка, начатая со знака препинания, строчной буквы или цифры.",
+    "en": "Selects the next place after the caret where a paragraph of Russian text is probably broken in two: a line ending without punctuation, a lower-case letter after a full stop, a line starting with punctuation, a lower-case letter or a digit.",
+    "uk": "Виділяє наступне після курсору місце, де абзац російського тексту, ймовірно, розірвано: кінець рядка без розділового знака, мала літера після крапки, рядок, що починається з розділового знака, малої літери або цифри."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Поиск разрывов абзацев (РУС)",
+    "en": "Search for broken paragraphs (Russian)"
+  },
+  "legacy": {
+    "source": "21_Поиск и замена/19_Поиск разрывов абзацев (РУС).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.4"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "12/next-low-quotes",
+  "name": {
+    "ru": "Перейти на следующие лапки",
+    "en": "Go to next low quotes",
+    "uk": "Перейти до наступних лапок"
+  },
+  "description": {
+    "ru": "Выделяет ближайшую лапку („, “ или ”) после курсора или выделения; в конце книги предлагает продолжить с начала",
+    "en": "Selects the nearest low or high quote („, “ or ”) after the caret or the selection; at the end of the book it offers to go on from the start",
+    "uk": "Виділяє найближчу лапку („, “ або ”) після курсора чи виділення; у кінці книги пропонує продовжити з початку"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Перейти на следующие лапки",
+    "en": "Go to next low quotes"
+  },
+  "legacy": {
+    "source": "12_Обработка кавычек/011_Перейти на следующие лапки.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "2.9"
+  }
+}

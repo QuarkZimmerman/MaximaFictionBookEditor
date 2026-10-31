@@ -299,12 +299,16 @@ export function activityText(t: TFunction, entry: AssistantActivityEntry, key?: 
     }
     case 'script.dialog':
       return t('ai.activity.scriptDialog', { name: asString(p.name) || asString(p.id) });
-    case 'script.proposed':
-      return t('ai.activity.scriptProposed', {
+    case 'script.proposed': {
+      const text = t('ai.activity.scriptProposed', {
         id: asString(p.id),
         count: Array.isArray(p.files) ? p.files.length : 0,
         outcome: p.written ? t('ai.activity.written') : t('ai.activity.declined'),
       });
+      // Feature 007: the change replaced a version, which is kept as a backup.
+      const backupId = asString(p.backupId);
+      return backupId ? `${text} ${t('ai.scripts.backupCreated', { backupId })}` : text;
+    }
     case 'request.done': {
       // The end line names the count AND the place of the changes (FR-106): `changes` is the
       // `{total, body, description, fields}` object of the loop; a plain number (an older

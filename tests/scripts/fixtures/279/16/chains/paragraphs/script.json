@@ -1,0 +1,9 @@
+{
+  "manifestVersion": 1,
+  "id": "test16/chain-paragraphs",
+  "name": {
+    "ru": "Цепочка: выделение абзацев",
+    "en": "Chain: selecting paragraphs"
+  },
+  "kind": "menu"
+}

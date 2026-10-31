@@ -1,0 +1,10 @@
+{
+  "manifestVersion": 1,
+  "id": "test-22/edit-description-automatic-dates",
+  "name": {
+    "en": "Test: edit the description as text, automatic clean-up of dates, languages and hidden lists",
+    "ru": "Test: edit the description as text, automatic clean-up of dates, languages and hidden lists"
+  },
+  "kind": "menu",
+  "entry": "index.js"
+}

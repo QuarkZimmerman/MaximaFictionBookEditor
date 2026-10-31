@@ -6,7 +6,8 @@
  * nothing; the same or an older version gives "the latest version"; every failure gives "Can't
  * connect to server" - in English and in Russian. The About dialog links Maxima Library in the
  * system browser, and a session that does not use the command requests nothing but the
- * editor's own address.
+ * editor's own address. Since feature 007 both pages go to the system browser through the
+ * editor (`app.openUrl`), whose test provider records them and opens nothing (`test.openedUrls`).
  *
  * US5 (feature 003) - the check on a schedule (FR-040 to FR-045): Settings > Other > Version
  * check offers at every start / once a day / once a week / once a month / never (monthly by
@@ -116,6 +117,14 @@ async function requestCount(core: CoreHandle): Promise<number> {
   return (await core.rpc<NetworkRequest[]>('test.requests')).length;
 }
 
+/**
+ * The addresses the editor handed to the system browser (`app.openUrl`) since the core
+ * started: its test provider records them and opens nothing (feature 007, US5).
+ */
+async function openedUrls(core: CoreHandle): Promise<string[]> {
+  return core.rpc<string[]>('test.openedUrls');
+}
+
 async function lastCheck(core: CoreHandle): Promise<string | undefined> {
   return (await core.rpc<SettingsJson>('settings.get')).session.lastVersionCheck;
 }
@@ -173,12 +182,16 @@ test.describe('US9 - check for a new version; Maxima Library in About', () => {
 
     await core.rpc('test.enqueueRelease', { result: { tag: 'v99.0.1' } });
     await checkVersion(page);
-    const popup = page.waitForEvent('popup');
+    // Yes hands the release's page to the system browser through the editor (app.openUrl,
+    // feature 007: the shell's engine opens nothing for window.open); the page itself sends
+    // nothing outside, and the release request is the shell's (none here).
+    const opened = (await openedUrls(core)).length;
     await page.getByTestId('dialog-version-new-button-yes').click();
-    await popup;
-    await expect.poll(() => outside).toEqual([`${RELEASES}v99.0.1`]);
-    // Only the page itself was asked for: the release request is the shell's (none here).
-    expect(outside.every((url) => url.startsWith(RELEASES))).toBe(true);
+    await expect
+      .poll(async () => (await openedUrls(core)).slice(opened))
+      .toEqual([`${RELEASES}v99.0.1`]);
+    await expect(offer).toHaveCount(0);
+    expect(outside).toEqual([]);
   });
 
   test('2. the same or an older version is the latest, the final of a pre-release is newer; every failure cannot connect', async ({
@@ -267,13 +280,19 @@ test.describe('US9 - check for a new version; Maxima Library in About', () => {
     await page.getByTestId('menu-help-about').click();
     const link = page.getByTestId('about-maxima-library');
     await expect(link).toHaveAttribute('href', 'https://www.maxima-library.com');
-    await expect(link).toHaveAttribute('target', '_blank');
+    // The system browser through the editor (app.openUrl, feature 007): the shell's engine
+    // hands no target=_blank link over, so the link carries none.
+    await expect(link).not.toHaveAttribute('target');
     // A session without the version check asked for nothing but the editor's own address.
     expect(outside).toEqual([]);
-    const popup = page.waitForEvent('popup');
+    const opened = (await openedUrls(core)).length;
     await link.click();
-    await popup;
-    await expect.poll(() => outside).toEqual(['https://www.maxima-library.com/']);
+    // The editor handed the address to the system browser (the test provider records it and
+    // opens nothing); the page itself still sent nothing outside.
+    await expect
+      .poll(async () => (await openedUrls(core)).slice(opened))
+      .toEqual(['https://www.maxima-library.com']);
+    expect(outside).toEqual([]);
   });
 
   test('5. the manual command records the check on an answer, newer or latest, never on a failure', async ({
@@ -381,11 +400,13 @@ test.describe('US5 (feature 003) - the check for a new version on a schedule', (
     expect(isRecent(recorded)).toBe(true);
 
     // Yes opens the release's page in the system browser, as the manual check does.
-    const popup = page.waitForEvent('popup');
+    const opened = (await openedUrls(core)).length;
     await page.getByTestId('dialog-version-new-button-yes').click();
-    await popup;
-    await expect.poll(() => outside).toEqual([`${RELEASES}v99.0.1`]);
+    await expect
+      .poll(async () => (await openedUrls(core)).slice(opened))
+      .toEqual([`${RELEASES}v99.0.1`]);
     await expect(offer).toHaveCount(0);
+    expect(outside).toEqual([]);
   });
 
   test('3. once a week, last check 2 days ago: no request, the record untouched', async ({

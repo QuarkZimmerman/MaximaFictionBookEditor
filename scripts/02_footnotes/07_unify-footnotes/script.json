@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "02/unify-footnotes",
+  "name": {
+    "ru": "Перенумеровать примечания",
+    "en": "Renumber footnotes",
+    "uk": "Перенумерувати примітки"
+  },
+  "description": {
+    "ru": "Перенумеровывает разделы примечаний (id n_N, заголовки N) и ссылки на них ([N]), помечая ссылки как сноски (type=\"note\")",
+    "en": "Renumbers the footnote sections (ids n_N, titles N) and the links that point to them ([N]), marking the links as footnote links (type=\"note\")",
+    "uk": "Перенумеровує розділи приміток (id n_N, заголовки N) і посилання на них ([N]), позначаючи посилання як посилання на примітки (type=\"note\")"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Перенумеровать примечания",
+    "en": "Renumber footnotes"
+  },
+  "legacy": {
+    "source": "02_Примечания/07_Перенумеровать примечания.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "3.0"
+  }
+}

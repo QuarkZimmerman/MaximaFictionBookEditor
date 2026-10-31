@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "06/unformat-empty-links",
+  "name": {
+    "ru": "Расформатировать ссылки, адрес которых - пустая строка",
+    "en": "Unformat the links whose address is an empty string",
+    "uk": "Розформатувати посилання, адреса яких - порожній рядок"
+  },
+  "description": {
+    "ru": "Снимает в книге все ссылки с пустым адресом, оставляя их текст.",
+    "en": "Removes every link with an empty address from the book, keeping its text.",
+    "uk": "Знімає в книзі всі посилання з порожньою адресою, залишаючи їхній текст."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Расформатировать ссылки, адрес которых - пустая строка",
+    "en": "Unformat the links whose address is an empty string"
+  },
+  "legacy": {
+    "source": "06_Чистка/50_Расформатировать ссылки, адрес которых - пустая строка.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "12/next-any-quotes",
+  "name": {
+    "ru": "Перейти на следующие прямые кавычки, елочки или лапки",
+    "en": "Go to next straight quotes, guillemets or low quotes",
+    "uk": "Перейти до наступних прямих лапок, ялинок або лапок"
+  },
+  "description": {
+    "ru": "Выделяет ближайшую кавычку любого вида (\", «, », „, “ или ”) после курсора или выделения; в конце книги предлагает продолжить с начала",
+    "en": "Selects the nearest quote of any kind (\", «, », „, “ or ”) after the caret or the selection; at the end of the book it offers to go on from the start",
+    "uk": "Виділяє найближчу лапку будь-якого виду (\", «, », „, “ або ”) після курсора чи виділення; у кінці книги пропонує продовжити з початку"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Перейти на следующие прямые кавычки, елочки или лапки",
+    "en": "Go to next straight quotes, guillemets or low quotes"
+  },
+  "legacy": {
+    "source": "12_Обработка кавычек/015_Перейти на следующие прямые кавычки, елочки или лапки.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "2.9"
+  }
+}

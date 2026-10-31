@@ -2,21 +2,29 @@
  * Dialog stack. `DialogService.open()` returns a Promise resolved by the dialog's
  * `close(result)`; `DialogHost` (Dialog.tsx) renders the stack. Dialogs are modal unless
  * opened `modeless` (Find, Replace): those leave the window usable and only a modal dialog
- * blocks the application hotkeys and menus (`isModalOpen`).
+ * blocks the application hotkeys and menus (`isModalOpen`). A modal dialog is of the kind
+ * `dialog` (centred, at most 640 px wide) or `viewer` (feature 007, the picture view: the
+ * whole window, over a backdrop of its own; see `ViewerFrame`).
  */
 
 import { useSyncExternalStore, type ReactNode } from 'react';
+
+/** How a modal layer covers the window: a centred dialog, or the full-window `viewer`. */
+export type DialogKind = 'dialog' | 'viewer';
 
 export interface DialogInstance {
   id: number;
   /** Renders the dialog; `close(result)` resolves the promise returned by `open()`. */
   render: (close: (result: unknown) => void) => ReactNode;
   modeless: boolean;
+  kind: DialogKind;
 }
 
 export interface DialogOpenOptions {
   /** The window stays usable while the dialog is open (the original's Find and Replace). */
   modeless?: boolean;
+  /** `viewer`: a modal layer over the whole window (feature 007, the picture view). */
+  kind?: DialogKind;
 }
 
 export class DialogService {
@@ -38,7 +46,8 @@ export class DialogService {
         {
           id,
           render: (close) => render(close as (result: T) => void),
-          modeless: options.modeless ?? false,
+          modeless: (options.modeless ?? false) && options.kind !== 'viewer',
+          kind: options.kind ?? 'dialog',
         },
       ];
       this.emit();

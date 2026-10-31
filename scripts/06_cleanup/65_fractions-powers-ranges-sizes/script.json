@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "06/fractions-powers-ranges-sizes",
+  "name": {
+    "ru": "Дроби, степени, интервалы, габариты",
+    "en": "Fractions, powers, ranges, dimensions",
+    "uk": "Дроби, степені, інтервали, габарити"
+  },
+  "description": {
+    "ru": "Начиная от курсора, по одному предлагает заменить единицы площади и объёма (м2), габариты (120x30), дроби через слэш (1/4), дефисы и тире в интервалах чисел (1941-1945) на их типографский вид.",
+    "en": "From the caret on, proposes one by one the typographic form of square and cubic units (м2), dimensions (120x30), fractions with a slash (1/4) and hyphens or dashes in number ranges (1941-1945).",
+    "uk": "Починаючи від курсора, по одному пропонує замінити одиниці площі та об'єму (м2), габарити (120x30), дроби через скісну риску (1/4), дефіси й тире в інтервалах чисел (1941-1945) на їхній типографський вигляд."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Дроби, степени, интервалы, габариты",
+    "en": "Fractions, powers, ranges, dimensions"
+  },
+  "legacy": {
+    "source": "06_Чистка/65_Дроби, степени, интервалы, габариты.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "2.2"
+  }
+}

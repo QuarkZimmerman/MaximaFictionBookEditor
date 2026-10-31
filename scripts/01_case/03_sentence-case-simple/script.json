@@ -3,11 +3,13 @@
   "id": "01/sentence-case-simple",
   "name": {
     "en": "Sentence (simple) (alxs)",
-    "ru": "Предложение_alxs"
+    "ru": "Предложение_alxs",
+    "uk": "Речення_alxs"
   },
   "description": {
     "en": "First letter of the selection to upper case, the rest to lower case",
-    "ru": "Первая буква выделенного фрагмента — прописная, остальные — строчные"
+    "ru": "Первая буква выделенного фрагмента — прописная, остальные — строчные",
+    "uk": "Перша літера виділеного фрагмента — велика, решта — малі"
   },
   "kind": "menu",
   "entry": "index.js",

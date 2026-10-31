@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "02/test-footnotes",
+  "name": {
+    "ru": "Проверить корректность оформления примечаний",
+    "en": "Check how the footnotes are marked up",
+    "uk": "Перевірити правильність оформлення приміток"
+  },
+  "description": {
+    "ru": "Проверяет примечания книги: у каждого раздела примечаний есть id, каждая ссылка сноски ведет на раздел примечаний, ссылки идут по порядку разделов, на каждый раздел ровно одна ссылка; о первой ошибке сообщает и выделяет ее место",
+    "en": "Checks the footnotes of the book: every footnote section has an id, every footnote link points to a footnote section, the links follow the order of the sections, each section has exactly one link; reports the first problem and selects its place",
+    "uk": "Перевіряє примітки книги: кожен розділ приміток має id, кожне посилання на примітку веде до розділу приміток, посилання йдуть за порядком розділів, на кожен розділ рівно одне посилання; повідомляє про першу помилку й виділяє її місце"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Проверить корректность оформления примечаний",
+    "en": "Check how the footnotes are marked up"
+  },
+  "legacy": {
+    "source": "02_Примечания/30_Проверить корректность оформления примечаний.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
+  }
+}

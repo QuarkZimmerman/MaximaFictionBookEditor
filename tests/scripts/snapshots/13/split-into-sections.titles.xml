@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Разметка</last-name>
+			</author>
+			<book-title>Заголовки по регэкспу, версия 4.7</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Разметка по регэкспу</p>
+		</title>
+		<section id="s1">
+			<title>
+				<p>Часть первая</p>
+			</title>
+			<p>Вступление.</p>
+		</section>
+		<section>
+			<title>
+				<empty-line/>
+				<p>Глава 1</p>
+				<p>Начало</p>
+			</title>
+			<p>Текст первой главы.</p>
+			<subtitle>Глава 2</subtitle>
+			<p>Текст после подзаголовка.</p>
+			<subtitle>Подзаголовок</subtitle>
+		</section>
+		<section>
+			<title>
+				<p>Глава 3</p>
+			</title>
+			<subtitle>Ещё подзаголовок</subtitle>
+			<p>Текст третьей главы.</p>
+			<cite>
+				<p>Цитата.</p>
+			</cite>
+		</section>
+		<section>
+			<title>
+				<p>Глава 4</p>
+				<p>Текст четвёртой главы.</p>
+			</title>
+			<poem>
+				<stanza>
+					<v>Строка стиха</v>
+				</stanza>
+			</poem>
+		</section>
+		<section>
+			<title>
+				<p><image l:href="#pic.png"/>Глава 5</p>
+			</title>
+			<empty-line/>
+		</section>
+		<section>
+			<p>Перед звёздочками</p>
+			<p>* * *</p>
+			<p>После звёздочек</p>
+			<p>Обычный текст.</p>
+			<subtitle>Готовый подзаголовок</subtitle>
+			<p>***</p>
+			<cite>
+				<p>Цитата после звёздочек.</p>
+			</cite>
+			<empty-line/>
+			<p>*  *  *</p>
+			<p>Конец.</p>
+		</section>
+	</body>
+	<body name="notes">
+		<section id="n1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Глава 10</p>
+			<p>* * *</p>
+		</section>
+	</body>
+	<binary id="pic.png" content-type="image/png">…</binary>
+</FictionBook>

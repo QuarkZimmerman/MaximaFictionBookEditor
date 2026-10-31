@@ -1,0 +1,10 @@
+{
+  "manifestVersion": 1,
+  "id": "test-32/checks",
+  "name": {
+    "en": "Test: runs of the footnote marker scripts",
+    "ru": "Test: runs of the footnote marker scripts"
+  },
+  "kind": "menu",
+  "entry": "index.js"
+}

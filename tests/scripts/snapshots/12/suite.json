@@ -1,0 +1,104 @@
+[
+  {
+    "snapshot": "12/unpaired-brackets-quotes-traditional.xml",
+    "script": "scripts/12_quotes/020_unpaired-brackets-quotes-traditional",
+    "book": "tests/scripts/fixtures/279/12/unpaired.fb2",
+    "args": [
+      "--select",
+      "n30:0:0"
+    ]
+  },
+  {
+    "snapshot": "12/unpaired-brackets-quotes-alternative.xml",
+    "script": "scripts/12_quotes/025_unpaired-brackets-quotes-alternative",
+    "book": "tests/scripts/fixtures/279/12/unpaired.fb2",
+    "args": [
+      "--select",
+      "n9:0:0"
+    ]
+  },
+  {
+    "snapshot": "12/chain-unpaired.xml",
+    "script": "tests/scripts/fixtures/279/12/chains/unpaired",
+    "book": "tests/scripts/fixtures/279/12/unpaired.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "12/place-quotes.recheck.xml",
+    "script": "scripts/12_quotes/001_place-quotes",
+    "book": "tests/scripts/fixtures/279/12/quotes-recheck.fb2",
+    "args": [
+      "--select",
+      "n7:0:0"
+    ]
+  },
+  {
+    "snapshot": "12/place-quotes.annotation.xml",
+    "script": "scripts/12_quotes/001_place-quotes",
+    "book": "tests/scripts/fixtures/279/12/quotes-annotation.fb2",
+    "args": [
+      "--select",
+      "n3:0:0"
+    ]
+  },
+  {
+    "snapshot": "12/place-quotes-level1.block-level.xml",
+    "script": "scripts/12_quotes/002_place-quotes-level1",
+    "book": "tests/scripts/fixtures/279/12/quotes-levels.fb2",
+    "args": [
+      "--select-range",
+      "n3:11-n6:19"
+    ]
+  },
+  {
+    "snapshot": "12/place-quotes-from-caret.selection.xml",
+    "script": "scripts/12_quotes/004_place-quotes-from-caret",
+    "book": "tests/scripts/fixtures/279/12/quotes-recheck.fb2",
+    "args": [
+      "--select",
+      "n27:0:28"
+    ]
+  },
+  {
+    "snapshot": "12/place-quotes-from-caret-level1.history-end.xml",
+    "script": "scripts/12_quotes/005_place-quotes-from-caret-level1",
+    "book": "tests/scripts/fixtures/279/12/quotes-recheck.fb2",
+    "args": [
+      "--select",
+      "n33:16:16"
+    ]
+  },
+  {
+    "snapshot": "12/place-quotes-from-caret-level2.annotation-end.xml",
+    "script": "scripts/12_quotes/006_place-quotes-from-caret-level2",
+    "book": "tests/scripts/fixtures/279/12/quotes-recheck.fb2",
+    "args": [
+      "--select",
+      "n31:35:35"
+    ]
+  },
+  {
+    "snapshot": "12/place-guillemets-only.recheck.xml",
+    "script": "scripts/12_quotes/007_place-guillemets-only",
+    "book": "tests/scripts/fixtures/279/12/quotes-recheck.fb2",
+    "args": [
+      "--select",
+      "n7:0:0"
+    ]
+  },
+  {
+    "snapshot": "12/chain-place-quotes.xml",
+    "script": "tests/scripts/fixtures/279/12/chains/place-quotes",
+    "book": "tests/scripts/fixtures/279/12/quotes-recheck.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "12/chain-goto-quotes.xml",
+    "script": "tests/scripts/fixtures/279/12/chains/goto-quotes",
+    "book": "tests/scripts/fixtures/279/12/quotes-recheck.fb2",
+    "args": [
+      "--answer",
+      "cancel"
+    ]
+  }
+]

@@ -33,19 +33,23 @@ import type {
   ValidationReport,
   VerseNode,
 } from '@/model/document';
+import type { ScriptSourceResult, ScriptsListResult } from '@/scripting/types';
 
 export type { BinaryMeta, Document, ValidationIssue, ValidationReport } from '@/model/document';
 
 export const RPC_API_VERSION = 1;
 /**
  * Additive contract revision within RPC_API_VERSION (`app.info().apiMinor`; absent = 0). The
- * revision this UI was written for (5 since feature 006: the cell's and the marks' languages,
- * marks on inline atoms, the writer's link rule, `session.tableDialog`); it accepts any core
- * answering minor >= 1 (rpc-api.md §6) - the client performs no minor check at connect time and
- * gates nothing on 5; the AI assistant (feature 005) reads `app.info().apiMinor` itself and
- * requires >= 5 since feature 006 (`AI_REQUIRED_API_MINOR` in `ui/src/ai/index.ts`; 4 before).
+ * revision this UI was written for (6 since feature 007: the scripts' `legacy.sourceVersion`,
+ * `origin` and `overrides`, the group icon route, package isolation, `files.saveText` and
+ * `files.saveBinaries`, the script backups; 5 since feature 006: the cell's and the marks'
+ * languages, marks on inline atoms, the writer's link rule, `session.tableDialog`); it accepts
+ * any core answering minor >= 1 (rpc-api.md §6) - the client performs no minor check at connect
+ * time and gates nothing on 6; the AI assistant (feature 005) reads `app.info().apiMinor` itself
+ * and requires >= 5 since feature 006 (`AI_REQUIRED_API_MINOR` in `ui/src/ai/index.ts`; 4
+ * before).
  */
-export const RPC_API_MINOR = 5;
+export const RPC_API_MINOR = 6;
 
 /* ------------------------------------------------------------------------ */
 /* Error codes (rpc-api.md §1)                                              */
@@ -89,10 +93,15 @@ export const RpcErrorCode = {
   // feature 005 — doc.fragment*, schema.text, scripts.write
   /** `doc.fragmentFromXml`: the parent element cannot hold this element; `data` {element, parent}. */
   aiFragmentNotAllowed: 1201,
-  /** `scripts.write`: the id belongs to a bundled script, which is never modified; `data` {id}. */
+  /**
+   * `scripts.write`: the id belongs to a bundled script and the target is not the assistant's
+   * folder (from which a write replaces it, feature 007); `data` {id}.
+   */
   aiScriptIdBundled: 1202,
   /** `scripts.write`: a user script with this id or this folder exists and `overwrite` is not set; `data` {id, path}. */
   aiScriptExists: 1203,
+  /** `scripts.backups.restore`: the script has no backup of this id (feature 007); `data` {id, backupId}. */
+  scriptBackupNotFound: 1204,
   // Client-side conditions raised by the RPC client itself (never sent by the core).
   clientTimeout: -32001,
   clientDisconnected: -32002,
@@ -469,7 +478,8 @@ export interface ScriptManifest {
   defaultHotkey?: string;
   needsSelection?: boolean;
   undoLabel?: Record<string, string>;
-  legacy?: { source: string; fbeVersion?: string };
+  /** Feature 007 adds `sourceVersion`, the version the original's header states. */
+  legacy?: { source: string; fbeVersion?: string; sourceVersion?: string; aliases?: string[] };
 }
 
 export interface ScriptListEntry {
@@ -597,7 +607,7 @@ export interface SaveNeedsConfirmation {
  * `description` is as read (node ids from the open document's allocator); `documentDetails`
  * the file's document-info after the fill-in of 002 FR-005 (the UI takes the four document
  * details from it); `binaries` the metadata of the binaries an importable entry refers to,
- * held by the hidden session `importId` - a `docId` for `GET /binary/{importId}/{id}/preview`
+ * held by the hidden session `importId` - a `docId` for the core's preview (`binaryPreviewUrl`)
  * (the dialog's cover picture), `binary.copy` and `doc.close`, which the UI calls whatever the
  * outcome. The reader's `warnings` are not shown.
  */
@@ -700,6 +710,21 @@ export interface ScriptWriteResult {
   path: string;
   reloaded: true;
   warnings: string[];
+  /**
+   * Feature 007: the backup of the version the write replaced - the script in effect elsewhere
+   * (a replacing copy from the assistant's folder) or the package of an overwrite.
+   */
+  backupId?: string;
+}
+
+/** One backup of `scripts.backups.list` (feature 007, data-model §9): newest first. */
+export interface ScriptBackupInfo {
+  /** The backup's folder name, `yyyymmddThhmmssZ` (with `-N` for a second one that second). */
+  backupId: string;
+  /** Where the backed-up version came from. */
+  origin: 'bundled' | 'settings' | 'user' | 'portable' | 'assistant';
+  /** ISO 8601, UTC. */
+  createdAt: string;
 }
 
 /** `data` of 1203 `ai.scriptExists`: the package with the id, or the target folder. */
@@ -1148,10 +1173,32 @@ export interface RpcMethods {
     result: { collisions: HotkeyCollision[] };
   };
 
-  // §3.8 scripts
-  'scripts.list': { params: void; result: ScriptListEntry[] };
-  'scripts.source': { params: { scriptId: string }; result: { entryUrl: string } };
+  // §3.8 scripts (feature 007 rpc-api §3.6: the shapes as implemented)
+  'scripts.list': { params: void; result: ScriptsListResult };
+  'scripts.source': { params: { scriptId: string }; result: ScriptSourceResult };
   'scripts.reload': { params: void; result: Empty };
+
+  // §3.x files (feature 007): the script API's mfbe.files - the editor's Save and folder dialogs
+  // and atomic writes; a script never sees a folder.
+  'files.saveText': {
+    params: {
+      suggestedName: string;
+      text: string;
+      encoding?: 'utf-8' | 'utf-16' | 'windows-1251';
+      title?: string;
+    };
+    result: { saved: boolean; name?: string };
+  };
+  'files.saveBinaries': {
+    params: {
+      docId: string;
+      ids?: string[];
+      title?: string;
+      folderToken?: string;
+      overwrite?: boolean;
+    };
+    result: { saved: number; skipped: string[]; folderToken: string };
+  };
   'scripts.lastRun': { params: { scriptId?: string } | void; result: { scriptId?: string } };
 
   // §3.9 dialog (shell-delegated)
@@ -1296,7 +1343,10 @@ export interface RpcMethods {
    * elsewhere or an existing target folder, lifted by `overwrite: true` only when every
    * conflict is the target folder itself; 1002 {path, reason} - `reason: 'symlink'` for a
    * link where none may be - with nothing changed (all or nothing through an aside folder).
-   * Then the rescan of `scripts.reload` and `resources.changed {what: 'scripts'}`.
+   * Then the rescan of `scripts.reload` and `resources.changed {what: 'scripts'}`. Feature 007
+   * (rpc-api §3.6): into the assistant's folder an id in effect elsewhere gets a replacing copy
+   * instead of 1202 / 1203; the version a write replaces is kept first as a backup
+   * (`backupId`).
    */
   'scripts.write': {
     params: {
@@ -1307,6 +1357,25 @@ export interface RpcMethods {
       overwrite?: boolean;
     };
     result: ScriptWriteResult;
+  };
+  /**
+   * The backups the assistant's changes caused for one script, newest first (feature 007,
+   * rpc-api §3.6); `[]` for an id that never had one. invalidParams {field: 'id'}.
+   */
+  'scripts.backups.list': {
+    params: { id: string };
+    result: { backups: ScriptBackupInfo[] };
+  };
+  /**
+   * A backup back in effect (feature 007, data-model §9): one of another origin than the
+   * assistant's removes the assistant's copy (the version under it is in effect again), an
+   * assistant one becomes the assistant's copy again; the version in effect it replaces is
+   * kept as a backup first (`backupId`). Errors: 1204 {id, backupId}, 1002 {path, reason},
+   * invalidParams {field: 'id' | 'backupId'}. Then `resources.changed {what: 'scripts'}`.
+   */
+  'scripts.backups.restore': {
+    params: { id: string; backupId: string };
+    result: { restored: true; backupId?: string };
   };
 
   // feature 005 — ai.*, app.openUrl, test hooks

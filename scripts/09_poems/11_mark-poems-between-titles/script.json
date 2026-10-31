@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "09/mark-poems-between-titles",
+  "name": {
+    "ru": "Разметка стихов между разделами с заголовками",
+    "en": "Mark up poems between titled sections",
+    "uk": "Розмітка віршів між розділами із заголовками"
+  },
+  "description": {
+    "ru": "Размечает стихами короткие строки, составляющие весь текст между заголовком (подзаголовком, эпиграфом, иллюстрацией) и следующим разделом: пустые строки становятся разрывами строф, даты — авторами текста",
+    "en": "Marks up as poems the short lines that make up the whole text between a title (subtitle, epigraph, picture) and the next section: empty lines become stanza breaks, dates become text authors",
+    "uk": "Розмічає віршами короткі рядки, що становлять увесь текст між заголовком (підзаголовком, епіграфом, ілюстрацією) і наступним розділом: порожні рядки стають розривами строф, дати — авторами тексту"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Разметка стихов между разделами с заголовками",
+    "en": "Mark up poems between titled sections"
+  },
+  "legacy": {
+    "source": "09_Стихи/11_Разметка стихов между разделами с заголовками.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.22"
+  }
+}

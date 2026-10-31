@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "02/notes-from-selected-paragraphs",
+  "name": {
+    "ru": "Создать сноски или комментарии из выделенных абзацев",
+    "en": "Create footnotes or comments from the selected paragraphs",
+    "uk": "Створити примітки або коментарі з виділених абзаців"
+  },
+  "description": {
+    "ru": "Делает выделенные абзацы текстами новых сносок или комментариев, а маркеры знаков сноски в тексте перед выделением — ссылками на них",
+    "en": "Turns the selected paragraphs into the texts of new footnotes or comments and the footnote sign markers in the text before the selection into links to them",
+    "uk": "Робить виділені абзаци текстами нових приміток або коментарів, а маркери знаків приміток у тексті перед виділенням — посиланнями на них"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": true,
+  "undoLabel": {
+    "ru": "Создать сноски или комментарии из выделенных абзацев",
+    "en": "Create footnotes or comments from the selected paragraphs"
+  },
+  "legacy": {
+    "source": "02_Примечания/12_Создать сноски или комментарии из выделенных абзацев....js",
+    "fbeVersion": "2.7.9"
+  }
+}

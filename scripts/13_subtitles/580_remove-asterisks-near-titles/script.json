@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "13/remove-asterisks-near-titles",
+  "name": {
+    "ru": "Удалить подзаголовки из звездочек рядом с заголовками",
+    "en": "Remove asterisk subtitles next to titles",
+    "uk": "Видалити підзаголовки із зірочок поруч із заголовками"
+  },
+  "description": {
+    "ru": "Удаляет подзаголовки «* * *», стоящие сразу после заголовка или в конце раздела перед разделом с заголовком, и сообщает, сколько удалено выше и ниже заголовков.",
+    "en": "Removes the \"* * *\" subtitles that stand right after a title or at the end of a section before a section with a title, and tells how many were removed above and below titles.",
+    "uk": "Видаляє підзаголовки «* * *», що стоять одразу після заголовка або наприкінці розділу перед розділом із заголовком, і повідомляє, скільки видалено над заголовками й під ними."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Удалить подзаголовки из звездочек рядом с заголовками",
+    "en": "Remove asterisk subtitles next to titles"
+  },
+  "legacy": {
+    "source": "13_Заголовки, подзаголовки, пустые строки/580_Удалить подзаголовки из звездочек рядом с заголовками.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "3.1"
+  }
+}

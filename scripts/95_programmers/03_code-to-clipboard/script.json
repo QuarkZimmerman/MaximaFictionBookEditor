@@ -1,0 +1,25 @@
+{
+  "manifestVersion": 1,
+  "id": "95/code-to-clipboard",
+  "name": {
+    "ru": "Код в буфер",
+    "en": "Code to the clipboard",
+    "uk": "Код у буфер обміну"
+  },
+  "description": {
+    "ru": "Копирует в буфер обмена JSON документной модели всей книги (так её видят скрипты) — для отладки скриптов.",
+    "en": "Copies the document-model JSON of the whole book (the way scripts see it) to the clipboard - a debugging aid for script authors.",
+    "uk": "Копіює до буфера обміну JSON документної моделі всієї книги (так її бачать скрипти) — для налагодження скриптів."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Код в буфер",
+    "en": "Code to the clipboard"
+  },
+  "legacy": {
+    "source": "95_Для программистов/03_Код в буфер.js",
+    "fbeVersion": "2.7.9"
+  }
+}

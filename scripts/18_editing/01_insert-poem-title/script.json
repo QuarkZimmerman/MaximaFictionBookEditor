@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "18/insert-poem-title",
+  "name": {
+    "ru": "Вставить заголовок стиха",
+    "en": "Insert a poem title",
+    "uk": "Вставити заголовок вірша"
+  },
+  "description": {
+    "ru": "Вставляет пустой заголовок в начало стиха, в котором стоит курсор, или переводит курсор в заголовок стиха, если он уже есть.",
+    "en": "Inserts an empty title at the start of the poem the caret is in, or moves the caret to the poem's title when it has one.",
+    "uk": "Вставляє порожній заголовок на початок вірша, у якому стоїть курсор, або переводить курсор до заголовка вірша, якщо він уже є."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Вставить заголовок стиха",
+    "en": "Insert a poem title"
+  },
+  "legacy": {
+    "source": "18_Мелочи редактирования/01_Вставить заголовок стиха.js",
+    "fbeVersion": "2.7.9"
+  }
+}

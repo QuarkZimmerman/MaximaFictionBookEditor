@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "30/remove-all-numbering",
+  "name": {
+    "ru": "Удалить все 'слои' нумерации вида '1.' и '1)' в началах выделенных абзацев",
+    "en": "Remove all 'layers' of numbering like '1.' and '1)' at the starts of the selected paragraphs",
+    "uk": "Видалити всі 'шари' нумерації виду '1.' і '1)' на початках виділених абзаців"
+  },
+  "description": {
+    "ru": "Удаляет в начале каждого абзаца выделения все идущие подряд числа с точкой или скобкой («1. 2)») вместе с пробелами после них.",
+    "en": "Removes every number with a dot or a parenthesis in a row (“1. 2)”) and the spaces after them from the start of every paragraph of the selection.",
+    "uk": "Видаляє на початку кожного абзацу виділення всі числа з крапкою або дужкою поспіль («1. 2)») разом із пробілами після них."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": true,
+  "undoLabel": {
+    "ru": "Удалить все 'слои' нумерации вида '1.' и '1)' в началах выделенных абзацев",
+    "en": "Remove all 'layers' of numbering like '1.' and '1)' at the starts of the selected paragraphs"
+  },
+  "legacy": {
+    "source": "30_'Числовые' скрипты/37_Удалить все 'слои' нумерации вида '1.' и '1)' в началах выделенных абзацев.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
+  }
+}

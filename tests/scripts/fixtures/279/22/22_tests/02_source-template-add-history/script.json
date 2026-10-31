@@ -1,0 +1,10 @@
+{
+  "manifestVersion": 1,
+  "id": "test-22/source-template-add-history",
+  "name": {
+    "en": "Test: source template, adding and history",
+    "ru": "Test: source template, adding and history"
+  },
+  "kind": "menu",
+  "entry": "index.js"
+}

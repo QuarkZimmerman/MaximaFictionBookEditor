@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "05/remove-images-without-binary",
+  "name": {
+    "ru": "Удалить иллюстрации, не 'ссылающиеся' на наличествующий бинарник",
+    "en": "Remove illustrations that do not 'refer' to an existing binary",
+    "uk": "Видалити ілюстрації, що не 'посилаються' на наявний двійковий об'єкт"
+  },
+  "description": {
+    "ru": "Удаляет из текста книги иллюстрации, адрес которых не указывает на имеющееся в книге вложение, и пустые строки рядом с такими блочными иллюстрациями.",
+    "en": "Removes from the text of the book the illustrations whose address names no binary object of the book, and the empty lines next to such block pictures.",
+    "uk": "Видаляє з тексту книги ілюстрації, адреса яких не вказує на наявне в книзі вкладення, і порожні рядки поряд із такими блоковими ілюстраціями."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Удалить иллюстрации, не 'ссылающиеся' на наличествующий бинарник",
+    "en": "Remove illustrations that do not 'refer' to an existing binary"
+  },
+  "legacy": {
+    "source": "05_Иллюстрации/16_Удалить иллюстрации, не 'ссылающиеся' на наличествующий бинарник.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.0"
+  }
+}

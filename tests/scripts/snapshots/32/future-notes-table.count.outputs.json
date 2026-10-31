@@ -1,0 +1,8 @@
+{
+  "reports": [
+    {
+      "title": "Create a table of footnote markers",
+      "html": "<h2 align=\"center\">Table matching the markers of future footnotes</h2><table  width=\"100%\" border=\"1\" cellpadding=\"5\" cellspacing=\"5\"><tr BGCOLOR=\"DarkKhaki\"><th height=\"40\">Footnote (2)</th><th>No.</th><th>Footnote text (1)</th></tr><tr BGCOLOR=\"Khaki\"><td align=\"right\" BGCOLOR=\"orange\">Текст<sup>1</sup></td><td align=\"center\" BGCOLOR=\"DarkKhaki\">1</td><td BGCOLOR=\"orange\"><sup>1</sup> Одна сноска.</td></tr>\r\n<tr BGCOLOR=\"Khaki\"><td align=\"right\"> и<sup>2</sup></td><td align=\"center\" BGCOLOR=\"DarkKhaki\"><FONT color=\"red\">2</FONT></td><td BGCOLOR=\"#c0c0c0\"></td></tr>\r\n</table><p align=\"center\">Script \"Create a table matching the markers of future footnotes\" v.1.2 (stokber)</p>"
+    }
+  ]
+}

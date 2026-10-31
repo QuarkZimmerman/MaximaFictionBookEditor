@@ -704,6 +704,10 @@ jobs:
           {
             echo "## Maxima Fiction Book Editor ${tag#v}"
             echo
+            # The short list of changes first (FR-075 of feature 007): the "### In short" items of
+            # the version's CHANGELOG.md section; a pre-release (v0.0.6-rc.2) reads 0.0.6's.
+            python3 tools/changelog-in-short.py "${tag#v}"
+            echo
             echo "| Platform | File |"
             echo "|----------|------|"
             # Rows in a fixed order: Windows, Linux, macOS.

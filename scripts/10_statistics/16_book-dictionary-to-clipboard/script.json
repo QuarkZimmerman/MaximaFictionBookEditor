@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "10/book-dictionary-to-clipboard",
+  "name": {
+    "ru": "Словарь книги - в буфер обмена",
+    "en": "Book dictionary to the clipboard",
+    "uk": "Словник книги - у буфер обміну"
+  },
+  "description": {
+    "ru": "Составляет список уникальных слов основного текста книги с числом употреблений и по согласию отправляет его в буфер обмена.",
+    "en": "Lists the unique words of the book's main text with the number of times each occurs and, when asked to, sends the list to the clipboard.",
+    "uk": "Складає список унікальних слів основного тексту книги з кількістю вживань і за згодою надсилає його до буфера обміну."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Словарь книги - в буфер обмена",
+    "en": "Book dictionary to the clipboard"
+  },
+  "legacy": {
+    "source": "10_Статистика/16_Словарь книги - в буфер обмена.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.1"
+  }
+}

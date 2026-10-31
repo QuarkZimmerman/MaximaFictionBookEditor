@@ -1,0 +1,9 @@
+{
+  "manifestVersion": 1,
+  "id": "test16/chain-regexps",
+  "name": {
+    "ru": "Цепочка: поиск по регэкспам",
+    "en": "Chain: regular expression searches"
+  },
+  "kind": "menu"
+}

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Конструктор</last-name>
+			</author>
+			<book-title>Скрипт-конструктор</book-title>
+			<annotation>
+				<p>Аннотация книги про Глава.</p>
+			</annotation>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+			<history>
+				<p>История правок ABC.</p>
+			</history>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Конструктор</p>
+		</title>
+		<section>
+			<title>
+				<p>Глава первая</p>
+			</title>
+			<p>Абзац с двумя рядами пробелов?!.</p>
+			<subtitle>Подзаголовок R</subtitle>
+			<p>Глава 2. Неразмеченная глава в тексте.</p>
+			<empty-line/>
+			<poem>
+				<stanza>
+					<v>Строка  стиха с Rr и неразрывным.</v>
+				</stanza>
+			</poem>
+			<p>Буквы <emphasis>Ёё</emphasis> и <strong>xyz</strong>, ссылка<a l:href="#n1" type="note">1</a>!?.</p>
+		</section>
+	</body>
+	<body name="notes">
+		<section id="n1">
+			<p>Примечание r.</p>
+		</section>
+	</body>
+</FictionBook>

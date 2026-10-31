@@ -3,6 +3,7 @@ import { FBE_DEFAULT_HOTKEYS } from '@/app/defaultHotkeys';
 import {
   DEFAULT_HOTKEYS,
   defaultKeysFor,
+  FIXED_HOTKEYS,
   HotkeyMap,
   captureHotkey,
   chordFromKeyboardEvent,
@@ -478,5 +479,93 @@ describe('the table commands (feature 006: decision 15, C6; resource-formats.md 
       scope.remove();
       outside.remove();
     }
+  });
+});
+
+describe('fixed shortcuts (feature 007: FR-001, DP-2, data-model §2)', () => {
+  it('Ctrl+S always runs File > Save (Cmd+S on macOS)', () => {
+    expect(FIXED_HOTKEYS).toEqual([{ commandId: 'file.save', keys: 'Mod+S' }]);
+    const map = new HotkeyMap('linux');
+    expect(map.lookup('Ctrl+S')[0]).toBe('file.save');
+    expect(map.lookup('Ctrl+S')).toEqual(['file.save']);
+    // F2 stays the assignable shortcut of Save.
+    expect(map.get('file.save')).toBe('F2');
+    expect(map.lookup('F2')).toEqual(['file.save']);
+    const mac = new HotkeyMap('mac');
+    expect(mac.lookup('Meta+S')).toEqual(['file.save']);
+    expect(mac.lookup('Ctrl+S')).toEqual([]);
+  });
+
+  it('refuses a fixed chord for any other command and names the command it runs', () => {
+    const chord = parseChord('Ctrl+S', 'linux');
+    expect(validateChord(chord, 'linux')).toEqual({
+      ok: false,
+      problem: 'fixed',
+      fixedTo: 'file.save',
+    });
+    expect(validateChord(chord, 'linux')).toEqual({
+      ok: false,
+      problem: 'fixed',
+      fixedTo: 'file.save',
+    });
+    // Ctrl+S is no fixed chord on macOS, where Cmd+S is.
+    expect(validateChord(chord, 'mac')).toEqual({ ok: true });
+    expect(validateChord(parseChord('Meta+S', 'mac'), 'mac')).toEqual({
+      ok: false,
+      problem: 'fixed',
+      fixedTo: 'file.save',
+    });
+    const map = new HotkeyMap('linux');
+    expect(map.assign('insert.poem', 'Ctrl+S')).toEqual({
+      ok: false,
+      problem: 'fixed',
+      fixedTo: 'file.save',
+    });
+    expect(map.lookup('Ctrl+S')).toEqual(['file.save']);
+  });
+
+  it('drops a stored or default binding that uses a fixed chord', () => {
+    const map = new HotkeyMap('linux');
+    map.setUserBindings([
+      { commandId: 'script.01/upper-case', keys: 'Ctrl+S' },
+      { commandId: 'insert.poem', keys: 'Ctrl+Alt+P' },
+    ]);
+    expect(map.get('script.01/upper-case')).toBeUndefined();
+    expect(map.userBindings().map((b) => b.commandId)).toEqual(['insert.poem']);
+    expect(map.lookup('Ctrl+S')).toEqual(['file.save']);
+    // A script's default hotkey cannot take it either.
+    map.addDefaults([{ commandId: 'script.99/x', keys: 'Mod+S' }]);
+    expect(map.get('script.99/x')).toBeUndefined();
+    expect(map.collisions()).toEqual([]);
+  });
+
+  it('shows the assigned chord, else the fixed one; tooltips show both', () => {
+    const map = new HotkeyMap('linux');
+    expect(map.display('file.save')).toBe('F2');
+    expect(map.displayAll('file.save')).toBe('F2, Ctrl+S');
+    map.unassign('file.save');
+    expect(map.display('file.save')).toBe('Ctrl+S');
+    expect(map.displayAll('file.save')).toBe('Ctrl+S');
+    expect(map.fixedFor('file.save')).toBe('Ctrl+S');
+    expect(map.fixedFor('file.saveAs')).toBeUndefined();
+    expect(map.displayAll('file.saveAs')).toBe('Shift+F2');
+    expect(map.displayAll('no.such.command')).toBeUndefined();
+    const mac = new HotkeyMap('mac');
+    expect(mac.displayAll('file.save')).toBe('F2, Cmd+S');
+    expect(mac.fixedFor('file.save')).toBe('Meta+S');
+  });
+
+  it('dispatches Ctrl+S to Save from the physical S key, whatever the layout', () => {
+    const map = new HotkeyMap('linux');
+    const seen: string[] = [];
+    const press = (event: Parameters<HotkeyMap['handleKeyDown']>[0]) =>
+      map.handleKeyDown(event, (id) => {
+        seen.push(id);
+        return true;
+      });
+    expect(press(key({ key: 's', code: 'KeyS', ctrlKey: true }))).toBe(true);
+    // A Russian layout: the S key types "ы".
+    expect(press(key({ key: 'ы', code: 'KeyS', ctrlKey: true }))).toBe(true);
+    expect(seen).toEqual(['file.save', 'file.save']);
   });
 });

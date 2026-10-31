@@ -1,8 +1,8 @@
 export { BUTTON_SETS } from './buttonSets';
-export { Dialog, DialogHost } from './Dialog';
-export type { DialogButton, DialogProps } from './Dialog';
+export { Dialog, DialogHost, ViewerFrame } from './Dialog';
+export type { DialogButton, DialogProps, ViewerFrameProps } from './Dialog';
 export { DialogService, useDialogStack } from './DialogService';
-export type { DialogInstance } from './DialogService';
+export type { DialogInstance, DialogKind } from './DialogService';
 export { EncodingDialog } from './EncodingDialog';
 export { ENCODING_CHOICES, normalizeEncoding } from './encodings';
 export { InputDialog } from './InputDialog';

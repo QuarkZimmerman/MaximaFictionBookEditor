@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Разрывы</last-name>
+			</author>
+			<book-title>Разрывы абзацев</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<section>
+			<title>
+				<p>Разрывы абзацев</p>
+			</title>
+			<p>Правильный абзац с точкой.</p>
+			<p>Абзац, разорванный посреди</p>
+			<p>предложения при распознавании.</p>
+			<p>Он сказал: «Пойдём»</p>
+			<p>He said “come”</p>
+			<p>Конец фразы. начало новой фразы.</p>
+			<p>Например, т. д. и прочее.</p>
+			<p>Строка с тире —</p>
+			<poem>
+				<stanza>
+					<v>Строка стиха без точки</v>
+					<v>и строка с тире —</v>
+				</stanza>
+			</poem>
+			<p>, начало с запятой.</p>
+			<p>… и многоточие в начале.</p>
+			<p>3глава текста.</p>
+			<p>Слово—тире прилипло.</p>
+			<subtitle>Подзаголовок без точки</subtitle>
+			<p>Абзац с курсивом в <emphasis>конце</emphasis></p>
+			<p>Абзац со сноской<a l:href="#n1" type="note">1</a></p>
+			<p>Абзац с картинкой в конце <image l:href="#pic.png"/></p>
+			<p>Последний абзац.</p>
+		</section>
+	</body>
+	<body name="notes">
+		<title>
+			<p>Примечания</p>
+		</title>
+		<section id="n1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Примечание.</p>
+		</section>
+	</body>
+	<binary id="pic.png" content-type="image/png">…</binary>
+</FictionBook>

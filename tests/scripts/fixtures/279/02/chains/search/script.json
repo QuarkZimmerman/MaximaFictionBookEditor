@@ -1,0 +1,9 @@
+{
+  "manifestVersion": 1,
+  "id": "test02/chain-search",
+  "name": {
+    "ru": "Цепочка: поиск возможных сносок",
+    "en": "Chain: searches for possible footnotes"
+  },
+  "kind": "menu"
+}

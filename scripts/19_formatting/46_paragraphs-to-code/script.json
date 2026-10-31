@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "19/paragraphs-to-code",
+  "name": {
+    "ru": "Сформатировать абзац(ы) программным кодом",
+    "en": "Format paragraph(s) as program code",
+    "uk": "Відформатувати абзац(и) програмним кодом"
+  },
+  "description": {
+    "ru": "Оформляет программным кодом целиком все абзацы, которых касается выделение (или абзац с курсором), сняв прежнее оформление кодом внутри них.",
+    "en": "Formats the whole of every paragraph the selection touches (or the caret's paragraph) as program code, removing the code formatting already inside it.",
+    "uk": "Оформлює програмним кодом цілком усі абзаци, яких торкається виділення (або абзац із курсором), знявши наявне всередині оформлення кодом."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Сформатировать абзац(ы) программным кодом",
+    "en": "Format paragraph(s) as program code"
+  },
+  "legacy": {
+    "source": "19_Обработка форматирования/46_Сформатировать абзац(ы) программным кодом.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.5"
+  }
+}

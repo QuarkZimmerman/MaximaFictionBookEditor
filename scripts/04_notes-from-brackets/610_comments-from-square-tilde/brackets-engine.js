@@ -12,7 +12,10 @@
 // Errors of the original (a second opening bracket, a closing bracket outside the parent, a
 // link to a missing section) stop the run with the same messages after renumbering what was
 // done, and the caret is put before the faulty bracket.
-// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+// Brought up to FictionBook Editor 2.7.9 (feature 007): its only change in behaviour was the word
+// «раздел» for «секция» in three messages (nested sections, a link to a missing section, a link
+// outside the notes body).
+// The original's notice (2.7.9, the same as 2.7beta1's), kept as written (FR-029):
 // извлечение сносок из разных скобок
 // написал Sclex
 
@@ -231,7 +234,7 @@ export async function runBracketsScript(ctx, options) {
   let sections = notesBody ? notesBody.content.filter((c) => c.type === 'section').map((s) => ({ nodeId: s.attrs.nodeId, id: s.attrs.id ?? '' })) : [];
   if (notesBody && notesBody.content.some((s) => s.type === 'section' && s.content.some((c) => c.type === 'section'))) {
     await mfbe.ui.message(
-      t(ctx, 'В body примечаний есть секции второго уровня вложения. Такие файлы не обрабатываются данным скриптом. Работа скрипта завершена.',
+      t(ctx, 'В body примечаний есть разделы второго уровня вложения. Такие файлы не обрабатываются данным скриптом. Работа скрипта завершена.',
         'The notes body contains nested sections. Such files are not handled by this script.'),
       { icon: 'warning' },
     );
@@ -445,9 +448,9 @@ export async function runBracketsScript(ctx, options) {
           added -= 1;
           await fail(
             next.id && allIds.has(next.id)
-              ? t(ctx, 'Ссылка сноски ссылается не внутрь секции в теле примечаний.\nПозиция обзора установлена на неисправную ссылку.',
+              ? t(ctx, 'Ссылка сноски ссылается не внутрь раздела в теле примечаний.\nПозиция обзора установлена на неисправную ссылку.',
                   'A note link does not point to a section of the notes body.\nThe view is positioned on the faulty link.')
-              : t(ctx, 'Ссылка сноски ссылается на несуществующую секцию.\nПозиция обзора установлена на неисправную ссылку.',
+              : t(ctx, 'Ссылка сноски ссылается на несуществующий раздел.\nПозиция обзора установлена на неисправную ссылку.',
                   'A note link points to a section that does not exist.\nThe view is positioned on the faulty link.'),
             block.id, openAt,
           );

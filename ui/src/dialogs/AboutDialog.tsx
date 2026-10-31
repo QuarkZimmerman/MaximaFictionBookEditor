@@ -27,6 +27,7 @@ import { RpcError, type RpcClient } from '@/rpc/client';
 import { RpcErrorCode, type AppInfo } from '@/rpc/types';
 
 import { Dialog, type DialogButton } from './Dialog';
+import { ExternalLink } from './ExternalLink';
 import { noticeText } from './notices';
 
 import './about.css';
@@ -247,25 +248,11 @@ export function AboutDialog({ ctx, onClose }: AboutDialogProps) {
           </dl>
           <div className="mfbe-about-link">
             {t('dialog.about.repository')}{' '}
-            <a
-              href={REPOSITORY_URL}
-              target="_blank"
-              rel="noreferrer"
-              data-testid="about-repository"
-            >
-              {REPOSITORY_URL}
-            </a>
+            <ExternalLink url={REPOSITORY_URL} rpc={rpc} testId="about-repository" />
           </div>
           <div className="mfbe-about-link">
             {t('dialog.about.maximaLibrary')}{' '}
-            <a
-              href={MAXIMA_LIBRARY_URL}
-              target="_blank"
-              rel="noreferrer"
-              data-testid="about-maxima-library"
-            >
-              {MAXIMA_LIBRARY_URL}
-            </a>
+            <ExternalLink url={MAXIMA_LIBRARY_URL} rpc={rpc} testId="about-maxima-library" />
           </div>
           <div data-testid="about-licence">{t('dialog.about.licence')}</div>
           <div data-testid="about-copyright">{t('dialog.about.copyright')}</div>
@@ -286,10 +273,8 @@ export function AboutDialog({ ctx, onClose }: AboutDialogProps) {
         </p>
         <p className="mfbe-about-note" data-testid="about-licence-where">
           {t('dialog.about.licenceWhere')}{' '}
-          <a href={LICENCE_URL} target="_blank" rel="noreferrer" data-testid="about-licence-link">
-            {LICENCE_URL}
-          </a>
-          . {t('dialog.about.thirdParty')}
+          <ExternalLink url={LICENCE_URL} rpc={rpc} testId="about-licence-link" />.{' '}
+          {t('dialog.about.thirdParty')}
         </p>
         <p
           className="mfbe-about-note"

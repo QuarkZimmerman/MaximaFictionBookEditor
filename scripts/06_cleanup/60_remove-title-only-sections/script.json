@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "06/remove-title-only-sections",
+  "name": {
+    "ru": "Удалить разделы, внутри которых только заголовок и, возможно, пустые строки",
+    "en": "Remove the sections that hold only a title and possibly empty lines",
+    "uk": "Видалити розділи, усередині яких лише заголовок і, можливо, порожні рядки"
+  },
+  "description": {
+    "ru": "Удаляет во всех body разделы, в которых нет ничего, кроме заголовка и пустых строк (и таких же подразделов).",
+    "en": "Removes, in every body, the sections that hold nothing but a title and empty lines (and subsections of the same kind).",
+    "uk": "Видаляє в усіх body розділи, у яких немає нічого, крім заголовка й порожніх рядків (і таких самих підрозділів)."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Удалить разделы, внутри которых только заголовок и, возможно, пустые строки",
+    "en": "Remove the sections that hold only a title and possibly empty lines"
+  },
+  "legacy": {
+    "source": "06_Чистка/60_Удалить разделы, внутри которых только заголовок и, возможно, пустые строки.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.0"
+  }
+}

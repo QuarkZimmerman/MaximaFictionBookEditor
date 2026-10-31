@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "05/place-images-1-3",
+  "name": {
+    "ru": "Расставить иллюстрации по заданным местам 1.3",
+    "en": "Place the illustrations at the given places 1.3",
+    "uk": "Розставити ілюстрації за заданими місцями 1.3"
+  },
+  "description": {
+    "ru": "Ставит прикреплённые неиспользуемые иллюстрации, по порядку вложений, на места пустых изображений (#undefined, #nobin_undefined) первого body, если тех и других поровну, иначе показывает их число и списки.",
+    "en": "Puts the attached unused illustrations, in the order of the binaries, at the places of the empty pictures (#undefined, #nobin_undefined) of the first body when there are as many of each, else shows their counts and lists.",
+    "uk": "Ставить прикріплені невикористані ілюстрації, за порядком вкладень, на місця порожніх зображень (#undefined, #nobin_undefined) першого body, якщо тих і тих порівну, інакше показує їхню кількість і списки."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Расставить иллюстрации по заданным местам 1.3",
+    "en": "Place the illustrations at the given places 1.3"
+  },
+  "legacy": {
+    "source": "05_Иллюстрации/15_Расставить иллюстрации по заданным местам 1.3.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
+  }
+}

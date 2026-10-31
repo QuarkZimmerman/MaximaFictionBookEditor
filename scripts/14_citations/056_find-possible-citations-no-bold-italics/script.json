@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "14/find-possible-citations-no-bold-italics",
+  "name": {
+    "ru": "Поиск предположительных цитат (без жирностей и курсивов)",
+    "en": "Find possible citations (without bold and italic lines)",
+    "uk": "Пошук імовірних цитат (без жирних і курсивних рядків)"
+  },
+  "description": {
+    "ru": "Как расширенный поиск предположительных цитат, но без строк, целиком набранных курсивом или жирным.",
+    "en": "Like the extended search for possible citations, but without the lines set wholly in italics or bold.",
+    "uk": "Як розширений пошук імовірних цитат, але без рядків, цілком набраних курсивом чи жирним."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Поиск предположительных цитат (без жирностей и курсивов)",
+    "en": "Find possible citations (without bold and italic lines)"
+  },
+  "legacy": {
+    "source": "14_Цитаты/056_Поиск предположительных цитат (без жирностей и курсивов).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.42"
+  }
+}

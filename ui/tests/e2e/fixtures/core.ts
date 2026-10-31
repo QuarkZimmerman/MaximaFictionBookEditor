@@ -313,6 +313,8 @@ export interface CoreServer {
   port?: number;
   token?: string;
   dataDir?: string;
+  /** The core's process id (the performance journeys read its peak memory). */
+  pid?: number;
   binary?: string;
   rpcClient?: NodeRpcClient;
   stop(): Promise<void>;
@@ -384,6 +386,7 @@ async function startCore(
     port: ready.port,
     token: ready.token,
     dataDir,
+    pid: child.pid,
     binary,
     rpcClient,
     async stop() {
@@ -592,6 +595,8 @@ export interface CoreHandle {
   port?: number;
   token?: string;
   dataDir?: string;
+  /** The core's process id (feature 007's picture view journey reads its peak memory). */
+  pid?: number;
   /** JSON-RPC call to the core (throws in core-less mode). */
   rpc<T = unknown>(method: string, params?: unknown): Promise<T>;
   /** Like `rpc()` but resolves a `{jobId}` answer through `job.done` / `job.failed`. */
@@ -696,6 +701,7 @@ export const test = base.extend<
       port: testCore.port,
       token: testCore.token,
       dataDir: testCore.dataDir,
+      pid: testCore.pid,
       rpc: (method, params) => requireCore().call(method, params),
       rpcJob: (method, params, timeoutMs) => runJob(requireCore(), method, params, timeoutMs),
       enqueueDialog: async (method, result) => {

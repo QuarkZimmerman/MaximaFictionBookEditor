@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "09/poems-remove-bold-italics",
+  "name": {
+    "ru": "Расформатировать все стихи от жирности и курсива",
+    "en": "Remove bold and italics from all poems",
+    "uk": "Прибрати жирний шрифт і курсив з усіх віршів"
+  },
+  "description": {
+    "ru": "Снимает жирность и курсив во всех стихах книги: выделяет стих за стихом от начала документа и расформатирует его абзацы.",
+    "en": "Removes bold and italics from every poem of the book: selects one poem after another from the start of the document and unformats its paragraphs.",
+    "uk": "Знімає жирний шрифт і курсив в усіх віршах книги: виділяє вірш за віршем від початку документа й розформатовує його абзаци."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Расформатировать все стихи от жирности и курсива",
+    "en": "Remove bold and italics from all poems"
+  },
+  "legacy": {
+    "source": "09_Стихи/39_Расформатировать все стихи от жирности и курсива.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.5"
+  }
+}

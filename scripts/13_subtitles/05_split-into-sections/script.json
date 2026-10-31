@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "08/split-into-sections",
+  "name": {
+    "ru": "Разметить заголовки разделов либо подзаголовки, найденные по регэкспу...",
+    "en": "Mark up section titles or subtitles found by a regular expression...",
+    "uk": "Розмітити заголовки розділів або підзаголовки, знайдені за регулярним виразом..."
+  },
+  "description": {
+    "ru": "Превращает абзацы разделов, подходящие под регэксп (свой или один из готовых), в заголовки новых разделов, захватывая в заголовок до трёх абзацев до и после, или в подзаголовки; тела примечаний и комментариев не затрагиваются.",
+    "en": "Turns the paragraphs of sections that match a regular expression (your own or a ready-made one) into titles of new sections, taking up to three paragraphs before and after into the title, or into subtitles; the notes and comments bodies are left alone.",
+    "uk": "Перетворює абзаци розділів, що відповідають регулярному виразу (власному або одному з готових), на заголовки нових розділів, захоплюючи до заголовка до трьох абзаців до і після, або на підзаголовки; тіла приміток і коментарів не зачіпаються."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Разметить заголовки разделов либо подзаголовки, найденные по регэкспу...",
+    "en": "Mark up section titles or subtitles found by a regular expression..."
+  },
+  "legacy": {
+    "source": "13_Заголовки, подзаголовки, пустые строки/05_Разметить заголовки разделов либо подзаголовки, найденные по регэкспу....js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "4.7"
+  }
+}

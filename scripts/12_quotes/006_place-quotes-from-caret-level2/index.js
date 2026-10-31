@@ -1,6 +1,9 @@
-// Converted from 12_Обработка кавычек/006_Расстановка елочек и лапок (с позиции курсора, начиная со 2-го уровня).js (FictionBook Editor).
-// Turns straight quotes into typographic ones from the caret to the end of the book, assuming the caret is inside an open level-1 quote; see quotes.js for the rules.
-// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+// Converted from FictionBook Editor 2.7.9: Scripts/12_Обработка кавычек/006_Проставить елочки и лапки (от позиции курсора; как будто перед курсором 2 незакрытые кавычки).js
+// (Sclex, version 3.9; first converted from 2.7beta1's 006_Расстановка елочек и лапок (с позиции курсора, начиная со 2-го уровня).js).
+// As 004 (from the caret, or the selection), counting two quotes as open before the caret; see quotes.js for the rules and the differences from the original.
+// Fix: the script names itself "... 2 незакрытые кавычки" in its messages; 2.7.9 wrote 005's name
+// ("... 1 незакрытая кавычка") there.
+// The original's notice, kept as written (FR-029):
 //Скрипт "Новые кавычки на елочки"
 //Автор Sclex
 //Подробности тут: http://www.fictionbook.org/forum/viewtopic.php?f=7&t=4412
@@ -8,5 +11,14 @@
 import { placeQuotes } from './quotes.js';
 
 export default async function run(ctx) {
-  await placeQuotes(ctx, { startLevel: 2, fromCursor: true });
+  await placeQuotes(ctx, {
+    version: {
+      ru: "Скрипт «Проставить елочки и лапки (от позиции курсора; как будто перед курсором 2 незакрытые кавычки)» (версия 3.9)",
+      en: "Script \"Place guillemets and low quotes (from the caret; as if 2 quotes before the caret were still open)\" (version 3.9)",
+    },
+    startLevel: 2,
+    fromCaret: true,
+    skipDescriptionEnd: true,
+    block: ['элемента', 'an element'],
+  });
 }

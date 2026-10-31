@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Эпиграфы</last-name>
+			</author>
+			<book-title>Неразмеченные эпиграфы</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>fixture</program-used>
+			<date value="2024-01-01">2024</date>
+			<id>fixture-279-37-unmarked</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Книга неразмеченных эпиграфов</p>
+		</title>
+		<section>
+			<title>
+				<p>Глава первая</p>
+			</title>
+			<p>Я помню чудное мгновенье:</p>
+			<p>Передо мной явилась ты,</p>
+			<p>Как мимолётное виденье,</p>
+			<p>А. С. Пушкин</p>
+			<p>Текст первой главы начинается здесь. Этот абзац нарочно сделан длиннее восьмидесяти знаков.</p>
+			<p>Конец первой главы.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава вторая</p>
+			</title>
+			<epigraph>
+				<p>Уже размеченный эпиграф.</p>
+				<text-author>Автор Размеченный</text-author>
+			</epigraph>
+			<p>Текст второй главы.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава третья</p>
+			</title>
+			<image l:href="#pic.png"/>
+			<p>Короткая строка</p>
+			<p>Автор Картинкин</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава четвёртая</p>
+			</title>
+			<p>Длинный первый абзац главы, в котором больше восьмидесяти знаков, так что он не годится в эпиграф.</p>
+			<p>И второй абзац главы тоже нарочно сделан длиннее восьмидесяти знаков, чтобы не стать эпиграфом.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава пятая</p>
+			</title>
+			<subtitle>Подзаголовок сразу после заголовка</subtitle>
+			<p>Строка после подзаголовка</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава шестая</p>
+			</title>
+			<p>Всё проходит.[1]</p>
+			<p>И это пройдёт.<sup>2</sup></p>
+			<p>Длинный абзац текста шестой главы, которому следует быть длиннее восьмидесяти знаков ровно.</p>
+			<p>Конец шестой главы.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава седьмая</p>
+			</title>
+			<p>Песня ветра,</p>
+			<p>(Из старой песни)</p>
+			<p>Короче строка.</p>
+			<p>Ещё короткая строка.</p>
+			<p>Текст седьмой главы — абзац длиной более восьмидесяти знаков, чтобы оборвать список строк.</p>
+			<p>Последний абзац седьмой главы.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава восьмая</p>
+			</title>
+			<p>Фирма «Ромашка»®</p>
+			<p>Автор Фирмович</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава девятая</p>
+			</title>
+			<p>Строка с мяг­ким пере­носом,</p>
+			<p>Строка с картинкой <image l:href="#pic.png"/> внутри,</p>
+			<p>Автор Девятый</p>
+			<p>Текст девятой главы: этот абзац тоже нарочно сделан длиннее, чем восемьдесят знаков подряд.</p>
+			<p>Конец девятой главы.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава десятая</p>
+			</title>
+			<p>Первая строка,</p>
+			<empty-line/>
+			<p>Вторая строка,</p>
+			<p>Автор Десятый</p>
+			<p>Текст десятой главы: и этот абзац нарочно сделан длиннее, чем восемьдесят знаков подряд.</p>
+			<p>Конец десятой главы.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава одиннадцатая</p>
+			</title>
+			<poem>
+				<title>
+					<p>Стихотворение</p>
+				</title>
+				<stanza>
+					<v>Строка стиха</v>
+				</stanza>
+			</poem>
+			<p>Текст одиннадцатой главы.</p>
+		</section>
+		<section>
+			<title>
+				<p>Часть вторая</p>
+			</title>
+			<section>
+				<title>
+					<p>Глава двенадцатая</p>
+				</title>
+				<p>Короткая строка эпиграфа</p>
+				<p>Автор Вложенный</p>
+				<p>Текст двенадцатой главы, который нарочно сделан длиннее, чем восемьдесят знаков подряд.</p>
+				<p>Конец.</p>
+			</section>
+		</section>
+		<section id="ch13">
+			<title>
+				<p>Глава тринадцатая</p>
+			</title>
+			<p>Строка раздела с идентификатором,</p>
+			<p>Автор Идентификаторов</p>
+			<p>Текст тринадцатой главы, который нарочно сделан длиннее, чем восемьдесят знаков подряд.</p>
+			<cite>
+				<p>Цитата в разделе с идентификатором.</p>
+			</cite>
+		</section>
+		<section>
+			<title>
+				<p>Глава четырнадцатая</p>
+			</title>
+			<p>Строка раздела без идентификатора,</p>
+			<p>Автор Безыдентификаторов</p>
+			<p>Текст четырнадцатой главы, который нарочно сделан длиннее, чем восемьдесят знаков подряд.</p>
+			<cite>
+				<p>Цитата в разделе без идентификатора.</p>
+			</cite>
+		</section>
+	</body>
+	<body name="notes">
+		<title>
+			<p>Примечания</p>
+		</title>
+		<section id="n_1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Текст примечания.</p>
+		</section>
+	</body>
+	<binary id="pic.png" content-type="image/png">iVBORw0KGgoAAAANSUhEUgAAAAgAAAAGAQMAAADEy024AAAABlBMVEVAYKD/0EA3Gm2JAAAADklEQVQI12NgYLCBQgYABawA8UkjcVEAAAAASUVORK5CYII=</binary>
+</FictionBook>

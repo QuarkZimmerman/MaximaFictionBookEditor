@@ -8,6 +8,7 @@ Images come from tests/fixtures/images/ (tiny 8x6 pictures, < 1 KB each).
 from __future__ import annotations
 
 import base64
+import colorsys
 import json
 import math
 import pathlib
@@ -2923,6 +2924,414 @@ def ai_tables_book() -> str:
 """
 
 
+# ----------------------------------------------------------------------------------------------
+# Feature 007 (US6, US7; tasks T003, T099, T106, T107): pictures at their natural size.
+# inline-pictures.fb2 - a 572 x 603 JPEG and a 16 x 16 PNG as inline pictures in every place a
+#   paragraph can hold one, the description's annotation and history included, plus one picture
+#   in a table cell and one block picture;
+# picture-view.fb2 - the binaries of the picture view: small.jpg (572 x 603), big.jpg
+#   (3000 x 4000), scan.tif (a TIFF, which the engine does not show) and blob.bin (undecodable);
+# many-inline-pictures.fb2 - 300 distinct inline pictures of 800 x 600 in 300 paragraphs.
+# ----------------------------------------------------------------------------------------------
+
+# The DC table of JPEG Annex K.3, used for every component. The AC table holds the end-of-block
+# code alone, since every block of these pictures is one flat colour.
+JPEG_DC_BITS = bytes([0, 1, 5, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0])
+JPEG_DC_VALUES = bytes(range(12))
+PHOTO = ("photo-572x603.jpg", 572, 603)
+ICON = ("icon-16x16.png", 16, 16)
+PV_SMALL = ("small.jpg", 572, 603)
+PV_BIG = ("big.jpg", 3000, 4000)
+PV_SCAN = ("scan.tif", 640, 480)
+PV_BLOB = "blob.bin"
+MANY_PICTURES = 300
+MANY_SIZE = (800, 600)
+MANY_PER_SECTION = 30
+
+
+def flat_jpeg(width: int, height: int, colour_at) -> bytes:
+    """A baseline JPEG (standard library only) made of 8 x 8 blocks of one colour each: YCbCr
+    4:4:4, every block holding its DC coefficient alone, quantised by 8. `colour_at(x, y)` gives
+    the (r, g, b) of the block whose top-left pixel is (x, y)."""
+    codes, code, k = {}, 0, 0
+    for length in range(1, 17):
+        for _ in range(JPEG_DC_BITS[length - 1]):
+            codes[JPEG_DC_VALUES[k]] = (code, length)
+            code, k = code + 1, k + 1
+        code <<= 1
+    data = bytearray()
+    acc = nbits = 0
+
+    def put(value: int, length: int) -> None:
+        nonlocal acc, nbits
+        acc, nbits = (acc << length) | value, nbits + length
+        while nbits >= 8:
+            nbits -= 8
+            byte = (acc >> nbits) & 0xFF
+            data.append(byte)
+            if byte == 0xFF:
+                data.append(0)  # byte stuffing
+        acc &= (1 << nbits) - 1
+
+    previous = [0, 0, 0]
+    for y in range(0, height, 8):
+        for x in range(0, width, 8):
+            r, g, b = colour_at(x, y)
+            ycc = (
+                0.299 * r + 0.587 * g + 0.114 * b,
+                -0.168736 * r - 0.331264 * g + 0.5 * b + 128,
+                0.5 * r - 0.418688 * g - 0.081312 * b + 128,
+            )
+            for component, value in enumerate(ycc):
+                dc = max(-128, min(127, round(value) - 128))  # (8 x mean) / 8
+                diff, previous[component] = dc - previous[component], dc
+                size = abs(diff).bit_length()
+                put(*codes[size])
+                if size:
+                    put(diff if diff > 0 else diff + (1 << size) - 1, size)
+                put(0, 1)  # end of block, the AC table's only code
+    if nbits:
+        put((1 << (8 - nbits)) - 1, 8 - nbits)
+
+    def segment(marker: int, body: bytes) -> bytes:
+        return struct.pack(">HH", 0xFF00 | marker, len(body) + 2) + body
+
+    components = b"".join(bytes([c, 0x11, 0]) for c in (1, 2, 3))
+    return b"".join(
+        [
+            b"\xff\xd8",
+            segment(0xE0, b"JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00"),
+            segment(0xDB, b"\x00" + bytes([8]) * 64),
+            segment(0xC0, struct.pack(">BHHB", 8, height, width, 3) + components),
+            segment(
+                0xC4,
+                b"\x00" + JPEG_DC_BITS + JPEG_DC_VALUES + b"\x10" + bytes([1] + [0] * 15) + b"\x00",
+            ),
+            segment(0xDA, b"\x03" + b"".join(bytes([c, 0]) for c in (1, 2, 3)) + b"\x00\x3f\x00"),
+            bytes(data),
+            b"\xff\xd9",
+        ]
+    )
+
+
+def picture_pattern(width: int, height: int, ground, frame, diagonal, circle, line: int = 8):
+    """`colour_at(x, y)` of a picture with a frame, both diagonals and a circle on a plain ground,
+    like ti_png's, judged at the centre of the 8 x 8 block (or pixel) whose corner is (x, y)."""
+    radius, diagonal_length = min(width, height) * 0.4, math.hypot(width, height)
+
+    def colour_at(x: int, y: int):
+        cx, cy = x + 4, y + 4
+        if x < line or y < line or x + line >= width or y + line >= height:
+            return frame
+        across = abs(cy * width - cx * height) / diagonal_length
+        down = abs(cy * width - (width - cx) * height) / diagonal_length
+        if min(across, down) < line * 0.75:
+            return diagonal
+        if abs(math.hypot(cx - width / 2, cy - height / 2) - radius) < line * 0.75:
+            return circle
+        return ground
+
+    return colour_at
+
+
+def deflate_tiff(width: int, height: int, colour_at) -> bytes:
+    """A baseline RGB TIFF in one Deflate-compressed strip (compression 8), little-endian."""
+    rows = bytearray()
+    for y in range(height):
+        for x in range(width):
+            rows += bytes(colour_at(x, y))
+    strip = zlib.compress(bytes(rows), 9)
+    short, long_, rational = 3, 4, 5
+    entries = 13
+    extra = 8 + 2 + entries * 12 + 4  # BitsPerSample, then the two resolutions, then the strip
+    bits_at, xres_at, yres_at, strip_at = extra, extra + 6, extra + 14, extra + 22
+
+    def entry(tag: int, kind: int, count: int, value: int) -> bytes:
+        if kind == short and count == 1:
+            return struct.pack("<HHIHH", tag, kind, count, value, 0)
+        return struct.pack("<HHII", tag, kind, count, value)
+
+    ifd = b"".join(
+        [
+            struct.pack("<H", entries),
+            entry(256, long_, 1, width),
+            entry(257, long_, 1, height),
+            entry(258, short, 3, bits_at),
+            entry(259, short, 1, 8),  # Adobe Deflate
+            entry(262, short, 1, 2),  # RGB
+            entry(273, long_, 1, strip_at),
+            entry(277, short, 1, 3),
+            entry(278, long_, 1, height),
+            entry(279, long_, 1, len(strip)),
+            entry(282, rational, 1, xres_at),
+            entry(283, rational, 1, yres_at),
+            entry(284, short, 1, 1),  # chunky
+            entry(296, short, 1, 2),  # inches
+            struct.pack("<I", 0),
+        ]
+    )
+    return b"".join(
+        [
+            b"II" + struct.pack("<HI", 42, 8),
+            ifd,
+            struct.pack("<HHH", 8, 8, 8),
+            struct.pack("<II", 300, 1) * 2,
+            strip,
+        ]
+    )
+
+
+def frame_png(width: int, height: int, ground, frame, line: int = 4) -> bytes:
+    """A palette PNG of a plain ground in a frame: an 800 x 600 one compresses to under 1 KB, so
+    that 300 distinct pictures fit a small fixture."""
+    edge = b"\x00" + bytes([1]) * width
+    middle = b"\x00" + bytes([1]) * line + bytes(width - 2 * line) + bytes([1]) * line
+    raw = edge * line + middle * (height - 2 * line) + edge * line
+
+    def chunk(kind: bytes, data: bytes) -> bytes:
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
+
+    return b"".join(
+        [
+            b"\x89PNG\r\n\x1a\n",
+            chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 3, 0, 0, 0)),
+            chunk(b"PLTE", bytes(ground) + bytes(frame)),
+            chunk(b"IDAT", zlib.compress(raw, 9)),
+            chunk(b"IEND", b""),
+        ]
+    )
+
+
+def hue_colour(index: int, count: int, saturation: float, value: float) -> tuple[int, int, int]:
+    """The colour of hue index / count (HSV), so that every picture of a set differs."""
+    return tuple(round(c * 255) for c in colorsys.hsv_to_rgb(index / count, saturation, value))
+
+
+PHOTO_COLOURS = ((0xE8, 0xEE, 0xF4), (0x1F, 0x3A, 0x5F), (0xC0, 0x39, 0x2B), (0x27, 0xAE, 0x60))
+
+
+def photo_jpeg(width: int, height: int) -> bytes:
+    return flat_jpeg(width, height, picture_pattern(width, height, *PHOTO_COLOURS))
+
+
+def binaries_xml(binaries: list[tuple[str, str, bytes]]) -> str:
+    return "\n".join(
+        f'\t<binary id="{binary}" content-type="{kind}">{b64_bytes(data)}\n</binary>'
+        for binary, kind, data in binaries
+    )
+
+
+def inline_pictures_book() -> str:
+    """inline-pictures.fb2 (T003, T106): every paragraph that holds a picture has an id, which
+    names the place, for the journeys."""
+    photo, icon = img(PHOTO[0]), img(ICON[0])
+    cell = fb2_table([[f"{photo} A picture in a table cell", "The next cell"]], 3, ' id="cell"')
+    binaries = binaries_xml(
+        [
+            (PHOTO[0], "image/jpeg", photo_jpeg(PHOTO[1], PHOTO[2])),
+            (ICON[0], "image/png", ti_png(ICON[1], ICON[2])),
+        ]
+    )
+    return f"""<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="{FB_NS}" xmlns:l="{XLINK_NS}">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Picture</first-name>
+				<last-name>Fixture</last-name>
+			</author>
+			<book-title>Inline pictures</book-title>
+			<annotation>
+				<p id="annotation">The annotation holds a photo {photo} and an icon {icon} in its text.</p>
+			</annotation>
+			<lang>en</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>make-fixtures.py</program-used>
+			<date value="2026-10-31">2026-10-31</date>
+			<id>fixture-inline-pictures</id>
+			<version>1.0</version>
+			<history>
+				<p id="history">The history holds a photo {photo} in its text.</p>
+			</history>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Inline pictures</p>
+		</title>
+		<section>
+			<title>
+				<p id="title">A title with a photo {photo} and an icon {icon}</p>
+			</title>
+			<epigraph>
+				<p id="epigraph">An epigraph with a photo {photo} in its text.</p>
+			</epigraph>
+			<p id="alone">{photo}</p>
+			<p id="running">Running text before the photo {photo} and after it, then an icon {icon} in the middle of a sentence that goes on long enough to wrap in a narrow window.</p>
+			<p id="first-child">{photo} The paragraph starts with the photo: no indent, and no horizontal scroll bar.</p>
+			<p id="icon-alone">{icon}</p>
+			<p id="sup">A superscript picture<sup>{icon}</sup> and a superscript photo<sup>{photo}</sup> in the text.</p>
+			<p id="note-link">A note link that holds a picture<a l:href="#n1" type="note">{icon}</a> and one that holds a photo<a l:href="#n2" type="note">{photo}</a>.</p>
+			<poem>
+				<stanza>
+					<v id="poem">A verse with a photo {photo} in it</v>
+					<v>and a verse with no picture.</v>
+				</stanza>
+			</poem>
+			<cite>
+				<p id="cite">A cite with a photo {photo} in its text.</p>
+			</cite>
+{cell}
+			<p>A block picture follows.</p>
+			<image l:href="#{PHOTO[0]}" id="block"/>
+			<p id="last">The last paragraph.</p>
+		</section>
+	</body>
+	<body name="notes">
+		<section id="n1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>The note whose link holds an icon.</p>
+		</section>
+		<section id="n2">
+			<title>
+				<p>2</p>
+			</title>
+			<p>The note whose link holds a photo.</p>
+		</section>
+	</body>
+{binaries}
+</FictionBook>
+"""
+
+
+def picture_view_book() -> str:
+    """picture-view.fb2 (T003, T099): each picture once in the body; blob.bin is referenced by
+    none."""
+    small, big, scan = PV_SMALL, PV_BIG, PV_SCAN
+    scan_colours = ((0xF4, 0xEC, 0xD8), (0x5A, 0x3E, 0x1B), (0x8E, 0x44, 0xAD), (0x16, 0xA0, 0x85))
+    scan_pattern = picture_pattern(scan[1], scan[2], *scan_colours, line=4)
+    binaries = binaries_xml(
+        [
+            (small[0], "image/jpeg", photo_jpeg(small[1], small[2])),
+            (big[0], "image/jpeg", photo_jpeg(big[1], big[2])),
+            (scan[0], "image/tiff", deflate_tiff(scan[1], scan[2], scan_pattern)),
+            (PV_BLOB, "application/octet-stream", b"These bytes are no picture of any kind.\n" * 4),
+        ]
+    )
+    sections = "\n".join(
+        f"""		<section>
+			<title>
+				<p>{name}: {width} × {height}</p>
+			</title>
+			<image l:href="#{name}"/>
+			<p>The picture {name} above.</p>
+		</section>"""
+        for name, width, height in (small, big, scan)
+    )
+    return f"""<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="{FB_NS}" xmlns:l="{XLINK_NS}">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Picture</first-name>
+				<last-name>Fixture</last-name>
+			</author>
+			<book-title>The picture view</book-title>
+			<lang>en</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>make-fixtures.py</program-used>
+			<date value="2026-10-31">2026-10-31</date>
+			<id>fixture-picture-view</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>The picture view</p>
+		</title>
+{sections}
+	</body>
+{binaries}
+</FictionBook>
+"""
+
+
+def many_inline_pictures_book() -> str:
+    """many-inline-pictures.fb2 (T003, T107): 300 paragraphs, each with its own 800 x 600 inline
+    picture, in sections of 30."""
+    width, height = MANY_SIZE
+    names = [f"many-{n:03d}.png" for n in range(1, MANY_PICTURES + 1)]
+    sections = []
+    for start in range(0, MANY_PICTURES, MANY_PER_SECTION):
+        paragraphs = "\n".join(
+            f"\t\t\t<p>Paragraph {n + 1} with its picture {img(names[n])} in the text.</p>"
+            for n in range(start, start + MANY_PER_SECTION)
+        )
+        sections.append(
+            f"\t\t<section>\n\t\t\t<title>\n\t\t\t\t<p>Pictures {start + 1} to "
+            f"{start + MANY_PER_SECTION}</p>\n\t\t\t</title>\n{paragraphs}\n\t\t</section>"
+        )
+    binaries = binaries_xml(
+        [
+            (
+                name,
+                "image/png",
+                frame_png(
+                    width,
+                    height,
+                    hue_colour(n, MANY_PICTURES, 0.2, 0.96),
+                    hue_colour(n, MANY_PICTURES, 0.8, 0.45),
+                ),
+            )
+            for n, name in enumerate(names)
+        ]
+    )
+    body = "\n".join(sections)
+    return f"""<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="{FB_NS}" xmlns:l="{XLINK_NS}">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Picture</first-name>
+				<last-name>Fixture</last-name>
+			</author>
+			<book-title>Many inline pictures</book-title>
+			<lang>en</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>make-fixtures.py</program-used>
+			<date value="2026-10-31">2026-10-31</date>
+			<id>fixture-many-inline-pictures</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Many inline pictures</p>
+		</title>
+{body}
+	</body>
+{binaries}
+</FictionBook>
+"""
+
+
 def main() -> None:
     write("legacy-cp1251.fb2", LEGACY, "cp1251")
     write("modern-utf8.fb2", MODERN)
@@ -2974,6 +3383,10 @@ def main() -> None:
     ai_tables = ai_tables_book()
     check_tables_book("ai-tables.fb2", ai_tables, irregular=1)
     write("ai-tables.fb2", ai_tables)
+    # Feature 007.
+    write("inline-pictures.fb2", inline_pictures_book())
+    write("picture-view.fb2", picture_view_book())
+    write("many-inline-pictures.fb2", many_inline_pictures_book())
 
 
 if __name__ == "__main__":

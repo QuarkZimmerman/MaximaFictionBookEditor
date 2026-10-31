@@ -159,13 +159,16 @@ describe('bridge and mfbe object', () => {
         'ui',
         'edit',
         'env',
+        'clipboard',
+        'files',
+        'scripts',
         'MsgBox',
         'InputBox',
         'BeginUndoUnit',
         'EndUndoUnit',
       ].sort(),
     );
-    expect(mfbe.version).toBe(1);
+    expect(mfbe.version).toBe(2); // script API version 2 (feature 007)
     expect(Object.keys(mfbe.doc).sort()).toEqual(
       [
         'get',
@@ -189,9 +192,13 @@ describe('bridge and mfbe object', () => {
       ['get', 'set', 'replaceText', 'wrap', 'unwrap', 'selectNode', 'scrollIntoView'].sort(),
     );
     expect(Object.keys(mfbe.ui).sort()).toEqual(
-      ['message', 'prompt', 'form', 'status', 'progress'].sort(),
+      ['message', 'prompt', 'form', 'status', 'progress', 'report'].sort(),
     );
     expect(Object.keys(mfbe.edit).sort()).toEqual(['label', 'nbsp', 'symbols'].sort());
+    // Version 2 (feature 007).
+    expect(Object.keys(mfbe.clipboard).sort()).toEqual(['readText', 'writeText']);
+    expect(Object.keys(mfbe.files).sort()).toEqual(['saveBinaries', 'saveText']);
+    expect(Object.keys(mfbe.scripts)).toEqual(['run']);
     expect(mfbe.edit.nbsp).toBe('\u00A0');
     expect(Object.keys(mfbe.env).sort()).toEqual(['settings', 'docLanguage'].sort());
     expect(Object.isFrozen(mfbe.doc)).toBe(true);
@@ -296,6 +303,7 @@ describe('bridge and mfbe object', () => {
       script: { id: 'a', name: 'A', group: 'g', kind: 'menu' },
       uiLanguage: 'en',
       treeNode: { nodeId: 'n1', type: 'section' },
+      startedBy: 'user',
     });
     expect(ctx.cancelled).toBe(true);
     expect(ctx.script).toEqual({ id: 'a', name: 'A', group: 'g', kind: 'menu' });
@@ -360,6 +368,17 @@ describe('error mapping', () => {
     const described = describeError(syntax, entry);
     expect(described.line).toBeUndefined();
     expect(described.message).toBe("Unexpected token '}'");
+
+    // Feature 007: an API error the script let through keeps its machine-readable code.
+    const refused = Object.assign(new Error('no clipboard here'), {
+      name: 'ScriptApiError',
+      code: 'clipboard.readNotAllowed',
+    });
+    expect(describeError(refused, entry)).toMatchObject({
+      name: 'ScriptApiError',
+      code: 'clipboard.readNotAllowed',
+    });
+    expect(describeError(syntax, entry)).not.toHaveProperty('code');
 
     expect(describeError('plain string', entry)).toEqual({
       name: 'Error',

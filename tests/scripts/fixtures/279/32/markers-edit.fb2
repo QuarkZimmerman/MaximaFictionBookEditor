@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Маркеры</last-name>
+			</author>
+			<book-title>Маркеры сносок: правка</book-title>
+			<annotation>
+				<p>Аннотация со сноской<sup>1 </sup> и номером (1) внутри.</p>
+			</annotation>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>fixture</program-used>
+			<date value="2024-01-01">2024</date>
+			<id>conv-279-32-edit</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Маркеры сносок</p>
+		</title>
+		<section>
+			<title>
+				<p>Пробелы в маркерах</p>
+			</title>
+			<p>Текст<sup> 2</sup> со сноской.</p>
+			<p>Текст<sup>3&#160;&#160;</sup>с двумя неразрывными.</p>
+			<p>   <sup>4</sup> Текст сноски с пробелами в начале.</p>
+			<p><emphasis>Курсив<sup> 5 </sup></emphasis> внутри.</p>
+			<p><sup>6</sup>Ничего не меняется.</p>
+			<p>С языком<sup xml:lang="en"> 7</sup> не трогается.</p>
+			<p>Тонкая шпация<sup>8&#8201;</sup> не пробел для JScript.</p>
+		</section>
+		<section>
+			<title>
+				<p>Числа в скобках</p>
+			</title>
+			<p>Сноска(12) и ещё (3).</p>
+			<p>Не числа: (1a), (b2), ( 4 ), (-5), (2.5).</p>
+			<p>Вложенная ((6)) скобка.</p>
+			<p>Курсив <emphasis>(7)</emphasis> целиком и разорванный (<emphasis>8</emphasis>).</p>
+			<p>Ссылка <a l:href="#n1" type="note">(9)</a> на сноску.</p>
+			<poem>
+				<stanza>
+					<v>(10) стих</v>
+				</stanza>
+				<date>(11)</date>
+			</poem>
+			<subtitle>(12) подзаголовок</subtitle>
+			<table>
+				<tr>
+					<td>(13)</td>
+				</tr>
+			</table>
+			<cite>
+				<p>Цитата (14)</p>
+				<text-author>(15) автор</text-author>
+			</cite>
+		</section>
+		<section>
+			<title>
+				<p>Выделение</p>
+			</title>
+			<p><emphasis>Начало (21)</emphasis> и текст (22).</p>
+			<p>(23) в середине.</p>
+			<p>Конец (24) и <emphasis>курсив (25)</emphasis> в конце.</p>
+			<p>(26) после выделения.</p>
+			<p>(27) последний.</p>
+		</section>
+	</body>
+	<body name="notes">
+		<title>
+			<p>Примечания</p>
+		</title>
+		<section id="n1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>  <sup>2</sup> Текст сноски (28).</p>
+		</section>
+	</body>
+</FictionBook>

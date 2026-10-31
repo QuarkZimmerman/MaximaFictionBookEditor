@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "18/remove-spaces-and-hyphens",
+  "name": {
+    "ru": "Удалить все пробелы и дефисы в выделении",
+    "en": "Remove all spaces and hyphens in the selection",
+    "uk": "Видалити всі пробіли й дефіси у виділенні"
+  },
+  "description": {
+    "ru": "Удаляет все пробелы, неразрывные пробелы и дефисы из выделенного текста (также в аннотации и истории книги), сохраняя форматирование",
+    "en": "Removes every space, non-breaking space and hyphen from the selected text (in the book's annotation and history too), keeping the formatting",
+    "uk": "Видаляє всі пробіли, нерозривні пробіли та дефіси з виділеного тексту (також в анотації та історії книги), зберігаючи форматування"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": true,
+  "undoLabel": {
+    "ru": "Удалить все пробелы и дефисы в выделении",
+    "en": "Remove all spaces and hyphens in the selection"
+  },
+  "legacy": {
+    "source": "18_Мелочи редактирования/18_Удалить все пробелы и дефисы в выделении.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
+  }
+}

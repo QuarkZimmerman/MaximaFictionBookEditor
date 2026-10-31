@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "21/spaced-letters",
+  "name": {
+    "ru": "Поиск (без замены) последовательностей 'буква пробел буква пробел...'",
+    "en": "Search (without replacing) for sequences 'letter space letter space...'",
+    "uk": "Пошук (без заміни) послідовностей 'літера пробіл літера пробіл...'"
+  },
+  "description": {
+    "ru": "Выделяет следующую после курсора последовательность «буква пробел буква пробел буква…» из трёх и более одиночных букв — слово, набранное в разрядку пробелами.",
+    "en": "Selects the next sequence \"letter space letter space letter...\" of three or more single letters after the caret - a word letter-spaced with spaces.",
+    "uk": "Виділяє наступну після курсору послідовність «літера пробіл літера пробіл літера…» з трьох і більше окремих літер — слово, набране врозрядку пробілами."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Поиск (без замены) последовательностей 'буква пробел буква пробел...'",
+    "en": "Search (without replacing) for sequences 'letter space letter space...'"
+  },
+  "legacy": {
+    "source": "21_Поиск и замена/62_Поиск (без замены) последовательностей 'буква пробел буква пробел...'.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "5.1"
+  }
+}

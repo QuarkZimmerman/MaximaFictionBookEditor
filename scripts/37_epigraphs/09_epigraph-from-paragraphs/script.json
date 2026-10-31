@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "37/epigraph-from-paragraphs",
+  "name": {
+    "ru": "Создать эпиграф из полных абзацев",
+    "en": "Create an epigraph from whole paragraphs",
+    "uk": "Створити епіграф із повних абзаців"
+  },
+  "description": {
+    "ru": "Переносит абзацы, которых касается выделение (или абзац с курсором), целиком в новый эпиграф раздела, тела или стиха; последний абзац, целиком оформленный одним элементом, становится автором текста.",
+    "en": "Moves the paragraphs the selection touches (or the caret's paragraph), whole, into a new epigraph of the section, body or poem; a last paragraph formatted as one element throughout becomes the text author.",
+    "uk": "Переносить абзаци, яких торкається виділення (або абзац із курсором), повністю в новий епіграф розділу, тіла чи вірша; останній абзац, цілком оформлений одним елементом, стає автором тексту."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Создать эпиграф из полных абзацев",
+    "en": "Create an epigraph from whole paragraphs"
+  },
+  "legacy": {
+    "source": "37_Эпиграфы/09_Создать эпиграф из полных абзацев.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

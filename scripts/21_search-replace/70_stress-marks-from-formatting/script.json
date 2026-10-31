@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "21/stress-marks-from-formatting",
+  "name": {
+    "ru": "Проставить ударения над буквами, выделенными жирностью, курсивом либо регистром",
+    "en": "Put stress marks over letters marked by bold, italics or case",
+    "uk": "Поставити наголоси над літерами, виділеними жирним, курсивом або регістром"
+  },
+  "description": {
+    "ru": "Ставит знак ударения над гласными, выделенными внутри слова курсивом или жирным шрифтом (снимая это выделение), либо, во втором режиме, над прописными гласными среди строчных букв (делая их строчными).",
+    "en": "Puts a stress mark over vowels marked inside a word by italics or bold (removing that formatting) or, in the second mode, over upper-case vowels among lower-case letters (making them lower-case).",
+    "uk": "Ставить знак наголосу над голосними, виділеними всередині слова курсивом або жирним шрифтом (знімаючи це виділення), або, у другому режимі, над великими голосними серед малих літер (роблячи їх малими)."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Проставить ударения над буквами, выделенными жирностью, курсивом либо регистром",
+    "en": "Put stress marks over letters marked by bold, italics or case"
+  },
+  "legacy": {
+    "source": "21_Поиск и замена/70_Проставить ударения над буквами, выделенными жирностью, курсивом либо регистром.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.1"
+  }
+}

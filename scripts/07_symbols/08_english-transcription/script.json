@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "07/english-transcription",
+  "name": {
+    "ru": "Английская транскрипция",
+    "en": "English transcription",
+    "uk": "Англійська транскрипція"
+  },
+  "description": {
+    "ru": "Вставляет знак английской фонетической транскрипции (ˈ ˌ æ ʌ ɜ ɪ ʃ θ ð ŋ …) на место выделенного текста или в позицию курсора",
+    "en": "Inserts a symbol of English phonetic transcription (ˈ ˌ æ ʌ ɜ ɪ ʃ θ ð ŋ …) in place of the selected text or at the caret",
+    "uk": "Вставляє знак англійської фонетичної транскрипції (ˈ ˌ æ ʌ ɜ ɪ ʃ θ ð ŋ …) на місце виділеного тексту або на місці курсору"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Английская транскрипция",
+    "en": "English transcription"
+  },
+  "legacy": {
+    "source": "07_Символы/08_Английская транскрипция.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
+  }
+}

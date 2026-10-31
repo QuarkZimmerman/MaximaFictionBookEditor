@@ -3,11 +3,18 @@
  * Mouse and keyboard operable: Alt+accelerator opens a menu, arrows navigate, Enter/Space
  * activate, Escape closes, item accelerators activate items, F10 focuses the bar. Toggle
  * commands show a checkmark, disabled commands are greyed, hotkeys are shown right-aligned.
+ *
+ * The menus and their submenus stay inside the window (`popupFit.ts`): a menu taller than the
+ * room below the bar scrolls - the keys scroll their highlight into view - and its open submenu
+ * follows its item. An item answers the pointer when the pointer moves over it, so nothing opens
+ * under a pointer at rest; a submenu the pointer opened is marked `data-opened-by="hover"`, and
+ * one of those that covers part of its item waits a moment before it shows (feature 007).
  */
 
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -19,14 +26,16 @@ import { useTranslation } from 'react-i18next';
 import { parseAccelerator } from '@/i18n';
 
 import { commandLabelRaw, unavailableTitle, type CommandContext } from './commands';
+import { MenuItemSlot } from './MenuIcon';
 import {
   MAIN_MENU,
   menuItemTestId,
   type DynamicMenuItems,
+  type MenuIcon,
   type MenuItemSpec,
   type MenuSpec,
 } from './menus';
-import { fitPopupInViewport } from './popupFit';
+import { fitPopupInViewport, refitSubmenus, revealItem } from './popupFit';
 import { useAppRevision, useAppServices, useCommandContext, type AppServices } from './services';
 
 export interface MenuBarProps {
@@ -46,6 +55,8 @@ interface ResolvedItem {
   /** Command has a checked state (toggle). */
   toggle: boolean;
   hotkey: string | undefined;
+  /** The icon left of the name (feature 007): a command's or a submenu's own. */
+  icon?: MenuIcon;
   /**
    * "Command: reason" of a disabled command whose registry entry gives a reason (feature 006,
    * FR-043), set as `title` and `aria-description`.
@@ -132,6 +143,7 @@ function resolveItems(
         checked: command ? services.commands.isChecked(spec.commandId, ctx) : false,
         toggle: command?.checked !== undefined,
         hotkey: services.hotkeys.display(spec.commandId),
+        ...(spec.icon ? { icon: spec.icon } : {}),
         title: command && reason ? unavailableTitle(command, reason, t) : undefined,
       });
       return;
@@ -155,6 +167,7 @@ function resolveItems(
         checked: false,
         toggle: false,
         hotkey: undefined,
+        ...(spec.icon ? { icon: spec.icon } : {}),
         title: reason ?? undefined,
         items,
       });
@@ -197,9 +210,13 @@ export function MenuBar({ menus = MAIN_MENU, dynamicItems = {} }: MenuBarProps) 
   const [highlight, setHighlight] = useState<number>(-1);
   const [openSubmenu, setOpenSubmenu] = useState<number>(-1);
   const [subHighlight, setSubHighlight] = useState<number>(-1);
+  /** The open submenu was opened by the pointer moving over its group (not a key or a click). */
+  const [submenuByHover, setSubmenuByHover] = useState(false);
   /** Keyboard-opened menus start with the first item highlighted. */
   const barRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
+  /** Set by a key that moved a highlight: the highlighted item is scrolled into view. */
+  const revealHighlight = useRef(false);
 
   const openMenu = menus.find((m) => m.id === openMenuId) ?? null;
   const resolveDeps: ResolveDeps = { services, ctx, t, dynamicItems };
@@ -213,25 +230,45 @@ export function MenuBar({ menus = MAIN_MENU, dynamicItems = {} }: MenuBarProps) 
     setHighlight(-1);
     setOpenSubmenu(-1);
     setSubHighlight(-1);
+    setSubmenuByHover(false);
   }, []);
 
   const open = useCallback((menuId: string, viaKeyboard: boolean) => {
     setOpenMenuId(menuId);
     setOpenSubmenu(-1);
     setSubHighlight(-1);
+    setSubmenuByHover(false);
     setHighlight(viaKeyboard ? 0 : -1);
   }, []);
 
-  // Focus the popup when opened so keyboard events land on it; close on outside clicks.
+  // Focus the popup when opened so keyboard events land on it; close on outside clicks; a
+  // window that changes its size keeps the menu and its submenu inside it.
   useEffect(() => {
     if (!openMenuId) return;
     popupRef.current?.focus();
     const onMouseDown = (event: MouseEvent) => {
       if (!barRef.current?.contains(event.target as Node)) close();
     };
+    const onResize = () => fitPopupInViewport(popupRef.current);
     document.addEventListener('mousedown', onMouseDown);
-    return () => document.removeEventListener('mousedown', onMouseDown);
+    window.addEventListener('resize', onResize);
+    return () => {
+      document.removeEventListener('mousedown', onMouseDown);
+      window.removeEventListener('resize', onResize);
+    };
   }, [openMenuId, close]);
+
+  // The item a key highlighted, in a menu or submenu taller than the window, is scrolled into
+  // view (after the popup's ref has fitted it).
+  useLayoutEffect(() => {
+    if (!revealHighlight.current) return;
+    revealHighlight.current = false;
+    const popup = popupRef.current;
+    const level =
+      openSubmenu >= 0 ? popup?.querySelector<HTMLElement>('.mfbe-menu-submenu') : popup;
+    const item = level?.querySelector<HTMLElement>(':scope > .mfbe-menu-item-highlighted');
+    if (level && item) revealItem(level, item);
+  });
 
   // Alt+accelerator opens a menu from anywhere; F10 focuses the menu bar.
   useEffect(() => {
@@ -266,6 +303,7 @@ export function MenuBar({ menus = MAIN_MENU, dynamicItems = {} }: MenuBarProps) 
         if (inSubmenu || !item.enabled) return; // nested submenus are not used
         setOpenSubmenu(index);
         setSubHighlight(0);
+        setSubmenuByHover(false);
         return;
       }
       if (!item.enabled) return;
@@ -295,8 +333,14 @@ export function MenuBar({ menus = MAIN_MENU, dynamicItems = {} }: MenuBarProps) 
     const inSubmenu = openSubmenu >= 0;
     const items = inSubmenu ? submenuItems : openItems;
     const current = inSubmenu ? subHighlight : highlight;
-    const setCurrent = inSubmenu ? setSubHighlight : setHighlight;
+    const setLevelHighlight = inSubmenu ? setSubHighlight : setHighlight;
+    const setCurrent = (index: number) => {
+      revealHighlight.current = true;
+      setLevelHighlight(index);
+    };
     const menuIndex = menus.findIndex((m) => m.id === openMenu.id);
+    // A key takes the open submenu over: one that waited for the pointer shows at once.
+    setSubmenuByHover(false);
 
     switch (event.key) {
       case 'Escape':
@@ -410,6 +454,31 @@ export function MenuBar({ menus = MAIN_MENU, dynamicItems = {} }: MenuBarProps) 
     if (openMenuId && openMenuId !== menu.id) open(menu.id, false);
   };
 
+  /**
+   * The pointer moves over an item: it takes the highlight, a group opens its submenu and any
+   * other item of the menu closes the open one. On a move only, never on `mouseover` /
+   * `mouseenter` alone: Chromium sends those to an item that appears under a pointer at rest (a
+   * menu opened from the keyboard, a submenu over its menu), and nothing may open under a
+   * pointer that has not moved (feature 007). A move inside an open submenu reaches its group
+   * too, which changes nothing there.
+   */
+  const onItemPointerMove = (item: ResolvedItem, index: number, inSubmenu: boolean) => {
+    if (inSubmenu) {
+      if (subHighlight !== index) setSubHighlight(index);
+      return;
+    }
+    if (highlight !== index) setHighlight(index);
+    if (item.spec.kind === 'submenu' && item.enabled) {
+      if (openSubmenu !== index) {
+        setOpenSubmenu(index);
+        setSubHighlight(-1);
+        setSubmenuByHover(true);
+      }
+    } else if (openSubmenu >= 0) {
+      setOpenSubmenu(-1);
+    }
+  };
+
   const renderItems = (items: ResolvedItem[], inSubmenu: boolean, current: number) =>
     items.map((item, index) => {
       if (item.spec.kind === 'separator') {
@@ -444,28 +513,14 @@ export function MenuBar({ menus = MAIN_MENU, dynamicItems = {} }: MenuBarProps) 
             .join(' ')}
           data-testid={item.testId}
           data-checked={item.checked || undefined}
-          onMouseEnter={() => {
-            if (inSubmenu) {
-              setSubHighlight(index);
-            } else {
-              setHighlight(index);
-              if (isSubmenu && item.enabled) {
-                setOpenSubmenu(index);
-                setSubHighlight(-1);
-              } else if (openSubmenu >= 0) {
-                setOpenSubmenu(-1);
-              }
-            }
-          }}
+          onMouseMove={() => onItemPointerMove(item, index, inSubmenu)}
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();
             activate(item, index, inSubmenu);
           }}
         >
-          <span className="mfbe-menu-check" aria-hidden="true">
-            {item.checked ? '\u2713' : ''}
-          </span>
+          <MenuItemSlot checked={item.checked} checkable={item.toggle} icon={item.icon} />
           <span className="mfbe-menu-label">
             <AcceleratedLabel text={item.label} index={item.acceleratorIndex} />
           </span>
@@ -479,6 +534,7 @@ export function MenuBar({ menus = MAIN_MENU, dynamicItems = {} }: MenuBarProps) 
               role="menu"
               className="mfbe-menu-popup mfbe-menu-submenu"
               data-testid={`${item.testId}-popup`}
+              data-opened-by={submenuByHover ? 'hover' : undefined}
               onMouseLeave={() => setSubHighlight(-1)}
             >
               {renderItems(item.items, true, subHighlight)}
@@ -526,6 +582,9 @@ export function MenuBar({ menus = MAIN_MENU, dynamicItems = {} }: MenuBarProps) 
                 className="mfbe-menu-popup"
                 data-testid={`menu-${menu.id}-popup`}
                 onKeyDown={onPopupKeyDown}
+                // A menu taller than the room below the bar scrolls: its open submenu follows
+                // its item.
+                onScroll={(event) => refitSubmenus(event.currentTarget)}
                 onMouseLeave={() => {
                   if (openSubmenu < 0) setHighlight(-1);
                 }}

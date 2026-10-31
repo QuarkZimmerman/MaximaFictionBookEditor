@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "12/unpaired-brackets-quotes-alternative",
+  "name": {
+    "ru": "Поиск абзацев с непарными скобками и кавычками (“альтернативные” лапки)",
+    "en": "Find paragraphs with unpaired brackets and quotes (“alternative” quotes)",
+    "uk": "Пошук абзаців із непарними дужками та лапками (“альтернативні” лапки)"
+  },
+  "description": {
+    "ru": "Ищет от курсора следующий абзац с непарными скобками или кавычками (внутренние кавычки — “альтернативные”), выделяет его скобки и кавычки и называет непарные символы в строке состояния.",
+    "en": "Finds the next paragraph after the caret whose brackets or quotes do not pair up (inner quotes “alternative”), selects its brackets and quotes and names the unpaired characters in the status bar.",
+    "uk": "Шукає від курсора наступний абзац із непарними дужками чи лапками (внутрішні лапки — “альтернативні”), виділяє його дужки та лапки й називає непарні символи в рядку стану."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Поиск абзацев с непарными скобками и кавычками (“альтернативные” лапки)",
+    "en": "Find paragraphs with unpaired brackets and quotes (“alternative” quotes)"
+  },
+  "legacy": {
+    "source": "12_Обработка кавычек/025_Поиск абзацев с непарными скобками и кавычками (“альтернативные” лапки).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "4.8"
+  }
+}

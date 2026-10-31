@@ -3,11 +3,13 @@
   "id": "07/arabic",
   "name": {
     "en": "Arabic",
-    "ru": "Арабский"
+    "ru": "Арабский",
+    "uk": "Арабська"
   },
   "description": {
-    "en": "Inserts a letter of the Arabic alphabet at the caret",
-    "ru": "Вставляет букву арабского алфавита в позицию курсора"
+    "en": "Inserts a letter or a vowel mark of the Arabic alphabet in place of the selected text or at the caret",
+    "ru": "Вставляет букву или огласовку арабского алфавита на место выделенного текста или в позицию курсора",
+    "uk": "Вставляє літеру або огласовку арабського алфавіту на місце виділеного тексту або на місці курсору"
   },
   "kind": "menu",
   "entry": "index.js",
@@ -18,7 +20,8 @@
     "ru": "Арабский"
   },
   "legacy": {
-    "source": "07_Символы/Арабский.js",
-    "fbeVersion": "2.7"
+    "source": "07_Символы/03_Арабский.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
   }
 }

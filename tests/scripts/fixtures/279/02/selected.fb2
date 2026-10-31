@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Примечания</last-name>
+			</author>
+			<book-title>Сноски из выделенных абзацев</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>fixture</program-used>
+			<date value="2024-01-01">2024</date>
+			<id>fixture-279-02-selected</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<section>
+			<title>
+				<p>Глава</p>
+			</title>
+			<p>Первая сноска[1] в тексте.</p>
+			<p>Вторая сноска [2] и <a l:href="http://example.com/">ссылка[3]</a>.</p>
+			<p>Третья <strong>сноска[4]</strong> и четвертая[5].</p>
+			<p>Примечания:</p>
+			<p>Текст первой сноски.</p>
+			<p>++ Продолжение первой.</p>
+			<p>Текст второй сноски.</p>
+			<poem>
+				<stanza>
+					<v>Стих третьей сноски</v>
+				</stanza>
+			</poem>
+			<p>++ после стиха.</p>
+			<subtitle>Подзаголовок четвертой</subtitle>
+			<p>После выделения.</p>
+		</section>
+	</body>
+</FictionBook>

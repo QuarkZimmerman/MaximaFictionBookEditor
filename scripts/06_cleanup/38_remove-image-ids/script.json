@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "06/remove-image-ids",
+  "name": {
+    "ru": "Удалить id картинок",
+    "en": "Remove picture ids",
+    "uk": "Видалити id малюнків"
+  },
+  "description": {
+    "ru": "Удаляет атрибуты id у всех блочных картинок во всех body, включая body примечаний.",
+    "en": "Removes the id attributes of all block pictures in every body, the notes body included.",
+    "uk": "Видаляє атрибути id усіх блокових малюнків у всіх body, зокрема в body приміток."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Удалить id картинок",
+    "en": "Remove picture ids"
+  },
+  "legacy": {
+    "source": "06_Чистка/38_Удалить id картинок.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

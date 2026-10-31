@@ -1,0 +1,8 @@
+{
+  "reports": [
+    {
+      "title": "Script chain",
+      "text": "[\n  {\n    \"ref\": \"19_Обработка форматирования\\\\40_Сформатировать абзац(ы) жирностью.js\",\n    \"returned\": null,\n    \"anchor\": {\n      \"nodeId\": \"n7\",\n      \"offset\": 0\n    },\n    \"head\": {\n      \"nodeId\": \"n8\",\n      \"offset\": 57\n    },\n    \"text\": \"Обычный, жирный, курсив, жирный курсив, зачёркнутый, H2O, x2, код, стиль, сноска1 и ссылка.\\nЯзыки: bold, lorem, alt, low, high, code; картинки ￼ и ￼.\"\n  },\n  {\n    \"ref\": \"19/paragraphs-remove-italics\",\n    \"returned\": null,\n    \"anchor\": {\n      \"nodeId\": \"n7\",\n      \"offset\": 0\n    },\n    \"head\": {\n      \"nodeId\": \"n8\",\n      \"offset\": 57\n    },\n    \"text\": \"Обычный, жирный, курсив, жирный курсив, зачёркнутый, H2O, x2, код, стиль, сноска1 и ссылка.\\nЯзыки: bold, lorem, alt, low, high, code; картинки ￼ и ￼.\"\n  }\n]"
+    }
+  ]
+}

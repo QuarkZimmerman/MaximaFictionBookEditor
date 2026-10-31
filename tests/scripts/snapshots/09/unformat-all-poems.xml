@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>poetry</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Стихи</last-name>
+			</author>
+			<book-title>Стихи</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.1</version>
+			<history>
+				<p>v1.0 — создание файла</p>
+				<p>v.1.1 —  Скрипт: «Расформатирование всех стихов» 1.5 — (10.05.25)</p>
+			</history>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Стихи</p>
+		</title>
+		<section>
+			<title>
+				<p>Глава со стихами</p>
+			</title>
+			<p>Текст перед стихом.</p>
+			<empty-line/>
+			<p>Название стиха</p>
+			<empty-line/>
+			<p>Эпиграф стиха.</p>
+			<p>Автор эпиграфа</p>
+			<empty-line/>
+			<p>Первая строка,</p>
+			<p>вторая строка.</p>
+			<subtitle>* * *</subtitle>
+			<p>Третья строка,</p>
+			<p>четвёртая строка.</p>
+			<empty-line/>
+			<p>Поэт</p>
+			<p>1999</p>
+			<empty-line/>
+			<p>Текст после стиха.</p>
+		</section>
+		<section>
+			<title>
+				<p>Стих сразу после заголовка</p>
+			</title>
+			<p>Строка.</p>
+			<p>Ещё строка.</p>
+			<empty-line/>
+			<p>Последняя строка.</p>
+		</section>
+		<section>
+			<title>
+				<p>Стихи в цитате</p>
+			</title>
+			<cite>
+				<p>Строка в цитате.</p>
+				<empty-line/>
+				<text-author>Автор цитаты</text-author>
+			</cite>
+		</section>
+		<section>
+			<title>
+				<p>Стих с заглавием</p>
+			</title>
+			<p>Абзац.</p>
+			<empty-line/>
+			<p>Заглавие</p>
+			<empty-line/>
+			<p>Строка с заглавием.</p>
+			<empty-line/>
+			<p>Вторая строфа.</p>
+		</section>
+	</body>
+</FictionBook>

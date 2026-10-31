@@ -1,0 +1,8 @@
+{
+  "reports": [
+    {
+      "title": "Script chain",
+      "text": "[\n  {\n    \"ref\": \"08/full-reset\",\n    \"returned\": null,\n    \"anchor\": {\n      \"nodeId\": \"n84\",\n      \"offset\": 0\n    },\n    \"head\": {\n      \"nodeId\": \"n84\",\n      \"offset\": 0\n    },\n    \"text\": \"\"\n  }\n]"
+    }
+  ]
+}

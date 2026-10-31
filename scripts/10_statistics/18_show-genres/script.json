@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "10/show-genres",
+  "name": {
+    "ru": "Показать жанры",
+    "en": "Show genres",
+    "uk": "Показати жанри"
+  },
+  "description": {
+    "ru": "Показывает жанры книги и жанры оригинала, расшифровывая их коды в названия.",
+    "en": "Shows the genres of the book and of its original, with the codes decoded to genre names.",
+    "uk": "Показує жанри книги та жанри оригіналу, розшифровуючи їхні коди в назви."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Показать жанры",
+    "en": "Show genres"
+  },
+  "legacy": {
+    "source": "10_Статистика/18_Показать жанры.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.0"
+  }
+}

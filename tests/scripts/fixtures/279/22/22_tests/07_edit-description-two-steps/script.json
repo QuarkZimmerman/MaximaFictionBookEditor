@@ -1,0 +1,10 @@
+{
+  "manifestVersion": 1,
+  "id": "test-22/edit-description-two-steps",
+  "name": {
+    "en": "Test: edit the description as text, both steps with edits between",
+    "ru": "Test: edit the description as text, both steps with edits between"
+  },
+  "kind": "menu",
+  "entry": "index.js"
+}

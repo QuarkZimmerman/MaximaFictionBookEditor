@@ -1,0 +1,409 @@
+[
+  {
+    "snapshot": "02/notes-from-asterisk-paragraphs.xml",
+    "script": "scripts/02_footnotes/15_notes-from-asterisk-paragraphs",
+    "book": "tests/scripts/fixtures/279/02/asterisks.fb2",
+    "args": [
+      "--answer",
+      "{\"action\":\"notes\"}",
+      "--answer",
+      "ok",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "02/notes-from-asterisk-paragraphs.comments.xml",
+    "script": "scripts/02_footnotes/15_notes-from-asterisk-paragraphs",
+    "book": "tests/scripts/fixtures/279/02/asterisks.fb2",
+    "args": [
+      "--answer",
+      "{\"action\":\"comments\"}",
+      "--answer",
+      "ok",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "02/notes-from-asterisk-paragraphs.preview.xml",
+    "script": "scripts/02_footnotes/15_notes-from-asterisk-paragraphs",
+    "book": "tests/scripts/fixtures/279/02/asterisks.fb2",
+    "args": [
+      "--answer",
+      "{\"action\":\"preview\"}",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "02/notes-from-asterisk-paragraphs.mismatch.xml",
+    "script": "scripts/02_footnotes/15_notes-from-asterisk-paragraphs",
+    "book": "tests/scripts/fixtures/279/02/mismatch.fb2",
+    "args": [
+      "--answer",
+      "{\"action\":\"notes\"}",
+      "--answer",
+      "ok",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "02/notes-from-asterisk-paragraphs.broken-link.xml",
+    "script": "scripts/02_footnotes/15_notes-from-asterisk-paragraphs",
+    "book": "tests/scripts/fixtures/279/02/broken-link.fb2",
+    "args": [
+      "--answer",
+      "{\"action\":\"notes\"}",
+      "--answer",
+      "ok",
+      "--answer",
+      "ok",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "02/notes-from-hash-paragraphs.xml",
+    "script": "scripts/02_footnotes/17_notes-from-hash-paragraphs",
+    "book": "tests/scripts/fixtures/279/02/hashes.fb2",
+    "args": [
+      "--answer",
+      "{\"action\":\"notes\"}",
+      "--answer",
+      "ok",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "02/notes-from-hash-paragraphs.comments.xml",
+    "script": "scripts/02_footnotes/17_notes-from-hash-paragraphs",
+    "book": "tests/scripts/fixtures/279/02/hashes.fb2",
+    "args": [
+      "--answer",
+      "{\"action\":\"comments\"}",
+      "--answer",
+      "ok",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "02/notes-from-hash-paragraphs.preview.xml",
+    "script": "scripts/02_footnotes/17_notes-from-hash-paragraphs",
+    "book": "tests/scripts/fixtures/279/02/hashes.fb2",
+    "args": [
+      "--answer",
+      "{\"action\":\"preview\"}",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "02/notes-from-hash-paragraphs.mismatch.xml",
+    "script": "scripts/02_footnotes/17_notes-from-hash-paragraphs",
+    "book": "tests/scripts/fixtures/279/02/mismatch.fb2",
+    "args": [
+      "--answer",
+      "{\"action\":\"notes\"}",
+      "--answer",
+      "ok",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "02/notes-from-caret-paragraphs.xml",
+    "script": "scripts/02_footnotes/19_notes-from-caret-paragraphs",
+    "book": "tests/scripts/fixtures/279/02/carets.fb2",
+    "args": [
+      "--answer",
+      "{\"action\":\"notes\"}",
+      "--answer",
+      "ok",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "02/notes-from-caret-paragraphs.comments.xml",
+    "script": "scripts/02_footnotes/19_notes-from-caret-paragraphs",
+    "book": "tests/scripts/fixtures/279/02/carets.fb2",
+    "args": [
+      "--answer",
+      "{\"action\":\"comments\"}",
+      "--answer",
+      "ok",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "02/notes-from-caret-paragraphs.preview.xml",
+    "script": "scripts/02_footnotes/19_notes-from-caret-paragraphs",
+    "book": "tests/scripts/fixtures/279/02/carets.fb2",
+    "args": [
+      "--answer",
+      "{\"action\":\"preview\"}",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "02/notes-from-caret-paragraphs.none.xml",
+    "script": "scripts/02_footnotes/19_notes-from-caret-paragraphs",
+    "book": "tests/scripts/fixtures/279/02/mismatch.fb2",
+    "args": [
+      "--answer",
+      "{\"action\":\"notes\"}",
+      "--answer",
+      "ok",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "02/notes-from-marked-paragraphs.xml",
+    "script": "scripts/02_footnotes/24_notes-from-marked-paragraphs",
+    "book": "tests/scripts/fixtures/279/02/markers.fb2",
+    "args": [
+      "--answer",
+      "{\"action\":\"notes\"}",
+      "--answer",
+      "ok",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "02/notes-from-marked-paragraphs.comments.xml",
+    "script": "scripts/02_footnotes/24_notes-from-marked-paragraphs",
+    "book": "tests/scripts/fixtures/279/02/markers.fb2",
+    "args": [
+      "--answer",
+      "{\"action\":\"comments\"}",
+      "--answer",
+      "ok",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "02/notes-from-marked-paragraphs.preview.xml",
+    "script": "scripts/02_footnotes/24_notes-from-marked-paragraphs",
+    "book": "tests/scripts/fixtures/279/02/markers.fb2",
+    "args": [
+      "--answer",
+      "{\"action\":\"preview\"}",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "02/notes-from-marked-paragraphs.brackets.xml",
+    "script": "scripts/02_footnotes/24_notes-from-marked-paragraphs",
+    "book": "tests/scripts/fixtures/279/02/markers-brackets.fb2",
+    "args": [
+      "--answer",
+      "{\"noteSign\":\"1\",\"firstNoteP\":\"30\",\"action\":\"notes\"}",
+      "--answer",
+      "ok",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "02/notes-from-marked-paragraphs.bad-regexp.xml",
+    "script": "scripts/02_footnotes/24_notes-from-marked-paragraphs",
+    "book": "tests/scripts/fixtures/279/02/markers.fb2",
+    "args": [
+      "--answer",
+      "{\"noteSign\":\"20\",\"refMarkerStr\":\"[\",\"action\":\"notes\"}",
+      "--answer",
+      "ok",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "02/notes-from-selected-paragraphs.xml",
+    "script": "scripts/02_footnotes/12_notes-from-selected-paragraphs",
+    "book": "tests/scripts/fixtures/279/02/selected.fb2",
+    "args": [
+      "--select-range",
+      "n9:3-n17:0",
+      "--answer",
+      "{\"noteSign\":\"1\",\"action\":\"notes\"}",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "02/notes-from-selected-paragraphs.comments.xml",
+    "script": "scripts/02_footnotes/12_notes-from-selected-paragraphs",
+    "book": "tests/scripts/fixtures/279/02/selected.fb2",
+    "args": [
+      "--select-range",
+      "n9:3-n17:0",
+      "--answer",
+      "{\"noteSign\":\"1\",\"action\":\"comments\"}",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "02/notes-from-selected-paragraphs.preview.xml",
+    "script": "scripts/02_footnotes/12_notes-from-selected-paragraphs",
+    "book": "tests/scripts/fixtures/279/02/selected.fb2",
+    "args": [
+      "--select-range",
+      "n9:3-n17:0",
+      "--answer",
+      "{\"noteSign\":\"1\",\"action\":\"preview\"}",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "02/notes-from-selected-paragraphs.superscript.xml",
+    "script": "scripts/02_footnotes/12_notes-from-selected-paragraphs",
+    "book": "tests/scripts/fixtures/279/02/markers.fb2",
+    "args": [
+      "--select-range",
+      "n12:0-n15:14",
+      "--answer",
+      "{\"action\":\"notes\"}",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "02/find-possible-footnotes-extended.xml",
+    "script": "scripts/02_footnotes/31_find-possible-footnotes-extended",
+    "book": "tests/scripts/fixtures/279/02/search.fb2",
+    "args": [
+      "--select",
+      "n5:0:0"
+    ]
+  },
+  {
+    "snapshot": "02/find-possible-footnotes-no-brackets.xml",
+    "script": "scripts/02_footnotes/32_find-possible-footnotes-no-brackets",
+    "book": "tests/scripts/fixtures/279/02/search.fb2",
+    "args": [
+      "--select",
+      "n5:0:0"
+    ]
+  },
+  {
+    "snapshot": "02/find-possible-footnote-markers.xml",
+    "script": "scripts/02_footnotes/35_find-possible-footnote-markers",
+    "book": "tests/scripts/fixtures/279/02/search.fb2",
+    "args": [
+      "--select",
+      "n5:0:0"
+    ]
+  },
+  {
+    "snapshot": "02/chain-search.xml",
+    "script": "tests/scripts/fixtures/279/02/chains/search",
+    "book": "tests/scripts/fixtures/279/02/search.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "02/external-links-to-footnotes.xml",
+    "script": "scripts/02_footnotes/38_external-links-to-footnotes",
+    "book": "tests/scripts/fixtures/279/02/external-links.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "02/external-links-to-footnotes.broken-link.xml",
+    "script": "scripts/02_footnotes/38_external-links-to-footnotes",
+    "book": "tests/scripts/fixtures/279/02/external-links-broken.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "02/external-links-to-footnotes.marks.xml",
+    "script": "scripts/02_footnotes/38_external-links-to-footnotes",
+    "book": "tests/scripts/fixtures/279/02/external-links-marks.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "02/renumber-footnotes-extended.xml",
+    "script": "scripts/02_footnotes/09_renumber-footnotes-extended",
+    "book": "tests/scripts/fixtures/279/02/renumber.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "02/renumber-footnotes-extended.no-notes.xml",
+    "script": "scripts/02_footnotes/09_renumber-footnotes-extended",
+    "book": "tests/scripts/fixtures/279/02/renumber-no-notes.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "02/renumber-footnotes-extended.nested.xml",
+    "script": "scripts/02_footnotes/09_renumber-footnotes-extended",
+    "book": "tests/scripts/fixtures/279/02/renumber-nested.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "02/notes-from-asterisk-paragraphs.annotation-source.xml",
+    "script": "scripts/02_footnotes/15_notes-from-asterisk-paragraphs",
+    "book": "tests/scripts/fixtures/279/02/annotation-source.fb2",
+    "args": [
+      "--answer",
+      "{\"action\":\"notes\"}",
+      "--answer",
+      "ok",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "02/add-footnote.annotation.xml",
+    "script": "scripts/02_footnotes/01_add-footnote",
+    "book": "tests/scripts/fixtures/279/02/recheck-notes.fb2",
+    "args": [
+      "--select",
+      "n7:30:30"
+    ]
+  },
+  {
+    "snapshot": "02/add-footnote.in-annotation.xml",
+    "script": "scripts/02_footnotes/01_add-footnote",
+    "book": "tests/scripts/fixtures/279/02/recheck-notes.fb2",
+    "args": [
+      "--select",
+      "n29:9:9"
+    ]
+  },
+  {
+    "snapshot": "02/unify-footnotes.annotation.xml",
+    "script": "scripts/02_footnotes/07_unify-footnotes",
+    "book": "tests/scripts/fixtures/279/02/recheck-notes.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "02/unify-footnotes-remove-unused.annotation.xml",
+    "script": "scripts/02_footnotes/08_unify-footnotes-remove-unused",
+    "book": "tests/scripts/fixtures/279/02/recheck-notes.fb2",
+    "args": [
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "02/chain-check-notes.annotation.xml",
+    "script": "tests/scripts/fixtures/279/02/chains/check-notes",
+    "book": "tests/scripts/fixtures/279/02/recheck-notes.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "02/chain-check-notes.unreferenced.xml",
+    "script": "tests/scripts/fixtures/279/02/chains/check-notes",
+    "book": "tests/scripts/fixtures/books/conv-a-02.fb2",
+    "args": []
+  }
+]

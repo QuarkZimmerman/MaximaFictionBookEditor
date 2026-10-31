@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "19/paragraphs-remove-bold-italics-overlaps",
+  "name": {
+    "ru": "Расформатировать абзац(ы) от совмещений курсива с жирностью",
+    "en": "Remove italics combined with bold from paragraph(s)",
+    "uk": "Прибрати поєднання курсиву з жирним шрифтом з абзацу(-ів)"
+  },
+  "description": {
+    "ru": "Там, где текст одновременно курсивный и жирный, снимает и курсив, и жирность во всех абзацах, которых касается выделение (или в абзаце с курсором); просто курсив и просто жирность остаются.",
+    "en": "Where text is both italic and bold, removes both from every paragraph the selection touches (or from the caret's paragraph); plain italics and plain bold stay.",
+    "uk": "Там, де текст водночас курсивний і жирний, знімає і курсив, і жирний шрифт в усіх абзацах, яких торкається виділення (або в абзаці з курсором); просто курсив і просто жирний шрифт залишаються."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Расформатировать абзац(ы) от совмещений курсива с жирностью",
+    "en": "Remove italics combined with bold from paragraph(s)"
+  },
+  "legacy": {
+    "source": "19_Обработка форматирования/58_Расформатировать абзац(ы) от совмещений курсива с жирностью.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.6"
+  }
+}

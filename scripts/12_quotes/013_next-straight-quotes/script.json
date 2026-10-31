@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "12/next-straight-quotes",
+  "name": {
+    "ru": "Перейти на следующие прямые кавычки",
+    "en": "Go to next straight quotes",
+    "uk": "Перейти до наступних прямих лапок"
+  },
+  "description": {
+    "ru": "Выделяет ближайшую прямую кавычку (\") после курсора или выделения; в конце книги предлагает продолжить с начала",
+    "en": "Selects the nearest straight quote (\") after the caret or the selection; at the end of the book it offers to go on from the start",
+    "uk": "Виділяє найближчу пряму лапку (\") після курсора чи виділення; у кінці книги пропонує продовжити з початку"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Перейти на следующие прямые кавычки",
+    "en": "Go to next straight quotes"
+  },
+  "legacy": {
+    "source": "12_Обработка кавычек/013_Перейти на следующие прямые кавычки.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "2.9"
+  }
+}

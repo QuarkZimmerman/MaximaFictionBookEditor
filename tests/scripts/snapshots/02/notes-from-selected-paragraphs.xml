@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Примечания</last-name>
+			</author>
+			<book-title>Сноски из выделенных абзацев</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<section>
+			<title>
+				<p>Глава</p>
+			</title>
+			<p>Первая сноска<a l:href="#n_1" type="note">[1]</a> в тексте.</p>
+			<p>Вторая сноска<a l:href="#n_2" type="note">[2]</a> и <a l:href="http://example.com/">ссылка[3]</a>.</p>
+			<p>Третья <strong>сноска</strong><a l:href="#n_3" type="note"><strong>[3]</strong></a> и четвертая<a l:href="#n_4" type="note">[4]</a>.</p>
+			<p>Примечания:</p>
+			<p>Текст первой сноски.</p>
+			<p>++ Продолжение первой.</p>
+			<p>Текст второй сноски.</p>
+			<poem>
+				<stanza>
+					<v>Стих третьей сноски</v>
+				</stanza>
+			</poem>
+			<p>++ после стиха.</p>
+			<subtitle>Подзаголовок четвертой</subtitle>
+			<p>После выделения.</p>
+		</section>
+	</body>
+	<body name="notes">
+		<title>
+			<p>Примечания</p>
+		</title>
+		<section id="n_1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Текст первой сноски.</p>
+			<p>Продолжение первой.</p>
+		</section>
+		<section id="n_2">
+			<title>
+				<p>2</p>
+			</title>
+			<p>Текст второй сноски.</p>
+		</section>
+		<section id="n_3">
+			<title>
+				<p>3</p>
+			</title>
+			<poem>
+				<stanza>
+					<v>Стих третьей сноски</v>
+				</stanza>
+			</poem>
+			<p>после стиха.</p>
+		</section>
+		<section id="n_4">
+			<title>
+				<p>4</p>
+			</title>
+			<subtitle>Подзаголовок четвертой</subtitle>
+		</section>
+	</body>
+</FictionBook>

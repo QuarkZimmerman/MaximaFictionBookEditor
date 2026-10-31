@@ -58,6 +58,7 @@ const SCRIPT: ScriptInfo = {
   dir: '/scripts/05_Runs/01_Long',
   folder: '01_Long',
   source: 'user',
+  origin: 'user',
   entryUrl: '/scripts/test.long/index.js',
   warnings: [],
 };

@@ -1,0 +1,10 @@
+{
+  "manifestVersion": 1,
+  "id": "test-22/edit-description-history-line",
+  "name": {
+    "en": "Test: edit the description as text, a history line of the last ten days",
+    "ru": "Test: edit the description as text, a history line of the last ten days"
+  },
+  "kind": "menu",
+  "entry": "index.js"
+}

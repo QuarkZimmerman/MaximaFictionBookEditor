@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Примечания</last-name>
+			</author>
+			<book-title>Проверка комментариев: раздел без id</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>fixture</program-used>
+			<date value="2024-01-01">2024</date>
+			<id>fixture-279-03-check-no-id</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<section id="chapter1">
+			<title>
+				<p>Глава</p>
+			</title>
+			<p>Сайт <a l:href="http://example.com/">пример</a> и сноска<a l:href="#n_1" type="note">[1]</a>.</p>
+			<p>Комментарий<a l:href="#c_1"><sup>{1}</sup></a> и второй<a l:href="#c_2"><sup>{2}</sup></a>.</p>
+		</section>
+	</body>
+	<body name="notes">
+		<title>
+			<p>Примечания</p>
+		</title>
+		<section id="n_1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Сноска.</p>
+		</section>
+	</body>
+	<body name="comments">
+		<title>
+			<p>Комментарии</p>
+		</title>
+		<section id="c_1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Первый.</p>
+		</section>
+		<section>
+			<title>
+				<p>2</p>
+			</title>
+			<p>Второй, без id.</p>
+		</section>
+	</body>
+</FictionBook>

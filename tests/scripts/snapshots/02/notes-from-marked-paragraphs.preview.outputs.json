@@ -1,0 +1,8 @@
+{
+  "reports": [
+    {
+      "title": "Footnote texts from paragraphs marked with markers",
+      "html": "<style>body{font-family:Tahoma,sans-serif}div.title{text-align:center;font-weight:bold}p.subtitle{text-align:center;font-weight:bold}p.author{text-align:right;font-style:italic}div.poem,div.cite,div.epigraph{margin-left:2em}table{border-collapse:collapse}td,th{border:1px solid #888;padding:2px 4px}div.section{margin-top:1em}</style><div class=\"title\"><p>Footnote texts taken from paragraphs marked with markers</p><p>Count: 3</p></div><div class=\"section\"><div class=\"title\"><p>1</p></div><p>Первая сноска.</p></div><div class=\"section\"><div class=\"title\"><p>2</p></div><p>Вторая сноска.</p><p>Продолжение второй.</p></div><div class=\"section\"><div class=\"title\"><p>3</p></div><p>Третья сноска.</p></div>"
+    }
+  ]
+}

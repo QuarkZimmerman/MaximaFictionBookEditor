@@ -10,6 +10,7 @@
  */
 
 import { createInstance } from 'i18next';
+import { AllSelection } from 'prosemirror-state';
 
 import type { CommandContext } from '@/app/commands';
 import { createAppServices, type AppServices } from '@/app/services';
@@ -810,6 +811,26 @@ describe('doc.find / doc.replaceAll', () => {
 });
 
 describe('selection.*', () => {
+  it('reports Select All as the whole document, from the first text block to the last (feature 007)', async () => {
+    const h = await harness();
+    const ctrl = getBodyController(h.store);
+    const state = ctrl.editorState!;
+    ctrl.apply(state.tr.setSelection(new AllSelection(state.doc)));
+    const selection = (await call(h, 'selection.get')) as SelectionInfo;
+    expect(selection).not.toBeNull();
+    const blocks: string[] = [];
+    let lastSize = 0;
+    state.doc.descendants((node) => {
+      if (!node.isTextblock) return true;
+      blocks.push(String(node.attrs.nodeId));
+      lastSize = node.content.size;
+      return false;
+    });
+    expect(selection.anchor).toEqual({ nodeId: blocks[0], offset: 0 });
+    expect(selection.head).toEqual({ nodeId: blocks[blocks.length - 1], offset: lastSize });
+    expect(selection.nodes.map((n) => n.nodeId)).toEqual(blocks);
+  });
+
   it('reads, sets, replaces, wraps and unwraps the Body selection', async () => {
     const h = await harness();
     await call(h, 'selection.set', { nodeId: 'p1', offset: 6 }, { nodeId: 'p1', offset: 10 });
@@ -918,6 +939,35 @@ describe('selection.*', () => {
     expect(() =>
       setBodySelection(getBodyController(h.store), { nodeId: 'nope', offset: 0 }, undefined),
     ).toThrow('unknown nodeId');
+  });
+
+  it('replaceText keeps the formatting of the text it replaces, as typing over it does (feature 007)', async () => {
+    const h = await harness();
+    type Run = { text: string; marks?: { type: string }[] };
+    const runs = async () =>
+      ((await call(h, 'doc.getNode', 'p2b')) as { content: Run[] }).content.map((run) => [
+        run.text,
+        (run.marks ?? []).map((mark) => mark.type),
+      ]);
+    // The whole emphasised word: the replacement stays emphasised (2.7.9's pasteHTML did too).
+    await call(h, 'selection.set', { nodeId: 'p2b', offset: 10 }, { nodeId: 'p2b', offset: 20 });
+    expect(((await call(h, 'selection.get')) as SelectionInfo).text).toBe('emphasised');
+    await call(h, 'selection.replaceText', 'stressed');
+    expect(await runs()).toEqual([
+      ['Plain and ', []],
+      ['stressed', ['emphasis']],
+    ]);
+    // From plain text into the emphasis: the formatting the selection starts with.
+    await call(h, 'selection.set', { nodeId: 'p2b', offset: 6 }, { nodeId: 'p2b', offset: 12 });
+    await call(h, 'selection.replaceText', 'or');
+    expect(await runs()).toEqual([
+      ['Plain or', []],
+      ['ressed', ['emphasis']],
+    ]);
+    // At a caret nothing changes: the formatting before it.
+    await call(h, 'selection.set', { nodeId: 'p2b', offset: 0 });
+    await call(h, 'selection.replaceText', '> ');
+    expect((await runs())[0]).toEqual(['> Plain or', []]);
   });
 });
 

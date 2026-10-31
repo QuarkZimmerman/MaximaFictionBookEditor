@@ -10,17 +10,20 @@ with code completion are in [mfbe.d.ts](mfbe.d.ts); the examples live in [exampl
 
 ## 1. Where scripts live
 
-The editor looks for scripts in several folders and merges what it finds (nothing in a
-lower layer is ever hidden or replaced):
+The editor looks for scripts in several folders and merges what it finds. A script whose `id`
+is also in a lower folder of this list replaces that one in the menu, in its group and place
+(since 0.0.6); the replaced files stay untouched. Highest first:
 
-1. the folder chosen in **Tools > Settings > Other > Scripts folder** (optional),
-2. your personal scripts folder (`Scripts > Open scripts folder` opens it):
+1. the AI assistant's own folder `90_assistant/` inside your personal scripts folder (the
+   scripts it writes or changes with your approval),
+2. the folder chosen in **Tools > Settings > Other > Scripts folder** (optional),
+3. your personal scripts folder (`Scripts > Open scripts folder` opens it):
    - Windows: `%APPDATA%\Maxima Fiction Book Editor\scripts\`
    - Linux: `~/.local/share/maxfbeditor/scripts/`
    - macOS: `~/Library/Application Support/Maxima Fiction Book Editor/scripts/`
    - a portable copy: `user/scripts/` next to the program,
-3. a portable folder next to the program that the editor cannot write to (`user/scripts/`),
-4. the scripts bundled with the editor (read-only, inside the installation).
+4. a portable folder next to the program that the editor cannot write to (`user/scripts/`),
+5. the scripts bundled with the editor (read-only, inside the installation).
 
 Inside a scripts folder every **group** is a sub-folder and every **script** is a sub-folder
 of a group. The `NN_` prefix orders groups and scripts and is removed from the displayed name:
@@ -46,10 +49,18 @@ an invalid manifest is skipped and reported in the error log and in **Settings >
 ### Customising a bundled script
 
 The bundled scripts cannot be edited in place. Copy the script's folder into your personal
-scripts folder, give it a **new `id`** in `script.json` (a copy with the same id is ignored,
-the bundled one wins) and change `name` so you can tell the two apart. Your copy appears next
-to the original; it may live in a group of the same name, in which case both end up in the
-same sub-menu.
+scripts folder and change it there:
+
+- **keep its `id`** and your copy replaces the bundled script in the menu, in its place, with
+  its hotkey, toolbar button and *Last script*; a copy without an icon of its own shows the
+  bundled script's icon. Remove your copy and the bundled script is back;
+- or give it a **new `id`** and change `name` so you can tell the two apart: your copy then
+  appears next to the original; it may live in a group of the same name, in which case both
+  end up in the same sub-menu.
+
+The AI assistant changes a script the same way, on request and after your approval: its copy,
+with the same id, goes into `90_assistant/`, and the version it replaces is kept as a dated
+backup in `script-backups/` of your data folder, from which the assistant can restore it.
 
 ## 2. The manifest (`script.json`)
 
@@ -72,7 +83,7 @@ same sub-menu.
 | Field | Required | Meaning |
 |-------|----------|---------|
 | `manifestVersion` | yes | always `1` |
-| `id` | no | unique id (reverse-DNS style recommended); defaults to `<group folder>/<script folder>`; duplicates across folders are reported and the first one (bundled first) wins |
+| `id` | no | unique id (reverse-DNS style recommended); defaults to `<group folder>/<script folder>`; a script of a higher folder (section 1) with the id of a lower one replaces it in its place; the same id twice in one folder is reported and the first one wins |
 | `name` | yes | display names by language; `en` is required, `ru` optional |
 | `description` | no | tooltip / status-bar text by language |
 | `kind` | yes | `menu` (Scripts menu, toolbar, hotkey) or `tree` (Document Tree context menu). Missing: `tree` inside the `tree/` folder, `menu` elsewhere, with a warning |
@@ -81,7 +92,20 @@ same sub-menu.
 | `defaultHotkey` | no | chord such as `Ctrl+Alt+U`, `Mod+Shift+F5` (`Mod` = Ctrl, Cmd on macOS); users may change it in Settings > Hotkeys (group "Scripts"); collisions are reported there |
 | `needsSelection` | no | the command is disabled while nothing is selected in the Body view |
 | `undoLabel` | no | label of the single undo step (default: the name) |
-| `legacy` | no | provenance of a converted FBE script |
+| `legacy` | no | provenance of a converted FBE script: `source` (its path in the original's `Scripts` folder), `fbeVersion` (`2.7` or `2.7.9`), `sourceVersion` (the version its header states) and `aliases` (other paths of the same script, such as the 2.7.9 path of a script unchanged since 2.7beta1); `mfbe.scripts.run` finds a script by `source` and by its `aliases` |
+
+### Ids and packages
+
+- **An id, once released, never changes.** A bundled script that is renamed, moved to another
+  group or updated keeps its id, so a hotkey (`script.<id>` in `hotkeys.json`), a button of the
+  Scripts toolbar and *Last script* keep following it. Give your own scripts ids of their own
+  for the same reason.
+- **Each script is an independent program.** Its package carries all the code it needs: a
+  package's modules may import only files of their own package. The editor refuses a module of
+  one package that asks for a file of another, so copy what you need into your package.
+- **The bundled group folder `20_debug` is now `95_programmers`** (*Для программистов*, as in
+  FictionBook Editor 2.7.9; since 0.0.6). Groups merge by folder name, so a group folder of your
+  own named `20_debug` now forms a group of its own instead of joining the bundled one.
 
 ## 3. A script
 
@@ -162,12 +186,12 @@ the bodies only: the description's annotation and history are edited through
 
 | Member | What it does | Example |
 |--------|--------------|---------|
-| `selection.get()` | `{ anchor: {nodeId, offset}, head, text, nodes }`; `null` only when no book is open. Without a selection in the Body view it reports a collapsed selection (`anchor` = `head`, `text: ''`) at the start of the first text block - test `text === ''` for "nothing selected". A selected image reports `nodes: []`, `text: '\uFFFC'` and the enclosing paragraph (inline image) or body (block image) as `anchor.nodeId` | [01-upper-case.js](examples/01-upper-case.js) |
+| `selection.get()` | `{ anchor: {nodeId, offset}, head, text, nodes }`; `null` only when no book is open. Without a selection in the Body view it reports a collapsed selection (`anchor` = `head`, `text: ''`) at the start of the first text block - test `text === ''` for "nothing selected". A selected image reports `nodes: []`, `text: '\uFFFC'` and the enclosing paragraph (inline image) or body (block image) as `anchor.nodeId`. Select All, or a selected table, reports the whole range at its text blocks: `anchor` at the start of the first, `head` at the end of the last (feature 007) | [01-upper-case.js](examples/01-upper-case.js) |
 | `selection.set(anchor, head?)` | Moves the caret / selects a range (offsets count characters inside the text block); `anchor` and `head` may lie in different text blocks | [09-long-running.js](examples/09-long-running.js) |
-| `selection.replaceText(text)` | Replaces the selected text (keeps the surrounding marks) | [01-upper-case.js](examples/01-upper-case.js) |
+| `selection.replaceText(text)` | Replaces the selected text; the new text keeps the formatting of the text it replaces, as typing over a selection does (at a caret, the formatting before it) | [01-upper-case.js](examples/01-upper-case.js) |
 | `selection.wrap(mark)` | Applies `'strong'`, `'emphasis'`, `'strikethrough'`, `'sub'`, `'sup'`, `'code'`, `{ style: 'name' }` or `{ link: '#id', note: true }` to the selection | [05-footnotes-form.js](examples/05-footnotes-form.js) |
 | `selection.unwrap(mark)` | Removes a mark (`'style'` and `'link'` remove any named style / link) | [04-structure.js](examples/04-structure.js) |
-| `selection.selectNode(ref)` | Selects a whole node, scrolling the Body view to it | [04-structure.js](examples/04-structure.js) |
+| `selection.selectNode(ref)` | Selects a whole node, scrolling the Body view to it. The annotation and history blocks at the top of the Body view have the fixed ids `desc:annotation` and `desc:history`: `selectNode('desc:annotation')` puts the selection at the very start of the Body view (their text is written with `doc.setDescription`) | [04-structure.js](examples/04-structure.js) |
 | `selection.scrollIntoView()` | Scrolls the current selection into view | [04-structure.js](examples/04-structure.js) |
 
 ### 4.3 Dialogs and status - `mfbe.ui`
@@ -176,7 +200,7 @@ the bodies only: the description's annotation and history are edited through
 |--------|--------------|---------|
 | `ui.message(text, options?)` | Message box; `options.buttons` is a list of `{ id, label, default?, cancel? }` (default: OK), `options.icon` is `info`/`warning`/`error`/`question`; resolves with the id of the pressed button | [06-statistics.js](examples/06-statistics.js) |
 | `ui.prompt(text, options?)` | Single-line input; resolves with the text or `null` on Cancel; with `yesNoCancel: true` the buttons are Yes / No / Cancel (No resolves with `''`) | [07-legacy-port.js](examples/07-legacy-port.js) |
-| `ui.form(spec)` | Declarative modal dialog with `text` (optionally `multiline`), `number` (`min`/`max`), `checkbox`, `select`, `radio`, `list` (`multiple`; its value is always an array) and `static` fields; resolves with `{ fieldId: value }` or `null` on Cancel. One form at a time - a palette or a live list is a loop of forms | [05-footnotes-form.js](examples/05-footnotes-form.js) |
+| `ui.form(spec)` | Declarative modal dialog with `text` (optionally `multiline`), `number` (`min`/`max`), `checkbox`, `select`, `radio`, `list` (`multiple`; its value is always an array), `static` and - version 2 - `regexp` fields (a pattern with named `presets` that fill it and a validity check: OK stays disabled while it does not compile with `flags`; its value is the pattern string); resolves with `{ fieldId: value }` or `null` on Cancel. One form at a time - a palette or a live list is a loop of forms | [05-footnotes-form.js](examples/05-footnotes-form.js) |
 | `ui.status(text, options?)` | Status-bar text; cleared when the script ends unless `{ sticky: true }` | [01-upper-case.js](examples/01-upper-case.js) |
 | `ui.progress(done, total?, label?)` | Progress in the status bar, next to the Cancel button; like every `mfbe` call it shows that the script is still working, so call it in long loops | [09-long-running.js](examples/09-long-running.js) |
 
@@ -206,6 +230,33 @@ members (see [07-legacy-port.js](examples/07-legacy-port.js)):
 | `InputBox(prompt, caption?, defaultValue?)` | Input prompt; resolves with the text or `null` on Cancel |
 | `BeginUndoUnit(label?)` / `EndUndoUnit()` | No-ops kept for ported code (the run is already one undo unit) |
 
+### 4.7 Version 2: what the editor does at a script's request
+
+`mfbe.version` is `2` since 0.0.6. A script of version 1 runs unchanged. Version 2 adds the
+powers the scripts of FictionBook Editor 2.7.9 used, each performed by the editor itself - the
+script still has no file system, no network and no worker of its own (constitution principle V).
+`ctx.startedBy` says who started the run: `'user'` (a menu, the toolbar, a hotkey, the Document
+Tree), `'assistant'` (the AI assistant) or `'script'` (another script; then `ctx.caller` is its
+id and `ctx.args` what it passed).
+
+| Member | What it does |
+|--------|--------------|
+| `clipboard.readText()` | The clipboard's plain text (`''` when it holds none). Allowed only in a run the user started, directly or through other scripts: in a run the assistant started it rejects with the code `clipboard.readNotAllowed`, since what a script reads there would reach the AI service |
+| `clipboard.writeText(text)` | Replaces the clipboard's content with plain text |
+| `files.saveText({ suggestedName, text, encoding?, title? })` | The editor's Save dialog proposes the name; the user chooses where. The text is written in `utf-8` (the default), `utf-16` (with a BOM) or `windows-1251`. Resolves `{ saved, name? }` - the file name alone, never a folder; a cancelled dialog is `{ saved: false }` |
+| `files.saveBinaries({ ids?, title? }?)` | The editor's folder dialog; each binary of the book (`ids`, all when left out) is written with its original bytes, named by its id. For a file that exists the user is asked: Overwrite, Skip, Overwrite all or Cancel. Resolves `{ saved, skipped }` |
+| `ui.report({ title, text? , html? })` | Opens a report window that stays after the run: `text` pre-wrapped, or `html` in a frame that runs no script and loads nothing (pictures only as `data:` URLs). The user has Copy and Save as... |
+| `scripts.run(ref, args?)` | Runs another script of the Scripts menu and resolves with what its `run()` returned. `ref` is an id or the original FictionBook Editor path its manifest names in `legacy.source` - `'16_Поиск форматирования\\52_Перейти на следующую цитату.js'`, separators and case do not matter |
+
+**Run chains.** A script started through `scripts.run` runs in a worker the editor creates, on
+the same document as its caller: the whole chain is one run - one undo step under the first
+script's name, one Cancel that stops every script of it and restores the book. A chain is at
+most 8 scripts deep (`scripts.depthExceeded`); an unknown reference rejects with
+`scripts.notFound`, a script that needs a selection without one with `scripts.needsSelection`,
+and the callee's own error rejects in the caller, which may catch it. Errors of the API carry
+these codes in `error.code` (and `name` `ScriptApiError`); `files.failed` reports a file that
+could not be written. A cancelled dialog is never an error.
+
 ## 5. Sandbox rules
 
 Scripts run in a dedicated Web Worker with a private channel to the editor. Before the script
@@ -213,8 +264,9 @@ loads, `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `importScripts`, `
 `SharedWorker`, `indexedDB`, `caches`, `navigator`, `BroadcastChannel`, `MessageChannel`,
 `OffscreenCanvas`, `performance.memory` and the worker's own `postMessage`/`close` are removed;
 the page's Content-Security-Policy additionally blocks any network access and any module that
-does not come from the script's own folder. There is no file system, no clipboard, no access
-to the editor's HTML, no storage. The full JavaScript language and its built-ins (`String`,
+does not come from the script's own folder. There is no file system, no clipboard of the
+script's own (the editor reads and writes it for the script, §4.7), no access to the editor's
+HTML, no storage. The full JavaScript language and its built-ins (`String`,
 `RegExp`, `Array`, `Map`, `Math`, `Date`, `Intl`, `JSON`, `Promise`, `setTimeout`,
 `console` - routed to the editor log in development builds) remain available. Widening the
 `mfbe` interface is a product decision; a script cannot grant itself more.
@@ -307,6 +359,25 @@ dialog with a `ui.form` spec; **Tier 4** (engine debugging helpers) is replaced 
 with a note in the release notes. `tools/legacy-script-audit.py` classifies the original
 scripts and generates manifest skeletons; `tests/scripts/run-script.mjs` runs a package
 headless on a fixture book and prints the resulting FB2 for snapshot comparison.
+
+### Scripts of FictionBook Editor 2.7.9 that are not in the menu
+
+Since 0.0.6 the bundled scripts follow FictionBook Editor 2.7.9; the full account, script by
+script, is in [conversion-notes-279.md](conversion-notes-279.md). Three of its scripts need the
+editor's own page or view, which no script reaches, and are not converted:
+
+- *Обновить иллюстрации* (group 05) redrew the page's pictures - the editor shows a changed
+  picture by itself;
+- *Управление структурой разделов и их заголовками…* (group 08) is a drag-and-drop editor of the
+  section tree - use the Document Tree;
+- *Режим чтения* (top level), a read-only mode of the view with its own keys and scrolling.
+
+Four have nothing to do with editing the book and are left out: the quote phrasetron and the Bulls
+and Cows game (group 99), the obscene words statistics (group 10) and the search for obscene words
+(group 21).
+
+A script list written for 2.7.9 - the templates of group 31, `mfbe.scripts.run("<2.7.9 path>")` -
+finds every other script by its 2.7.9 path (the manifest's `legacy.source` or `legacy.aliases`).
 
 ## 7. Checklist for a new script
 

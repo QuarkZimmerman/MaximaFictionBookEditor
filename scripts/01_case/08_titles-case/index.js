@@ -1,11 +1,17 @@
-// Converted from 01_Регистр/08_Регистр заголовков и подзаголовков....js (FictionBook Editor 2.7),
-// Tier 3: the HTML dialog "Регистр заголовков - набор фреймов.html" listed the titles and
-// subtitles of the book and let the user flip the case of single characters or of a dragged range.
+// Converted from FictionBook Editor 2.7: Scripts/01_Регистр/08_Регистр заголовков и
+// подзаголовков....js, brought up to FictionBook Editor 2.7.9 (the same file; its dialog, now
+// "HTML/Регистр заголовков и подзаголовков - набор фреймов.html", version 1.9 instead of 1.6),
+// Tier 3: the HTML dialog listed the titles and subtitles of the book and let the user flip the
+// case of single characters or of a dragged range.
 // A declarative form cannot offer per-character editing, so the conversion is: (1) choose which
 // titles/subtitles to list (the dialog's five checkboxes), (2) tick the elements to change and
 // pick the operation - upper or lower case (the dialog's context menu) plus the two usual title
 // styles, Sentence case and Capitalised Words.
-// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+// Version 1.9 only made OK close the dialog when nothing was listed (1.6 took its message for the
+// list and failed with a script error); here "Ничего не найдено." ends the run without a change.
+// Differences from the original:
+// docs/scripting/conversion-notes-279-a.md (group 01).
+// The original's notice, kept as written (FR-029):
 //скрипт "Регистр заголовков и подзаголовков"
 //автор Sclex
 //сайт скриптов: http://scripts.fictionbook.org
@@ -92,7 +98,7 @@ function applyCase(block, operation) {
 
 export default async function run(ctx) {
   const filters = await mfbe.ui.form({
-    title: t(ctx, 'Регистр заголовков и подзаголовков v1.6 (скрипт Sclex’а)', 'Case of titles and subtitles v1.6 (script by Sclex)'),
+    title: t(ctx, 'Регистр заголовков и подзаголовков v1.9 (скрипт Sclex’а)', 'Case of titles and subtitles v1.9 (script by Sclex)'),
     fields: [
       { kind: 'static', id: 'help', text: t(ctx, 'Вначале выберите, что показывать.', 'First choose what to list.') },
       { kind: 'checkbox', id: 'bodySectionTitles', label: t(ctx, 'заголовки body и section', 'body and section titles'), value: true },
@@ -117,7 +123,7 @@ export default async function run(ctx) {
     return { value: String(node.attrs.nodeId), label: `${kind === 'title' ? 'T' : 'S'}: ${label}` };
   });
   const choice = await mfbe.ui.form({
-    title: t(ctx, 'Регистр заголовков и подзаголовков v1.6 (скрипт Sclex’а)', 'Case of titles and subtitles v1.6 (script by Sclex)'),
+    title: t(ctx, 'Регистр заголовков и подзаголовков v1.9 (скрипт Sclex’а)', 'Case of titles and subtitles v1.9 (script by Sclex)'),
     width: 640,
     fields: [
       {

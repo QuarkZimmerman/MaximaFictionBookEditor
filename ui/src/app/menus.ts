@@ -4,8 +4,17 @@
  * command items take their label from the command's `labelKey`.
  */
 
+/**
+ * A menu item's icon (feature 007, User Story 8; data-model §6, plan DP-6): a 16 px image left of
+ * the item's name, `url` carrying the session token. Shown by `MenuItemSlot` (MenuIcon.tsx) in
+ * the column of the check mark, so a checkable item never shows one.
+ */
+export interface MenuIcon {
+  url: string;
+}
+
 export type MenuItemSpec =
-  | { kind: 'command'; commandId: string }
+  | { kind: 'command'; commandId: string; icon?: MenuIcon }
   | { kind: 'separator' }
   | {
       kind: 'submenu';
@@ -13,6 +22,7 @@ export type MenuItemSpec =
       labelKey: string;
       items: readonly MenuItemSpec[];
       dynamic?: string;
+      icon?: MenuIcon;
       /**
        * Enabled only while one of its commands is, and then it tells why with its first command's
        * reason (feature 006: *Table structure*).

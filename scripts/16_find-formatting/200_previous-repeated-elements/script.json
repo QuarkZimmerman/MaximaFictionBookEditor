@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/previous-repeated-elements",
+  "name": {
+    "ru": "Найти предыдущие подряд идущие однотипные элементы",
+    "en": "Find previous consecutive elements of one type",
+    "uk": "Знайти попередні однотипні елементи, що йдуть поспіль"
+  },
+  "description": {
+    "ru": "Находит предыдущие стоящие подряд цитаты, стихи, эпиграфы или подзаголовки (пустые строки между ними не в счёт) и выделяет первый абзац второго из них",
+    "en": "Finds the previous cites, poems, epigraphs or subtitles that follow each other (empty lines between them do not count) and selects the first paragraph of the second one",
+    "uk": "Знаходить попередні цитати, вірші, епіграфи або підзаголовки, що йдуть поспіль (порожні рядки між ними не враховуються), і виділяє перший абзац другого з них"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Найти предыдущие подряд идущие однотипные элементы",
+    "en": "Find previous consecutive elements of one type"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/200_Найти предыдущие подряд идущие однотипные элементы.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
+  }
+}

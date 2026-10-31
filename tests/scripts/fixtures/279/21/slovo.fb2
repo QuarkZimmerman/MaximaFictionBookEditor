@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Слова</last-name>
+			</author>
+			<book-title>Опечатки в словах</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>fixture</program-used>
+			<date value="2026-10-31">2026</date>
+			<id>fixture-279-21-slovo</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<section>
+			<title>
+				<p>Опечатки в словах</p>
+			</title>
+			<p>Обычный абзац, где всё написано правильно.</p>
+			<p>Здесь пего вместо него.</p>
+			<p>Курсив <emphasis>пего</emphasis> тоже находится.</p>
+			<p>А здесь пе<emphasis>го</emphasis> разбито тегом.</p>
+			<p>Слово иа вместо на.</p>
+			<p>Тройка чтб согласных.</p>
+			<p>Слово фуппа и фупп.</p>
+			<p>Кот а пёс.</p>
+			<p>Ссылка на <a l:href="#n1" type="note">пего</a> в сноске.</p>
+			<p>Сочетание яиц в корзине и земляиика.</p>
+			<p>Последний абзац.</p>
+		</section>
+	</body>
+	<body name="notes">
+		<section id="n1">
+			<p>Примечание.</p>
+		</section>
+	</body>
+</FictionBook>

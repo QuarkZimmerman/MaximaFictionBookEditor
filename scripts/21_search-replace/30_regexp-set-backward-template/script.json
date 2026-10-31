@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "21/regexp-set-backward-template",
+  "name": {
+    "ru": "Обратный поиск по набору регэкспов (версия с исключениями) (заготовка)",
+    "en": "Backward search by a set of regexps (version with exceptions) (template)",
+    "uk": "Зворотний пошук за набором регулярних виразів (версія з виключеннями) (заготовка)"
+  },
+  "description": {
+    "ru": "Заготовка для собственного списка регэкспов, по которому ищется назад: отредактируйте index.js, после чего каждый запуск выделяет ближайшее перед курсором совпадение и показывает его описание в строке состояния.",
+    "en": "Template for your own list of regular expressions searched backwards: edit index.js, then each run selects the nearest hit before the caret and shows its description in the status bar.",
+    "uk": "Заготовка для власного списку регулярних виразів, за яким шукається назад: відредагуйте index.js, після чого кожен запуск виділяє найближчий перед курсором збіг і показує його опис у смузі стану."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Обратный поиск по набору регэкспов (версия с исключениями) (заготовка)",
+    "en": "Backward search by a set of regexps (version with exceptions) (template)"
+  },
+  "legacy": {
+    "source": "21_Поиск и замена/30_Обратный поиск по набору регэкспов (версия с исключениями) (заготовка).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.5"
+  }
+}

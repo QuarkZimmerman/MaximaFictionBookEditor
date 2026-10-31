@@ -2,23 +2,26 @@
   "manifestVersion": 1,
   "id": "02/add-footnote",
   "name": {
-    "en": "Add a footnote, staying at its reference",
-    "ru": "Добавить сноску, оставшись на ее ссылке"
+    "ru": "Добавить примечание, остаться на его ссылке",
+    "en": "Add a footnote and stay at its reference",
+    "uk": "Додати примітку, залишитися на її посиланні"
   },
   "description": {
-    "en": "Inserts a footnote link at the caret, renumbers the footnotes and creates the note section; the caret stays in the text",
-    "ru": "Вставляет ссылку сноски в позиции курсора, перенумеровывает сноски и создает секцию примечания; курсор остается в тексте"
+    "ru": "Вставляет в позиции курсора ссылку на новое примечание, перенумеровывает примечания и создает раздел примечания; курсор остается у ссылки",
+    "en": "Inserts a link to a new footnote at the caret, renumbers the footnotes and creates the footnote's section; the caret stays at the link",
+    "uk": "Вставляє в позиції курсора посилання на нову примітку, перенумеровує примітки і створює розділ примітки; курсор залишається біля посилання"
   },
   "kind": "menu",
   "entry": "index.js",
   "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Add a footnote, staying at its reference",
-    "ru": "Добавить сноску, оставшись на ее ссылке"
+    "ru": "Добавить примечание, остаться на его ссылке",
+    "en": "Add a footnote and stay at its reference"
   },
   "legacy": {
-    "source": "02_Добавление примечания/01_Добавить сноску, оставшись на ее ссылке.js",
-    "fbeVersion": "2.7"
+    "source": "02_Примечания/01_Добавить примечание, остаться на его ссылке.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "2.8"
   }
 }

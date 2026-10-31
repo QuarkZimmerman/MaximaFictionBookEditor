@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-text-subtitle",
+  "name": {
+    "ru": "Выделить следующий подзаголовок (текст)",
+    "en": "Select next subtitle (text)",
+    "uk": "Виділити наступний підзаголовок (текст)"
+  },
+  "description": {
+    "ru": "Выделяет следующий подзаголовок, в котором есть буквы или цифры",
+    "en": "Selects the next subtitle that contains letters or digits",
+    "uk": "Виділяє наступний підзаголовок, у якому є літери або цифри"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить следующий подзаголовок (текст)",
+    "en": "Select next subtitle (text)"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/164_Выделить следующий подзаголовок (текст).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.4"
+  }
+}

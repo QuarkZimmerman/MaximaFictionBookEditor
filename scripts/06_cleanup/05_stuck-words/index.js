@@ -1,14 +1,18 @@
-// Converted from 06_Чистка/05_Слипшиеся слова.js (FictionBook Editor): interactive search for
-// suspicious places - punctuation glued between letters, a capital right after a lower-case
-// letter, digits glued to words, misplaced hyphens and dashes, apostrophes and slashes inside
-// words, stray symbols, plain text inside italics... Starting at the paragraph with the caret
-// every finding is highlighted and shown in an input box with a proposal: Yes replaces the
-// place by the text of the box, No keeps it (and remembers the text so it is not asked
-// again), Cancel stops the script.
-// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+// Converted from FictionBook Editor 2.7.9: Scripts/06_Чистка/05_Слипшиеся слова.js - interactive search
+// for suspicious places, version 3.3 (2.7beta1's 2.92 before feature 007): punctuation glued
+// between letters, a capital right after a lower-case letter, digits glued to words, misplaced
+// hyphens and dashes, apostrophes and slashes inside words, stray symbols, plain text inside
+// italics... Starting at the paragraph with the caret every finding is highlighted and shown in an
+// input box with a proposal: Yes replaces the place by the text of the box, No keeps it (and
+// remembers the text so it is not asked again), Cancel stops the script. 2.7.9's fixes of two
+// branches that did not ask (or failed) past the tenth place of a paragraph and of the highlight
+// were already this conversion's behaviour; the expressions compile with JScript's meaning of \s
+// and . (lib/jscript-regexp.js).
+// The original's notice, kept as written (FR-029):
 //======================================
 //     Интерактивный поиск знаков препинания и т. д. и т. п.
 //                                                 8 мая 2008 г.
+//     Автор скрипта - jurgennt
 //                                                         Engine by ©Sclex
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // v.1.1 – Цифры после строчных                         2007.09.16
@@ -43,7 +47,7 @@
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // v.2.6 – кастомизированные неразрывные пробелы          2010.03.20
 //======================================
-// v.2.7 — прерывание процесса
+// v.2.7 — прерывание процесса 
 //======================================
 // v.2.8 — проверка от курсора — sclex, май 2010
 //======================================
@@ -51,6 +55,7 @@
 //======================================
 // v.2.92 — доработка подсветки для найденных рез-тов поиска — Alex2L, май, июнь 2012
 //======================================
+//
 import { legacyTimeString } from './lib/legacy-html.js';
 import { piece, runInteractive } from './lib/interactive.js';
 import { PATTERNS } from './patterns.js';
@@ -82,8 +87,8 @@ export default async function run(ctx) {
   const state = await runInteractive(ctx, { caption: ctx.script.name, patterns, rememberRejected: true });
   await mfbe.ui.message(
     ru
-      ? `    –= Jürgen Script =–\n«Слипшиеся слова» v.2.92\n\nПроизведено замен:   ${state.count}\n\nВремя: ${legacyTimeString(started)}\n`
-      : `    –= Jürgen Script =–\n"Stuck-together words" v.2.92\n\nReplacements made:   ${state.count}\n\nTime: ${legacyTimeString(started)}\n`,
+      ? `    –= Jürgen Script =–\n«Слипшиеся слова» v.3.3\n\nПроизведено замен:   ${state.count}\n\nВремя: ${legacyTimeString(started)}\n`
+      : `    –= Jürgen Script =–\n"Stuck-together words" v.3.3\n\nReplacements made:   ${state.count}\n\nTime: ${legacyTimeString(started)}\n`,
     { caption: ctx.script.name, icon: 'info' },
   );
 }

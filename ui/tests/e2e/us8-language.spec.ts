@@ -346,7 +346,10 @@ test.describe('US8 - the interface in Russian (?lang=ru)', () => {
             ...russianProblems((await item.getAttribute('title')) ?? '', `${testId} title`, true),
           );
         } else if ((await item.getAttribute('aria-haspopup')) === 'true') {
-          await item.hover();
+          // At the start of the label: a submenu with room on neither side of a wide menu (the
+          // Scripts groups of FictionBook Editor 2.7.9, feature 007) is moved into the window
+          // over its menu and covers the middle of the next items, as the user sees it.
+          await item.hover({ position: { x: 8, y: 8 } });
           const submenu = page.getByTestId(`${testId}-popup`);
           await expect(submenu).toBeVisible();
           const subItems = submenu.locator('[role="menuitem"], [role="menuitemcheckbox"]');

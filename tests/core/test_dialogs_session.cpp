@@ -202,6 +202,9 @@ TEST_CASE("dialogs: queued provider answers in order and fails loudly without an
     CHECK(provider.missed() == std::vector<std::string>{"dialog.saveFile", "dialog.pickFolder"});
     CHECK(provider.open_path("/tmp"));
     CHECK(provider.opened_paths() == std::vector<std::string>{"/tmp"});
+    CHECK(provider.open_url("https://www.maxima-library.com"));
+    CHECK(provider.opened_urls() == std::vector<std::string>{"https://www.maxima-library.com"});
+    CHECK(provider.opened_paths() == std::vector<std::string>{"/tmp"});  // kept apart
     provider.enqueue("dialog.openFile", json::object());
     provider.clear();
     CHECK(provider.pending() == 0);

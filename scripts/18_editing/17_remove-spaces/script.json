@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "18/remove-spaces",
+  "name": {
+    "ru": "Удалить все пробелы в выделении",
+    "en": "Remove all spaces in the selection",
+    "uk": "Видалити всі пробіли у виділенні"
+  },
+  "description": {
+    "ru": "Удаляет все пробелы и неразрывные пробелы из выделенного текста (также в аннотации и истории книги), сохраняя форматирование",
+    "en": "Removes every space and non-breaking space from the selected text (in the book's annotation and history too), keeping the formatting",
+    "uk": "Видаляє всі пробіли та нерозривні пробіли з виділеного тексту (також в анотації та історії книги), зберігаючи форматування"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": true,
+  "undoLabel": {
+    "ru": "Удалить все пробелы в выделении",
+    "en": "Remove all spaces in the selection"
+  },
+  "legacy": {
+    "source": "18_Мелочи редактирования/17_Удалить все пробелы в выделении.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "18/yo-e-variants",
+  "name": {
+    "ru": "Разночтения Ё-Е",
+    "en": "Е/Ё variant readings",
+    "uk": "Різночитання Ё-Е"
+  },
+  "description": {
+    "ru": "Предлагает по одному слова, читающиеся по-разному с «е» и с «ё» (все/всё, небо/нёбо…), для замены, затем — запись остальных слов с «ё» через «е»; повышает версию файла и пишет строку в историю.",
+    "en": "Offers the words that read differently with Е and Ё (все/всё, небо/нёбо…) one by one for the other reading, then writing the other words with Ё using Е; raises the file version and adds a history line.",
+    "uk": "Пропонує по одному слова, що читаються по-різному з «е» та «ё» (все/всё, небо/нёбо…), для заміни, потім — запис інших слів із «ё» через «е»; підвищує версію файлу й додає рядок до історії."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Разночтения Ё-Е",
+    "en": "Е/Ё variant readings"
+  },
+  "legacy": {
+    "source": "18_Мелочи редактирования/35_Разночтения Ё-Е.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "2.2"
+  }
+}

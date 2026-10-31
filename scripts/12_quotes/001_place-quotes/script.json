@@ -2,23 +2,26 @@
   "manifestVersion": 1,
   "id": "12/place-quotes",
   "name": {
-    "en": "Place guillemets and low quotes",
-    "ru": "Расстановка елочек и лапок"
+    "ru": "Проставить елочки и лапки (от начала документа)",
+    "en": "Place guillemets and low quotes (from the start of the document)",
+    "uk": "Проставити ялинки й лапки (від початку документа)"
   },
   "description": {
-    "en": "Replaces straight quotes with «» (level 0) and „“ (nested) in the selection (or the whole book); stops with a message when the nesting cannot be resolved",
-    "ru": "Заменяет прямые кавычки на «» (0-й уровень) и „“ (вложенные) в выделении (или во всей книге); при невозможности определить вложенность останавливается с сообщением"
+    "ru": "Заменяет прямые кавычки выделения или всей книги (с аннотацией и историей) на «» и „“ по уровню вложенности; при ошибке останавливается, выделяет место и сообщает о нём",
+    "en": "Replaces the straight quotes of the selection, or of the whole book with its annotation and history, by «» and „“ according to their nesting level; on an error it stops, selects the place and says what is wrong",
+    "uk": "Замінює прямі лапки виділення або всієї книги (разом з анотацією та історією) на «» і „“ за рівнем вкладеності; у разі помилки зупиняється, виділяє місце й повідомляє про неї"
   },
   "kind": "menu",
   "entry": "index.js",
+  "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Quotes to guillemets v2.0",
-    "ru": "Кавычки на елочки v2.0"
+    "ru": "Проставить елочки и лапки (от начала документа)",
+    "en": "Place guillemets and low quotes (from the start of the document)"
   },
   "legacy": {
-    "source": "12_Обработка кавычек/001_Расстановка елочек и лапок.js",
-    "fbeVersion": "2.7"
-  },
-  "icon": "icon.png"
+    "source": "12_Обработка кавычек/001_Проставить елочки и лапки (от начала документа).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "3.9"
+  }
 }

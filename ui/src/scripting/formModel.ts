@@ -5,7 +5,16 @@
 
 import type { FormField, FormValues } from './types';
 
-const FIELD_KINDS = new Set(['text', 'number', 'checkbox', 'select', 'radio', 'list', 'static']);
+const FIELD_KINDS = new Set([
+  'text',
+  'number',
+  'checkbox',
+  'select',
+  'radio',
+  'list',
+  'static',
+  'regexp',
+]);
 
 /** Drops malformed fields so a sloppy spec still produces a dialog. */
 export function normaliseFields(fields: unknown): FormField[] {
@@ -35,7 +44,8 @@ export function initialValues(fields: readonly FormField[]): FormValues {
   for (const field of fields) {
     switch (field.kind) {
       case 'text':
-        values[field.id] = field.value ?? '';
+      case 'regexp':
+        values[field.id] = typeof field.value === 'string' ? field.value : '';
         break;
       case 'number':
         values[field.id] = typeof field.value === 'number' ? field.value : (field.min ?? 0);
@@ -61,4 +71,27 @@ export function initialValues(fields: readonly FormField[]): FormValues {
     }
   }
   return values;
+}
+
+/**
+ * Why a `'regexp'` field's pattern does not compile with its flags (the engine's message), or
+ * null when it does. Invalid flags count as a problem too.
+ */
+export function regexpProblem(pattern: string, flags: string | undefined): string | null {
+  try {
+    new RegExp(pattern, flags ?? '');
+    return null;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+}
+
+/** The first field whose value keeps OK disabled, if any. */
+export function invalidField(fields: readonly FormField[], values: FormValues): string | null {
+  for (const field of fields) {
+    if (field.kind === 'regexp' && regexpProblem(String(values[field.id] ?? ''), field.flags)) {
+      return field.id;
+    }
+  }
+  return null;
 }

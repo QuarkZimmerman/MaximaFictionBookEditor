@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Таблицы</last-name>
+			</author>
+			<book-title>Таблицы</book-title>
+			<annotation>
+				<p>Аннотация с таблицей:</p>
+			</annotation>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Таблицы</p>
+		</title>
+		<section>
+			<title>
+				<p>Глава 1</p>
+			</title>
+			<p>Перед таблицами.</p>
+			<p>Между таблицами.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава 2</p>
+			</title>
+			<empty-line/>
+		</section>
+		<section>
+			<title>
+				<p>Глава 3</p>
+			</title>
+			<annotation>
+				<p>Аннотация раздела.</p>
+			</annotation>
+			<p>После таблицы.</p>
+		</section>
+		<section>
+			<p>Цитата:</p>
+			<cite>
+				<p>Текст цитаты.</p>
+			</cite>
+		</section>
+		<section>
+			<empty-line/>
+		</section>
+		<section>
+			<title>
+				<p>Глава 4</p>
+			</title>
+			<p>Метки без таблиц:</p>
+			<p>zzz_табл 1 из 2_zzz <image l:href="#pic.png"/></p>
+			<p>Конец.</p>
+		</section>
+	</body>
+	<body name="notes">
+		<section id="n1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Примечание с таблицей.</p>
+			<p>zzz_табл 7 из 7_zzz</p>
+		</section>
+	</body>
+	<binary id="pic.png" content-type="image/png">…</binary>
+</FictionBook>

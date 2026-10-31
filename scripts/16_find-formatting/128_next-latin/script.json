@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-latin",
+  "name": {
+    "ru": "Выделить следующую латиницу",
+    "en": "Select next Latin",
+    "uk": "Виділити наступну латиницю"
+  },
+  "description": {
+    "ru": "Выделяет следующие латинские буквы от курсора",
+    "en": "Selects the next Latin letters after the caret",
+    "uk": "Виділяє наступні латинські літери від курсора"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить следующую латиницу",
+    "en": "Select next Latin"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/128_Выделить следующую латиницу.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "5.1"
+  }
+}

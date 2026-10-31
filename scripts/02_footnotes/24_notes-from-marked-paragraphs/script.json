@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "02/notes-from-marked-paragraphs",
+  "name": {
+    "ru": "Создать сноски или комментарии из абзацев, помеченных маркерами",
+    "en": "Create footnotes or comments from paragraphs marked with markers",
+    "uk": "Створити примітки або коментарі з абзаців, позначених маркерами"
+  },
+  "description": {
+    "ru": "Абзацы, начинающиеся с заданного маркера, становятся текстами сносок или комментариев, а маркеры знака сноски в тексте — ссылками на них; помеченные абзацы затем можно удалить",
+    "en": "Paragraphs that start with the chosen marker become footnote or comment texts and the footnote sign markers in the text links to them; the marked paragraphs can then be removed",
+    "uk": "Абзаци, що починаються із заданого маркера, стають текстами приміток або коментарів, а маркери знака примітки в тексті — посиланнями на них; позначені абзаци потім можна видалити"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Создать сноски или комментарии из абзацев, помеченных маркерами",
+    "en": "Create footnotes or comments from paragraphs marked with markers"
+  },
+  "legacy": {
+    "source": "02_Примечания/24_Создать сноски или комментарии из абзацев, помеченных маркерами....js",
+    "fbeVersion": "2.7.9"
+  }
+}

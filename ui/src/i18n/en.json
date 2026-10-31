@@ -547,7 +547,9 @@
     "assigned": "Assigned to \"{{command}}\"",
     "notAssigned": "Not assigned to other command",
     "scriptConflict": "Script\n{{script}}\n returned a virtual-key that conflicts with previously loaded script\n {{other}}",
-    "none": "None"
+    "none": "None",
+    "fixedLine": "Fixed shortcut: {{chord}}",
+    "fixedTo": "{{chord}} always runs {{command}}"
   },
   "dialog": {
     "customizeToolbar": {

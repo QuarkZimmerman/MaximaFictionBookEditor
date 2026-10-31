@@ -2,23 +2,26 @@
   "manifestVersion": 1,
   "id": "08/section-down",
   "name": {
-    "en": "Lower the section one level down",
-    "ru": "Опустить раздел на один уровень"
+    "en": "Wrap the section at the caret in another (new) section",
+    "ru": "Раздел под курсором - обрамить другим (новым) разделом",
+    "uk": "Розділ під курсором - обрамити іншим (новим) розділом"
   },
   "description": {
     "en": "Wraps the content of the section at the caret (everything after its title, epigraph, image and annotation) into a new nested section",
-    "ru": "Оборачивает содержимое раздела под курсором (всё после заголовка, эпиграфа, картинки и аннотации) во вложенный раздел"
+    "ru": "Оборачивает содержимое раздела под курсором (всё после заголовка, эпиграфа, картинки и аннотации) во вложенный раздел",
+    "uk": "Обгортає вміст розділу під курсором (усе після заголовка, епіграфа, малюнка й анотації) у вкладений розділ"
   },
   "kind": "menu",
   "entry": "index.js",
   "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Lower the section",
-    "ru": "Опустить раздел"
+    "en": "Wrap the section at the caret in another (new) section",
+    "ru": "Раздел под курсором - обрамить другим (новым) разделом"
   },
   "legacy": {
-    "source": "08_Структура разделов/03_Опустить раздел на один уровень.js",
-    "fbeVersion": "2.7"
+    "source": "08_Структура разделов/03_Раздел под курсором - обрамить другим (новым) разделом.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.0"
   }
 }

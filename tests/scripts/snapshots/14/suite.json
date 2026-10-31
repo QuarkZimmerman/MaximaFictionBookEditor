@@ -1,0 +1,179 @@
+[
+  {
+    "snapshot": "14/paragraphs-to-cite.xml",
+    "script": "scripts/14_citations/052_paragraphs-to-cite",
+    "book": "tests/scripts/fixtures/279/14/cites.fb2",
+    "args": [
+      "--select-range",
+      "n8:3-n10:5"
+    ]
+  },
+  {
+    "snapshot": "14/paragraphs-to-cite.caret.xml",
+    "script": "scripts/14_citations/052_paragraphs-to-cite",
+    "book": "tests/scripts/fixtures/279/14/cites.fb2",
+    "args": [
+      "--select",
+      "n15:5:5"
+    ]
+  },
+  {
+    "snapshot": "14/paragraphs-to-cite.picture.xml",
+    "script": "scripts/14_citations/052_paragraphs-to-cite",
+    "book": "tests/scripts/fixtures/279/14/cites.fb2",
+    "args": [
+      "--select-range",
+      "n16:0-n18:4"
+    ]
+  },
+  {
+    "snapshot": "14/paragraphs-to-cite.end-at-start.xml",
+    "script": "scripts/14_citations/052_paragraphs-to-cite",
+    "book": "tests/scripts/fixtures/279/14/cites.fb2",
+    "args": [
+      "--select-range",
+      "n7:0-n8:0"
+    ]
+  },
+  {
+    "snapshot": "14/paragraphs-to-cite.notes.xml",
+    "script": "scripts/14_citations/052_paragraphs-to-cite",
+    "book": "tests/scripts/fixtures/279/14/cites.fb2",
+    "args": [
+      "--select",
+      "n31:0:0"
+    ]
+  },
+  {
+    "snapshot": "14/paragraphs-to-cite.subtitle.xml",
+    "script": "scripts/14_citations/052_paragraphs-to-cite",
+    "book": "tests/scripts/fixtures/279/14/cites.fb2",
+    "args": [
+      "--select-range",
+      "n18:0-n20:3"
+    ]
+  },
+  {
+    "snapshot": "14/paragraphs-to-cite.title.xml",
+    "script": "scripts/14_citations/052_paragraphs-to-cite",
+    "book": "tests/scripts/fixtures/279/14/cites.fb2",
+    "args": [
+      "--select",
+      "n6:2:2"
+    ]
+  },
+  {
+    "snapshot": "14/paragraphs-to-cite.two-sections.xml",
+    "script": "scripts/14_citations/052_paragraphs-to-cite",
+    "book": "tests/scripts/fixtures/279/14/cites.fb2",
+    "args": [
+      "--select-range",
+      "n11:3-n15:3"
+    ]
+  },
+  {
+    "snapshot": "14/paragraphs-to-cite.in-cite.xml",
+    "script": "scripts/14_citations/052_paragraphs-to-cite",
+    "book": "tests/scripts/fixtures/279/14/cites.fb2",
+    "args": [
+      "--select",
+      "n25:2:2"
+    ]
+  },
+  {
+    "snapshot": "14/paragraphs-to-cite.annotation.xml",
+    "script": "scripts/14_citations/052_paragraphs-to-cite",
+    "book": "tests/scripts/fixtures/279/14/cites.fb2",
+    "args": [
+      "--select",
+      "n33:2:2"
+    ]
+  },
+  {
+    "snapshot": "14/paragraphs-to-cite.chain.xml",
+    "script": "tests/scripts/fixtures/279/19/chain-runner",
+    "book": "tests/scripts/fixtures/279/14/cites.fb2",
+    "args": [
+      "--select-range",
+      "n8:3-n10:5",
+      "--answer",
+      "14_Цитаты\\052_Сформатировать абзац(ы) цитатой.js"
+    ]
+  },
+  {
+    "snapshot": "14/find-possible-citations.xml",
+    "script": "scripts/14_citations/053_find-possible-citations",
+    "book": "tests/scripts/fixtures/279/14/quotes.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "14/find-possible-citations.chain.xml",
+    "script": "tests/scripts/fixtures/279/19/chain-runner",
+    "book": "tests/scripts/fixtures/279/14/quotes.fb2",
+    "args": [
+      "--answer",
+      "14_Цитаты\\053_Поиск предположительных цитат (по встроенным регэкспам).js|14_Цитаты\\053_Поиск предположительных цитат (по встроенным регэкспам).js|14_Цитаты\\053_Поиск предположительных цитат (по встроенным регэкспам).js|14_Цитаты\\053_Поиск предположительных цитат (по встроенным регэкспам).js|14_Цитаты\\053_Поиск предположительных цитат (по встроенным регэкспам).js|14_Цитаты\\053_Поиск предположительных цитат (по встроенным регэкспам).js|14_Цитаты\\053_Поиск предположительных цитат (по встроенным регэкспам).js|14_Цитаты\\053_Поиск предположительных цитат (по встроенным регэкспам).js|14_Цитаты\\053_Поиск предположительных цитат (по встроенным регэкспам).js|14_Цитаты\\053_Поиск предположительных цитат (по встроенным регэкспам).js|14_Цитаты\\053_Поиск предположительных цитат (по встроенным регэкспам).js|14_Цитаты\\053_Поиск предположительных цитат (по встроенным регэкспам).js|14_Цитаты\\053_Поиск предположительных цитат (по встроенным регэкспам).js"
+    ]
+  },
+  {
+    "snapshot": "14/find-possible-citations.caret.xml",
+    "script": "tests/scripts/fixtures/279/19/chain-runner",
+    "book": "tests/scripts/fixtures/279/14/quotes.fb2",
+    "args": [
+      "--select",
+      "n8:0:0",
+      "--answer",
+      "14_Цитаты\\053_Поиск предположительных цитат (по встроенным регэкспам).js"
+    ]
+  },
+  {
+    "snapshot": "14/find-possible-citations.range-end.xml",
+    "script": "tests/scripts/fixtures/279/19/chain-runner",
+    "book": "tests/scripts/fixtures/279/14/quotes.fb2",
+    "args": [
+      "--select-range",
+      "n7:0-n8:0",
+      "--answer",
+      "14_Цитаты\\053_Поиск предположительных цитат (по встроенным регэкспам).js"
+    ]
+  },
+  {
+    "snapshot": "14/find-possible-citations-extended.xml",
+    "script": "scripts/14_citations/054_find-possible-citations-extended",
+    "book": "tests/scripts/fixtures/279/14/quotes.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "14/find-possible-citations-extended.chain.xml",
+    "script": "tests/scripts/fixtures/279/19/chain-runner",
+    "book": "tests/scripts/fixtures/279/14/quotes.fb2",
+    "args": [
+      "--answer",
+      "14_Цитаты\\054_Расширенный поиск предположительных цитат.js|14_Цитаты\\054_Расширенный поиск предположительных цитат.js|14_Цитаты\\054_Расширенный поиск предположительных цитат.js|14_Цитаты\\054_Расширенный поиск предположительных цитат.js|14_Цитаты\\054_Расширенный поиск предположительных цитат.js|14_Цитаты\\054_Расширенный поиск предположительных цитат.js|14_Цитаты\\054_Расширенный поиск предположительных цитат.js|14_Цитаты\\054_Расширенный поиск предположительных цитат.js|14_Цитаты\\054_Расширенный поиск предположительных цитат.js|14_Цитаты\\054_Расширенный поиск предположительных цитат.js|14_Цитаты\\054_Расширенный поиск предположительных цитат.js|14_Цитаты\\054_Расширенный поиск предположительных цитат.js|14_Цитаты\\054_Расширенный поиск предположительных цитат.js|14_Цитаты\\054_Расширенный поиск предположительных цитат.js|14_Цитаты\\054_Расширенный поиск предположительных цитат.js|14_Цитаты\\054_Расширенный поиск предположительных цитат.js"
+    ]
+  },
+  {
+    "snapshot": "14/find-possible-citations-extended.stop-word-end.xml",
+    "script": "tests/scripts/fixtures/279/19/chain-runner",
+    "book": "tests/scripts/fixtures/279/14/stop-word-end.fb2",
+    "args": [
+      "--answer",
+      "14_Цитаты\\054_Расширенный поиск предположительных цитат.js"
+    ]
+  },
+  {
+    "snapshot": "14/find-possible-citations-no-bold-italics.xml",
+    "script": "scripts/14_citations/056_find-possible-citations-no-bold-italics",
+    "book": "tests/scripts/fixtures/279/14/quotes.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "14/find-possible-citations-no-bold-italics.chain.xml",
+    "script": "tests/scripts/fixtures/279/19/chain-runner",
+    "book": "tests/scripts/fixtures/279/14/quotes.fb2",
+    "args": [
+      "--answer",
+      "14_Цитаты\\056_Поиск предположительных цитат (без жирностей и курсивов).js|14_Цитаты\\056_Поиск предположительных цитат (без жирностей и курсивов).js|14_Цитаты\\056_Поиск предположительных цитат (без жирностей и курсивов).js|14_Цитаты\\056_Поиск предположительных цитат (без жирностей и курсивов).js|14_Цитаты\\056_Поиск предположительных цитат (без жирностей и курсивов).js|14_Цитаты\\056_Поиск предположительных цитат (без жирностей и курсивов).js|14_Цитаты\\056_Поиск предположительных цитат (без жирностей и курсивов).js|14_Цитаты\\056_Поиск предположительных цитат (без жирностей и курсивов).js|14_Цитаты\\056_Поиск предположительных цитат (без жирностей и курсивов).js|14_Цитаты\\056_Поиск предположительных цитат (без жирностей и курсивов).js|14_Цитаты\\056_Поиск предположительных цитат (без жирностей и курсивов).js|14_Цитаты\\056_Поиск предположительных цитат (без жирностей и курсивов).js|14_Цитаты\\056_Поиск предположительных цитат (без жирностей и курсивов).js|14_Цитаты\\056_Поиск предположительных цитат (без жирностей и курсивов).js|14_Цитаты\\056_Поиск предположительных цитат (без жирностей и курсивов).js"
+    ]
+  }
+]

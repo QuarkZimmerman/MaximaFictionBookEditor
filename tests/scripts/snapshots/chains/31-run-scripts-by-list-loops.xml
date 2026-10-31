@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Цепочки</last-name>
+			</author>
+			<book-title>Запуск скриптов по списку</book-title>
+			<annotation>
+				<p>Аннотация книги.</p>
+			</annotation>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p><strong><emphasis>Книга списка</emphasis></strong></p>
+		</title>
+		<section>
+			<title>
+				<p><strong><emphasis>Глава первая</emphasis></strong></p>
+			</title>
+			<p><strong><strikethrough>Абзац с <code>кодом</code>.</strikethrough></strong></p>
+			<p><emphasis><sup>Первая цитата.</sup></emphasis></p>
+			<p><emphasis><sup>Автор цитаты</sup></emphasis></p>
+			<p>Обычный абзац.</p>
+			<p><strong><emphasis><strikethrough><sup>Вторая цитата с <code>кодом</code>.</sup></strikethrough></emphasis></strong></p>
+			<p><strong><strikethrough>Ещё абзац с <code>кодом</code> и <sup>индексом</sup>.</strikethrough></strong></p>
+		</section>
+		<section>
+			<title>
+				<p><strong><emphasis>Глава вторая</emphasis></strong></p>
+			</title>
+			<p>Текст второй главы.</p>
+		</section>
+	</body>
+</FictionBook>

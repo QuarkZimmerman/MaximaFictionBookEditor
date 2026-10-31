@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/caps-title",
+  "name": {
+    "ru": "Выделить заглавный заголовок или подзаголовок (КАПС)",
+    "en": "Select CAPS title or subtitle",
+    "uk": "Виділити заголовок або підзаголовок великими літерами (КАПС)"
+  },
+  "description": {
+    "ru": "Выделяет следующий абзац заголовка или подзаголовок, в котором есть две и более заглавные буквы подряд (русские или латинские)",
+    "en": "Selects the next title paragraph or subtitle that contains two or more capital letters in a row (Russian or Latin)",
+    "uk": "Виділяє наступний абзац заголовка або підзаголовок, у якому є дві й більше великі літери поспіль (російські або латинські)"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить заглавный заголовок или подзаголовок (КАПС)",
+    "en": "Select CAPS title or subtitle"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/169_Выделить заглавный заголовок или подзаголовок (КАПС).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "5.3"
+  }
+}

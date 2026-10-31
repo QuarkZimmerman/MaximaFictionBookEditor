@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Чистка</last-name>
+			</author>
+			<book-title>Генеральная уборка: автоматические операции</book-title>
+			<annotation>
+				<p>Аннотация с двумя пробелами.</p>
+			</annotation>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+			<history>
+				<p>Первая версия, ещё без правки.</p>
+			</history>
+		</document-info>
+	</description>
+	<body>
+		<section>
+			<title>
+				<p>Глава первая</p>
+			</title>
+			<p>Он сказал, что придёт…Но не пришёл.</p>
+			<p>— Привет, — сказал он.</p>
+			<p>Текстс мягким переносом, тонкий пробел, x-y и — тире.</p>
+			<p>Дроби <sup>1</sup>/<sub>2</sub> и <sup>3</sup>/<sub>4</sub>, степень x<sup>2</sup> и формула H<sub>2</sub>O.</p>
+			<p>Апостроф в словах O'Brien и d'Artagnan.</p>
+			<p><emphasis>Первый второй</emphasis> курсив и <strong>жирный, ещё</strong>.</p>
+			<p>Восклицание! и вопрос? в конце.</p>
+			<p>Ударение: за́мок и писа́ть.</p>
+			<p>Он сказал: «Привет», и ушёл.</p>
+			<p>Годы 1941–1945, стр. 10–15 и счёт 5 – 7.</p>
+			<p>Это длинный абзац для проверки висящих слов, в конце он.</p>
+			<p>Он жил и т. д. и т. п., т. е. как все.</p>
+			<p>Дом № 5, температура 20 °C и скидка 5%.</p>
+			<p>Улица ул. Ленина и пл. Пушкина.</p>
+			<p>Сайт www.example.com,почта mailto:test@example.org.</p>
+			<p>Текст со сноской<a l:href="#n1" type="note">[1]</a>, и дальше.</p>
+			<p>Картинка <image l:href="#pic.png"/> в тексте, и стиль <style name="x">тут</style>.</p>
+			<p>P. S. Привет всем.</p>
+			<p>1. Первый пункт списка.</p>
+			<p>ЦК КПСС и АО «Ромашка» в XX век, 5 лет и 3 метра.</p>
+			<p>Текст, которого — много пробелов.</p>
+			<poem>
+				<stanza>
+					<v>Строка  стиха  с пробелами —</v>
+					<v>Вторая строка</v>
+				</stanza>
+			</poem>
+			<p>* * *</p>
+			<table>
+				<tr>
+					<td>Ячейка, текст.</td>
+				</tr>
+			</table>
+		</section>
+		<section>
+			<title>
+				<p>Часть XX в.</p>
+			</title>
+			<p>Конец.</p>
+		</section>
+	</body>
+	<body name="notes">
+		<section id="n1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Примечание, с ошибкой.</p>
+		</section>
+	</body>
+	<binary id="pic.png" content-type="image/png">…</binary>
+</FictionBook>

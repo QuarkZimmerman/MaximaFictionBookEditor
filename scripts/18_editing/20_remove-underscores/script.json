@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "18/remove-underscores",
+  "name": {
+    "ru": "Удалить все символы подчеркивания в выделении",
+    "en": "Remove all underscores in the selection",
+    "uk": "Видалити всі символи підкреслення у виділенні"
+  },
+  "description": {
+    "ru": "Удаляет все символы подчеркивания из выделенного текста, сохраняя форматирование.",
+    "en": "Removes every underscore character from the selected text, keeping the formatting.",
+    "uk": "Видаляє всі символи підкреслення з виділеного тексту, зберігаючи форматування."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": true,
+  "undoLabel": {
+    "ru": "Удалить все символы подчеркивания в выделении",
+    "en": "Remove all underscores in the selection"
+  },
+  "legacy": {
+    "source": "18_Мелочи редактирования/20_Удалить все символы подчеркивания в выделении.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
+  }
+}

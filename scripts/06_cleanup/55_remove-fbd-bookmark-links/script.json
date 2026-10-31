@@ -1,0 +1,25 @@
+{
+  "manifestVersion": 1,
+  "id": "06/remove-fbd-bookmark-links",
+  "name": {
+    "ru": "Удалить ссылки 'bookmark', созданные FBD",
+    "en": "Remove the 'bookmark' links made by FBD",
+    "uk": "Видалити посилання 'bookmark', створені FBD"
+  },
+  "description": {
+    "ru": "Удаляет вместе с текстом ссылку, с которой начинается абзац body примечаний (так FictionBook Designer оформлял примечания), и пробелы вокруг неё.",
+    "en": "Deletes, with its text and the spaces around it, the link a paragraph of the notes body starts with, as FictionBook Designer made its notes.",
+    "uk": "Видаляє разом із текстом посилання, з якого починається абзац body приміток (так FictionBook Designer оформлював примітки), і пробіли навколо нього."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Удалить ссылки 'bookmark', созданные FBD",
+    "en": "Remove the 'bookmark' links made by FBD"
+  },
+  "legacy": {
+    "source": "06_Чистка/55_Удалить ссылки 'bookmark', созданные FBD.js",
+    "fbeVersion": "2.7.9"
+  }
+}

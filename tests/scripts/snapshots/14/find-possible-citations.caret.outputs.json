@@ -1,0 +1,8 @@
+{
+  "reports": [
+    {
+      "title": "Script chain",
+      "text": "[\n  {\n    \"ref\": \"14_Цитаты\\\\053_Поиск предположительных цитат (по встроенным регэкспам).js\",\n    \"returned\": null,\n    \"anchor\": {\n      \"nodeId\": \"n9\",\n      \"offset\": 0\n    },\n    \"head\": {\n      \"nodeId\": \"n9\",\n      \"offset\": 28\n    },\n    \"text\": \"«Абзац в кавычках с точкой».\"\n  }\n]"
+    }
+  ]
+}

@@ -561,7 +561,9 @@
     "assigned": "Зарезервировано \"{{command}}\"",
     "notAssigned": "Не зарезервировано для других команд",
     "scriptConflict": "Скрипт\n{{script}}\n имеет код клавиши быстрого доступа, совпадающий с уже загруженным скриптом\n {{other}}",
-    "none": "Нет"
+    "none": "Нет",
+    "fixedLine": "Постоянное сочетание: {{chord}}",
+    "fixedTo": "{{chord}} всегда выполняет команду «{{command}}»"
   },
   "dialog": {
     "customizeToolbar": {

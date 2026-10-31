@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "18/line-numbers-to-superscript",
+  "name": {
+    "ru": "Нумерацию 'число пробел' в началах выделенных абзацев сделать надстрочным текстом",
+    "en": "Make 'number space' numbering at the starts of the selected paragraphs superscript",
+    "uk": "Нумерацію 'число пробіл' на початках виділених абзаців зробити надрядковим текстом"
+  },
+  "description": {
+    "ru": "В выделенных абзацах (также в аннотации и истории книги) число в начале, за которым идут пробелы или неразрывные пробелы, становится надстрочным, а пробелы сводятся к одному",
+    "en": "In the selected paragraphs (in the book's annotation and history too) a number at the start followed by spaces or non-breaking spaces becomes a superscript and the spaces collapse to one",
+    "uk": "У виділених абзацах (також в анотації та історії книги) число на початку, за яким ідуть пробіли або нерозривні пробіли, стає надрядковим, а пробіли зводяться до одного"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": true,
+  "undoLabel": {
+    "ru": "Нумерацию 'число пробел' в началах выделенных абзацев сделать надстрочным текстом",
+    "en": "Make 'number space' numbering at the starts of the selected paragraphs superscript"
+  },
+  "legacy": {
+    "source": "30_'Числовые' скрипты/40_Нумерацию 'число пробел' в началах выделенных абзацев сделать надстрочным текстом.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Таблицы</last-name>
+			</author>
+			<book-title>Таблицы</book-title>
+			<annotation>
+				<p>Аннотация с таблицей:</p>
+				<p><strikethrough>zzz_табл 1 из 8_zzz</strikethrough></p>
+				<table>
+					<tr>
+						<td>в аннотации</td>
+					</tr>
+				</table>
+			</annotation>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Таблицы</p>
+		</title>
+		<section>
+			<title>
+				<p>Глава 1</p>
+			</title>
+			<p>Перед таблицами.</p>
+			<image l:href="#undefined"/>
+			<p><strikethrough>zzz_табл 2 из 8_zzz</strikethrough></p>
+			<table id="t1" style="width:100%">
+				<tr align="center">
+					<th>Заголовок <emphasis>курсив</emphasis></th>
+					<th id="h2" colspan="2">Объединено</th>
+				</tr>
+				<tr>
+					<td>A1</td>
+					<td></td>
+					<td style="color:red" rowspan="2" align="right" valign="top">C1–C2 <strong>жирно</strong></td>
+				</tr>
+				<tr>
+					<td>A2 с пробелом</td>
+					<td>B2 <a l:href="#n1" type="note">[1]</a> и <image l:href="#pic.png"/></td>
+				</tr>
+			</table>
+			<p>Между таблицами.</p>
+			<image l:href="#undefined"/>
+			<p><strikethrough>zzz_табл 3 из 8_zzz</strikethrough></p>
+			<table>
+				<tr>
+					<td>Одна ячейка</td>
+				</tr>
+			</table>
+		</section>
+		<section>
+			<title>
+				<p>Глава 2</p>
+			</title>
+			<image l:href="#undefined"/>
+			<p><strikethrough>zzz_табл 4 из 8_zzz</strikethrough></p>
+			<table>
+				<tr>
+					<td>Сразу после заголовка</td>
+				</tr>
+			</table>
+		</section>
+		<section>
+			<title>
+				<p>Глава 3</p>
+			</title>
+			<annotation>
+				<p>Аннотация раздела.</p>
+			</annotation>
+			<p><strikethrough>zzz_табл 5 из 8_zzz</strikethrough></p>
+			<image l:href="#undefined"/>
+			<table>
+				<tr>
+					<td>После аннотации раздела</td>
+				</tr>
+			</table>
+			<p>После таблицы.</p>
+		</section>
+		<section>
+			<p>Цитата:</p>
+			<cite>
+				<p>Текст цитаты.</p>
+				<p><strikethrough>zzz_табл 6 из 8_zzz</strikethrough></p>
+				<table>
+					<tr>
+						<td>В цитате</td>
+					</tr>
+				</table>
+			</cite>
+		</section>
+		<section>
+			<image l:href="#undefined"/>
+			<p><strikethrough>zzz_табл 7 из 8_zzz</strikethrough></p>
+			<table>
+				<tr>
+					<td>Одна в разделе</td>
+				</tr>
+			</table>
+		</section>
+		<section>
+			<title>
+				<p>Глава 4</p>
+			</title>
+			<p>Метки без таблиц:</p>
+			<p><strikethrough>zzz_табл 9 из 9_zzz</strikethrough></p>
+			<p><emphasis>zzz_табл 8 из 9_zzz</emphasis></p>
+			<p>zzz_табл 1 из 2_zzz <image l:href="#pic.png"/></p>
+			<p>Конец.</p>
+		</section>
+	</body>
+	<body name="notes">
+		<section id="n1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Примечание с таблицей.</p>
+			<p>zzz_табл 7 из 7_zzz</p>
+			<image l:href="#undefined"/>
+			<p><strikethrough>zzz_табл 8 из 8_zzz</strikethrough></p>
+			<table>
+				<tr>
+					<td>В примечании</td>
+				</tr>
+			</table>
+		</section>
+	</body>
+	<binary id="pic.png" content-type="image/png">…</binary>
+</FictionBook>

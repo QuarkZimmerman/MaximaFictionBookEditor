@@ -6,6 +6,7 @@
 #include "include/base/cef_logging.h"
 #include "include/cef_app.h"
 #include "include/cef_drag_data.h"
+#include "include/cef_id_mappers.h"
 #include "include/cef_parser.h"
 #include "include/views/cef_browser_view.h"
 #include "include/views/cef_window.h"
@@ -14,6 +15,8 @@
 #include "native_actions.h"
 #include "permission_policy.h"
 
+#include <cstdint>
+#include <cstdio>
 #include <string>
 #include <utility>
 
@@ -23,7 +26,27 @@ namespace {
 
 MfbeClient* g_instance = nullptr;
 
-constexpr int kVkF12 = 0x7B;
+// engine_commands.h mirrors cef_transition_type_t without CEF types.
+static_assert(kTransitionLink == static_cast<std::uint32_t>(TT_LINK));
+static_assert(kTransitionExplicit == static_cast<std::uint32_t>(TT_EXPLICIT));
+static_assert(kTransitionAutoSubframe == static_cast<std::uint32_t>(TT_AUTO_SUBFRAME));
+static_assert(kTransitionManualSubframe == static_cast<std::uint32_t>(TT_MANUAL_SUBFRAME));
+static_assert(kTransitionAutoToplevel == static_cast<std::uint32_t>(TT_AUTO_TOPLEVEL));
+static_assert(kTransitionFormSubmit == static_cast<std::uint32_t>(TT_FORM_SUBMIT));
+static_assert(kTransitionReload == static_cast<std::uint32_t>(TT_RELOAD));
+static_assert(kTransitionSourceMask == static_cast<std::uint32_t>(TT_SOURCE_MASK));
+static_assert(kTransitionForwardBackFlag == static_cast<std::uint32_t>(TT_FORWARD_BACK_FLAG));
+static_assert(kTransitionFromApiFlag == static_cast<std::uint32_t>(TT_FROM_API_FLAG));
+
+// Test-hook builds report the gate's and the guard's decisions on stderr for
+// tools/shell-smoke.mjs (contracts/shell.md §3-§4 of feature 007); release builds say nothing,
+// since a blocked command is not an error.
+void testHookLine([[maybe_unused]] const std::string& line) {
+#if defined(MFBE_SHELL_TEST_HOOKS)
+    std::fprintf(stderr, "%s\n", line.c_str());
+    std::fflush(stderr);
+#endif
+}
 
 // Command ids of the edit menu (context_menu.h): one per EditCommand, in the user range.
 constexpr int kEditCommandFirstId = MENU_ID_USER_FIRST;
@@ -65,7 +88,10 @@ std::string dataUri(const std::string& data, const std::string& mime_type) {
 }  // namespace
 
 MfbeClient::MfbeClient(Config config, std::shared_ptr<NativeDialogs> dialogs)
-    : config_(std::move(config)), dialogs_(std::move(dialogs)) {
+    : config_(std::move(config)),
+      dialogs_(std::move(dialogs)),
+      command_names_(cef_id_for_command_id_name),
+      navigation_guard_(config_.app_origin) {
     DCHECK(!g_instance);
     g_instance = this;
 }
@@ -132,6 +158,9 @@ bool MfbeClient::OnBeforePopup(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame
                                CefRefPtr<CefDictionaryValue>& extra_info,
                                bool* no_javascript_access) {
     CEF_REQUIRE_UI_THREAD();
+    testHookLine("before-popup " + target_url.ToString() +
+                 " disposition=" + std::to_string(static_cast<int>(target_disposition)) +
+                 " gesture=" + (user_gesture ? "1" : "0"));
     // The editor has exactly one document window per process; window.open / target=_blank
     // links go to the OS browser instead of a popup.
     OpenExternal(target_url.ToString());
@@ -234,6 +263,7 @@ void MfbeClient::ForceCloseMainBrowser() {
 
 void MfbeClient::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
     CEF_REQUIRE_UI_THREAD();
+    navigation_guard_.browserClosed(browser->GetIdentifier());
     if (dialogs_) {
         dialogs_->clearOwnerBrowser(browser);
     }
@@ -250,6 +280,26 @@ void MfbeClient::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
     if (browser_list_.empty()) {
         // All browser windows have closed. Quit the application message loop.
         CefQuitMessageLoop();
+    }
+}
+
+bool MfbeClient::OnChromeCommand(CefRefPtr<CefBrowser> /*browser*/, int command_id,
+                                 cef_window_open_disposition_t /*disposition*/) {
+    CEF_REQUIRE_UI_THREAD();
+    // Every Chrome command - a key, a mouse button, a native or a context menu - passes the
+    // gate: the editor's own commands live in its page, the engine's act on the page (Save
+    // page, Print, Reload, Find, new windows, Close) and break the editor's paradigm.
+    const EngineDecision decision = command_names_.decide(command_id, config_.devtools_enabled);
+    testHookLine(command_names_.logLine(command_id, decision));
+    return decision == EngineDecision::Block;  // true: handled, nothing happens
+}
+
+void MfbeClient::OnLoadStart(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
+                             TransitionType /*transition_type*/) {
+    CEF_REQUIRE_UI_THREAD();
+    // A committed main-frame load: the editor's address makes the page "loaded once".
+    if (frame->IsMain()) {
+        navigation_guard_.mainFrameCommitted(browser->GetIdentifier(), frame->GetURL().ToString());
     }
 }
 
@@ -277,22 +327,7 @@ void MfbeClient::OnLoadError(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> 
 }
 
 bool MfbeClient::IsAllowedUrl(const std::string& url) const {
-    if (url.empty() || startsWith(url, "about:") || startsWith(url, "data:") ||
-        startsWith(url, "devtools:") || startsWith(url, "chrome-devtools:")) {
-        return true;
-    }
-    if (config_.app_origin.empty()) {
-        return false;
-    }
-    if (url == config_.app_origin) {
-        return true;
-    }
-    // origin + "/" or origin + "?" / "#"
-    if (startsWith(url, config_.app_origin.c_str()) && url.size() > config_.app_origin.size()) {
-        const char next = url[config_.app_origin.size()];
-        return next == '/' || next == '?' || next == '#';
-    }
-    return false;
+    return navigation_guard_.isAllowedUrl(url);
 }
 
 bool MfbeClient::OnShowPermissionPrompt(CefRefPtr<CefBrowser> /*browser*/, uint64_t /*prompt_id*/,
@@ -311,14 +346,20 @@ bool MfbeClient::OnBeforeBrowse(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFram
                                 CefRefPtr<CefRequest> request, bool user_gesture,
                                 bool is_redirect) {
     CEF_REQUIRE_UI_THREAD();
-    const std::string url = request->GetURL().ToString();
-    if (IsAllowedUrl(url)) {
+    // The navigation guard (engine_commands.h): today's rule until the editor's page has
+    // loaded, then no reload, back, forward or new address of the main frame.
+    const NavigationRequest navigation{frame->IsMain(), request->GetURL().ToString(),
+                                       static_cast<std::uint32_t>(request->GetTransitionType()),
+                                       user_gesture};
+    const NavigationVerdict verdict =
+        navigation_guard_.decide(browser->GetIdentifier(), navigation);
+    if (verdict == NavigationVerdict::Allow) {
         return false;
     }
-    // Anything else leaves the application: hand it to the OS and cancel the navigation.
-    LOG(WARNING) << "mfbe: blocked navigation to " << url;
-    if (user_gesture) {
-        OpenExternal(url);
+    LOG(WARNING) << "mfbe: blocked navigation to " << navigation.url;
+    testHookLine(NavigationGuard::logLine(navigation));
+    if (verdict == NavigationVerdict::OpenExternally) {
+        OpenExternal(navigation.url);  // an address outside the application, asked for
     }
     return true;
 }
@@ -328,11 +369,16 @@ bool MfbeClient::OnOpenURLFromTab(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFr
                                   cef_window_open_disposition_t target_disposition,
                                   bool user_gesture) {
     CEF_REQUIRE_UI_THREAD();
+    // A link asked for in a new tab or window (middle-click, Ctrl+click, Shift+click): the
+    // editor has one window, so nothing opens in the engine (FR-002); an address outside the
+    // application goes to the system browser, as a plain click on it does.
     const std::string url = target_url.ToString();
-    if (IsAllowedUrl(url)) {
-        return false;  // e.g. middle-click on an in-app link: let CEF handle it
+    testHookLine("open-url-from-tab " + url +
+                 " disposition=" + std::to_string(static_cast<int>(target_disposition)) +
+                 " gesture=" + (user_gesture ? "1" : "0"));
+    if (!IsAllowedUrl(url) && user_gesture) {
+        OpenExternal(url);
     }
-    OpenExternal(url);
     return true;
 }
 
@@ -393,19 +439,6 @@ bool MfbeClient::OnContextMenuCommand(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>
     return true;
 }
 
-bool MfbeClient::OnPreKeyEvent(CefRefPtr<CefBrowser> browser, const CefKeyEvent& event,
-                               CefEventHandle os_event, bool* is_keyboard_shortcut) {
-    CEF_REQUIRE_UI_THREAD();
-    if (config_.devtools_enabled && event.type == KEYEVENT_RAWKEYDOWN &&
-        event.windows_key_code == kVkF12) {
-        CefWindowInfo window_info;  // ignored: the browser is wrapped in a CefBrowserView
-        CefBrowserSettings settings;
-        browser->GetHost()->ShowDevTools(window_info, nullptr, settings, CefPoint());
-        return true;
-    }
-    return false;
-}
-
 void MfbeClient::ShowMainWindow() {
     if (!CefCurrentlyOn(TID_UI)) {
         CefPostTask(TID_UI, base::BindOnce(&MfbeClient::ShowMainWindow, this));
@@ -440,9 +473,16 @@ void MfbeClient::CloseAllBrowsers(bool force_close) {
 }
 
 void MfbeClient::OpenExternal(const std::string& url) {
+#ifdef MFBE_SHELL_TEST_HOOKS
+    // A test-hook build reports the hand-over instead of starting the system browser (feature
+    // 007, US5): the smoke checks that a link asked for in a new tab or window goes there, and
+    // no browser opens on the test machine.
+    testHookLine("open-external " + url);
+#else
     if (!openExternalUrl(url)) {
         LOG(WARNING) << "mfbe: refusing to open external URL " << url;
     }
+#endif
 }
 
 }  // namespace mfbe::shell

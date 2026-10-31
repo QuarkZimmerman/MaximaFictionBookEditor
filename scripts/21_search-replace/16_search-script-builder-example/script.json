@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "21/search-script-builder-example",
+  "name": {
+    "ru": "Скрипт-конструктор (поиск) - пример",
+    "en": "Script builder (search) - example",
+    "uk": "Скрипт-конструктор (пошук) - приклад"
+  },
+  "description": {
+    "ru": "Пример «Скрипта-конструктора (поиск)»: подсчитывает в книге русские и латинские буквы, каждую букву алфавитов отдельно, а также пробелы, и показывает окно статистики.",
+    "en": "Example of the \"Script builder (search)\": counts the Russian and Latin letters of the book, each letter of the alphabets separately, and the spaces, and shows a statistics window.",
+    "uk": "Приклад «Скрипта-конструктора (пошук)»: підраховує в книзі російські й латинські літери, кожну літеру абеток окремо, а також пробіли, і показує вікно статистики."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Скрипт-конструктор (поиск) - пример",
+    "en": "Script builder (search) - example"
+  },
+  "legacy": {
+    "source": "21_Поиск и замена/16_Скрипт-конструктор (поиск) - пример.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "02/add-last-footnote",
+  "name": {
+    "ru": "Добавить последнее примечание, остаться на его ссылке",
+    "en": "Add the last footnote and stay at its reference",
+    "uk": "Додати останню примітку, залишитися на її посиланні"
+  },
+  "description": {
+    "ru": "Вставляет в позиции курсора (после всех прочих ссылок на примечания) ссылку на новое примечание и добавляет его раздел в конец body примечаний без перенумерации; курсор остается у ссылки",
+    "en": "Inserts a link to a new footnote at the caret (which must follow every other footnote link) and appends its section to the notes body without renumbering; the caret stays at the link",
+    "uk": "Вставляє в позиції курсора (після всіх інших посилань на примітки) посилання на нову примітку і додає її розділ у кінець body приміток без перенумерації; курсор залишається біля посилання"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Добавить последнее примечание, остаться на его ссылке",
+    "en": "Add the last footnote and stay at its reference"
+  },
+  "legacy": {
+    "source": "02_Примечания/04_Добавить последнее примечание, остаться на его ссылке.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "2.8"
+  }
+}

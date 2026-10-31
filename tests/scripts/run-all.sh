@@ -11,4 +11,6 @@ set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$here/../.."
+# Feature 007 (FR-026, T089): every bundled package and group carries Ukrainian names and
+# descriptions, so one without them fails the suite.
 exec node tests/scripts/run-all.mjs "$@"

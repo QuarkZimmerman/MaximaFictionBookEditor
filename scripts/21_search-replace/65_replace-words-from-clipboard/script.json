@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "21/replace-words-from-clipboard",
+  "name": {
+    "ru": "Замена слов по списку из буфера обмена",
+    "en": "Replace words by a list from the clipboard",
+    "uk": "Заміна слів за списком із буфера обміну"
+  },
+  "description": {
+    "ru": "Заменяет во всей книге слова по списку замен из буфера обмена (строки «слово замена»), не трогая слова со смешанным форматированием, сообщает число замен и может поместить в буфер регулярное выражение для поиска оставшихся.",
+    "en": "Replaces words throughout the book by a list of replacements from the clipboard (lines \"word replacement\"), leaving words with mixed formatting alone, reports the number of replacements and can put a regular expression finding the rest on the clipboard.",
+    "uk": "Замінює в усій книзі слова за списком замін із буфера обміну (рядки «слово заміна»), не чіпаючи слів зі змішаним форматуванням, повідомляє кількість замін і може помістити до буфера регулярний вираз для пошуку решти."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Замена слов по списку из буфера обмена",
+    "en": "Replace words by a list from the clipboard"
+  },
+  "legacy": {
+    "source": "21_Поиск и замена/65_Замена слов по списку из буфера обмена.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

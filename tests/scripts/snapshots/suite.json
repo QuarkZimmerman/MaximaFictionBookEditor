@@ -1,7 +1,7 @@
 [
   {
     "snapshot": "01/capitalize-first-word.xml",
-    "script": "scripts/01_case/06_capitalize-first-word",
+    "script": "scripts/01_case/04_capitalize-first-word",
     "book": "tests/scripts/fixtures/books/conv-a-01.fb2",
     "args": [
       "--select",
@@ -104,7 +104,7 @@
   },
   {
     "snapshot": "02/add-last-footnote-go-to-note.xml",
-    "script": "scripts/02_footnotes/07_add-last-footnote-go-to-note",
+    "script": "scripts/02_footnotes/06_add-last-footnote-go-to-note",
     "book": "tests/scripts/fixtures/books/conv-a-02.fb2",
     "args": [
       "--select",
@@ -113,7 +113,7 @@
   },
   {
     "snapshot": "02/add-last-footnote-with-text.xml",
-    "script": "scripts/02_footnotes/06_add-last-footnote-with-text",
+    "script": "scripts/02_footnotes/05_add-last-footnote-with-text",
     "book": "tests/scripts/fixtures/books/conv-a-02.fb2",
     "args": [
       "--select",
@@ -124,7 +124,7 @@
   },
   {
     "snapshot": "02/add-last-footnote.not-last.xml",
-    "script": "scripts/02_footnotes/05_add-last-footnote",
+    "script": "scripts/02_footnotes/04_add-last-footnote",
     "book": "tests/scripts/fixtures/books/conv-a-02.fb2",
     "args": [
       "--select",
@@ -133,7 +133,7 @@
   },
   {
     "snapshot": "02/add-last-footnote.xml",
-    "script": "scripts/02_footnotes/05_add-last-footnote",
+    "script": "scripts/02_footnotes/04_add-last-footnote",
     "book": "tests/scripts/fixtures/books/conv-a-02.fb2",
     "args": [
       "--select",
@@ -142,7 +142,7 @@
   },
   {
     "snapshot": "02/test-footnotes.xml",
-    "script": "scripts/02_footnotes/20_test-footnotes",
+    "script": "scripts/02_footnotes/30_test-footnotes",
     "book": "tests/scripts/fixtures/books/conv-a-02.fb2",
     "args": []
   },
@@ -157,7 +157,7 @@
   },
   {
     "snapshot": "02/unify-footnotes.xml",
-    "script": "scripts/02_footnotes/04_unify-footnotes",
+    "script": "scripts/02_footnotes/07_unify-footnotes",
     "book": "tests/scripts/fixtures/books/conv-a-02.fb2",
     "args": []
   },
@@ -192,7 +192,7 @@
   },
   {
     "snapshot": "03/add-last-comment-go-to-comment.xml",
-    "script": "scripts/03_comments/07_add-last-comment-go-to-comment",
+    "script": "scripts/03_comments/06_add-last-comment-go-to-comment",
     "book": "tests/scripts/fixtures/books/conv-a-02.fb2",
     "args": [
       "--select",
@@ -201,7 +201,7 @@
   },
   {
     "snapshot": "03/add-last-comment-with-text.xml",
-    "script": "scripts/03_comments/06_add-last-comment-with-text",
+    "script": "scripts/03_comments/05_add-last-comment-with-text",
     "book": "tests/scripts/fixtures/books/conv-a-02.fb2",
     "args": [
       "--select",
@@ -212,7 +212,7 @@
   },
   {
     "snapshot": "03/add-last-comment.xml",
-    "script": "scripts/03_comments/05_add-last-comment",
+    "script": "scripts/03_comments/04_add-last-comment",
     "book": "tests/scripts/fixtures/books/conv-a-02.fb2",
     "args": [
       "--select",
@@ -230,7 +230,7 @@
   },
   {
     "snapshot": "03/unify-comments.xml",
-    "script": "scripts/03_comments/04_unify-comments",
+    "script": "scripts/03_comments/07_unify-comments",
     "book": "tests/scripts/fixtures/books/conv-a-02.fb2",
     "args": []
   },
@@ -793,7 +793,7 @@
   },
   {
     "snapshot": "08/split-into-sections.xml",
-    "script": "scripts/08_sections/02_split-into-sections",
+    "script": "scripts/13_subtitles/05_split-into-sections",
     "book": "tests/scripts/fixtures/books/conv-a-08.fb2",
     "args": [
       "--answer",
@@ -899,7 +899,7 @@
   },
   {
     "snapshot": "12/next-any-quotes.conv-b-12.xml",
-    "script": "scripts/12_quotes/014_next-any-quotes",
+    "script": "scripts/12_quotes/015_next-any-quotes",
     "book": "tests/scripts/fixtures/books/conv-b-12.fb2",
     "args": [
       "--select",
@@ -908,7 +908,7 @@
   },
   {
     "snapshot": "12/next-guillemets.conv-b-12.xml",
-    "script": "scripts/12_quotes/007_next-guillemets",
+    "script": "scripts/12_quotes/009_next-guillemets",
     "book": "tests/scripts/fixtures/books/conv-b-12.fb2",
     "args": [
       "--select",
@@ -917,7 +917,7 @@
   },
   {
     "snapshot": "12/next-low-quotes.conv-b-12.xml",
-    "script": "scripts/12_quotes/010_next-low-quotes",
+    "script": "scripts/12_quotes/011_next-low-quotes",
     "book": "tests/scripts/fixtures/books/conv-b-12.fb2",
     "args": [
       "--select",
@@ -926,7 +926,7 @@
   },
   {
     "snapshot": "12/next-straight-quotes.conv-b-12.xml",
-    "script": "scripts/12_quotes/012_next-straight-quotes",
+    "script": "scripts/12_quotes/013_next-straight-quotes",
     "book": "tests/scripts/fixtures/books/conv-b-12.fb2",
     "args": [
       "--select",
@@ -935,7 +935,7 @@
   },
   {
     "snapshot": "12/place-guillemets-only.conv-b-12.xml",
-    "script": "scripts/12_quotes/015_place-guillemets-only",
+    "script": "scripts/12_quotes/007_place-guillemets-only",
     "book": "tests/scripts/fixtures/books/conv-b-12.fb2",
     "args": []
   },
@@ -992,7 +992,7 @@
   },
   {
     "snapshot": "12/previous-any-quotes.conv-b-12.xml",
-    "script": "scripts/12_quotes/013_previous-any-quotes",
+    "script": "scripts/12_quotes/014_previous-any-quotes",
     "book": "tests/scripts/fixtures/books/conv-b-12.fb2",
     "args": [
       "--select",
@@ -1010,7 +1010,7 @@
   },
   {
     "snapshot": "12/previous-low-quotes.conv-b-12.xml",
-    "script": "scripts/12_quotes/009_previous-low-quotes",
+    "script": "scripts/12_quotes/010_previous-low-quotes",
     "book": "tests/scripts/fixtures/books/conv-b-12.fb2",
     "args": [
       "--select",
@@ -1019,7 +1019,7 @@
   },
   {
     "snapshot": "12/previous-straight-quotes.conv-b-12.xml",
-    "script": "scripts/12_quotes/011_previous-straight-quotes",
+    "script": "scripts/12_quotes/012_previous-straight-quotes",
     "book": "tests/scripts/fixtures/books/conv-b-12.fb2",
     "args": [
       "--select",
@@ -1064,7 +1064,7 @@
   },
   {
     "snapshot": "16/next-code.xml",
-    "script": "scripts/16_find-formatting/22_next-code",
+    "script": "scripts/16_find-formatting/022_next-code",
     "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
     "args": [
       "--select",
@@ -1075,7 +1075,7 @@
   },
   {
     "snapshot": "16/next-emphasis.xml",
-    "script": "scripts/16_find-formatting/02_next-emphasis",
+    "script": "scripts/16_find-formatting/002_next-emphasis",
     "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
     "args": [
       "--select",
@@ -1086,7 +1086,7 @@
   },
   {
     "snapshot": "16/next-paragraph-with-code.xml",
-    "script": "scripts/16_find-formatting/24_next-paragraph-with-code",
+    "script": "scripts/16_find-formatting/024_next-paragraph-with-code",
     "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
     "args": [
       "--select",
@@ -1097,7 +1097,7 @@
   },
   {
     "snapshot": "16/next-paragraph-with-emphasis.xml",
-    "script": "scripts/16_find-formatting/04_next-paragraph-with-emphasis",
+    "script": "scripts/16_find-formatting/004_next-paragraph-with-emphasis",
     "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
     "args": [
       "--select",
@@ -1108,7 +1108,7 @@
   },
   {
     "snapshot": "16/next-paragraph-with-strikethrough.xml",
-    "script": "scripts/16_find-formatting/20_next-paragraph-with-strikethrough",
+    "script": "scripts/16_find-formatting/020_next-paragraph-with-strikethrough",
     "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
     "args": [
       "--select",
@@ -1119,7 +1119,7 @@
   },
   {
     "snapshot": "16/next-paragraph-with-strong.xml",
-    "script": "scripts/16_find-formatting/08_next-paragraph-with-strong",
+    "script": "scripts/16_find-formatting/008_next-paragraph-with-strong",
     "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
     "args": [
       "--select",
@@ -1130,7 +1130,7 @@
   },
   {
     "snapshot": "16/next-paragraph-with-sub.xml",
-    "script": "scripts/16_find-formatting/16_next-paragraph-with-sub",
+    "script": "scripts/16_find-formatting/016_next-paragraph-with-sub",
     "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
     "args": [
       "--select",
@@ -1141,7 +1141,7 @@
   },
   {
     "snapshot": "16/next-paragraph-with-sup.xml",
-    "script": "scripts/16_find-formatting/12_next-paragraph-with-sup",
+    "script": "scripts/16_find-formatting/012_next-paragraph-with-sup",
     "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
     "args": [
       "--select",
@@ -1152,7 +1152,7 @@
   },
   {
     "snapshot": "16/next-strikethrough.xml",
-    "script": "scripts/16_find-formatting/18_next-strikethrough",
+    "script": "scripts/16_find-formatting/018_next-strikethrough",
     "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
     "args": [
       "--select",
@@ -1163,7 +1163,7 @@
   },
   {
     "snapshot": "16/next-strong.xml",
-    "script": "scripts/16_find-formatting/06_next-strong",
+    "script": "scripts/16_find-formatting/006_next-strong",
     "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
     "args": [
       "--select",
@@ -1174,7 +1174,7 @@
   },
   {
     "snapshot": "16/next-sub.xml",
-    "script": "scripts/16_find-formatting/14_next-sub",
+    "script": "scripts/16_find-formatting/014_next-sub",
     "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
     "args": [
       "--select",
@@ -1185,7 +1185,7 @@
   },
   {
     "snapshot": "16/next-sup.xml",
-    "script": "scripts/16_find-formatting/10_next-sup",
+    "script": "scripts/16_find-formatting/010_next-sup",
     "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
     "args": [
       "--select",
@@ -1196,7 +1196,7 @@
   },
   {
     "snapshot": "16/previous-code.xml",
-    "script": "scripts/16_find-formatting/21_previous-code",
+    "script": "scripts/16_find-formatting/021_previous-code",
     "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
     "args": [
       "--select",
@@ -1207,7 +1207,7 @@
   },
   {
     "snapshot": "16/previous-emphasis.xml",
-    "script": "scripts/16_find-formatting/01_previous-emphasis",
+    "script": "scripts/16_find-formatting/001_previous-emphasis",
     "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
     "args": [
       "--select",
@@ -1218,7 +1218,7 @@
   },
   {
     "snapshot": "16/previous-paragraph-with-code.xml",
-    "script": "scripts/16_find-formatting/23_previous-paragraph-with-code",
+    "script": "scripts/16_find-formatting/023_previous-paragraph-with-code",
     "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
     "args": [
       "--select",
@@ -1229,7 +1229,7 @@
   },
   {
     "snapshot": "16/previous-paragraph-with-emphasis.xml",
-    "script": "scripts/16_find-formatting/03_previous-paragraph-with-emphasis",
+    "script": "scripts/16_find-formatting/003_previous-paragraph-with-emphasis",
     "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
     "args": [
       "--select",
@@ -1240,7 +1240,7 @@
   },
   {
     "snapshot": "16/previous-paragraph-with-strikethrough.xml",
-    "script": "scripts/16_find-formatting/19_previous-paragraph-with-strikethrough",
+    "script": "scripts/16_find-formatting/019_previous-paragraph-with-strikethrough",
     "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
     "args": [
       "--select",
@@ -1251,7 +1251,7 @@
   },
   {
     "snapshot": "16/previous-paragraph-with-strong.xml",
-    "script": "scripts/16_find-formatting/07_previous-paragraph-with-strong",
+    "script": "scripts/16_find-formatting/007_previous-paragraph-with-strong",
     "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
     "args": [
       "--select",
@@ -1262,7 +1262,7 @@
   },
   {
     "snapshot": "16/previous-paragraph-with-sub.xml",
-    "script": "scripts/16_find-formatting/15_previous-paragraph-with-sub",
+    "script": "scripts/16_find-formatting/015_previous-paragraph-with-sub",
     "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
     "args": [
       "--select",
@@ -1273,7 +1273,7 @@
   },
   {
     "snapshot": "16/previous-paragraph-with-sup.xml",
-    "script": "scripts/16_find-formatting/11_previous-paragraph-with-sup",
+    "script": "scripts/16_find-formatting/011_previous-paragraph-with-sup",
     "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
     "args": [
       "--select",
@@ -1284,7 +1284,7 @@
   },
   {
     "snapshot": "16/previous-strikethrough.xml",
-    "script": "scripts/16_find-formatting/17_previous-strikethrough",
+    "script": "scripts/16_find-formatting/017_previous-strikethrough",
     "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
     "args": [
       "--select",
@@ -1295,7 +1295,7 @@
   },
   {
     "snapshot": "16/previous-strong.xml",
-    "script": "scripts/16_find-formatting/05_previous-strong",
+    "script": "scripts/16_find-formatting/005_previous-strong",
     "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
     "args": [
       "--select",
@@ -1306,7 +1306,7 @@
   },
   {
     "snapshot": "16/previous-sub.xml",
-    "script": "scripts/16_find-formatting/13_previous-sub",
+    "script": "scripts/16_find-formatting/013_previous-sub",
     "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
     "args": [
       "--select",
@@ -1317,7 +1317,7 @@
   },
   {
     "snapshot": "16/previous-sup.xml",
-    "script": "scripts/16_find-formatting/09_previous-sup",
+    "script": "scripts/16_find-formatting/009_previous-sup",
     "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
     "args": [
       "--select",
@@ -1364,13 +1364,13 @@
   },
   {
     "snapshot": "18/bracket-superscripts-curly.xml",
-    "script": "scripts/18_editing/08_bracket-superscripts-curly",
+    "script": "scripts/18_editing/26_bracket-superscripts-curly",
     "book": "tests/scripts/fixtures/books/conv-c-18.fb2",
     "args": []
   },
   {
     "snapshot": "18/bracket-superscripts-square.xml",
-    "script": "scripts/18_editing/07_bracket-superscripts-square",
+    "script": "scripts/18_editing/25_bracket-superscripts-square",
     "book": "tests/scripts/fixtures/books/conv-c-18.fb2",
     "args": []
   },
@@ -1394,7 +1394,7 @@
   },
   {
     "snapshot": "18/insert-midi-link.xml",
-    "script": "scripts/18_editing/02_insert-midi-link",
+    "script": "scripts/18_editing/40_insert-midi-link",
     "book": "tests/scripts/fixtures/books/conv-c-18.fb2",
     "args": [
       "--select",
@@ -1405,7 +1405,7 @@
   },
   {
     "snapshot": "18/line-numbers-to-superscript.range.xml",
-    "script": "scripts/18_editing/09_line-numbers-to-superscript",
+    "script": "scripts/30_numbering/40_line-numbers-to-superscript",
     "book": "tests/scripts/fixtures/books/conv-c-18.fb2",
     "args": [
       "--select-range",
@@ -1414,7 +1414,7 @@
   },
   {
     "snapshot": "18/line-numbers-to-superscript.xml",
-    "script": "scripts/18_editing/09_line-numbers-to-superscript",
+    "script": "scripts/30_numbering/40_line-numbers-to-superscript",
     "book": "tests/scripts/fixtures/books/conv-c-18.fb2",
     "args": [
       "--select",
@@ -1423,7 +1423,7 @@
   },
   {
     "snapshot": "18/remove-spaces-and-hyphens.xml",
-    "script": "scripts/18_editing/06_remove-spaces-and-hyphens",
+    "script": "scripts/18_editing/18_remove-spaces-and-hyphens",
     "book": "tests/scripts/fixtures/books/conv-c-18.fb2",
     "args": [
       "--select",
@@ -1432,7 +1432,7 @@
   },
   {
     "snapshot": "18/remove-spaces.xml",
-    "script": "scripts/18_editing/01_remove-spaces",
+    "script": "scripts/18_editing/17_remove-spaces",
     "book": "tests/scripts/fixtures/books/conv-c-18.fb2",
     "args": [
       "--select",
@@ -1441,7 +1441,7 @@
   },
   {
     "snapshot": "18/unwrap-poem-cite-epigraph.cite.xml",
-    "script": "scripts/18_editing/03_unwrap-poem-cite-epigraph",
+    "script": "scripts/19_formatting/05_unwrap-poem-cite-epigraph",
     "book": "tests/scripts/fixtures/books/conv-c-18.fb2",
     "args": [
       "--select",
@@ -1450,7 +1450,7 @@
   },
   {
     "snapshot": "18/unwrap-poem-cite-epigraph.epigraph.xml",
-    "script": "scripts/18_editing/03_unwrap-poem-cite-epigraph",
+    "script": "scripts/19_formatting/05_unwrap-poem-cite-epigraph",
     "book": "tests/scripts/fixtures/books/conv-c-18.fb2",
     "args": [
       "--select",
@@ -1459,7 +1459,7 @@
   },
   {
     "snapshot": "18/unwrap-poem-cite-epigraph.xml",
-    "script": "scripts/18_editing/03_unwrap-poem-cite-epigraph",
+    "script": "scripts/19_formatting/05_unwrap-poem-cite-epigraph",
     "book": "tests/scripts/fixtures/books/conv-c-18.fb2",
     "args": [
       "--select",
@@ -1557,8 +1557,8 @@
     ]
   },
   {
-    "snapshot": "20/show-code.xml",
-    "script": "scripts/20_debug/01_show-code",
+    "snapshot": "95/show-code.xml",
+    "script": "scripts/95_programmers/01_show-code",
     "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
     "args": [
       "--select",
@@ -1566,8 +1566,8 @@
     ]
   },
   {
-    "snapshot": "20/show-whole-code.xml",
-    "script": "scripts/20_debug/02_show-whole-code",
+    "snapshot": "95/show-whole-code.xml",
+    "script": "scripts/95_programmers/02_show-whole-code",
     "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
     "args": [
       "--select",

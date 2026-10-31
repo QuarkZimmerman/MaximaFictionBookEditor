@@ -2,22 +2,26 @@
   "manifestVersion": 1,
   "id": "06/win1252-words",
   "name": {
-    "en": "win-1252 characters (words)...",
-    "ru": "Символы win-1252 (слова)..."
+    "en": "win-1252 characters read as win-1251 ('cafй' etc.) (search for words)...",
+    "ru": "Символы win-1252, истолкованные как win-1251 ('cafй' и т.п.) (поиск слов)...",
+    "uk": "Символи win-1252, витлумачені як win-1251 ('cafй' тощо) (пошук слів)..."
   },
   "description": {
-    "en": "From the caret on, finds Cyrillic letters that are really mis-decoded windows-1252 characters inside Latin words (\"cafй\" for \"café\") and offers the recoded whole word",
-    "ru": "От курсора ищет кириллические буквы, которые на самом деле являются неверно раскодированными символами windows-1252 внутри латинских слов («cafй» вместо «café»), и предлагает перекодированное слово"
+    "en": "From the caret on, finds Latin words with Cyrillic letters that are really windows-1252 characters read as windows-1251 (\"cafй\" for \"café\") and offers each recoded word, or replaces all of them up to the end of the book",
+    "ru": "От курсора ищет латинские слова с кириллическими буквами, которые на самом деле являются символами windows-1252, истолкованными как windows-1251 («cafй» вместо «café»), и предлагает каждое перекодированное слово или заменяет их все до конца книги",
+    "uk": "Від курсора шукає латинські слова з кириличними літерами, які насправді є символами windows-1252, витлумаченими як windows-1251 («cafй» замість «café»), і пропонує кожне перекодоване слово або замінює їх усі до кінця книги"
   },
   "kind": "menu",
   "entry": "index.js",
+  "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "win-1252 characters (words)...",
-    "ru": "Символы win-1252 (слова)..."
+    "en": "win-1252 characters read as win-1251 ('cafй' etc.) (search for words)...",
+    "ru": "Символы win-1252, истолкованные как win-1251 ('cafй' и т.п.) (поиск слов)..."
   },
   "legacy": {
-    "source": "06_Чистка/20_Символы win-1252 (слова)....js",
-    "fbeVersion": "2.7"
+    "source": "06_Чистка/20_Символы win-1252, истолкованные как win-1251 ('cafй' и т.п.) (поиск слов)....js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.5"
   }
 }

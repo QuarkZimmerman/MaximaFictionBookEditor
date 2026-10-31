@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "13/remove-all-empty-lines",
+  "name": {
+    "ru": "Удалить все пустые строки во всех body, кроме body примечаний и комментариев",
+    "en": "Remove all empty lines in every body except the notes and comments bodies",
+    "uk": "Видалити всі порожні рядки в усіх body, крім body приміток і коментарів"
+  },
+  "description": {
+    "ru": "Удаляет пустые строки и абзацы из одних пробелов во всех телах книги, кроме тел примечаний и комментариев (аннотации разделов и таблицы не трогаются), а также опустевшие заголовки, строфы, стихи, цитаты и разделы.",
+    "en": "Removes the empty lines and the paragraphs of spaces in every body of the book except the notes and comments bodies (section annotations and tables are left alone), and the titles, stanzas, poems, cites and sections they leave empty.",
+    "uk": "Видаляє порожні рядки та абзаци з самих пробілів в усіх тілах книги, крім тіл приміток і коментарів (анотації розділів і таблиці не зачіпаються), а також заголовки, строфи, вірші, цитати й розділи, що спорожніли."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Удалить все пустые строки во всех body, кроме body примечаний и комментариев",
+    "en": "Remove all empty lines in every body except the notes and comments bodies"
+  },
+  "legacy": {
+    "source": "13_Заголовки, подзаголовки, пустые строки/540_Удалить все пустые строки во всех body, кроме body примечаний и комментариев.js",
+    "fbeVersion": "2.7.9"
+  }
+}

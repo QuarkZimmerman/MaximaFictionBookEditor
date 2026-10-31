@@ -1,0 +1,9 @@
+{
+  "manifestVersion": 1,
+  "id": "test18/chain-yo-e-recent",
+  "name": {
+    "ru": "Цепочка: разночтения Ё-Е, недавняя строка истории",
+    "en": "Chain: Е/Ё variant readings, a recent history line"
+  },
+  "kind": "menu"
+}

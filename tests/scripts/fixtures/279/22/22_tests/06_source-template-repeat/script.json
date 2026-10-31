@@ -1,0 +1,10 @@
+{
+  "manifestVersion": 1,
+  "id": "test-22/source-template-repeat",
+  "name": {
+    "en": "Test: source template, run again",
+    "ru": "Test: source template, run again"
+  },
+  "kind": "menu",
+  "entry": "index.js"
+}

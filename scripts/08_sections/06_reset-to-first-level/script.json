@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "08/reset-to-first-level",
+  "name": {
+    "ru": "Cбросить структуру до разделов первого уровня",
+    "en": "Reset the structure to first-level sections",
+    "uk": "Скинути структуру до розділів першого рівня"
+  },
+  "description": {
+    "ru": "Делает все разделы книги разделами первого уровня: вложенные разделы поднимаются наверх, а заголовок раздела с подразделами становится отдельным разделом",
+    "en": "Makes every section of the book a first-level section: nested sections are raised to the top level, and the heading of a section with subsections becomes a section of its own",
+    "uk": "Робить усі розділи книги розділами першого рівня: вкладені розділи піднімаються нагору, а заголовок розділу з підрозділами стає окремим розділом"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Cбросить структуру до разделов первого уровня",
+    "en": "Reset the structure to first-level sections"
+  },
+  "legacy": {
+    "source": "08_Структура разделов/06_Cбросить структуру до разделов первого уровня.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.1"
+  }
+}
