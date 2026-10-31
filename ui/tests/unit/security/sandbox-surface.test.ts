@@ -124,16 +124,31 @@ describe('script sandbox surface = contract allow-list (docs/scripting/mfbe.d.ts
   const mfbe = createMfbe(createBridge(new SilentPort())) as unknown as Record<string, unknown>;
 
   it('parses the contract into the expected shape', () => {
+    // Version 2 (feature 007) adds the powers the editor performs at a script's request:
+    // clipboard, files and other scripts (constitution principle V).
     expect(contract.consts.map((c) => c.name)).toEqual([
       'doc',
       'selection',
       'ui',
       'edit',
       'env',
+      'clipboard',
+      'files',
+      'scripts',
       'version',
     ]);
     expect(contract.functions).toEqual(['MsgBox', 'InputBox', 'BeginUndoUnit', 'EndUndoUnit']);
-    for (const name of ['Doc', 'Selection', 'UI', 'Edit', 'Env', 'Context']) {
+    for (const name of [
+      'Doc',
+      'Selection',
+      'UI',
+      'Edit',
+      'Env',
+      'Clipboard',
+      'Files',
+      'Scripts',
+      'Context',
+    ]) {
       expect(contract.interfaces.has(name), name).toBe(true);
     }
   });
@@ -183,9 +198,11 @@ describe('script sandbox surface = contract allow-list (docs/scripting/mfbe.d.ts
     const tableStart = impl.indexOf('const table');
     expect(tableStart).toBeGreaterThan(0);
     const table = impl.slice(tableStart, impl.indexOf('};', tableStart));
-    const keys = [...table.matchAll(/'((?:doc|selection|ui|edit|env)\.[A-Za-z]+)'\s*:/g)].map(
-      (m) => m[1]!,
-    );
+    const keys = [
+      ...table.matchAll(
+        /'((?:doc|selection|ui|edit|env|clipboard|files|scripts)\.[A-Za-z]+)'\s*:/g,
+      ),
+    ].map((m) => m[1]!);
     expect(sorted(keys)).toEqual(sorted(expected));
     expect(impl).toContain('unknown API method');
   });

@@ -85,8 +85,14 @@ scope.onmessage = (event: MessageEvent<InitMessage>) => {
         if (typeof run !== 'function') {
           throw new TypeError('the entry module must export a default async function run(ctx)');
         }
-        await run(ctx);
-        post({ type: 'done' });
+        const value = await run(ctx);
+        // The value goes back to a script that ran this one (mfbe.scripts.run, feature 007);
+        // one the structured clone cannot carry is dropped.
+        try {
+          post({ type: 'done', value });
+        } catch {
+          post({ type: 'done' });
+        }
       } catch (error) {
         post({ type: 'fail', error: describeError(error, entryUrl) });
       }

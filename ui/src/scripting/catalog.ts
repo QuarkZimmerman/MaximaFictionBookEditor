@@ -85,6 +85,8 @@ export class ScriptsFeature {
       onLog: (level, args) => {
         if (import.meta.env.DEV) console.log(`[script:${level}]`, ...args);
       },
+      // mfbe.scripts.run resolves references in the Scripts menu's scripts (feature 007).
+      scripts: () => this.all(),
     });
     // The host keeps `store.runLock` current itself (set before it notifies); when a run
     // starts or ends the registry re-evaluates the per-command `duringScriptRun` policies.

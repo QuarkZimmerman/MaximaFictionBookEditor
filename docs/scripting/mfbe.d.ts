@@ -46,6 +46,8 @@ declare namespace mfbe {
     readonly startedBy: 'user' | 'assistant' | 'script';
     /** Version 2: the calling script's id when startedBy is 'script'. */
     readonly caller?: string;
+    /** Version 2: the `args` the caller passed to mfbe.scripts.run (structured-cloned). */
+    readonly args?: unknown;
     /** True when the user asked to cancel; long loops should check it. */
     readonly cancelled: boolean;
   }
@@ -162,6 +164,13 @@ declare namespace mfbe {
     status(text: string, options?: { sticky?: boolean }): Promise<void>;
     /** Progress indicator for long runs; also serves as a cancel point. */
     progress(done: number, total?: number, label?: string): Promise<void>;
+    /**
+     * Version 2: opens a report window - modeless, display only. `html` is shown in a sandboxed
+     * frame with no scripts and no network (pictures only as data: URLs), `text` as pre-wrapped
+     * text. The window has Copy and Save as... buttons operated by the user and stays open after
+     * the run ends. Resolves when the window is shown.
+     */
+    report(report: { title: string; text?: string; html?: string }): Promise<void>;
   }
 
   interface ButtonSpec { id: string; label: string; default?: boolean; cancel?: boolean }
@@ -207,6 +216,74 @@ declare namespace mfbe {
   }
 
   /* ---------------------------------------------------------------------- */
+  /* Version 2: the powers the editor performs at a script's request        */
+  /* (constitution principle V; specs/007-fourth-feedback-batch/contracts/  */
+  /* script-api.md §2, §3, §5)                                              */
+  /* ---------------------------------------------------------------------- */
+
+  interface Clipboard {
+    /**
+     * Plain text on the system clipboard ('' when it holds no text). Rejects with a
+     * ScriptApiError of code 'clipboard.readNotAllowed' unless the chain's root was started by
+     * the user: what a script reads in a chain the assistant started would reach the AI service.
+     */
+    readText(): Promise<string>;
+    /** Replaces the clipboard's content with plain text. */
+    writeText(text: string): Promise<void>;
+  }
+
+  interface Files {
+    /**
+     * The editor's Save dialog proposes `suggestedName`; the user chooses where (or cancels) and
+     * the editor writes the text atomically. Overwriting asks in the dialog itself. `name` is the
+     * file name alone - a script never sees a folder or a path.
+     */
+    saveText(options: {
+      suggestedName: string;
+      text: string;
+      encoding?: 'utf-8' | 'utf-16' | 'windows-1251';
+      title?: string;
+    }): Promise<{ saved: boolean; name?: string }>;
+    /**
+     * The editor's folder dialog; the editor writes each binary of the open book (`ids`, all when
+     * omitted) with its original bytes, named by its id. For files that exist already the editor
+     * asks the user (Overwrite / Skip / Overwrite all / Cancel).
+     */
+    saveBinaries(options?: { ids?: string[]; title?: string }): Promise<{ saved: number; skipped: number }>;
+  }
+
+  interface Scripts {
+    /**
+     * Runs another script of the Scripts menu in this run and resolves with what its run()
+     * returned (structured-cloned). `ref` is a script id ("16/next-cite") or the FictionBook
+     * Editor path its manifest names in legacy.source ("16_Поиск форматирования\\52_Перейти на
+     * следующую цитату.js"; separators and case do not matter). The callee runs in a worker the
+     * editor creates, with ctx.startedBy 'script', ctx.caller and ctx.args; the whole chain is
+     * one undo step and one Cancel. At most 8 deep. Rejects with a ScriptApiError of code
+     * 'scripts.notFound', 'scripts.depthExceeded' or 'scripts.needsSelection', or with the
+     * callee's own error.
+     */
+    run(ref: string, args?: unknown): Promise<unknown>;
+  }
+
+  /**
+   * Errors of the API reach a script as Error objects whose `name` is 'ScriptApiError' and whose
+   * `code` says why: 'apiError', 'invalidNode', 'notAllowed', 'unknownNode', and in version 2
+   * 'clipboard.readNotAllowed', 'scripts.notFound', 'scripts.depthExceeded',
+   * 'scripts.needsSelection', 'files.failed'. A cancelled Save or folder dialog is no error.
+   */
+  type ScriptApiErrorCode =
+    | 'apiError'
+    | 'invalidNode'
+    | 'notAllowed'
+    | 'unknownNode'
+    | 'clipboard.readNotAllowed'
+    | 'scripts.notFound'
+    | 'scripts.depthExceeded'
+    | 'scripts.needsSelection'
+    | 'files.failed';
+
+  /* ---------------------------------------------------------------------- */
   /* Legacy compatibility façade (thin wrappers over the above)             */
   /* ---------------------------------------------------------------------- */
 
@@ -227,6 +304,9 @@ declare namespace mfbe {
   const ui: UI;
   const edit: Edit;
   const env: Env;
+  const clipboard: Clipboard;
+  const files: Files;
+  const scripts: Scripts;
   const version: 2;
 }
 

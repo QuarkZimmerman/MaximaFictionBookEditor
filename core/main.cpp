@@ -58,6 +58,7 @@ struct ServeArgs {
     std::vector<std::string> open;
     std::string data_dir;
     std::string resources;
+    std::string scripts;
     bool test_hooks = false;
     std::string log_level = "error";
 };
@@ -80,6 +81,7 @@ int run_serve(const ServeArgs& args) {
     options.ui_dir = args.ui;
     options.data_dir = args.data_dir;
     options.resources_dir = args.resources;
+    options.scripts_dir = args.scripts;
     options.test_hooks = args.test_hooks;
     options.open_paths = args.open;
 
@@ -366,6 +368,10 @@ int run_command_line(int argc, const Char* const* argv) {
     serve->add_option("--open", serve_args.open, "pre-open a document")->allow_extra_args(false);
     serve->add_option("--data-dir", serve_args.data_dir, "override per-user data/config root");
     serve->add_option("--resources", serve_args.resources, "override bundled resources root")
+        ->check(CLI::ExistingDirectory);
+    // Feature 007: the script suite runs the packages of the tree it is in (a worktree's too),
+    // and a script that runs others through mfbe.scripts.run finds them there.
+    serve->add_option("--scripts", serve_args.scripts, "override bundled scripts root")
         ->check(CLI::ExistingDirectory);
     serve->add_flag("--test-hooks", serve_args.test_hooks,
                     "enable test.* RPC methods and the queued dialog provider");

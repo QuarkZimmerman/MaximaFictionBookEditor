@@ -132,6 +132,8 @@ void register_resources_handlers(rpc::RpcRouter& router, Services& services);
 void register_spell_handlers(rpc::RpcRouter& router, Services& services);
 void register_words_handlers(rpc::RpcRouter& router, Services& services);
 void register_scripts_handlers(rpc::RpcRouter& router, Services& services);
+// files.saveText / files.saveBinaries (feature 007): the script API's mfbe.files.
+void register_files_handlers(rpc::RpcRouter& router, Services& services);
 void register_system_handlers(rpc::RpcRouter& router, Services& services);
 // schema.text (feature 005).
 void register_schema_handlers(rpc::RpcRouter& router, Services& services);

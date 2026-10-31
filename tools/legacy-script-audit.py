@@ -1309,6 +1309,51 @@ def print_diff(target: str, source: Path, baseline: Path, out: Path) -> int:
     return 1
 
 
+UPDATES = "updates-279"
+
+
+def apply_updates(out: Path) -> int:
+    """Folds the inventory updates a conversion left in updates-279/<group>.json into
+    inventory-279.json, recounts the statuses and removes the update files. An update file holds
+    a list of objects naming an entry by `source` and `fbeVersion` ("2.7.9", or "2.7" for a
+    package without a 2.7.9 successor) and the fields to set; an unknown entry is an error and
+    nothing is written."""
+    folder = out / UPDATES
+    files = sorted(folder.glob("*.json")) if folder.is_dir() else []
+    if not files:
+        print(f"legacy-script-audit: no updates in {folder}")
+        return 0
+    inventory_path = out / INVENTORY
+    inventory = json.loads(inventory_path.read_text(encoding="utf-8"))
+    by_key = {(e["source"], e["fbeVersion"]): e for e in inventory["entries"]}
+    applied = 0
+    for update_file in files:
+        for change in json.loads(update_file.read_text(encoding="utf-8")):
+            key = (change.get("source"), change.get("fbeVersion", "2.7.9"))
+            entry = by_key.get(key)
+            if entry is None:
+                print(f"legacy-script-audit: {update_file.name}: no inventory entry {key}", file=sys.stderr)
+                return 1
+            for field_name, value in change.items():
+                if field_name not in ("source", "fbeVersion"):
+                    entry[field_name] = value
+            if entry.get("package"):
+                entry.pop("suggestedPackage", None)
+                entry.pop("suggestedId", None)
+            applied += 1
+    counts: dict[str, int] = {}
+    for entry in inventory["entries"]:
+        counts[entry["status"]] = counts.get(entry["status"], 0) + 1
+    inventory["counts"]["byStatus"] = dict(sorted(counts.items()))
+    inventory["counts"]["converted"] = sum(
+        1 for e in inventory["entries"] if e["fbeVersion"] == "2.7.9" and e.get("package"))
+    inventory_path.write_text(json.dumps(inventory, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    for update_file in files:
+        update_file.unlink()
+    print(f"legacy-script-audit: {applied} updates from {len(files)} file(s) applied; by status {counts}")
+    return 0
+
+
 # Five pairs the pairing must find (T018): renames across a renamed group among siblings that
 # share their code, a rename in place, and unchanged names.
 SELF_TEST_PAIRS = {
@@ -1361,7 +1406,11 @@ def main(argv: list[str]) -> int:
                              "and its 2.7.9 successor (package folder, id or source path)")
     parser.add_argument("--self-test", action="store_true",
                         help="check the pairing on five known pairs (needs both reference trees)")
+    parser.add_argument("--apply-updates", action="store_true",
+                        help=f"fold {UPDATES}/*.json (one per converted group) into {INVENTORY}")
     args = parser.parse_args(argv)
+    if args.apply_updates:
+        return apply_updates(args.out)
     if args.recheck or args.diff or args.self_test:
         if args.source == DEFAULT_SOURCE:
             args.source = DEFAULT_SOURCE_279

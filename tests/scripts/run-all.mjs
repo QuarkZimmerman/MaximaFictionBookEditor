@@ -22,7 +22,8 @@
  *
  * `suite.json` entries are `{ snapshot, script, book, args }` (paths relative to the repository
  * root); `tests/scripts/tools/extract-suite.mjs` documents how they were derived from the
- * conversion notes. The summary counts the converted packages (`scripts/<group>/<script>/
+ * conversion notes. A group may keep its entries in `snapshots/<group>/suite.json` instead
+ * (feature 007: the 2.7.9 groups), which the run adds to the main manifest. The summary counts the converted packages (`scripts/<group>/<script>/
  * script.json`), the snapshots, the passed / failed runs and, from the inventory of the classic
  * scripts (`tests/scripts/audit/inventory-279.json`, feature 007), the scripts by status - the
  * not converted ones among them. The run also fails when an inventory entry names a package
@@ -223,10 +224,22 @@ function pad(text, width) {
     : value + " ".repeat(width - value.length);
 }
 
+/** The main manifest and every group's own `snapshots/<group>/suite.json`. */
+function loadSuite() {
+  const suite = JSON.parse(readFileSync(SUITE, "utf8"));
+  const snapshots = path.dirname(SUITE);
+  for (const entry of readdirSync(snapshots, { withFileTypes: true })) {
+    const own = path.join(snapshots, entry.name, "suite.json");
+    if (entry.isDirectory() && existsSync(own))
+      suite.push(...JSON.parse(readFileSync(own, "utf8")));
+  }
+  return suite;
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (!existsSync(SUITE)) usage(`manifest not found: ${SUITE}`);
-  const suite = JSON.parse(readFileSync(SUITE, "utf8"));
+  const suite = loadSuite();
   const selected = suite.filter((entry) => {
     const group = entry.snapshot.split("/")[0];
     if (options.groups.length && !options.groups.includes(group)) return false;

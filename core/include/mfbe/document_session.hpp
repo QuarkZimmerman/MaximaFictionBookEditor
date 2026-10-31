@@ -52,6 +52,9 @@ struct DocumentSession {
     std::optional<fb2::PositionMap> positionMap;
     std::uint64_t positionSerial = 0;  // the last serial issued (increasing per session)
     std::chrono::steady_clock::time_point openedAt = std::chrono::steady_clock::now();
+    // The folders a script chose for files.saveBinaries (feature 007, rpc-api §3.x): token ->
+    // folder. The folder never leaves the core; the tokens end with the session.
+    std::map<std::string, std::string> folderTokens;
 
     // Installs `map` as the current position map of `text` under a fresh serial, which is
     // returned.

@@ -1157,6 +1157,28 @@ export interface RpcMethods {
   'scripts.list': { params: void; result: ScriptsListResult };
   'scripts.source': { params: { scriptId: string }; result: ScriptSourceResult };
   'scripts.reload': { params: void; result: Empty };
+
+  // §3.x files (feature 007): the script API's mfbe.files - the editor's Save and folder dialogs
+  // and atomic writes; a script never sees a folder.
+  'files.saveText': {
+    params: {
+      suggestedName: string;
+      text: string;
+      encoding?: 'utf-8' | 'utf-16' | 'windows-1251';
+      title?: string;
+    };
+    result: { saved: boolean; name?: string };
+  };
+  'files.saveBinaries': {
+    params: {
+      docId: string;
+      ids?: string[];
+      title?: string;
+      folderToken?: string;
+      overwrite?: boolean;
+    };
+    result: { saved: number; skipped: string[]; folderToken: string };
+  };
   'scripts.lastRun': { params: { scriptId?: string } | void; result: { scriptId?: string } };
 
   // §3.9 dialog (shell-delegated)

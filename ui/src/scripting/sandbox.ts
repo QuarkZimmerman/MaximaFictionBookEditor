@@ -263,6 +263,10 @@ export interface MfbeObject {
     readonly symbols: () => Promise<unknown>;
   };
   readonly env: Record<string, (...args: unknown[]) => Promise<unknown>>;
+  /** Version 2 (feature 007): plain-text clipboard, files, other scripts. */
+  readonly clipboard: Record<string, (...args: unknown[]) => Promise<unknown>>;
+  readonly files: Record<string, (...args: unknown[]) => Promise<unknown>>;
+  readonly scripts: Record<string, (...args: unknown[]) => Promise<unknown>>;
   MsgBox(text: string, caption?: string, flags?: number): Promise<number>;
   InputBox(prompt: string, caption?: string, defaultValue?: string): Promise<string | null>;
   BeginUndoUnit(label?: string): Promise<void>;
@@ -295,8 +299,11 @@ const SELECTION_METHODS = [
   'selectNode',
   'scrollIntoView',
 ] as const;
-const UI_METHODS = ['message', 'prompt', 'form', 'status', 'progress'] as const;
+const UI_METHODS = ['message', 'prompt', 'form', 'status', 'progress', 'report'] as const;
 const ENV_METHODS = ['settings', 'docLanguage'] as const;
+const CLIPBOARD_METHODS = ['readText', 'writeText'] as const;
+const FILES_METHODS = ['saveText', 'saveBinaries'] as const;
+const SCRIPTS_METHODS = ['run'] as const;
 
 function section(
   bridge: Bridge,
@@ -325,6 +332,9 @@ export function createMfbe(bridge: Bridge): MfbeObject {
       symbols: () => bridge.call('edit.symbols', []),
     }),
     env: section(bridge, 'env', ENV_METHODS),
+    clipboard: section(bridge, 'clipboard', CLIPBOARD_METHODS),
+    files: section(bridge, 'files', FILES_METHODS),
+    scripts: section(bridge, 'scripts', SCRIPTS_METHODS),
     async MsgBox(text: string, caption?: string, flags = 0): Promise<number> {
       const pressed = await ui.message!(String(text), {
         caption,

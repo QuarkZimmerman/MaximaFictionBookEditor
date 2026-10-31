@@ -219,6 +219,33 @@ members (see [07-legacy-port.js](examples/07-legacy-port.js)):
 | `InputBox(prompt, caption?, defaultValue?)` | Input prompt; resolves with the text or `null` on Cancel |
 | `BeginUndoUnit(label?)` / `EndUndoUnit()` | No-ops kept for ported code (the run is already one undo unit) |
 
+### 4.7 Version 2: what the editor does at a script's request
+
+`mfbe.version` is `2` since 0.0.6. A script of version 1 runs unchanged. Version 2 adds the
+powers the scripts of FictionBook Editor 2.7.9 used, each performed by the editor itself - the
+script still has no file system, no network and no worker of its own (constitution principle V).
+`ctx.startedBy` says who started the run: `'user'` (a menu, the toolbar, a hotkey, the Document
+Tree), `'assistant'` (the AI assistant) or `'script'` (another script; then `ctx.caller` is its
+id and `ctx.args` what it passed).
+
+| Member | What it does |
+|--------|--------------|
+| `clipboard.readText()` | The clipboard's plain text (`''` when it holds none). Allowed only in a run the user started, directly or through other scripts: in a run the assistant started it rejects with the code `clipboard.readNotAllowed`, since what a script reads there would reach the AI service |
+| `clipboard.writeText(text)` | Replaces the clipboard's content with plain text |
+| `files.saveText({ suggestedName, text, encoding?, title? })` | The editor's Save dialog proposes the name; the user chooses where. The text is written in `utf-8` (the default), `utf-16` (with a BOM) or `windows-1251`. Resolves `{ saved, name? }` - the file name alone, never a folder; a cancelled dialog is `{ saved: false }` |
+| `files.saveBinaries({ ids?, title? }?)` | The editor's folder dialog; each binary of the book (`ids`, all when left out) is written with its original bytes, named by its id. For a file that exists the user is asked: Overwrite, Skip, Overwrite all or Cancel. Resolves `{ saved, skipped }` |
+| `ui.report({ title, text? , html? })` | Opens a report window that stays after the run: `text` pre-wrapped, or `html` in a frame that runs no script and loads nothing (pictures only as `data:` URLs). The user has Copy and Save as... |
+| `scripts.run(ref, args?)` | Runs another script of the Scripts menu and resolves with what its `run()` returned. `ref` is an id or the original FictionBook Editor path its manifest names in `legacy.source` - `'16_Поиск форматирования\\52_Перейти на следующую цитату.js'`, separators and case do not matter |
+
+**Run chains.** A script started through `scripts.run` runs in a worker the editor creates, on
+the same document as its caller: the whole chain is one run - one undo step under the first
+script's name, one Cancel that stops every script of it and restores the book. A chain is at
+most 8 scripts deep (`scripts.depthExceeded`); an unknown reference rejects with
+`scripts.notFound`, a script that needs a selection without one with `scripts.needsSelection`,
+and the callee's own error rejects in the caller, which may catch it. Errors of the API carry
+these codes in `error.code` (and `name` `ScriptApiError`); `files.failed` reports a file that
+could not be written. A cancelled dialog is never an error.
+
 ## 5. Sandbox rules
 
 Scripts run in a dedicated Web Worker with a private channel to the editor. Before the script
@@ -226,8 +253,9 @@ loads, `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `importScripts`, `
 `SharedWorker`, `indexedDB`, `caches`, `navigator`, `BroadcastChannel`, `MessageChannel`,
 `OffscreenCanvas`, `performance.memory` and the worker's own `postMessage`/`close` are removed;
 the page's Content-Security-Policy additionally blocks any network access and any module that
-does not come from the script's own folder. There is no file system, no clipboard, no access
-to the editor's HTML, no storage. The full JavaScript language and its built-ins (`String`,
+does not come from the script's own folder. There is no file system, no clipboard of the
+script's own (the editor reads and writes it for the script, §4.7), no access to the editor's
+HTML, no storage. The full JavaScript language and its built-ins (`String`,
 `RegExp`, `Array`, `Map`, `Math`, `Date`, `Intl`, `JSON`, `Promise`, `setTimeout`,
 `console` - routed to the editor log in development builds) remain available. Widening the
 `mfbe` interface is a product decision; a script cannot grant itself more.

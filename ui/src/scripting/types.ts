@@ -258,10 +258,17 @@ export type ApiMethod =
   | 'ui.form'
   | 'ui.status'
   | 'ui.progress'
+  | 'ui.report'
   | 'edit.label'
   | 'edit.symbols'
   | 'env.settings'
-  | 'env.docLanguage';
+  | 'env.docLanguage'
+  // Script API version 2 (feature 007, contracts/script-api.md §2-§5).
+  | 'clipboard.readText'
+  | 'clipboard.writeText'
+  | 'files.saveText'
+  | 'files.saveBinaries'
+  | 'scripts.run';
 
 export const API_METHODS: readonly ApiMethod[] = [
   'doc.get',
@@ -291,10 +298,16 @@ export const API_METHODS: readonly ApiMethod[] = [
   'ui.form',
   'ui.status',
   'ui.progress',
+  'ui.report',
   'edit.label',
   'edit.symbols',
   'env.settings',
   'env.docLanguage',
+  'clipboard.readText',
+  'clipboard.writeText',
+  'files.saveText',
+  'files.saveBinaries',
+  'scripts.run',
 ];
 
 /** Messages from the host to the worker (over the private MessagePort). */
@@ -319,7 +332,8 @@ export interface ScriptErrorInfo {
 export type WorkerMessage =
   | { type: 'ready' }
   | { type: 'call'; id: number; method: ApiMethod; args: unknown[] }
-  | { type: 'done' }
+  /** `value`: what the script's run() returned (structured-cloned) - for mfbe.scripts.run. */
+  | { type: 'done'; value?: unknown }
   | { type: 'fail'; error: ScriptErrorInfo }
   | { type: 'log'; level: 'log' | 'info' | 'warn' | 'error' | 'debug'; args: unknown[] };
 

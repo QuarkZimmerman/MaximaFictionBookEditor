@@ -159,6 +159,9 @@ describe('bridge and mfbe object', () => {
         'ui',
         'edit',
         'env',
+        'clipboard',
+        'files',
+        'scripts',
         'MsgBox',
         'InputBox',
         'BeginUndoUnit',
@@ -189,9 +192,13 @@ describe('bridge and mfbe object', () => {
       ['get', 'set', 'replaceText', 'wrap', 'unwrap', 'selectNode', 'scrollIntoView'].sort(),
     );
     expect(Object.keys(mfbe.ui).sort()).toEqual(
-      ['message', 'prompt', 'form', 'status', 'progress'].sort(),
+      ['message', 'prompt', 'form', 'status', 'progress', 'report'].sort(),
     );
     expect(Object.keys(mfbe.edit).sort()).toEqual(['label', 'nbsp', 'symbols'].sort());
+    // Version 2 (feature 007).
+    expect(Object.keys(mfbe.clipboard).sort()).toEqual(['readText', 'writeText']);
+    expect(Object.keys(mfbe.files).sort()).toEqual(['saveBinaries', 'saveText']);
+    expect(Object.keys(mfbe.scripts)).toEqual(['run']);
     expect(mfbe.edit.nbsp).toBe('\u00A0');
     expect(Object.keys(mfbe.env).sort()).toEqual(['settings', 'docLanguage'].sort());
     expect(Object.isFrozen(mfbe.doc)).toBe(true);

@@ -8,7 +8,8 @@
  *        [--answer <value>]... [--select <nodeId>[:from[:to]]]
  *        [--select-range <fromNodeId>:<offset>-<toNodeId>:<offset>] [--tree-node <nodeId>]
  *        [--snapshot <file>] [--update] [--timeout <ms>] [--core <mfbe-core>]
- *        [--ui-dist <dir>] [--keep]
+ *        [--ui-dist <dir>] [--keep] [--clipboard <text>] [--save-as <name|cancel>]...
+ *        [--pick-folder <name|cancel>]...
  *
  *   --answer        pre-answers the script's dialogs in order: a button id for message boxes
  *                   (`ok`, `yes`, `no`, `cancel`...), text for prompts (`cancel` cancels) and a
@@ -20,6 +21,16 @@
  *   --snapshot      compares the normalised XML with the file; `--update` (re)writes it
  *   --timeout       gives up after this many milliseconds (default 120000; exit code 1)
  *   --keep          keeps the temporary data dir (prints its path)
+ *   --clipboard     puts this text on the clipboard before the run (script API version 2)
+ *   --save-as       answers the script's Save dialogs in order (`mfbe.files.saveText`, feature
+ *                   007): a file of that name in the run's output folder; `cancel` cancels
+ *   --pick-folder   answers its folder dialogs in order (`mfbe.files.saveBinaries`): a folder
+ *                   of that name in the output folder; `cancel` cancels
+ *
+ * Outputs (feature 007): what a script hands the user besides the document - the clipboard
+ * text when it changed, the files written into the output folder (UTF-8 text as it is, other
+ * bytes as their size and SHA-256), the report windows it opened (title and text or HTML) - are
+ * compared with `<snapshot without .xml>.outputs.json` next to the snapshot, created like it.
  *
  * How it works: starts `mfbe-core serve --test-hooks` with a temporary data dir whose
  * `scripts/` folder contains a copy of the package, opens the built UI in headless Chromium
@@ -37,11 +48,13 @@
  */
 
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -90,6 +103,9 @@ function parseArgs(argv) {
       path.join(REPO_ROOT, "build", "linux-core-debug", "bin", "mfbe-core"),
     uiDist: process.env.MFBE_UI_DIST ?? path.join(REPO_ROOT, "ui", "dist"),
     keep: false,
+    clipboard: null,
+    saveAs: [],
+    pickFolder: [],
   };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
@@ -138,6 +154,15 @@ function parseArgs(argv) {
       case "--keep":
         options.keep = true;
         break;
+      case "--clipboard":
+        options.clipboard = next();
+        break;
+      case "--save-as":
+        options.saveAs.push(next());
+        break;
+      case "--pick-folder":
+        options.pickFolder.push(next());
+        break;
       case "--help":
       case "-h":
         usage();
@@ -178,7 +203,18 @@ async function startCore(binary, dataDir, uiDist) {
     usage(`UI bundle not found: ${uiDist} (cd ui && npm run build)`);
   const child = spawn(
     binary,
-    ["serve", "--test-hooks", "--data-dir", dataDir, "--ui", uiDist],
+    // The bundled layer is this tree's scripts/ (feature 007): a script that runs others
+    // through mfbe.scripts.run finds them, in a worktree too.
+    [
+      "serve",
+      "--test-hooks",
+      "--data-dir",
+      dataDir,
+      "--ui",
+      uiDist,
+      "--scripts",
+      path.join(REPO_ROOT, "scripts"),
+    ],
     {
       stdio: ["ignore", "pipe", "pipe"],
     },
@@ -379,9 +415,16 @@ async function main() {
   const core = await startCore(options.core, dataDir, options.uiDist);
   const { chromium } = await loadPlaywright();
   const browser = await chromium.launch();
+  const outputDir = path.join(dataDir, "outputs");
+  mkdirSync(outputDir, { recursive: true });
   let exitCode = 0;
   try {
-    const page = await browser.newPage();
+    // The clipboard of script API version 2: the page may read and write it.
+    const context = await browser.newContext();
+    await context.grantPermissions(["clipboard-read", "clipboard-write"], {
+      origin: new URL(core.baseURL).origin,
+    });
+    const page = await context.newPage();
     page.on("pageerror", (error) => log(`page error: ${error.message}`));
     await page.goto(core.baseURL);
     await page.getByTestId("app-root").waitFor();
@@ -424,6 +467,20 @@ async function main() {
       method: "dialog.openFile",
       result: { paths: [book] },
     });
+    // The script's own Save and folder dialogs (mfbe.files), answered in order.
+    for (const name of options.saveAs) {
+      await call("test.enqueueDialog", {
+        method: "dialog.saveFile",
+        result: name === "cancel" ? {} : { path: path.join(outputDir, name) },
+      });
+    }
+    for (const name of options.pickFolder) {
+      if (name !== "cancel") mkdirSync(path.join(outputDir, name), { recursive: true });
+      await call("test.enqueueDialog", {
+        method: "dialog.pickFolder",
+        result: name === "cancel" ? {} : { path: path.join(outputDir, name) },
+      });
+    }
     await page.getByTestId("menu-file").click();
     await page.getByTestId("menu-file-open").click();
     // The editor shows a new document from the start: wait for the book itself, whose file
@@ -464,6 +521,9 @@ async function main() {
         );
       }
     }
+
+    const clipboardBefore = options.clipboard ?? "";
+    await page.evaluate((text) => navigator.clipboard.writeText(text), clipboardBefore);
 
     log(`running ${scriptId} on ${path.basename(book)}`);
     const runPromise = page.evaluate(
@@ -515,6 +575,25 @@ async function main() {
     } else if (!options.snapshot) {
       process.stdout.write(`${xml}\n`);
     }
+    // What the script handed the user besides the document.
+    const outputs = await collectOutputs(page, outputDir, clipboardBefore);
+    if (options.snapshot) {
+      const outputsFile = options.snapshot.replace(/\.xml$/, "") + ".outputs.json";
+      const text = outputs ? `${JSON.stringify(outputs, null, 2)}\n` : null;
+      if (text && (options.update || !existsSync(outputsFile))) {
+        writeFileSync(outputsFile, text);
+        log(`outputs ${options.update ? "updated" : "created"}: ${outputsFile}`);
+      } else if (existsSync(outputsFile)) {
+        if (readFileSync(outputsFile, "utf8") === (text ?? "")) {
+          log(`outputs match: ${outputsFile}`);
+        } else {
+          log(`outputs differ: ${outputsFile}\n${text ?? "(none)"}`);
+          exitCode = 1;
+        }
+      }
+    } else if (outputs) {
+      log(`outputs: ${JSON.stringify(outputs)}`);
+    }
     if (options.snapshot) {
       if (options.update || !existsSync(options.snapshot)) {
         mkdirSync(path.dirname(options.snapshot), { recursive: true });
@@ -550,6 +629,65 @@ async function main() {
     else rmSync(dataDir, { recursive: true, force: true });
   }
   process.exit(exitCode);
+}
+
+/**
+ * The clipboard text (when the run changed it), the files in the output folder and the report
+ * windows the run opened; null when there is none of these.
+ */
+async function collectOutputs(page, outputDir, clipboardBefore) {
+  const outputs = {};
+  const clipboard = await page
+    .evaluate(() => navigator.clipboard.readText())
+    .catch(() => clipboardBefore);
+  if (clipboard !== clipboardBefore) outputs.clipboard = clipboard;
+  const files = {};
+  const walk = (dir, prefix) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true }).sort((a, b) =>
+      a.name.localeCompare(b.name),
+    )) {
+      const full = path.join(dir, entry.name);
+      const name = prefix ? `${prefix}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) walk(full, name);
+      else {
+        const bytes = readFileSync(full);
+        let text = null;
+        try {
+          text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+        } catch {
+          text = null;
+        }
+        files[name] =
+          text !== null && !text.includes("\u0000")
+            ? text
+            : {
+                bytes: bytes.length,
+                sha256: createHash("sha256").update(bytes).digest("hex"),
+              };
+      }
+    }
+  };
+  walk(outputDir, "");
+  if (Object.keys(files).length > 0) outputs.files = files;
+  const reports = await page.evaluate(() =>
+    [...document.querySelectorAll('[data-testid^="script-report-"][role="dialog"]')].map(
+      (dialog) => {
+        const id = dialog.getAttribute("data-testid");
+        const frame = dialog.querySelector(`[data-testid="${id}-frame"]`);
+        const text = dialog.querySelector(`[data-testid="${id}-text"]`);
+        const title =
+          dialog.querySelector(".mfbe-dialog-title-text")?.textContent ??
+          dialog.getAttribute("aria-label") ??
+          "";
+        const html = frame
+          ? (/<body>([\s\S]*)<\/body>/.exec(frame.getAttribute("srcdoc") ?? "")?.[1] ?? "")
+          : undefined;
+        return frame ? { title, html } : { title, text: text?.textContent ?? "" };
+      },
+    ),
+  );
+  if (reports.length > 0) outputs.reports = reports;
+  return Object.keys(outputs).length > 0 ? outputs : null;
 }
 
 if (

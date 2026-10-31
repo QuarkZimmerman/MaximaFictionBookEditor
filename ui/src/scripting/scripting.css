@@ -204,3 +204,35 @@
     animation: mfbe-script-banner-pulse 2s ease-in-out infinite;
   }
 }
+
+/* The report window of mfbe.ui.report (feature 007, ReportWindow.tsx): modeless, resizable,
+   its text pre-wrapped, its HTML in a sandboxed frame. */
+.mfbe-report-window {
+  width: min(680px, calc(100vw - 32px));
+  max-width: none;
+}
+
+.mfbe-report-frame,
+.mfbe-report-text {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: min(60vh, 520px);
+  margin: 0;
+  border: 1px solid var(--mfbe-border, #c8c8c8);
+  background: #fff;
+  color: #1e1e1e;
+}
+
+.mfbe-report-text {
+  padding: 8px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font: 13px/1.45 var(--mfbe-font-mono, ui-monospace, monospace);
+}
+
+.mfbe-report-status {
+  min-height: 1.4em;
+  margin-top: 4px;
+  font-size: 12px;
+}
