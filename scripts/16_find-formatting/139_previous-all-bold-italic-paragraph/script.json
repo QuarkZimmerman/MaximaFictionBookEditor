@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/previous-all-bold-italic-paragraph",
+  "name": {
+    "ru": "Выделить предыдущий целиком курсивный и жирный абзац",
+    "en": "Select previous entirely italic and bold paragraph",
+    "uk": "Виділити попередній цілком курсивний і жирний абзац"
+  },
+  "description": {
+    "ru": "Выделяет предыдущий абзац, набранный целиком курсивом и жирным",
+    "en": "Selects the previous paragraph that is both italic and bold throughout",
+    "uk": "Виділяє попередній абзац, набраний цілком курсивом і жирним"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить предыдущий целиком курсивный и жирный абзац",
+    "en": "Select previous entirely italic and bold paragraph"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/139_Выделить предыдущий целиком курсивный и жирный абзац.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

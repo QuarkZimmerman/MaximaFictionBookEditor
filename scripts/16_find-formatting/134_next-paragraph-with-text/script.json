@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-paragraph-with-text",
+  "name": {
+    "ru": "Выделить следующий абзац с искомым текстом",
+    "en": "Select next paragraph with the sought text",
+    "uk": "Виділити наступний абзац із шуканим текстом"
+  },
+  "description": {
+    "ru": "Выделяет следующий абзац с текстом, заданным в скрипте (по умолчанию «сказа», без учёта регистра)",
+    "en": "Selects the next paragraph that contains the text set in the script (\"сказа\" by default, in any letter case)",
+    "uk": "Виділяє наступний абзац із текстом, заданим у скрипті (типово «сказа», без урахування регістру)"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить следующий абзац с искомым текстом",
+    "en": "Select next paragraph with the sought text"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/134_Выделить следующий абзац с искомым текстом.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "5.0"
+  }
+}

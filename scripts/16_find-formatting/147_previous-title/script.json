@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/previous-title",
+  "name": {
+    "ru": "Выделить предыдущий заголовок",
+    "en": "Select previous title",
+    "uk": "Виділити попередній заголовок"
+  },
+  "description": {
+    "ru": "Выделяет предыдущий заголовок (книги, раздела, стиха или строфы)",
+    "en": "Selects the previous title (of a body, a section, a poem or a stanza)",
+    "uk": "Виділяє попередній заголовок (книги, розділу, вірша або строфи)"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить предыдущий заголовок",
+    "en": "Select previous title"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/147_Выделить предыдущий заголовок.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

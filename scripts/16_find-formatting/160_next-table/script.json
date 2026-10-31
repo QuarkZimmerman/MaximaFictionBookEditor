@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-table",
+  "name": {
+    "ru": "Выделить следующую таблицу",
+    "en": "Select next table",
+    "uk": "Виділити наступну таблицю"
+  },
+  "description": {
+    "ru": "Выделяет следующую таблицу",
+    "en": "Selects the next table",
+    "uk": "Виділяє наступну таблицю"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить следующую таблицу",
+    "en": "Select next table"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/160_Выделить следующую таблицу.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
+  }
+}

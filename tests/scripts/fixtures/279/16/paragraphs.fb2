@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Форматирование</last-name>
+			</author>
+			<book-title>Выделение абзацев</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>fixture</program-used>
+			<date value="2026-10-31">2026</date>
+			<id>fixture-279-16-paragraphs</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Книга абзацев</p>
+		</title>
+		<section>
+			<title>
+				<p><emphasis>Курсивный заголовок</emphasis></p>
+			</title>
+			<p>Обычный абзац.</p>
+			<p><emphasis>Целиком курсивный абзац.</emphasis></p>
+			<p><strong>Целиком жирный абзац.</strong></p>
+			<p><strong><emphasis>Курсивный и жирный абзац.</emphasis></strong></p>
+			<p><emphasis>Курсивный абзац, частично <strong>жирный</strong></emphasis>  </p>
+			<p><strong>Жирный абзац, частично <emphasis>курсивный</emphasis></strong></p>
+			<p>   </p>
+			<empty-line/>
+			<p><emphasis>Почти</emphasis> курсивный абзац.</p>
+			<p><emphasis>Курсив с картинкой </emphasis><image l:href="#pic"/></p>
+			<subtitle>* * *</subtitle>
+			<subtitle>Подзаголовок с текстом</subtitle>
+			<subtitle>*&#160;*&#160;*</subtitle>
+			<subtitle>#</subtitle>
+			<subtitle>+ 1 +</subtitle>
+			<subtitle>— &amp; —</subtitle>
+			<p>Абзац перед цитатой.</p>
+			<cite>
+				<p>Цитата.</p>
+				<text-author>Первый автор</text-author>
+				<text-author><emphasis>Второй автор</emphasis></text-author>
+			</cite>
+			<p>Абзац после цитаты.</p>
+			<poem>
+				<stanza>
+					<v>Строка стиха</v>
+				</stanza>
+				<text-author>Поэт</text-author>
+				<date>1901</date>
+			</poem>
+			<p><strong><emphasis>Последний</emphasis></strong> <strong>абзац</strong></p>
+		</section>
+	</body>
+	<binary id="pic" content-type="image/png">iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==</binary>
+</FictionBook>

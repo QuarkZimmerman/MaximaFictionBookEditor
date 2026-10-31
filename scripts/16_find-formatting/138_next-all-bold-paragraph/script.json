@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-all-bold-paragraph",
+  "name": {
+    "ru": "Выделить следующий целиком жирный абзац",
+    "en": "Select next entirely bold paragraph",
+    "uk": "Виділити наступний цілком жирний абзац"
+  },
+  "description": {
+    "ru": "Выделяет следующий абзац, набранный целиком жирным",
+    "en": "Selects the next paragraph that is bold throughout",
+    "uk": "Виділяє наступний абзац, набраний цілком жирним"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить следующий целиком жирный абзац",
+    "en": "Select next entirely bold paragraph"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/138_Выделить следующий целиком жирный абзац.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

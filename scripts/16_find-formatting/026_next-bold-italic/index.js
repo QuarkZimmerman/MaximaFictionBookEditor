@@ -1,0 +1,17 @@
+// Converted from FictionBook Editor 2.7.9: Scripts/16_Поиск форматирования/026_Перейти на следующее совмещение курсива с жирностью.js
+// Moves the caret to the start of the next run of text that is both italic and bold
+// (combo-search.js); at the end of the book it asks whether to go on from the beginning. Returns
+// "Found", or "NotFound" when nothing is found or the user declines to go on; nothing for a
+// selected picture (as the original's Run() did). Differences from the original:
+// docs/scripting/conversion-notes-279-b.md (group 16).
+// The original's notice, kept as written (FR-029):
+// Скрипт «Выделить следующее совмещение курсива с жирностью»
+//Автор Sclex
+//Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412
+//Мой сайт про мои скрипты: http://scripts.fictionbook.org
+
+import { runComboSearch } from './combo-search.js';
+
+export default async function run(ctx) {
+  return runComboSearch(ctx, { forward: true });
+}

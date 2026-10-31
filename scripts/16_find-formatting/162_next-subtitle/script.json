@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-subtitle",
+  "name": {
+    "ru": "Выделить следующий подзаголовок (любой)",
+    "en": "Select next subtitle (any)",
+    "uk": "Виділити наступний підзаголовок (будь-який)"
+  },
+  "description": {
+    "ru": "Выделяет следующий подзаголовок, любой",
+    "en": "Selects the next subtitle, whatever its text",
+    "uk": "Виділяє наступний підзаголовок, будь-який"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить следующий подзаголовок (любой)",
+    "en": "Select next subtitle (any)"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/162_Выделить следующий подзаголовок (любой).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.4"
+  }
+}

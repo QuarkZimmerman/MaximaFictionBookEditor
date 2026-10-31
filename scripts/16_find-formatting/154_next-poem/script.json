@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-poem",
+  "name": {
+    "ru": "Выделить следующий стих (poem)",
+    "en": "Select next poem",
+    "uk": "Виділити наступний вірш (poem)"
+  },
+  "description": {
+    "ru": "Выделяет следующий стих (poem) целиком",
+    "en": "Selects the whole next poem",
+    "uk": "Виділяє наступний вірш (poem) повністю"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить следующий стих (poem)",
+    "en": "Select next poem"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/154_Выделить следующий стих (poem).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
+  }
+}

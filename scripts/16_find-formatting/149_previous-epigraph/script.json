@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/previous-epigraph",
+  "name": {
+    "ru": "Выделить предыдущий эпиграф",
+    "en": "Select previous epigraph",
+    "uk": "Виділити попередній епіграф"
+  },
+  "description": {
+    "ru": "Выделяет предыдущий эпиграф",
+    "en": "Selects the previous epigraph",
+    "uk": "Виділяє попередній епіграф"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить предыдущий эпиграф",
+    "en": "Select previous epigraph"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/149_Выделить предыдущий эпиграф.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
+  }
+}

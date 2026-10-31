@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-poem-title",
+  "name": {
+    "ru": "Выделить следующий заголовок стиха",
+    "en": "Select next poem title",
+    "uk": "Виділити наступний заголовок вірша"
+  },
+  "description": {
+    "ru": "Выделяет следующий заголовок стиха (не строфы)",
+    "en": "Selects the next title of a poem (not of a stanza)",
+    "uk": "Виділяє наступний заголовок вірша (не строфи)"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить следующий заголовок стиха",
+    "en": "Select next poem title"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/156_Выделить следующий заголовок стиха.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.4"
+  }
+}

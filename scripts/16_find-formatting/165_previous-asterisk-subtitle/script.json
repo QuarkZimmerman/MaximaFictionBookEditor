@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/previous-asterisk-subtitle",
+  "name": {
+    "ru": "Выделить предыдущий подзаголовок (звездочки)",
+    "en": "Select previous subtitle (asterisks)",
+    "uk": "Виділити попередній підзаголовок (зірочки)"
+  },
+  "description": {
+    "ru": "Выделяет предыдущий подзаголовок, в котором есть звёздочки, решётки, буллеты или плюсы",
+    "en": "Selects the previous subtitle that contains asterisks, hashes, bullets or plus signs",
+    "uk": "Виділяє попередній підзаголовок, у якому є зірочки, решітки, маркери або плюси"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить предыдущий подзаголовок (звездочки)",
+    "en": "Select previous subtitle (asterisks)"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/165_Выделить предыдущий подзаголовок (звездочки).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.4"
+  }
+}

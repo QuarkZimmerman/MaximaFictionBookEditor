@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-all-italic-paragraph",
+  "name": {
+    "ru": "Выделить следующий целиком курсивный абзац",
+    "en": "Select next entirely italic paragraph",
+    "uk": "Виділити наступний цілком курсивний абзац"
+  },
+  "description": {
+    "ru": "Выделяет следующий абзац, набранный целиком курсивом",
+    "en": "Selects the next paragraph that is italic throughout",
+    "uk": "Виділяє наступний абзац, набраний цілком курсивом"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить следующий целиком курсивный абзац",
+    "en": "Select next entirely italic paragraph"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/136_Выделить следующий целиком курсивный абзац.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

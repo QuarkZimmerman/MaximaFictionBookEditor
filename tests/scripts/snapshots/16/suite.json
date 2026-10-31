@@ -1,0 +1,544 @@
+[
+  {
+    "snapshot": "16/previous-bold-italic.xml",
+    "script": "scripts/16_find-formatting/025_previous-bold-italic",
+    "book": "tests/scripts/fixtures/279/16/combinations.fb2",
+    "args": [
+      "--select",
+      "n10:20:20"
+    ]
+  },
+  {
+    "snapshot": "16/previous-bold-italic.wrap.xml",
+    "script": "scripts/16_find-formatting/025_previous-bold-italic",
+    "book": "tests/scripts/fixtures/279/16/combinations.fb2",
+    "args": [
+      "--select",
+      "n13:27:27",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "16/previous-bold-italic.cancel.xml",
+    "script": "scripts/16_find-formatting/025_previous-bold-italic",
+    "book": "tests/scripts/fixtures/279/16/combinations.fb2",
+    "args": [
+      "--select",
+      "n13:27:27",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "16/previous-bold-italic.none.xml",
+    "script": "scripts/16_find-formatting/025_previous-bold-italic",
+    "book": "tests/scripts/fixtures/279/16/containers.fb2",
+    "args": [
+      "--select",
+      "n16:0:0",
+      "--answer",
+      "ok",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "16/next-bold-italic.xml",
+    "script": "scripts/16_find-formatting/026_next-bold-italic",
+    "book": "tests/scripts/fixtures/279/16/combinations.fb2",
+    "args": [
+      "--select",
+      "n5:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/next-bold-italic.wrap.xml",
+    "script": "scripts/16_find-formatting/026_next-bold-italic",
+    "book": "tests/scripts/fixtures/279/16/combinations.fb2",
+    "args": [
+      "--select",
+      "n10:5:5",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "16/next-bold-italic.cancel.xml",
+    "script": "scripts/16_find-formatting/026_next-bold-italic",
+    "book": "tests/scripts/fixtures/279/16/combinations.fb2",
+    "args": [
+      "--select",
+      "n10:5:5",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "16/next-bold-italic.none.xml",
+    "script": "scripts/16_find-formatting/026_next-bold-italic",
+    "book": "tests/scripts/fixtures/279/16/containers.fb2",
+    "args": [
+      "--select",
+      "n16:0:0",
+      "--answer",
+      "ok",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "16/next-list.xml",
+    "script": "scripts/16_find-formatting/125_next-list",
+    "book": "tests/scripts/fixtures/279/16/regexps.fb2",
+    "args": [
+      "--select",
+      "n6:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/next-cyrillic.xml",
+    "script": "scripts/16_find-formatting/126_next-cyrillic",
+    "book": "tests/scripts/fixtures/279/16/regexps.fb2",
+    "args": [
+      "--select",
+      "n12:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/next-paragraph-with-cyrillic.xml",
+    "script": "scripts/16_find-formatting/127_next-paragraph-with-cyrillic",
+    "book": "tests/scripts/fixtures/279/16/regexps.fb2",
+    "args": [
+      "--select",
+      "n11:5:5"
+    ]
+  },
+  {
+    "snapshot": "16/next-latin.xml",
+    "script": "scripts/16_find-formatting/128_next-latin",
+    "book": "tests/scripts/fixtures/279/16/regexps.fb2",
+    "args": [
+      "--select",
+      "n7:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/next-paragraph-with-latin.xml",
+    "script": "scripts/16_find-formatting/129_next-paragraph-with-latin",
+    "book": "tests/scripts/fixtures/279/16/regexps.fb2",
+    "args": [
+      "--select",
+      "n6:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/next-caps.xml",
+    "script": "scripts/16_find-formatting/130_next-caps",
+    "book": "tests/scripts/fixtures/279/16/regexps.fb2",
+    "args": [
+      "--select",
+      "n12:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/next-paragraph-with-caps.xml",
+    "script": "scripts/16_find-formatting/131_next-paragraph-with-caps",
+    "book": "tests/scripts/fixtures/279/16/regexps.fb2",
+    "args": [
+      "--select",
+      "n12:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/next-empty-line.xml",
+    "script": "scripts/16_find-formatting/132_next-empty-line",
+    "book": "tests/scripts/fixtures/279/16/regexps.fb2",
+    "args": [
+      "--select",
+      "n15:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/next-url.xml",
+    "script": "scripts/16_find-formatting/133_next-url",
+    "book": "tests/scripts/fixtures/279/16/regexps.fb2",
+    "args": [
+      "--select",
+      "n6:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/next-paragraph-with-text.xml",
+    "script": "scripts/16_find-formatting/134_next-paragraph-with-text",
+    "book": "tests/scripts/fixtures/279/16/regexps.fb2",
+    "args": [
+      "--select",
+      "n6:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/previous-all-italic-paragraph.xml",
+    "script": "scripts/16_find-formatting/135_previous-all-italic-paragraph",
+    "book": "tests/scripts/fixtures/279/16/paragraphs.fb2",
+    "args": [
+      "--select",
+      "n35:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/next-all-italic-paragraph.xml",
+    "script": "scripts/16_find-formatting/136_next-all-italic-paragraph",
+    "book": "tests/scripts/fixtures/279/16/paragraphs.fb2",
+    "args": [
+      "--select",
+      "n3:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/previous-all-bold-paragraph.xml",
+    "script": "scripts/16_find-formatting/137_previous-all-bold-paragraph",
+    "book": "tests/scripts/fixtures/279/16/paragraphs.fb2",
+    "args": [
+      "--select",
+      "n34:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/next-all-bold-paragraph.xml",
+    "script": "scripts/16_find-formatting/138_next-all-bold-paragraph",
+    "book": "tests/scripts/fixtures/279/16/paragraphs.fb2",
+    "args": [
+      "--select",
+      "n3:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/previous-all-bold-italic-paragraph.xml",
+    "script": "scripts/16_find-formatting/139_previous-all-bold-italic-paragraph",
+    "book": "tests/scripts/fixtures/279/16/paragraphs.fb2",
+    "args": [
+      "--select",
+      "n35:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/next-all-bold-italic-paragraph.xml",
+    "script": "scripts/16_find-formatting/140_next-all-bold-italic-paragraph",
+    "book": "tests/scripts/fixtures/279/16/paragraphs.fb2",
+    "args": [
+      "--select",
+      "n3:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/previous-all-italic-not-bold-paragraph.xml",
+    "script": "scripts/16_find-formatting/141_previous-all-italic-not-bold-paragraph",
+    "book": "tests/scripts/fixtures/279/16/paragraphs.fb2",
+    "args": [
+      "--select",
+      "n35:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/next-all-italic-not-bold-paragraph.xml",
+    "script": "scripts/16_find-formatting/142_next-all-italic-not-bold-paragraph",
+    "book": "tests/scripts/fixtures/279/16/paragraphs.fb2",
+    "args": [
+      "--select",
+      "n3:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/previous-all-bold-not-italic-paragraph.xml",
+    "script": "scripts/16_find-formatting/143_previous-all-bold-not-italic-paragraph",
+    "book": "tests/scripts/fixtures/279/16/paragraphs.fb2",
+    "args": [
+      "--select",
+      "n35:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/next-all-bold-not-italic-paragraph.xml",
+    "script": "scripts/16_find-formatting/144_next-all-bold-not-italic-paragraph",
+    "book": "tests/scripts/fixtures/279/16/paragraphs.fb2",
+    "args": [
+      "--select",
+      "n3:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/previous-annotation.xml",
+    "script": "scripts/16_find-formatting/145_previous-annotation",
+    "book": "tests/scripts/fixtures/279/16/containers.fb2",
+    "args": [
+      "--select",
+      "n78:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/next-annotation.xml",
+    "script": "scripts/16_find-formatting/146_next-annotation",
+    "book": "tests/scripts/fixtures/279/16/containers.fb2",
+    "args": [
+      "--select",
+      "n3:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/previous-title.xml",
+    "script": "scripts/16_find-formatting/147_previous-title",
+    "book": "tests/scripts/fixtures/279/16/containers.fb2",
+    "args": [
+      "--select",
+      "n78:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/next-title.xml",
+    "script": "scripts/16_find-formatting/148_next-title",
+    "book": "tests/scripts/fixtures/279/16/containers.fb2",
+    "args": [
+      "--select",
+      "n3:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/previous-epigraph.xml",
+    "script": "scripts/16_find-formatting/149_previous-epigraph",
+    "book": "tests/scripts/fixtures/279/16/containers.fb2",
+    "args": [
+      "--select",
+      "n78:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/next-epigraph.xml",
+    "script": "scripts/16_find-formatting/150_next-epigraph",
+    "book": "tests/scripts/fixtures/279/16/containers.fb2",
+    "args": [
+      "--select",
+      "n3:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/previous-cite.xml",
+    "script": "scripts/16_find-formatting/151_previous-cite",
+    "book": "tests/scripts/fixtures/279/16/containers.fb2",
+    "args": [
+      "--select",
+      "n37:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/next-cite.xml",
+    "script": "scripts/16_find-formatting/152_next-cite",
+    "book": "tests/scripts/fixtures/279/16/containers.fb2",
+    "args": [
+      "--select",
+      "n16:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/previous-poem.xml",
+    "script": "scripts/16_find-formatting/153_previous-poem",
+    "book": "tests/scripts/fixtures/279/16/containers.fb2",
+    "args": [
+      "--select",
+      "n53:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/next-poem.xml",
+    "script": "scripts/16_find-formatting/154_next-poem",
+    "book": "tests/scripts/fixtures/279/16/containers.fb2",
+    "args": [
+      "--select",
+      "n22:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/previous-poem-title.xml",
+    "script": "scripts/16_find-formatting/155_previous-poem-title",
+    "book": "tests/scripts/fixtures/279/16/containers.fb2",
+    "args": [
+      "--select",
+      "n78:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/next-poem-title.xml",
+    "script": "scripts/16_find-formatting/156_next-poem-title",
+    "book": "tests/scripts/fixtures/279/16/containers.fb2",
+    "args": [
+      "--select",
+      "n3:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/previous-stanza.xml",
+    "script": "scripts/16_find-formatting/157_previous-stanza",
+    "book": "tests/scripts/fixtures/279/16/containers.fb2",
+    "args": [
+      "--select",
+      "n37:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/next-stanza.xml",
+    "script": "scripts/16_find-formatting/158_next-stanza",
+    "book": "tests/scripts/fixtures/279/16/containers.fb2",
+    "args": [
+      "--select",
+      "n27:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/previous-table.xml",
+    "script": "scripts/16_find-formatting/159_previous-table",
+    "book": "tests/scripts/fixtures/279/16/containers.fb2",
+    "args": [
+      "--select",
+      "n78:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/next-table.xml",
+    "script": "scripts/16_find-formatting/160_next-table",
+    "book": "tests/scripts/fixtures/279/16/containers.fb2",
+    "args": [
+      "--select",
+      "n3:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/previous-subtitle.xml",
+    "script": "scripts/16_find-formatting/161_previous-subtitle",
+    "book": "tests/scripts/fixtures/279/16/paragraphs.fb2",
+    "args": [
+      "--select",
+      "n35:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/next-subtitle.xml",
+    "script": "scripts/16_find-formatting/162_next-subtitle",
+    "book": "tests/scripts/fixtures/279/16/paragraphs.fb2",
+    "args": [
+      "--select",
+      "n3:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/previous-text-subtitle.xml",
+    "script": "scripts/16_find-formatting/163_previous-text-subtitle",
+    "book": "tests/scripts/fixtures/279/16/paragraphs.fb2",
+    "args": [
+      "--select",
+      "n35:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/next-text-subtitle.xml",
+    "script": "scripts/16_find-formatting/164_next-text-subtitle",
+    "book": "tests/scripts/fixtures/279/16/paragraphs.fb2",
+    "args": [
+      "--select",
+      "n3:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/previous-asterisk-subtitle.xml",
+    "script": "scripts/16_find-formatting/165_previous-asterisk-subtitle",
+    "book": "tests/scripts/fixtures/279/16/paragraphs.fb2",
+    "args": [
+      "--select",
+      "n35:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/next-asterisk-subtitle.xml",
+    "script": "scripts/16_find-formatting/166_next-asterisk-subtitle",
+    "book": "tests/scripts/fixtures/279/16/paragraphs.fb2",
+    "args": [
+      "--select",
+      "n3:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/previous-text-authors.xml",
+    "script": "scripts/16_find-formatting/167_previous-text-authors",
+    "book": "tests/scripts/fixtures/279/16/paragraphs.fb2",
+    "args": [
+      "--select",
+      "n35:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/next-text-authors.xml",
+    "script": "scripts/16_find-formatting/168_next-text-authors",
+    "book": "tests/scripts/fixtures/279/16/paragraphs.fb2",
+    "args": [
+      "--select",
+      "n24:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/caps-title.xml",
+    "script": "scripts/16_find-formatting/169_caps-title",
+    "book": "tests/scripts/fixtures/279/16/regexps.fb2",
+    "args": [
+      "--select",
+      "n6:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/previous-repeated-elements.xml",
+    "script": "scripts/16_find-formatting/200_previous-repeated-elements",
+    "book": "tests/scripts/fixtures/279/16/containers.fb2",
+    "args": [
+      "--select",
+      "n78:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/next-repeated-elements.xml",
+    "script": "scripts/16_find-formatting/201_next-repeated-elements",
+    "book": "tests/scripts/fixtures/279/16/containers.fb2",
+    "args": [
+      "--select",
+      "n3:0:0"
+    ]
+  },
+  {
+    "snapshot": "16/chain-containers.xml",
+    "script": "tests/scripts/fixtures/279/16/chains/containers",
+    "book": "tests/scripts/fixtures/279/16/containers.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "16/chain-paragraphs.xml",
+    "script": "tests/scripts/fixtures/279/16/chains/paragraphs",
+    "book": "tests/scripts/fixtures/279/16/paragraphs.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "16/chain-combinations.xml",
+    "script": "tests/scripts/fixtures/279/16/chains/combinations",
+    "book": "tests/scripts/fixtures/279/16/combinations.fb2",
+    "args": [
+      "--answer",
+      "ok",
+      "--answer",
+      "cancel",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "16/chain-regexps.xml",
+    "script": "tests/scripts/fixtures/279/16/chains/regexps",
+    "book": "tests/scripts/fixtures/279/16/regexps.fb2",
+    "args": []
+  }
+]

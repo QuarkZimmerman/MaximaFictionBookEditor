@@ -20,7 +20,8 @@
       "major": 11,
       "merged": 1,
       "noCounterpart": 5
-    }
+    },
+    "converted": 185
   },
   "entries": [
     {
@@ -5407,15 +5408,18 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/025_previous-bold-italic",
+      "id": "16/previous-bold-italic",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A combination is a run of text that is both bold and italic within one paragraph (marks instead of nested EM/STRONG elements); a picture inside it, bold and italic too, belongs to it. An empty italic element inside bold text, which 2.7.9 stopped at (its test lacked the non-empty check in that case), does not exist in the document model.",
+        "A selected inline picture: 2.7.9 refused every \"Control\" selection with its message; here only a selected block picture is refused, an inline picture counts as a one-character text selection.",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/25_go-on-predydushchee-sovmeshchenie-kursiva-s-zhir",
-      "suggestedId": "16/go-on-predydushchee-sovmeshchenie-kursiva-s-zhir"
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/026_Перейти на следующее совмещение курсива с жирностью.js",
@@ -5431,15 +5435,18 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/026_next-bold-italic",
+      "id": "16/next-bold-italic",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A combination is a run of text that is both bold and italic within one paragraph (marks instead of nested EM/STRONG elements); a picture inside it, bold and italic too, belongs to it. An empty italic element inside bold text, which 2.7.9 stopped at (its test lacked the non-empty check in that case), does not exist in the document model.",
+        "A selected inline picture: 2.7.9 refused every \"Control\" selection with its message; here only a selected block picture is refused, an inline picture counts as a one-character text selection.",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/26_go-on-sleduyushchee-sovmeshchenie-kursiva-s-zhir",
-      "suggestedId": "16/go-on-sleduyushchee-sovmeshchenie-kursiva-s-zhir"
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/125_Выделить следующий список.js",
@@ -5455,15 +5462,21 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/125_next-list",
+      "id": "16/next-list",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/125_vydelit-sleduyushchiy-spisok",
-      "suggestedId": "16/vydelit-sleduyushchiy-spisok"
+      "differences": [
+        "Pictures count as one character of the paragraph text (2.7.9 wrote \"~~~\" for a picture, which moved the selection two characters per picture after it).",
+        "The addMacros definitions of the original are not carried over: they serve only tagRegExp expressions, and the script has none; the engine takes addRegExp entries.",
+        "A selected inline picture counts as a one-character text selection (2.7.9 refused every \"Control\" selection).",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
+      "fixes": [
+        "A selected picture: the original's message printed the words \"sel.type\" instead of the kind of selection (\"Не обрабатываемый тип выделения: sel.type\"); it now reads \"Не обрабатываемый тип выделения: выделена картинка.\" The script still stops there and returns nothing."
+      ],
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/126_Выделить следующую кириллицу.js",
@@ -5479,15 +5492,21 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/126_next-cyrillic",
+      "id": "16/next-cyrillic",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/126_vydelit-sleduyushchuyu-kirillitsu",
-      "suggestedId": "16/vydelit-sleduyushchuyu-kirillitsu"
+      "differences": [
+        "Pictures count as one character of the paragraph text (2.7.9 wrote \"~~~\" for a picture, which moved the selection two characters per picture after it).",
+        "The addMacros definitions of the original are not carried over: they serve only tagRegExp expressions, and the script has none; the engine takes addRegExp entries.",
+        "A selected inline picture counts as a one-character text selection (2.7.9 refused every \"Control\" selection).",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
+      "fixes": [
+        "A selected picture: the original's message printed the words \"sel.type\" instead of the kind of selection (\"Не обрабатываемый тип выделения: sel.type\"); it now reads \"Не обрабатываемый тип выделения: выделена картинка.\" The script still stops there and returns nothing."
+      ],
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/127_Выделить следующий абзац с кириллицей.js",
@@ -5503,15 +5522,21 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/127_next-paragraph-with-cyrillic",
+      "id": "16/next-paragraph-with-cyrillic",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/127_vydelit-sleduyushchiy-abzats-s-kirillitsey",
-      "suggestedId": "16/vydelit-sleduyushchiy-abzats-s-kirillitsey"
+      "differences": [
+        "Pictures count as one character of the paragraph text (2.7.9 wrote \"~~~\" for a picture, which moved the selection two characters per picture after it).",
+        "The addMacros definitions of the original are not carried over: they serve only tagRegExp expressions, and the script has none; the engine takes addRegExp entries.",
+        "A selected inline picture counts as a one-character text selection (2.7.9 refused every \"Control\" selection).",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
+      "fixes": [
+        "A selected picture: the original's message printed the words \"sel.type\" instead of the kind of selection (\"Не обрабатываемый тип выделения: sel.type\"); it now reads \"Не обрабатываемый тип выделения: выделена картинка.\" The script still stops there and returns nothing."
+      ],
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/128_Выделить следующую латиницу.js",
@@ -5527,15 +5552,21 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/128_next-latin",
+      "id": "16/next-latin",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/128_vydelit-sleduyushchuyu-latinitsu",
-      "suggestedId": "16/vydelit-sleduyushchuyu-latinitsu"
+      "differences": [
+        "Pictures count as one character of the paragraph text (2.7.9 wrote \"~~~\" for a picture, which moved the selection two characters per picture after it).",
+        "The addMacros definitions of the original are not carried over: they serve only tagRegExp expressions, and the script has none; the engine takes addRegExp entries.",
+        "A selected inline picture counts as a one-character text selection (2.7.9 refused every \"Control\" selection).",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
+      "fixes": [
+        "A selected picture: the original's message printed the words \"sel.type\" instead of the kind of selection (\"Не обрабатываемый тип выделения: sel.type\"); it now reads \"Не обрабатываемый тип выделения: выделена картинка.\" The script still stops there and returns nothing."
+      ],
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/129_Выделить следующий абзац с латиницей.js",
@@ -5551,15 +5582,21 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/129_next-paragraph-with-latin",
+      "id": "16/next-paragraph-with-latin",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/129_vydelit-sleduyushchiy-abzats-s-latinitsey",
-      "suggestedId": "16/vydelit-sleduyushchiy-abzats-s-latinitsey"
+      "differences": [
+        "Pictures count as one character of the paragraph text (2.7.9 wrote \"~~~\" for a picture, which moved the selection two characters per picture after it).",
+        "The addMacros definitions of the original are not carried over: they serve only tagRegExp expressions, and the script has none; the engine takes addRegExp entries.",
+        "A selected inline picture counts as a one-character text selection (2.7.9 refused every \"Control\" selection).",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
+      "fixes": [
+        "A selected picture: the original's message printed the words \"sel.type\" instead of the kind of selection (\"Не обрабатываемый тип выделения: sel.type\"); it now reads \"Не обрабатываемый тип выделения: выделена картинка.\" The script still stops there and returns nothing."
+      ],
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/130_Выделить следующий КАПС (рус-лат).js",
@@ -5575,15 +5612,21 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/130_next-caps",
+      "id": "16/next-caps",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/130_vydelit-sleduyushchiy-kaps-rus-lat",
-      "suggestedId": "16/vydelit-sleduyushchiy-kaps-rus-lat"
+      "differences": [
+        "Pictures count as one character of the paragraph text (2.7.9 wrote \"~~~\" for a picture, which moved the selection two characters per picture after it).",
+        "The addMacros definitions of the original are not carried over: they serve only tagRegExp expressions, and the script has none; the engine takes addRegExp entries.",
+        "A selected inline picture counts as a one-character text selection (2.7.9 refused every \"Control\" selection).",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
+      "fixes": [
+        "A selected picture: the original's message printed the words \"sel.type\" instead of the kind of selection (\"Не обрабатываемый тип выделения: sel.type\"); it now reads \"Не обрабатываемый тип выделения: выделена картинка.\" The script still stops there and returns nothing."
+      ],
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/131_Выделить следующий абзац с КАПС (рус-лат).js",
@@ -5599,15 +5642,21 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/131_next-paragraph-with-caps",
+      "id": "16/next-paragraph-with-caps",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/131_vydelit-sleduyushchiy-abzats-s-kaps-rus-lat",
-      "suggestedId": "16/vydelit-sleduyushchiy-abzats-s-kaps-rus-lat"
+      "differences": [
+        "Pictures count as one character of the paragraph text (2.7.9 wrote \"~~~\" for a picture, which moved the selection two characters per picture after it).",
+        "The addMacros definitions of the original are not carried over: they serve only tagRegExp expressions, and the script has none; the engine takes addRegExp entries.",
+        "A selected inline picture counts as a one-character text selection (2.7.9 refused every \"Control\" selection).",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
+      "fixes": [
+        "A selected picture: the original's message printed the words \"sel.type\" instead of the kind of selection (\"Не обрабатываемый тип выделения: sel.type\"); it now reads \"Не обрабатываемый тип выделения: выделена картинка.\" The script still stops there and returns nothing."
+      ],
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/132_Выделить следующую пустую строку.js",
@@ -5623,15 +5672,25 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/132_next-empty-line",
+      "id": "16/next-empty-line",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/132_vydelit-sleduyushchuyu-pustuyu-stroku",
-      "suggestedId": "16/vydelit-sleduyushchuyu-pustuyu-stroku"
+      "differences": [
+        "An empty line holds no caret in the Body view: the caret goes to the start of the text after the empty line found (where Backspace removes it), and a caret at the start of the text right after an empty line counts as standing on that empty line, so a line of spaces right after it is found next.",
+        "Empty lines that follow each other are one stop: the caret after them cannot tell them apart.",
+        "An empty line with no text after it in the Body view (the end of the book) leaves the caret at the end of the text before it, and the next run finds that empty line again.",
+        "The original's cursorShift (moving the start of the selection one word on, a workaround for Internet Explorer's caret at the borders of DIVs) is not needed and is dropped.",
+        "Pictures count as one character of the paragraph text (2.7.9 wrote \"~~~\" for a picture, which moved the selection two characters per picture after it).",
+        "A selected inline picture counts as a one-character text selection (2.7.9 refused every \"Control\" selection).",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search.",
+        "A run() that returns nothing reaches a calling script (mfbe.scripts.run) as null."
+      ],
+      "fixes": [
+        "A selected picture: the original's message printed the words \"sel.type\" instead of the kind of selection (\"Не обрабатываемый тип выделения: sel.type\"); it now reads \"Не обрабатываемый тип выделения: выделена картинка.\" The script still stops there and returns nothing."
+      ],
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/133_Выделить следующую ссылку.js",
@@ -5647,15 +5706,21 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/133_next-url",
+      "id": "16/next-url",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/133_vydelit-sleduyushchuyu-a-link",
-      "suggestedId": "16/vydelit-sleduyushchuyu-a-link"
+      "differences": [
+        "Pictures count as one character of the paragraph text (2.7.9 wrote \"~~~\" for a picture, which moved the selection two characters per picture after it).",
+        "The addMacros definitions of the original are not carried over: they serve only tagRegExp expressions, and the script has none; the engine takes addRegExp entries.",
+        "A selected inline picture counts as a one-character text selection (2.7.9 refused every \"Control\" selection).",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
+      "fixes": [
+        "A selected picture: the original's message printed the words \"sel.type\" instead of the kind of selection (\"Не обрабатываемый тип выделения: sel.type\"); it now reads \"Не обрабатываемый тип выделения: выделена картинка.\" The script still stops there and returns nothing."
+      ],
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/134_Выделить следующий абзац с искомым текстом.js",
@@ -5671,15 +5736,22 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/134_next-paragraph-with-text",
+      "id": "16/next-paragraph-with-text",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/134_vydelit-sleduyushchiy-abzats-s-iskomym-text",
-      "suggestedId": "16/vydelit-sleduyushchiy-abzats-s-iskomym-text"
+      "differences": [
+        "Pictures count as one character of the paragraph text (2.7.9 wrote \"~~~\" for a picture, which moved the selection two characters per picture after it).",
+        "The addMacros definitions of the original are not carried over: they serve only tagRegExp expressions, and the script has none; the engine takes addRegExp entries.",
+        "A selected inline picture counts as a one-character text selection (2.7.9 refused every \"Control\" selection).",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
+      "fixes": [
+        "A selected picture: the original's message printed the words \"sel.type\" instead of the kind of selection (\"Не обрабатываемый тип выделения: sel.type\"); it now reads \"Не обрабатываемый тип выделения: выделена картинка.\" The script still stops there and returns nothing.",
+        "Soft hyphens: unlike its siblings this script did not turn \"&shy;\" back into one character, so every soft hyphen counted five and the selection of a paragraph holding one ran four characters per hyphen past its end (into the next paragraph); here a soft hyphen is one character and the whole paragraph, no more, is selected."
+      ],
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/135_Выделить предыдущий целиком курсивный абзац.js",
@@ -5695,15 +5767,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/135_previous-all-italic-paragraph",
+      "id": "16/previous-all-italic-paragraph",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The paragraph found is scrolled into view by the editor (the original selected it without scrolling).",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/135_vydelit-predydushchiy-tselikom-kursivnyy-abzats",
-      "suggestedId": "16/vydelit-predydushchiy-tselikom-kursivnyy-abzats"
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/136_Выделить следующий целиком курсивный абзац.js",
@@ -5719,15 +5795,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/136_next-all-italic-paragraph",
+      "id": "16/next-all-italic-paragraph",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The paragraph found is scrolled into view by the editor (the original selected it without scrolling).",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/136_vydelit-sleduyushchiy-tselikom-kursivnyy-abzats",
-      "suggestedId": "16/vydelit-sleduyushchiy-tselikom-kursivnyy-abzats"
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/137_Выделить предыдущий целиком жирный абзац.js",
@@ -5743,15 +5823,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/137_previous-all-bold-paragraph",
+      "id": "16/previous-all-bold-paragraph",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The paragraph found is scrolled into view by the editor (the original selected it without scrolling).",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/137_vydelit-predydushchiy-tselikom-bold-abzats",
-      "suggestedId": "16/vydelit-predydushchiy-tselikom-bold-abzats"
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/138_Выделить следующий целиком жирный абзац.js",
@@ -5767,15 +5851,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/138_next-all-bold-paragraph",
+      "id": "16/next-all-bold-paragraph",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The paragraph found is scrolled into view by the editor (the original selected it without scrolling).",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/138_vydelit-sleduyushchiy-tselikom-bold-abzats",
-      "suggestedId": "16/vydelit-sleduyushchiy-tselikom-bold-abzats"
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/139_Выделить предыдущий целиком курсивный и жирный абзац.js",
@@ -5791,15 +5879,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/139_previous-all-bold-italic-paragraph",
+      "id": "16/previous-all-bold-italic-paragraph",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The paragraph found is scrolled into view by the editor (the original selected it without scrolling).",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/139_vydelit-predydushchiy-tselikom-kursivnyy-and-bol",
-      "suggestedId": "16/vydelit-predydushchiy-tselikom-kursivnyy-and-bol"
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/140_Выделить следующий целиком курсивный и жирный абзац.js",
@@ -5815,15 +5907,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/140_next-all-bold-italic-paragraph",
+      "id": "16/next-all-bold-italic-paragraph",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The paragraph found is scrolled into view by the editor (the original selected it without scrolling).",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/140_vydelit-sleduyushchiy-tselikom-kursivnyy-and-bol",
-      "suggestedId": "16/vydelit-sleduyushchiy-tselikom-kursivnyy-and-bol"
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/141_Выделить предыдущий целиком курсивный, но НЕ целиком жирный абзац.js",
@@ -5839,15 +5935,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/141_previous-all-italic-not-bold-paragraph",
+      "id": "16/previous-all-italic-not-bold-paragraph",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The paragraph found is scrolled into view by the editor (the original selected it without scrolling).",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/141_vydelit-predydushchiy-tselikom-kursivnyy-no-ne-t",
-      "suggestedId": "16/vydelit-predydushchiy-tselikom-kursivnyy-no-ne-t"
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/142_Выделить следующий целиком курсивный, но НЕ целиком жирный абзац.js",
@@ -5863,15 +5963,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/142_next-all-italic-not-bold-paragraph",
+      "id": "16/next-all-italic-not-bold-paragraph",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The paragraph found is scrolled into view by the editor (the original selected it without scrolling).",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/142_vydelit-sleduyushchiy-tselikom-kursivnyy-no-ne-t",
-      "suggestedId": "16/vydelit-sleduyushchiy-tselikom-kursivnyy-no-ne-t"
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/143_Выделить предыдущий целиком жирный, но НЕ целиком курсивный абзац.js",
@@ -5887,15 +5991,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/143_previous-all-bold-not-italic-paragraph",
+      "id": "16/previous-all-bold-not-italic-paragraph",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The paragraph found is scrolled into view by the editor (the original selected it without scrolling).",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/143_vydelit-predydushchiy-tselikom-zhirnyy-no-ne-tse",
-      "suggestedId": "16/vydelit-predydushchiy-tselikom-zhirnyy-no-ne-tse"
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/144_Выделить следующий целиком жирный, но НЕ целиком курсивный абзац.js",
@@ -5911,15 +6019,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/144_next-all-bold-not-italic-paragraph",
+      "id": "16/next-all-bold-not-italic-paragraph",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The paragraph found is scrolled into view by the editor (the original selected it without scrolling).",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/144_vydelit-sleduyushchiy-tselikom-zhirnyy-no-ne-tse",
-      "suggestedId": "16/vydelit-sleduyushchiy-tselikom-zhirnyy-no-ne-tse"
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/145_Выделить предыдущую аннотацию.js",
@@ -5935,15 +6047,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/145_previous-annotation",
+      "id": "16/previous-annotation",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/145_vydelit-predydushchuyu-annotatsiyu",
-      "suggestedId": "16/vydelit-predydushchuyu-annotatsiyu"
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/146_Выделить следующую аннотацию.js",
@@ -5959,15 +6075,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/146_next-annotation",
+      "id": "16/next-annotation",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/146_vydelit-sleduyushchuyu-annotatsiyu",
-      "suggestedId": "16/vydelit-sleduyushchuyu-annotatsiyu"
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/147_Выделить предыдущий заголовок.js",
@@ -5983,15 +6103,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/147_previous-title",
+      "id": "16/previous-title",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/147_vydelit-predydushchiy-title",
-      "suggestedId": "16/vydelit-predydushchiy-title"
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/148_Выделить следующий заголовок.js",
@@ -6007,15 +6131,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/148_next-title",
+      "id": "16/next-title",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/148_vydelit-sleduyushchiy-title",
-      "suggestedId": "16/vydelit-sleduyushchiy-title"
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/149_Выделить предыдущий эпиграф.js",
@@ -6031,15 +6159,21 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/149_previous-epigraph",
+      "id": "16/previous-epigraph",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/149_vydelit-predydushchiy-epigraf",
-      "suggestedId": "16/vydelit-predydushchiy-epigraf"
+      "openQuestions": [
+        "Containers of one kind nested in each other (a cite in a poem's epigraph inside a cite, a poem in an epigraph of a poem): the original takes the nearest one, so a search from the outer element's end passes the inner one, and the backward search alternates between the inner and the outer element; kept as 2.7.9 behaves."
+      ]
     },
     {
       "source": "16_Поиск форматирования/150_Выделить следующий эпиграф.js",
@@ -6055,15 +6189,21 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/150_next-epigraph",
+      "id": "16/next-epigraph",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/150_vydelit-sleduyushchiy-epigraf",
-      "suggestedId": "16/vydelit-sleduyushchiy-epigraf"
+      "openQuestions": [
+        "Containers of one kind nested in each other (a cite in a poem's epigraph inside a cite, a poem in an epigraph of a poem): the original takes the nearest one, so a search from the outer element's end passes the inner one, and the backward search alternates between the inner and the outer element; kept as 2.7.9 behaves."
+      ]
     },
     {
       "source": "16_Поиск форматирования/151_Выделить предыдущую цитату.js",
@@ -6079,15 +6219,21 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/151_previous-cite",
+      "id": "16/previous-cite",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/151_vydelit-predydushchuyu-tsitatu",
-      "suggestedId": "16/vydelit-predydushchuyu-tsitatu"
+      "openQuestions": [
+        "Containers of one kind nested in each other (a cite in a poem's epigraph inside a cite, a poem in an epigraph of a poem): the original takes the nearest one, so a search from the outer element's end passes the inner one, and the backward search alternates between the inner and the outer element; kept as 2.7.9 behaves."
+      ]
     },
     {
       "source": "16_Поиск форматирования/152_Выделить следующую цитату.js",
@@ -6103,15 +6249,21 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/152_next-cite",
+      "id": "16/next-cite",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/152_vydelit-sleduyushchuyu-tsitatu",
-      "suggestedId": "16/vydelit-sleduyushchuyu-tsitatu"
+      "openQuestions": [
+        "Containers of one kind nested in each other (a cite in a poem's epigraph inside a cite, a poem in an epigraph of a poem): the original takes the nearest one, so a search from the outer element's end passes the inner one, and the backward search alternates between the inner and the outer element; kept as 2.7.9 behaves."
+      ]
     },
     {
       "source": "16_Поиск форматирования/153_Выделить предыдущий стих (poem).js",
@@ -6127,15 +6279,21 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/153_previous-poem",
+      "id": "16/previous-poem",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/153_vydelit-predydushchiy-poem-poem",
-      "suggestedId": "16/vydelit-predydushchiy-poem-poem"
+      "openQuestions": [
+        "Containers of one kind nested in each other (a cite in a poem's epigraph inside a cite, a poem in an epigraph of a poem): the original takes the nearest one, so a search from the outer element's end passes the inner one, and the backward search alternates between the inner and the outer element; kept as 2.7.9 behaves."
+      ]
     },
     {
       "source": "16_Поиск форматирования/154_Выделить следующий стих (poem).js",
@@ -6151,15 +6309,21 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/154_next-poem",
+      "id": "16/next-poem",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/154_vydelit-sleduyushchiy-poem-poem",
-      "suggestedId": "16/vydelit-sleduyushchiy-poem-poem"
+      "openQuestions": [
+        "Containers of one kind nested in each other (a cite in a poem's epigraph inside a cite, a poem in an epigraph of a poem): the original takes the nearest one, so a search from the outer element's end passes the inner one, and the backward search alternates between the inner and the outer element; kept as 2.7.9 behaves."
+      ]
     },
     {
       "source": "16_Поиск форматирования/155_Выделить предыдущий заголовок стиха.js",
@@ -6175,15 +6339,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/155_previous-poem-title",
+      "id": "16/previous-poem-title",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/155_vydelit-predydushchiy-title-stikha",
-      "suggestedId": "16/vydelit-predydushchiy-title-stikha"
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/156_Выделить следующий заголовок стиха.js",
@@ -6199,15 +6367,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/156_next-poem-title",
+      "id": "16/next-poem-title",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/156_vydelit-sleduyushchiy-title-stikha",
-      "suggestedId": "16/vydelit-sleduyushchiy-title-stikha"
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/157_Выделить предыдущую строфу (stanza).js",
@@ -6223,15 +6395,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/157_previous-stanza",
+      "id": "16/previous-stanza",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/157_vydelit-predydushchuyu-strofu-stanza",
-      "suggestedId": "16/vydelit-predydushchuyu-strofu-stanza"
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/158_Выделить следующую строфу (stanza).js",
@@ -6247,15 +6423,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/158_next-stanza",
+      "id": "16/next-stanza",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/158_vydelit-sleduyushchuyu-strofu-stanza",
-      "suggestedId": "16/vydelit-sleduyushchuyu-strofu-stanza"
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/159_Выделить предыдущую таблицу.js",
@@ -6271,15 +6451,20 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/159_previous-table",
+      "id": "16/previous-table",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The table is selected as a block of all its cells (the Body view's table selection) rather than as a text range; mfbe.selection.get() reports such a block with anchor = head = the start of the last cell.",
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/159_vydelit-predydushchuyu-tablitsu",
-      "suggestedId": "16/vydelit-predydushchuyu-tablitsu"
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/160_Выделить следующую таблицу.js",
@@ -6295,15 +6480,20 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/160_next-table",
+      "id": "16/next-table",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The table is selected as a block of all its cells (the Body view's table selection) rather than as a text range; mfbe.selection.get() reports such a block with anchor = head = the start of the last cell.",
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/160_vydelit-sleduyushchuyu-tablitsu",
-      "suggestedId": "16/vydelit-sleduyushchuyu-tablitsu"
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/161_Выделить предыдущий подзаголовок (любой).js",
@@ -6319,15 +6509,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/161_previous-subtitle",
+      "id": "16/previous-subtitle",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/161_vydelit-predydushchiy-subtitle-lyuboy",
-      "suggestedId": "16/vydelit-predydushchiy-subtitle-lyuboy"
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/162_Выделить следующий подзаголовок (любой).js",
@@ -6343,15 +6537,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/162_next-subtitle",
+      "id": "16/next-subtitle",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/162_vydelit-sleduyushchiy-subtitle-lyuboy",
-      "suggestedId": "16/vydelit-sleduyushchiy-subtitle-lyuboy"
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/163_Выделить предыдущий подзаголовок (текст).js",
@@ -6367,15 +6565,21 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/163_previous-text-subtitle",
+      "id": "16/previous-text-subtitle",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/163_vydelit-predydushchiy-subtitle-tekst",
-      "suggestedId": "16/vydelit-predydushchiy-subtitle-tekst"
+      "differences": [
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
+      "fixes": [
+        "A \"text\" subtitle was tested on the paragraph's HTML with the tags removed, so the names of the entities Internet Explorer wrote for a non-breaking space, \"&\", \"<\" and \">\" (&nbsp;, &amp;, &lt;, &gt;) counted as letters and \"*&nbsp;*&nbsp;*\" or \"— & —\" were text subtitles; the test now runs on the text itself."
+      ],
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/164_Выделить следующий подзаголовок (текст).js",
@@ -6391,15 +6595,21 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/164_next-text-subtitle",
+      "id": "16/next-text-subtitle",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/164_vydelit-sleduyushchiy-subtitle-tekst",
-      "suggestedId": "16/vydelit-sleduyushchiy-subtitle-tekst"
+      "differences": [
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
+      "fixes": [
+        "A \"text\" subtitle was tested on the paragraph's HTML with the tags removed, so the names of the entities Internet Explorer wrote for a non-breaking space, \"&\", \"<\" and \">\" (&nbsp;, &amp;, &lt;, &gt;) counted as letters and \"*&nbsp;*&nbsp;*\" or \"— & —\" were text subtitles; the test now runs on the text itself."
+      ],
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/165_Выделить предыдущий подзаголовок (звездочки).js",
@@ -6415,15 +6625,21 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/165_previous-asterisk-subtitle",
+      "id": "16/previous-asterisk-subtitle",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/165_vydelit-predydushchiy-subtitle-zvezdochki",
-      "suggestedId": "16/vydelit-predydushchiy-subtitle-zvezdochki"
+      "openQuestions": [
+        "The expression \"\\*|#|•|\\+\\s?\\*|#|•|\\+\\s?\\*|#|•|\\+\" has no brackets, so any subtitle that contains an asterisk, a hash, a bullet or a plus counts (a subtitle \"Глава 1*\" too); kept as 2.7.9 behaves."
+      ]
     },
     {
       "source": "16_Поиск форматирования/166_Выделить следующий подзаголовок (звездочки).js",
@@ -6439,15 +6655,21 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/166_next-asterisk-subtitle",
+      "id": "16/next-asterisk-subtitle",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/166_vydelit-sleduyushchiy-subtitle-zvezdochki",
-      "suggestedId": "16/vydelit-sleduyushchiy-subtitle-zvezdochki"
+      "openQuestions": [
+        "The expression \"\\*|#|•|\\+\\s?\\*|#|•|\\+\\s?\\*|#|•|\\+\" has no brackets, so any subtitle that contains an asterisk, a hash, a bullet or a plus counts (a subtitle \"Глава 1*\" too); kept as 2.7.9 behaves."
+      ]
     },
     {
       "source": "16_Поиск форматирования/167_Выделить предыдущих авторов текста.js",
@@ -6463,15 +6685,23 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/167_previous-text-authors",
+      "id": "16/previous-text-authors",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/167_vydelit-predydushchikh-avtorov-of-the-text",
-      "suggestedId": "16/vydelit-predydushchikh-avtorov-of-the-text"
+      "differences": [
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
+      "fixes": [
+        "2.7.9 skipped the group the caret is in only when Internet Explorer named the text author paragraph as the caret's element, not when the caret stood in formatted text (italics, bold) of it: then the rest of the caret's own group was selected as \"the next\" group. The caret anywhere in a text author now skips its group."
+      ],
+      "openQuestions": [
+        "A poem's date counts as a text author, since FictionBook Editor showed dates as text author paragraphs (fb2.xsl), so a text author followed by a date is one group; kept as 2.7.9 behaves."
+      ]
     },
     {
       "source": "16_Поиск форматирования/168_Выделить следующих авторов текста.js",
@@ -6487,15 +6717,23 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/168_next-text-authors",
+      "id": "16/next-text-authors",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/168_vydelit-sleduyushchikh-avtorov-of-the-text",
-      "suggestedId": "16/vydelit-sleduyushchikh-avtorov-of-the-text"
+      "differences": [
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
+      "fixes": [
+        "2.7.9 skipped the group the caret is in only when Internet Explorer named the text author paragraph as the caret's element, not when the caret stood in formatted text (italics, bold) of it: then the rest of the caret's own group was selected as \"the next\" group. The caret anywhere in a text author now skips its group."
+      ],
+      "openQuestions": [
+        "A poem's date counts as a text author, since FictionBook Editor showed dates as text author paragraphs (fb2.xsl), so a text author followed by a date is one group; kept as 2.7.9 behaves."
+      ]
     },
     {
       "source": "16_Поиск форматирования/169_Выделить заглавный заголовок или подзаголовок (КАПС).js",
@@ -6511,15 +6749,24 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/169_caps-title",
+      "id": "16/caps-title",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/169_vydelit-zaglavnyy-title-ili-subtitle-kaps",
-      "suggestedId": "16/vydelit-zaglavnyy-title-ili-subtitle-kaps"
+      "differences": [
+        "Pictures count as one character of the paragraph text (2.7.9 wrote \"~~~\" for a picture, which moved the selection two characters per picture after it).",
+        "The addMacros definitions of the original are not carried over: they serve only tagRegExp expressions, and the script has none; the engine takes addRegExp entries.",
+        "A selected inline picture counts as a one-character text selection (2.7.9 refused every \"Control\" selection).",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search.",
+        "A run() that returns nothing reaches a calling script (mfbe.scripts.run) as null."
+      ],
+      "fixes": [
+        "A selected picture: the original's message printed the words \"sel.type\" instead of the kind of selection (\"Не обрабатываемый тип выделения: sel.type\"); it now reads \"Не обрабатываемый тип выделения: выделена картинка.\" The script still stops there and returns nothing."
+      ],
+      "openQuestions": [
+        "In the original's string of the first two expressions \"\\d\" and \"\\s\" are a plain \"d\" and \"s\" (a JScript string escape), so their class lacks digits and spaces and \"ГЛАВА 2\" counts as a title without punctuation at the end; only the status text depends on it. Kept as 2.7.9 reads it."
+      ]
     },
     {
       "source": "16_Поиск форматирования/200_Найти предыдущие подряд идущие однотипные элементы.js",
@@ -6535,15 +6782,22 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/200_previous-repeated-elements",
+      "id": "16/previous-repeated-elements",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "An empty line holds no caret in the Body view: when the element found starts with an empty line, the caret goes to the start of the text after it.",
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/200_nayti-predydushchie-podryad-idushchie-odnotipnye",
-      "suggestedId": "16/nayti-predydushchie-podryad-idushchie-odnotipnye"
+      "openQuestions": [
+        "The header says that poems are searched only when they have no author, but the code (2.7.9 too) does not test it; kept as the code behaves. The start check compares an element with a regular expression (always unequal) - without effect, since the walk never comes back to the caret's element."
+      ]
     },
     {
       "source": "16_Поиск форматирования/201_Найти следующие подряд идущие однотипные элементы.js",
@@ -6559,15 +6813,22 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/16_find-formatting/201_next-repeated-elements",
+      "id": "16/next-repeated-elements",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "An empty line holds no caret in the Body view: when the element found starts with an empty line, the caret goes to the start of the text after it.",
+        "A selected block picture: 2.7.9 stopped with a script error (its code took the picture's selection for text); the script shows the message 025/026 show for it (\"Ошибка. Вы используете тип выделения ... выделение картинок, а не текста\") and stops, returning nothing.",
+        "The status texts of the original are shown while the script runs; the editor clears them when the run ends (its own end-of-run line follows), so the final \"ОК\" is not left in the status bar.",
+        "The found place is scrolled into view by the editor; the original's scrollIfItNeeds (the selection to the middle of the window) is not reproduced.",
+        "The original's refusal of a caret in an input field of the description form (\"Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.\") is not needed: scripts see the Body view only.",
+        "Above the API's 64 MB document snapshot the description's annotation and history are not read and are left out of the search."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/16_find-formatting/201_nayti-sleduyushchie-podryad-idushchie-odnotipnye",
-      "suggestedId": "16/nayti-sleduyushchie-podryad-idushchie-odnotipnye"
+      "openQuestions": [
+        "The header says that poems are searched only when they have no author, but the code (2.7.9 too) does not test it; kept as the code behaves. The start check compares an element with a regular expression (always unequal) - without effect, since the walk never comes back to the caret's element."
+      ]
     },
     {
       "source": "17_Перенос примечаний в скобки/01_Перенести примечания в скобки.js",

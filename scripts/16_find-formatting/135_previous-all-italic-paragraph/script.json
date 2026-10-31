@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/previous-all-italic-paragraph",
+  "name": {
+    "ru": "Выделить предыдущий целиком курсивный абзац",
+    "en": "Select previous entirely italic paragraph",
+    "uk": "Виділити попередній цілком курсивний абзац"
+  },
+  "description": {
+    "ru": "Выделяет предыдущий абзац, набранный целиком курсивом",
+    "en": "Selects the previous paragraph that is italic throughout",
+    "uk": "Виділяє попередній абзац, набраний цілком курсивом"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить предыдущий целиком курсивный абзац",
+    "en": "Select previous entirely italic paragraph"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/135_Выделить предыдущий целиком курсивный абзац.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

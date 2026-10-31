@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/previous-table",
+  "name": {
+    "ru": "Выделить предыдущую таблицу",
+    "en": "Select previous table",
+    "uk": "Виділити попередню таблицю"
+  },
+  "description": {
+    "ru": "Выделяет предыдущую таблицу",
+    "en": "Selects the previous table",
+    "uk": "Виділяє попередню таблицю"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить предыдущую таблицу",
+    "en": "Select previous table"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/159_Выделить предыдущую таблицу.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
+  }
+}

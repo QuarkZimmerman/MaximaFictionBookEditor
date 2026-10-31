@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/previous-subtitle",
+  "name": {
+    "ru": "Выделить предыдущий подзаголовок (любой)",
+    "en": "Select previous subtitle (any)",
+    "uk": "Виділити попередній підзаголовок (будь-який)"
+  },
+  "description": {
+    "ru": "Выделяет предыдущий подзаголовок, любой",
+    "en": "Selects the previous subtitle, whatever its text",
+    "uk": "Виділяє попередній підзаголовок, будь-який"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить предыдущий подзаголовок (любой)",
+    "en": "Select previous subtitle (any)"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/161_Выделить предыдущий подзаголовок (любой).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.4"
+  }
+}

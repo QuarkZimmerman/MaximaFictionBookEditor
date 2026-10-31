@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/previous-cite",
+  "name": {
+    "ru": "Выделить предыдущую цитату",
+    "en": "Select previous cite",
+    "uk": "Виділити попередню цитату"
+  },
+  "description": {
+    "ru": "Выделяет предыдущую цитату",
+    "en": "Selects the previous cite",
+    "uk": "Виділяє попередню цитату"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить предыдущую цитату",
+    "en": "Select previous cite"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/151_Выделить предыдущую цитату.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
+  }
+}

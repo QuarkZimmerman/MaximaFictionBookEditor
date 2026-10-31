@@ -1,0 +1,9 @@
+{
+  "manifestVersion": 1,
+  "id": "test16/chain-combinations",
+  "name": {
+    "ru": "Цепочка: курсив с жирностью",
+    "en": "Chain: bold italics"
+  },
+  "kind": "menu"
+}

@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/previous-all-italic-not-bold-paragraph",
+  "name": {
+    "ru": "Выделить предыдущий целиком курсивный, но НЕ целиком жирный абзац",
+    "en": "Select previous entirely italic but NOT entirely bold paragraph",
+    "uk": "Виділити попередній цілком курсивний, але НЕ цілком жирний абзац"
+  },
+  "description": {
+    "ru": "Выделяет предыдущий абзац, набранный целиком курсивом, но не целиком жирным",
+    "en": "Selects the previous paragraph that is italic throughout but not bold throughout",
+    "uk": "Виділяє попередній абзац, набраний цілком курсивом, але не цілком жирним"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить предыдущий целиком курсивный, но НЕ целиком жирный абзац",
+    "en": "Select previous entirely italic but NOT entirely bold paragraph"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/141_Выделить предыдущий целиком курсивный, но НЕ целиком жирный абзац.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

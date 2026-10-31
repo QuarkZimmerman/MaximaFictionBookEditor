@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-epigraph",
+  "name": {
+    "ru": "Выделить следующий эпиграф",
+    "en": "Select next epigraph",
+    "uk": "Виділити наступний епіграф"
+  },
+  "description": {
+    "ru": "Выделяет следующий эпиграф",
+    "en": "Selects the next epigraph",
+    "uk": "Виділяє наступний епіграф"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить следующий эпиграф",
+    "en": "Select next epigraph"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/150_Выделить следующий эпиграф.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.4"
+  }
+}

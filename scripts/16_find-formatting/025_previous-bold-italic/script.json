@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "16/previous-bold-italic",
+  "name": {
+    "ru": "Перейти на предыдущее совмещение курсива с жирностью",
+    "en": "Go to previous bold italics",
+    "uk": "Перейти до попереднього поєднання курсиву з жирним"
+  },
+  "description": {
+    "ru": "Переводит курсор в конец предыдущего фрагмента, набранного одновременно курсивом и жирным; по достижении начала книги предлагает продолжить с конца",
+    "en": "Moves the caret to the end of the previous run of text that is both italic and bold; at the beginning of the book offers to continue from the end",
+    "uk": "Переводить курсор у кінець попереднього фрагмента, набраного водночас курсивом і жирним; на початку книги пропонує продовжити з кінця"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Перейти на предыдущее совмещение курсива с жирностью",
+    "en": "Go to previous bold italics"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/025_Перейти на предыдущее совмещение курсива с жирностью.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.0"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-asterisk-subtitle",
+  "name": {
+    "ru": "Выделить следующий подзаголовок (звездочки)",
+    "en": "Select next subtitle (asterisks)",
+    "uk": "Виділити наступний підзаголовок (зірочки)"
+  },
+  "description": {
+    "ru": "Выделяет следующий подзаголовок, в котором есть звёздочки, решётки, буллеты или плюсы",
+    "en": "Selects the next subtitle that contains asterisks, hashes, bullets or plus signs",
+    "uk": "Виділяє наступний підзаголовок, у якому є зірочки, решітки, маркери або плюси"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить следующий подзаголовок (звездочки)",
+    "en": "Select next subtitle (asterisks)"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/166_Выделить следующий подзаголовок (звездочки).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.4"
+  }
+}

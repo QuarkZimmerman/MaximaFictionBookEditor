@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/previous-annotation",
+  "name": {
+    "ru": "Выделить предыдущую аннотацию",
+    "en": "Select previous annotation",
+    "uk": "Виділити попередню анотацію"
+  },
+  "description": {
+    "ru": "Выделяет предыдущую аннотацию (раздела или книги)",
+    "en": "Selects the previous annotation (of a section or of the book)",
+    "uk": "Виділяє попередню анотацію (розділу або книги)"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить предыдущую аннотацию",
+    "en": "Select previous annotation"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/145_Выделить предыдущую аннотацию.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.1"
+  }
+}

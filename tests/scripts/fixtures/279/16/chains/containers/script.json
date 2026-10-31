@@ -1,0 +1,9 @@
+{
+  "manifestVersion": 1,
+  "id": "test16/chain-containers",
+  "name": {
+    "ru": "Цепочка: выделение элементов",
+    "en": "Chain: selecting elements"
+  },
+  "kind": "menu"
+}

@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/previous-stanza",
+  "name": {
+    "ru": "Выделить предыдущую строфу (stanza)",
+    "en": "Select previous stanza",
+    "uk": "Виділити попередню строфу (stanza)"
+  },
+  "description": {
+    "ru": "Выделяет предыдущую строфу (stanza)",
+    "en": "Selects the previous stanza",
+    "uk": "Виділяє попередню строфу (stanza)"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить предыдущую строфу (stanza)",
+    "en": "Select previous stanza"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/157_Выделить предыдущую строфу (stanza).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
+  }
+}

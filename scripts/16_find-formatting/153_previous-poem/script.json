@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "16/previous-poem",
+  "name": {
+    "ru": "Выделить предыдущий стих (poem)",
+    "en": "Select previous poem",
+    "uk": "Виділити попередній вірш (poem)"
+  },
+  "description": {
+    "ru": "Выделяет предыдущий стих (poem) целиком",
+    "en": "Selects the whole previous poem",
+    "uk": "Виділяє попередній вірш (poem) повністю"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Выделить предыдущий стих (poem)",
+    "en": "Select previous poem"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/153_Выделить предыдущий стих (poem).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
+  }
+}

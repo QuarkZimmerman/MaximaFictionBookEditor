@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Форматирование</last-name>
+			</author>
+			<book-title>Курсив с жирностью</book-title>
+			<annotation>
+				<p>Аннотация с <strong><emphasis>жирным курсивом</emphasis></strong>.</p>
+			</annotation>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<section>
+			<title>
+				<p>Глава</p>
+			</title>
+			<p>Начало <strong>жирный <emphasis>курсив</emphasis></strong> и <strong><emphasis>второй</emphasis></strong> конец.</p>
+			<p><strong><emphasis>Весь абзац</emphasis></strong></p>
+			<p>Текст <strong><emphasis>раздва</emphasis></strong> текст.</p>
+			<p><strong>Только жирный</strong> и <emphasis>только курсив</emphasis>.</p>
+			<p><strong><emphasis>до</emphasis></strong><emphasis> </emphasis><strong><emphasis>после</emphasis></strong></p>
+			<p><strong><emphasis>с картинкой <image l:href="#pic"/> внутри</emphasis></strong> и хвост.</p>
+		</section>
+	</body>
+	<binary id="pic" content-type="image/png">…</binary>
+</FictionBook>
