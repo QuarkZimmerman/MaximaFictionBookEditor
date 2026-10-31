@@ -5,7 +5,9 @@
 # protocol (cdp-client.ps1) and files only, and fails unless
 #   - the window title shows the book's name and the interface is Russian (the editor takes its
 #     language from the user's regional format, GetUserDefaultLocaleName);
-#   - Save (F2, the original editor's key; Ctrl+S has no command) rewrites the book in place;
+#   - Save (F2, the original editor's key) rewrites the book in place, and so does Ctrl+S sent as a
+#     real keystroke (SendInput, feature 007 FR-001) after an edit - never the browser engine's
+#     "save the page";
 #   - View > Status Bar, chosen with the Russian accelerators (Alt+В, С), hides the status bar and
 #     settings.json records it;
 #   - File > New, the author "Толстой Лев Николаевич" and the title "Война и мир" typed into the
@@ -960,6 +962,19 @@ Invoke-EditorRun 'Start with the book' "`"$bookPath`"" {
     Wait-Until 'the book saved in place' { (Get-Item -LiteralPath $bookPath).LastWriteTimeUtc -gt $planted }
     if (-not (Test-Bytes ([IO.File]::ReadAllBytes($bookPath)) ([Text.Encoding]::UTF8.GetBytes($bookTitle)))) {
         throw 'the saved book does not hold its title in UTF-8'
+    }
+
+    # Feature 007 (FR-001): Ctrl+S as the keyboard sends it - on this Russian keyboard layout
+    # the S key types "ы" - saves the edited book in place.
+    $null = Get-CdpValue $script:cdp @"
+(() => { const p = document.querySelector('[data-testid="body-editor"] p'); const range = document.createRange(); range.selectNodeContents(p); range.collapse(true); const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(range); p.closest('[data-testid="body-editor"]').focus(); return true; })()
+"@
+    $null = Invoke-Cdp $script:cdp 'Input.insertText' @{ text = 'CtrlS-saves ' }
+    Wait-Until 'the modified marker in the title' { (Get-CdpValue $script:cdp 'document.title') -ceq "$bookName* - $appName" }
+    Send-Chord 'Ctrl+S'
+    Wait-Until 'the book saved in place by Ctrl+S' { (Get-CdpValue $script:cdp 'document.title') -ceq $title }
+    if (-not (Test-Bytes ([IO.File]::ReadAllBytes($bookPath)) ([Text.Encoding]::UTF8.GetBytes('CtrlS-saves ')))) {
+        throw 'Ctrl+S did not write the edit into the book'
     }
 
     Send-CdpKey $script:cdp $keyVe -Modifiers 1

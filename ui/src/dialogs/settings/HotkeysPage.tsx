@@ -4,6 +4,10 @@
  * capture control, the Assign / Delete / Default buttons, the "Assigned to" box ("Assigned to
  * \"X\"" / "Not assigned to other command" / "Wrong shortcut!") and the Description box.
  *
+ * Feature 007 (FR-001, data-model §2): a command with a fixed shortcut (`FIXED_HOTKEYS`: Ctrl+S
+ * for Save) shows it on a read-only line under its assignable one, the list shows both, and a
+ * fixed chord captured for any command is refused with "<chord> always runs <command>".
+ *
  * The page edits a scratch `HotkeyMap` (a copy of the live one) so Cancel discards the changes;
  * the dialog copies the scratch overrides into the live map on OK / Apply.
  *
@@ -22,7 +26,13 @@ import {
   type CommandGroup,
   type CommandRegistry,
 } from '@/app/commands';
-import { captureHotkey, type CapturedHotkey, type HotkeyMap } from '@/app/hotkeys';
+import {
+  captureHotkey,
+  formatChordForDisplay,
+  parseChord,
+  type CapturedHotkey,
+  type HotkeyMap,
+} from '@/app/hotkeys';
 
 import { GroupBox } from './controls';
 import {
@@ -33,6 +43,12 @@ import {
   reportedCollision,
   restoreDefaultChord,
 } from './hotkeysModel';
+
+/** A canonical chord as the platform shows it (`Meta+S` -> `Cmd+S` on macOS). */
+function displayChord(keys: string, hotkeys: HotkeyMap): string {
+  const chord = parseChord(keys, hotkeys.platform);
+  return chord ? formatChordForDisplay(chord, hotkeys.platform) : keys;
+}
 
 export interface HotkeysPageProps {
   commands: CommandRegistry;
@@ -84,7 +100,14 @@ export function HotkeysPage({ commands, hotkeys, ctx }: HotkeysPageProps) {
 
   let collisionText = '';
   if (captured?.complete) {
-    if (!captured.validation.ok) collisionText = t('hotkeys.wrong');
+    const fixedTo = captured.validation.fixedTo;
+    if (captured.validation.problem === 'fixed' && fixedTo) {
+      const fixedCommand = commands.get(fixedTo);
+      collisionText = t('hotkeys.fixedTo', {
+        chord: captured.text,
+        command: fixedCommand ? commandTooltip(fixedCommand, t) : fixedTo,
+      });
+    } else if (!captured.validation.ok) collisionText = t('hotkeys.wrong');
     else if (collision) {
       collisionText = t('hotkeys.assigned', {
         command: collisionCommand ? qualifiedCommandName(collisionCommand, t) : collision,
@@ -125,9 +148,12 @@ export function HotkeysPage({ commands, hotkeys, ctx }: HotkeysPageProps) {
     setCaptured(null);
   };
 
-  const currentChord = selected ? hotkeys.display(selected.id) : undefined;
+  // The assignable chord the page edits; the fixed one is shown apart, read-only.
+  const currentKeys = selected ? hotkeys.get(selected.id) : undefined;
+  const currentChord = currentKeys ? displayChord(currentKeys, hotkeys) : undefined;
+  const fixedKeys = selected ? hotkeys.fixedFor(selected.id) : undefined;
   const captureText = captured
-    ? captured.complete && !captured.validation.ok
+    ? captured.complete && !captured.validation.ok && captured.validation.problem !== 'fixed'
       ? t('hotkeys.wrong')
       : captured.text
     : (currentChord ?? '');
@@ -204,7 +230,7 @@ export function HotkeysPage({ commands, hotkeys, ctx }: HotkeysPageProps) {
                 onClick={() => selectCommand(command.id)}
               >
                 <span>{commandTooltip(command, t)}</span>
-                <span className="mfbe-hotkeys-chord">{hotkeys.display(command.id) ?? ''}</span>
+                <span className="mfbe-hotkeys-chord">{hotkeys.displayAll(command.id) ?? ''}</span>
               </li>
             ))}
           </ul>
@@ -236,6 +262,11 @@ export function HotkeysPage({ commands, hotkeys, ctx }: HotkeysPageProps) {
           <div className="mfbe-settings-note" data-testid="settings-hotkeys-current">
             {t('dialog.settings.hotkeys.current')} {currentChord ?? t('hotkeys.none')}
           </div>
+          {fixedKeys ? (
+            <div className="mfbe-settings-note" data-testid="hotkeys-fixed-line">
+              {t('hotkeys.fixedLine', { chord: displayChord(fixedKeys, hotkeys) })}
+            </div>
+          ) : null}
           <GroupBox title={t('dialog.settings.hotkeys.assignedTo')}>
             <div className="mfbe-hotkeys-collision" data-testid="settings-hotkeys-collision">
               {collisionText}

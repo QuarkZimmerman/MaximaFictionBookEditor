@@ -841,7 +841,14 @@ const engineKeySettleMs = 1500;
  *   this run is a developer run - closed again), or a function `async (ctx) => description`
  *   for a check of its own, called after the key with the context of checkEngineKeys.
  */
-const KEY_SETS = {};
+const KEY_SETS = {
+  // US1 (FR-001): Ctrl+S saves the book where Save is available, and never offers to save the
+  // editor's page - with a modal dialog open the engine's Save page is refused by the gate.
+  save: [
+    { keys: 'ctrl+s', state: 'body', logs: [], outcome: 'saved' },
+    { keys: 'ctrl+s', state: 'modal', logs: ['IDC_SAVE_PAGE blocked'], outcome: 'kept' },
+  ],
+};
 
 // The editor's X window on the display of this run, found by the book's name in its title.
 function editorWindow(env) {

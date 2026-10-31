@@ -561,7 +561,9 @@
     "assigned": "Зарезервовано «{{command}}»",
     "notAssigned": "Не зарезервовано для інших команд",
     "scriptConflict": "Скрипт\n{{script}}\n має код клавіші швидкого доступу, який збігається з уже завантаженим скриптом\n {{other}}",
-    "none": "Немає"
+    "none": "Немає",
+    "fixedLine": "Постійне сполучення: {{chord}}",
+    "fixedTo": "{{chord}} завжди виконує команду «{{command}}»"
   },
   "dialog": {
     "customizeToolbar": {

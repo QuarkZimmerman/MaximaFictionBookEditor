@@ -92,7 +92,8 @@ describe('ToolbarButton reasons (feature 006)', () => {
     // A command that defines no reason keeps today's tooltip (an opt-in): Save, no core.
     const save = screen.getByTestId('toolbar-file.save');
     expect(save).toBeDisabled();
-    expect(save).toHaveAttribute('title', 'Save (F2)');
+    // Feature 007: the tooltip names every chord of Save - F2, then the fixed Ctrl+S.
+    expect(save).toHaveAttribute('title', 'Save (F2, Ctrl+S)');
     expect(save).toHaveAttribute('aria-description', 'Save the active document');
   });
 
