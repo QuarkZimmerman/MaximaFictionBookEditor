@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "31/paragraphs-remove-superscript",
+  "name": {
+    "ru": "Расформатировать абзацы от верхнего индекса (Комбо)",
+    "en": "Remove superscript from paragraphs (combo)",
+    "uk": "Прибрати верхній індекс з абзаців (комбо)"
+  },
+  "description": {
+    "ru": "Снимает верхний индекс во всех абзацах книги: переходит от начала документа от абзаца к абзацу с верхним индексом и расформатирует его.",
+    "en": "Removes the superscript from every paragraph of the book: goes from the start of the document from one paragraph holding superscript to the next and unformats it.",
+    "uk": "Знімає верхній індекс в усіх абзацах книги: переходить від початку документа від абзацу до абзацу з верхнім індексом і розформатовує його."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Расформатировать абзацы от верхнего индекса (Комбо)",
+    "en": "Remove superscript from paragraphs (combo)"
+  },
+  "legacy": {
+    "source": "31_Автоматизация/51_Расформатировать абзацы от верхнего индекса (Комбо).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.5"
+  }
+}

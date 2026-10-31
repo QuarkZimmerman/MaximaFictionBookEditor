@@ -22,7 +22,7 @@
       "merged": 1,
       "noCounterpart": 5
     },
-    "converted": 349
+    "converted": 367
   },
   "entries": [
     {
@@ -1955,15 +1955,18 @@
         "timers"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/05_images/14_remove-all-images-combo",
+      "id": "05/remove-all-images-combo",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The whole run is one undo step under this script's name, and one Cancel stops it and leaves the book as it was; in 2.7.9 each script of the list made an undo step of its own (script API v2: a chain of scripts is one run).",
+        "05/remove-unused-binaries is run by its id: its manifest still names its 2.7beta1 file (05_Иллюстрации/07_Удаление неиспользуемых вложений....js; the package is unchanged in 2.7.9), so the 2.7.9 path the original names does not resolve. The other six run by the 2.7.9 paths the original names.",
+        "The binary objects stay in the book: the script API cannot remove one, so 05/remove-all-binaries and 05/remove-unused-binaries say so and leave them, where 2.7.9 removed them all. 05/unify-binaries therefore still finds them and applies only the nobin_ prefix of a picture without a binary (its renames need an API to rename binaries), and 05/remove-unused-binaries lists the unused one. The text comes out as the seven scripts leave it when run one after another: pictures, their tags and the empty lines next to them, styles and ids go, titles lose bold and italics, \"* * *\" becomes a subtitle.",
+        "Everything else is the behaviour of the scripts it runs, each with its own recorded differences: 05/empty-lines-near-images, 05/remove-all-binaries, 05/unify-binaries, 05/remove-unused-binaries, 05/remove-image-tags, 06/remove-styles-and-ids, 13/subtitles-empty-lines-plain-titles."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/05_images/14_udalit-all-illyustratsii-their-tegi-and-empty-li",
-      "suggestedId": "05/udalit-all-illyustratsii-their-tegi-and-empty-li"
+      "openQuestions": []
     },
     {
       "source": "05_Иллюстрации/15_Расставить иллюстрации по заданным местам 1.3.js",
@@ -3681,15 +3684,18 @@
         "timers"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/09_poems/38_next-poem-remove-bold-italics",
+      "id": "09/next-poem-remove-bold-italics",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The whole run is one undo step under this script's name, and one Cancel stops it and leaves the book as it was; in 2.7.9 each script of the list made an undo step of its own (script API v2: a chain of scripts is one run).",
+        "Everything else is the behaviour of the scripts it runs, each with its own recorded differences: 16/next-poem, 19/paragraphs-remove-bold, 19/paragraphs-remove-italics."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/09_poems/38_po-ocheredi-rasformatirovat-all-poems-by-zhirnos",
-      "suggestedId": "09/po-ocheredi-rasformatirovat-all-poems-by-zhirnos"
+      "openQuestions": [
+        "As in 2.7.9, the step runs its scripts whatever 16/next-poem returns: when nothing follows the selection, 16/next-poem says so and returns \"NotFound\", and the paragraph(s) of the selection - the caret's - still lose their bold and italics (snapshot chains/09-next-poem-remove-bold-italics.none). Stop the step after \"NotFound\"?"
+      ]
     },
     {
       "source": "09_Стихи/39_Расформатировать все стихи от жирности и курсива.js",
@@ -3708,15 +3714,17 @@
         "timers"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/09_poems/39_poems-remove-bold-italics",
+      "id": "09/poems-remove-bold-italics",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The whole run is one undo step under this script's name, and one Cancel stops it and leaves the book as it was; in 2.7.9 each script of the list made an undo step of its own (script API v2: a chain of scripts is one run).",
+        "The run reports the number of poems done as its progress; 2.7.9 showed none.",
+        "Everything else is the behaviour of the scripts it runs, each with its own recorded differences: 34/caret-to-document-start, 16/next-poem, 19/paragraphs-remove-bold, 19/paragraphs-remove-italics."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/09_poems/39_rasformatirovat-all-poems-by-zhirnosti-and-kursi",
-      "suggestedId": "09/rasformatirovat-all-poems-by-zhirnosti-and-kursi"
+      "openQuestions": []
     },
     {
       "source": "09_Стихи/40_Расформатировать все стихи.js",
@@ -5096,15 +5104,19 @@
         "timers"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/13_subtitles/590_unformat-all-titles",
+      "id": "13/unformat-all-titles",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The whole run is one undo step under this script's name, and one Cancel stops it and leaves the book as it was; in 2.7.9 each script of the list made an undo step of its own (script API v2: a chain of scripts is one run).",
+        "The run reports the number of titles done as its progress; 2.7.9 showed none.",
+        "Everything else is the behaviour of the scripts it runs, each with its own recorded differences: 34/caret-to-document-start, 16/next-title, 18/unwrap-poem-cite-epigraph."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/13_subtitles/590_rasformatirovat-all-zagolovki-kombo",
-      "suggestedId": "13/rasformatirovat-all-zagolovki-kombo"
+      "openQuestions": [
+        "As in 2.7.9, \"Снять форматирование блочным элементом\" (18/unwrap-poem-cite-epigraph) takes a poem's title for the poem, so every poem with a title is dissolved into paragraphs, and each title takes the epigraphs and annotation after it along; the titles of the notes body and of every note go as well (a note's number becomes a paragraph). Leave poem titles, epigraphs and annotations, and the notes, alone?"
+      ]
     },
     {
       "source": "14_Цитаты/052_Сформатировать абзац(ы) цитатой.js",
@@ -5232,15 +5244,18 @@
         "timers"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/14_citations/057_next-cite-remove-bold-italics",
+      "id": "14/next-cite-remove-bold-italics",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The whole run is one undo step under this script's name, and one Cancel stops it and leaves the book as it was; in 2.7.9 each script of the list made an undo step of its own (script API v2: a chain of scripts is one run).",
+        "Everything else is the behaviour of the scripts it runs, each with its own recorded differences: 16/next-cite, 19/paragraphs-remove-bold, 19/paragraphs-remove-italics."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/14_citations/57_po-ocheredi-rasformatirovat-all-tsitaty-by-zhirn",
-      "suggestedId": "14/po-ocheredi-rasformatirovat-all-tsitaty-by-zhirn"
+      "openQuestions": [
+        "As in 2.7.9, the step runs its scripts whatever 16/next-cite returns: when nothing follows the selection, 16/next-cite says so and returns \"NotFound\", and the paragraph(s) of the selection - the caret's - still lose their bold and italics (snapshot chains/14-next-cite-remove-bold-italics.none). Stop the step after \"NotFound\"?"
+      ]
     },
     {
       "source": "14_Цитаты/058_Расформатировать все цитаты от жирности и курсива.js",
@@ -5259,15 +5274,17 @@
         "timers"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/14_citations/058_cites-remove-bold-italics",
+      "id": "14/cites-remove-bold-italics",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The whole run is one undo step under this script's name, and one Cancel stops it and leaves the book as it was; in 2.7.9 each script of the list made an undo step of its own (script API v2: a chain of scripts is one run).",
+        "The run reports the number of citations done as its progress; 2.7.9 showed none.",
+        "Everything else is the behaviour of the scripts it runs, each with its own recorded differences: 34/caret-to-document-start, 16/next-cite, 19/paragraphs-remove-bold, 19/paragraphs-remove-italics."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/14_citations/58_rasformatirovat-all-tsitaty-by-zhirnosti-and-kur",
-      "suggestedId": "14/rasformatirovat-all-tsitaty-by-zhirnosti-and-kur"
+      "openQuestions": []
     },
     {
       "source": "14_Цитаты/059_По очереди сформатировать целиком жирные абзацы цитатой.js",
@@ -5286,15 +5303,18 @@
         "timers"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/14_citations/059_next-bold-paragraph-to-cite",
+      "id": "14/next-bold-paragraph-to-cite",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The whole run is one undo step under this script's name, and one Cancel stops it and leaves the book as it was; in 2.7.9 each script of the list made an undo step of its own (script API v2: a chain of scripts is one run).",
+        "Everything else is the behaviour of the scripts it runs, each with its own recorded differences: 16/next-all-bold-paragraph, 14/paragraphs-to-cite."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/14_citations/59_po-ocheredi-sformatirovat-tselikom-zhirnye-abzat",
-      "suggestedId": "14/po-ocheredi-sformatirovat-tselikom-zhirnye-abzat"
+      "openQuestions": [
+        "As in 2.7.9, the step runs its scripts whatever 16/next-all-bold-paragraph returns: when nothing follows the selection, 16/next-all-bold-paragraph says so and returns \"NotFound\", and 14/paragraphs-to-cite still puts the caret's paragraph into a citation when it is a plain paragraph of a section, bold or not (snapshot chains/14-next-bold-paragraph-to-cite.none). Stop the step after \"NotFound\"?"
+      ]
     },
     {
       "source": "14_Цитаты/060_Сформатировать все целиком жирные абзацы цитатой.js",
@@ -5313,15 +5333,17 @@
         "timers"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/14_citations/060_bold-paragraphs-to-cites",
+      "id": "14/bold-paragraphs-to-cites",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The whole run is one undo step under this script's name, and one Cancel stops it and leaves the book as it was; in 2.7.9 each script of the list made an undo step of its own (script API v2: a chain of scripts is one run).",
+        "The run reports the number of paragraphs found as its progress; 2.7.9 showed none.",
+        "Everything else is the behaviour of the scripts it runs, each with its own recorded differences: 34/caret-to-document-start, 16/next-all-bold-paragraph, 14/paragraphs-to-cite."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/14_citations/60_sformatirovat-all-tselikom-zhirnye-abzatsy-tsita",
-      "suggestedId": "14/sformatirovat-all-tselikom-zhirnye-abzatsy-tsita"
+      "openQuestions": []
     },
     {
       "source": "14_Цитаты/061_По очереди сформатировать целиком курсивные абзацы цитатой.js",
@@ -5340,15 +5362,18 @@
         "timers"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/14_citations/061_next-italic-paragraph-to-cite",
+      "id": "14/next-italic-paragraph-to-cite",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The whole run is one undo step under this script's name, and one Cancel stops it and leaves the book as it was; in 2.7.9 each script of the list made an undo step of its own (script API v2: a chain of scripts is one run).",
+        "Everything else is the behaviour of the scripts it runs, each with its own recorded differences: 16/next-all-italic-paragraph, 14/paragraphs-to-cite."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/14_citations/61_po-ocheredi-sformatirovat-tselikom-kursivnye-abz",
-      "suggestedId": "14/po-ocheredi-sformatirovat-tselikom-kursivnye-abz"
+      "openQuestions": [
+        "As in 2.7.9, the step runs its scripts whatever 16/next-all-italic-paragraph returns: when nothing follows the selection, 16/next-all-italic-paragraph says so and returns \"NotFound\", and 14/paragraphs-to-cite still puts the caret's paragraph into a citation when it is a plain paragraph of a section, italic or not (snapshot chains/14-next-bold-paragraph-to-cite.none, the same mechanism for bold). Stop the step after \"NotFound\"?"
+      ]
     },
     {
       "source": "14_Цитаты/062_Сформатировать все целиком курсивные абзацы цитатой.js",
@@ -5367,15 +5392,17 @@
         "timers"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/14_citations/062_italic-paragraphs-to-cites",
+      "id": "14/italic-paragraphs-to-cites",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The whole run is one undo step under this script's name, and one Cancel stops it and leaves the book as it was; in 2.7.9 each script of the list made an undo step of its own (script API v2: a chain of scripts is one run).",
+        "The run reports the number of paragraphs found as its progress; 2.7.9 showed none.",
+        "Everything else is the behaviour of the scripts it runs, each with its own recorded differences: 34/caret-to-document-start, 16/next-all-italic-paragraph, 14/paragraphs-to-cite."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/14_citations/62_sformatirovat-all-tselikom-kursivnye-abzatsy-tsi",
-      "suggestedId": "14/sformatirovat-all-tselikom-kursivnye-abzatsy-tsi"
+      "openQuestions": []
     },
     {
       "source": "16_Поиск форматирования/001_Перейти на предыдущий курсив.js",
@@ -10099,15 +10126,19 @@
         "timers"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/31_automation/30_run-scripts-by-list",
+      "id": "31/run-scripts-by-list",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The whole run is one undo step under this script's name, and one Cancel stops it and leaves the book as it was; in 2.7.9 each script of the list made an undo step of its own (script API v2: a chain of scripts is one run).",
+        "The original's scriptsFolder(...) command and its message for a list that sets no folder are gone: the editor finds its scripts itself; runScriptInFolder and runScript are one command (mfbe.scripts.run with the original's message for a script that is not found), which takes a 2.7.9 path, a whole path of the original's installation or an id.",
+        "The message for a script that cannot be found names the path as the list writes it, not the full path on the disk."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/31_automation/30_zapusk-skriptov-po-spisku",
-      "suggestedId": "31/zapusk-skriptov-po-spisku"
+      "openQuestions": [
+        "The original's example names 31_Автоматизация\\06_Поиск (без замены) ошибок текста (версия с исключениями).js, which 2.7.9 does not have: 2.7.9 and the conversion say \"Скрипт ... не был запущен ...\" and change nothing (kept as written). Its namesake 21_Поиск и замена/06_...(TaKir-Sclex-stokber).js (21/text-errors-with-exceptions) returns no \"Found\", so pointing the example at it would not run the loop's body either. Keep the example, or give the template one that works?"
+      ]
     },
     {
       "source": "31_Автоматизация/32_Запуск скриптов по списку_(ПОШАГОВЫЙ вариант).js",
@@ -10126,15 +10157,19 @@
         "timers"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/31_automation/32_run-scripts-by-list-step",
+      "id": "31/run-scripts-by-list-step",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/31_automation/32_zapusk-skriptov-po-spisku-poshagovyy-variant",
-      "suggestedId": "31/zapusk-skriptov-po-spisku-poshagovyy-variant"
+      "differences": [
+        "The whole run is one undo step under this script's name, and one Cancel stops it and leaves the book as it was; in 2.7.9 each script of the list made an undo step of its own (script API v2: a chain of scripts is one run).",
+        "The original's scriptsFolder(...) command and its message for a list that sets no folder are gone: the editor finds its scripts itself; runScriptInFolder and runScript are one command (mfbe.scripts.run with the original's message for a script that is not found), which takes a 2.7.9 path, a whole path of the original's installation or an id.",
+        "The message for a script that cannot be found names the path as the list writes it, not the full path on the disk."
+      ],
+      "fixes": [
+        "The list's first line names \\19_Обработка форматирования\\50_Перейти на следующий эпиграф.js, a file 2.7.9 does not have; the script meant is 16_Поиск форматирования\\150_Выделить следующий эпиграф.js (16/next-epigraph), whose earlier file the original's own instructions name (16_Поиск форматирования\\50_Перейти на следующий эпиграф.js), and the list now runs it. In 2.7.9 the template said \"Скрипт ... не был запущен ...\" and then made the caret's paragraph bold and italic and removed the block formatting around the caret; now it selects the next epigraph, makes it bold and italic and dissolves it with the epigraphs and annotation that follow it."
+      ],
+      "openQuestions": []
     },
     {
       "source": "31_Автоматизация/33_Запуск скриптов по списку_(МНОЖЕСТВЕННЫЙ автомат).js",
@@ -10153,15 +10188,21 @@
         "timers"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/31_automation/33_run-scripts-by-list-loops",
+      "id": "31/run-scripts-by-list-loops",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/31_automation/33_zapusk-skriptov-po-spisku-mnozhestvennyy-avtomat",
-      "suggestedId": "31/zapusk-skriptov-po-spisku-mnozhestvennyy-avtomat"
+      "differences": [
+        "The whole run is one undo step under this script's name, and one Cancel stops it and leaves the book as it was; in 2.7.9 each script of the list made an undo step of its own (script API v2: a chain of scripts is one run).",
+        "The original's scriptsFolder(...) command and its message for a list that sets no folder are gone: the editor finds its scripts itself; runScriptInFolder and runScript are one command (mfbe.scripts.run with the original's message for a script that is not found), which takes a 2.7.9 path, a whole path of the original's installation or an id.",
+        "The message for a script that cannot be found names the path as the list writes it, not the full path on the disk."
+      ],
+      "fixes": [
+        "The list names files 2.7.9 does not have: \\31_Автоматизация\\001_Установить курсор в начало документа.js (three times; 2.7.9: 34_Управление курсором либо выделением\\001_..., 34/caret-to-document-start) and 33_Совместимость с Автоматизацией\\52_Перейти на следующую цитату.js, \\48_Перейти на следующий заголовок.js and \\24_Перейти на следующий абзац, содержащий код.js (2.7.9: 16_Поиск форматирования\\152_Выделить следующую цитату.js, \\148_Выделить следующий заголовок.js and \\024_Перейти на следующий абзац, содержащий код.js - the scripts the original's instructions name by their earlier files 52_, 48_ and 24_ of group 16). In 2.7.9 the template said \"Скрипт ... не был запущен ...\" six times and changed nothing; now its three loops run: every citation becomes italic superscript paragraphs, every title italic and bold, every paragraph with code struck through and bold (Cancel at the end-of-book question of 024 ends the third loop, OK goes round again)."
+      ],
+      "openQuestions": [
+        "After the fix the shipped example edits the whole book when the template is run unedited (one undo step; 2.7.9 only reported the missing scripts). Keep the example active, or comment it out so that the template does nothing until its list is edited?"
+      ]
     },
     {
       "source": "31_Автоматизация/50_По очереди расформатировать абзацы от верхнего индекса (Комбо).js",
@@ -10180,15 +10221,20 @@
         "timers"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/31_automation/50_next-paragraph-remove-superscript",
+      "id": "31/next-paragraph-remove-superscript",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/31_automation/50_po-ocheredi-rasformatirovat-abzatsy-by-verkhnego",
-      "suggestedId": "31/po-ocheredi-rasformatirovat-abzatsy-by-verkhnego"
+      "differences": [
+        "The whole run is one undo step under this script's name, and one Cancel stops it and leaves the book as it was; in 2.7.9 each script of the list made an undo step of its own (script API v2: a chain of scripts is one run).",
+        "Everything else is the behaviour of the scripts it runs, each with its own recorded differences: 16/next-paragraph-with-sup, 19/paragraphs-remove-superscript."
+      ],
+      "fixes": [
+        "The list names 16_Поиск форматирования\\12_Перейти на следующий абзац с верхним индексом.js, a file 2.7.9 does not have (its file is 012_..., 16/next-paragraph-with-sup, renumbered from the 12_ of earlier versions); the combo runs it by its 2.7.9 path. In 2.7.9 the step said \"Скрипт ... не был запущен ...\" and then removed the superscript of the caret's paragraph; now it goes to the next paragraph with superscript (at the end of the book it asks whether to go on from the start) and removes that paragraph's superscript."
+      ],
+      "openQuestions": [
+        "As in 2.7.9, the step runs its scripts whatever 16/next-paragraph-with-sup returns: when nothing follows the selection, 16/next-paragraph-with-sup says so and returns \"NotFound\", and the caret's paragraph still loses its superscript (also after Cancel at the end-of-book question) (snapshot chains/31-next-paragraph-remove-superscript.none). Stop the step after \"NotFound\"?"
+      ]
     },
     {
       "source": "31_Автоматизация/51_Расформатировать абзацы от верхнего индекса (Комбо).js",
@@ -10207,15 +10253,19 @@
         "timers"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/31_automation/51_paragraphs-remove-superscript",
+      "id": "31/paragraphs-remove-superscript",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/31_automation/51_rasformatirovat-abzatsy-by-verkhnego-indeksa-kom",
-      "suggestedId": "31/rasformatirovat-abzatsy-by-verkhnego-indeksa-kom"
+      "differences": [
+        "The whole run is one undo step under this script's name, and one Cancel stops it and leaves the book as it was; in 2.7.9 each script of the list made an undo step of its own (script API v2: a chain of scripts is one run).",
+        "The run reports the number of paragraphs done as its progress; 2.7.9 showed none.",
+        "Everything else is the behaviour of the scripts it runs, each with its own recorded differences: 34/caret-to-document-start, 16/next-paragraph-with-sup, 19/paragraphs-remove-superscript."
+      ],
+      "fixes": [
+        "The loop's condition names 16_Поиск форматирования\\12_Перейти на следующий абзац с верхним индексом.js, a file 2.7.9 does not have (its file is 012_..., 16/next-paragraph-with-sup); the combo runs it by its 2.7.9 path. In 2.7.9 the combo said \"Скрипт ... не был запущен ...\" and its loop ended at once, nothing changed; now every paragraph with superscript loses it (a note link keeps its link), the book annotation's first paragraph too: the search starts past the caret's paragraph and finds it after the end-of-book question (OK)."
+      ],
+      "openQuestions": []
     },
     {
       "source": "31_Автоматизация/Автоматическая чистка простых текстов.js",
@@ -10234,15 +10284,18 @@
         "timers"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/31_automation/plain-text-auto-cleanup",
+      "id": "31/plain-text-auto-cleanup",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/31_automation/avtomaticheskaya-clean-up-prostykh-tekstov",
-      "suggestedId": "31/avtomaticheskaya-clean-up-prostykh-tekstov"
+      "differences": [
+        "The whole run is one undo step under this script's name, and one Cancel stops it and leaves the book as it was; in 2.7.9 each script of the list made an undo step of its own (script API v2: a chain of scripts is one run).",
+        "Everything else is the behaviour of the scripts it runs, each with its own recorded differences: 08/structure-cleanup, 06/general-cleanup, 06/remove-styles-and-ids, 06/unformat-empty-links, 06/external-links-to-plain-text, 06/remove-fbd-bookmark-links, 13/subtitles-empty-lines-plain-titles, 13/remove-title-formatting, 06/general-cleanup-alexander-ka."
+      ],
+      "fixes": [
+        "The list names 13_Заголовки, подзаголовки, пустые строки\\529_Удаление жирности и курсива в заголовках и подзаголовках.js, the name of 529 before its version 2.0 (its history: \"Изменено имя скрипта (было «Удаление жирности/курсива в заголовках и подзаголовках»)\"); 2.7.9 has it as 529_Удалить форматирование в заголовках и подзаголовках.js (13/remove-title-formatting), which the list now runs. In 2.7.9 the list said \"Скрипт ... не был запущен ...\" at that line and went on; now the formatting that covers a whole title line or subtitle goes too (on the reference book: the bold of a subtitle)."
+      ],
+      "openQuestions": []
     },
     {
       "source": "32_Маркеры сносок/01_Поиск некорректных маркеров постраничных сносок с постраничной нумерацией.js",
@@ -10584,15 +10637,18 @@
         "timers"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/37_epigraphs/06_next-epigraph-remove-bold-italics",
+      "id": "37/next-epigraph-remove-bold-italics",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The whole run is one undo step under this script's name, and one Cancel stops it and leaves the book as it was; in 2.7.9 each script of the list made an undo step of its own (script API v2: a chain of scripts is one run).",
+        "Everything else is the behaviour of the scripts it runs, each with its own recorded differences: 16/next-epigraph, 19/paragraphs-remove-bold, 19/paragraphs-remove-italics."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/37_epigraphs/06_po-ocheredi-rasformatirovat-all-epigrafy-by-zhir",
-      "suggestedId": "37/po-ocheredi-rasformatirovat-all-epigrafy-by-zhir"
+      "openQuestions": [
+        "As in 2.7.9, the step runs its scripts whatever 16/next-epigraph returns: when nothing follows the selection, 16/next-epigraph says so and returns \"NotFound\", and the paragraph(s) of the selection - the caret's - still lose their bold and italics (snapshot chains/37-next-epigraph-remove-bold-italics.none). Stop the step after \"NotFound\"?"
+      ]
     },
     {
       "source": "37_Эпиграфы/07_Расформатировать все эпиграфы от жирности и курсива.js",
@@ -10611,15 +10667,17 @@
         "timers"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/37_epigraphs/07_epigraphs-remove-bold-italics",
+      "id": "37/epigraphs-remove-bold-italics",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The whole run is one undo step under this script's name, and one Cancel stops it and leaves the book as it was; in 2.7.9 each script of the list made an undo step of its own (script API v2: a chain of scripts is one run).",
+        "The run reports the number of epigraphs done as its progress; 2.7.9 showed none.",
+        "Everything else is the behaviour of the scripts it runs, each with its own recorded differences: 34/caret-to-document-start, 16/next-epigraph, 19/paragraphs-remove-bold, 19/paragraphs-remove-italics."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/37_epigraphs/07_rasformatirovat-all-epigrafy-by-zhirnosti-and-ku",
-      "suggestedId": "37/rasformatirovat-all-epigrafy-by-zhirnosti-and-ku"
+      "openQuestions": []
     },
     {
       "source": "37_Эпиграфы/08_Удалить все эпиграфы и их содержимое.js",

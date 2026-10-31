@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "31/run-scripts-by-list",
+  "name": {
+    "ru": "Запуск скриптов по списку",
+    "en": "Run scripts from a list",
+    "uk": "Запуск скриптів за списком"
+  },
+  "description": {
+    "ru": "Заготовка: запускает скрипты меню по списку, записанному в index.js, за один запуск; в поставке — пример оригинала, скрипт которого в 2.7.9 отсутствует, поэтому показывается только сообщение об этом.",
+    "en": "Template: runs the menu scripts of the list written in index.js in one run; as shipped, the original's example, whose script 2.7.9 does not have, so only a message about it is shown.",
+    "uk": "Заготовка: запускає скрипти меню за списком, записаним в index.js, за один запуск; у постачанні — приклад оригіналу, скрипта якого в 2.7.9 немає, тому показується лише повідомлення про це."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Запуск скриптов по списку",
+    "en": "Run scripts from a list"
+  },
+  "legacy": {
+    "source": "31_Автоматизация/30_Запуск скриптов по списку.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.5"
+  }
+}

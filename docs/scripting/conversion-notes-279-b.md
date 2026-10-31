@@ -1031,6 +1031,33 @@ node tests/scripts/run-script.mjs $P $B/regexp-titles-basic.fb2 --answer '{"rege
 # re-recorded entries of the main suite: tests/scripts/run-all.sh --group 13 --filter subtitles-empty-lines; --group 08 --filter split-into-sections
 ```
 
+### 590 Расформатировать все заголовки_Комбо
+
+Package `scripts/13_subtitles/590_unformat-all-titles`, id `13/unformat-all-titles`, v1.5 (Sclex,
+compiled by TaKir), 2.7.9 icon. The whole-document form of the list (see 31_Автоматизация):
+`34/caret-to-document-start`, then while `16/next-title` (148, *Выделить следующий заголовок*) returns
+"Found", `18/unwrap-poem-cite-epigraph` (19_Обработка форматирования/05, *Снять форматирование
+блочным элементом*). That script dissolves the title the selection starts in together with the
+epigraphs and the annotation after it - the title of a body or of a section of sections goes to the
+start of its first subsection when that one starts with text, else into a new untitled section before
+it -, turns a stanza's title into verses and takes a poem's title for the poem; then the caret is at
+the start of the first paragraph that came out, from which 148 goes on.
+
+**Reference book** `tests/scripts/fixtures/279/chains/titles.fb2`: a formatted body title with a body
+epigraph, a section of sections, a two-line chapter title with an epigraph and an annotation, a titled
+poem of two stanzas, a stanza title, a subtitle, an untitled section, a second chapter, a notes body
+with its title and a note's title. **Expected** (from 19/05's rules, per title in document order) **and
+recorded** in `chains/13-unformat-all-titles.xml`: the body title and epigraph form a new untitled
+section before `part1`; "Часть первая" a new section before chapter one; chapter one's title, epigraph
+and annotation become its first four paragraphs; the titled poem becomes paragraphs with an empty line
+between its stanzas; the stanza title a verse; "Глава вторая" a paragraph; the notes title a new section
+before the note; the note's "1" a paragraph; the subtitle stays; "No title was found…".
+
+**Differences:** one undo step and one Cancel; the run reports the titles done as progress. **Open
+question:** as in 2.7.9, every poem with a title is dissolved, each title takes the epigraphs and
+annotation after it along, and the notes lose their titles (the numbers of the notes become
+paragraphs) - leave poem titles, epigraphs and annotations, and the notes, alone?
+
 ## 14_Цитаты
 
 10 scripts in 2.7.9, all new: the four that run no other script are converted here (part of T056)
@@ -1221,6 +1248,68 @@ node tests/scripts/run-script.mjs $CR $B/cites.fb2 --select-range n8:3-n10:5 --a
 node tests/scripts/run-script.mjs $CR $B/quotes.fb2 --answer '14_Цитаты\053_Поиск предположительных цитат (по встроенным регэкспам).js|...' --snapshot $S/find-possible-citations.chain.xml
 tests/scripts/run-all.sh --group 14        # 20 snapshots
 ```
+
+The six combos 057-062 (Sclex, v1.5): packages `scripts/14_citations/<NN>_<slug>/`, ids `14/<slug>`,
+the 2.7.9 icon for 059-062 (057 and 058 have none). Their lists (see 31_Автоматизация, "The runner of
+the lists") run `16/next-cite` (152), `16/next-all-bold-paragraph` (138) or
+`16/next-all-italic-paragraph` (136), then `19/paragraphs-remove-bold` and
+`19/paragraphs-remove-italics` (55, 56) or `14/paragraphs-to-cite` (052), which makes a citation only
+of plain paragraphs standing directly in one section and leaves the caret at the end of the citation;
+the whole-document forms start with `34/caret-to-document-start`. Reference books
+`tests/scripts/fixtures/279/chains/cites.fb2` (bold and italics in a cite inside the body epigraph,
+cites with a subtitle, a text author, a poem with a date, a table, a nested cite in a poem's epigraph,
+a cite in a note; formatted text outside them) and `whole-paragraphs.fb2` (an entirely bold book
+annotation, title and epigraph, entirely bold paragraphs - with an id, with a trailing plain space,
+bold italics -, an entirely italic one, a bold paragraph in a cite, a bold verse, a bold subtitle,
+mixed and partly bold paragraphs, an italic note). Every expected book was written from the
+originals' logic before the first run, every snapshot equals it.
+
+### 057 По очереди расформатировать все цитаты от жирности и курсива
+
+`057_next-cite-remove-bold-italics`, `14/next-cite-remove-bold-italics`. Step form: 152, 55, 56.
+**Expected and recorded:** `chains/14-next-cite-remove-bold-italics.xml` (`--select n11:0:0`): the cite
+n12 (paragraphs, subtitle, text author) loses bold and italics, its superscript stays; `.none.xml`
+(`--select n42:0:0`): "No cite was found…" and the caret's paragraph n42 loses its italics.
+**Differences:** one undo step and one Cancel. **Open question:** stop after "NotFound"?
+
+### 058 Расформатировать все цитаты от жирности и курсива
+
+`058_cites-remove-bold-italics`, `14/cites-remove-bold-italics`. Whole-document form: 001, then 152 →
+55, 56. **Expected and recorded** (`chains/14-cites-remove-bold-italics.xml`): every text block of the
+five cites - the epigraph's, n12, n18 with its verse and cell (the date untouched), n28 with the nested
+cite and the verse of its poem, the note's - loses bold and italics; the body epigraph's text author,
+outside a cite, stays bold. **Differences:** one undo step and one Cancel; progress.
+
+### 059 По очереди сформатировать целиком жирные абзацы цитатой
+
+`059_next-bold-paragraph-to-cite`, `14/next-bold-paragraph-to-cite`. Step form: 138, 052. **Expected
+and recorded:** `chains/14-next-bold-paragraph-to-cite.xml` (`--select n9:0:0`): n10 (with its id
+`b1`) becomes a citation; `.none.xml` (`--select n28:0:0`): "No entirely bold paragraph was found…",
+and 052 still puts the caret's paragraph - the italic note n28, not bold - into a citation, as 2.7.9
+does. **Differences:** one undo step and one Cancel. **Open question:** stop after "NotFound"?
+
+### 060 Сформатировать все целиком жирные абзацы цитатой
+
+`060_bold-paragraphs-to-cites`, `14/bold-paragraphs-to-cites`. Whole-document form: 001, then 138 →
+052. **Expected and recorded** (`chains/14-bold-paragraphs-to-cites.xml`): n10, n11 (a trailing plain
+space counts), n14 (bold italics) and n23 each become a citation of their own; 138 also finds the body
+title n3, the epigraph's n8, the cite's n17, the verse n20 and the subtitle n21, which 052 leaves as
+they are, and passes the book annotation's n30, the paragraph the caret starts in. **Differences:** one
+undo step and one Cancel; progress.
+
+### 061 По очереди сформатировать целиком курсивные абзацы цитатой
+
+`061_next-italic-paragraph-to-cite`, `14/next-italic-paragraph-to-cite`. Step form: 136, 052.
+**Expected and recorded:** `chains/14-next-italic-paragraph-to-cite.xml` (`--select n9:0:0`): n13
+becomes a citation. **Differences:** one undo step and one Cancel. **Open question:** as 059 (the same
+mechanism, shown by 059's `.none` snapshot).
+
+### 062 Сформатировать все целиком курсивные абзацы цитатой
+
+`062_italic-paragraphs-to-cites`, `14/italic-paragraphs-to-cites`. Whole-document form: 001, then 136 →
+052. **Expected and recorded** (`chains/14-italic-paragraphs-to-cites.xml`): n13, n14 and the note's
+n28 (after the note's title) become citations; the italic chapter title n6 is found and left.
+**Differences:** one undo step and one Cancel; progress.
 
 ## 16_Поиск форматирования
 

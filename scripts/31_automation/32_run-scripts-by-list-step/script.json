@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "31/run-scripts-by-list-step",
+  "name": {
+    "ru": "Запуск скриптов по списку_(ПОШАГОВЫЙ вариант)",
+    "en": "Run scripts from a list (STEP-BY-STEP version)",
+    "uk": "Запуск скриптів за списком (ПОКРОКОВИЙ варіант)"
+  },
+  "description": {
+    "ru": "Заготовка: запускает по очереди скрипты меню по списку, записанному в index.js, за один запуск; в поставке — пример оригинала: выделить следующий эпиграф, сделать его абзацы жирными и курсивными и снять форматирование эпиграфом.",
+    "en": "Template: runs the menu scripts of the list written in index.js one after another in one run; as shipped, the original's example: select the next epigraph, make its paragraphs bold and italic and remove the epigraph formatting.",
+    "uk": "Заготовка: запускає по черзі скрипти меню за списком, записаним в index.js, за один запуск; у постачанні — приклад оригіналу: виділити наступний епіграф, зробити його абзаци жирними й курсивними та зняти форматування епіграфом."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Запуск скриптов по списку_(ПОШАГОВЫЙ вариант)",
+    "en": "Run scripts from a list (STEP-BY-STEP version)"
+  },
+  "legacy": {
+    "source": "31_Автоматизация/32_Запуск скриптов по списку_(ПОШАГОВЫЙ вариант).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.5"
+  }
+}

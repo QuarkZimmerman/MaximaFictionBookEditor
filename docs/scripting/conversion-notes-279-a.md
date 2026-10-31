@@ -1570,6 +1570,45 @@ node tests/scripts/run-script.mjs $G/07_remove-unused-binaries $F/recheck-binari
 node tests/scripts/run-script.mjs $G/08_image-captions $F/recheck-captions.fb2 --answer '{"start":"begin"}' --answer yes --answer skip --snapshot $S/image-captions.inline-pictures.xml
 ```
 
+### 14 Удалить все иллюстрации, их тэги и пустые строки (комбо)
+
+Package `scripts/05_images/14_remove-all-images-combo`, id `05/remove-all-images-combo`, v1.3 (Sclex),
+2.7.9 icon. One of the 18 scripts of 2.7.9 that run other scripts; how their lists are converted is
+described once, under 31_Автоматизация, "The runner of the lists".
+
+**What it does.** A fixed list on Sclex's *Запуск скриптов по списку* (the `apiRunCmd` form): seven
+whole-document scripts one after another - `05/empty-lines-near-images` (*Добавить либо удалить пустые
+строки возле иллюстраций...*; its question: Cancel removes the empty lines before and after the
+pictures), `05/remove-all-binaries`, `05/unify-binaries`, `05/remove-unused-binaries`,
+`05/remove-image-tags`, `06/remove-styles-and-ids` and `13/subtitles-empty-lines-plain-titles` (528).
+Each asks and reports as it does by itself.
+
+**Conversion.** The list through `mfbe.scripts.run` by the 2.7.9 paths the original names, except
+`05/remove-unused-binaries`, which runs by its id: that package (converted from 2.7beta1, unchanged in
+2.7.9) still names `05_Иллюстрации/07_Удаление неиспользуемых вложений....js` in `legacy.source`, so the
+2.7.9 path `07_Удалить неиспользуемые вложения....js` does not resolve. The first, second and third
+resolve by their 2.7.9 paths since the group's recheck (T077) gave them their 2.7.9 sources.
+
+**Reference book** `tests/scripts/fixtures/279/chains/images.fb2`: a cover page, a picture in the book
+annotation, block pictures between empty lines (one with an id), an inline picture, a picture without
+a binary, an unused binary, a style, paragraph and section ids, bold and italic titles, "* * *".
+Snapshot `chains/05-remove-all-images-combo.xml` (`--answer cancel --answer ok --answer yes`, every
+later message OK). **Expected**, as the composition of the seven scripts - written down from their
+recorded behaviour, then checked by running them one after another as separate harness runs, the
+output of each the input of the next: equal to the chain's result. The empty lines around the block
+pictures go (4), the binaries stay (both binary scripts say that the API cannot remove them), only the
+picture without a binary gets the `nobin_` prefix, all five pictures go (3 block, 2 inline) with the
+empty line left next to one, then the style, the paragraph id and both section ids, the bold and
+italics of the three titles; "* * *" becomes a subtitle.
+
+**Differences.** One undo step and one Cancel for the whole run (in 2.7.9 seven undo steps). The
+binary objects stay: 2.7.9 removed them (05/05) before the other scripts ran, so its 05/02 found no
+binary and its 05/07 nothing to remove, and the book came out without binaries; the text is the same.
+Everything else is the seven scripts' own behaviour. No fixes, no open questions.
+
+**Depends on** the packages above, among them three of the group-05 recheck (05/06, 05/05, 05/02:
+their dialogs set the answers of the snapshot); re-run the snapshot after the recheck is merged.
+
 ## 06_Чистка
 
 12 scripts are new in 2.7.9 and all 12 are converted (T050) into `scripts/06_cleanup/`, beside the
@@ -3188,3 +3227,36 @@ Differences kept from 0.0.1:
 - run without a selection (the menu entry needs one), the conversion says so in a message, and
   after a merge the status bar gives the number of paragraphs merged; the original did and showed
   nothing.
+
+### 38 По очереди расформатировать все стихи от жирности и курсива
+
+Package `scripts/09_poems/38_next-poem-remove-bold-italics`, id `09/next-poem-remove-bold-italics`,
+v1.5 (Sclex), no icon. The step-by-step form of the list (see 31_Автоматизация, "The runner of the
+lists"): `16/next-poem` (154, *Выделить следующий стих (poem)*) selects the next poem after the end of
+the selection, `19/paragraphs-remove-bold` (55) and `19/paragraphs-remove-italics` (56) unformat the
+text blocks of the selection - title, epigraphs, stanza titles and subtitles, verses, text authors (a
+poem's date holds no formatting). The original's list runs the three whatever the first returns.
+
+**Reference book** `tests/scripts/fixtures/279/chains/poems.fb2`: bold and italics in and around five
+poems - one with a title, an epigraph with a text author, a stanza title and subtitle, bold italics,
+a note link in bold, an italic with a language, a text author and a date; two consecutive poems; a poem
+inside a cite; a poem in a note - and outside them (annotation, titles, paragraphs, the cite's own
+paragraph and text author). **Expected and recorded:**
+- `chains/09-next-poem-remove-bold-italics.xml` (`--select n7:0:0`): the first poem (n8) loses its bold
+  and italics, the link stays, nothing else changes;
+- `.none.xml` (`--select n50:0:0`, the last paragraph of the note): "No poem was found up to the end of
+  the document.", `"NotFound"`, and the caret's paragraph n50 loses its bold and italics - 2.7.9's
+  behaviour, an open question.
+
+**Differences.** One undo step and one Cancel. **Open question:** stop the step after "NotFound" instead
+of unformatting the selection as it is?
+
+### 39 Расформатировать все стихи от жирности и курсива
+
+Package `scripts/09_poems/39_poems-remove-bold-italics`, id `09/poems-remove-bold-italics`, v1.5
+(Sclex), no icon. The whole-document form: `34/caret-to-document-start` (001), then
+`while (runScriptInFolder("16_Поиск форматирования\\154_Выделить следующий стих (poem).js")=="Found")`
+55 and 56. Snapshot `chains/09-poems-remove-bold-italics.xml` (poems.fb2). **Expected and recorded:**
+the five poems (n8, n27, n30, n35 in the cite, n47 in the note) lose every bold and italic (the strike,
+the superscript and the note link stay); nothing outside them changes; the run ends with "No poem was
+found…". **Differences:** one undo step and one Cancel; the run reports the poems done as progress.

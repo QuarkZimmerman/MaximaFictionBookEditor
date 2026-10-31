@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "14/next-bold-paragraph-to-cite",
+  "name": {
+    "ru": "По очереди сформатировать целиком жирные абзацы цитатой",
+    "en": "Format entirely bold paragraphs as citations one at a time",
+    "uk": "По черзі сформатувати цілком жирні абзаци цитатою"
+  },
+  "description": {
+    "ru": "Пошаговый вариант: выделяет следующий после курсора целиком жирный абзац и, если это простой абзац раздела, помещает его в цитату; повторный запуск обрабатывает следующий.",
+    "en": "Step-by-step version: selects the next entirely bold paragraph after the caret and, when it is a plain paragraph of a section, puts it into a citation; run it again for the next one.",
+    "uk": "Покроковий варіант: виділяє наступний після курсору цілком жирний абзац і, якщо це простий абзац розділу, поміщає його в цитату; повторний запуск обробляє наступний."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "По очереди сформатировать целиком жирные абзацы цитатой",
+    "en": "Format entirely bold paragraphs as citations one at a time"
+  },
+  "legacy": {
+    "source": "14_Цитаты/059_По очереди сформатировать целиком жирные абзацы цитатой.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.5"
+  }
+}

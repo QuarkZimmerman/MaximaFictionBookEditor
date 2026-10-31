@@ -1,0 +1,16 @@
+{
+  "manifestVersion": 1,
+  "id": "test.279.chains.list-copy",
+  "name": {
+    "ru": "Запуск скриптов по списку: своя копия (тест)",
+    "en": "Run scripts from a list: one's own copy (test)",
+    "uk": "Запуск скриптів за списком: власна копія (тест)"
+  },
+  "description": {
+    "ru": "Тестовый пакет набора снимков: копия заготовки 31/30 с собственным списком, как её отредактировал бы пользователь.",
+    "en": "Test package of the snapshot suite: a copy of the 31/30 template with a list of its own, as a user would edit it.",
+    "uk": "Тестовий пакет набору знімків: копія заготовки 31/30 з власним списком, як її відредагував би користувач."
+  },
+  "kind": "menu",
+  "entry": "index.js"
+}

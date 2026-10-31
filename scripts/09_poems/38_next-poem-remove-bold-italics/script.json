@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "09/next-poem-remove-bold-italics",
+  "name": {
+    "ru": "По очереди расформатировать все стихи от жирности и курсива",
+    "en": "Remove bold and italics from poems one at a time",
+    "uk": "По черзі прибрати жирний шрифт і курсив з усіх віршів"
+  },
+  "description": {
+    "ru": "Пошаговый вариант: выделяет следующий после курсора стих и снимает жирность и курсив в его абзацах; повторный запуск обрабатывает следующий стих.",
+    "en": "Step-by-step version: selects the next poem after the caret and removes the bold and italics of its paragraphs; run it again for the next poem.",
+    "uk": "Покроковий варіант: виділяє наступний після курсору вірш і знімає жирний шрифт і курсив у його абзацах; повторний запуск обробляє наступний вірш."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "По очереди расформатировать все стихи от жирности и курсива",
+    "en": "Remove bold and italics from poems one at a time"
+  },
+  "legacy": {
+    "source": "09_Стихи/38_По очереди расформатировать все стихи от жирности и курсива.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.5"
+  }
+}

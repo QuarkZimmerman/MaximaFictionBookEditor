@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "14/italic-paragraphs-to-cites",
+  "name": {
+    "ru": "Сформатировать все целиком курсивные абзацы цитатой",
+    "en": "Format all entirely italic paragraphs as citations",
+    "uk": "Сформатувати всі цілком курсивні абзаци цитатою"
+  },
+  "description": {
+    "ru": "Помещает в цитату каждый целиком курсивный простой абзац разделов книги, проходя абзац за абзацем от начала документа.",
+    "en": "Puts every entirely italic plain paragraph of the book's sections into a citation of its own, going from one to the next from the start of the document.",
+    "uk": "Поміщає в цитату кожен цілком курсивний простий абзац розділів книги, проходячи абзац за абзацом від початку документа."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Сформатировать все целиком курсивные абзацы цитатой",
+    "en": "Format all entirely italic paragraphs as citations"
+  },
+  "legacy": {
+    "source": "14_Цитаты/062_Сформатировать все целиком курсивные абзацы цитатой.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.5"
+  }
+}

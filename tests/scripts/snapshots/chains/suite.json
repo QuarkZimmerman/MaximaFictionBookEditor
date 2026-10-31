@@ -1,0 +1,212 @@
+[
+  {
+    "snapshot": "chains/05-remove-all-images-combo.xml",
+    "script": "scripts/05_images/14_remove-all-images-combo",
+    "book": "tests/scripts/fixtures/279/chains/images.fb2",
+    "args": [
+      "--answer",
+      "cancel",
+      "--answer",
+      "ok",
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "chains/09-next-poem-remove-bold-italics.xml",
+    "script": "scripts/09_poems/38_next-poem-remove-bold-italics",
+    "book": "tests/scripts/fixtures/279/chains/poems.fb2",
+    "args": [
+      "--select",
+      "n7:0:0"
+    ]
+  },
+  {
+    "snapshot": "chains/09-next-poem-remove-bold-italics.none.xml",
+    "script": "scripts/09_poems/38_next-poem-remove-bold-italics",
+    "book": "tests/scripts/fixtures/279/chains/poems.fb2",
+    "args": [
+      "--select",
+      "n50:0:0"
+    ]
+  },
+  {
+    "snapshot": "chains/09-poems-remove-bold-italics.xml",
+    "script": "scripts/09_poems/39_poems-remove-bold-italics",
+    "book": "tests/scripts/fixtures/279/chains/poems.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "chains/13-unformat-all-titles.xml",
+    "script": "scripts/13_subtitles/590_unformat-all-titles",
+    "book": "tests/scripts/fixtures/279/chains/titles.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "chains/14-next-cite-remove-bold-italics.xml",
+    "script": "scripts/14_citations/057_next-cite-remove-bold-italics",
+    "book": "tests/scripts/fixtures/279/chains/cites.fb2",
+    "args": [
+      "--select",
+      "n11:0:0"
+    ]
+  },
+  {
+    "snapshot": "chains/14-next-cite-remove-bold-italics.none.xml",
+    "script": "scripts/14_citations/057_next-cite-remove-bold-italics",
+    "book": "tests/scripts/fixtures/279/chains/cites.fb2",
+    "args": [
+      "--select",
+      "n42:0:0"
+    ]
+  },
+  {
+    "snapshot": "chains/14-cites-remove-bold-italics.xml",
+    "script": "scripts/14_citations/058_cites-remove-bold-italics",
+    "book": "tests/scripts/fixtures/279/chains/cites.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "chains/14-next-bold-paragraph-to-cite.xml",
+    "script": "scripts/14_citations/059_next-bold-paragraph-to-cite",
+    "book": "tests/scripts/fixtures/279/chains/whole-paragraphs.fb2",
+    "args": [
+      "--select",
+      "n9:0:0"
+    ]
+  },
+  {
+    "snapshot": "chains/14-next-bold-paragraph-to-cite.none.xml",
+    "script": "scripts/14_citations/059_next-bold-paragraph-to-cite",
+    "book": "tests/scripts/fixtures/279/chains/whole-paragraphs.fb2",
+    "args": [
+      "--select",
+      "n28:0:0"
+    ]
+  },
+  {
+    "snapshot": "chains/14-bold-paragraphs-to-cites.xml",
+    "script": "scripts/14_citations/060_bold-paragraphs-to-cites",
+    "book": "tests/scripts/fixtures/279/chains/whole-paragraphs.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "chains/14-next-italic-paragraph-to-cite.xml",
+    "script": "scripts/14_citations/061_next-italic-paragraph-to-cite",
+    "book": "tests/scripts/fixtures/279/chains/whole-paragraphs.fb2",
+    "args": [
+      "--select",
+      "n9:0:0"
+    ]
+  },
+  {
+    "snapshot": "chains/14-italic-paragraphs-to-cites.xml",
+    "script": "scripts/14_citations/062_italic-paragraphs-to-cites",
+    "book": "tests/scripts/fixtures/279/chains/whole-paragraphs.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "chains/31-run-scripts-by-list.xml",
+    "script": "scripts/31_automation/30_run-scripts-by-list",
+    "book": "tests/scripts/fixtures/279/chains/list.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "chains/31-run-scripts-by-list-step.xml",
+    "script": "scripts/31_automation/32_run-scripts-by-list-step",
+    "book": "tests/scripts/fixtures/279/chains/epigraphs.fb2",
+    "args": [
+      "--select",
+      "n9:0:0"
+    ]
+  },
+  {
+    "snapshot": "chains/31-run-scripts-by-list-loops.xml",
+    "script": "scripts/31_automation/33_run-scripts-by-list-loops",
+    "book": "tests/scripts/fixtures/279/chains/list.fb2",
+    "args": [
+      "--answer",
+      "ok",
+      "--answer",
+      "ok",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "chains/31-list-copy.xml",
+    "script": "tests/scripts/fixtures/279/chains/list-copy",
+    "book": "tests/scripts/fixtures/279/chains/list.fb2",
+    "args": [
+      "--select",
+      "n18:0:0"
+    ]
+  },
+  {
+    "snapshot": "chains/31-next-paragraph-remove-superscript.xml",
+    "script": "scripts/31_automation/50_next-paragraph-remove-superscript",
+    "book": "tests/scripts/fixtures/279/chains/superscript.fb2",
+    "args": [
+      "--select",
+      "n7:0:0"
+    ]
+  },
+  {
+    "snapshot": "chains/31-next-paragraph-remove-superscript.none.xml",
+    "script": "scripts/31_automation/50_next-paragraph-remove-superscript",
+    "book": "tests/scripts/fixtures/279/chains/superscript.fb2",
+    "args": [
+      "--select",
+      "n18:0:0",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "chains/31-next-paragraph-remove-superscript.wrap.xml",
+    "script": "scripts/31_automation/50_next-paragraph-remove-superscript",
+    "book": "tests/scripts/fixtures/279/chains/superscript.fb2",
+    "args": [
+      "--select",
+      "n18:0:0",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "chains/31-paragraphs-remove-superscript.xml",
+    "script": "scripts/31_automation/51_paragraphs-remove-superscript",
+    "book": "tests/scripts/fixtures/279/chains/superscript.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "chains/31-plain-text-auto-cleanup.xml",
+    "script": "scripts/31_automation/plain-text-auto-cleanup",
+    "book": "tests/scripts/fixtures/279/chains/plain-text.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "chains/37-next-epigraph-remove-bold-italics.xml",
+    "script": "scripts/37_epigraphs/06_next-epigraph-remove-bold-italics",
+    "book": "tests/scripts/fixtures/279/chains/epigraphs.fb2",
+    "args": [
+      "--select",
+      "n23:0:0"
+    ]
+  },
+  {
+    "snapshot": "chains/37-next-epigraph-remove-bold-italics.none.xml",
+    "script": "scripts/37_epigraphs/06_next-epigraph-remove-bold-italics",
+    "book": "tests/scripts/fixtures/279/chains/epigraphs.fb2",
+    "args": [
+      "--select",
+      "n34:0:0"
+    ]
+  },
+  {
+    "snapshot": "chains/37-epigraphs-remove-bold-italics.xml",
+    "script": "scripts/37_epigraphs/07_epigraphs-remove-bold-italics",
+    "book": "tests/scripts/fixtures/279/chains/epigraphs.fb2",
+    "args": []
+  }
+]

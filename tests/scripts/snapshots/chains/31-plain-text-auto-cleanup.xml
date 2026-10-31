@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Цепочки</last-name>
+			</author>
+			<book-title>Простой текст</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Простой текст</p>
+		</title>
+		<section>
+			<title>
+				<p>Глава 1</p>
+			</title>
+			<p>Это — абзац с лишними пробелами, и дефисом вместо тире…</p>
+			<subtitle>* * *</subtitle>
+			<p>Ссылка с пустым адресом и внешняя ссылка.</p>
+			<p>Стиль в абзаце.</p>
+			<subtitle>Жирный подзаголовок</subtitle>
+			<p>Текст со ссылкой на примечание<a l:href="#n1" type="note">[1]</a>.</p>
+		</section>
+	</body>
+	<body name="notes">
+		<section id="n1">
+			<p>Примечание, сделанное FBD.</p>
+		</section>
+	</body>
+</FictionBook>

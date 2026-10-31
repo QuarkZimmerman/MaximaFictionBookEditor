@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "13/unformat-all-titles",
+  "name": {
+    "ru": "Расформатировать все заголовки_Комбо",
+    "en": "Unformat all titles (combo)",
+    "uk": "Розформатувати всі заголовки (комбо)"
+  },
+  "description": {
+    "ru": "Превращает все заголовки книги в обычный текст: выделяет заголовок за заголовком от начала документа и снимает с него форматирование блочным элементом (заголовок стиха — вместе со стихом).",
+    "en": "Turns every title of the book into plain text: selects one title after another from the start of the document and removes its block element formatting (a poem's title together with the poem).",
+    "uk": "Перетворює всі заголовки книги на звичайний текст: виділяє заголовок за заголовком від початку документа й знімає з нього форматування блоковим елементом (заголовок вірша — разом із віршем)."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Расформатировать все заголовки_Комбо",
+    "en": "Unformat all titles (combo)"
+  },
+  "legacy": {
+    "source": "13_Заголовки, подзаголовки, пустые строки/590_Расформатировать все заголовки_Комбо.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.5"
+  }
+}

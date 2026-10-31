@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "31/run-scripts-by-list-loops",
+  "name": {
+    "ru": "Запуск скриптов по списку_(МНОЖЕСТВЕННЫЙ автомат)",
+    "en": "Run scripts from a list (MULTIPLE automatic version)",
+    "uk": "Запуск скриптів за списком (МНОЖИННИЙ автомат)"
+  },
+  "description": {
+    "ru": "Заготовка: запускает скрипты меню в циклах по всему документу по списку, записанному в index.js, за один запуск; в поставке — пример оригинала из трёх циклов: по цитатам, по заголовкам и по абзацам с кодом.",
+    "en": "Template: runs the menu scripts of the list written in index.js in loops over the whole document, in one run; as shipped, the original's example of three loops: over the citations, the titles and the paragraphs holding code.",
+    "uk": "Заготовка: запускає скрипти меню в циклах по всьому документу за списком, записаним в index.js, за один запуск; у постачанні — приклад оригіналу з трьох циклів: за цитатами, за заголовками й за абзацами з кодом."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Запуск скриптов по списку_(МНОЖЕСТВЕННЫЙ автомат)",
+    "en": "Run scripts from a list (MULTIPLE automatic version)"
+  },
+  "legacy": {
+    "source": "31_Автоматизация/33_Запуск скриптов по списку_(МНОЖЕСТВЕННЫЙ автомат).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.5"
+  }
+}

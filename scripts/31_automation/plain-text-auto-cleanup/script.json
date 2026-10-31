@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "31/plain-text-auto-cleanup",
+  "name": {
+    "ru": "Автоматическая чистка простых текстов",
+    "en": "Automatic clean-up of plain texts",
+    "uk": "Автоматичне чищення простих текстів"
+  },
+  "description": {
+    "ru": "Запускает по очереди девять скриптов чистки для книги, сделанной из простого текста: структура, генеральная уборка, теги style и id, ссылки, разметка подзаголовков и пустых строк, форматирование заголовков, генеральная уборка Александра Ка.",
+    "en": "Runs nine clean-up scripts one after another on a book made from plain text: the structure, the general clean-up, style tags and ids, links, subtitles and empty lines, the formatting of titles, and Alexander Ka's general clean-up.",
+    "uk": "Запускає по черзі дев'ять скриптів чищення для книги, зробленої з простого тексту: структура, генеральне прибирання, теги style та id, посилання, розмітка підзаголовків і порожніх рядків, форматування заголовків, генеральне прибирання Александра Ка."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Автоматическая чистка простых текстов",
+    "en": "Automatic clean-up of plain texts"
+  },
+  "legacy": {
+    "source": "31_Автоматизация/Автоматическая чистка простых текстов.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
+  }
+}

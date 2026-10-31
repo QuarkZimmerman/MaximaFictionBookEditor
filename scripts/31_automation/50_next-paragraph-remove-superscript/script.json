@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "31/next-paragraph-remove-superscript",
+  "name": {
+    "ru": "По очереди расформатировать абзацы от верхнего индекса (Комбо)",
+    "en": "Remove superscript from paragraphs one at a time (combo)",
+    "uk": "По черзі прибрати верхній індекс з абзаців (комбо)"
+  },
+  "description": {
+    "ru": "Пошаговый вариант: переходит к следующему после курсора абзацу с верхним индексом и снимает в нём верхний индекс; повторный запуск обрабатывает следующий абзац.",
+    "en": "Step-by-step version: goes to the next paragraph after the caret that holds superscript and removes its superscript; run it again for the next paragraph.",
+    "uk": "Покроковий варіант: переходить до наступного після курсору абзацу з верхнім індексом і знімає в ньому верхній індекс; повторний запуск обробляє наступний абзац."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "По очереди расформатировать абзацы от верхнего индекса (Комбо)",
+    "en": "Remove superscript from paragraphs one at a time (combo)"
+  },
+  "legacy": {
+    "source": "31_Автоматизация/50_По очереди расформатировать абзацы от верхнего индекса (Комбо).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.5"
+  }
+}

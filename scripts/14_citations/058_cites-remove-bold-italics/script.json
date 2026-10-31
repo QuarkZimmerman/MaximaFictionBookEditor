@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "14/cites-remove-bold-italics",
+  "name": {
+    "ru": "Расформатировать все цитаты от жирности и курсива",
+    "en": "Remove bold and italics from all citations",
+    "uk": "Прибрати жирний шрифт і курсив з усіх цитат"
+  },
+  "description": {
+    "ru": "Снимает жирность и курсив во всех цитатах книги: выделяет цитату за цитатой от начала документа и расформатирует её абзацы.",
+    "en": "Removes bold and italics from every citation of the book: selects one citation after another from the start of the document and unformats its paragraphs.",
+    "uk": "Знімає жирний шрифт і курсив в усіх цитатах книги: виділяє цитату за цитатою від початку документа й розформатовує її абзаци."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Расформатировать все цитаты от жирности и курсива",
+    "en": "Remove bold and italics from all citations"
+  },
+  "legacy": {
+    "source": "14_Цитаты/058_Расформатировать все цитаты от жирности и курсива.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.5"
+  }
+}

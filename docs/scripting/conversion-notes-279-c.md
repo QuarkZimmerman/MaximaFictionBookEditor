@@ -1219,7 +1219,212 @@ question of the re-selection.
 
 ## 31_Автоматизация
 
-6 scripts in 2.7.9: 6 new, 0 successors of converted packages. Not yet converted or rechecked.
+6 scripts in 2.7.9, all new, all converted here (T066) into the new group `scripts/31_automation/`
+(*Автоматизация*): the three templates of Sclex's *Запуск скриптов по списку* (30, 32, 33), the two
+superscript combos (50, 51) and *Автоматическая чистка простых текстов*, which has no number in 2.7.9;
+its folder has none either (`plain-text-auto-cleanup`), so it sorts after the numbered ones, as in
+2.7.9. Packages `scripts/31_automation/<NN>_<slug>/`, ids `31/<slug>`, `legacy.source` the 2.7.9 path,
+`sourceVersion` from the header (1.5; the clean-up 1.3), names and descriptions in ru, en and uk,
+`needsSelection: false`, the 2.7.9 icon where there is one (33 and the clean-up), `undoLabel` the
+name, and in `index.js` the original's leading comment block verbatim - for the templates and the
+combos built on them, Sclex's whole instruction (`check-notices.py --package`: OK for all 18 scripts
+of this task). None needs a power beyond FR-024: they run scripts (`mfbe.scripts.run`) and show
+messages.
+
+### The runner of the lists
+
+18 scripts of 2.7.9 run other scripts: 05/14, 09/38-39, 13/590, 14/057-062, 31/30, 32, 33, 50, 51, the
+clean-up, 37/06-07. All are built on *Запуск скриптов по списку*.
+
+**The originals.** `Run()` defines a function and starts it with `setTimeout`; `scriptsFolder(...)`
+takes the scripts folder from the `src` of the editor's `userCmd` script element (two path parts cut
+off). `runScriptInFolder(path)` appends the path to that folder, `runScript(path)` takes a full path;
+both set `userCmd.src` to the file - Internet Explorer loads it at once and its `function Run()`
+replaces the page's - and call `Run()`, returning its value (`myRunCmd`; the older `apiRunCmd` of
+05/14 and the clean-up returns nothing). Before loading they put a stand-in `Run()` that shows
+"Скрипт … не был запущен, т.к. не удалось его успешно загрузить. Возможная причина – файл скрипта
+отсутствует по тому пути, где он должен находиться.", so a missing file gives that message and
+`undefined`, and the list goes on. A list is either a sequence of commands - the step-by-step form,
+"пошаговый вариант": the navigation script is followed by `{ … }`, a block, not a condition, so the
+processing scripts run whatever it returned - or `while (runScriptInFolder("…")=="Found") { … }` loops
+over a navigation script of group 16 that returns "Found" / "NotFound" ("множественный автомат"),
+each loop after the script that puts the caret at the start of the document. Every script of a list
+made an undo unit of its own.
+
+**The conversion.** Each package carries `lib/run-list.js` (18 identical copies, md5 `15e95b5b…`):
+`listCommands(ctx)` gives `runScriptInFolder` and `runScript` - one command, `mfbe.scripts.run(ref)`,
+resolving with the callee's `run()` value (`null` for nothing). The list in `index.js` is the
+original's, line for line and with the original's string literals: the resolver ignores separators,
+letter case, a leading backslash and anything up to a `Scripts` folder, and takes an id as well. A
+reference that does not resolve (`scripts.notFound`) shows the original's message (ru/en) and gives
+back nothing, and the list goes on; a callee that needs a selection when there is none
+(`scripts.needsSelection` - none of the callees here) shows the editor's message and gives back
+nothing, as such a script refused in 2.7.9; any other error of a callee ends the run, which leaves the
+book as it was. Every callee works on the selection the previous one left (the chain shares the Body
+view's selection) with `ctx.startedBy: 'script'`. The loops check `ctx.cancelled` and report their
+count with `ui.progress`. The navigation scripts return 2.7.9's strings (group 16's notes, "Run from
+other scripts"); a loop ends with their "nothing found" message, as in 2.7.9.
+
+**Differences that apply throughout:** the whole list is one run - one undo step under its name, one
+Cancel that stops every script of it and restores the book (2.7.9: one undo step per script, and a
+script error left the earlier scripts' changes); the loops report their count as progress.
+
+**The paths the lists name** (checked with the resolver against the packages as they are now). The
+combos of groups 09, 13, 14 and 37 name 2.7.9 files that resolve (16/136, 138, 148, 150, 152, 154,
+19/05, 55, 56, 14/052, 34/001). Five originals name files 2.7.9 itself cannot load; each is a clear
+fix, recorded, the call naming the 2.7.9 path of the script meant: 31/50 and 31/51
+(`16_Поиск форматирования\\12_…` → `012_…`, renumbered), 31/32 (`19_Обработка
+форматирования\\50_Перейти на следующий эпиграф.js` → `16_…\\150_Выделить следующий эпиграф.js`),
+31/33 (`31_Автоматизация\\001_…` → `34_Управление курсором либо выделением\\001_…`;
+`33_Совместимость с Автоматизацией\\52_/48_/24_…` → `16_…\\152_/148_/024_…`), the clean-up (`529_Удаление
+жирности и курсива в заголовках и подзаголовках.js` → `529_Удалить форматирование в заголовках и
+подзаголовках.js`). 31/30's example names `31_Автоматизация\\06_Поиск (без замены) ошибок текста
+(версия с исключениями).js`, which 2.7.9 does not have and whose namesake in group 21 returns no
+"Found": kept as written, an open question. 05/14 names right 2.7.9 paths, but runs
+`05/remove-unused-binaries` by its id (see 05). The commented-out examples in the instructions name
+2.7beta1-era files (`16_…\\52_Перейти на следующую цитату.js` and the like); they stay as written in
+the notice, and the guidance of the templates gives working ones.
+
+**The templates (30, 32, 33)** keep their user-editable list as `runScriptInFolder("<2.7.9 path>")`
+lines - `mfbe.scripts.run` with the original's message for a missing script - between the original's
+"======================" lines (T066). After the original's instruction, kept as written, `index.js`
+has a guidance in English and in Russian: copy the package into one's own scripts folder (with its id
+the copy replaces it in the menu, with an id of its own it appears beside it), the two forms of a list
+with working 2.7.9 paths, `await` before each command, ids and whole installation paths as references,
+the caret script before each loop, the question of the 001-024 scripts at the end of the book (Cancel
+ends such a loop), one run, depth at most 8. A test copy with a list of its own,
+`tests/scripts/fixtures/279/chains/list-copy` (never bundled), checks that guidance:
+`chains/31-list-copy.xml` (list.fb2, `--select n18:0:0`) - `runScript` with
+`C:\\Program Files (x86)\\FictionBook Editor\\Scripts\\19_…\\41_…` makes n18 italic, a path that is not
+there shows the message and the list goes on, a loop by ids (`16/next-title`, `19/paragraphs-to-bold`)
+makes the three titles bold. **Template differences:** `scriptsFolder(...)` and its message for a list
+that sets no folder are gone (the editor finds its scripts); the message for a missing script names the
+path as the list writes it, not the full path on the disk.
+
+**Expected results and tests.** Before any run, the expected book of every snapshot was written from
+the originals' logic: by a transform of the reference book for the loops and steps (the containers the
+navigation selects lose `strong` / `emphasis`, the paragraphs found are wrapped in a cite, …), by hand
+from 19/05's rules for 13/590 and the templates, and for the whole-document combos (05/14, the clean-up)
+as the composition of their scripts, checked by running those scripts one after another as separate
+harness runs, the output of each the input of the next. Every one of the 25 snapshots equals its
+expected book in a canonical form (the block tree, each text block as runs of text with their marks).
+Reference books `tests/scripts/fixtures/279/chains/` (`poems`, `cites`, `whole-paragraphs`, `epigraphs`,
+`titles`, `superscript`, `images`, `plain-text`, `list`; valid against `FictionBook.xsd`); snapshots and
+their runs in `tests/scripts/snapshots/chains/` and its `suite.json`; gate `tests/scripts/run-all.sh
+--group chains`.
+
+**The callees** (the merge re-runs `--group chains` after the rechecks): 05/empty-lines-near-images,
+05/remove-all-binaries, 05/unify-binaries, 05/remove-unused-binaries, 05/remove-image-tags,
+06/remove-styles-and-ids, 06/general-cleanup, 06/unformat-empty-links, 06/external-links-to-plain-text,
+06/remove-fbd-bookmark-links, 06/general-cleanup-alexander-ka, 08/structure-cleanup,
+13/subtitles-empty-lines-plain-titles, 13/remove-title-formatting, 14/paragraphs-to-cite,
+16/next-all-italic-paragraph, 16/next-all-bold-paragraph, 16/next-title, 16/next-epigraph, 16/next-cite,
+16/next-poem, 16/next-paragraph-with-sup, 16/next-paragraph-with-code, 18/unwrap-poem-cite-epigraph,
+19/paragraphs-to-bold, 19/paragraphs-to-italics, 19/paragraphs-to-strikethrough,
+19/paragraphs-to-superscript, 19/paragraphs-remove-bold, 19/paragraphs-remove-italics,
+19/paragraphs-remove-superscript, 34/caret-to-document-start.
+
+### 30 Запуск скриптов по списку
+
+`30_run-scripts-by-list`, `31/run-scripts-by-list`, v1.5, no icon. The template's example, kept as
+written: `while (runScriptInFolder("31_Автоматизация\\06_Поиск (без замены) ошибок текста (версия с
+исключениями).js")=="Found") runScriptInFolder("19_Обработка форматирования\\41_Сформатировать абзац(ы)
+курсивом.js");`. 2.7.9 has no such file in group 31, so 2.7.9 and the conversion show "Скрипт … не был
+запущен…" and the loop ends at once. **Expected and recorded:** `chains/31-run-scripts-by-list.xml`
+(list.fb2): the message ("The script … was not run, since it could not be loaded…"), the book
+unchanged. **Differences:** one run; the template differences above. **Open question:** the namesake
+`21_Поиск и замена/06_…(TaKir-Sclex-stokber).js` (`21/text-errors-with-exceptions`) returns no "Found",
+so pointing the example at it would not run the loop's body either: keep the example, or give the
+template one that works?
+
+### 32 Запуск скриптов по списку_(ПОШАГОВЫЙ вариант)
+
+`32_run-scripts-by-list-step`, `31/run-scripts-by-list-step`, v1.5, no icon. The example: the next
+epigraph (16/next-epigraph), bold (19/paragraphs-to-bold), italic (19/paragraphs-to-italics), then
+*Снять форматирование блочным элементом* (18/unwrap-poem-cite-epigraph). **Fix:** the original's first
+line names `\\19_Обработка форматирования\\50_Перейти на следующий эпиграф.js`, a file 2.7.9 does not
+have; the script meant is `16_Поиск форматирования\\150_Выделить следующий эпиграф.js`, whose earlier
+file the original's own instructions name (`16_Поиск форматирования\\50_Перейти на следующий
+эпиграф.js`). In 2.7.9 the template showed the missing-script message and then made the caret's
+paragraph bold and italic and dissolved the block element around the caret. **Expected and recorded:**
+`chains/31-run-scripts-by-list-step.xml` (epigraphs.fb2, `--select n9:0:0`, the chapter title): the
+first chapter epigraph n10 becomes bold italic, then it is dissolved together with the second epigraph
+(its paragraph, verse, cite paragraph, empty line and text author) and the chapter annotation - seven
+lines in their place, only the first bold italic. **Differences:** one run; the template differences.
+
+### 33 Запуск скриптов по списку_(МНОЖЕСТВЕННЫЙ автомат)
+
+`33_run-scripts-by-list-loops`, `31/run-scripts-by-list-loops`, v1.5, 2.7.9 icon. The example: three
+loops, each after the caret script - every cite (16/next-cite) italic, superscript and dissolved; every
+title (16/next-title) italic and bold; every paragraph with code (16/next-paragraph-with-code) struck
+through and bold. **Fix:** the original names `\\31_Автоматизация\\001_Установить курсор в начало
+документа.js` (three times; 2.7.9: `34_Управление курсором либо выделением\\001_…`) and three scripts
+of a group `33_Совместимость с Автоматизацией` (2.7.9: `16_Поиск форматирования\\152_Выделить
+следующую цитату.js`, `\\148_Выделить следующий заголовок.js`, `\\024_Перейти на следующий абзац,
+содержащий код.js` - the scripts the original's instructions name by their earlier files 52_, 48_
+and 24_ of group 16). In 2.7.9 the template showed the missing-script message six times and changed
+nothing. **Expected and recorded:** `chains/31-run-scripts-by-list-loops.xml` (list.fb2, `--answer ok
+--answer ok --answer cancel`): both cites become italic superscript paragraphs (the first one's text
+author a paragraph too); the three titles bold italic; the three paragraphs with code - one of them the
+former cite's - struck through and bold; "No cite was found…", "No title was found…", and Cancel at 024's
+end-of-book question ends the third loop (OK would go round the book again: the 001-024 scripts ask
+there instead of stopping). **Differences:** one run; the template differences. **Open question:**
+after the fix the shipped example edits the whole book when the template is run unedited (2.7.9 only
+reported missing scripts) - keep it active, or comment it out so that the template does nothing until
+its list is edited?
+
+### 50 По очереди расформатировать абзацы от верхнего индекса (Комбо)
+
+`50_next-paragraph-remove-superscript`, `31/next-paragraph-remove-superscript`, v1.5, no icon. Step
+form: `16/next-paragraph-with-sup` (012, *Перейти на следующий абзац с верхним индексом*: the caret to
+the start of the first superscript of the next paragraph that has one, past the caret's own paragraph;
+at the end of the book the question whether to go on from its start), then
+`19/paragraphs-remove-superscript` (60) on the caret's paragraph (a note link keeps its link). **Fix:**
+the original names `16_Поиск форматирования\\12_Перейти на следующий абзац с верхним индексом.js`; 2.7.9
+renumbered the file `012_…`, so the step showed the missing-script message and then removed the
+superscript of the caret's paragraph; it runs the 2.7.9 path now (group 16's note on the numbering).
+**Reference book** `tests/scripts/fixtures/279/chains/superscript.fb2`: superscript in the book
+annotation's only paragraph, the body title, a paragraph with two, bold superscript, a note link in
+superscript, a verse, a table cell, the last paragraph; a subscript; a note without. **Expected and
+recorded:** `chains/31-next-paragraph-remove-superscript.xml` (`--select n7:0:0`): n8 loses both
+superscripts; `.none.xml` (`--select n18:0:0 --answer cancel`, the last paragraph): the question,
+Cancel, `"NotFound"`, and 60 still removes the caret's paragraph's superscript, as in 2.7.9; `.wrap.xml`
+(`--select n18:0:0 --answer ok`): OK goes on from the start of the book and the annotation's paragraph
+loses its superscript. **Differences:** one undo step and one Cancel. **Open question:** stop after
+"NotFound"?
+
+### 51 Расформатировать абзацы от верхнего индекса (Комбо)
+
+`51_paragraphs-remove-superscript`, `31/paragraphs-remove-superscript`, v1.5, no icon. Whole-document
+form: 001, then while 012 returns "Found", 60. **Fix:** as 50 (`12_` → `012_`); in 2.7.9 the combo showed
+the missing-script message and its loop ended at once, nothing changed. **Expected and recorded**
+(`chains/31-paragraphs-remove-superscript.xml`, superscript.fb2): every superscript goes - the note link
+and the bold stay, the subscript stays; the dialogs in 2.7.9's order: the end-of-book question (OK), the
+book annotation's paragraph (where the caret started, which the search passes) found and done, the
+question again (OK), "Nothing found, the search is finished.". **Differences:** one undo step and one
+Cancel; progress.
+
+### Автоматическая чистка простых текстов
+
+`plain-text-auto-cleanup` (no number, as 2.7.9), `31/plain-text-auto-cleanup`, v1.3 (Sclex), 2.7.9 icon.
+A fixed list (the `apiRunCmd` form): `08/structure-cleanup`, `06/general-cleanup`,
+`06/remove-styles-and-ids`, `06/unformat-empty-links`, `06/external-links-to-plain-text`,
+`06/remove-fbd-bookmark-links`, `13/subtitles-empty-lines-plain-titles` (528),
+`13/remove-title-formatting` (529), `06/general-cleanup-alexander-ka` (68), all by their 2.7.9 paths.
+**Fix:** the original names 529 as `529_Удаление жирности и курсива в заголовках и подзаголовках.js`,
+its name before version 2.0 (its history: "Изменено имя скрипта (было «Удаление жирности/курсива в
+заголовках и подзаголовках»)"); 2.7.9's file is `529_Удалить форматирование в заголовках и
+подзаголовках.js`, which the list now runs. In 2.7.9 the list showed the missing-script message there
+and went on. **Reference book** `tests/scripts/fixtures/279/chains/plain-text.fb2`: a bold body title,
+an italic chapter title with a final dot, a paragraph with a hyphen for a dash, doubled and misplaced
+spaces and "...", empty lines, "* * *", a link with an empty address and an external one, a style, ids,
+an entirely bold subtitle, a note link, an empty section, a note starting with an FBD bookmark link.
+**Expected**, as the composition of the nine scripts, checked by separate runs one after another
+(equal), **and recorded** (`chains/31-plain-text-auto-cleanup.xml`, every report OK): the empty section
+goes; the dash, spaces and ellipsis are corrected; the ids and the style go; both links become text;
+the bookmark link goes; "* * *" becomes a subtitle and the empty lines go; the titles lose their
+formatting and the final dot; the subtitle loses its bold - the effect of the fixed line, the only
+difference from the same run without 529. **Differences:** one undo step and one Cancel.
 
 ## 32_Маркеры сносок
 
@@ -1767,6 +1972,28 @@ node tests/scripts/run-script.mjs $CR $B/unmarked.fb2 --answer "$R|$R|$R|$R|$R|$
 node tests/scripts/run-script.mjs $G/09_epigraph-from-paragraphs $B/from-paragraphs.fb2 --select-range n10:3-n16:4 --snapshot $S/epigraph-from-paragraphs.two-sections.xml
 tests/scripts/run-all.sh --group 37        # 19 snapshots
 ```
+
+### 06 По очереди расформатировать все эпиграфы от жирности и курсива
+
+Package `scripts/37_epigraphs/06_next-epigraph-remove-bold-italics`, id
+`37/next-epigraph-remove-bold-italics`, v1.5 (Sclex), no icon. Step form of the list (see
+31_Автоматизация, "The runner of the lists"): `16/next-epigraph` (150), then 55 and 56 on its text
+blocks. **Reference book** `tests/scripts/fixtures/279/chains/epigraphs.fb2`: a body epigraph with a
+text author, two consecutive chapter epigraphs (the second with a verse, a cite, an empty line and a
+text author), a chapter annotation, a poem's epigraph, a note's epigraph; bold and italics in and
+outside them. **Expected and recorded:** `chains/37-next-epigraph-remove-bold-italics.xml` (`--select
+n23:0:0`): the poem's epigraph n26 loses its italics; `.none.xml` (`--select n34:0:0`): "No epigraph was
+found…", and the caret's paragraph n34 loses its italics, as in 2.7.9. **Differences:** one undo step
+and one Cancel. **Open question:** stop after "NotFound"?
+
+### 07 Расформатировать все эпиграфы от жирности и курсива
+
+Package `scripts/37_epigraphs/07_epigraphs-remove-bold-italics`, id `37/epigraphs-remove-bold-italics`,
+v1.5 (Sclex), no icon. Whole-document form: 001, then while 150 returns "Found", 55 and 56. **Expected
+and recorded** (`chains/37-epigraphs-remove-bold-italics.xml`): every text block of the five epigraphs -
+the body's, both chapter epigraphs with the verse, cite paragraph and text author they hold, the poem's,
+the note's - loses bold and italics; titles, the annotation, paragraphs and the poem's verse keep
+theirs. **Differences:** one undo step and one Cancel; progress.
 
 ## 40_Таблицы
 
