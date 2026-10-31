@@ -1193,13 +1193,13 @@ order and counts, the result as answered (e.g. section 7: lines kept after n76, 
 before n76, n79, n83, n85; Отмена at the third of seven ends kind 005). Direct run
 `empty-lines-next-to-images.xml` (`sections.fb2`, the summary answered Нет): unchanged, no history
 line (no correction).
-Differences: the result window shows no proverb - left out pending the requester's decision (the
+Differences: the result window shows no proverb - left out by the requester's decision (2026-10-31) (the
 original appended a random saying from its list of wartime proverbs; the list is not copied); an
 edit FB2 does not allow there is not made and not counted; a container is dissolved in one step;
 a question shows the place by the selection, not a coloured line; the "B mode" check and the
 refreshing of the pictures have no counterpart; the history line has no user name, by the
 requester's decision (2026-10-31; the original's setting was the placeholder "Зорро", and it also
-read a `fbeUserName` of its main.js). Open question: restore the proverb of the result message?
+read a `fbeUserName` of its main.js).
 
 ### 15 Расставить иллюстрации по заданным местам 1.3, 15 Расставить иллюстрации по заданным местам
 
@@ -1900,13 +1900,13 @@ skipped, the spacing kept. Snapshots `general-cleanup-alexander-ka.ask.xml`, `..
 **Differences.** In a by-hand box Yes with an emptied text counts as No (the original applied the
 proposal); the word is selected instead of coloured; italic and bold together are seen with the
 bold outside (the editor does not keep the source nesting), so 215/216 may count work the
-original did not do, with the same text; the result window shows no proverb: left out pending the
-requester's decision (the dashed line that led into it is shown only before the line of a
+original did not do, with the same text; the result window shows no proverb: left out by the
+requester's decision (2026-10-31) (the dashed line that led into it is shown only before the line of a
 holiday, a countdown or a wish); a history entry (only with `Version_on_off = 1`, off as shipped)
 has no user name, by the requester's decision (2026-10-31): `youName` is `""`, the original's own
 way to an entry without a name ("— <date>" where its placeholder «Зорро» gave "— Зорро, <date>"); no
-snapshot writes one, so none changed. **Open questions:** restore the proverb of the result
-message? The settings at the top stay as written, `youName` excepted; a user copies the package to
+snapshot writes one, so none changed. **Open question:** the settings at the top stay as written,
+`youName` excepted; a user copies the package to
 change them, as one edited the script in FictionBook Editor.
 
 ### 71 Кириллица-латиница
@@ -1944,11 +1944,9 @@ their new history line was `… — (Зорро, 10.05.25)`; nothing else change
 
 **Differences.** Yes with an emptied text counts as No; the word is selected instead of framed and
 coloured (the question still speaks of red characters); the result window shows no proverb: left
-out pending the requester's decision; a calling script may fix the history date; the history line
+out by the requester's decision (2026-10-31); a calling script may fix the history date; the history line
 has no user name (the requester's decision of 2026-10-31; 2.7.9's default was the placeholder
 "Зорро", which FictionBook Editor users changed in the script or in `main.js`).
-**Open question:** restore the proverb of the result message?
-
 ### The regular expressions (JScript and JavaScript)
 
 The originals ran in JScript 5.8 (the WebBrowser control's IE7 document mode: no
@@ -2815,7 +2813,7 @@ Differences:
   place is not shown during the question (the book is written when the script ends); the 311
   question quotes the title line;
 - the automatic version raise and history entry (`Version_on_off`, off in 2.7.9) is not offered;
-- the result message shows no proverb: left out pending the requester's decision (the original
+- the result message shows no proverb: left out by the requester's decision (2026-10-31) (the original
   appended a random wartime proverb from a list in its code);
 - a note or comment link inside formatting simply loses that formatting: the model keeps
   formatting as marks, so where the link sat is not known, and the original's follow-up of
@@ -2830,8 +2828,6 @@ Fixes (rule 8):
 - a picture inside a note or comment link is kept: the code meant to remove the code and style
   formatting inside such links but tested `mSUP.className` instead of `mSPAN[jj].className`, so
   it removed the picture's element too.
-
-Open questions: restore the proverb of the result message?
 
 ### Not converted
 

@@ -74,13 +74,13 @@ Differences:
 - the original saved its text only as its setting `SaveStat` said (0, the default: never; 1: the
   clipboard; 2: a TXT file, each after its question); a bundled script cannot be edited, so both
   questions are asked after the results, one after the other;
-- the result message shows no proverb: left out pending the requester's decision;
+- the result message shows no proverb: left out by the requester's decision (2026-10-31);
 - inline formatting is counted in the editor's terms: an element is a run of text with one mark (bold
   italics: a run that is both), so adjacent elements of one kind count once and the nesting of the
   file does not split them; a note link's formatting is taken as inside the link, which matters only
   for "[N]" and "{N}" written as note links.
 
-Open question: restore the proverb of the result message?
+
 
 Expected (derived from the code before the runs) and recorded, on `statistics.fb2` (94 lines, two
 pages of 47): 49 lines, 129 words, 898 characters; annotation 1 /3/, history 1 /1/, 1 empty line;
@@ -1037,7 +1037,7 @@ titles 3.
 
 Fix: the code and style checks of notes titles tested a variable left over from the previous line;
 they test the title itself (2.7.9 kept "<code>2</code>"). Differences: the proverb of the results
-window is left out pending the requester's decision (277 sayings: the 271 of «Пословицы и
+window is left out by the requester's decision (2026-10-31) (277 sayings: the 271 of «Пословицы и
 поговорки Великой Отечественной войны» plus six about Kursk and Sudzha, among them calls to kill
 "fascists"); mode 2 selects instead of underlining; no Body-view check; no `fbeUserName`; the
 history entry has no user name (the requester's decision of 2026-10-31). Open questions, kept:
@@ -2765,12 +2765,12 @@ Differences:
   then only repeats it);
 - the word is selected in the Body view; the original framed and coloured it and its letter and
   scrolled it to a set height of the window (`Raspolozhenie`, not carried over);
-- the result message shows no proverb: left out pending the requester's decision;
+- the result message shows no proverb: left out by the requester's decision (2026-10-31);
 - the original's check that the Body view ("B" mode) is shown has no counterpart;
 - the history line carries no user name, by the requester's decision (2026-10-31; 2.7.9's default
   was the placeholder «Зорро»).
 
-Open question: restore the proverb of the result message?
+
 
 Reference book `yo-e.fb2`: "Все" in the annotation, a history line naming v.1.0, "Небо … мел",
 "Всё … все", "НЕБО и Небо", "Ёлка, ещё одна ёлка и Ёжик.", "<emphasis>мел</emphasis> … нёбо", a

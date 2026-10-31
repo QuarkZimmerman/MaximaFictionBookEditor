@@ -167,6 +167,9 @@ own page or view stay out of the bundle: 05's refresh of the pictures (*Обно
 top-level reading mode (*Режим чтения*). Their reasons and what each would need are in the
 inventory and in the group notes.
 
+**Proverbs (requester, 2026-10-31).** The random wartime proverbs some 2.7.9 scripts add to
+their result messages stay out; their lists are not copied.
+
 **Left out by the requester's decision (2026-10-31).** Scripts that have nothing to do with editing
 the book are not bundled: 99's quote phrasetron (*Цитатный фразотрон*) and Bulls and Cows game
 (*Быки и коровы*), 10's obscene words statistics (*Статистика нецензурных слов*) and 21's search

@@ -1926,16 +1926,14 @@
       "status": "new",
       "predecessor": null,
       "differences": [
-        "The result message shows no proverb: left out pending the requester's decision (the original appended a random saying from its list of wartime proverbs; the list is not copied into the package).",
+        "The result message shows no proverb: left out by the requester's decision (2026-10-31) (the original appended a random saying from its list of wartime proverbs; the list is not copied into the package).",
         "An edit FB2 does not allow there is neither made nor counted: removing an empty line that would leave a section with its title alone, dissolving a container whose content may not stand in its place (an empty line in a body or a poem); 2.7.9 made them and the book became invalid.",
         "A cite or poem around a picture line is dissolved in one step (with its stanza), and the verse becomes a paragraph, as 2.7.9 saved it.",
         "During a question the place is shown by the selection (scrolled into view) instead of a lilac or red highlight of the line; the original's 'B mode' (Body view) check and its refreshing of the pictures have no counterpart, scripts edit the book itself.",
         "By the requester's decision (2026-10-31) the history line carries no user name: the setting youName is empty, the original's own way to a line without a name, so the line reads \"v.<new version> —  Скрипт: «Пустые строки рядом с иллюстрациями» 2.1 — (<date>)\" and a line of the last ten days is extended when it ends \"— (<date>)\"; 2.7.9's default was the placeholder 'Зорро' (\"— (Зорро, <date>)\"), and the original also took a fbeUserName variable of its main.js when there was one, which the editor has not. A script that runs this one may pass the settings in ctx.args (youName among them), and 'today' (YYYY-MM-DD), the date of the history line (the tests do)."
       ],
       "fixes": [],
-      "openQuestions": [
-        "Restore the proverb of the result message?"
-      ]
+      "openQuestions": []
     },
     {
       "source": "05_Иллюстрации/14_Удалить все иллюстрации, их тэги и пустые строки (комбо).js",
@@ -2992,14 +2990,13 @@
         "In an input box of the by-hand passes (901, 911, 921), Yes with an emptied text counts as No (the editor's Yes / No / Cancel box returns the same empty answer for both); the original applied its proposal.",
         "The word in question is selected instead of being coloured on the page.",
         "A block formatted with both italic and bold is seen by the expressions with the bold outside the italic: the editor keeps formatting as marks and does not keep the nesting of the source, so operations 215/216 (tangled tags) may report work the original did not do; the text and its formatting end up the same.",
-        "The result window shows no proverb: left out pending the requester's decision.",
+        "The result window shows no proverb: left out by the requester's decision (2026-10-31).",
         "Inline pictures are seen in the page's form (<SPAN class=image ...><IMG ...></SPAN>) and inline elements unknown to FB2 as <X n> placeholders (the page showed them as <span class=unknown_element>).",
         "Its regular expressions are kept as written and compiled by lib/jscript-regexp.js with JScript's meaning of \\s ([\\t\\n\\v\\f\\r ], no U+00A0 or other Unicode spaces) and of . ([^\\n]); the other constructs they use mean the same in both engines. Here this matters: the code works with the non-breaking spaces as U+00A0 characters, which ECMAScript's \\s matches, so several operations (562, 601, 730, 744, 760...) would match the non-breaking spaces the script itself inserts again and count them twice.",
         "By the requester's decision (2026-10-31) a history entry carries no user name: youName is \"\" in engine.js, the original's own way to an entry without a name (described under the setting), so the entry (written only with Version_on_off = 1, off as shipped) reads \"v.<new version> —  Скрипт: «Текст-корректор» 3.15 — <date>\" and a recent entry is extended when it ends \"— <date>\"; 2.7.9's default was the placeholder \"Зорро\", which FictionBook Editor users changed in the script or replaced with a fbeUserName of main.js."
       ],
       "fixes": [],
       "openQuestions": [
-        "Restore the proverb of the result message?",
         "The settings at the top of the original (Version_on_off = 0, ObrabotkaHistory_on_off = 1, _format_ = 1, formatRazrjadki = 1...) are kept as written, youName excepted (empty, by the requester's decision of 2026-10-31); a user who wants other settings copies the package, as in FictionBook Editor one edited the script."
       ]
     },
@@ -3024,15 +3021,13 @@
       "differences": [
         "In the by-hand input boxes, Yes with an emptied text counts as No; the original applied its proposal.",
         "The word to correct is selected instead of being framed with its foreign letters coloured red; the question still speaks of the red characters, as the original's text does.",
-        "The result window shows no proverb: left out pending the requester's decision.",
+        "The result window shows no proverb: left out by the requester's decision (2026-10-31).",
         "A script that runs this one through mfbe.scripts.run may pass { today: \"YYYY-MM-DD\" }, the date of the history entry (used by the snapshot suite); otherwise it is today's date, as in the original.",
         "Its regular expressions are kept as written and compiled by lib/jscript-regexp.js with JScript's meaning of \\s ([\\t\\n\\v\\f\\r ], no U+00A0 or other Unicode spaces) and of . ([^\\n]); the other constructs they use mean the same in both engines.",
         "By the requester's decision (2026-10-31) the history entry carries no user name: youName is \"\" in engine.js, the original's own way to an entry without a name (described under the setting), so the entry reads \"v.<new version> —  Скрипт: «Кириллица-латиница» 1.6 — (<date>)\" and a recent entry is extended when it ends \"— (<date>)\"; 2.7.9's default was the placeholder \"Зорро\", which FictionBook Editor users changed in the script or replaced with a fbeUserName of main.js."
       ],
       "fixes": [],
-      "openQuestions": [
-        "Restore the proverb of the result message?"
-      ]
+      "openQuestions": []
     },
     {
       "source": "07_Символы/01_Спецсимволы.js",
@@ -3457,7 +3452,7 @@
         "A section left with its title and a picture only (the picture taken out of the only paragraph of a titled section) gets an <empty-line/> after the picture, so that it stays valid FB2; 2.7.9 left the section without text.",
         "With the settings that ask about single places (311 in ask mode; 503, the title made from a body's name, when merging bodies) the place is not shown while the question is open: the book is written when the script ends. The 311 question quotes the title line instead.",
         "The automatic version raise and history entry of the original's settings (Version_on_off, off in 2.7.9) is not offered.",
-        "The result message shows no proverb: left out pending the requester's decision.",
+        "The result message shows no proverb: left out by the requester's decision (2026-10-31).",
         "A note or comment link that sat inside formatting simply loses that formatting: the editor keeps formatting as marks, so where the link sat in the formatting is not known, and the original's follow-up of moving the spaces at the edges of the split formatting out of it (re323) is not made.",
         "The superscript of a comment link is written in the editor's order of marks, not necessarily inside the link as the original wrote it."
       ],
@@ -3465,9 +3460,7 @@
         "A picture that is a link (a note marker or a hyperlink) is not taken out of its paragraph (231, 232 and 301 leave it). The settings at the top of the original say that such pictures are not processed, but its expression removed every tag around the picture, the link included, so the picture lost its link and became a block picture.",
         "A picture inside a note or comment link is kept. The original meant to remove the code and style formatting inside such links but tested mSUP.className instead of mSPAN[jj].className, so it removed the picture's own element too and the picture was lost on saving."
       ],
-      "openQuestions": [
-        "Restore the proverb of the result message?"
-      ]
+      "openQuestions": []
     },
     {
       "source": "08_Структура разделов/21_Добавить секцию в начало книги.js",
@@ -3898,13 +3891,11 @@
       "predecessor": null,
       "differences": [
         "the original saved its text only as its setting SaveStat said (0, the default: never; 1: to the clipboard; 2: to a TXT file, each after its question); a bundled script cannot be edited, so both questions are asked after the results, one after the other: copy the text to the clipboard (mfbe.clipboard.writeText), then save it as a TXT file in UTF-16 LE through the editor's Save dialog (mfbe.files.saveText, proposing 'Общая статистика (<date> <time>).txt')",
-        "the result message shows no proverb: left out pending the requester's decision",
+        "the result message shows no proverb: left out by the requester's decision (2026-10-31)",
         "inline formatting is counted in the editor's terms: an element is a run of text that carries one mark (bold italics: a run that is both italic and bold), so adjacent elements of one kind count once and the nesting of the file does not split them; 2.7.9 counted the elements of its page as the file nested them. A note link's formatting is taken as inside the link, which matters only for '[N]' and '{N}' written as note links ('…]</A>', '…}</SUP></A>')"
       ],
       "fixes": [],
-      "openQuestions": [
-        "restore the proverb of the result message?"
-      ]
+      "openQuestions": []
     },
     {
       "source": "10_Статистика/10_Статистика нецензурных слов.js",
@@ -4938,7 +4929,7 @@
       "status": "new",
       "predecessor": null,
       "differences": [
-        "The random proverb the original appended to its results window is left out, pending the requester's decision: the list (277 sayings, the 271 of the book «Пословицы и поговорки Великой Отечественной войны» plus six about Kursk and Sudzha) includes calls to kill \"fascists\".",
+        "The random proverb the original appended to its results window is left out, by the requester's decision (2026-10-31): the list (277 sayings, the 271 of the book «Пословицы и поговорки Великой Отечественной войны» plus six about Kursk and Sudzha) includes calls to kill \"fascists\".",
         "In the \"show\" mode (setting 2) the line is selected in the Body view instead of being underlined in red and scrolled with the window's measures; the Да / Нет / Отмена browsing is a message with three buttons. The original's check that the Body (\"B\") view is shown has no counterpart.",
         "The history entry (setting Version_on_off, off by default) carries no user name, by the requester's decision (2026-10-31): youName is empty, the original's own way to a line without a name, so the entry reads \"v.<new version> —  Скрипт: «Удаление форматирования в заголовках и подзаголовках» 2.4 — <date>\" and a recent line is extended when it ends \"— <date>\"; 2.7.9's default was the placeholder \"Зорро\", and the original's override by a global fbeUserName of main.js does not exist.",
         "The expressions run on the legacy inline-HTML notation, where formatting with a language (which 2.7.9 did not keep) is written with lang=... and is left alone, as in the other converted scripts."
@@ -8012,14 +8003,12 @@
       "differences": [
         "the question for each word was an input box with Yes, No and Cancel, an empty field and typed commands (a minus before Yes undid the last answer, several minuses several answers, any other text stopped the work); it is a message with the buttons Yes, No, Cancel, Step back (one answer per press) and Stop (followed by the original's question whether to stop), and in the de-yo-fication by groups Yes, No, Cancel (followed by the question whether to stop the script) and Step back. The script API's input box gives '' for No and for Yes with an empty field, so it cannot carry the original's Yes; the help windows ('Окно Управление') describe the buttons",
         "the word in question is selected in the Body view; the original framed and coloured it and its letter and scrolled it to a set height of the window (the setting Raspolozhenie, not carried over)",
-        "the result message shows no proverb: left out pending the requester's decision",
+        "the result message shows no proverb: left out by the requester's decision (2026-10-31)",
         "the original's check that the Body view ('B' mode) is shown has no counterpart: scripts work on the book itself",
         "by the requester's decision (2026-10-31) the history line carries no user name: youName is '', the original's own way to a line without a name, so the line reads \"v.<new version> —  Скрипт: «Разночтения Ё/Е» 2.2 — <date>\" and a line of the last ten days is extended when it ends \"— <date>\"; 2.7.9's default was the placeholder «Зорро» for the user's own name (main.js's fbeUserName, which 2.7.9 does not define)"
       ],
       "fixes": [],
-      "openQuestions": [
-        "restore the proverb of the result message?"
-      ]
+      "openQuestions": []
     },
     {
       "source": "18_Мелочи редактирования/39_Исправление крякозябров (кривые кодировки).js",
@@ -9022,12 +9011,10 @@
       "status": "new",
       "predecessor": null,
       "differences": [
-        "The result window shows no proverb: left out pending the requester's decision (the original added a random saying from a list of wartime proverbs; the list is not copied)."
+        "The result window shows no proverb: left out by the requester's decision (2026-10-31) (the original added a random saying from a list of wartime proverbs; the list is not copied)."
       ],
       "fixes": [],
-      "openQuestions": [
-        "Restore the proverb of the result message?"
-      ]
+      "openQuestions": []
     },
     {
       "source": "21_Поиск и замена/16_Скрипт-конструктор (поиск) - пример.js",
@@ -9048,11 +9035,10 @@
       "status": "new",
       "predecessor": null,
       "differences": [
-        "The result window shows no proverb: left out pending the requester's decision (the original added a random saying from a list of wartime proverbs; the list is not copied)."
+        "The result window shows no proverb: left out by the requester's decision (2026-10-31) (the original added a random saying from a list of wartime proverbs; the list is not copied)."
       ],
       "fixes": [],
       "openQuestions": [
-        "Restore the proverb of the result message?",
         "The \"Неразрывный пробел\" operation (and the \"&nbsp;\" alternative of \"Пробелы\") counts the text \"&nbsp;\", which the text of a paragraph never holds with FictionBook Editor's default non-breaking-space setting, so it counts none, as in 2.7.9 - should it count U+00A0?"
       ]
     },
@@ -9732,7 +9718,7 @@
         "The caret goes to the start of the new body's title, which brings it into view (2.7.9 only scrolled there); a name in error is selected instead of coloured.",
         "The reminder about the caret in a field of the Description form (setting Napominanie) and the setting for the window's height (Vysota_teksta) are gone, and so are the window's pages: the editor has no such crash and its message box scrolls.",
         "By the requester's decision (2026-10-31) the history line carries no user name: the setting youName is empty (2.7.9's default was the placeholder \"Зорро\"), the original's own way to a line without a name, so the line reads \"v.<new version> —  Скрипт: «Редакция описания документа» 1.1 — <date>\" and a line of the last ten days is extended when it ends \"— <date>\"; a global fbeUserName in main.js is not read (there is no main.js).",
-        "The window of results is one message box in Russian or English; the results show no proverb: left out pending the requester's decision.",
+        "The window of results is one message box in Russian or English; the results show no proverb: left out by the requester's decision (2026-10-31).",
         "Fields that the body's text does not hold come back for the names left unchanged: a translator's or document author's id and the second and further e-mails and home pages (2.7.9's Description form held none of them, so FictionBook Editor lost them), and a sequence's language.",
         "A sequence number that is not an integer is left out: the editor's model, like FB2, holds integers only; 2.7.9 wrote the text as typed.",
         "Another script may run it with settings of its own (the names of its section НАСТРОЙКИ) and today (YYYY-MM-DD) in the args of mfbe.scripts.run; the suite's reference runs use this for both steps in one run and for a fixed history date."
@@ -9744,8 +9730,7 @@
         "A language copied from the source language of <title-info> into <src-title-info> is reported as 'Язык' (2.7.9 reported 'Язык оригинала')."
       ],
       "openQuestions": [
-        "Answering Yes to 'Прервать выполнение скрипта?' (a name with one separator too many) keeps what the second step wrote before that name, raises the version with a history line, and keeps the body: kept as 2.7.9 behaves. Should Yes rather leave the description as it was?",
-        "Restore the proverb of the result message?"
+        "Answering Yes to 'Прервать выполнение скрипта?' (a name with one separator too many) keeps what the second step wrote before that name, raises the version with a history line, and keeps the body: kept as 2.7.9 behaves. Should Yes rather leave the description as it was?"
       ]
     },
     {

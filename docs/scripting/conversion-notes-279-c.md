@@ -247,9 +247,8 @@ no operations. Same paragraph order, flags, JScript `RegExp` and `nbspEntity` as
 `search-script-builder.xml`; the window shows 11 lines (annotation, history and 9 body paragraphs,
 the empty line counted), the counting section dropped as the original drops it when empty.
 Difference: the window shows no proverb - the original added a random saying from a list of
-wartime proverbs; it is left out pending the requester's decision and the list is not copied
-(`Poslovitsa_on_off` is kept with a note, without effect). Open question: restore the proverb of
-the result message?
+wartime proverbs; it is left out by the requester's decision (2026-10-31) and the list is not copied
+(`Poslovitsa_on_off` is kept with a note, without effect).
 
 ### 16 Скрипт-конструктор (поиск) - пример
 
@@ -260,7 +259,7 @@ settings). Snapshot `search-script-builder-example.xml` on `script-builder.fb2`;
 lines and only the non-zero counts (demonstration mode off): Russian letters 159, А 22, Б 3, В 11,
 Г 6, Д 3, Е 10, Ё 2, З 4, И 9, К 8, Л 7, М 5, Н 10, О 11, П 5, Р 11, С 8, Т 7, У 3, Х 1, Ц 2, Ч 2,
 Ы 4, Я 5, Latin letters 7, R 4, X 1, Y 1, Z 1, spaces 27, ordinary spaces 27 - every figure equal to
-an independent count over the same texts. Difference and open question as 15 (proverb). Open
+an independent count over the same texts. Difference as 15 (proverb). Open
 question: "Неразрывный пробел" (and the `&nbsp;` alternative of "Пробелы") look for the text
 "&nbsp;", which the text never holds with the default setting, so they count none, as in 2.7.9 -
 count U+00A0 instead?
@@ -942,7 +941,7 @@ code:
   window's pages are gone; the message box scrolls.
 - The history line has no user name, by the requester's decision (2026-10-31): `youName` is empty
   (2.7.9's default was the placeholder «Зорро»). main.js's `fbeUserName` is not read.
-- The results show no proverb: left out pending the requester's decision. 2.7.9 closed the
+- The results show no proverb: left out by the requester's decision (2026-10-31). 2.7.9 closed the
   window with a random saying from its own list of wartime proverbs, which is not in the package.
 - Fields that the text does not hold come back for the names left unchanged: a translator's or
   document author's id, further e-mails and home pages, a sequence's language. 2.7.9's form did
@@ -962,7 +961,6 @@ code:
 - Answering Yes to "Прервать выполнение скрипта?" keeps what step 2 wrote before that name,
   raises the version and keeps the body, as 2.7.9 does. Should Yes rather leave the description
   as it was?
-- Restore the proverb of the result message?
 
 ## 30_'Числовые' скрипты
 
