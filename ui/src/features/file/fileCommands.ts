@@ -685,14 +685,22 @@ export class FileFeature {
           continue;
         }
         this.lastSaveAt = Date.now();
+        // The file holds the document as it was when the save began. A key typed while the core
+        // wrote it moved the store's model on: that edit stays, and the book stays modified
+        // (feature 007, US2: no key loses the user's work). Another document opened meanwhile
+        // is left alone.
+        const after = store.getState();
+        if (after.docId !== current.docId || !after.document) return true;
+        const editedMeanwhile = after.document !== current.document;
         const saved: Document = {
-          ...current.document,
+          ...after.document,
           path: result.path,
           sourceEncoding: result.encoding,
           fileKind: kindFromPath(result.path),
         };
         store.setState({ document: saved });
         actions.markSaved(store, result.path, saved.fileKind);
+        if (editedMeanwhile) store.setState({ modified: true, sourceDirty: after.sourceDirty });
         actions.setStatusMessage(
           store,
           result.validation.errorCount === 0

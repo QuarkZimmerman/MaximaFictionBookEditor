@@ -360,6 +360,8 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   word, for example - dropped the word's formatting; the new text keeps it, as typing does.
 - 222 defects of the classic scripts, found while converting or rechecking them, are fixed where
   their intent was clear; the conversion notes list each one with the open questions.
+- An edit typed while the book was being saved was lost when the save finished, and the book was
+  marked saved; the edit now stays and the book stays modified until it is saved again.
 
 ## 0.0.5 - 2026-10-23
 

@@ -415,6 +415,44 @@ describe('file flows (T052)', () => {
     });
   });
 
+  it('Save: an edit made while the save runs stays, and the book stays modified (feature 007, US2)', async () => {
+    let duringSave: (() => void) | null = null;
+    const { feature, rpc } = setup({
+      'doc.save': (params: { encoding?: string; path?: string }) => {
+        duringSave?.();
+        return {
+          path: params.path,
+          encoding: params.encoding,
+          converted: [],
+          validation: CLEAN_REPORT,
+        };
+      },
+    });
+    const ctx = await makeContext({ rpc: rpc.client });
+    actions.setConnection(ctx.store, 'connected');
+    actions.setSettings(ctx.store, settings({ defaultEncoding: 'utf-8', keepEncoding: false }));
+    actions.setDocument(ctx.store, fakeDocument());
+    actions.setModified(ctx.store, true);
+    // A key typed while the core writes the file: the store's model moves on.
+    const before = ctx.store.getState().document!;
+    const edited = { ...before, binaries: [...before.binaries] };
+    duringSave = () => actions.updateDocument(ctx.store, edited);
+
+    expect(await feature.saveDocument(ctx, {})).toBe(true);
+    let state = ctx.store.getState();
+    expect(state.document?.binaries).toBe(edited.binaries);
+    expect(state.document?.path).toBe('/books/alpha.fb2');
+    expect(state.document?.sourceEncoding).toBe('utf-8');
+    // The file holds the book as it was when the save began, so the edit is still unsaved.
+    expect(state.modified).toBe(true);
+
+    duringSave = null;
+    expect(await feature.saveDocument(ctx, {})).toBe(true);
+    state = ctx.store.getState();
+    expect(state.modified).toBe(false);
+    expect(state.document?.binaries).toBe(edited.binaries);
+  });
+
   it('Save As: the document kind selected, the Save encoding first, the chooser when the dialog gives none', async () => {
     const { feature, rpc, dialogs } = setup({
       'dialog.saveFile': { path: '/books/out.fbd' },
