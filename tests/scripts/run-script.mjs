@@ -46,7 +46,8 @@
  * `tests/scripts/run-all.mjs` runs every snapshot of `snapshots/suite.json` through this file.
  *
  * Normalisation: CRLF -> LF, trailing whitespace trimmed, the `<program-used>`, `<date>` and
- * `<id>` of document-info and binary payloads elided so snapshots do not drift.
+ * `<id>` of document-info and binary payloads elided so snapshots do not drift; in the recorded
+ * outputs (clipboard, files, report windows) the editor's version label is elided as well.
  */
 
 import { spawn } from "node:child_process";
@@ -748,7 +749,28 @@ async function collectOutputs(page, outputDir, clipboardBefore) {
     }),
   );
   if (reports.length > 0) outputs.reports = reports;
-  return Object.keys(outputs).length > 0 ? outputs : null;
+  return Object.keys(outputs).length > 0 ? normaliseOutputs(outputs) : null;
+}
+
+/**
+ * The editor's own version label in what a run produced - the clipboard, a saved text file, a
+ * report window - as the XML snapshots blank `<program-used>`: "Maxima Fiction Book Editor
+ * 0.0.6-rc" (a book's program-used, a script's statistics) becomes "Maxima Fiction Book Editor
+ * …", so that a snapshot does not change with every version.
+ */
+const VERSION_LABEL =
+  /Maxima Fiction Book Editor \d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.]+)?/g;
+
+function normaliseOutputs(value) {
+  if (typeof value === "string")
+    return value.replace(VERSION_LABEL, "Maxima Fiction Book Editor …");
+  if (Array.isArray(value)) return value.map(normaliseOutputs);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([k, v]) => [k, normaliseOutputs(v)]),
+    );
+  }
+  return value;
 }
 
 if (
