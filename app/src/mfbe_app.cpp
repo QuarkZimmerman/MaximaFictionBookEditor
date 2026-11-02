@@ -1,5 +1,6 @@
 #include "mfbe_app.h"
 
+#include "copy_bridge.h"
 #include "core_host.h"
 #include "dialog_provider.h"
 #include "include/base/cef_logging.h"
@@ -99,6 +100,9 @@ void MfbeApp::OnBeforeCommandLineProcessing(const CefString& process_type,
     if (!process_type.empty()) {
         return;  // browser process only; sub-processes inherit what Chromium gives them
     }
+    if (!config_.relay_payload.empty()) {
+        command_line->AppendSwitchWithValue("mfbe-request", config_.relay_payload);
+    }
     if (config_.no_sandbox && !command_line->HasSwitch("no-sandbox")) {
         command_line->AppendSwitch("no-sandbox");
     }
@@ -194,23 +198,22 @@ CefRefPtr<CefClient> MfbeApp::GetDefaultClient() {
 bool MfbeApp::OnAlreadyRunningAppRelaunch(CefRefPtr<CefCommandLine> command_line,
                                           const CefString& current_directory) {
     CEF_REQUIRE_UI_THREAD();
+    (void)current_directory;
 
-    // Re-parse the second instance's command line with the shell grammar and forward FILEs
-    // (relative to the second instance's working directory). Its other options are ignored:
-    // the running instance keeps its language, sandbox and display settings.
+    // Feature 008 (contracts/cli.md §3): only the editor's own --mfbe-request switch is read;
+    // every other switch and argument of the relayed line is ignored. A start without books never
+    // relays (it opens a new copy), so a line without the switch only raises the window.
     std::vector<CefString> argv;
     command_line->GetArgv(argv);
     std::vector<std::string> args;
     for (size_t i = 1; i < argv.size(); ++i) {
         args.push_back(argv[i].ToString());
     }
-    const std::vector<std::string> paths =
-        relaunchFilePaths(args, mfbe::platform::path_from_utf8(current_directory.ToString()));
-    if (!paths.empty() && core_host_ != nullptr) {
-        core_host_->notifyOpenPaths(paths);
+    if (const auto request = parseRelayedRequest(args); request && core_host_ != nullptr) {
+        core_host_->notifyOpenRequest(*request);
     }
     if (MfbeClient* client = MfbeClient::GetInstance()) {
-        client->ShowMainWindow();  // plain relaunch without FILEs: just raise the window
+        client->ShowMainWindow();
     }
     return true;  // handled; do not open a default Chrome window
 }

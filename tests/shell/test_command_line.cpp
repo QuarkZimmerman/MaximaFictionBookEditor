@@ -127,3 +127,19 @@ TEST_CASE("command line: --version names the version label and the build id", "[
     CHECK(build_id.substr(0, label.size() + 1) == label + "+");
     CHECK(std::regex_match(build_id.substr(label.size() + 1), std::regex("[0-9a-f]{10}|unknown")));
 }
+
+TEST_CASE("command line: the copies' internal switches (feature 008)", "[command-line]") {
+    using mfbe::shell::parseArguments;
+    auto r = parseArguments({"--mfbe-new-copy", "book.fb2"});
+    REQUIRE(r.status == mfbe::shell::ParseStatus::kRun);
+    CHECK(r.options.force_new_copy);
+    CHECK(r.options.files == std::vector<std::string>{"book.fb2"});
+    r = parseArguments({"--mfbe-slot=3"});
+    REQUIRE(r.status == mfbe::shell::ParseStatus::kRun);
+    CHECK(r.options.forced_slot == 3);
+    CHECK(parseArguments({"--mfbe-slot=0"}).status != mfbe::shell::ParseStatus::kRun);
+    CHECK(parseArguments({"--mfbe-slot=x"}).status != mfbe::shell::ParseStatus::kRun);
+    CHECK(parseArguments({"--mfbe-request=abc"}).status == mfbe::shell::ParseStatus::kRun);
+    CHECK(parseArguments({"--mfbe-unknown"}).status != mfbe::shell::ParseStatus::kRun);
+    CHECK(mfbe::shell::usageText().find("mfbe-") == std::string::npos);
+}

@@ -42,6 +42,7 @@
 
 #include "clipboard_bridge.h"
 #include "command_line.h"
+#include "copy_bridge.h"
 #include "core_host.h"
 #include "dialog_provider.h"
 #include "file_dialog_platform.h"
@@ -243,6 +244,40 @@ void startSelfTest(const std::string& which, std::shared_ptr<NativeDialogs> dial
 }
 #endif  // MFBE_SHELL_TEST_HOOKS
 
+// Feature 008 (contracts/cli.md §3): hands the books to the copy of `copy.slot` through the
+// engine's relay - the engine started with that copy's profile finds it running and forwards
+// this start's command line, with --mfbe-request appended by MfbeApp - and starts no core. If
+// that copy ended between the choice and the relay, this process would own its profile: it then
+// shuts the engine down again and starts a new copy with the books instead.
+int relayToCopy(const CefMainArgs& main_args, void* sandbox_info, const CopyStart& copy,
+                const ShellOptions& options, const std::vector<std::string>& books) {
+    CefSettings settings;
+    settings.no_sandbox = 1;  // a relaying start creates no renderer
+    settings.command_line_args_disabled = 1;
+    CefString(&settings.root_cache_path) = mfbe::platform::utf8_from_path(copy.profile_dir);
+    CefString(&settings.cache_path) = mfbe::platform::utf8_from_path(copy.profile_dir);
+    settings.log_severity = LOGSEVERITY_DISABLE;
+    AppConfig app_config;
+    app_config.no_sandbox = true;
+    app_config.ozone_platform = options.ozone_platform;
+    app_config.relay_payload = copy.payload;
+    CefRefPtr<MfbeApp> app(new MfbeApp(app_config, nullptr, nullptr));
+    if (!CefInitialize(main_args, settings, app.get(), sandbox_info)) {
+        std::string message;
+        return mapEarlyExitCode(CefGetExitCode(), &message);
+    }
+    CefShutdown();
+    std::vector<std::string> args = {"--mfbe-new-copy"};
+    args.insert(args.end(), books.begin(), books.end());
+    std::string reason;
+    const std::string program = relaunchProgram(envString("APPIMAGE"), currentExecutable());
+    if (!spawnDetached(program, args, &reason)) {
+        std::fprintf(stderr, "mfbe: could not start a new copy: %s\n", reason.c_str());
+        return 1;
+    }
+    return 0;
+}
+
 }  // namespace
 
 int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const* argv,
@@ -306,14 +341,36 @@ int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const*
     std::filesystem::path profile_dir;  // CEF root_cache_path
     std::filesystem::path log_dir;
     std::filesystem::path temp_profile;
+    std::optional<CopyWindowRect> new_copy_placement;  // feature 008, research R6
     if (dev_url_mode) {
         // Developer runs never touch the user's profile.
         temp_profile = makeTempProfileDir();
         profile_dir = temp_profile / "cef";
         log_dir = temp_profile / "logs";
     } else {
-        profile_dir = dirs.data / "cef";
+        // Feature 008 (contracts/shell.md §1): decide before any engine or core starts. A start
+        // with books while a copy responds relays them and exits; otherwise this start is a new
+        // copy in the lowest free slot, with that slot's engine profile.
+        std::vector<std::string> books;
+        for (const auto& file : options.files) {
+            std::error_code ec;
+            const std::filesystem::path absolute =
+                std::filesystem::absolute(mfbe::platform::path_from_utf8(file), ec);
+            books.push_back(ec ? file
+                               : mfbe::platform::utf8_from_path(absolute.lexically_normal()));
+        }
+        const CopyStart copy =
+            decideCopyStart(dirs.data, books, options.force_new_copy, options.forced_slot);
+        if (!copy.ok) {
+            std::fprintf(stderr, "mfbe: no free copy slot (too many copies run)\n");
+            return 1;
+        }
+        if (copy.relay) {
+            return relayToCopy(main_args, sandbox_info, copy, options, books);
+        }
+        profile_dir = copy.profile_dir;
         log_dir = dirs.logs;
+        new_copy_placement = copy.placement;
     }
     if (!ensureDirectory(profile_dir) || !ensureDirectory(log_dir)) {
         std::fprintf(stderr, "mfbe: cannot create the profile directory %s\n",
@@ -483,6 +540,16 @@ int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const*
     // window.cpp clamps it to the display's work area.
     app_config.window_placement =
         options.window_geometry ? options.window_geometry : core_host->windowPlacement();
+    if (!options.window_geometry && new_copy_placement) {
+        // Feature 008 (D7): beside the copy used last, or at its normal place when maximized.
+        WindowPlacement beside;
+        beside.x = new_copy_placement->x;
+        beside.y = new_copy_placement->y;
+        beside.width = new_copy_placement->w;
+        beside.height = new_copy_placement->h;
+        beside.maximized = false;
+        app_config.window_placement = beside;
+    }
 #if defined(MFBE_SHELL_DEVTOOLS)
     app_config.devtools_enabled = true;
 #else
@@ -539,6 +606,7 @@ int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const*
     if (hooks.after_shutdown != nullptr) {
         hooks.after_shutdown();
     }
+    releaseCopy();  // feature 008: this copy's record goes; its slot lock goes with the process
     removeDirectory(temp_profile);
     return exit_code;
 }

@@ -8,6 +8,7 @@
 // `--url` developer override so the shell can be built and smoke-tested before the core lands.
 #pragma once
 
+#include "copy_bridge.h"
 #include "window_placement.h"
 
 #include <filesystem>
@@ -86,6 +87,8 @@ public:
     // Forwards paths from a second instance / OS "Open with" / drag-and-drop / macOS
     // open-file events (app.openPaths notification).
     virtual void notifyOpenPaths(const std::vector<std::string>& paths) = 0;
+    // Feature 008: a request relayed from another start (app.openRequest).
+    virtual void notifyOpenRequest(const RelayedRequest& request) = 0;
 
     // Close handshake of the main window (feature 003 FR-013): asks the UI to close through the
     // core (app.closeRequested); the UI runs its quit flow - cancel-script prompt, save prompt -

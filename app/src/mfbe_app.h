@@ -29,7 +29,10 @@ class CoreHost;
 class NativeDialogs;
 
 struct AppConfig {
-    std::string url;                      // initial URL of the main window
+    std::string url;  // initial URL of the main window
+    // Feature 008: a start that hands books to a running copy appends --mfbe-request=<this> to
+    // the command line the engine's relay forwards (contracts/cli.md §3); empty otherwise.
+    std::string relay_payload;
     std::string app_origin;               // loopback origin that may be navigated
     std::filesystem::path resources_dir;  // for window icons
     bool devtools_enabled = false;        // a developer run: the developer tools pass the gate

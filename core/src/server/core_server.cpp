@@ -426,6 +426,10 @@ std::unique_ptr<CoreServer> CoreServer::start(const CoreServerOptions& options) 
     services.token = options.token.empty() ? random_token_hex() : options.token;
     validation::set_schema_dir(services.resources_dir / "schema");
     services.refresh_genres();  // effective genre list -> validator (FR-054)
+    if (options.own_copy_registry && options.copy_registry == nullptr) {
+        services.own_copies = std::make_unique<copies::CopyRegistry>(dirs.data);
+        services.own_copies->acquire();
+    }
 #ifdef MFBE_TEST_HOOKS
     services.test_hooks = options.test_hooks;
     if (services.test_hooks) {
@@ -529,6 +533,14 @@ void CoreServer::notify_open_paths(const std::vector<std::string>& paths) {
     impl_->post([this, paths] {
         if (impl_->transport != nullptr) {
             impl_->transport->notify_open_paths(paths);
+        }
+    });
+}
+
+void CoreServer::notify_open_request(const nlohmann::json& request) {
+    impl_->post([this, request] {
+        if (impl_->transport != nullptr) {
+            impl_->transport->notify_open_request(request);
         }
     });
 }

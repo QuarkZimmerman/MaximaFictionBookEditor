@@ -43,6 +43,11 @@ struct ShellOptions {
     std::string url_override;                        // development only, see header comment
     long long wait_for_exit_pid = 0;                 // --wait-for-exit (0 = none)
     std::optional<WindowPlacement> window_geometry;  // --window-geometry
+    // Internal switches of the copies (feature 008, contracts/cli.md §2), never typed by users
+    // and not listed by --help: --mfbe-new-copy forces a new copy even with FILEs; --mfbe-slot
+    // forces a slot (test hooks); --mfbe-request is read by the receiving copy only.
+    bool force_new_copy = false;
+    int forced_slot = 0;
     bool show_version = false;
     bool show_help = false;
 };

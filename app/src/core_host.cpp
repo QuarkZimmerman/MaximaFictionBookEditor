@@ -47,6 +47,7 @@ public:
     bool hasCore() const override { return false; }
     void attachDialogs(std::shared_ptr<NativeDialogs> /*dialogs*/) override {}
     void notifyOpenPaths(const std::vector<std::string>& /*paths*/) override {}
+    void notifyOpenRequest(const RelayedRequest& /*request*/) override {}
     // No core in this process: the page cannot be asked, the window closes at once.
     void requestClose(std::function<void(bool)> on_delivered) override {
         if (on_delivered) {
@@ -199,6 +200,21 @@ public:
         try {
             mfbe::log::warning("shell", code, message);
         } catch (...) {
+        }
+    }
+
+    void notifyOpenRequest(const RelayedRequest& request) override {
+        if (!server_) {
+            return;
+        }
+        try {
+            server_->notify_open_request(nlohmann::json{{"requestId", request.request_id},
+                                                        {"paths", request.paths},
+                                                        {"origin", request.origin},
+                                                        {"target", request.target},
+                                                        {"kind", request.kind}});
+        } catch (const std::exception& e) {
+            std::fprintf(stderr, "mfbe: failed to forward a request to the core: %s\n", e.what());
         }
     }
 

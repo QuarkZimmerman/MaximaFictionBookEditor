@@ -10,6 +10,7 @@
 #include "server/services.hpp"
 
 #include <mfbe/atomic_file.hpp>
+#include <mfbe/copy_launch.hpp>
 #include <mfbe/corpus_sample.hpp>
 #include <mfbe/fb2_reader.hpp>
 #include <mfbe/log.hpp>
@@ -146,6 +147,62 @@ void register_test_handlers(rpc::RpcRouter& router, Services& services) {
 
     // test.requestClose() -> {}: emits app.closeRequested to every client exactly as the
     // shell's close handshake does, so the window-close path runs headless.
+    // Feature 008: test.copies() -> {records, newCopies, activations, acks}: the copy records of
+    // the data folder and the shell requests made without a shell; test.simulateOpenRequest
+    // ({paths, target?, kind?}) -> {requestId}: emits app.openRequest as a relayed start would.
+    router.add_method("test.copies", [&services](const json&, rpc::RpcContext&) {
+        json records = json::array();
+        if (copies::CopyRegistry* registry = services.copies()) {
+            auto all = registry->records(false);
+            auto own = registry->record();
+            own.live = true;
+            all.insert(all.begin(), own);
+            for (const auto& r : all) {
+                json j{{"schema", 1},
+                       {"slot", r.slot},
+                       {"pid", r.pid},
+                       {"host", r.host},
+                       {"startedAt", r.started_at},
+                       {"lastActiveAt", r.last_active_at},
+                       {"heartbeatAt", r.heartbeat_at},
+                       {"state", r.state},
+                       {"untouched", r.untouched},
+                       {"live", r.live},
+                       {"book", nullptr},
+                       {"window", nullptr}};
+                if (r.book)
+                    j["book"] = json{{"path", r.book->path}, {"fileId", r.book->file_id}};
+                if (r.window) {
+                    j["window"] = json{{"x", r.window->x},
+                                       {"y", r.window->y},
+                                       {"w", r.window->w},
+                                       {"h", r.window->h},
+                                       {"maximized", r.window->maximized}};
+                }
+                records.push_back(std::move(j));
+            }
+        }
+        json activations = json::array();
+        for (const auto& [slot, path] : services.activation_requests) {
+            activations.push_back(json{{"slot", slot}, {"path", path}});
+        }
+        return json{{"records", records},
+                    {"newCopies", services.new_copy_requests},
+                    {"activations", activations},
+                    {"acks", services.open_request_acks}};
+    });
+    router.add_method("test.simulateOpenRequest", [](const json& params, rpc::RpcContext& ctx) {
+        const std::vector<std::string> paths = rpc::params::string_array_or(params, "paths");
+        const std::string id = copies::new_request_id();
+        ctx.notifier.notify("app.openRequest",
+                            json{{"requestId", id},
+                                 {"paths", paths},
+                                 {"origin", "outside"},
+                                 {"target", rpc::params::string_or(params, "target", "ask")},
+                                 {"kind", rpc::params::string_or(params, "kind", "open")}});
+        return json{{"requestId", id}};
+    });
+
     router.add_method("test.requestClose", [](const json&, rpc::RpcContext& ctx) {
         ctx.notifier.notify("app.closeRequested", json::object());
         return json::object();

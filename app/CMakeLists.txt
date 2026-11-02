@@ -135,6 +135,8 @@ endif()
 set(MFBE_BRIDGE_SRCS
   src/clipboard_bridge.cpp
   src/clipboard_bridge.h
+  src/copy_bridge.cpp
+  src/copy_bridge.h
   src/core_host.cpp
   src/core_host.h
   src/dialog_provider.cpp
