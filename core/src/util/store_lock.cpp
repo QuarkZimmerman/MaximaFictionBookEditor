@@ -30,7 +30,8 @@ StoreLock::StoreLock(const std::filesystem::path& file) {
     HANDLE h = CreateFileW(path.wstring().c_str(), GENERIC_READ | GENERIC_WRITE,
                            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
                            OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (h == INVALID_HANDLE_VALUE) return;
+    if (h == INVALID_HANDLE_VALUE)
+        return;
     OVERLAPPED overlapped{};
     if (!LockFileEx(h, LOCKFILE_EXCLUSIVE_LOCK, 0, 1, 0, &overlapped)) {
         CloseHandle(h);
@@ -39,7 +40,8 @@ StoreLock::StoreLock(const std::filesystem::path& file) {
     handle_ = h;
 #else
     fd_ = ::open(path.c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0600);
-    if (fd_ < 0) return;
+    if (fd_ < 0)
+        return;
     if (::flock(fd_, LOCK_EX) != 0) {
         ::close(fd_);
         fd_ = -1;
@@ -51,9 +53,11 @@ StoreLock::StoreLock(const std::filesystem::path& file) {
 
 StoreLock::~StoreLock() {
 #ifdef _WIN32
-    if (handle_ != nullptr) CloseHandle(static_cast<HANDLE>(handle_));
+    if (handle_ != nullptr)
+        CloseHandle(static_cast<HANDLE>(handle_));
 #else
-    if (fd_ >= 0) ::close(fd_);
+    if (fd_ >= 0)
+        ::close(fd_);
 #endif
 }
 

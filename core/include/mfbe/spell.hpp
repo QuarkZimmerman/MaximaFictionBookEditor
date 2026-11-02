@@ -37,6 +37,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -180,7 +181,11 @@ public:
 
 private:
     std::filesystem::path file_;
-    std::vector<std::string> words_;  // sorted (byte order), unique
+    mutable std::vector<std::string> words_;  // sorted (byte order), unique
+    // This copy's additions and removals since its last save: a save applies them to the file
+    // as it is on disk, so the words other copies added stay (feature 008, FR-003).
+    mutable std::set<std::string> added_;
+    mutable std::set<std::string> removed_;
 };
 
 struct CheckResult {

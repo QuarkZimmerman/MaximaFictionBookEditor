@@ -2,6 +2,7 @@
 #include <mfbe/atomic_file.hpp>
 #include <mfbe/log.hpp>
 #include <mfbe/spell.hpp>
+#include <mfbe/store_lock.hpp>
 #include <mfbe/unicode.hpp>
 #include <mfbe/utf8_paths.hpp>
 
@@ -92,17 +93,43 @@ void CustomDictionary::load() {
 }
 
 bool CustomDictionary::save() const {
-    std::string text;
-    for (const std::string& w : words_) {
-        text += w;
-        text += '\n';
-    }
     try {
         if (file_.has_parent_path()) {
             std::error_code ec;
             std::filesystem::create_directories(file_.parent_path(), ec);
         }
+        store_lock::StoreLock lock(file_);
+        std::error_code ec;
+        if (std::filesystem::exists(file_, ec)) {
+            std::set<std::string> merged;
+            std::string line;
+            for (const char c : atomic_file::read_file(file_)) {
+                if (c == '\n') {
+                    if (!line.empty() && line.back() == '\r')
+                        line.pop_back();
+                    if (!line.empty())
+                        merged.insert(line);
+                    line.clear();
+                } else {
+                    line += c;
+                }
+            }
+            if (!line.empty())
+                merged.insert(line);
+            for (const auto& w : added_)
+                merged.insert(w);
+            for (const auto& w : removed_)
+                merged.erase(w);
+            words_.assign(merged.begin(), merged.end());
+        }
+        std::string text;
+        for (const std::string& w : words_) {
+            text += w;
+            text += '\n';
+        }
         atomic_file::write_atomic(file_, text);
+        added_.clear();
+        removed_.clear();
         return true;
     } catch (const atomic_file::WriteError& e) {
         log::error("core", "spell.customDictionarySaveFailed", "custom dictionary not written",
@@ -124,6 +151,8 @@ std::string CustomDictionary::add(std::string_view word) {
         return "duplicate";
     }
     words_.insert(std::lower_bound(words_.begin(), words_.end(), word), std::string(word));
+    added_.insert(std::string(word));
+    removed_.erase(std::string(word));
     save();
     return "";
 }
@@ -133,6 +162,8 @@ bool CustomDictionary::remove(std::string_view word) {
     if (it == words_.end() || *it != word) {
         return false;
     }
+    removed_.insert(*it);
+    added_.erase(*it);
     words_.erase(it);
     save();
     return true;

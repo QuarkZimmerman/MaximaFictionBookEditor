@@ -57,3 +57,25 @@ TEST_CASE("store merge: a save without changes keeps every value of the file", "
     fresh.load();
     CHECK(fresh.get()["view"]["bodyFontSize"] == 18);
 }
+
+#include <mfbe/spell.hpp>
+
+TEST_CASE("store merge: words added in two copies are both kept, a removed one stays removed",
+          "[store-merge]") {
+    mfbe::test::TempDir tmp;
+    const auto file = tmp / "custom.dic";
+    mfbe::spell::CustomDictionary a(file);
+    a.load();
+    mfbe::spell::CustomDictionary b(file);
+    b.load();
+    CHECK(a.add("Арагорн").empty());
+    CHECK(a.add("Боромир").empty());
+    CHECK(b.add("Гэндальф").empty());
+    CHECK(b.contains("Арагорн"));  // b's save merged the file as it was
+    CHECK(a.remove("Боромир"));
+    mfbe::spell::CustomDictionary fresh(file);
+    fresh.load();
+    CHECK(fresh.contains("Арагорн"));
+    CHECK(fresh.contains("Гэндальф"));
+    CHECK_FALSE(fresh.contains("Боромир"));
+}
