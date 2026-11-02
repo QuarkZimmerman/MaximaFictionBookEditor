@@ -183,6 +183,14 @@ export class SpellChecker {
     if (override && override.length > 0) {
       return [...new Set(override.map((lang) => resolve(lang) ?? lang))];
     }
+    return this.defaultLangs();
+  }
+
+  /** The set without the Spelling dialog's choice: the base, then the extras (FR-030). */
+  defaultLangs(): string[] {
+    const dictionaries = this.dictionariesValue;
+    const resolve = (lang: string) =>
+      dictionaries ? resolveDictionaryTag(lang, dictionaries) : lang;
     if (!this.store.getState().document) return [];
     const extras = this.store.getState().settings?.view.spellExtraDictionaries ?? [
       'en_US',

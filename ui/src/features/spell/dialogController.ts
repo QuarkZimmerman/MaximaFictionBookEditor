@@ -488,10 +488,11 @@ export class SpellDialogController {
 
   /** Switches the dictionaries in use (session override) and re-checks from the current word. */
   async setLanguages(langs: readonly string[]): Promise<void> {
-    const documentLangs = [this.feature.checker.documentLanguage()].filter(Boolean);
-    const sameAsDocument =
-      langs.length === documentLangs.length && langs.every((lang, i) => lang === documentLangs[i]);
-    this.feature.session.setLanguageOverride(sameAsDocument ? null : langs);
+    // The set in effect without a choice (feature 008: the base and the extra dictionaries).
+    const defaults = this.feature.checker.defaultLangs();
+    const sameAsDefault =
+      langs.length === defaults.length && langs.every((lang, i) => lang === defaults[i]);
+    this.feature.session.setLanguageOverride(sameAsDefault ? null : langs);
     if (this.current)
       this.cursor = { block: this.current.blockIndex, offset: this.current.token.from };
     await this.next();
