@@ -982,6 +982,14 @@ jobs:
           Write-Host "Portable copy in a Cyrillic folder: $cyrillicExe"
           tools/ci/windows-start-smoke.ps1 -Exe $cyrillicExe
 
+      - name: Copies journey (Windows, feature 008)
+        # Two copies, the relay through the engine to an untouched copy, the question and New
+        # window, the open book not opened twice - with the installed editor (T024, FR-015).
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          tools/ci/windows-copies-journey.ps1 -Exe (Join-Path $env:ProgramFiles 'Maxima Fiction Book Editor\bin\mfbe.exe')
+
       - name: Russian-environment journey (Windows - installed and portable)
         if: runner.os == 'Windows'
         shell: pwsh
