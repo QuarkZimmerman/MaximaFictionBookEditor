@@ -846,7 +846,7 @@ for name in glob.glob(os.path.join(sys.argv[1], "*.json")):
         print(record.get("pid", ""))
 PY
 )
-  [[ -n "$NEW_COPY_PID" ]] && kill -TERM "$NEW_COPY_PID" 2>/dev/null || true
+  if [[ -n "$NEW_COPY_PID" ]]; then kill -TERM "$NEW_COPY_PID" 2>/dev/null || true; fi
   sleep 2
   # Copies whose page does not answer: the book goes to a new copy within 5 s (FR-011), and
   # neither copy is killed by the engine.
@@ -863,7 +863,7 @@ PY
     fi
   done
   OLD_PID=$(record_pid "$COPIES_DIR/2.json")
-  [[ -n "$OLD_PID" ]] && kill -KILL "$OLD_PID" 2>/dev/null || true
+  if [[ -n "$OLD_PID" ]]; then kill -KILL "$OLD_PID" 2>/dev/null || true; fi
   sleep 1
   start_shell
   PORT3=$CDP_PORT
@@ -898,7 +898,7 @@ PY
   done
   for record in "$COPIES_DIR"/*.json; do
     pid=$(record_pid "$record")
-    [[ -n "$pid" ]] && kill -TERM "$pid" 2>/dev/null || true
+    if [[ -n "$pid" ]]; then kill -TERM "$pid" 2>/dev/null || true; fi
   done
   sleep 1
   if [[ -n "$PORTABLE_DIR" ]]; then
