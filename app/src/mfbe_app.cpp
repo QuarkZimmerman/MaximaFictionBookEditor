@@ -3,14 +3,17 @@
 #include "copy_bridge.h"
 #include "core_host.h"
 #include "dialog_provider.h"
+#include "include/base/cef_callback.h"
 #include "include/base/cef_logging.h"
 #include "include/cef_browser.h"
 #include "include/cef_command_line.h"
 #include "include/cef_preference.h"
 #include "include/cef_request_context.h"
+#include "include/cef_task.h"
 #include "include/cef_values.h"
 #include "include/views/cef_browser_view.h"
 #include "include/views/cef_window.h"
+#include "include/wrapper/cef_closure_task.h"
 #include "include/wrapper/cef_helpers.h"
 #include "mfbe_client.h"
 #include "shell_runner.h"
@@ -125,7 +128,30 @@ void MfbeApp::OnBeforeCommandLineProcessing(const CefString& process_type,
     }
 }
 
+namespace {
+// Feature 008 (contracts/shell.md §3): the record's heartbeat, every 2 s on the browser UI
+// thread, so a frozen browser process stops it and other starts pass this copy over.
+void heartbeatTick() {
+    copyHeartbeat();
+    CefPostDelayedTask(TID_UI, base::BindOnce(&heartbeatTick), 2000);
+}
+
+// A relayed request the page did not acknowledge within 5 s goes to a new copy (FR-011).
+void ackDeadline(std::string request_id, std::vector<std::string> paths) {
+    if (takeAcked(request_id) || paths.empty()) {
+        return;
+    }
+    std::string reason;
+    if (!spawnCopy(paths, &reason)) {
+        LOG(ERROR) << "mfbe: could not start a new copy for an unanswered request: " << reason;
+    }
+}
+}  // namespace
+
 void MfbeApp::OnContextInitialized() {
+    if (copyRegistry() != nullptr) {
+        CefPostDelayedTask(TID_UI, base::BindOnce(&heartbeatTick), 2000);
+    }
     CEF_REQUIRE_UI_THREAD();
 
     // The engine's own spell checking off before any window exists (feature 004 US9). A refused
@@ -210,7 +236,12 @@ bool MfbeApp::OnAlreadyRunningAppRelaunch(CefRefPtr<CefCommandLine> command_line
         args.push_back(argv[i].ToString());
     }
     if (const auto request = parseRelayedRequest(args); request && core_host_ != nullptr) {
+        expectAck(request->request_id);
         core_host_->notifyOpenRequest(*request);
+        if (request->kind == "open") {
+            CefPostDelayedTask(
+                TID_UI, base::BindOnce(&ackDeadline, request->request_id, request->paths), 5000);
+        }
     }
     if (MfbeClient* client = MfbeClient::GetInstance()) {
         client->ShowMainWindow();

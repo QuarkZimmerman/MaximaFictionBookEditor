@@ -421,6 +421,18 @@ int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const*
             ec ? file : mfbe::platform::utf8_from_path(absolute.lexically_normal()));
     }
     core_options.new_document = options.new_document;
+    // Feature 008: New window, a busy copy and FR-017's activation start another process of
+    // this program: a new copy, or a start with the book that reaches the copy holding it.
+    core_options.open_in_new_copy = [](const std::vector<std::string>& paths, std::string* reason) {
+        return spawnCopy(paths, reason);
+    };
+    core_options.activate_copy = [](int /*slot*/, const std::string& path) {
+        const char* appimage = std::getenv("APPIMAGE");
+        std::string reason;
+        return spawnDetached(
+            relaunchProgram(appimage != nullptr ? appimage : "", currentExecutable()), {path},
+            &reason);
+    };
 #if defined(MFBE_SHELL_TEST_HOOKS)
     core_options.test_hooks = true;
 #endif

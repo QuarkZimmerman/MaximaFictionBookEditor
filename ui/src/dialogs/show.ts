@@ -3,6 +3,7 @@
  * (commands, features) and get the result as a Promise.
  */
 
+import { OpenElsewhereDialog, type OpenElsewhereAnswer } from './OpenElsewhereDialog';
 import { createElement } from 'react';
 
 import type { DialogService } from './DialogService';
@@ -52,6 +53,16 @@ export function showInput(
 export function showSaveChangesPrompt(dialogs: Dialogs, name: string): Promise<SaveChangesAnswer> {
   return dialogs.openCustom<SaveChangesAnswer>((close) =>
     createElement(SaveChangesPrompt, { name, onClose: close }),
+  );
+}
+
+/** The opening question of a book from outside (OpenElsewhereDialog.tsx, feature 008). */
+export function showOpenElsewhereDialog(
+  dialogs: Dialogs,
+  name: string,
+): Promise<OpenElsewhereAnswer> {
+  return dialogs.openCustom<OpenElsewhereAnswer>((close) =>
+    createElement(OpenElsewhereDialog, { name, onClose: close }),
   );
 }
 

@@ -50,7 +50,7 @@ import { ENCODING_CHOICES, normalizeEncoding } from '@/dialogs/encodings';
 import type { StructuralPosition } from '@/editor/structuralPath';
 import { documentFileTypes } from '@/dialogs/fileTypes';
 import type { Dialogs } from '@/dialogs/types';
-import { showEncodingDialog, showSaveChangesPrompt } from '@/dialogs/show';
+import { showEncodingDialog, showOpenElsewhereDialog, showSaveChangesPrompt } from '@/dialogs/show';
 import { confirmSaveWithErrors } from '@/dialogs/validation';
 import { getScriptsFeature } from '@/features/scripts';
 import { flushSessionSave } from '@/features/settings/apply';
@@ -65,6 +65,7 @@ import {
   type DocParseErrorData,
   type FileFilter,
   type LoadReport,
+  type OpenRequest,
   type Settings,
 } from '@/rpc/types';
 import { cancelActiveRun } from '@/scripting/runSession';
@@ -308,6 +309,10 @@ export class FileFeature {
   readonly recent: RecentFilesStore;
   private lastSaveAt = 0;
   private reloadPromptOpen = false;
+  /** A native file dialog of this copy is open (feature 008: the copy is busy). */
+  private nativeDialogOpen = 0;
+  /** The last state reported through app.copyState (feature 008). */
+  private reportedCopyState = '';
   private readonly selfSaveGraceMs: number;
   /** The open of the file named at start-up (`app.openPaths` before the start-up check). */
   private startupOpen: Promise<boolean> | null = null;
@@ -488,20 +493,120 @@ export class FileFeature {
     if (!ctx.rpc) return false;
     this.userRequests += 1;
     if (!(await this.confirmDiscardChanges(ctx))) return false;
-    const { paths } = await ctx.rpc.call('dialog.openFile', {
-      title: ctx.t('cmd.file.open.tooltip'),
-      filters: documentFilters(ctx),
-      selectedFilter: 0,
-    });
+    this.nativeDialogOpen += 1;
+    let paths: string[];
+    try {
+      ({ paths } = await ctx.rpc.call('dialog.openFile', {
+        title: ctx.t('cmd.file.open.tooltip'),
+        filters: documentFilters(ctx),
+        selectedFilter: 0,
+      }));
+    } finally {
+      this.nativeDialogOpen -= 1;
+    }
     const path = paths[0];
     if (!path) return false;
+    if (await this.showHeldBook(ctx, path)) return true;
     return this.openDocument(ctx, path);
   }
 
   private async openFromRecent(ctx: CommandContext, path: string): Promise<boolean> {
     this.userRequests += 1;
+    if (await this.showHeldBook(ctx, path)) return true;
     if (!(await this.confirmDiscardChanges(ctx))) return false;
     return this.openDocument(ctx, path);
+  }
+
+  /**
+   * Feature 008 (FR-017): a book that is already open is never opened a second time. In this
+   * copy nothing reopens; when another copy holds it, that copy comes to the front. True when
+   * the book is shown that way.
+   */
+  private async showHeldBook(ctx: CommandContext, path: string): Promise<boolean> {
+    if (ctx.store.getState().path === path) {
+      window.focus();
+      return true;
+    }
+    if (!ctx.rpc) return false;
+    try {
+      const { slot } = await ctx.rpc.call('app.bookHolder', { path });
+      if (slot === null) return false;
+      await ctx.rpc.call('app.activateCopy', { slot, path });
+      return true;
+    } catch {
+      return false; // no copies (developer runs): open here as before
+    }
+  }
+
+  /** Feature 008 (FR-011, clarify Q2): only what blocks the window makes this copy busy. */
+  private copyBusy(ctx: CommandContext): boolean {
+    return (
+      ctx.dialogs.isModalOpen === true ||
+      this.nativeDialogOpen > 0 ||
+      isRunLocked(ctx.store.getState())
+    );
+  }
+
+  /** Feature 008 (D2): a new document nothing was done to since it was made. */
+  private copyUntouched(ctx: CommandContext): boolean {
+    const state = ctx.store.getState();
+    return state.path === null && !state.modified;
+  }
+
+  /** Reports this copy's state for its copy record (app.copyState), when it changed. */
+  private reportCopyState(ctx: CommandContext): void {
+    if (!ctx.rpc) return;
+    const state = ctx.store.getState();
+    const next = {
+      state: this.copyBusy(ctx) ? ('busy' as const) : ('ready' as const),
+      untouched: this.copyUntouched(ctx),
+      path: state.path ?? '',
+    };
+    const key = JSON.stringify(next);
+    if (key === this.reportedCopyState) return;
+    this.reportedCopyState = key;
+    void ctx.rpc.call('app.copyState', next).catch(() => undefined);
+  }
+
+  /**
+   * Feature 008 (rpc-api.md §1): a book request relayed from another start. Acknowledged at
+   * once (the shell's 5 s timer); then, per book in order: already open here - focus; this copy
+   * busy - a new copy; an untouched document - open here; else the remembered choice or the
+   * question (default New window).
+   */
+  async handleOpenRequest(ctx: CommandContext, request: OpenRequest): Promise<void> {
+    const { rpc } = ctx;
+    if (!rpc) return;
+    void rpc.call('app.openRequestAck', { requestId: request.requestId }).catch(() => undefined);
+    window.focus();
+    if (request.kind === 'activate') return;
+    for (const path of request.paths) {
+      if (ctx.store.getState().path === path) continue;
+      if (this.copyBusy(ctx)) {
+        await rpc.call('app.openInNewCopy', { paths: [path] }).catch(() => undefined);
+        continue;
+      }
+      if (this.copyUntouched(ctx)) {
+        await this.openDocument(ctx, path);
+        continue;
+      }
+      let choice = ctx.store.getState().settings?.other.openFromOutside ?? 'ask';
+      if (choice === 'ask') {
+        const answer = await showOpenElsewhereDialog(ctx.dialogs, fileName(path));
+        if (answer.choice === 'cancel') continue;
+        choice = answer.choice;
+        if (answer.remember) {
+          await rpc
+            .call('settings.set', { patch: { other: { openFromOutside: choice } } })
+            .catch(() => undefined);
+        }
+      }
+      if (choice === 'newWindow') {
+        await rpc.call('app.openInNewCopy', { paths: [path] }).catch(() => undefined);
+      } else if (await this.confirmDiscardChanges(ctx)) {
+        await this.openDocument(ctx, path);
+      }
+    }
   }
 
   /**
@@ -817,17 +922,31 @@ export class FileFeature {
       const path = payload.paths[0];
       if (!path) return;
       const ctx = getContext();
-      const opening = this.confirmDiscardChanges(ctx).then((ok) =>
-        ok ? this.openDocument(ctx, path) : false,
+      const opening = this.showHeldBook(ctx, path).then(async (shown) =>
+        shown ? true : (await this.confirmDiscardChanges(ctx)) && this.openDocument(ctx, path),
       );
       if (!this.startupChecked) this.startupOpen = opening;
     });
+    const offRequest = rpc.on('app.openRequest', (payload) => {
+      void this.handleOpenRequest(getContext(), payload);
+    });
+    const offActivated = rpc.on('app.activated', () => {
+      window.focus();
+    });
+    const report = () => this.reportCopyState(getContext());
+    const offStore = getContext().store.subscribe(report);
+    const offDialogs = getContext().dialogs.subscribe?.(report) ?? (() => undefined);
+    report();
     const offClose = rpc.on('app.closeRequested', () => {
       void this.handleCloseRequested(getContext());
     });
     return () => {
       offChanged();
       offOpen();
+      offRequest();
+      offActivated();
+      offStore();
+      offDialogs();
       offClose();
     };
   }

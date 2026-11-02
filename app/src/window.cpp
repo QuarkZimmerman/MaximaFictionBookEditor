@@ -1,5 +1,6 @@
 #include "window.h"
 
+#include "copy_bridge.h"
 #include "include/base/cef_logging.h"
 #include "include/cef_browser.h"
 #include "include/views/cef_display.h"
@@ -175,6 +176,13 @@ void MainWindowDelegate::OnWindowBoundsChanged(CefRefPtr<CefWindow> window,
     RecordPlacement(window);
 }
 
+void MainWindowDelegate::OnWindowActivationChanged(CefRefPtr<CefWindow> /*window*/, bool active) {
+    CEF_REQUIRE_UI_THREAD();
+    if (active && kind_ == Kind::kMain) {
+        copyActivated();
+    }
+}
+
 void MainWindowDelegate::RecordPlacement(const CefRefPtr<CefWindow>& window) {
     CEF_REQUIRE_UI_THREAD();
     if (!normal_bounds_) {
@@ -186,6 +194,8 @@ void MainWindowDelegate::RecordPlacement(const CefRefPtr<CefWindow>& window) {
     placement.width = normal_bounds_->width;
     placement.height = normal_bounds_->height;
     placement.maximized = window->IsMaximized();
+    copyWindowChanged(CopyWindowRect{placement.x, placement.y, placement.width, placement.height,
+                                     placement.maximized});
     std::lock_guard<std::mutex> lock(g_placement_mutex);
     g_main_window_placement = placement;
 }

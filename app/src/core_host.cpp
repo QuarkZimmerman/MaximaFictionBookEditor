@@ -111,6 +111,10 @@ public:
             server_options.scripts_dir = mfbe::platform::utf8_from_path(options.scripts_dir);
             server_options.open_paths = options.open_paths;
             server_options.test_hooks = options.test_hooks;
+            server_options.copy_registry = copyRegistry();
+            server_options.open_in_new_copy = options.open_in_new_copy;
+            server_options.activate_copy = options.activate_copy;
+            server_options.on_open_request_ack = [](const std::string& id) { markAcked(id); };
             if (options.on_restart) {
                 // The shell's relaunch; exceptions stay on this side of the core's boundary.
                 server_options.on_restart =
