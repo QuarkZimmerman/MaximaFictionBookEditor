@@ -48,6 +48,7 @@
 #include "file_dialog_platform.h"
 #include "include/cef_version.h"
 #include "include/cef_version_info.h"
+#include "mfbe/copy_launch.hpp"
 #include "mfbe_app.h"
 #include "mfbe_client.h"
 #include "native_actions.h"
@@ -457,10 +458,9 @@ int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const*
         if (CoreHost* host = core_host_for_restart.load(); placement && host != nullptr) {
             host->saveWindowPlacement(*placement);  // before the restart
         }
-        outcome.argv =
-            relaunchArguments(own_args, currentProcessId(),
-                              placement ? formatWindowGeometry(*placement) : std::string(), reopen,
-                              own_slot);
+        outcome.argv = relaunchArguments(
+            own_args, currentProcessId(),
+            placement ? formatWindowGeometry(*placement) : std::string(), reopen, own_slot);
         const std::string program =
             relaunch_override.empty() ? relaunchProgram(envString("APPIMAGE"), currentExecutable())
                                       : relaunch_override;
@@ -630,6 +630,24 @@ void forwardOpenPaths(const std::vector<std::string>& paths) {
     if (paths.empty()) {
         return;
     }
+#if defined(__APPLE__)
+    // Feature 008 (T029, FR-015): the Finder's open events while the editor runs take the path
+    // of a relayed book - an untouched copy opens it, otherwise the question; an open book only
+    // comes to the front.
+    if (g_core_host != nullptr) {
+        RelayedRequest request;
+        request.kind = "open";
+        request.request_id = mfbe::copies::new_request_id();
+        request.paths = paths;
+        request.origin = "outside";
+        request.target = "ask";
+        deliverOpenRequest(g_core_host, request);
+        if (MfbeClient* client = MfbeClient::GetInstance()) {
+            client->ShowMainWindow();
+        }
+        return;
+    }
+#endif
     if (g_core_host != nullptr) {
         g_core_host->notifyOpenPaths(paths);
     }

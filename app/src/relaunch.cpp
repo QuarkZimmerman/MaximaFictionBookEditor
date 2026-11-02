@@ -48,8 +48,7 @@ bool droppedOnRestart(const std::string& name) {
 
 std::vector<std::string> relaunchArguments(const std::vector<std::string>& own_args, long long pid,
                                            const std::string& window_geometry,
-                                           const std::optional<std::string>& reopen,
-                                           int slot) {
+                                           const std::optional<std::string>& reopen, int slot) {
     std::vector<std::string> args;
     for (size_t i = 0; i < own_args.size(); ++i) {
         const std::string& arg = own_args[i];

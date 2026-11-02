@@ -221,6 +221,19 @@ CefRefPtr<CefClient> MfbeApp::GetDefaultClient() {
     return client_;
 }
 
+void deliverOpenRequest(CoreHost* host, const RelayedRequest& request) {
+    CEF_REQUIRE_UI_THREAD();
+    if (host == nullptr) {
+        return;
+    }
+    expectAck(request.request_id);
+    host->notifyOpenRequest(request);
+    if (request.kind == "open") {
+        CefPostDelayedTask(TID_UI, base::BindOnce(&ackDeadline, request.request_id, request.paths),
+                           5000);
+    }
+}
+
 bool MfbeApp::OnAlreadyRunningAppRelaunch(CefRefPtr<CefCommandLine> command_line,
                                           const CefString& current_directory) {
     CEF_REQUIRE_UI_THREAD();
@@ -235,13 +248,8 @@ bool MfbeApp::OnAlreadyRunningAppRelaunch(CefRefPtr<CefCommandLine> command_line
     for (size_t i = 1; i < argv.size(); ++i) {
         args.push_back(argv[i].ToString());
     }
-    if (const auto request = parseRelayedRequest(args); request && core_host_ != nullptr) {
-        expectAck(request->request_id);
-        core_host_->notifyOpenRequest(*request);
-        if (request->kind == "open") {
-            CefPostDelayedTask(
-                TID_UI, base::BindOnce(&ackDeadline, request->request_id, request->paths), 5000);
-        }
+    if (const auto request = parseRelayedRequest(args)) {
+        deliverOpenRequest(core_host_, *request);
     }
     if (MfbeClient* client = MfbeClient::GetInstance()) {
         client->ShowMainWindow();

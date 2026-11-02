@@ -14,6 +14,7 @@
 //    (single_instance.h describes the mechanism and the exit codes).
 #pragma once
 
+#include "copy_bridge.h"
 #include "include/cef_app.h"
 #include "window_placement.h"
 
@@ -44,6 +45,11 @@ struct AppConfig {
     // settings.session.windowGeometry; nullopt = centred 1200x800.
     std::optional<WindowPlacement> window_placement;
 };
+
+// Feature 008: hands an open or activate request to this copy's page and starts the 5-second
+// acknowledgement timer of a book - the relay's receiver and, on macOS, the Finder's open
+// events while the editor runs (T029). UI thread.
+void deliverOpenRequest(CoreHost* host, const RelayedRequest& request);
 
 class MfbeApp : public CefApp, public CefBrowserProcessHandler {
 public:

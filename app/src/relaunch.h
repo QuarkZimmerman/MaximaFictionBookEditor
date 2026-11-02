@@ -32,8 +32,7 @@ inline constexpr std::chrono::milliseconds kWaitForExitInterval{100};
 // as FILE (after `--` when it starts with '-'). A never-saved document has no `reopen`.
 std::vector<std::string> relaunchArguments(const std::vector<std::string>& own_args, long long pid,
                                            const std::string& window_geometry,
-                                           const std::optional<std::string>& reopen,
-                                           int slot = 0);
+                                           const std::optional<std::string>& reopen, int slot = 0);
 
 // The program to start again: `appimage` ($APPIMAGE, which the AppImage runtime sets for the
 // editor it runs) when not empty, else `executable` (the running executable's path).
