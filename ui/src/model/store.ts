@@ -8,6 +8,7 @@ import { useSyncExternalStore } from 'react';
 
 import { forgetBinaries, observeBinaries } from './binaryUrls';
 import type { Description, Document, ValidationReport } from './document';
+import { ensureUniqueNodeIds } from './uniqueIds';
 import type { ConnectionStatus as RpcConnectionStatus } from '@/rpc/client';
 import type {
   DocParseErrorData,
@@ -371,7 +372,8 @@ export const actions = {
    * Replaces the current document (New/Open/Reload). The untouched baseline of a new document
    * is forgotten here; the file feature sets it again for a template document.
    */
-  setDocument(store: AppStore, document: Document, options: { sourceOnly?: boolean } = {}): void {
+  setDocument(store: AppStore, given: Document, options: { sourceOnly?: boolean } = {}): void {
+    const document = ensureUniqueNodeIds(given); // feature 008, FR-021
     store.setState({
       document,
       docId: document.docId,
@@ -392,7 +394,7 @@ export const actions = {
 
   /** Applies an edited model (same docId) and marks the document modified. */
   updateDocument(store: AppStore, document: Document): void {
-    store.setState({ document, modified: true });
+    store.setState({ document: ensureUniqueNodeIds(document), modified: true });
   },
 
   closeDocument(store: AppStore): void {

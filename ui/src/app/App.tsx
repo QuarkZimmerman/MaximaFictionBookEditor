@@ -23,6 +23,7 @@ import { getAiFeature, type AiFeatureStatus } from '@/ai';
 import { DisabledPanel } from '@/ai/DisabledPanel';
 import { DialogHost, ValidationPanel, createIssueNavigator } from '@/dialogs';
 import { changeLanguage, resolveUiLanguage } from '@/i18n';
+import { onNodeIdRepair } from '@/model/uniqueIds';
 import { actions, documentFileName, useAppState } from '@/model/store';
 import { BodyView } from '@/views/body/BodyView';
 import { DescriptionView } from '@/views/description/DescriptionView';
@@ -36,7 +37,7 @@ import { useScriptsMenu } from '@/scripting/ScriptsMenu';
 import { useScriptToolbarButtons } from '@/scripting/useScriptToolbarButtons';
 
 import { AppProvider } from './AppContext';
-import { installGlobalErrorLogging } from './diagnostics';
+import { installGlobalErrorLogging, logUiError } from './diagnostics';
 import { createAppServices, useAppServices, useCommandContext, type AppServices } from './services';
 import { MenuBar } from './MenuBar';
 import type { DynamicMenuItems } from './menus';
@@ -173,6 +174,14 @@ function Shell({
     const offFailed = rpc.on('job.failed', () => actions.setProgress(store, null));
     const offFiles = files.subscribeNotifications(rpc, () => ctxRef.current);
     const offErrors = installGlobalErrorLogging(rpc, store); // FR-131: uncaught errors
+    // Feature 008 (FR-021): the first repair of repeated element names in a session is logged.
+    const offRepairs = onNodeIdRepair((count) => {
+      void logUiError(rpc, {
+        code: 'ui.nodeIdRepaired',
+        message: 'repeated element names were repaired',
+        context: { count: String(count) },
+      });
+    });
     actions.setConnection(store, rpc.status);
     rpc.connect();
     return () => {
@@ -183,6 +192,7 @@ function Shell({
       offFailed();
       offFiles();
       offErrors();
+      offRepairs();
     };
   }, [rpc, store, files]);
 
