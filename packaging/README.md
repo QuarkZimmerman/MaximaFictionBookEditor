@@ -173,6 +173,15 @@ never shows.
   `WixUI_Font_*` text styles, `DefaultUIFont` and `ARPNOMODIFY` like the stock set (never add
   `ARPNOMODIFY` to `CPACK_WIX_PROPERTY_*`). Its texts are English literals (the package is
   built for `en-US` only).
+- The last page is `MfbeExitDlg` (feature 008, `contracts/installer.md` of feature 008), the
+  stock `ExitDialog` controls plus the checkbox **Launch Maxima Fiction Book Editor** bound to
+  `MFBE_LAUNCH_EDITOR` (default `1`) and shown unless the product is being removed
+  (`NOT (REMOVE~="ALL")`) - the stock dialog's optional checkbox hides itself after a repair.
+  Finish publishes `DoAction MfbeLaunchEditor` under the same condition: a UI-sequence custom
+  action that runs `[WindowsFolder]explorer.exe "[INSTALL_ROOT]bin\mfbe.exe"` asynchronously, so
+  the editor starts as the desktop user without the installer's elevation; unattended installs
+  run no UI sequence and start nothing. `tools/ci/msi-launch-check.ps1` checks the tables in
+  CI.
 - The desktop shortcut itself lives in `shell-integration.wxs`: `INSTALLDESKTOPSHORTCUT`
   (`1`/`0`, no Property-table default) is taken from the command line, else from the checkbox,
   else from the value the installed version recorded in
