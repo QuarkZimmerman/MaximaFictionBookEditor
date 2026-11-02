@@ -625,6 +625,16 @@ jobs:
           MFBE_SMOKE_REAL_UI: "1"
           MFBE_SMOKE_COPIES: "1"
 
+      - name: Shell smoke, portable copies of the editor (feature 008)
+        # Two portable copies keep their slots and engine profiles in the user folder (T019).
+        if: runner.os == 'Linux'
+        run: tools/shell-smoke.sh
+        env:
+          MFBE_APP_BIN: ${{ github.workspace }}/build/${{ matrix.preset }}/bin/mfbe
+          MFBE_SMOKE_REAL_UI: "1"
+          MFBE_SMOKE_COPIES: "1"
+          MFBE_SMOKE_PORTABLE: "1"
+
       - name: Shell smoke, the 0.0.5 footnote sequence (feature 008)
         # Two runs of "Добавить примечание, перейти на его раздел" through the real Scripts menu
         # in a book without notes; the page answers after each (T039, FR-024).

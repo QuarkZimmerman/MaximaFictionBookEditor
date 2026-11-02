@@ -536,7 +536,9 @@ fi
 # it so that a maximised window is really maximised and comes back so. The wrapper starts openbox
 # (when installed), the shell, and after the shell ended keeps the display up while the instance
 # it started (same debugging port, a session of its own) is running.
-if [[ "$RESTART" == "1" ]]; then
+# The copies scenario (feature 008, T019) restarts a copy as well: the same wrapper keeps its
+# display up for the restarted copy.
+if [[ "$RESTART" == "1" || "${MFBE_SMOKE_COPIES:-0}" == "1" ]]; then
   WM=""
   if command -v openbox >/dev/null 2>&1; then
     WM="openbox"
