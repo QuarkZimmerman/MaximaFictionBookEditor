@@ -11,7 +11,7 @@
 import { TextSelection } from 'prosemirror-state';
 
 import type { Command, CommandContext, CommandRegistry } from '@/app/commands';
-import { showLinkDialog } from './linkTargets';
+import { collectJumpTargets, showLinkDialog } from './linkTargets';
 import {
   appendNoteSection,
   canCreateLink,
@@ -310,7 +310,11 @@ export function registerFootnoteCommands(registry: CommandRegistry): void {
         const state = controller?.editorState;
         if (!controller || !state || !canCreateLink(state)) return;
         const current = linkRangeAt(state);
-        const targets = [...collectIds(state.doc)].sort();
+        // Feature 008 (FR-045): every id of the whole book in document order, as the Links bar
+        // lists them - not only the mounted window's, and not sorted by name.
+        const targets = collectJumpTargets(ctx.store.getState().document).map((t) =>
+          t.href.slice(1),
+        );
         const href = await showLinkDialog(ctx.dialogs, {
           initialHref: current?.href ?? '',
           targets,
