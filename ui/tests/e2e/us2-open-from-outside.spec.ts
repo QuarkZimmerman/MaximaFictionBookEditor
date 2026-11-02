@@ -31,6 +31,15 @@ async function openBook(core: CoreHandle, page: Page, name: string): Promise<voi
   await waitForBook(page, name);
 }
 
+/** The new-copy requests made since `from` (the test core may be shared by a worker's tests). */
+async function newCopiesSince(core: CoreHandle, from: number): Promise<string[][]> {
+  return (await core.rpc<Copies>('test.copies')).newCopies.slice(from);
+}
+
+async function baseline(core: CoreHandle): Promise<number> {
+  return (await core.rpc<Copies>('test.copies')).newCopies.length;
+}
+
 async function request(core: CoreHandle, name: string, target = 'ask'): Promise<string> {
   const { requestId } = await core.rpc<{ requestId: string }>('test.simulateOpenRequest', {
     paths: [fixtureBook(name)],
@@ -61,6 +70,7 @@ test.describe('US2: a book opened from outside while the editor runs', () => {
   }) => {
     await core.openApp(page);
     await waitForStartupDocument(page);
+    const from = await baseline(core);
     await openBook(core, page, BOOK_A);
     await request(core, BOOK_B);
     const dialog = page.getByTestId('open-elsewhere-dialog');
@@ -68,24 +78,24 @@ test.describe('US2: a book opened from outside while the editor runs', () => {
     await expect(page.getByTestId('open-elsewhere-text')).toContainText(BOOK_B);
     await page.keyboard.press('Enter');
     await expect(dialog).toHaveCount(0);
-    await expect
-      .poll(async () => (await core.rpc<Copies>('test.copies')).newCopies)
-      .toEqual([[fixtureBook(BOOK_B)]]);
+    await expect.poll(() => newCopiesSince(core, from)).toEqual([[fixtureBook(BOOK_B)]]);
     await waitForBook(page, BOOK_A); // this copy keeps its book
   });
 
   test('This window opens the book here; Escape cancels', async ({ core, page }) => {
     await core.openApp(page);
     await waitForStartupDocument(page);
+    const from = await baseline(core);
     await openBook(core, page, BOOK_A);
     await request(core, BOOK_B);
+    await expect(page.getByTestId('open-elsewhere-dialog')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByTestId('open-elsewhere-dialog')).toHaveCount(0);
     await waitForBook(page, BOOK_A);
     await request(core, BOOK_B);
     await page.getByTestId('open-elsewhere-dialog-button-this').click();
     await waitForBook(page, BOOK_B);
-    expect((await core.rpc<Copies>('test.copies')).newCopies).toEqual([]);
+    expect(await newCopiesSince(core, from)).toEqual([]);
   });
 
   test("Don't ask again remembers the answer; Settings shows it", async ({ core, page }) => {
@@ -93,6 +103,7 @@ test.describe('US2: a book opened from outside while the editor runs', () => {
     await waitForStartupDocument(page);
     await openBook(core, page, BOOK_A);
     await request(core, BOOK_B);
+    await expect(page.getByTestId('open-elsewhere-dialog')).toBeVisible();
     await page.getByTestId('open-elsewhere-remember').check();
     await page.getByTestId('open-elsewhere-dialog-button-this').click();
     await waitForBook(page, BOOK_B);
@@ -110,26 +121,29 @@ test.describe('US2: a book opened from outside while the editor runs', () => {
   test('a blocking dialog sends the book to a new copy; Find does not', async ({ core, page }) => {
     await core.openApp(page);
     await waitForStartupDocument(page);
+    const from = await baseline(core);
     await openBook(core, page, BOOK_A);
     await page.getByTestId('menu-edit').click();
     await page.getByTestId('menu-edit-find').click();
     await request(core, BOOK_B);
     await expect(page.getByTestId('open-elsewhere-dialog')).toBeVisible(); // Find is modeless
     await page.keyboard.press('Escape');
+    await expect(page.getByTestId('open-elsewhere-dialog')).toHaveCount(0);
     // The question itself is a blocking dialog: a second request meanwhile goes to a new copy.
     await request(core, BOOK_B);
     await expect(page.getByTestId('open-elsewhere-dialog')).toBeVisible();
     await request(core, BOOK_B);
-    await expect.poll(async () => (await core.rpc<Copies>('test.copies')).newCopies.length).toBe(1);
+    await expect.poll(async () => (await newCopiesSince(core, from)).length).toBe(1);
   });
 
   test('a book already open here only takes the focus', async ({ core, page }) => {
     await core.openApp(page);
     await waitForStartupDocument(page);
+    const from = await baseline(core);
     await openBook(core, page, BOOK_A);
     await request(core, BOOK_A);
     await expect(page.getByTestId('open-elsewhere-dialog')).toHaveCount(0);
     await waitForBook(page, BOOK_A);
-    expect((await core.rpc<Copies>('test.copies')).newCopies).toEqual([]);
+    expect(await newCopiesSince(core, from)).toEqual([]);
   });
 });

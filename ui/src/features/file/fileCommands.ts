@@ -313,6 +313,10 @@ export class FileFeature {
   private nativeDialogOpen = 0;
   /** The last state reported through app.copyState (feature 008). */
   private reportedCopyState = '';
+  /** The opening question is on screen: the copy is busy for other requests (D6). */
+  private openQuestionOpen = false;
+  /** Request ids already handled: a relayed request is acted on once. */
+  private readonly handledRequests = new Set<string>();
   private readonly selfSaveGraceMs: number;
   /** The open of the file named at start-up (`app.openPaths` before the start-up check). */
   private startupOpen: Promise<boolean> | null = null;
@@ -541,6 +545,7 @@ export class FileFeature {
   /** Feature 008 (FR-011, clarify Q2): only what blocks the window makes this copy busy. */
   private copyBusy(ctx: CommandContext): boolean {
     return (
+      this.openQuestionOpen ||
       ctx.dialogs.isModalOpen === true ||
       this.nativeDialogOpen > 0 ||
       isRunLocked(ctx.store.getState())
@@ -577,6 +582,8 @@ export class FileFeature {
   async handleOpenRequest(ctx: CommandContext, request: OpenRequest): Promise<void> {
     const { rpc } = ctx;
     if (!rpc) return;
+    if (this.handledRequests.has(request.requestId)) return;
+    this.handledRequests.add(request.requestId);
     void rpc.call('app.openRequestAck', { requestId: request.requestId }).catch(() => undefined);
     window.focus();
     if (request.kind === 'activate') return;
@@ -592,8 +599,16 @@ export class FileFeature {
       }
       let choice = ctx.store.getState().settings?.other.openFromOutside ?? 'ask';
       if (choice === 'ask') {
-        const answer = await showOpenElsewhereDialog(ctx.dialogs, fileName(path));
-        if (answer.choice === 'cancel') continue;
+        this.openQuestionOpen = true;
+        this.reportCopyState(ctx);
+        let answer: Awaited<ReturnType<typeof showOpenElsewhereDialog>> | undefined;
+        try {
+          answer = await showOpenElsewhereDialog(ctx.dialogs, fileName(path));
+        } finally {
+          this.openQuestionOpen = false;
+          this.reportCopyState(ctx);
+        }
+        if (!answer || answer.choice === 'cancel') continue;
         choice = answer.choice;
         if (answer.remember) {
           await rpc

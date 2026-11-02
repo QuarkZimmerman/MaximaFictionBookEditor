@@ -84,5 +84,9 @@ export function createDialogs(service: DialogService): Dialogs & { service: Dial
     showMessageWithResult: (options) => showMessageWithResult(service, options),
     showInput: (options) => showInput(service, options),
     openCustom: (render, options) => service.open(render, options),
+    get isModalOpen() {
+      return service.isModalOpen;
+    },
+    subscribe: (listener) => service.subscribe(listener),
   };
 }
