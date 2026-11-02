@@ -92,6 +92,9 @@ async function supportsSpelling(core: CoreHandle): Promise<boolean> {
 }
 
 async function openBook(core: CoreHandle, page: Page, file: string): Promise<Locator> {
+  // These journeys check one dictionary at a time: no extra dictionaries (feature 008's
+  // default set of English and Russian is checked by us4-spelling-set).
+  await core.rpc('settings.set', { patch: { view: { spellExtraDictionaries: [] } } });
   await core.openApp(page);
   await expect(page.getByTestId('status-message')).toHaveText('Ready');
   await core.enqueueDialog('dialog.openFile', { paths: [file] });
