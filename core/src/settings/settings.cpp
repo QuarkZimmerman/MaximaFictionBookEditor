@@ -5,6 +5,7 @@
 #include <mfbe/atomic_file.hpp>
 #include <mfbe/log.hpp>
 #include <mfbe/settings.hpp>
+#include <mfbe/store_lock.hpp>
 #include <mfbe/unicode.hpp>
 #include <mfbe/utf8_paths.hpp>
 
@@ -762,7 +763,39 @@ bool SettingsStore::save() const {
     try {
         std::error_code ec;
         std::filesystem::create_directories(file_.parent_path(), ec);
-        atomic_file::write_atomic(file_, settings_.dump(2) + "\n");
+        // Several copies share the file (feature 008): under the lock, write this copy's changed
+        // keys into the file as it is now; keys missing there (new defaults) are filled in, every
+        // other key of the file stays as another copy left it.
+        store_lock::StoreLock lock(file_);
+        json out = settings_;
+        if (std::filesystem::exists(file_, ec)) {
+            json on_disk = json::parse(atomic_file::read_file(file_), nullptr, false, true);
+            if (on_disk.is_object()) {
+                for (const auto& pointer : changed_) {
+                    const json::json_pointer at(pointer);
+                    if (settings_.contains(at)) {
+                        on_disk[at] = settings_.at(at);
+                    } else if (on_disk.contains(at) && on_disk.contains(at.parent_pointer())) {
+                        on_disk[at.parent_pointer()].erase(at.back());  // removed by a null
+                    }
+                }
+                for (auto& [section, values] : settings_.items()) {
+                    if (!on_disk.contains(section) || !on_disk[section].is_object() ||
+                        !values.is_object()) {
+                        if (!on_disk.contains(section))
+                            on_disk[section] = values;
+                        continue;
+                    }
+                    for (auto& [key, value] : values.items()) {
+                        if (!on_disk[section].contains(key))
+                            on_disk[section][key] = value;
+                    }
+                }
+                out = std::move(on_disk);
+            }
+        }
+        atomic_file::write_atomic(file_, out.dump(2) + "\n");
+        changed_.clear();
         return true;
     } catch (const atomic_file::WriteError& e) {
         log::error("core", "settings.writeFailed", "settings.json could not be written",
@@ -779,6 +812,11 @@ ApplyResult SettingsStore::apply_patch(const json& patch) {
     for (const auto& invalid : sanitize(updated)) {
         // Only reachable through nested invalid structure not covered by validate_patch.
         throw SettingsError(invalid.field, invalid.reason);
+    }
+    for (const auto& op : json::diff(settings_, updated)) {
+        const std::string path = op.value("path", std::string{});
+        const auto second = path.find('/', path.find('/', 1) + 1);
+        changed_.insert(second == std::string::npos ? path : path.substr(0, second));
     }
     settings_ = std::move(updated);
     save();
