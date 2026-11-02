@@ -588,39 +588,47 @@ export class FileFeature {
     window.focus();
     if (request.kind === 'activate') return;
     for (const path of request.paths) {
-      if (ctx.store.getState().path === path) continue;
-      if (this.copyBusy(ctx)) {
-        await rpc.call('app.openInNewCopy', { paths: [path] }).catch(() => undefined);
-        continue;
-      }
-      if (this.copyUntouched(ctx)) {
-        await this.openDocument(ctx, path);
-        continue;
-      }
-      let choice = ctx.store.getState().settings?.other.openFromOutside ?? 'ask';
-      if (choice === 'ask') {
-        this.openQuestionOpen = true;
+      // Each book is its own request (FR-012): once a question is on screen the copy is busy,
+      // so the books after it go to new copies (D6) instead of waiting for the answer.
+      const handled = this.handleOneBook(ctx, path);
+      if (!this.openQuestionOpen) await handled;
+    }
+  }
+
+  private async handleOneBook(ctx: CommandContext, path: string): Promise<void> {
+    const { rpc } = ctx;
+    if (!rpc || ctx.store.getState().path === path) return;
+    if (this.copyBusy(ctx)) {
+      await rpc.call('app.openInNewCopy', { paths: [path] }).catch(() => undefined);
+      return;
+    }
+    if (this.copyUntouched(ctx)) {
+      await this.openDocument(ctx, path);
+      return;
+    }
+    let choice = ctx.store.getState().settings?.other.openFromOutside ?? 'ask';
+    if (choice === 'ask') {
+      this.openQuestionOpen = true;
+      this.reportCopyState(ctx);
+      let answer: Awaited<ReturnType<typeof showOpenElsewhereDialog>> | undefined;
+      try {
+        answer = await showOpenElsewhereDialog(ctx.dialogs, fileName(path));
+      } finally {
+        this.openQuestionOpen = false;
         this.reportCopyState(ctx);
-        let answer: Awaited<ReturnType<typeof showOpenElsewhereDialog>> | undefined;
-        try {
-          answer = await showOpenElsewhereDialog(ctx.dialogs, fileName(path));
-        } finally {
-          this.openQuestionOpen = false;
-          this.reportCopyState(ctx);
-        }
-        if (!answer || answer.choice === 'cancel') continue;
-        choice = answer.choice;
-        if (answer.remember) {
-          await rpc
-            .call('settings.set', { patch: { other: { openFromOutside: choice } } })
-            .catch(() => undefined);
-        }
       }
-      if (choice === 'newWindow') {
-        await rpc.call('app.openInNewCopy', { paths: [path] }).catch(() => undefined);
-      } else if (await this.confirmDiscardChanges(ctx)) {
-        await this.openDocument(ctx, path);
+      if (!answer || answer.choice === 'cancel') return;
+      choice = answer.choice;
+      if (answer.remember) {
+        await rpc
+          .call('settings.set', { patch: { other: { openFromOutside: choice } } })
+          .catch(() => undefined);
       }
+    }
+    if (choice === 'newWindow') {
+      await rpc.call('app.openInNewCopy', { paths: [path] }).catch(() => undefined);
+    } else if (await this.confirmDiscardChanges(ctx)) {
+      await this.openDocument(ctx, path);
     }
   }
 

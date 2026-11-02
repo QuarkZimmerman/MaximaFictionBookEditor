@@ -49,6 +49,11 @@ async function request(core: CoreHandle, name: string, target = 'ask'): Promise<
 }
 
 test.describe('US2: a book opened from outside while the editor runs', () => {
+  // The worker's core is shared: a remembered answer of an earlier test must not carry over.
+  test.beforeEach(async ({ core }) => {
+    await core.rpc('settings.set', { patch: { other: { openFromOutside: 'ask' } } });
+  });
+
   test('an untouched copy opens the book at once, and the request is acknowledged', async ({
     core,
     page,
@@ -134,6 +139,25 @@ test.describe('US2: a book opened from outside while the editor runs', () => {
     await expect(page.getByTestId('open-elsewhere-dialog')).toBeVisible();
     await request(core, BOOK_B);
     await expect.poll(async () => (await newCopiesSince(core, from)).length).toBe(1);
+  });
+
+  test('several books at once: the first asks, the others go to new copies meanwhile', async ({
+    core,
+    page,
+  }) => {
+    await core.openApp(page);
+    await waitForStartupDocument(page);
+    const from = await baseline(core);
+    await openBook(core, page, BOOK_A);
+    await core.rpc('test.simulateOpenRequest', {
+      paths: [fixtureBook(BOOK_B), fixtureBook('fbe-pictures.fb2')],
+    });
+    await expect(page.getByTestId('open-elsewhere-dialog')).toBeVisible();
+    await expect
+      .poll(() => newCopiesSince(core, from))
+      .toEqual([[fixtureBook('fbe-pictures.fb2')]]);
+    await page.getByTestId('open-elsewhere-dialog-button-this').click();
+    await waitForBook(page, BOOK_B);
   });
 
   test('a book already open here only takes the focus', async ({ core, page }) => {
