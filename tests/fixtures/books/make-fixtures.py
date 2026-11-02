@@ -3427,7 +3427,7 @@ F008_EN_WRONG = ("recieve teh adress begining beleive calender cemetary concious
     "embarass enviroment existance goverment independant knowlege libary neccessary occurence "
     "posession seperate").split()
 F008_RU_WRONG = ("превет кароче сабака малако коммисия расчитать извените сдесь вообщем "
-    "ихний ложить звонишь типо щас скока чо поцелуить дествительно агенство инциндент").split()
+    "жызнь ложить карова типо щас скока чо поцелуить дествительно агенство инциндент").split()
 
 
 def f008_spell_book() -> str:
