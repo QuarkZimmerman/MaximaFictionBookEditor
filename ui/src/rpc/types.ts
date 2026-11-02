@@ -1395,7 +1395,10 @@ export interface RpcMethods {
   /** Feature 008: acknowledges an `app.openRequest` within 5 s (stops the shell's timer). */
   'app.openRequestAck': { params: { requestId: string }; result: Empty };
   /** Feature 008: opens the books in a new copy of the editor. */
-  'app.openInNewCopy': { params: { paths: string[] }; result: { started: boolean; reason?: string } };
+  'app.openInNewCopy': {
+    params: { paths: string[] };
+    result: { started: boolean; reason?: string };
+  };
   /** Feature 008: the copy slot holding the book, compared by file identity (FR-017). */
   'app.bookHolder': { params: { path: string }; result: { slot: number | null } };
   /** Feature 008: brings the copy of `slot` forward to show `path`. */
