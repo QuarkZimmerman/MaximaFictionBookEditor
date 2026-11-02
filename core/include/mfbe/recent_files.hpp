@@ -12,6 +12,7 @@
 
 #include <filesystem>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -72,7 +73,11 @@ public:
 
 private:
     std::filesystem::path file_;
-    std::vector<RecentFile> items_;
+    mutable std::vector<RecentFile> items_;
+    // Paths this copy removed (or cleared) since its last save: a save merges this copy's list
+    // with the file as it is on disk, newest first, without these (feature 008, FR-003).
+    mutable std::set<std::string> removed_;
+    mutable bool cleared_ = false;
 };
 
 }  // namespace mfbe::settings

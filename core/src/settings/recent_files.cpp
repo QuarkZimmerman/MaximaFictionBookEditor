@@ -2,6 +2,7 @@
 #include <mfbe/atomic_file.hpp>
 #include <mfbe/log.hpp>
 #include <mfbe/recent_files.hpp>
+#include <mfbe/store_lock.hpp>
 #include <mfbe/utf8_paths.hpp>
 
 #include <algorithm>
@@ -124,13 +125,39 @@ void RecentFiles::load() {
 }
 
 bool RecentFiles::save() const {
-    json doc;
-    doc["schemaVersion"] = 1;
-    doc["items"] = to_json();
     try {
         std::error_code ec;
         std::filesystem::create_directories(file_.parent_path(), ec);
+        store_lock::StoreLock lock(file_);
+        if (!cleared_ && std::filesystem::exists(file_, ec)) {
+            RecentFiles disk(file_);
+            disk.load();
+            std::vector<RecentFile> merged = items_;
+            for (const auto& item : disk.items_) {
+                if (removed_.count(item.path) != 0)
+                    continue;
+                auto it = std::find_if(merged.begin(), merged.end(),
+                                       [&](const RecentFile& r) { return r.path == item.path; });
+                if (it == merged.end()) {
+                    merged.push_back(item);
+                } else if (item.lastOpened > it->lastOpened) {
+                    it->lastOpened = item.lastOpened;
+                }
+            }
+            std::stable_sort(merged.begin(), merged.end(),
+                             [](const RecentFile& a, const RecentFile& b) {
+                                 return a.lastOpened > b.lastOpened;
+                             });
+            if (merged.size() > kMaxRecentFiles)
+                merged.resize(kMaxRecentFiles);
+            items_ = std::move(merged);
+        }
+        json doc;
+        doc["schemaVersion"] = 1;
+        doc["items"] = to_json();
         atomic_file::write_atomic(file_, doc.dump(2) + "\n");
+        removed_.clear();
+        cleared_ = false;
         return true;
     } catch (const atomic_file::WriteError& e) {
         log::error("core", "recent.writeFailed", "recent.json could not be written",
@@ -173,6 +200,7 @@ bool RecentFiles::remove(const std::string& path) {
     if (it == items_.end()) {
         return false;
     }
+    removed_.insert(it->path);
     items_.erase(it);
     save();
     return true;
@@ -180,6 +208,7 @@ bool RecentFiles::remove(const std::string& path) {
 
 void RecentFiles::clear() {
     items_.clear();
+    cleared_ = true;
     save();
 }
 

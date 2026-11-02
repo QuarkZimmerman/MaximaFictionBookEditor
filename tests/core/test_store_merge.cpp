@@ -79,3 +79,46 @@ TEST_CASE("store merge: words added in two copies are both kept, a removed one s
     CHECK(fresh.contains("Гэндальф"));
     CHECK_FALSE(fresh.contains("Боромир"));
 }
+
+#include <mfbe/positions.hpp>
+#include <mfbe/recent_files.hpp>
+#include <mfbe/utf8_paths.hpp>
+
+#include <thread>
+
+TEST_CASE("store merge: books opened in two copies are all recent, the last opened first",
+          "[store-merge]") {
+    mfbe::test::TempDir tmp;
+    const auto file = tmp / "recent.json";
+    settings::RecentFiles a(file);
+    a.load();
+    settings::RecentFiles b(file);
+    b.load();
+    a.touch("/books/a.fb2");
+    std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+    b.touch("/books/b.fb2");
+    settings::RecentFiles fresh(file);
+    fresh.load();
+    REQUIRE(fresh.items().size() == 2);
+    CHECK(fresh.items()[0].path == "/books/b.fb2");
+    CHECK(fresh.items()[1].path == "/books/a.fb2");
+}
+
+TEST_CASE("store merge: positions remembered in two copies are both kept", "[store-merge]") {
+    mfbe::test::TempDir tmp;
+    const auto file = tmp / "positions.json";
+    settings::Positions a(file);
+    a.load();
+    settings::Positions b(file);
+    b.load();
+    const std::string pa = mfbe::platform::utf8_from_path(tmp / "a.fb2");
+    const std::string pb = mfbe::platform::utf8_from_path(tmp / "b.fb2");
+    a.set(pa, settings::Position{"body[1]/section[1]/p[1]", 3});
+    b.set(pb, settings::Position{"body[1]/section[2]/p[1]", 5});
+    settings::Positions fresh(file);
+    fresh.load();
+    REQUIRE(fresh.get(pa).has_value());
+    CHECK(fresh.get(pa)->offset == 3);
+    REQUIRE(fresh.get(pb).has_value());
+    CHECK(fresh.get(pb)->offset == 5);
+}
