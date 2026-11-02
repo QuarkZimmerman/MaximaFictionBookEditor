@@ -32,7 +32,8 @@ TEST_CASE("settings: defaults are exactly resource-formats.md section 6", "[sett
     CHECK(d["view"]["spellHighlight"] == true);
     CHECK(d["view"]["customDictionaryPath"] == "");
     CHECK(d["view"]["fastMode"] == false);
-    CHECK(d["view"].size() == 18);
+    CHECK(d["view"]["spellExtraDictionaries"] == json::array({"en_US", "ru_RU"}));  // feature 008
+    CHECK(d["view"].size() == 19);
     CHECK(d["view"]["theme"] == "system");
     CHECK(d["other"]["defaultEncoding"] == "utf-8");
     CHECK(d["other"]["keepEncoding"] == false);
@@ -50,7 +51,8 @@ TEST_CASE("settings: defaults are exactly resource-formats.md section 6", "[sett
     CHECK(d["other"]["switchKeyboardLayout"] == false);  // feature 004
     CHECK(d["other"]["keyboardLayoutId"] == "");
     CHECK(d["other"]["keyboardLayoutName"] == "");
-    CHECK(d["other"].size() == 16);
+    CHECK(d["other"]["openFromOutside"] == "ask");  // feature 008
+    CHECK(d["other"].size() == 17);
     CHECK(d["words"] == json{{"showExclusionsInWordsDialog", false}});
     CHECK(d["session"]["windowGeometry"].is_null());
     CHECK(d["session"]["toolbars"] == json{{"commands", true},
@@ -517,8 +519,8 @@ TEST_CASE("settings: a 0.0.2 settings file keeps every value; the new keys take 
     CHECK(s["session"]["aiPanelVisible"] == true);
     CHECK(s["ai"] == settings::defaults()["ai"]);
     CHECK(s["session"]["tableDialog"] == settings::defaults()["session"]["tableDialog"]);
-    CHECK(s["view"].size() == 18);
-    CHECK(s["other"].size() == 16);
+    CHECK(s["view"].size() == 19);
+    CHECK(s["other"].size() == 17);
     CHECK(s["session"].size() == 11);
 
     // Saving the migrated file keeps the key absent; the shell's maximised flag is accepted.
@@ -588,7 +590,7 @@ TEST_CASE(
     CHECK(s["other"]["keyboardLayoutId"] == "");
     CHECK(s["other"]["keyboardLayoutName"] == "");
     CHECK(s["session"]["treeWidth"] == 260);
-    CHECK(s["other"].size() == 16);
+    CHECK(s["other"].size() == 17);
     // The eight of 0.0.3 (lastVersionCheck set) + treeWidth + aiPanelWidth and aiPanelVisible
     // (feature 005) + tableDialog (feature 006).
     CHECK(s["session"].size() == 12);
@@ -1095,4 +1097,15 @@ TEST_CASE(
     CHECK(entries[0]["context"]["field"] == "session.tableDialog.rows");
     CHECK(entries[0]["context"]["reason"].is_string());
     CHECK_FALSE(entries[0]["context"].contains("value"));
+}
+
+TEST_CASE("settings: feature 008 keys validate their values", "[settings]") {
+    test::TempDir tmp;
+    settings::SettingsStore store(tmp / "settings.json");
+    store.apply_patch(json{{"other", {{"openFromOutside", "newWindow"}}}});
+    CHECK(store.get()["other"]["openFromOutside"] == "newWindow");
+    CHECK_THROWS(store.apply_patch(json{{"other", {{"openFromOutside", "elsewhere"}}}}));
+    store.apply_patch(json{{"view", {{"spellExtraDictionaries", json::array({"uk_UA"})}}}});
+    CHECK(store.get()["view"]["spellExtraDictionaries"] == json::array({"uk_UA"}));
+    CHECK_THROWS(store.apply_patch(json{{"view", {{"spellExtraDictionaries", "en_US"}}}}));
 }
