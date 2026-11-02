@@ -755,13 +755,46 @@ print(pages[0] if pages else "")' 2>/dev/null || true
   fi
   echo "shell-smoke: copies: two copies run, in slots 1 and 2"
   BOOK="$ROOT/tests/fixtures/books/notes-6.fb2"
+  title_port() {
+    local deadline=$((SECONDS + TIMEOUT_S)) port
+    while (( SECONDS < deadline )); do
+      for port in "$PORT1" "$PORT2"; do
+        if page_title "$port" | grep -Eq "$1"; then echo "$port"; return 0; fi
+      done
+      sleep 0.5
+    done
+    echo "shell-smoke: copies: no copy showed /$1/" >&2
+    exit 1
+  }
+  wait_record_book() {
+    local deadline=$((SECONDS + TIMEOUT_S))
+    while (( SECONDS < deadline )); do
+      if python3 - "$COPIES_DIR" "$1" <<'PY'
+import glob, json, os, sys
+for name in glob.glob(os.path.join(sys.argv[1], "*.json")):
+    try:
+        book = json.load(open(name)).get("book") or {}
+    except Exception:
+        continue
+    if os.path.basename(book.get("path", "")) == sys.argv[2]:
+        sys.exit(0)
+sys.exit(1)
+PY
+      then return 0; fi
+      sleep 0.5
+    done
+    echo "shell-smoke: copies: no copy came to hold $1" >&2
+    exit 1
+  }
   started=$SECONDS
   if ! run_start "$BOOK"; then
     echo "shell-smoke: copies: the start with a book did not end with status 0" >&2
     exit 1
   fi
-  wait_title "$PORT2" "^notes-6\.fb2 - "
-  echo "shell-smoke: copies: the book reached copy 2 (used last, untouched) in $((SECONDS - started)) s"
+  HOLDER=$(title_port "^notes-6\.fb2 - ")
+  OTHER=$PORT1
+  [[ "$HOLDER" == "$PORT1" ]] && OTHER=$PORT2
+  echo "shell-smoke: copies: the book reached an untouched copy in $((SECONDS - started)) s"
   if [[ -f "$COPIES_DIR/3.json" ]]; then
     echo "shell-smoke: copies: the relaying start took a slot of its own" >&2
     exit 1
@@ -775,10 +808,49 @@ print(pages[0] if pages else "")' 2>/dev/null || true
     echo "shell-smoke: copies: the book already open started a third copy" >&2
     exit 1
   fi
-  wait_title "$PORT2" "^notes-6\.fb2 - "
+  wait_title "$HOLDER" "^notes-6\.fb2 - "
   echo "shell-smoke: copies: the open book was not opened a second time"
+  # The other untouched copy takes the next book (D2).
+  run_start "$ROOT/tests/fixtures/books/notes-none.fb2" || exit 1
+  wait_title "$OTHER" "^notes-none\.fb2 - "
+  echo "shell-smoke: copies: the next book went to the other untouched copy"
+  # Both copies hold a book: the copy used last asks; New window opens a new copy (FR-007).
+  run_start "$ROOT/tests/fixtures/books/fbe-pictures.fb2" || exit 1
+  ASKING=$(node "$ROOT/tools/shell-smoke-copies.mjs" "$PORT1,$PORT2" wait open-elsewhere-dialog) || exit 1
+  node "$ROOT/tools/shell-smoke-copies.mjs" "$ASKING" click open-elsewhere-dialog-button-new || exit 1
+  wait_record_book fbe-pictures.fb2
+  echo "shell-smoke: copies: the question asked in the copy used last, New window opened a new copy"
+  # That new copy (no CDP port) would be the copy used last for the next start: end it, so the
+  # next book goes to one of the two frozen copies.
+  NEW_COPY_PID=$(python3 - "$COPIES_DIR" <<'PY'
+import glob, json, os, sys
+for name in glob.glob(os.path.join(sys.argv[1], "*.json")):
+    try:
+        record = json.load(open(name))
+    except Exception:
+        continue
+    if os.path.basename((record.get("book") or {}).get("path", "")) == "fbe-pictures.fb2":
+        print(record.get("pid", ""))
+PY
+)
+  [[ -n "$NEW_COPY_PID" ]] && kill -TERM "$NEW_COPY_PID" 2>/dev/null || true
+  sleep 2
+  # Copies whose page does not answer: the book goes to a new copy within 5 s (FR-011), and
+  # neither copy is killed by the engine.
+  node "$ROOT/tools/shell-smoke-copies.mjs" "$PORT1" freeze || exit 1
+  node "$ROOT/tools/shell-smoke-copies.mjs" "$PORT2" freeze || exit 1
+  started=$SECONDS
+  run_start "$ROOT/tests/fixtures/books/notes-400.fb2" || exit 1
+  wait_record_book notes-400.fb2
+  echo "shell-smoke: copies: a book for a frozen page reached a new copy in $((SECONDS - started)) s"
+  for port in "$PORT1" "$PORT2"; do
+    if ! pgrep -f -- "mfbe.*--remote-debugging-port=$port" >/dev/null; then
+      echo "shell-smoke: copies: the frozen copy on port $port is gone" >&2
+      exit 1
+    fi
+  done
   OLD_PID=$(record_pid "$COPIES_DIR/2.json")
-  pkill -KILL -f -- "mfbe.*--remote-debugging-port=$PORT2" 2>/dev/null || true
+  [[ -n "$OLD_PID" ]] && kill -KILL "$OLD_PID" 2>/dev/null || true
   sleep 1
   start_shell
   PORT3=$CDP_PORT
@@ -789,8 +861,12 @@ print(pages[0] if pages else "")' 2>/dev/null || true
     exit 1
   fi
   echo "shell-smoke: copies: a killed copy's slot was taken again at once"
-  for port in "$PORT1" "$PORT3"; do
+  for port in "$PORT1" "$PORT2" "$PORT3"; do
     pkill -TERM -f -- "mfbe.*--remote-debugging-port=$port" 2>/dev/null || true
+  done
+  for record in "$COPIES_DIR"/*.json; do
+    pid=$(record_pid "$record")
+    [[ -n "$pid" ]] && kill -TERM "$pid" 2>/dev/null || true
   done
   sleep 1
   echo "shell-smoke: copies: OK"
