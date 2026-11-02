@@ -109,6 +109,24 @@ an undo boundary; switching from Source parses the text with `doc.fromXml`, whic
 node ids and returns a remap table so carets and undo entries survive. The Document Tree,
 Links bar, Table bar and status bar derive from the same live model.
 
+**Element names are unique at every moment (feature 008, FR-021, FR-022).** Every structural
+node of the open model has a node id no other node has. Two places enforce it:
+
+- `ensureUniqueNodeIds` (`ui/src/model/uniqueIds.ts`) runs wherever a document enters the store
+  (`actions.setDocument`, `actions.updateDocument`). It keeps a count of the ids and updates it
+  from the parts that changed: the top-level sections and the description's block roots,
+  compared by identity. A repeat is repaired - the first holder keeps the id, a later one gets
+  `ui_r<N>` - and the first repair of a session is logged once (`ui.nodeIdRepaired`, a count,
+  no text).
+- The editor's node-id plugin gives a fresh id to a node that arrives in a touched range (a
+  paste, a drop) with an id the document already has.
+
+The walks over parent links - the Document tree's `ancestorRows` and `isRowWithin` - stop at a
+row they have seen and after as many steps as there are rows. In 0.0.5 the script runs numbered
+new nodes from `sc_1` again in every run; the repeats made such a walk endless, which froze the
+editor. Since 0.0.6 the allocator continues past the highest `sc_<N>` (feature 006). Scripts
+themselves may still loop; Cancel stops them (FR-023).
+
 **Position map (Body ↔ Source, feature 004).** The caret and the selection travel between the
 two views through a map the core records while it serialises (`doc.toXml({positions: true})`)
 or parses (`doc.fromXml({positions: true})`) the Source text: for every node with an id under
