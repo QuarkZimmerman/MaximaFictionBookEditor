@@ -782,6 +782,16 @@ jobs:
           APPIMAGE_EXTRACT_AND_RUN=1 MFBE_APP_BIN="$image" MFBE_SMOKE_REAL_UI=1 \
             MFBE_SMOKE_SCREENSHOT=build/shell-smoke-appimage.png tools/shell-smoke.sh
 
+      - name: Package check (Windows - the launch option of the last page, feature 008)
+        # The MSI tables of MfbeExitDlg: the ticked Launch checkbox, Finish's DoAction under its
+        # condition, the launch through Explorer, the success exit dialog (T059, FR-064). The
+        # launch itself is the requester's smoke test.
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $msi = (Get-ChildItem build\${{ matrix.preset }}\packages\*.msi | Select-Object -First 1).FullName
+          ./tools/ci/msi-launch-check.ps1 -Msi $msi
+
       - name: Package smoke (Windows - install, associations, uninstall)
         if: runner.os == 'Windows'
         shell: pwsh
