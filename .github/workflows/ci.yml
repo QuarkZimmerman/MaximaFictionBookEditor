@@ -988,7 +988,15 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          tools/ci/windows-copies-journey.ps1 -Exe (Join-Path $env:ProgramFiles 'Maxima Fiction Book Editor\bin\mfbe.exe')
+          $msi = (Get-ChildItem build\${{ matrix.preset }}\packages\*.msi | Select-Object -First 1).FullName
+          $p = Start-Process msiexec -ArgumentList "/i `"$msi`" /qn /l*v $env:RUNNER_TEMP\install-copies.log" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content $env:RUNNER_TEMP\install-copies.log -Tail 80; throw "msiexec install exit $($p.ExitCode)" }
+          try {
+            tools/ci/windows-copies-journey.ps1 -Exe (Join-Path $env:ProgramFiles 'Maxima Fiction Book Editor\bin\mfbe.exe')
+          } finally {
+            $u = Start-Process msiexec -ArgumentList "/x `"$msi`" /qn" -Wait -PassThru
+            if ($u.ExitCode -ne 0) { throw "msiexec uninstall exit $($u.ExitCode)" }
+          }
 
       - name: Russian-environment journey (Windows - installed and portable)
         if: runner.os == 'Windows'
