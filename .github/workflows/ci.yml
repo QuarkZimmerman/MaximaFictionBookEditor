@@ -613,6 +613,28 @@ jobs:
           MFBE_SMOKE_TABLE_MARKS: "1"
           MFBE_SMOKE_SCREENSHOT: build/shell-smoke-table-marks.png
 
+      - name: Shell smoke, copies of the editor (feature 008)
+        # Two copies, a book relayed through the engine to the untouched copy, the open book not
+        # reopened, the question and New window, a frozen page's book to a new copy, a killed
+        # copy's slot taken again (T010, T023). Linux only, as the shell smoke is; Windows has
+        # its own journey (T024).
+        if: runner.os == 'Linux'
+        run: tools/shell-smoke.sh
+        env:
+          MFBE_APP_BIN: ${{ github.workspace }}/build/${{ matrix.preset }}/bin/mfbe
+          MFBE_SMOKE_REAL_UI: "1"
+          MFBE_SMOKE_COPIES: "1"
+
+      - name: Shell smoke, the 0.0.5 footnote sequence (feature 008)
+        # Two runs of "Добавить примечание, перейти на его раздел" through the real Scripts menu
+        # in a book without notes; the page answers after each (T039, FR-024).
+        if: runner.os == 'Linux'
+        run: tools/shell-smoke.sh
+        env:
+          MFBE_APP_BIN: ${{ github.workspace }}/build/${{ matrix.preset }}/bin/mfbe
+          MFBE_SMOKE_REAL_UI: "1"
+          MFBE_SMOKE_NOTES_SEQUENCE: "1"
+
       - name: Shell smoke in a Russian environment (feature 002)
         # ru_RU.UTF-8, the shell's home and temporary folders under a Cyrillic name (the smoke
         # keeps its home in TMPDIR) and a Cyrillic-named book in a Cyrillic folder as the

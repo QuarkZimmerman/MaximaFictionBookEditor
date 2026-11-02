@@ -706,6 +706,17 @@ if [[ "$TABLE_LAYOUT" == "1" ]]; then
   exit 0
 fi
 
+# --- Footnote sequence (feature 008, T039; needs MFBE_SMOKE_REAL_UI=1) -----------------------
+# The 0.0.5 freeze: two runs of "Добавить примечание, перейти на его раздел" through the real
+# Scripts menu in a book without notes; the page answers after each run.
+if [[ "${MFBE_SMOKE_NOTES_SEQUENCE:-0}" == "1" ]]; then
+  start_shell "$ROOT/tests/fixtures/books/notes-none.fb2"
+  node "$ROOT/tools/shell-smoke-copies.mjs" "$CDP_PORT" notes-sequence notes-none.fb2 || exit 1
+  stop_shell
+  echo "shell-smoke: notes sequence: OK"
+  exit 0
+fi
+
 # --- Copies (feature 008, T010 and T023; needs MFBE_SMOKE_REAL_UI=1: --url runs take no slot) --
 # Two copies in slots 1 and 2; a start with a book relays it to the copy used last, which holds
 # an untouched document and opens it; the same book again opens nothing new (FR-017); a killed

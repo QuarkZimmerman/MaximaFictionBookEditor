@@ -4,6 +4,7 @@
 //   node tools/shell-smoke-copies.mjs <port[,port...]> wait <test-id>   # prints the port showing it
 //   node tools/shell-smoke-copies.mjs <port> click <test-id>
 //   node tools/shell-smoke-copies.mjs <port> freeze                      # page busy for 120 s
+//   node tools/shell-smoke-copies.mjs <port> notes-sequence <book name>  # feature 008, T039
 //
 // Exit 0 on success, 1 with a message on stderr otherwise.
 import { createRequire } from "node:module";
@@ -73,6 +74,45 @@ if (action === "wait") {
       }
     }, 0);
   });
+  await browser.close();
+} else if (action === "notes-sequence") {
+  // Two runs of "Add a footnote and go to its section" through the real Scripts menu, in a book
+  // without notes (the 0.0.5 freeze); after each the page must answer within a second.
+  const { browser, page } = await pageOf(ports[0]);
+  const deadline = Date.now() + timeoutMs;
+  while (!(await page.title()).startsWith(testId) && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  const paragraphs = ["n7", "n9"];
+  for (const [index, nodeId] of paragraphs.entries()) {
+    const selected = await page.evaluate(
+      (id) => window.__mfbeTest?.scripts?.select(id, 1, 1) ?? false,
+      nodeId,
+    );
+    if (!selected)
+      fail(`run ${index + 1}: could not place the caret in ${nodeId}`);
+    await page.getByTestId("menu-scripts").click();
+    await page.getByTestId("menu-scripts-02_footnotes").hover();
+    await page
+      .getByTestId("menu-scripts-02_footnotes-02/add-footnote-go-to-note")
+      .click();
+    let status = null;
+    const runDeadline = Date.now() + timeoutMs;
+    while (Date.now() < runDeadline) {
+      status = await page.evaluate(
+        () => window.__mfbeTest?.scripts?.state()?.status ?? null,
+      );
+      if (status && status !== "running") break;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    if (status !== "done") fail(`run ${index + 1}: the script ended ${status}`);
+    const started = Date.now();
+    await page.evaluate(() => 1);
+    const answered = Date.now() - started;
+    if (answered > 1000)
+      fail(`run ${index + 1}: the page answered only after ${answered} ms`);
+    console.log(`run ${index + 1}: done, the page answered in ${answered} ms`);
+  }
   await browser.close();
 } else {
   fail(`unknown action ${action}`);
