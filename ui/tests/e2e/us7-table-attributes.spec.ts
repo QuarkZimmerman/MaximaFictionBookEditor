@@ -230,6 +230,18 @@ async function hooksReady(page: Page): Promise<void> {
  * document id tells that the copy read back is the one shown.
  */
 async function openFile(core: CoreHandle, page: Page, file: string): Promise<void> {
+  const name = file.split(/[\\/]/).pop() ?? file;
+  if ((await page.title()).startsWith(name)) {
+    // The copy just saved is the open book: File > Open would only bring it to the front
+    // (feature 008, FR-017), so it is closed first to be read back from the file.
+    await menu(page, 'file', 'new');
+    const prompt = page.getByTestId('dialog-save-changes');
+    await expect
+      .poll(async () => (await prompt.count()) > 0 || !(await page.title()).startsWith(name))
+      .toBe(true);
+    if ((await prompt.count()) > 0) await page.getByTestId('dialog-save-changes-button-no').click();
+    await expect.poll(() => page.title()).not.toContain(name);
+  }
   const before = await shownDocId(page);
   await core.enqueueDialog('dialog.openFile', { paths: [file] });
   await menu(page, 'file', 'open');
