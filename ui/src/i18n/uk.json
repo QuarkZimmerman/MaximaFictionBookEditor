@@ -1007,6 +1007,7 @@
     "settingLabel": "Коли книжку відкривають ззовні редактора:",
     "settingAsk": "Питати",
     "settingThisWindow": "Відкривати в робочому вікні",
-    "settingNewWindow": "Відкривати в новому вікні"
+    "settingNewWindow": "Відкривати в новому вікні",
+    "settingGroup": "Книжки, відкриті ззовні"
   }
 }

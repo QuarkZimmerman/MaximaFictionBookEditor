@@ -979,6 +979,7 @@
     "settingLabel": "When a book is opened from outside the editor:",
     "settingAsk": "Ask",
     "settingThisWindow": "Open it in the running window",
-    "settingNewWindow": "Open it in a new window"
+    "settingNewWindow": "Open it in a new window",
+    "settingGroup": "Books opened from outside"
   }
 }

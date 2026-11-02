@@ -1007,6 +1007,7 @@
     "settingLabel": "Когда книга открывается извне редактора:",
     "settingAsk": "Спрашивать",
     "settingThisWindow": "Открывать в работающем окне",
-    "settingNewWindow": "Открывать в новом окне"
+    "settingNewWindow": "Открывать в новом окне",
+    "settingGroup": "Книги, открытые извне"
   }
 }

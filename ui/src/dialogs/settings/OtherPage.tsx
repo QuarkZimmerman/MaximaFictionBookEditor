@@ -404,6 +404,28 @@ export function OtherPage({ draft, onChange, ctx }: OtherPageProps) {
         </FieldRow>
       </GroupBox>
 
+      <GroupBox title={t('openElsewhere.settingGroup')}>
+        <FieldRow
+          label={t('openElsewhere.settingLabel')}
+          htmlFor="settings-other-open-from-outside"
+        >
+          <select
+            id="settings-other-open-from-outside"
+            value={other.openFromOutside}
+            onChange={(event) =>
+              onChange({
+                openFromOutside: event.target.value as Settings['other']['openFromOutside'],
+              })
+            }
+            data-testid="settings-other-open-from-outside"
+          >
+            <option value="ask">{t('openElsewhere.settingAsk')}</option>
+            <option value="thisWindow">{t('openElsewhere.settingThisWindow')}</option>
+            <option value="newWindow">{t('openElsewhere.settingNewWindow')}</option>
+          </select>
+        </FieldRow>
+      </GroupBox>
+
       <GroupBox title={t('dialog.settings.other.versionCheck')}>
         <FieldRow
           label={t('dialog.settings.other.versionCheckSchedule')}
