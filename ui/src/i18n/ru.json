@@ -692,7 +692,9 @@
         "spellcheck": "Проверка орфографии",
         "useSpellchecker": "Проверять орфографию",
         "highlightMisspelled": "Выделять ошибки",
-        "customDictionary": "Пользовательский словарь:"
+        "customDictionary": "Пользовательский словарь:",
+        "spellAlsoUse": "Использовать также словари:",
+        "spellBaseDictionary": "{{name}} (язык книги)"
       },
       "other": {
         "saveFile": "Опции сохранения",

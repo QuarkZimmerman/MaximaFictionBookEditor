@@ -678,7 +678,9 @@
         "spellcheck": "Spellcheck",
         "useSpellchecker": "Use spellchecker",
         "highlightMisspelled": "Highlight misspelled words",
-        "customDictionary": "Custom dictionary:"
+        "customDictionary": "Custom dictionary:",
+        "spellAlsoUse": "Also use these dictionaries:",
+        "spellBaseDictionary": "{{name}} (the book's language)"
       },
       "other": {
         "saveFile": "Save File",

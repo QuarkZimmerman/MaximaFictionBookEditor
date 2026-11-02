@@ -281,6 +281,11 @@ export function ViewPage({ draft, onChange, onChangeOther, ctx }: ViewPageProps)
             testId="settings-view-spell-highlight"
           />
         </div>
+        <ExtraDictionaries
+          value={view.spellExtraDictionaries ?? []}
+          onChange={(next) => onChange({ spellExtraDictionaries: next })}
+          ctx={ctx}
+        />
         <FieldRow
           label={t('dialog.settings.view.customDictionary')}
           htmlFor="settings-view-custom-dictionary"
@@ -311,6 +316,62 @@ export function ViewPage({ draft, onChange, onChangeOther, ctx }: ViewPageProps)
           ctx={ctx}
         />
       </GroupBox>
+    </div>
+  );
+}
+
+/**
+ * "Also use" (feature 008, FR-034): the extra dictionaries ticked here are used besides the base
+ * one - the book's language, else the interface language's - which is always used and shown
+ * ticked and unavailable. The list is the report's: bundled and user-added dictionaries alike.
+ */
+function ExtraDictionaries({
+  value,
+  onChange,
+  ctx,
+}: {
+  value: readonly string[];
+  onChange: (next: string[]) => void;
+  ctx: CommandContext;
+}) {
+  const { t } = useTranslation();
+  const feature = getSpellFeature(ctx.store);
+  const subscribe = useCallback(
+    (listener: () => void) =>
+      feature.checker.subscribe((event) => {
+        if (event === 'report' || event === 'invalidate') listener();
+      }),
+    [feature],
+  );
+  const report = useSyncExternalStore(subscribe, () => feature.checker.report);
+  const dictionaries = (report?.dictionaries ?? []).flatMap((d) =>
+    typeof d.tag === 'string' && d.tag !== '' ? [{ tag: d.tag, name: d.name ?? '' }] : [],
+  );
+  if (dictionaries.length === 0) return null;
+  const base = feature.checker.baseLanguage(false);
+  return (
+    <div className="mfbe-settings-checks" data-testid="settings-view-spell-extra">
+      <div className="mfbe-settings-note">{t('dialog.settings.view.spellAlsoUse')}</div>
+      {dictionaries.map((dictionary) => {
+        const isBase = dictionary.tag === base;
+        const name = dictionary.name || dictionary.tag;
+        return (
+          <CheckField
+            key={dictionary.tag}
+            label={isBase ? t('dialog.settings.view.spellBaseDictionary', { name }) : name}
+            checked={isBase || value.includes(dictionary.tag)}
+            disabled={isBase}
+            onChange={(checked) =>
+              onChange(
+                checked
+                  ? [...value.filter((tag) => tag !== dictionary.tag), dictionary.tag]
+                  : value.filter((tag) => tag !== dictionary.tag),
+              )
+            }
+            testId={`settings-view-spell-extra-${dictionary.tag}`}
+          />
+        );
+      })}
     </div>
   );
 }

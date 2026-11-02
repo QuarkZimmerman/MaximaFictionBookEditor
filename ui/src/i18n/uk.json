@@ -692,7 +692,9 @@
         "spellcheck": "Перевірка орфографії",
         "useSpellchecker": "Перевіряти орфографію",
         "highlightMisspelled": "Виділяти помилки",
-        "customDictionary": "Словник користувача:"
+        "customDictionary": "Словник користувача:",
+        "spellAlsoUse": "Використовувати також словники:",
+        "spellBaseDictionary": "{{name}} (мова книжки)"
       },
       "other": {
         "saveFile": "Параметри збереження",

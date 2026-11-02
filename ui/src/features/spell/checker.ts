@@ -158,7 +158,7 @@ export class SpellChecker {
    * The base dictionary (feature 008, FR-031): the book's language when a dictionary serves it,
    * else the interface language's. Without the dictionary list the language itself.
    */
-  baseLanguage(): string {
+  baseLanguage(notice = true): string {
     const dictionaries = this.dictionariesValue;
     const book = this.documentLanguage();
     if (!dictionaries) return book || this.interfaceLanguage();
@@ -166,7 +166,7 @@ export class SpellChecker {
       const resolved = resolveDictionaryTag(book, dictionaries);
       if (resolved) return resolved;
       const key = `${this.store.getState().docId ?? ''}\u0000${book}`;
-      if (!this.bookLanguageNoticed.has(key)) {
+      if (notice && !this.bookLanguageNoticed.has(key)) {
         this.bookLanguageNoticed.add(key);
         this.onUnavailable(book); // once per book and language (FR-033)
       }
