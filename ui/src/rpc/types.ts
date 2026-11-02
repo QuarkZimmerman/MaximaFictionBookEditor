@@ -40,16 +40,19 @@ export type { BinaryMeta, Document, ValidationIssue, ValidationReport } from '@/
 export const RPC_API_VERSION = 1;
 /**
  * Additive contract revision within RPC_API_VERSION (`app.info().apiMinor`; absent = 0). The
- * revision this UI was written for (6 since feature 007: the scripts' `legacy.sourceVersion`,
+ * revision this UI was written for (7 since feature 008: the open requests between copies -
+ * `app.openRequest`, `app.openRequestAck`, `app.openInNewCopy`, `app.bookHolder`,
+ * `app.activateCopy`, `app.copyState`, `app.activated` - and the settings `other.openFromOutside`
+ * and `view.spellExtraDictionaries`; 6 since feature 007: the scripts' `legacy.sourceVersion`,
  * `origin` and `overrides`, the group icon route, package isolation, `files.saveText` and
  * `files.saveBinaries`, the script backups; 5 since feature 006: the cell's and the marks'
  * languages, marks on inline atoms, the writer's link rule, `session.tableDialog`); it accepts
  * any core answering minor >= 1 (rpc-api.md §6) - the client performs no minor check at connect
- * time and gates nothing on 6; the AI assistant (feature 005) reads `app.info().apiMinor` itself
+ * time and gates nothing on 7; the AI assistant (feature 005) reads `app.info().apiMinor` itself
  * and requires >= 5 since feature 006 (`AI_REQUIRED_API_MINOR` in `ui/src/ai/index.ts`; 4
  * before).
  */
-export const RPC_API_MINOR = 6;
+export const RPC_API_MINOR = 7;
 
 /* ------------------------------------------------------------------------ */
 /* Error codes (rpc-api.md §1)                                              */
@@ -1385,6 +1388,23 @@ export interface RpcMethods {
    * / privacy link of the AI assistant (rpc-api.md §3.1).
    */
   'app.openUrl': { params: { url: string }; result: Empty };
+  /** Feature 008: acknowledges an `app.openRequest` within 5 s (stops the shell's timer). */
+  'app.openRequestAck': { params: { requestId: string }; result: Empty };
+  /** Feature 008: opens the books in a new copy of the editor. */
+  'app.openInNewCopy': { params: { paths: string[] }; result: { started: boolean; reason?: string } };
+  /** Feature 008: the copy slot holding the book, compared by file identity (FR-017). */
+  'app.bookHolder': { params: { path: string }; result: { slot: number | null } };
+  /** Feature 008: brings the copy of `slot` forward to show `path`. */
+  'app.activateCopy': { params: { slot: number; path: string }; result: { started: boolean } };
+  /** Feature 008: this copy's state for its copy record (data-model §2). */
+  'app.copyState': { params: { state: 'ready' | 'busy'; untouched: boolean }; result: Empty };
+  /** Feature 008, test hooks only: the records of `<Data>/copies`. */
+  'test.copies': { params: void; result: { records: CopyRecord[] } };
+  /** Feature 008, test hooks only: drives `app.openRequest` without a second process. */
+  'test.simulateOpenRequest': {
+    params: { paths: string[]; target?: OpenRequest['target']; kind?: OpenRequest['kind'] };
+    result: { requestId: string };
+  };
   /** The effective service list, loaded on the first `ai.*` call or at the last reload. */
   'ai.services': { params: void; result: AiServicesResult };
   /** Re-reads both list files and emits `resources.changed {what: 'aiServices'}`. */
@@ -1426,6 +1446,31 @@ export type RpcResult<M extends RpcMethodName> = RpcMethods[M]['result'];
 /* Notifications (rpc-api.md §4)                                            */
 /* ------------------------------------------------------------------------ */
 
+/** Feature 008 (rpc-api.md §1, data-model §3): a book request relayed between copies. */
+export interface OpenRequest {
+  requestId: string;
+  paths: string[];
+  origin: 'outside' | 'startup';
+  target: 'ask' | 'untouched';
+  kind: 'open' | 'activate';
+}
+
+/** Feature 008 (data-model §2): one copy's record in `<Data>/copies/<n>.json`. */
+export interface CopyRecord {
+  schema: 1;
+  slot: number;
+  pid: number;
+  host: string;
+  startedAt: string;
+  lastActiveAt: string;
+  heartbeatAt: string;
+  state: 'ready' | 'busy' | 'restarting';
+  untouched: boolean;
+  book: { path: string; fileId: string } | null;
+  window: { x: number; y: number; w: number; h: number; maximized: boolean } | null;
+  live: boolean;
+}
+
 export interface RpcNotifications {
   'doc.changedOnDisk': { docId: string; path: string; mtime: string };
   'job.progress': JobProgress;
@@ -1433,6 +1478,10 @@ export interface RpcNotifications {
   'job.failed': { jobId: string; error: RpcErrorObject };
   'resources.changed': { what: 'genres' | 'scripts' | 'dictionaries' | 'aiServices' };
   'app.openPaths': { paths: string[] };
+  /** A book request relayed from another start of the editor (feature 008, rpc-api.md §1). */
+  'app.openRequest': OpenRequest;
+  /** This copy was brought forward for an activation request (feature 008). */
+  'app.activated': { path?: string };
   'settings.changed': { settings: Settings };
   /** The shell was asked to close its window; the UI runs its quit flow (feature 003). */
   'app.closeRequested': Record<string, never>;
