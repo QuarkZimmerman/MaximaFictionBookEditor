@@ -147,6 +147,20 @@ test.describe('US5: the Links bar list of jump destinations and images', () => {
     await expect.poll(() => hrefOfLink(page, nodeId)).toBe('#n_14');
   });
 
+  test("at a picture: the book's 50 images in book order", async ({ core, page }) => {
+    await openBook(core, page);
+    const picture = page.getByTestId('body-editor').locator('img').first();
+    await picture.scrollIntoViewIfNeeded();
+    await picture.click();
+    await expect(page.getByTestId('links-bar-href')).toHaveValue('#pic_1.png');
+    await page.getByTestId('links-bar-href-toggle').click();
+    const texts = await optionTexts(page);
+    expect(texts).toHaveLength(50);
+    expect(texts.slice(0, 3)).toEqual(['#pic_1.png', '#pic_2.png', '#pic_3.png']);
+    expect(texts.indexOf('#pic_2.png')).toBeLessThan(texts.indexOf('#pic_10.png'));
+    await page.keyboard.press('Escape');
+  });
+
   test('a typed address is applied as before', async ({ core, page }) => {
     await openBook(core, page);
     const nodeId = await caretInLink(page, '#n_4');
