@@ -275,7 +275,8 @@ describe('SpellChecker', () => {
     const checks = rpc.calls.filter((call) => call.method === 'spell.check');
     expect(checks).toHaveLength(2);
     expect((checks[0]!.params as { words: string[] }).words).toHaveLength(BATCH_SIZE);
-    expect((checks[0]!.params as { langs: string[] }).langs).toEqual(['ru']);
+    // Feature 008: the book's language, then the extra dictionaries (en_US; ru_RU is the base's).
+    expect((checks[0]!.params as { langs: string[] }).langs).toEqual(['ru', 'en_US']);
     expect(bad.has('w1')).toBe(true);
     expect(bad.has('w2')).toBe(false);
     expect(c.lookup('w11')).toBe(true);
@@ -291,9 +292,9 @@ describe('SpellChecker', () => {
 
   it('resolves document languages to dictionary tags once the list is known', async () => {
     const { checker: c } = checker({ 'spell.check': { misspelled: [] } });
-    expect(c.activeLangs()).toEqual(['ru']);
+    expect(c.activeLangs()).toEqual(['ru', 'en_US']);
     await c.loadDictionaries();
-    expect(c.activeLangs()).toEqual(['ru_RU']);
+    expect(c.activeLangs()).toEqual(['ru_RU', 'en_US']);
     c.session.setLanguageOverride(['en_US', 'ru_RU']);
     expect(c.activeLangs()).toEqual(['en_US', 'ru_RU']);
     expect(resolveDictionaryTag('ru-RU', c.dictionaries!)).toBe('ru_RU');
