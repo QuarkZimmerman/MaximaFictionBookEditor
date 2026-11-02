@@ -2,10 +2,10 @@
 //
 // Every running copy owns one slot: an exclusive OS lock on `<Data>/copies/<n>.lock` (flock on
 // Linux and macOS, LockFileEx on Windows), held for the process lifetime, so a copy that ends in
-// any way frees its slot. Slot 1 uses the engine profile `<Data>/cef`, slot n >= 2 `<Data>/cef-<n>`.
-// The copy record `<Data>/copies/<n>.json` (schema 1) tells other starts where the copy is, which
-// book it holds and whether it responds; a record counts only while its lock is held by another
-// holder on this host.
+// any way frees its slot. Slot 1 uses the engine profile `<Data>/cef`, slot n >= 2
+// `<Data>/cef-<n>`. The copy record `<Data>/copies/<n>.json` (schema 1) tells other starts where
+// the copy is, which book it holds and whether it responds; a record counts only while its lock is
+// held by another holder on this host.
 #pragma once
 
 #include <chrono>
@@ -35,9 +35,9 @@ struct Record {
     int slot = 0;
     long long pid = 0;
     std::string host;
-    std::string started_at;      // ISO-8601 UTC
-    std::string last_active_at;  // ISO-8601 UTC
-    std::string heartbeat_at;    // ISO-8601 UTC
+    std::string started_at;       // ISO-8601 UTC
+    std::string last_active_at;   // ISO-8601 UTC
+    std::string heartbeat_at;     // ISO-8601 UTC
     std::string state = "ready";  // "ready" | "busy" | "restarting"
     bool untouched = true;
     std::optional<BookRef> book;
