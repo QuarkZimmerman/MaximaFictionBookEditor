@@ -12,6 +12,7 @@
  * App.tsx in the view area; the status-bar run line (RunBar.tsx) remains in addition.
  */
 
+import { AiAtom } from '@/app/AiAtom';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -73,7 +74,11 @@ export function ScriptRunBanner() {
       data-script-id={script ? run?.scriptId : undefined}
       data-waiting={run?.waiting ? 'true' : undefined}
     >
-      <span className="mfbe-script-banner-busy" aria-hidden="true" />
+      {lock.kind === 'ai' ? (
+        <AiAtom className="mfbe-script-banner-atom" />
+      ) : (
+        <span className="mfbe-script-banner-busy" aria-hidden="true" />
+      )}
       <span className="mfbe-script-banner-text">
         <span className="mfbe-script-banner-name" data-testid="script-run-name" title={lock.label}>
           {script ? t('scripting.banner.running', { name: lock.label }) : lock.label}

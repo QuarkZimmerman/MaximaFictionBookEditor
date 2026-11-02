@@ -950,6 +950,37 @@ textarea {
   cursor: progress;
 }
 
+/* The assistant is at work (feature 008, FR-080 to FR-085): the arrow with a turning atom over
+   the document pane - App.tsx animates --mfbe-ai-cursor (aiBusy.ts) -, not while a dialog of the
+   request waits for the user. Script runs keep the busy pointer above. */
+.mfbe-view-content.mfbe-ai-busy,
+.mfbe-view-content.mfbe-ai-busy * {
+  cursor: var(--mfbe-ai-cursor, progress);
+}
+
+/* The atom of the banner and the status bar (AiAtom.tsx, FR-084, FR-086). */
+.mfbe-ai-atom {
+  flex: none;
+  color: var(--mfbe-color-accent, currentColor);
+}
+
+.mfbe-ai-atom-electrons {
+  transform-origin: 8px 8px;
+  animation: mfbe-ai-atom-turn 1.5s linear infinite;
+}
+
+@keyframes mfbe-ai-atom-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mfbe-ai-atom-electrons {
+    animation: none;
+  }
+}
+
 .mfbe-view {
   height: 100%;
 }

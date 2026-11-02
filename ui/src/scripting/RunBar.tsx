@@ -10,6 +10,7 @@
  * `script-run-bar-cancel` beside the banner's `script-run-cancel`.
  */
 
+import { AiAtom } from '@/app/AiAtom';
 import { useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -63,6 +64,7 @@ export function RunBar() {
       data-run-kind={lock.kind}
       data-silent={script && run?.silent ? 'true' : undefined}
     >
+      {lock.kind === 'ai' ? <AiAtom className="mfbe-runbar-atom" /> : null}
       <span className="mfbe-runbar-text" data-testid="script-run-text" title={text}>
         {text}
       </span>

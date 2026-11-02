@@ -25,6 +25,8 @@ import { DialogHost, ValidationPanel, createIssueNavigator } from '@/dialogs';
 import { changeLanguage, resolveUiLanguage } from '@/i18n';
 import { onNodeIdRepair } from '@/model/uniqueIds';
 import { actions, documentFileName, useAppState } from '@/model/store';
+
+import { isAiBusy, useAiBusyPointer } from './aiBusy';
 import { BodyView } from '@/views/body/BodyView';
 import { DescriptionView } from '@/views/description/DescriptionView';
 import { SourceView } from '@/views/source/SourceView';
@@ -424,6 +426,17 @@ function Shell({
   // Busy pointer over the document pane while a script computes - not while it waits for the
   // user in one of its own dialogs (feature 003, FR-011).
   const scriptsFeature = getScriptsFeature(store);
+  // Feature 008 (FR-080 to FR-085): the atom pointer while an assistant's request computes -
+  // not while a dialog of it waits for the user; it takes precedence over the script pointer.
+  const runKind = useAppState((s) => s.runLock?.kind ?? null, store);
+  const modalOpen = useSyncExternalStore(
+    dialogs.subscribe ?? NO_SUBSCRIPTION,
+    () => dialogs.isModalOpen === true,
+    () => false,
+  );
+  const aiBusy = isAiBusy(runKind, modalOpen);
+  const viewContentRef = useRef<HTMLDivElement>(null);
+  useAiBusyPointer(viewContentRef, aiBusy);
   const scriptBusy = useSyncExternalStore(
     scriptsFeature?.host.subscribe ?? NO_SUBSCRIPTION,
     () => !!scriptsFeature?.host.isRunning && !scriptsFeature.host.current?.waiting,
@@ -463,7 +476,10 @@ function Shell({
         <section className="mfbe-view-area" data-testid="view-area">
           <ViewSwitcher />
           <ScriptRunBanner />
-          <div className={`mfbe-view-content${scriptBusy ? ' mfbe-busy' : ''}`}>
+          <div
+            ref={viewContentRef}
+            className={`mfbe-view-content${aiBusy ? ' mfbe-ai-busy' : scriptBusy ? ' mfbe-busy' : ''}`}
+          >
             {activeView === 'description' ? <DescriptionView /> : null}
             {activeView === 'body' ? <BodyView /> : null}
             {activeView === 'source' ? <SourceView /> : null}
