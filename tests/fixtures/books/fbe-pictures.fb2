@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+<description><title-info><genre>prose</genre><author><first-name>Test</first-name><last-name>Author</last-name></author><book-title>FBE pictures</book-title><coverpage><image l:href="#cover.jpg"/></coverpage><lang>ru</lang></title-info>
+<document-info><author><nickname>tester</nickname></author><date>2026-11-01</date><id>f008-fbe-pictures</id><version>1.0</version></document-info></description>
+<body><title><p>Pictures</p></title><section><title><p>Chapter</p></title><p>Text with an inline picture <image l:href="#inline.png"/> in the middle of a line.</p><image l:href="#block.png"/><p>Text after a block picture.</p></section></body>
+<binary id="cover.jpg" content-type="image/jpeg">/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkI
+CQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQ
+EBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAAGAAgDAREA
+AhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAABf/EACMQAAACCQUAAAAAAAAAAAAAABMWAAQHEhUX
+ITEzIiZUVWH/xAAUAQEAAAAAAAAAAAAAAAAAAAAF/8QAKREAAAALCAMAAAAAAAAAAAAAABESExQV
+FiExMjMCAwUGIiRSUyVhYv/aAAwDAQACEQMRAD8APO7NpMEwobt7aHq/LEzPC4tFvLVRVmczNsu0
+zx/ScvOkimI3U1R+pnAYssNUqEZ3HMmzzHMMqV0PUA//2Q==</binary>
+<binary id="inline.png" content-type="image/png">iVBORw0KGgoAAAANSUhEUgAAAAgAAAAGAQMAAADEy024AAAABlBMVEVAYKD/0EA3Gm2JAAAADklE
+QVQI12NgYLCBQgYABawA8UkjcVEAAAAASUVORK5CYII=</binary>
+<binary id="block.png" content-type="image/png">iVBORw0KGgoAAAANSUhEUgAAAAgAAAAGCAIAAABxZ0isAAAAIGNIUk0AAHomAACAhAAA+gAAAIDo
+AAB1MAAA6mAAADqYAAAXcJy6UTwAAAAGYktHRAD/AP8A/6C9p5MAAAAHdElNRQfqCgwXOCRJmNiC
+AAAAJklEQVQI12N0WPCfARtggVD7FzjChRwT9jMwMDAx4ACkSzDishwAkhAGy88e3G4AAAAldEVY
+dGRhdGU6Y3JlYXRlADIwMjYtMTAtMTJUMjM6NTY6MzYrMDA6MDDWvq+rAAAAJXRFWHRkYXRlOm1v
+ZGlmeQAyMDI2LTEwLTEyVDIzOjU2OjM2KzAwOjAwp+MXFwAAACh0RVh0ZGF0ZTp0aW1lc3RhbXAA
+MjAyNi0xMC0xMlQyMzo1NjozNiswMDowMPD2NsgAAAAASUVORK5CYII=</binary>
+</FictionBook>

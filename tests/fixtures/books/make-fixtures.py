@@ -3332,6 +3332,119 @@ def many_inline_pictures_book() -> str:
 """
 
 
+# ----------------------------------------------------------------------------------------------
+# Feature 008 fixtures: footnote sequences (US3), the Links bar list (US5), the FBE-like picture
+# book (US6) and the spelling set (US4).
+
+F008_WORDS = ("лорем ипсум долор сит амет консектетур адиписцинг элит сед до эиусмод темпор "
+              "инцидидунт ут лаборе эт долоре магна аликуа").split()
+
+
+def f008_sentence(seed: int, length: int) -> str:
+    words = [F008_WORDS[(seed * 7 + i * 3) % len(F008_WORDS)] for i in range(length)]
+    return " ".join(words).capitalize() + "."
+
+
+def f008_book(title: str, bodies: str, binaries: str = "", lang: str = "ru",
+              coverpage: str = "") -> str:
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+<description><title-info><genre>prose</genre><author><first-name>Test</first-name><last-name>Author</last-name></author><book-title>{title}</book-title>{coverpage}<lang>{lang}</lang></title-info>
+<document-info><author><nickname>tester</nickname></author><date>2026-11-01</date><id>f008-{title.lower().replace(" ", "-")}</id><version>1.0</version></document-info></description>
+{bodies}
+{binaries}</FictionBook>
+"""
+
+
+def f008_notes_book(chapters: int, per_chapter: int, paragraphs: int) -> str:
+    n = 0
+    sections = []
+    for c in range(1, chapters + 1):
+        notes_at = {1 + (c * 5 + k * 7) % (paragraphs - 1) for k in range(per_chapter)}
+        ps = []
+        for k in range(paragraphs):
+            text = f008_sentence(c * 31 + k, 14)
+            if k in notes_at:
+                n += 1
+                cut = text.find(" ", len(text) // 2)
+                text = text[:cut] + f'<a l:href="#n_{n}" type="note">[{n}]</a>' + text[cut:]
+            ps.append(f"<p>{text}</p>")
+        sections.append(f"<section><title><p>Глава {c}</p></title>{''.join(ps)}</section>")
+    notes = "".join(
+        f'<section id="n_{i}"><title><p>{i}</p></title><p>{f008_sentence(i, 8)}</p></section>'
+        for i in range(1, n + 1))
+    return f008_book(f"Notes {n}",
+                     f"<body><title><p>Notes {n}</p></title>{''.join(sections)}</body>\n"
+                     f'<body name="notes"><title><p>Примечания</p></title>{notes}</body>')
+
+
+def f008_notes_none() -> str:
+    ps = "".join(f"<p>Paragraph {i} of a book without notes, with some words.</p>" for i in range(1, 21))
+    return f008_book("Notes none", f"<body><title><p>No notes</p></title><section><title><p>Chapter</p></title>{ps}</section></body>")
+
+
+def f008_fbe_pictures() -> str:
+    cover = '<coverpage><image l:href="#cover.jpg"/></coverpage>'
+    body = ("<body><title><p>Pictures</p></title><section><title><p>Chapter</p></title>"
+            '<p>Text with an inline picture <image l:href="#inline.png"/> in the middle of a line.</p>'
+            '<image l:href="#block.png"/><p>Text after a block picture.</p></section></body>')
+    binaries = (f'<binary id="cover.jpg" content-type="image/jpeg">{b64("tiny.jpg")}</binary>\n'
+                f'<binary id="inline.png" content-type="image/png">{b64("tiny.png")}</binary>\n'
+                f'<binary id="block.png" content-type="image/png">{b64("opaque-rgb.png")}</binary>\n')
+    return f008_book("FBE pictures", body, binaries, coverpage=cover)
+
+
+def f008_href_200() -> str:
+    chapters = "".join(
+        f'<section id="ch_{c}"><title><p>Chapter {c}</p></title>'
+        f'<p>{f008_sentence(c, 10)}<a l:href="#n_{c}" type="note">[{c}]</a></p>'
+        f'<image l:href="#pic_{c}.png"/></section>' for c in range(1, 51))
+    notes = "".join(f'<section id="n_{i}"><title><p>{i}</p></title><p>Note {i}.</p></section>'
+                    for i in range(1, 151))
+    binaries = "".join(f'<binary id="pic_{c}.png" content-type="image/png">{b64("tiny.png")}</binary>\n'
+                       for c in range(1, 51))
+    return f008_book("Href 200", f"<body><title><p>Href 200</p></title>{chapters}</body>\n"
+                     f'<body name="notes"><title><p>Примечания</p></title>{notes}</body>', binaries)
+
+
+F008_EN_CORRECT = ("the and that have with this from they would there their what about which when "
+    "make like time just know take people into year your good some could them other than then now "
+    "look only come over think also back after work first well even want because these give most "
+    "house water light night world school story music garden window letter mother father friend "
+    "family country morning evening summer winter spring autumn river mountain forest flower "
+    "animal city street market church bridge island ocean village teacher student doctor writer "
+    "reader picture paper pencil kitchen bottle table chair door wall floor roof garden green "
+    "yellow purple orange silver golden happy little small large quiet early often never always "
+    "together already almost enough second minute hour today tomorrow yesterday question answer "
+    "problem reason number moment history language science nature system power money business "
+    "service health future office police party report record program company market energy "
+    "theory culture memory freedom silence journey kingdom dragon castle knight wizard poem novel "
+    "chapter author library pocket ticket travel island planet rocket engine machine message "
+    "letter window shadow sunrise sunset thunder rainbow butterfly elephant apple bread cheese "
+    "coffee dinner lunch breakfast basket candle carpet cloud desert feather glass hammer honey "
+    "jacket ladder mirror needle pillow rabbit saddle tiger violin wagon").split()
+F008_EN_WRONG = ("recieve teh adress begining beleive calender cemetary concious definately "
+    "embarass enviroment existance goverment independant knowlege libary neccessary occurence "
+    "posession seperate").split()
+F008_RU_WRONG = ("превет кароче сабака малако коммисия расчитать извените сдесь вообщем "
+    "ихний ложить звонишь типо щас скока чо поцелуить дествительно агенство инциндент").split()
+
+
+def f008_spell_book() -> str:
+    en = list(dict.fromkeys(F008_EN_CORRECT))[:200]
+    assert len(en) == 200, len(en)
+    ps = [f"<p>Русский абзац с английскими словами: {' '.join(en[i:i + 20])}.</p>" for i in range(0, 200, 20)]
+    ps.append(f"<p>Ошибки по-английски: {' '.join(F008_EN_WRONG)}.</p>")
+    ps.append(f"<p>Ошибки по-русски: {' '.join(F008_RU_WRONG)}.</p>")
+    return f008_book("Spell en in ru", f"<body><section><title><p>Проверка</p></title>{''.join(ps)}</section></body>")
+
+
+def f008_spell_expected() -> str:
+    en = list(dict.fromkeys(F008_EN_CORRECT))[:200]
+    return json.dumps({"correctEnglish": en, "misspelledEnglish": F008_EN_WRONG,
+                       "misspelledRussian": F008_RU_WRONG}, ensure_ascii=False, indent=2) + "\n"
+
+
 def main() -> None:
     write("legacy-cp1251.fb2", LEGACY, "cp1251")
     write("modern-utf8.fb2", MODERN)
@@ -3387,6 +3500,14 @@ def main() -> None:
     write("inline-pictures.fb2", inline_pictures_book())
     write("picture-view.fb2", picture_view_book())
     write("many-inline-pictures.fb2", many_inline_pictures_book())
+    # Feature 008
+    write("notes-6.fb2", f008_notes_book(1, 6, 13))
+    write("notes-400.fb2", f008_notes_book(100, 4, 30))
+    write("notes-none.fb2", f008_notes_none())
+    write("fbe-pictures.fb2", f008_fbe_pictures())
+    write("href-200.fb2", f008_href_200())
+    write("spell-en-in-ru.fb2", f008_spell_book())
+    write("spell-en-in-ru.expected.json", f008_spell_expected())
 
 
 if __name__ == "__main__":
