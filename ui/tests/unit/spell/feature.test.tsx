@@ -89,6 +89,7 @@ function settings(view: Partial<Settings['view']> = {}): Settings {
       sourceTagCompletion: true,
       spellEnabled: true,
       spellHighlight: true,
+      spellExtraDictionaries: ['en_US', 'ru_RU'],
       customDictionaryPath: '',
       fastMode: false,
       ...view,
@@ -110,6 +111,7 @@ function settings(view: Partial<Settings['view']> = {}): Settings {
       switchKeyboardLayout: false,
       keyboardLayoutId: '',
       keyboardLayoutName: '',
+      openFromOutside: 'ask',
     },
     words: { showExclusionsInWordsDialog: false },
     session: {

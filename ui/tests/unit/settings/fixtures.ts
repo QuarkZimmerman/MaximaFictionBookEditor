@@ -22,6 +22,7 @@ export function defaultSettings(overrides: Partial<Settings> = {}): Settings {
       sourceTagCompletion: true,
       spellEnabled: true,
       spellHighlight: true,
+      spellExtraDictionaries: ['en_US', 'ru_RU'],
       customDictionaryPath: '',
       fastMode: false,
     },
@@ -42,6 +43,7 @@ export function defaultSettings(overrides: Partial<Settings> = {}): Settings {
       switchKeyboardLayout: false,
       keyboardLayoutId: '',
       keyboardLayoutName: '',
+      openFromOutside: 'ask',
     },
     words: { showExclusionsInWordsDialog: false },
     session: {

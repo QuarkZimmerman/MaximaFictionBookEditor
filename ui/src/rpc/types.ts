@@ -252,6 +252,8 @@ export interface Settings {
     sourceTagCompletion: boolean;
     spellEnabled: boolean;
     spellHighlight: boolean;
+    /** Dictionary tags used in addition to the book's own (feature 008); default en_US, ru_RU. */
+    spellExtraDictionaries: string[];
     customDictionaryPath: string;
     fastMode: boolean;
   };
@@ -282,6 +284,8 @@ export interface Settings {
     keyboardLayoutId: string;
     /** The name the system gave the chosen layout when it was picked ("<name> (not installed)"). */
     keyboardLayoutName: string;
+    /** A book opened from outside while a copy runs (feature 008, FR-008). */
+    openFromOutside: 'ask' | 'thisWindow' | 'newWindow';
   };
   words: {
     showExclusionsInWordsDialog: boolean;

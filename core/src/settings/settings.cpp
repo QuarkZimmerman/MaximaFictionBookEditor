@@ -86,6 +86,8 @@ const std::vector<Field>& schema() {
         field("view.sourceTagCompletion", Kind::boolean),
         field("view.spellEnabled", Kind::boolean),
         field("view.spellHighlight", Kind::boolean),
+        // Dictionaries used in addition to the book's own (feature 008, FR-030 to FR-036).
+        field("view.spellExtraDictionaries", Kind::string_array),
         field("view.customDictionaryPath", Kind::string),
         field("view.fastMode", Kind::boolean),
         enumeration("other.defaultEncoding", supported_encodings()),
@@ -110,6 +112,8 @@ const std::vector<Field>& schema() {
         field("other.switchKeyboardLayout", Kind::boolean),
         field("other.keyboardLayoutId", Kind::string),
         field("other.keyboardLayoutName", Kind::string),
+        // What a book opened from outside the editor does while a copy runs (feature 008, FR-008).
+        enumeration("other.openFromOutside", {"ask", "thisWindow", "newWindow"}),
         field("words.showExclusionsInWordsDialog", Kind::boolean),
         // {x, y, width, height, maximized?: boolean} | null - the normal bounds plus the
         // maximised state, written by the shell at quit; replaced as a whole.
@@ -533,6 +537,7 @@ json defaults() {
           {"sourceTagCompletion", true},
           {"spellEnabled", true},
           {"spellHighlight", true},
+          {"spellExtraDictionaries", json::array({"en_US", "ru_RU"})},
           {"customDictionaryPath", ""},
           {"fastMode", false}}},
         {"other",
@@ -551,7 +556,8 @@ json defaults() {
           {"versionCheck", "monthly"},
           {"switchKeyboardLayout", false},
           {"keyboardLayoutId", ""},
-          {"keyboardLayoutName", ""}}},
+          {"keyboardLayoutName", ""},
+          {"openFromOutside", "ask"}}},
         {"words", {{"showExclusionsInWordsDialog", false}}},
         {"session",
          {{"windowGeometry", nullptr},
