@@ -75,7 +75,7 @@ function usage(message) {
     "usage: node tests/scripts/run-script.mjs <script-dir|script-id> <book.fb2> [--out file] " +
       "[--answer value]... [--select nodeId[:from[:to]]] " +
       "[--select-range fromNodeId:offset-toNodeId:offset] [--tree-node nodeId] " +
-      "[--snapshot file] [--update] [--timeout ms] [--core bin] [--ui-dist dir] [--keep]",
+      "[--snapshot file] [--update] [--timeout ms] [--core bin] [--ui-dist dir] [--keep] [--steps json]",
   );
   process.exit(2);
 }
@@ -110,6 +110,7 @@ function parseArgs(argv) {
     saveAs: [],
     pickFolder: [],
     listNodes: false,
+    steps: [],
   };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
@@ -170,6 +171,22 @@ function parseArgs(argv) {
       case "--list-nodes":
         options.listNodes = true;
         break;
+      case "--steps": {
+        // Feature 008 (T038): runs made before the main one, in the same session.
+        let steps;
+        try {
+          steps = JSON.parse(next());
+        } catch {
+          usage("--steps expects a JSON array of {script, select?, answers?}");
+        }
+        if (
+          !Array.isArray(steps) ||
+          steps.some((s) => typeof s?.script !== "string")
+        )
+          usage("--steps expects a JSON array of {script, select?, answers?}");
+        options.steps = steps;
+        break;
+      }
       case "--help":
       case "-h":
         usage();
@@ -397,10 +414,11 @@ async function main() {
   const log = (text) => console.error(`run-script: ${text}`);
 
   const dataDir = mkdtempSync(path.join(tmpdir(), "mfbe-run-script-"));
-  let scriptId = scriptArg;
-  const scriptDir = path.resolve(scriptArg);
-  if (existsSync(path.join(scriptDir, "script.json"))) {
-    // Copy the package into the temporary user layer under its group folder (if any).
+  // Copies a package into the temporary user layer under its group folder (if any) and returns
+  // its id; anything else is taken as an id of a bundled script.
+  const installPackage = (arg) => {
+    const scriptDir = path.resolve(arg);
+    if (!existsSync(path.join(scriptDir, "script.json"))) return arg;
     const manifest = JSON.parse(
       readFileSync(path.join(scriptDir, "script.json"), "utf8"),
     );
@@ -416,8 +434,10 @@ async function main() {
     const groupJson = path.join(path.dirname(scriptDir), "group.json");
     if (existsSync(groupJson))
       cpSync(groupJson, path.join(path.dirname(target), "group.json"));
-    scriptId = manifest.id ?? `${group}/${path.basename(scriptDir)}`;
-  }
+    return manifest.id ?? `${group}/${path.basename(scriptDir)}`;
+  };
+  const scriptId = installPackage(scriptArg);
+  const stepIds = options.steps.map((step) => installPackage(step.script));
 
   const core = await startCore(options.core, dataDir, options.uiDist);
   // A browser that cannot start (Playwright's Chromium not installed) must not leave the core
@@ -574,6 +594,65 @@ async function main() {
       }
     }
 
+    // Element names repeated in the open document (feature 008, FR-021): none, ever.
+    const repeatedNames = () =>
+      page.evaluate(() => {
+        const seen = new Set();
+        const repeated = new Set();
+        const visit = (node) => {
+          const id = node?.attrs?.nodeId;
+          if (typeof id === "string" && id !== "") {
+            if (seen.has(id)) repeated.add(id);
+            seen.add(id);
+          }
+          for (const child of node?.content ?? []) visit(child);
+        };
+        const doc = window.__mfbeTest.scripts.document();
+        for (const body of doc?.bodies ?? []) visit(body);
+        return [...repeated];
+      });
+    for (const [index, step] of options.steps.entries()) {
+      if (step.select) {
+        const [nodeId, from, to] = String(step.select).split(":");
+        const selected = await page.evaluate(
+          ([id, a, b]) => window.__mfbeTest.scripts.select(id, a, b),
+          [
+            nodeId,
+            from === undefined ? undefined : Number(from),
+            to === undefined ? undefined : Number(to),
+          ],
+        );
+        if (!selected)
+          log(`warning: step ${index + 1}: could not select ${step.select}`);
+      }
+      log(`step ${index + 1}: running ${stepIds[index]}`);
+      const stepRun = page.evaluate(
+        (id) => window.__mfbeTest.scripts.run(id, {}),
+        stepIds[index],
+      );
+      await page.waitForTimeout(100);
+      const stepError = await answerDialogs(
+        page,
+        step.answers ?? [],
+        log,
+        stepRun,
+      );
+      const stepResult = await stepRun;
+      if (stepResult.status !== "done") {
+        log(
+          `step ${index + 1}: ${stepResult.status}: ${stepResult.message ?? stepError ?? ""}`,
+        );
+        exitCode = 1;
+      }
+      const repeated = await repeatedNames();
+      if (repeated.length > 0) {
+        log(
+          `step ${index + 1}: repeated element names: ${repeated.join(", ")}`,
+        );
+        exitCode = 1;
+      }
+    }
+
     const clipboardBefore = options.clipboard ?? "";
     await page.evaluate(
       (text) => navigator.clipboard.writeText(text),
@@ -620,6 +699,15 @@ async function main() {
     if (result.status !== "done") {
       log(`script ${result.status}: ${result.message ?? ""}`);
       exitCode = 1;
+    }
+    if (options.steps.length > 0) {
+      const repeated = await repeatedNames();
+      if (repeated.length > 0) {
+        log(
+          `repeated element names after the last run: ${repeated.join(", ")}`,
+        );
+        exitCode = 1;
+      }
     }
     const xml = normaliseXml(
       await page.evaluate(() => window.__mfbeTest.scripts.toXml()),

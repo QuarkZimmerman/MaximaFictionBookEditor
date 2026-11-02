@@ -1608,5 +1608,38 @@
       "--answer",
       "{\"target\":\"n23\"}"
     ]
+  },
+  {
+    "snapshot": "02/sequence-between-notes-6.xml",
+    "script": "scripts/02_footnotes/01_add-footnote",
+    "book": "tests/fixtures/books/notes-6.fb2",
+    "args": [
+      "--select",
+      "n16:1",
+      "--steps",
+      "[{\"script\": \"scripts/02_footnotes/01_add-footnote\", \"select\": \"n9:1\"}, {\"script\": \"scripts/02_footnotes/03_add-footnote-go-to-note\", \"select\": \"n11:1\"}, {\"script\": \"scripts/02_footnotes/01_add-footnote\", \"select\": \"n14:1\"}]"
+    ]
+  },
+  {
+    "snapshot": "02/sequence-go-to-note-none.xml",
+    "script": "scripts/02_footnotes/03_add-footnote-go-to-note",
+    "book": "tests/fixtures/books/notes-none.fb2",
+    "args": [
+      "--select",
+      "n9:1",
+      "--steps",
+      "[{\"script\": \"scripts/02_footnotes/03_add-footnote-go-to-note\", \"select\": \"n7:1\"}, {\"script\": \"scripts/02_footnotes/03_add-footnote-go-to-note\", \"select\": \"n8:1\"}]"
+    ]
+  },
+  {
+    "snapshot": "03/sequence-between-comments-none.xml",
+    "script": "scripts/03_comments/01_add-comment",
+    "book": "tests/fixtures/books/notes-none.fb2",
+    "args": [
+      "--select",
+      "n10:1",
+      "--steps",
+      "[{\"script\": \"scripts/03_comments/03_add-comment-go-to-comment\", \"select\": \"n7:1\"}, {\"script\": \"scripts/03_comments/01_add-comment\", \"select\": \"n12:1\"}, {\"script\": \"scripts/03_comments/03_add-comment-go-to-comment\", \"select\": \"n9:1\"}]"
+    ]
   }
 ]
