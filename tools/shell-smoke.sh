@@ -706,6 +706,97 @@ if [[ "$TABLE_LAYOUT" == "1" ]]; then
   exit 0
 fi
 
+# --- Copies (feature 008, T010 and T023; needs MFBE_SMOKE_REAL_UI=1: --url runs take no slot) --
+# Two copies in slots 1 and 2; a start with a book relays it to the copy used last, which holds
+# an untouched document and opens it; the same book again opens nothing new (FR-017); a killed
+# copy frees its slot at once (FR-005).
+if [[ "${MFBE_SMOKE_COPIES:-0}" == "1" ]]; then
+  if [[ ${#URL_ARGS[@]} -gt 0 ]]; then
+    echo "shell-smoke: copies: needs MFBE_SMOKE_REAL_UI=1 (a --url run takes no copy slot)" >&2
+    exit 1
+  fi
+  page_title() {
+    curl -sf "http://127.0.0.1:$1/json/list" 2>/dev/null | python3 -c '
+import json, sys
+pages = [t.get("title", "") for t in json.load(sys.stdin) if t.get("type") == "page"]
+print(pages[0] if pages else "")' 2>/dev/null || true
+  }
+  wait_title() {
+    local deadline=$((SECONDS + TIMEOUT_S))
+    while (( SECONDS < deadline )); do
+      if page_title "$1" | grep -Eq "$2"; then return 0; fi
+      sleep 0.5
+    done
+    echo "shell-smoke: copies: the page on port $1 never showed /$2/ (title: $(page_title "$1"))" >&2
+    exit 1
+  }
+  run_start() {
+    HOME="$TMP/home" XDG_CONFIG_HOME="$TMP/home/.config" XDG_DATA_HOME="$TMP/home/.local/share" \
+    XDG_STATE_HOME="$TMP/home/.local/state" timeout 60 xvfb-run -a -s "-screen 0 1280x800x24" \
+      "$LAUNCHER" "${SANDBOX_ARGS[@]}" "$@" >>"$TMP/mfbe.log" 2>&1
+  }
+  record_pid() {
+    python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["pid"])' "$1" 2>/dev/null || true
+  }
+  start_shell
+  PORT1=$CDP_PORT
+  wait_title "$PORT1" " - Maxima Fiction Book Editor$"
+  start_shell
+  PORT2=$CDP_PORT
+  wait_title "$PORT2" " - Maxima Fiction Book Editor$"
+  COPIES_DIR=$(find "$TMP/home" -type d -name copies -print -quit 2>/dev/null)
+  if [[ -z "$COPIES_DIR" || ! -f "$COPIES_DIR/1.json" || ! -f "$COPIES_DIR/2.json" ]]; then
+    echo "shell-smoke: copies: no records for slots 1 and 2 (${COPIES_DIR:-no copies folder})" >&2
+    exit 1
+  fi
+  if [[ ! -d "$(dirname "$COPIES_DIR")/cef-2" ]]; then
+    echo "shell-smoke: copies: slot 2 has no engine profile cef-2" >&2
+    exit 1
+  fi
+  echo "shell-smoke: copies: two copies run, in slots 1 and 2"
+  BOOK="$ROOT/tests/fixtures/books/notes-6.fb2"
+  started=$SECONDS
+  if ! run_start "$BOOK"; then
+    echo "shell-smoke: copies: the start with a book did not end with status 0" >&2
+    exit 1
+  fi
+  wait_title "$PORT2" "^notes-6\.fb2 - "
+  echo "shell-smoke: copies: the book reached copy 2 (used last, untouched) in $((SECONDS - started)) s"
+  if [[ -f "$COPIES_DIR/3.json" ]]; then
+    echo "shell-smoke: copies: the relaying start took a slot of its own" >&2
+    exit 1
+  fi
+  if ! run_start "$BOOK"; then
+    echo "shell-smoke: copies: the start with the open book did not end with status 0" >&2
+    exit 1
+  fi
+  sleep 2
+  if [[ -f "$COPIES_DIR/3.json" ]]; then
+    echo "shell-smoke: copies: the book already open started a third copy" >&2
+    exit 1
+  fi
+  wait_title "$PORT2" "^notes-6\.fb2 - "
+  echo "shell-smoke: copies: the open book was not opened a second time"
+  OLD_PID=$(record_pid "$COPIES_DIR/2.json")
+  pkill -KILL -f -- "mfbe.*--remote-debugging-port=$PORT2" 2>/dev/null || true
+  sleep 1
+  start_shell
+  PORT3=$CDP_PORT
+  wait_title "$PORT3" " - Maxima Fiction Book Editor$"
+  NEW_PID=$(record_pid "$COPIES_DIR/2.json")
+  if [[ -z "$NEW_PID" || "$NEW_PID" == "$OLD_PID" ]]; then
+    echo "shell-smoke: copies: slot 2 was not taken again after its copy was killed" >&2
+    exit 1
+  fi
+  echo "shell-smoke: copies: a killed copy's slot was taken again at once"
+  for port in "$PORT1" "$PORT3"; do
+    pkill -TERM -f -- "mfbe.*--remote-debugging-port=$port" 2>/dev/null || true
+  done
+  sleep 1
+  echo "shell-smoke: copies: OK"
+  exit 0
+fi
+
 start_shell
 
 # --- Playwright over CDP ----------------------------------------------------------------------
