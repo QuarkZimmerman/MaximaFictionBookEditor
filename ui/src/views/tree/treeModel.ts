@@ -360,20 +360,30 @@ export function buildTreeIndex(
 /* ------------------------------------------------------------------------ */
 
 /** Row ids from the root body down to (excluding) `id`. */
+/**
+ * The rows above `id`, the outermost first. The walk stops at a row it has seen and after as many
+ * steps as there are rows, so repeated element names or a parent cycle can never make it endless
+ * (feature 008, FR-022: the 0.0.5 freeze was such a walk).
+ */
 export function ancestorRows(index: TreeIndex, id: string): string[] {
   const out: string[] = [];
+  const seen = new Set<string>([id]);
   let current = index.rows.get(id)?.parentId ?? null;
-  while (current) {
+  while (current && !seen.has(current) && out.length < index.rows.size) {
+    seen.add(current);
     out.unshift(current);
     current = index.rows.get(current)?.parentId ?? null;
   }
   return out;
 }
 
+/** Whether `ancestorId` is `id` or one of its ancestors; bounded like `ancestorRows`. */
 export function isRowWithin(index: TreeIndex, id: string, ancestorId: string): boolean {
+  const seen = new Set<string>();
   let current: string | null = id;
-  while (current) {
+  while (current && !seen.has(current) && seen.size <= index.rows.size) {
     if (current === ancestorId) return true;
+    seen.add(current);
     current = index.rows.get(current)?.parentId ?? null;
   }
   return false;
