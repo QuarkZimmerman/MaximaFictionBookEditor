@@ -755,7 +755,7 @@ print(pages[0] if pages else "")' 2>/dev/null || true
   start_shell
   PORT2=$CDP_PORT
   wait_title "$PORT2" " - Maxima Fiction Book Editor$"
-  COPIES_DIR=$(find "$TMP/home" -type d -name copies -print -quit 2>/dev/null)
+  COPIES_DIR=$(find "${PORTABLE_DIR:-$TMP/home}" -type d -name copies -print -quit 2>/dev/null)
   if [[ -z "$COPIES_DIR" || ! -f "$COPIES_DIR/1.json" || ! -f "$COPIES_DIR/2.json" ]]; then
     echo "shell-smoke: copies: no records for slots 1 and 2 (${COPIES_DIR:-no copies folder})" >&2
     exit 1
@@ -872,6 +872,25 @@ PY
     exit 1
   fi
   echo "shell-smoke: copies: a killed copy's slot was taken again at once"
+  # The editor's own restart restarts only its own copy, in its own slot (T019).
+  BEFORE_RESTART=$(record_pid "$COPIES_DIR/2.json")
+  COPY1_PID=$(record_pid "$COPIES_DIR/1.json")
+  node "$ROOT/tools/shell-smoke-copies.mjs" "$PORT3" restart || exit 1
+  deadline=$((SECONDS + TIMEOUT_S))
+  while (( SECONDS < deadline )); do
+    AFTER_RESTART=$(record_pid "$COPIES_DIR/2.json")
+    [[ -n "$AFTER_RESTART" && "$AFTER_RESTART" != "$BEFORE_RESTART" ]] && kill -0 "$AFTER_RESTART" 2>/dev/null && break
+    sleep 0.5
+  done
+  if [[ -z "$AFTER_RESTART" || "$AFTER_RESTART" == "$BEFORE_RESTART" ]]; then
+    echo "shell-smoke: copies: the restarted copy did not come back in slot 2" >&2
+    exit 1
+  fi
+  if [[ "$(record_pid "$COPIES_DIR/1.json")" != "$COPY1_PID" ]] || ! kill -0 "$COPY1_PID" 2>/dev/null; then
+    echo "shell-smoke: copies: the restart of copy 2 touched copy 1" >&2
+    exit 1
+  fi
+  echo "shell-smoke: copies: a restart restarted only its own copy, in its own slot"
   for port in "$PORT1" "$PORT2" "$PORT3"; do
     pkill -TERM -f -- "mfbe.*--remote-debugging-port=$port" 2>/dev/null || true
   done
@@ -880,6 +899,20 @@ PY
     [[ -n "$pid" ]] && kill -TERM "$pid" 2>/dev/null || true
   done
   sleep 1
+  if [[ -n "$PORTABLE_DIR" ]]; then
+    # Two portable copies keep their slots and engine profiles in the user folder (FR-004).
+    for sub in copies cef cef-2; do
+      if [[ ! -d "$PORTABLE_DIR/$sub" ]]; then
+        echo "shell-smoke: copies: the portable copies have no $sub/ in $PORTABLE_DIR" >&2
+        exit 1
+      fi
+    done
+    if [[ -e "$TMP/home/.local/share/maxfbeditor" || -e "$TMP/home/.config/maxfbeditor" ]]; then
+      echo "shell-smoke: copies: the portable copies wrote into the per-user folders" >&2
+      exit 1
+    fi
+    echo "shell-smoke: copies: the portable copies keep copies/, cef/ and cef-2/ in the user folder"
+  fi
   echo "shell-smoke: copies: OK"
   exit 0
 fi
@@ -976,7 +1009,7 @@ if [[ "$CLOSE" == "1" ]]; then
 fi
 
 if [[ -n "$PORTABLE_DIR" ]]; then
-  for sub in cef logs; do
+  for sub in cef logs copies; do
     if [[ ! -d "$PORTABLE_DIR/$sub" ]]; then
       echo "shell-smoke: the portable copy has no $sub/ in $PORTABLE_DIR" >&2
       exit 1

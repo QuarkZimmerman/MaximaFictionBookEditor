@@ -5,6 +5,7 @@
 //   node tools/shell-smoke-copies.mjs <port> click <test-id>
 //   node tools/shell-smoke-copies.mjs <port> freeze                      # page busy for 120 s
 //   node tools/shell-smoke-copies.mjs <port> notes-sequence <book name>  # feature 008, T039
+//   node tools/shell-smoke-copies.mjs <port> restart                     # app.restart of that copy (T019)
 //
 // Exit 0 on success, 1 with a message on stderr otherwise.
 import { createRequire } from "node:module";
@@ -114,6 +115,24 @@ if (action === "wait") {
     console.log(`run ${index + 1}: done, the page answered in ${answered} ms`);
   }
   await browser.close();
+} else if (action === 'restart') {
+  // The editor's own restart (as after a language change), asked of the copy's core directly.
+  const { browser, page } = await pageOf(ports[0]);
+  const url = new URL(page.url());
+  await browser.close();
+  const socket = new WebSocket(
+    `ws://127.0.0.1:${url.port}/rpc?token=${url.searchParams.get('token') ?? ''}`,
+  );
+  await new Promise((resolve, reject) => {
+    socket.onopen = resolve;
+    socket.onerror = () => reject(new Error('cannot reach the copy core'));
+  });
+  socket.send(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'app.restart', params: {} }));
+  await new Promise((resolve) => {
+    socket.onmessage = resolve;
+    setTimeout(resolve, 3000);
+  });
+  socket.close();
 } else {
   fail(`unknown action ${action}`);
 }

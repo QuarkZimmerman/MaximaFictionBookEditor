@@ -342,6 +342,7 @@ int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const*
     std::filesystem::path log_dir;
     std::filesystem::path temp_profile;
     std::optional<CopyWindowRect> new_copy_placement;  // feature 008, research R6
+    int own_slot = 0;  // this copy's slot (0 for a developer run); the restart keeps it
     if (dev_url_mode) {
         // Developer runs never touch the user's profile.
         temp_profile = makeTempProfileDir();
@@ -371,6 +372,7 @@ int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const*
         profile_dir = copy.profile_dir;
         log_dir = dirs.logs;
         new_copy_placement = copy.placement;
+        own_slot = copy.slot;
     }
     if (!ensureDirectory(profile_dir) || !ensureDirectory(log_dir)) {
         std::fprintf(stderr, "mfbe: cannot create the profile directory %s\n",
@@ -448,7 +450,7 @@ int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const*
     relaunch_override = envString("MFBE_RELAUNCH_PROGRAM");
 #endif
     std::atomic<CoreHost*> core_host_for_restart{nullptr};  // set once the core runs
-    core_options.on_restart = [own_args, relaunch_override,
+    core_options.on_restart = [own_args, relaunch_override, own_slot,
                                &core_host_for_restart](const std::optional<std::string>& reopen) {
         RelaunchOutcome outcome;
         const std::optional<WindowPlacement> placement = mainWindowPlacement();
@@ -457,7 +459,8 @@ int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const*
         }
         outcome.argv =
             relaunchArguments(own_args, currentProcessId(),
-                              placement ? formatWindowGeometry(*placement) : std::string(), reopen);
+                              placement ? formatWindowGeometry(*placement) : std::string(), reopen,
+                              own_slot);
         const std::string program =
             relaunch_override.empty() ? relaunchProgram(envString("APPIMAGE"), currentExecutable())
                                       : relaunch_override;
