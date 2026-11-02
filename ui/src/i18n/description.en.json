@@ -71,7 +71,9 @@
       "hrefText": "Reference (#binary id or external URL)",
       "pickerCaption": "Choose a cover image",
       "addFile": "Add file...",
-      "noBinaries": "The document has no image binaries yet. Use \"Add file...\"."
+      "noBinaries": "The document has no image binaries yet. Use \"Add file...\".",
+      "view": "Show the picture",
+      "chooseButton": "Choose…"
     },
     "id": {
       "new": "new",

@@ -191,7 +191,8 @@ describe('Description view quiet lock (feature 003 FR-011)', () => {
       'description-src-title-info-add',
       'description-cover-add',
       'description-cover-0-remove',
-      'description-cover-0-thumb',
+      // Feature 008 (D9): the thumbnail shows the cover, which reading allows; Choose... edits.
+      'description-cover-0-choose',
       'binary-objects-add',
       'binary-objects-remove-c.jpg',
       'description-annotation-mark-strong',
