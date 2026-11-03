@@ -18,6 +18,17 @@ import { expect, fixtureBook, test, waitForBook } from './fixtures/core';
 const EDITABLE_BUDGET_MS = 3000;
 const INTERACTION_BUDGET_MS = 100;
 const PERF_FACTOR = Number(process.env.MFBE_PERF_FACTOR ?? 2) || 2;
+/**
+ * The slowest scroll step on GitHub's macOS runners (virtual machines without a GPU) is allowed
+ * four times the interaction budget instead of `PERF_FACTOR` (requester, 2026-11-03): there it is
+ * 190-290 ms, before feature 008 as after it, against 33 ms on Linux. A step that hangs still
+ * fails, after `STUCK_STEP_MS`, with a message of its own.
+ */
+const SCROLL_FACTOR =
+  process.platform === 'darwin' && process.env.CI === 'true'
+    ? Math.max(PERF_FACTOR, 4)
+    : PERF_FACTOR;
+const STUCK_STEP_MS = 5000;
 
 const median = (values: number[]) =>
   [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)]!;
@@ -56,13 +67,6 @@ test.describe(
   () => {
     test('opens within 3 s, scrolls and types within 100 ms', async ({ core, page }) => {
       test.skip(!core.hasCore, 'needs the real core (MFBE_CORE_BIN)');
-      // Skipped on GitHub's macOS runners for now (requester, 2026-11-03): their slowest scroll
-      // step here is 190-290 ms before and after feature 008 alike (v0.0.6 replays), against
-      // 200 ms; Linux CI keeps the gate (docs/performance.md).
-      test.skip(
-        process.platform === 'darwin' && process.env.CI === 'true',
-        "GitHub's macOS runners are too slow for this budget (docs/performance.md)",
-      );
       test.setTimeout(180_000);
       await page.setViewportSize({ width: 1280, height: 800 });
       await core.openApp(page);
@@ -96,7 +100,20 @@ test.describe(
       // Scrolling from the top to the bottom, a screen at a time.
       const steps: number[] = [];
       for (let i = 0; i < 400; i += 1) {
-        const step = (await page.evaluate(SCROLL_STEP)) as { ms: number; atEnd: boolean };
+        const step = (await Promise.race([
+          page.evaluate(SCROLL_STEP),
+          new Promise((_, reject) =>
+            setTimeout(
+              () =>
+                reject(
+                  new Error(
+                    `scroll step ${i + 1} did not finish within ${STUCK_STEP_MS} ms - stuck`,
+                  ),
+                ),
+              STUCK_STEP_MS,
+            ),
+          ),
+        ])) as { ms: number; atEnd: boolean };
         steps.push(step.ms);
         if (step.atEnd) break;
       }
@@ -123,7 +140,7 @@ test.describe(
       );
       expect(steps.length).toBeGreaterThan(5);
       expect(worstStep, 'the slowest scroll step').toBeLessThan(
-        INTERACTION_BUDGET_MS * PERF_FACTOR,
+        INTERACTION_BUDGET_MS * SCROLL_FACTOR,
       );
       expect(median(strokes), 'keystroke latency (median)').toBeLessThan(INTERACTION_BUDGET_MS);
     });

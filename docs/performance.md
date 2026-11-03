@@ -111,11 +111,12 @@ the caret in place and scrolled into view after **592 ms** against the 3 s openi
 same run opened the book without a position in 677 ms, so the resolution of the structural path
 against the loaded model (one walk per segment) adds nothing measurable to the open.
 
-**300 inline pictures on GitHub's macOS runners** (feature 007, FR-060): skipped there for now
-(requester, 2026-11-03). Their slowest scroll step is 269-288 ms on the first attempt and
-190-202 ms on the retry, against 100 ms x `MFBE_PERF_FACTOR` (2), the same on the 0.0.6 release
-commit as with feature 008; on Linux every step takes about 33 ms, and the Linux jobs keep the
-journey as a gate.
+**300 inline pictures on GitHub's macOS runners** (feature 007, FR-060): the slowest scroll
+step is allowed 100 ms x 4 there instead of x `MFBE_PERF_FACTOR` (requester, 2026-11-03). Those
+virtual machines take 269-288 ms on a first attempt and 190-202 ms on a retry, the same on the
+0.0.6 release commit as with feature 008; on Linux every step takes about 33 ms and the factor
+stays 2. A step that hangs fails after 5 s with a message of its own, so a slow machine and a
+stuck page are told apart.
 
 **AI assistant: the validity hook on the 10 MB book** (feature 005 User Story 4, FR-060 to
 FR-065; measured 2026-10-23 by the one `@perf` journey of feature 005 in
