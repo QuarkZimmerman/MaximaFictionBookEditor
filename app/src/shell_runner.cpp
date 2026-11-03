@@ -46,6 +46,7 @@
 #include "core_host.h"
 #include "dialog_provider.h"
 #include "file_dialog_platform.h"
+#include "foreground.h"
 #include "include/cef_version.h"
 #include "include/cef_version_info.h"
 #include "mfbe/copy_launch.hpp"
@@ -263,9 +264,17 @@ int relayToCopy(const CefMainArgs& main_args, void* sandbox_info, const CopyStar
     app_config.ozone_platform = options.ozone_platform;
     app_config.relay_payload = copy.payload;
     CefRefPtr<MfbeApp> app(new MfbeApp(app_config, nullptr, nullptr));
+    // Windows: a start from the file manager may take the foreground, the receiving copy in the
+    // background may not - hand the right on, and raise its window once the request is delivered
+    // (the question then shows over it; feature 008, smoke test of 0.0.7-rc.1).
+    allowForeground(copy.target_pid);
     if (!CefInitialize(main_args, settings, app.get(), sandbox_info)) {
         std::string message;
-        return mapEarlyExitCode(CefGetExitCode(), &message);
+        const int code = mapEarlyExitCode(CefGetExitCode(), &message);
+        if (code == 0) {
+            bringProcessWindowToFront(copy.target_pid);
+        }
+        return code;
     }
     CefShutdown();
     std::vector<std::string> args = {"--mfbe-new-copy"};

@@ -42,6 +42,11 @@ CopyStart decideCopyStart(const std::filesystem::path& data_dir,
                 request.target = target.target;
                 start.relay = true;
                 start.slot = target.slot;
+                for (const auto& record : others) {
+                    if (record.slot == target.slot) {
+                        start.target_pid = record.pid;
+                    }
+                }
                 start.payload = mfbe::copies::encode_request(request);
                 start.profile_dir = mfbe::copies::profile_dir(data_dir, target.slot);
                 return start;

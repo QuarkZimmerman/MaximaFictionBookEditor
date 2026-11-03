@@ -219,6 +219,9 @@ bool spawnDetached(const std::string& program, const std::vector<std::string>& a
     PROCESS_INFORMATION process = {};
     // Its own process group: a console Ctrl+C aimed at this process never reaches it; it does
     // not inherit our handles.
+    // Feature 008: a new copy started for a book (busy copy, New window, a restart) may take the
+    // foreground when this process may - Windows otherwise opens its window behind the others.
+    ::AllowSetForegroundWindow(ASFW_ANY);
     const BOOL created =
         ::CreateProcessW(program_path.c_str(), command_line.data(), nullptr, nullptr, FALSE,
                          CREATE_NEW_PROCESS_GROUP | CREATE_UNICODE_ENVIRONMENT, nullptr, nullptr,

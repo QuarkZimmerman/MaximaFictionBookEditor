@@ -50,6 +50,33 @@ function Test-TestId([int]$Port, [string]$TestId) {
   } catch { return $false } finally { if ($session) { Disconnect-Cdp $session } }
 }
 
+Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+public static class MfbeForeground {
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
+}
+'@
+
+# The browser process of the copy started with this debugging port.
+function Get-CopyProcessId([int]$Port) {
+  $process = Get-CimInstance Win32_Process -Filter "Name='mfbe.exe'" |
+    Where-Object { $_.CommandLine -like "*--remote-debugging-port=$Port*" -and $_.CommandLine -notlike '*--type=*' } |
+    Select-Object -First 1
+  if ($process) { return [int]$process.ProcessId } else { return 0 }
+}
+
+# Evidence, not a gate: CI starts the relaying process from a background shell, which Windows
+# does not let take the foreground; a start from the file manager does (the requester's check).
+function Show-Foreground([int]$Port, [string]$What) {
+  $owner = [uint32]0
+  $null = [MfbeForeground]::GetWindowThreadProcessId([MfbeForeground]::GetForegroundWindow(), [ref]$owner)
+  $copy = Get-CopyProcessId $Port
+  if ($copy -ne 0 -and $owner -eq $copy) { Write-Host "copies journey: $What - the copy's window is in front" }
+  else { Write-Host "copies journey: $What - the window in front belongs to process $owner (the copy is $copy)" }
+}
+
 function Start-Relay([string]$Book) {
   $sender = Start-Process $Exe -ArgumentList "`"$Book`"" -PassThru -Wait
   if ($sender.ExitCode -ne 0) { throw "copies journey: the start with $Book ended with $($sender.ExitCode)" }
@@ -82,6 +109,7 @@ try {
     foreach ($port in $ports) { if (Test-TestId $port 'open-elsewhere-dialog') { $script:asking = $port; return $true } }
     return $false
   } 30 'no copy asked where to open the book'
+  Show-Foreground $script:asking 'the question'
   $session = Connect-CdpPage -Port $script:asking -Process $null -TimeoutSeconds 10
   try {
     $null = Get-CdpValue $session "document.querySelector('[data-testid=`"open-elsewhere-dialog-button-new`"]').click(), true"

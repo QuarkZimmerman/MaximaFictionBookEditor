@@ -26,10 +26,11 @@ struct CopyWindowRect {
 
 // What this start does, decided before any engine or core starts (contracts/shell.md §1).
 struct CopyStart {
-    bool ok = true;       // false: no slot could be taken (64 copies) - the start fails
-    bool relay = false;   // hand `payload` to the copy of `slot` and exit
-    int slot = 0;         // the receiving copy's slot, or this copy's own one
-    std::string payload;  // the --mfbe-request value when relaying
+    bool ok = true;            // false: no slot could be taken (64 copies) - the start fails
+    bool relay = false;        // hand `payload` to the copy of `slot` and exit
+    int slot = 0;              // the receiving copy's slot, or this copy's own one
+    long long target_pid = 0;  // the receiving copy's process when relaying (foreground.h)
+    std::string payload;       // the --mfbe-request value when relaying
     std::filesystem::path profile_dir;        // the engine profile of `slot`
     std::optional<CopyWindowRect> placement;  // a new copy: beside the last-active copy
 };
