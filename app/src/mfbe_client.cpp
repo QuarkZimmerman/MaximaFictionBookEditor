@@ -453,8 +453,9 @@ void MfbeClient::ShowMainWindow() {
             window->Activate();
         }
         // The page takes the keyboard, so the question that brought the window forward answers
-        // Enter and Escape at once (feature 008).
-        browser_list_.front()->GetHost()->SetFocus(true);
+        // Enter and Escape at once (feature 008). A Views-hosted browser is focused through its
+        // view: CefBrowserHost::SetFocus crashed in libcef on Windows.
+        browser_view->RequestFocus();
     }
 }
 
