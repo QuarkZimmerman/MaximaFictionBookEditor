@@ -56,6 +56,13 @@ test.describe(
   () => {
     test('opens within 3 s, scrolls and types within 100 ms', async ({ core, page }) => {
       test.skip(!core.hasCore, 'needs the real core (MFBE_CORE_BIN)');
+      // Skipped on GitHub's macOS runners for now (requester, 2026-11-03): their slowest scroll
+      // step here is 190-290 ms before and after feature 008 alike (v0.0.6 replays), against
+      // 200 ms; Linux CI keeps the gate (docs/performance.md).
+      test.skip(
+        process.platform === 'darwin' && process.env.CI === 'true',
+        "GitHub's macOS runners are too slow for this budget (docs/performance.md)",
+      );
       test.setTimeout(180_000);
       await page.setViewportSize({ width: 1280, height: 800 });
       await core.openApp(page);
