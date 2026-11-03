@@ -452,6 +452,9 @@ void MfbeClient::ShowMainWindow() {
             window->Show();
             window->Activate();
         }
+        // The page takes the keyboard, so the question that brought the window forward answers
+        // Enter and Escape at once (feature 008).
+        browser_list_.front()->GetHost()->SetFocus(true);
     }
 }
 

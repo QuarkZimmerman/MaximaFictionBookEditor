@@ -103,6 +103,10 @@ try {
   Wait-Until { (Get-PageTitle $other) -like 'notes-none.fb2*' } 30 'the next book did not reach the other untouched copy'
   Write-Host 'copies journey: the next book went to the other untouched copy'
 
+  # Both copies covered by another window, as the file manager covers them (the rc.2 smoke
+  # test: the question showed only after the next click).
+  $cover = Start-Process notepad.exe -WindowStyle Maximized -PassThru
+  Start-Sleep -Seconds 2
   Start-Relay (Join-Path $books 'fbe-pictures.fb2')
   $script:asking = 0
   Wait-Until {
@@ -110,6 +114,18 @@ try {
     return $false
   } 30 'no copy asked where to open the book'
   Show-Foreground $script:asking 'the question'
+  # The page paints the question at once: a frame within a second, the page visible.
+  $session = Connect-CdpPage -Port $script:asking -Process $null -TimeoutSeconds 10
+  try {
+    $painted = Invoke-Cdp $session 'Runtime.evaluate' @{
+      expression = "new Promise((resolve) => { const t = setTimeout(() => resolve(false), 1000); requestAnimationFrame(() => { clearTimeout(t); resolve(document.visibilityState === 'visible'); }); })"
+      awaitPromise = $true
+      returnByValue = $true
+    }
+  } finally { Disconnect-Cdp $session }
+  if ($painted.result.value -ne $true) { throw 'copies journey: the question was not painted within a second (the page counted as hidden)' }
+  Write-Host 'copies journey: the question was painted at once'
+  if ($cover -and -not $cover.HasExited) { Stop-Process -Id $cover.Id -Force -ErrorAction SilentlyContinue }
   $session = Connect-CdpPage -Port $script:asking -Process $null -TimeoutSeconds 10
   try {
     $null = Get-CdpValue $session "document.querySelector('[data-testid=`"open-elsewhere-dialog-button-new`"]').click(), true"

@@ -123,6 +123,13 @@ void MfbeApp::OnBeforeCommandLineProcessing(const CefString& process_type,
     if (!locale.empty() && !command_line->HasSwitch("lang")) {
         command_line->AppendSwitchWithValue("lang", locale);
     }
+#if defined(_WIN32)
+    // Feature 008 (smoke test of 0.0.7-rc.2): Chromium treats a window that other windows cover as
+    // hidden and stops painting its page; raised by a book opened from the file manager, the
+    // window then showed the question only after the next click. The editor keeps painting
+    // while covered (a developer's --disable-features in the extra flags still replaces this).
+    command_line->AppendSwitchWithValue("disable-features", "CalculateNativeWinOcclusion");
+#endif
     if (!config_.extra_chromium_flags.empty()) {
         appendExtraFlags(config_.extra_chromium_flags, command_line);
     }
