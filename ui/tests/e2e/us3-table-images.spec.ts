@@ -146,6 +146,19 @@ function shownDocId(page: Page): Promise<string | null> {
  * saved under that name shows its title already, before the open has closed and replaced it.
  */
 async function openViaDialog(core: CoreHandle, page: Page, file: string): Promise<void> {
+  const name = file.split(/[\\/]/).pop() ?? file;
+  if ((await page.title()).startsWith(name)) {
+    // The book is open already: File > Open would only bring it to the front (feature 008,
+    // FR-017), so it is closed first to be read from the file again.
+    await page.getByTestId('menu-file').click();
+    await page.getByTestId('menu-file-new').click();
+    const prompt = page.getByTestId('dialog-save-changes');
+    await expect
+      .poll(async () => (await prompt.count()) > 0 || !(await page.title()).startsWith(name))
+      .toBe(true);
+    if ((await prompt.count()) > 0) await page.getByTestId('dialog-save-changes-button-no').click();
+    await expect.poll(() => page.title()).not.toContain(name);
+  }
   const before = await shownDocId(page);
   await core.enqueueDialog('dialog.openFile', { paths: [file] });
   await page.getByTestId('menu-file').click();

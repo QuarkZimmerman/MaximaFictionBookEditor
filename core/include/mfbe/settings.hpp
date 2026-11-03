@@ -18,6 +18,7 @@
 #include <nlohmann/json.hpp>
 
 #include <filesystem>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -83,6 +84,10 @@ public:
 private:
     std::filesystem::path file_;
     nlohmann::json settings_;
+    // The keys this copy changed since its last save, as JSON pointers of depth two
+    // ("/view/theme"): a save writes only these into the file as it is on disk, so the other
+    // copies' settings stay (feature 008, FR-003; the last write wins per key).
+    mutable std::set<std::string> changed_;
 };
 
 // Deep-merge helper used by apply_patch (exposed for tests): see header comment for rules.

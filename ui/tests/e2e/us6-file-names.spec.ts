@@ -204,8 +204,13 @@ async function newDocument(page: Page): Promise<void> {
   await expect.poll(() => shownDocId(page)).not.toBeNull();
 }
 
-/** The first Recent Files entry names `file`; chosen, it opens the file anew. */
+/**
+ * The first Recent Files entry names `file`; chosen, it opens the file anew. The book is closed
+ * first (File > New): an open book chosen from Recent Files only comes to the front (feature
+ * 008, FR-017).
+ */
 async function reopenFromRecent(page: Page, file: string): Promise<void> {
+  await newDocument(page);
   await showBody(page);
   const before = await shownDocId(page);
   await page.getByTestId('menu-file').click();

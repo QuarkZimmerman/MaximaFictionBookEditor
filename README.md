@@ -36,6 +36,8 @@ Packages for every platform are attached to each release on the
 Step-by-step instructions, the first-launch notes for macOS and Windows SmartScreen, the
 Linux sandbox notes and the location of the per-user folders (settings, genres, scripts,
 dictionaries, log) are in [`docs/installing.md`](docs/installing.md). Settings and user data
+
+Using the editor: [docs/using.md](docs/using.md).
 live outside the installation and survive upgrades and uninstalls. Spelling dictionaries for
 other languages are a folder copy away: put a Hunspell `.aff`/`.dic` pair (the dictionaries
 LibreOffice and Firefox use) into the dictionaries folder that *Settings > View > Open

@@ -51,6 +51,8 @@ public:
     void OnWindowClosing(CefRefPtr<CefWindow> window) override;
     void OnWindowDestroyed(CefRefPtr<CefWindow> window) override;
     void OnWindowBoundsChanged(CefRefPtr<CefWindow> window, const CefRect& new_bounds) override;
+    // Feature 008: the copy used last is the one whose window was activated last.
+    void OnWindowActivationChanged(CefRefPtr<CefWindow> window, bool active) override;
     bool CanClose(CefRefPtr<CefWindow> window) override;
     CefRect GetInitialBounds(CefRefPtr<CefWindow> window) override;
     CefSize GetPreferredSize(CefRefPtr<CefView> view) override;

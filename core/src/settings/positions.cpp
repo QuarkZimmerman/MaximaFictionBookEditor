@@ -3,6 +3,7 @@
 #include <mfbe/log.hpp>
 #include <mfbe/positions.hpp>
 #include <mfbe/recent_files.hpp>  // now_iso8601_utc
+#include <mfbe/store_lock.hpp>
 #include <mfbe/utf8_paths.hpp>
 
 #include <algorithm>
@@ -172,6 +173,30 @@ void Positions::load() {
 }
 
 bool Positions::save() const {
+    std::error_code lock_ec;
+    std::filesystem::create_directories(file_.parent_path(), lock_ec);
+    store_lock::StoreLock lock(file_);
+    if (!cleared_ && std::filesystem::exists(file_, lock_ec)) {
+        Positions disk(file_);
+        disk.load();
+        std::vector<PositionItem> merged = items_;
+        for (const auto& item : disk.items_) {
+            auto it = std::find_if(merged.begin(), merged.end(), [&](const PositionItem& mine) {
+                return platform::same_file_path(mine.path, item.path);
+            });
+            if (it == merged.end()) {
+                merged.push_back(item);
+            } else if (item.at > it->at) {
+                *it = item;
+            }
+        }
+        std::stable_sort(merged.begin(), merged.end(),
+                         [](const PositionItem& a, const PositionItem& b) { return a.at > b.at; });
+        if (merged.size() > kMaxPositions)
+            merged.resize(kMaxPositions);
+        items_ = std::move(merged);
+    }
+    cleared_ = false;
     json items = json::array();
     for (const auto& item : items_) {
         json j = item.extra.is_object() ? item.extra : json::object();
@@ -231,6 +256,7 @@ void Positions::set(const std::string& path, const Position& position) {
 
 void Positions::clear() {
     items_.clear();
+    cleared_ = true;
     save();
 }
 

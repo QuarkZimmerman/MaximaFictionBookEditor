@@ -41,6 +41,8 @@ public:
     std::size_t client_count() const { return clients_.size(); }
     // Queues app.openPaths for the next client when nobody is connected.
     void notify_open_paths(const std::vector<std::string>& paths);
+    // Queues app.openRequest for the next client when nobody is connected (feature 008).
+    void notify_open_request(const nlohmann::json& request);
 
     uWS::Loop* loop() const { return loop_; }
     uWS::App& app() { return *app_; }
@@ -77,6 +79,7 @@ private:
     std::map<std::uint64_t, WebSocketPtr> clients_;
     std::uint64_t next_client_id_ = 1;
     std::vector<std::string> pending_open_paths_;
+    std::vector<nlohmann::json> pending_open_requests_;
     bool stopping_ = false;
 };
 

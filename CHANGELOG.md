@@ -3,6 +3,40 @@
 All notable changes to Maxima Fiction Book Editor. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.0.7 - unreleased
+
+### In short
+
+- Several editor windows; books open from the file manager again
+- Safeguards for the footnote and comment scripts
+- Spell check with English and Russian by default
+- Link targets list in the Links bar
+- Cover picture view
+- Option to start the editor after installation
+- Busy pointer while the AI assistant works
+
+### Added
+
+- Several copies of the editor run side by side; a book opened from the file manager while the
+  editor runs opens in the untouched window, or after a question in this window or a new one;
+  a book already open is brought to the front instead of being opened twice.
+- Spelling uses the book's dictionary, else the interface language's, plus the extra
+  dictionaries ticked in Settings > View (English and Russian by default).
+- The Links bar's Href box lists the book's jump destinations in book order at a link and its
+  images at a picture; Style > Link lists the destinations in the same order.
+- A click on the cover's thumbnail shows the cover; Choose... picks another one.
+- The Windows installer's last page offers to launch the editor.
+- While the AI assistant works, the pointer over the text, the banner and the status bar show
+  a turning atom.
+
+### Fixed
+
+- A book double-clicked in the file manager while the editor ran was not opened.
+- The footnote and comment scripts of 0.0.5 failed with a script error, or froze the editor, when
+  a footnote was inserted between existing ones after earlier insertions in the same session. The
+  cause was repeated internal element names, fixed in 0.0.6; this version adds safeguards, so that
+  a repeat from any source is repaired and can no longer freeze the editor.
+
 ## 0.0.6 - 2026-11-01
 
 ### In short

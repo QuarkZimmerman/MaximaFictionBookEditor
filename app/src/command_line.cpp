@@ -80,7 +80,8 @@ ParseResult parseArguments(const std::vector<std::string>& args) {
         // Options that take a value; the value may also be the next argument.
         const bool takes_value = name == "--lang" || name == "--remote-debugging-port" ||
                                  name == "--ozone-platform" || name == "--url" ||
-                                 name == "--wait-for-exit" || name == "--window-geometry";
+                                 name == "--wait-for-exit" || name == "--window-geometry" ||
+                                 name == "--mfbe-slot";
         if (takes_value && !has_value) {
             if (i + 1 >= args.size()) {
                 return error("Missing value for command line option: '" + name + "'");
@@ -123,6 +124,15 @@ ParseResult parseArguments(const std::vector<std::string>& args) {
                 return error("Invalid value for --window-geometry: '" + value +
                              "' (expected x,y,w,h or x,y,w,h,max)");
             }
+        } else if (name == "--mfbe-slot") {
+            int slot = 0;
+            const auto [end, ec] = std::from_chars(value.data(), value.data() + value.size(), slot);
+            if (ec != std::errc{} || end != value.data() + value.size() || slot < 1 || slot > 64) {
+                return error("Invalid value for --mfbe-slot: '" + value + "'");
+            }
+            options.forced_slot = slot;
+        } else if (name == "--mfbe-request") {
+            // The relay's payload: meaningful only on the receiving side (contracts/cli.md §3).
         } else if (has_value) {
             // Flags never take a value ("--new=1" is not accepted).
             return error("Invalid command line option: '" + arg + "'");
@@ -130,6 +140,8 @@ ParseResult parseArguments(const std::vector<std::string>& args) {
             options.new_document = true;
         } else if (name == "--no-sandbox") {
             options.no_sandbox = true;
+        } else if (name == "--mfbe-new-copy") {
+            options.force_new_copy = true;
         } else if (name == "--version" || name == "-v") {
             options.show_version = true;
         } else if (name == "--help" || name == "-h" || name == "-?") {

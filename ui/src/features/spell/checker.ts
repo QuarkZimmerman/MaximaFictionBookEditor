@@ -4,8 +4,11 @@
  * result cache keyed by the active dictionaries, `spell.suggest` with a small cache, the custom
  * dictionary operations (`spell.addWord` / `spell.removeWord`) and the dictionary list.
  *
- * Active languages: the session override when the user picked dictionaries, otherwise the
- * document language (`title-info/lang`); tags are resolved against `spell.dictionaries()`
+ * Active languages: the session override when the user picked dictionaries, otherwise the base
+ * dictionary followed by the extra ones of Settings (feature 008, FR-030 to FR-035): the base is
+ * the book's language (`title-info/lang`) when a dictionary serves it, else the interface
+ * language's; the extras are `view.spellExtraDictionaries` (English and Russian by default),
+ * those not installed skipped. Tags are resolved against `spell.dictionaries()`
  * (`ru` -> `ru_RU`, `de-AT` -> `de_DE`) when the list is known, the core resolves them too.
  * Error 1020 (`spell.dictionaryUnavailable`) marks the language combination unavailable -
  * reported once through `onUnavailable` - and every word counts as correct until the languages
@@ -17,6 +20,8 @@
  * used as soon as Settings are applied; the report (rejected files, folders) is kept for the
  * Settings page.
  */
+
+import i18next from 'i18next';
 
 import type { AppStore } from '@/model/store';
 import { RpcError, type RpcClient } from '@/rpc/client';
@@ -85,6 +90,8 @@ export class SpellChecker {
   readonly session: SpellSession;
   private readonly getRpc: () => RpcClient | null;
   private readonly onUnavailable: (lang: string) => void;
+  /** Book and language pairs whose missing dictionary was reported (FR-033). */
+  private readonly bookLanguageNoticed = new Set<string>();
   /** `${langsKey}\u0000${word}` -> misspelled? */
   private readonly cache = new Map<string, boolean>();
   private readonly suggestions = new Map<string, string[]>();
@@ -102,6 +109,19 @@ export class SpellChecker {
     this.getRpc = options.getRpc;
     this.onUnavailable = options.onUnavailable ?? (() => {});
     this.session.subscribe(() => this.emit('invalidate'));
+    // Feature 008: the extra dictionaries of Settings and the interface language (the base when
+    // the book's language has no dictionary) change the set in effect.
+    const settingsKey = () => {
+      const view = this.store.getState().settings?.view;
+      return `${JSON.stringify(view?.spellExtraDictionaries ?? null)}|${view?.uiLanguage ?? ''}`;
+    };
+    let lastSettingsKey = settingsKey();
+    this.store.subscribe(() => {
+      const next = settingsKey();
+      if (next === lastSettingsKey) return;
+      lastSettingsKey = next;
+      this.emit('invalidate');
+    });
   }
 
   /** Fires when results arrived (`results`) or languages / dictionaries changed (`invalidate`). */
@@ -127,18 +147,66 @@ export class SpellChecker {
     return this.store.getState().document?.description.titleInfo.lang ?? '';
   }
 
+  /** The interface language (`view.uiLanguage`, or the language i18next shows for `system`). */
+  interfaceLanguage(): string {
+    const setting = this.store.getState().settings?.view.uiLanguage;
+    if (setting && setting !== 'system') return setting;
+    return i18next.language || 'en';
+  }
+
+  /**
+   * The base dictionary (feature 008, FR-031): the book's language when a dictionary serves it,
+   * else the interface language's. Without the dictionary list the language itself.
+   */
+  baseLanguage(notice = true): string {
+    const dictionaries = this.dictionariesValue;
+    const book = this.documentLanguage();
+    if (!dictionaries) return book || this.interfaceLanguage();
+    if (book) {
+      const resolved = resolveDictionaryTag(book, dictionaries);
+      if (resolved) return resolved;
+      const key = `${this.store.getState().docId ?? ''}\u0000${book}`;
+      if (notice && !this.bookLanguageNoticed.has(key)) {
+        this.bookLanguageNoticed.add(key);
+        this.onUnavailable(book); // once per book and language (FR-033)
+      }
+    }
+    return resolveDictionaryTag(this.interfaceLanguage(), dictionaries) ?? book;
+  }
+
   /** Active dictionary tags / languages for `spell.check` (never empty when a document exists). */
   activeLangs(): string[] {
     const override = this.session.languageOverride;
-    const langs =
-      override && override.length > 0
-        ? [...override]
-        : [this.documentLanguage()].filter((lang) => lang.length > 0);
-    if (langs.length === 0) return [];
     const dictionaries = this.dictionariesValue;
-    if (!dictionaries) return langs;
-    const resolved = langs.map((lang) => resolveDictionaryTag(lang, dictionaries) ?? lang);
-    return [...new Set(resolved)];
+    const resolve = (lang: string) =>
+      dictionaries ? resolveDictionaryTag(lang, dictionaries) : lang;
+    if (override && override.length > 0) {
+      return [...new Set(override.map((lang) => resolve(lang) ?? lang))];
+    }
+    return this.defaultLangs();
+  }
+
+  /** The set without the Spelling dialog's choice: the base, then the extras (FR-030). */
+  defaultLangs(): string[] {
+    const dictionaries = this.dictionariesValue;
+    const resolve = (lang: string) =>
+      dictionaries ? resolveDictionaryTag(lang, dictionaries) : lang;
+    if (!this.store.getState().document) return [];
+    const extras = this.store.getState().settings?.view.spellExtraDictionaries ?? [
+      'en_US',
+      'ru_RU',
+    ];
+    const base = this.baseLanguage();
+    // Without the dictionary list tags stay unresolved: an extra of the base's own language
+    // ('ru_RU' beside 'ru') would only be checked twice.
+    const language = (tag: string) => tag.split(/[_-]/)[0]!.toLowerCase();
+    const langs = [
+      base,
+      ...extras
+        .map((tag) => resolve(tag) ?? '')
+        .filter((tag) => dictionaries || language(tag) !== language(base)),
+    ];
+    return [...new Set(langs.filter((lang) => lang.length > 0))];
   }
 
   langsKey(): string {

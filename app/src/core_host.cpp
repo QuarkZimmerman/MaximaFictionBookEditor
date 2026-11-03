@@ -47,6 +47,7 @@ public:
     bool hasCore() const override { return false; }
     void attachDialogs(std::shared_ptr<NativeDialogs> /*dialogs*/) override {}
     void notifyOpenPaths(const std::vector<std::string>& /*paths*/) override {}
+    void notifyOpenRequest(const RelayedRequest& /*request*/) override {}
     // No core in this process: the page cannot be asked, the window closes at once.
     void requestClose(std::function<void(bool)> on_delivered) override {
         if (on_delivered) {
@@ -110,6 +111,10 @@ public:
             server_options.scripts_dir = mfbe::platform::utf8_from_path(options.scripts_dir);
             server_options.open_paths = options.open_paths;
             server_options.test_hooks = options.test_hooks;
+            server_options.copy_registry = copyRegistry();
+            server_options.open_in_new_copy = options.open_in_new_copy;
+            server_options.activate_copy = options.activate_copy;
+            server_options.on_open_request_ack = [](const std::string& id) { markAcked(id); };
             if (options.on_restart) {
                 // The shell's relaunch; exceptions stay on this side of the core's boundary.
                 server_options.on_restart =
@@ -199,6 +204,21 @@ public:
         try {
             mfbe::log::warning("shell", code, message);
         } catch (...) {
+        }
+    }
+
+    void notifyOpenRequest(const RelayedRequest& request) override {
+        if (!server_) {
+            return;
+        }
+        try {
+            server_->notify_open_request(nlohmann::json{{"requestId", request.request_id},
+                                                        {"paths", request.paths},
+                                                        {"origin", request.origin},
+                                                        {"target", request.target},
+                                                        {"kind", request.kind}});
+        } catch (const std::exception& e) {
+            std::fprintf(stderr, "mfbe: failed to forward a request to the core: %s\n", e.what());
         }
     }
 

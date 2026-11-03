@@ -536,7 +536,9 @@ fi
 # it so that a maximised window is really maximised and comes back so. The wrapper starts openbox
 # (when installed), the shell, and after the shell ended keeps the display up while the instance
 # it started (same debugging port, a session of its own) is running.
-if [[ "$RESTART" == "1" ]]; then
+# The copies scenario (feature 008, T019) restarts a copy as well: the same wrapper keeps its
+# display up for the restarted copy.
+if [[ "$RESTART" == "1" || "${MFBE_SMOKE_COPIES:-0}" == "1" ]]; then
   WM=""
   if command -v openbox >/dev/null 2>&1; then
     WM="openbox"
@@ -706,6 +708,217 @@ if [[ "$TABLE_LAYOUT" == "1" ]]; then
   exit 0
 fi
 
+# --- Footnote sequence (feature 008, T039; needs MFBE_SMOKE_REAL_UI=1) -----------------------
+# The 0.0.5 freeze: two runs of "Добавить примечание, перейти на его раздел" through the real
+# Scripts menu in a book without notes; the page answers after each run.
+if [[ "${MFBE_SMOKE_NOTES_SEQUENCE:-0}" == "1" ]]; then
+  start_shell "$ROOT/tests/fixtures/books/notes-none.fb2"
+  node "$ROOT/tools/shell-smoke-copies.mjs" "$CDP_PORT" notes-sequence notes-none.fb2 || exit 1
+  stop_shell
+  echo "shell-smoke: notes sequence: OK"
+  exit 0
+fi
+
+# --- Copies (feature 008, T010 and T023; needs MFBE_SMOKE_REAL_UI=1: --url runs take no slot) --
+# Two copies in slots 1 and 2; a start with a book relays it to the copy used last, which holds
+# an untouched document and opens it; the same book again opens nothing new (FR-017); a killed
+# copy frees its slot at once (FR-005).
+if [[ "${MFBE_SMOKE_COPIES:-0}" == "1" ]]; then
+  if [[ ${#URL_ARGS[@]} -gt 0 ]]; then
+    echo "shell-smoke: copies: needs MFBE_SMOKE_REAL_UI=1 (a --url run takes no copy slot)" >&2
+    exit 1
+  fi
+  page_title() {
+    curl -sf "http://127.0.0.1:$1/json/list" 2>/dev/null | python3 -c '
+import json, sys
+pages = [t.get("title", "") for t in json.load(sys.stdin) if t.get("type") == "page"]
+print(pages[0] if pages else "")' 2>/dev/null || true
+  }
+  wait_title() {
+    local deadline=$((SECONDS + TIMEOUT_S))
+    while (( SECONDS < deadline )); do
+      if page_title "$1" | grep -Eq "$2"; then return 0; fi
+      sleep 0.5
+    done
+    echo "shell-smoke: copies: the page on port $1 never showed /$2/ (title: $(page_title "$1"))" >&2
+    exit 1
+  }
+  run_start() {
+    HOME="$TMP/home" XDG_CONFIG_HOME="$TMP/home/.config" XDG_DATA_HOME="$TMP/home/.local/share" \
+    XDG_STATE_HOME="$TMP/home/.local/state" timeout 60 xvfb-run -a -s "-screen 0 1280x800x24" \
+      "$LAUNCHER" "${SANDBOX_ARGS[@]}" "$@" >>"$TMP/mfbe.log" 2>&1
+  }
+  record_pid() {
+    python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["pid"])' "$1" 2>/dev/null || true
+  }
+  start_shell
+  PORT1=$CDP_PORT
+  wait_title "$PORT1" " - Maxima Fiction Book Editor$"
+  start_shell
+  PORT2=$CDP_PORT
+  wait_title "$PORT2" " - Maxima Fiction Book Editor$"
+  COPIES_DIR=$(find "${PORTABLE_DIR:-$TMP/home}" -type d -name copies -print -quit 2>/dev/null)
+  if [[ -z "$COPIES_DIR" || ! -f "$COPIES_DIR/1.json" || ! -f "$COPIES_DIR/2.json" ]]; then
+    echo "shell-smoke: copies: no records for slots 1 and 2 (${COPIES_DIR:-no copies folder})" >&2
+    exit 1
+  fi
+  if [[ ! -d "$(dirname "$COPIES_DIR")/cef-2" ]]; then
+    echo "shell-smoke: copies: slot 2 has no engine profile cef-2" >&2
+    exit 1
+  fi
+  echo "shell-smoke: copies: two copies run, in slots 1 and 2"
+  BOOK="$ROOT/tests/fixtures/books/notes-6.fb2"
+  title_port() {
+    local deadline=$((SECONDS + TIMEOUT_S)) port
+    while (( SECONDS < deadline )); do
+      for port in "$PORT1" "$PORT2"; do
+        if page_title "$port" | grep -Eq "$1"; then echo "$port"; return 0; fi
+      done
+      sleep 0.5
+    done
+    echo "shell-smoke: copies: no copy showed /$1/" >&2
+    exit 1
+  }
+  wait_record_book() {
+    local deadline=$((SECONDS + TIMEOUT_S))
+    while (( SECONDS < deadline )); do
+      if python3 - "$COPIES_DIR" "$1" <<'PY'
+import glob, json, os, sys
+for name in glob.glob(os.path.join(sys.argv[1], "*.json")):
+    try:
+        book = json.load(open(name)).get("book") or {}
+    except Exception:
+        continue
+    if os.path.basename(book.get("path", "")) == sys.argv[2]:
+        sys.exit(0)
+sys.exit(1)
+PY
+      then return 0; fi
+      sleep 0.5
+    done
+    echo "shell-smoke: copies: no copy came to hold $1" >&2
+    exit 1
+  }
+  started=$SECONDS
+  if ! run_start "$BOOK"; then
+    echo "shell-smoke: copies: the start with a book did not end with status 0" >&2
+    exit 1
+  fi
+  HOLDER=$(title_port "^notes-6\.fb2 - ")
+  OTHER=$PORT1
+  [[ "$HOLDER" == "$PORT1" ]] && OTHER=$PORT2
+  echo "shell-smoke: copies: the book reached an untouched copy in $((SECONDS - started)) s"
+  if [[ -f "$COPIES_DIR/3.json" ]]; then
+    echo "shell-smoke: copies: the relaying start took a slot of its own" >&2
+    exit 1
+  fi
+  if ! run_start "$BOOK"; then
+    echo "shell-smoke: copies: the start with the open book did not end with status 0" >&2
+    exit 1
+  fi
+  sleep 2
+  if [[ -f "$COPIES_DIR/3.json" ]]; then
+    echo "shell-smoke: copies: the book already open started a third copy" >&2
+    exit 1
+  fi
+  wait_title "$HOLDER" "^notes-6\.fb2 - "
+  echo "shell-smoke: copies: the open book was not opened a second time"
+  # The other untouched copy takes the next book (D2).
+  run_start "$ROOT/tests/fixtures/books/notes-none.fb2" || exit 1
+  wait_title "$OTHER" "^notes-none\.fb2 - "
+  echo "shell-smoke: copies: the next book went to the other untouched copy"
+  # Both copies hold a book: the copy used last asks; New window opens a new copy (FR-007).
+  run_start "$ROOT/tests/fixtures/books/fbe-pictures.fb2" || exit 1
+  ASKING=$(node "$ROOT/tools/shell-smoke-copies.mjs" "$PORT1,$PORT2" wait open-elsewhere-dialog) || exit 1
+  node "$ROOT/tools/shell-smoke-copies.mjs" "$ASKING" click open-elsewhere-dialog-button-new || exit 1
+  wait_record_book fbe-pictures.fb2
+  echo "shell-smoke: copies: the question asked in the copy used last, New window opened a new copy"
+  # That new copy (no CDP port) would be the copy used last for the next start: end it, so the
+  # next book goes to one of the two frozen copies.
+  NEW_COPY_PID=$(python3 - "$COPIES_DIR" <<'PY'
+import glob, json, os, sys
+for name in glob.glob(os.path.join(sys.argv[1], "*.json")):
+    try:
+        record = json.load(open(name))
+    except Exception:
+        continue
+    if os.path.basename((record.get("book") or {}).get("path", "")) == "fbe-pictures.fb2":
+        print(record.get("pid", ""))
+PY
+)
+  if [[ -n "$NEW_COPY_PID" ]]; then kill -TERM "$NEW_COPY_PID" 2>/dev/null || true; fi
+  sleep 2
+  # Copies whose page does not answer: the book goes to a new copy within 5 s (FR-011), and
+  # neither copy is killed by the engine.
+  node "$ROOT/tools/shell-smoke-copies.mjs" "$PORT1" freeze || exit 1
+  node "$ROOT/tools/shell-smoke-copies.mjs" "$PORT2" freeze || exit 1
+  started=$SECONDS
+  run_start "$ROOT/tests/fixtures/books/notes-400.fb2" || exit 1
+  wait_record_book notes-400.fb2
+  echo "shell-smoke: copies: a book for a frozen page reached a new copy in $((SECONDS - started)) s"
+  for port in "$PORT1" "$PORT2"; do
+    if ! pgrep -f -- "mfbe.*--remote-debugging-port=$port" >/dev/null; then
+      echo "shell-smoke: copies: the frozen copy on port $port is gone" >&2
+      exit 1
+    fi
+  done
+  OLD_PID=$(record_pid "$COPIES_DIR/2.json")
+  if [[ -n "$OLD_PID" ]]; then kill -KILL "$OLD_PID" 2>/dev/null || true; fi
+  sleep 1
+  start_shell
+  PORT3=$CDP_PORT
+  wait_title "$PORT3" " - Maxima Fiction Book Editor$"
+  NEW_PID=$(record_pid "$COPIES_DIR/2.json")
+  if [[ -z "$NEW_PID" || "$NEW_PID" == "$OLD_PID" ]]; then
+    echo "shell-smoke: copies: slot 2 was not taken again after its copy was killed" >&2
+    exit 1
+  fi
+  echo "shell-smoke: copies: a killed copy's slot was taken again at once"
+  # The editor's own restart restarts only its own copy, in its own slot (T019).
+  BEFORE_RESTART=$(record_pid "$COPIES_DIR/2.json")
+  COPY1_PID=$(record_pid "$COPIES_DIR/1.json")
+  node "$ROOT/tools/shell-smoke-copies.mjs" "$PORT3" restart || exit 1
+  deadline=$((SECONDS + TIMEOUT_S))
+  while (( SECONDS < deadline )); do
+    AFTER_RESTART=$(record_pid "$COPIES_DIR/2.json")
+    [[ -n "$AFTER_RESTART" && "$AFTER_RESTART" != "$BEFORE_RESTART" ]] && kill -0 "$AFTER_RESTART" 2>/dev/null && break
+    sleep 0.5
+  done
+  if [[ -z "$AFTER_RESTART" || "$AFTER_RESTART" == "$BEFORE_RESTART" ]]; then
+    echo "shell-smoke: copies: the restarted copy did not come back in slot 2" >&2
+    exit 1
+  fi
+  if [[ "$(record_pid "$COPIES_DIR/1.json")" != "$COPY1_PID" ]] || ! kill -0 "$COPY1_PID" 2>/dev/null; then
+    echo "shell-smoke: copies: the restart of copy 2 touched copy 1" >&2
+    exit 1
+  fi
+  echo "shell-smoke: copies: a restart restarted only its own copy, in its own slot"
+  for port in "$PORT1" "$PORT2" "$PORT3"; do
+    pkill -TERM -f -- "mfbe.*--remote-debugging-port=$port" 2>/dev/null || true
+  done
+  for record in "$COPIES_DIR"/*.json; do
+    pid=$(record_pid "$record")
+    if [[ -n "$pid" ]]; then kill -TERM "$pid" 2>/dev/null || true; fi
+  done
+  sleep 1
+  if [[ -n "$PORTABLE_DIR" ]]; then
+    # Two portable copies keep their slots and engine profiles in the user folder (FR-004).
+    for sub in copies cef cef-2; do
+      if [[ ! -d "$PORTABLE_DIR/$sub" ]]; then
+        echo "shell-smoke: copies: the portable copies have no $sub/ in $PORTABLE_DIR" >&2
+        exit 1
+      fi
+    done
+    if [[ -e "$TMP/home/.local/share/maxfbeditor" || -e "$TMP/home/.config/maxfbeditor" ]]; then
+      echo "shell-smoke: copies: the portable copies wrote into the per-user folders" >&2
+      exit 1
+    fi
+    echo "shell-smoke: copies: the portable copies keep copies/, cef/ and cef-2/ in the user folder"
+  fi
+  echo "shell-smoke: copies: OK"
+  exit 0
+fi
+
 start_shell
 
 # --- Playwright over CDP ----------------------------------------------------------------------
@@ -798,7 +1011,7 @@ if [[ "$CLOSE" == "1" ]]; then
 fi
 
 if [[ -n "$PORTABLE_DIR" ]]; then
-  for sub in cef logs; do
+  for sub in cef logs copies; do
     if [[ ! -d "$PORTABLE_DIR/$sub" ]]; then
       echo "shell-smoke: the portable copy has no $sub/ in $PORTABLE_DIR" >&2
       exit 1

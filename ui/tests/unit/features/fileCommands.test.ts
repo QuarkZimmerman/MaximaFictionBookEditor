@@ -154,6 +154,7 @@ describe('file flows (T052)', () => {
     expect(await feature.openWithDialog(ctx)).toBe(true);
     expect(flowCalls(rpc).map((c) => c.method)).toEqual([
       'dialog.openFile',
+      'app.bookHolder', // feature 008: a book open in another copy is shown there (FR-017)
       'doc.open',
       'doc.watch',
       'doc.recent',
@@ -995,7 +996,9 @@ describe('Keyboard layout on open (feature 004 US11)', () => {
   it('makes exactly one request per open route with the option on', async () => {
     const { registry, feature, rpc, ctx } = await layoutSetup(RUSSIAN_ON, {
       'dialog.openFile': { paths: ['/books/alpha.fb2'] },
-      'doc.recent': [{ path: '/books/alpha.fb2', lastOpened: 'now' }],
+      // Feature 008 (FR-017): the book shown already is not reopened, so Recent Files names
+      // another one.
+      'doc.recent': [{ path: '/books/gamma.fb2', lastOpened: 'now' }],
     });
     // The start-up document.
     await feature.handleStartup(ctx);

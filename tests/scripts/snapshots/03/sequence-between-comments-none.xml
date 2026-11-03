@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose</genre>
+			<author>
+				<first-name>Test</first-name>
+				<last-name>Author</last-name>
+			</author>
+			<book-title>Notes none</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>tester</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>No notes</p>
+		</title>
+		<section>
+			<title>
+				<p>Chapter</p>
+			</title>
+			<p>P<a l:href="#c_1"><sup>{1}</sup></a>aragraph 1 of a book without notes, with some words.</p>
+			<p>Paragraph 2 of a book without notes, with some words.</p>
+			<p>P<a l:href="#c_2"><sup>{2}</sup></a>aragraph 3 of a book without notes, with some words.</p>
+			<p>Paragraph 4 of a book without notes, with some words.</p>
+			<p>Paragraph 5 of a book without notes, with some words.</p>
+			<p>P<a l:href="#c_3"><sup>{3}</sup></a>aragraph 6 of a book without notes, with some words.</p>
+			<p>Paragraph 7 of a book without notes, with some words.</p>
+			<p>Paragraph 8 of a book without notes, with some words.</p>
+			<p>Paragraph 9 of a book without notes, with some words.</p>
+			<p>Paragraph 10 of a book without notes, with some words.</p>
+			<p>Paragraph 11 of a book without notes, with some words.</p>
+			<p>Paragraph 12 of a book without notes, with some words.</p>
+			<p>Paragraph 13 of a book without notes, with some words.</p>
+			<p>Paragraph 14 of a book without notes, with some words.</p>
+			<p>Paragraph 15 of a book without notes, with some words.</p>
+			<p>Paragraph 16 of a book without notes, with some words.</p>
+			<p>Paragraph 17 of a book without notes, with some words.</p>
+			<p>Paragraph 18 of a book without notes, with some words.</p>
+			<p>Paragraph 19 of a book without notes, with some words.</p>
+			<p>Paragraph 20 of a book without notes, with some words.</p>
+		</section>
+	</body>
+	<body name="comments">
+		<title>
+			<p>Комментарии</p>
+		</title>
+		<section id="c_1">
+			<title>
+				<p>1</p>
+			</title>
+			<p></p>
+		</section>
+		<section id="c_2">
+			<title>
+				<p>2</p>
+			</title>
+			<p><a l:href="#c_4"><sup>{4}</sup></a></p>
+		</section>
+		<section id="c_3">
+			<title>
+				<p>3</p>
+			</title>
+			<p></p>
+		</section>
+		<section id="c_4">
+			<title>
+				<p>4</p>
+			</title>
+			<p></p>
+		</section>
+	</body>
+</FictionBook>

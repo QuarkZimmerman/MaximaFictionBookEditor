@@ -106,9 +106,34 @@
         <Control Id="DesktopShortcutCheckBox" Type="CheckBox" X="20" Y="160" Width="290" Height="17" Property="INSTALLDESKTOPSHORTCUT" CheckBoxValue="1" Text="Create a shortcut on the &amp;desktop" />
       </Dialog>
 
+      <!-- The last page (feature 008, FR-060 to FR-062): the stock ExitDialog's controls plus
+           "Launch Maxima Fiction Book Editor", ticked, shown after an installation, an update
+           and a repair but not after a removal. The stock dialog's optional checkbox hides
+           itself whenever the product is installed, a repair included, hence this copy. -->
+      <Dialog Id="MfbeExitDlg" Width="370" Height="270" Title="[ProductName] Setup">
+        <Control Id="Finish" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Cancel="yes" Text="&amp;Finish" />
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Disabled="yes" Text="Cancel" />
+        <Control Id="Bitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="234" TabSkip="no" Text="WixUI_Bmp_Dialog" />
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Disabled="yes" Text="&amp;Back" />
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+        <Control Id="Description" Type="Text" X="135" Y="70" Width="220" Height="40" Transparent="yes" NoPrefix="yes" Text="Click the Finish button to exit the Setup Wizard." />
+        <Control Id="Title" Type="Text" X="135" Y="20" Width="220" Height="60" Transparent="yes" NoPrefix="yes" Text="{\WixUI_Font_Bigger}Completed the [ProductName] Setup Wizard" />
+        <Control Id="LaunchCheckBox" Type="CheckBox" X="135" Y="190" Width="220" Height="17" Hidden="yes" Property="MFBE_LAUNCH_EDITOR" CheckBoxValue="1" Text="&amp;Launch Maxima Fiction Book Editor" ShowCondition="NOT (REMOVE~=&quot;ALL&quot;)" />
+      </Dialog>
+      <Property Id="MFBE_LAUNCH_EDITOR" Value="1" />
+      <InstallUISequence>
+        <Show Dialog="MfbeExitDlg" OnExit="success" />
+      </InstallUISequence>
+      <AdminUISequence>
+        <Show Dialog="MfbeExitDlg" OnExit="success" />
+      </AdminUISequence>
+
       <!-- Navigation: the stock InstallDir sequence with MfbeInstallDirDlg in place of
-           InstallDirDlg (the path check rows live in the per-platform UI above). -->
-      <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999" />
+           InstallDirDlg (the path check rows live in the per-platform UI above) and
+           MfbeExitDlg in place of ExitDialog. Finish starts the editor through Explorer, so it
+           runs as the desktop user, never with the installer's elevation (FR-061). -->
+      <Publish Dialog="MfbeExitDlg" Control="Finish" Event="DoAction" Value="MfbeLaunchEditor" Order="1" Condition="MFBE_LAUNCH_EDITOR = 1 AND NOT (REMOVE~=&quot;ALL&quot;)" />
+      <Publish Dialog="MfbeExitDlg" Control="Finish" Event="EndDialog" Value="Return" Order="999" />
 
       <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="LicenseAgreementDlg" Condition="NOT Installed" />
       <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Condition="Installed AND PATCH" />
@@ -141,5 +166,8 @@
     </UI>
 
     <UIRef Id="WixUI_Common" />
+
+    <!-- Feature 008 (FR-061): the UI-sequence launch of the installed editor, asynchronous. -->
+    <CustomAction Id="MfbeLaunchEditor" Directory="INSTALL_ROOT" ExeCommand="[WindowsFolder]explorer.exe &quot;[INSTALL_ROOT]bin\mfbe.exe&quot;" Return="asyncNoWait" Impersonate="yes" />
   </Fragment>
 </Wix>

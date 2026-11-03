@@ -77,7 +77,10 @@ public:
 
 private:
     std::filesystem::path file_;
-    std::vector<PositionItem> items_;
+    // A save merges this copy's entries with the file as it is on disk, the newest entry of a
+    // book winning, so the positions other copies remembered stay (feature 008, FR-003).
+    mutable std::vector<PositionItem> items_;
+    mutable bool cleared_ = false;
 };
 
 }  // namespace mfbe::settings

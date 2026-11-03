@@ -370,7 +370,10 @@ test.describe('US3 (004) - illustrators, editors and the other roles', () => {
     );
 
     // The incomplete entry reloads with the name in the last-name field, as the library reads
-    // it; the typed `_`-free names come back as typed.
+    // it; the typed `_`-free names come back as typed. The saved book is closed first: an open
+    // book chosen in File > Open only comes to the front (feature 008, FR-017).
+    await menu(page, 'file', 'new');
+    await expect.poll(() => page.title()).not.toContain('roles-added');
     await openDescription(core, page, path.join(dir, 'roles-added.fbd'));
     const entries = await readEntries(page);
     expect(entries).toHaveLength(12);

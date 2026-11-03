@@ -3,6 +3,7 @@
  * (commands, features) and get the result as a Promise.
  */
 
+import { OpenElsewhereDialog, type OpenElsewhereAnswer } from './OpenElsewhereDialog';
 import { createElement } from 'react';
 
 import type { DialogService } from './DialogService';
@@ -55,6 +56,16 @@ export function showSaveChangesPrompt(dialogs: Dialogs, name: string): Promise<S
   );
 }
 
+/** The opening question of a book from outside (OpenElsewhereDialog.tsx, feature 008). */
+export function showOpenElsewhereDialog(
+  dialogs: Dialogs,
+  name: string,
+): Promise<OpenElsewhereAnswer> {
+  return dialogs.openCustom<OpenElsewhereAnswer>((close) =>
+    createElement(OpenElsewhereDialog, { name, onClose: close }),
+  );
+}
+
 /** Encoding chooser of Save As (EncodingDialog.tsx); resolves with the encoding or null. */
 export function showEncodingDialog(
   dialogs: Dialogs,
@@ -73,5 +84,9 @@ export function createDialogs(service: DialogService): Dialogs & { service: Dial
     showMessageWithResult: (options) => showMessageWithResult(service, options),
     showInput: (options) => showInput(service, options),
     openCustom: (render, options) => service.open(render, options),
+    get isModalOpen() {
+      return service.isModalOpen;
+    },
+    subscribe: (listener) => service.subscribe(listener),
   };
 }

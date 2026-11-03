@@ -16,6 +16,7 @@ import { Dialog, type DialogButton } from '@/dialogs/Dialog';
 import { imageFileTypes } from '@/dialogs/fileTypes';
 import { binaryPreviewUrl } from '@/model/binaryUrls';
 import { addBinaryFromFile } from '@/features/images/binaries';
+import { openPictureView } from '@/features/images/openPictureView';
 import type { BinaryMeta, ImageRef } from '@/model/document';
 import type { RpcClient } from '@/rpc/client';
 
@@ -102,6 +103,9 @@ export function CoverList({ fieldKey, testPrefix }: CoverListProps) {
           const url = binaryPreviewUrl(docId, cover.href, 96);
           const dangling =
             cover.href.startsWith('#') && !binaries.some((b) => `#${b.id}` === cover.href);
+          const coverBinary = dangling
+            ? undefined
+            : images.find((binary) => `#${binary.id}` === cover.href);
           return (
             <div
               className="mfbe-desc-row mfbe-desc-cover"
@@ -115,10 +119,16 @@ export function CoverList({ fieldKey, testPrefix }: CoverListProps) {
               <button
                 type="button"
                 className="mfbe-desc-thumb-button"
-                title={t('descriptionForm.cover.choose')}
+                title={t('descriptionForm.cover.view')}
                 data-testid={`${testPrefix}-${index}-thumb`}
-                disabled={readOnly}
-                onClick={() => void change(index)}
+                disabled={!coverBinary}
+                onClick={() => {
+                  // Feature 008 (D9, FR-051): the thumbnail shows the cover, as a thumbnail of the
+                  // Binary objects list does (feature 007); Choose... opens the picker.
+                  if (coverBinary && docId) {
+                    void openPictureView(dialogs, { docId, binary: coverBinary, store });
+                  }
+                }}
               >
                 {url && !dangling ? (
                   <img className="mfbe-desc-thumb" src={url} alt={cover.alt ?? cover.href} />
@@ -153,6 +163,14 @@ export function CoverList({ fieldKey, testPrefix }: CoverListProps) {
                   ))}
                 </select>
               </label>
+              <SmallButton
+                testId={`${testPrefix}-${index}-choose`}
+                title={t('descriptionForm.cover.choose')}
+                disabled={readOnly}
+                onClick={() => void change(index)}
+              >
+                {t('descriptionForm.cover.chooseButton')}
+              </SmallButton>
               <TextField
                 fieldKey={`${fieldKey}.${index}.href`}
                 testId={`${testPrefix}-${index}-href-text`}

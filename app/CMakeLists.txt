@@ -108,7 +108,9 @@ add_library(mfbe_shell_logic STATIC
   src/release_request.cpp
   src/release_request.h
   src/window_placement.cpp
-  src/window_placement.h)
+  src/window_placement.h
+  src/foreground.cpp
+  src/foreground.h)
 target_compile_definitions(mfbe_shell_logic PRIVATE ${MFBE_SHELL_VERSION_DEFINES})
 target_include_directories(mfbe_shell_logic PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_link_libraries(mfbe_shell_logic PUBLIC mfbe_paths PRIVATE mfbe::options)
@@ -135,6 +137,8 @@ endif()
 set(MFBE_BRIDGE_SRCS
   src/clipboard_bridge.cpp
   src/clipboard_bridge.h
+  src/copy_bridge.cpp
+  src/copy_bridge.h
   src/core_host.cpp
   src/core_host.h
   src/dialog_provider.cpp

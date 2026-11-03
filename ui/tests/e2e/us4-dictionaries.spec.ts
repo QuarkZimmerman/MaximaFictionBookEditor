@@ -118,6 +118,7 @@ async function cleanUserData(core: CoreHandle): Promise<void> {
 }
 
 async function openApp(core: CoreHandle, page: Page): Promise<void> {
+  await core.rpc('settings.set', { patch: { view: { spellExtraDictionaries: [] } } });
   await core.openApp(page);
   await expect(page.getByTestId('status-message')).toHaveText(await pageText(page, 'status.ready'));
 }

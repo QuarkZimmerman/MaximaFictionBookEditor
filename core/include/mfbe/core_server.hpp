@@ -16,6 +16,10 @@
 
 namespace mfbe {
 
+namespace copies {
+class CopyRegistry;
+}
+
 // What the shell reports for app.restart (feature 003 US3, rpc-api.md §3.1): whether the new
 // instance was started, the reason when not (error 1071 {reason}), and the argument list it was
 // started with (recorded by the test provider for test.restartRequests).
@@ -42,6 +46,17 @@ struct CoreServerOptions {
     // `started` the core performs the normal quit, as after app.quit. Unset = no shell: the
     // call fails with 1070 app.restartUnavailable (browser/dev mode reloads the page instead).
     std::function<RestartOutcome(const std::optional<std::string>& reopen)> on_restart;
+    // Feature 008: this copy's registry (the shell's, or the headless core's own one with
+    // --copy-registry); null = no copies (app.bookHolder answers null, app.copyState is kept).
+    copies::CopyRegistry* copy_registry = nullptr;
+    bool own_copy_registry = false;  // the headless core takes a slot of its own
+    // The shell's part of app.openInNewCopy, app.activateCopy and app.openRequestAck; unset =
+    // no shell: the first two report {started: false, reason: "unavailable"} (recorded for
+    // test.copies in test-hook builds).
+    std::function<bool(const std::vector<std::string>& paths, std::string* reason)>
+        open_in_new_copy;
+    std::function<bool(int slot, const std::string& path)> activate_copy;
+    std::function<void(const std::string& request_id)> on_open_request_ack;
 };
 
 class DialogProvider;          // mfbe/dialog_provider.hpp
@@ -69,6 +84,9 @@ public:
     // Emits the app.openPaths notification (queued for the first client when none is
     // connected yet).
     void notify_open_paths(const std::vector<std::string>& paths);
+    // Feature 008: emits app.openRequest {requestId, paths, origin, target, kind} for a request
+    // relayed from another start (queued for the first client when none is connected yet).
+    void notify_open_request(const nlohmann::json& request);
     // Shell close handshake (feature 003 FR-013, rpc-api.md §3.1): emits app.closeRequested to
     // every connected UI; the UI runs its quit flow (cancel-script prompt, save prompt) and ends
     // it with app.quit. `on_delivered` - optional, called on the server thread, or at once

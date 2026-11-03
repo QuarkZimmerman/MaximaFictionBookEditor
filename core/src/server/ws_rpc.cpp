@@ -39,6 +39,11 @@ void LoopbackServer::setup_ws() {
         clients_[ws->getUserData()->id] = ws;
         log::debug("server", "client connected: " + std::to_string(ws->getUserData()->id));
         deliver_pending_open_paths();
+        for (const auto& request : pending_open_requests_) {
+            broadcast(rpc::RpcRouter::wire_text(
+                rpc::RpcRouter::make_notification("app.openRequest", request)));
+        }
+        pending_open_requests_.clear();
     };
     behavior.message = [this](WebSocketPtr ws, std::string_view message, uWS::OpCode op) {
         if (op != uWS::OpCode::TEXT) {
@@ -93,6 +98,15 @@ void LoopbackServer::notify_open_paths(const std::vector<std::string>& paths) {
     }
     broadcast(rpc::RpcRouter::wire_text(
         rpc::RpcRouter::make_notification("app.openPaths", {{"paths", paths}})));
+}
+
+void LoopbackServer::notify_open_request(const nlohmann::json& request) {
+    if (clients_.empty()) {
+        pending_open_requests_.push_back(request);
+        return;
+    }
+    broadcast(
+        rpc::RpcRouter::wire_text(rpc::RpcRouter::make_notification("app.openRequest", request)));
 }
 
 void LoopbackServer::deliver_pending_open_paths() {

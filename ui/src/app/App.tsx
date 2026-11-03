@@ -23,7 +23,10 @@ import { getAiFeature, type AiFeatureStatus } from '@/ai';
 import { DisabledPanel } from '@/ai/DisabledPanel';
 import { DialogHost, ValidationPanel, createIssueNavigator } from '@/dialogs';
 import { changeLanguage, resolveUiLanguage } from '@/i18n';
+import { onNodeIdRepair } from '@/model/uniqueIds';
 import { actions, documentFileName, useAppState } from '@/model/store';
+
+import { isAiBusy, useAiBusyPointer } from './aiBusy';
 import { BodyView } from '@/views/body/BodyView';
 import { DescriptionView } from '@/views/description/DescriptionView';
 import { SourceView } from '@/views/source/SourceView';
@@ -36,7 +39,7 @@ import { useScriptsMenu } from '@/scripting/ScriptsMenu';
 import { useScriptToolbarButtons } from '@/scripting/useScriptToolbarButtons';
 
 import { AppProvider } from './AppContext';
-import { installGlobalErrorLogging } from './diagnostics';
+import { installGlobalErrorLogging, logUiError } from './diagnostics';
 import { createAppServices, useAppServices, useCommandContext, type AppServices } from './services';
 import { MenuBar } from './MenuBar';
 import type { DynamicMenuItems } from './menus';
@@ -173,6 +176,14 @@ function Shell({
     const offFailed = rpc.on('job.failed', () => actions.setProgress(store, null));
     const offFiles = files.subscribeNotifications(rpc, () => ctxRef.current);
     const offErrors = installGlobalErrorLogging(rpc, store); // FR-131: uncaught errors
+    // Feature 008 (FR-021): the first repair of repeated element names in a session is logged.
+    const offRepairs = onNodeIdRepair((count) => {
+      void logUiError(rpc, {
+        code: 'ui.nodeIdRepaired',
+        message: 'repeated element names were repaired',
+        context: { count: String(count) },
+      });
+    });
     actions.setConnection(store, rpc.status);
     rpc.connect();
     return () => {
@@ -183,6 +194,7 @@ function Shell({
       offFailed();
       offFiles();
       offErrors();
+      offRepairs();
     };
   }, [rpc, store, files]);
 
@@ -414,6 +426,17 @@ function Shell({
   // Busy pointer over the document pane while a script computes - not while it waits for the
   // user in one of its own dialogs (feature 003, FR-011).
   const scriptsFeature = getScriptsFeature(store);
+  // Feature 008 (FR-080 to FR-085): the atom pointer while an assistant's request computes -
+  // not while a dialog of it waits for the user; it takes precedence over the script pointer.
+  const runKind = useAppState((s) => s.runLock?.kind ?? null, store);
+  const modalOpen = useSyncExternalStore(
+    dialogs.subscribe ?? NO_SUBSCRIPTION,
+    () => dialogs.isModalOpen === true,
+    () => false,
+  );
+  const aiBusy = isAiBusy(runKind, modalOpen);
+  const viewContentRef = useRef<HTMLDivElement>(null);
+  useAiBusyPointer(viewContentRef, aiBusy);
   const scriptBusy = useSyncExternalStore(
     scriptsFeature?.host.subscribe ?? NO_SUBSCRIPTION,
     () => !!scriptsFeature?.host.isRunning && !scriptsFeature.host.current?.waiting,
@@ -453,7 +476,10 @@ function Shell({
         <section className="mfbe-view-area" data-testid="view-area">
           <ViewSwitcher />
           <ScriptRunBanner />
-          <div className={`mfbe-view-content${scriptBusy ? ' mfbe-busy' : ''}`}>
+          <div
+            ref={viewContentRef}
+            className={`mfbe-view-content${aiBusy ? ' mfbe-ai-busy' : scriptBusy ? ' mfbe-busy' : ''}`}
+          >
             {activeView === 'description' ? <DescriptionView /> : null}
             {activeView === 'body' ? <BodyView /> : null}
             {activeView === 'source' ? <SourceView /> : null}

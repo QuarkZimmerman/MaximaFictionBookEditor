@@ -177,3 +177,10 @@ TEST_CASE("relaunch: the timeout and the poll interval are the contract's", "[re
     CHECK(mfbe::shell::kWaitForExitTimeout == 30s);
     CHECK(mfbe::shell::kWaitForExitInterval == 100ms);
 }
+
+TEST_CASE("feature 008: a copy's restart stays its own copy, in its own slot", "[shell][relaunch]") {
+    const auto args = relaunchArguments({"--mfbe-new-copy", "--mfbe-slot=3", "/books/a.fb2"}, 7,
+                                        "", std::string("/books/a.fb2"), 2);
+    CHECK(args == std::vector<std::string>{"--wait-for-exit", "7", "--mfbe-new-copy",
+                                           "--mfbe-slot=2", "/books/a.fb2"});
+}

@@ -96,6 +96,7 @@ TEST_CASE("positions: an LRU list of 100 files, newest first, atomic writes per 
     CHECK(stored["items"][0]["at"].get<std::string>().back() == 'Z');
     CHECK(stored["items"][99]["path"] == "/books/b1.fb2");
     for (const auto& entry : std::filesystem::directory_iterator(file.parent_path())) {
+        if (entry.path().extension() == ".lock") continue;  // the copies' write lock (feature 008)
         CHECK(entry.path().filename() == "positions.json");  // no temporary file left behind
     }
 

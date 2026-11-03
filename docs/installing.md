@@ -61,6 +61,10 @@ the same three languages; others are added as described under
 1. Download `MaximaFictionBookEditor-<version>-win64.msi` and double-click it.
 2. Confirm the administrator prompt, accept the licence (GNU GPL version 3) and the folder,
    leave **Create a shortcut on the desktop** ticked or untick it, click **Install**.
+3. On the last page, leave **Launch Maxima Fiction Book Editor** ticked to start the editor
+   when you click **Finish**, or untick it. The page offers it after an installation, an
+   update and a repair, not after a removal. The editor starts with your own rights, never with
+   the installer's administrator rights; unattended installations start nothing.
 
 The editor is installed for all users of the computer into
 `C:\Program Files\Maxima Fiction Book Editor` (the folder can be changed in the installer).
@@ -424,8 +428,25 @@ mfbe [FILE...] [--lang en|ru|uk] [--new] [--remote-debugging-port N] [--no-sandb
 ```
 
 `FILE` is the `.fb2` / `.fbd` / `.xml` document to open (this is how the operating system's
-file associations start the editor). When an instance is already running, a second start
-hands the file to it and brings its window to the front instead of opening a second copy.
+file associations start the editor). Several copies of the editor can run side by side, each
+in its own window with its own book (feature 008):
+
+- Starting the editor without a book always opens a new copy with a new document.
+- A book opened from outside the editor while a copy runs - a double-click in the file
+  manager, *Open with*, a command line naming it - goes to the copy you used last. A copy that
+  holds an untouched new document opens it at once; otherwise the copy asks whether to open it
+  in this window or in a new window (*New window* is the default answer; *Don't ask again*
+  remembers the choice, which *Settings > Other* shows and changes).
+- A book that is already open in some copy is never opened a second time: that copy comes to
+  the front showing it, with its unsaved changes. The same holds for *File > Open*, *Recent
+  Files* and a drop.
+- A copy that cannot take the book at once - a dialog that blocks it is open, a script or the
+  assistant is at work, it is restarting or does not answer within 5 seconds - leaves it to a
+  new copy, without a question. Find and Replace stay open while you work and do not count.
+- The copies share your settings: each copy saves only the settings you changed in it, so for
+  a setting changed in two copies the one saved last wins, and a new copy starts with the
+  settings saved last. The custom dictionary, the recent files and the remembered positions
+  keep every copy's changes.
 `--lang` overrides the interface language for this one run only. `--wait-for-exit` and
 `--window-geometry` are the options the editor gives itself when it restarts after a settings
 change (the new copy waits for the old one to end, then opens at the same window placement);

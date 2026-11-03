@@ -66,4 +66,8 @@ export interface Dialogs {
     render: (close: (result: T) => void) => ReactNode,
     options?: { modeless?: boolean; kind?: 'dialog' | 'viewer' },
   ): Promise<T>;
+  /** A modal dialog is open (feature 008: the copy is busy); absent in test fakes = none. */
+  readonly isModalOpen?: boolean;
+  /** Called when a dialog opens or closes; absent in test fakes. */
+  subscribe?(listener: () => void): () => void;
 }

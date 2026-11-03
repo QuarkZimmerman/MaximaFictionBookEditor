@@ -8,6 +8,7 @@
 // `--url` developer override so the shell can be built and smoke-tested before the core lands.
 #pragma once
 
+#include "copy_bridge.h"
 #include "window_placement.h"
 
 #include <filesystem>
@@ -52,8 +53,12 @@ struct CoreHostOptions {
     std::filesystem::path ui_dir;         // built UI bundle (index.html); may be empty in dev
     std::string ui_language;              // "" (system), "en", "ru" or "uk" (--lang) -> URL ?lang=
     std::vector<std::string> open_paths;  // FILE arguments to open after start-up
-    bool new_document = false;            // --new -> URL ?new=1
-    bool test_hooks = false;              // enable test.* RPC methods (dev/test builds only)
+    // Feature 008: the shell's side of app.openInNewCopy and app.activateCopy (copy_bridge.h).
+    std::function<bool(const std::vector<std::string>& paths, std::string* reason)>
+        open_in_new_copy;
+    std::function<bool(int slot, const std::string& path)> activate_copy;
+    bool new_document = false;  // --new -> URL ?new=1
+    bool test_hooks = false;    // enable test.* RPC methods (dev/test builds only)
 };
 
 class CoreHost {
@@ -86,6 +91,8 @@ public:
     // Forwards paths from a second instance / OS "Open with" / drag-and-drop / macOS
     // open-file events (app.openPaths notification).
     virtual void notifyOpenPaths(const std::vector<std::string>& paths) = 0;
+    // Feature 008: a request relayed from another start (app.openRequest).
+    virtual void notifyOpenRequest(const RelayedRequest& request) = 0;
 
     // Close handshake of the main window (feature 003 FR-013): asks the UI to close through the
     // core (app.closeRequested); the UI runs its quit flow - cancel-script prompt, save prompt -

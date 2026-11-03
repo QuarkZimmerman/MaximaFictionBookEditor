@@ -120,13 +120,13 @@ describe('RpcClient', () => {
     await expect(info).resolves.toMatchObject({ version: '1.0' });
   });
 
-  it('is written for contract minor 6 and accepts the app.info of any 1.x core (minor >= 1)', async () => {
+  it('is written for contract minor 7 and accepts the app.info of any 1.x core (minor >= 1)', async () => {
     // rpc-api.md §6 (feature 007): apiVersion 1, apiMinor 6; the client performs no minor check
     // at connect time and gates nothing on 6 - a core answering an older minor (or none) is used
     // as it is, and the features that need a newer answer (the `serial` of the position map, the
     // AI assistant's `ai.*` family) degrade or stay unregistered on their own.
     expect(RPC_API_VERSION).toBe(1);
-    expect(RPC_API_MINOR).toBe(6);
+    expect(RPC_API_MINOR).toBe(7);
     const { client, socket } = setup();
     client.connect();
     socket().open();

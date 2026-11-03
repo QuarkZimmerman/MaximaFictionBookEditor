@@ -4,6 +4,7 @@
 #include "server/ai_state.hpp"
 
 #include <mfbe/clipboard_provider.hpp>
+#include <mfbe/copy_registry.hpp>
 #include <mfbe/core_server.hpp>
 #include <mfbe/dialog_provider.hpp>
 #include <mfbe/document_session.hpp>
@@ -58,6 +59,15 @@ struct Services {
 
     // Spell checking (US6): dictionaries through the layers, Hunspell instances, custom.dic.
     std::unique_ptr<spell::SpellService> spell;
+    // Feature 008: the headless core's own copy registry (--copy-registry) and, for test.copies,
+    // the shell requests made without a shell.
+    std::unique_ptr<copies::CopyRegistry> own_copies;
+    copies::CopyRegistry* copies() const {
+        return options.copy_registry != nullptr ? options.copy_registry : own_copies.get();
+    }
+    std::vector<std::vector<std::string>> new_copy_requests;
+    std::vector<std::pair<int, std::string>> activation_requests;
+    std::vector<std::string> open_request_acks;
     // Scaled image previews (US7), shared by every document (keyed by docId + binary id).
     images::PreviewCache previews;
 

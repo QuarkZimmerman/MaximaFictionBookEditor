@@ -42,11 +42,14 @@
 
 #include "clipboard_bridge.h"
 #include "command_line.h"
+#include "copy_bridge.h"
 #include "core_host.h"
 #include "dialog_provider.h"
 #include "file_dialog_platform.h"
+#include "foreground.h"
 #include "include/cef_version.h"
 #include "include/cef_version_info.h"
+#include "mfbe/copy_launch.hpp"
 #include "mfbe_app.h"
 #include "mfbe_client.h"
 #include "native_actions.h"
@@ -243,6 +246,48 @@ void startSelfTest(const std::string& which, std::shared_ptr<NativeDialogs> dial
 }
 #endif  // MFBE_SHELL_TEST_HOOKS
 
+// Feature 008 (contracts/cli.md §3): hands the books to the copy of `copy.slot` through the
+// engine's relay - the engine started with that copy's profile finds it running and forwards
+// this start's command line, with --mfbe-request appended by MfbeApp - and starts no core. If
+// that copy ended between the choice and the relay, this process would own its profile: it then
+// shuts the engine down again and starts a new copy with the books instead.
+int relayToCopy(const CefMainArgs& main_args, void* sandbox_info, const CopyStart& copy,
+                const ShellOptions& options, const std::vector<std::string>& books) {
+    CefSettings settings;
+    settings.no_sandbox = 1;  // a relaying start creates no renderer
+    settings.command_line_args_disabled = 1;
+    CefString(&settings.root_cache_path) = mfbe::platform::utf8_from_path(copy.profile_dir);
+    CefString(&settings.cache_path) = mfbe::platform::utf8_from_path(copy.profile_dir);
+    settings.log_severity = LOGSEVERITY_DISABLE;
+    AppConfig app_config;
+    app_config.no_sandbox = true;
+    app_config.ozone_platform = options.ozone_platform;
+    app_config.relay_payload = copy.payload;
+    CefRefPtr<MfbeApp> app(new MfbeApp(app_config, nullptr, nullptr));
+    // Windows: a start from the file manager may take the foreground, the receiving copy in the
+    // background may not - hand the right on, and raise its window once the request is delivered
+    // (the question then shows over it; feature 008, smoke test of 0.0.7-rc.1).
+    allowForeground(copy.target_pid);
+    if (!CefInitialize(main_args, settings, app.get(), sandbox_info)) {
+        std::string message;
+        const int code = mapEarlyExitCode(CefGetExitCode(), &message);
+        if (code == 0) {
+            bringProcessWindowToFront(copy.target_pid);
+        }
+        return code;
+    }
+    CefShutdown();
+    std::vector<std::string> args = {"--mfbe-new-copy"};
+    args.insert(args.end(), books.begin(), books.end());
+    std::string reason;
+    const std::string program = relaunchProgram(envString("APPIMAGE"), currentExecutable());
+    if (!spawnDetached(program, args, &reason)) {
+        std::fprintf(stderr, "mfbe: could not start a new copy: %s\n", reason.c_str());
+        return 1;
+    }
+    return 0;
+}
+
 }  // namespace
 
 int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const* argv,
@@ -306,14 +351,38 @@ int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const*
     std::filesystem::path profile_dir;  // CEF root_cache_path
     std::filesystem::path log_dir;
     std::filesystem::path temp_profile;
+    std::optional<CopyWindowRect> new_copy_placement;  // feature 008, research R6
+    int own_slot = 0;  // this copy's slot (0 for a developer run); the restart keeps it
     if (dev_url_mode) {
         // Developer runs never touch the user's profile.
         temp_profile = makeTempProfileDir();
         profile_dir = temp_profile / "cef";
         log_dir = temp_profile / "logs";
     } else {
-        profile_dir = dirs.data / "cef";
+        // Feature 008 (contracts/shell.md §1): decide before any engine or core starts. A start
+        // with books while a copy responds relays them and exits; otherwise this start is a new
+        // copy in the lowest free slot, with that slot's engine profile.
+        std::vector<std::string> books;
+        for (const auto& file : options.files) {
+            std::error_code ec;
+            const std::filesystem::path absolute =
+                std::filesystem::absolute(mfbe::platform::path_from_utf8(file), ec);
+            books.push_back(ec ? file
+                               : mfbe::platform::utf8_from_path(absolute.lexically_normal()));
+        }
+        const CopyStart copy =
+            decideCopyStart(dirs.data, books, options.force_new_copy, options.forced_slot);
+        if (!copy.ok) {
+            std::fprintf(stderr, "mfbe: no free copy slot (too many copies run)\n");
+            return 1;
+        }
+        if (copy.relay) {
+            return relayToCopy(main_args, sandbox_info, copy, options, books);
+        }
+        profile_dir = copy.profile_dir;
         log_dir = dirs.logs;
+        new_copy_placement = copy.placement;
+        own_slot = copy.slot;
     }
     if (!ensureDirectory(profile_dir) || !ensureDirectory(log_dir)) {
         std::fprintf(stderr, "mfbe: cannot create the profile directory %s\n",
@@ -364,6 +433,18 @@ int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const*
             ec ? file : mfbe::platform::utf8_from_path(absolute.lexically_normal()));
     }
     core_options.new_document = options.new_document;
+    // Feature 008: New window, a busy copy and FR-017's activation start another process of
+    // this program: a new copy, or a start with the book that reaches the copy holding it.
+    core_options.open_in_new_copy = [](const std::vector<std::string>& paths, std::string* reason) {
+        return spawnCopy(paths, reason);
+    };
+    core_options.activate_copy = [](int /*slot*/, const std::string& path) {
+        const char* appimage = std::getenv("APPIMAGE");
+        std::string reason;
+        return spawnDetached(
+            relaunchProgram(appimage != nullptr ? appimage : "", currentExecutable()), {path},
+            &reason);
+    };
 #if defined(MFBE_SHELL_TEST_HOOKS)
     core_options.test_hooks = true;
 #endif
@@ -379,16 +460,16 @@ int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const*
     relaunch_override = envString("MFBE_RELAUNCH_PROGRAM");
 #endif
     std::atomic<CoreHost*> core_host_for_restart{nullptr};  // set once the core runs
-    core_options.on_restart = [own_args, relaunch_override,
+    core_options.on_restart = [own_args, relaunch_override, own_slot,
                                &core_host_for_restart](const std::optional<std::string>& reopen) {
         RelaunchOutcome outcome;
         const std::optional<WindowPlacement> placement = mainWindowPlacement();
         if (CoreHost* host = core_host_for_restart.load(); placement && host != nullptr) {
             host->saveWindowPlacement(*placement);  // before the restart
         }
-        outcome.argv =
-            relaunchArguments(own_args, currentProcessId(),
-                              placement ? formatWindowGeometry(*placement) : std::string(), reopen);
+        outcome.argv = relaunchArguments(
+            own_args, currentProcessId(),
+            placement ? formatWindowGeometry(*placement) : std::string(), reopen, own_slot);
         const std::string program =
             relaunch_override.empty() ? relaunchProgram(envString("APPIMAGE"), currentExecutable())
                                       : relaunch_override;
@@ -483,6 +564,16 @@ int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const*
     // window.cpp clamps it to the display's work area.
     app_config.window_placement =
         options.window_geometry ? options.window_geometry : core_host->windowPlacement();
+    if (!options.window_geometry && new_copy_placement) {
+        // Feature 008 (D7): beside the copy used last, or at its normal place when maximized.
+        WindowPlacement beside;
+        beside.x = new_copy_placement->x;
+        beside.y = new_copy_placement->y;
+        beside.width = new_copy_placement->w;
+        beside.height = new_copy_placement->h;
+        beside.maximized = false;
+        app_config.window_placement = beside;
+    }
 #if defined(MFBE_SHELL_DEVTOOLS)
     app_config.devtools_enabled = true;
 #else
@@ -539,6 +630,7 @@ int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const*
     if (hooks.after_shutdown != nullptr) {
         hooks.after_shutdown();
     }
+    releaseCopy();  // feature 008: this copy's record goes; its slot lock goes with the process
     removeDirectory(temp_profile);
     return exit_code;
 }
@@ -547,6 +639,24 @@ void forwardOpenPaths(const std::vector<std::string>& paths) {
     if (paths.empty()) {
         return;
     }
+#if defined(__APPLE__)
+    // Feature 008 (T029, FR-015): the Finder's open events while the editor runs take the path
+    // of a relayed book - an untouched copy opens it, otherwise the question; an open book only
+    // comes to the front.
+    if (g_core_host != nullptr) {
+        RelayedRequest request;
+        request.kind = "open";
+        request.request_id = mfbe::copies::new_request_id();
+        request.paths = paths;
+        request.origin = "outside";
+        request.target = "ask";
+        deliverOpenRequest(g_core_host, request);
+        if (MfbeClient* client = MfbeClient::GetInstance()) {
+            client->ShowMainWindow();
+        }
+        return;
+    }
+#endif
     if (g_core_host != nullptr) {
         g_core_host->notifyOpenPaths(paths);
     }

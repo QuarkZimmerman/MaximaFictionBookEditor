@@ -5,8 +5,10 @@
 #include "server/services.hpp"
 
 #include <mfbe/ai_address.hpp>
+#include <mfbe/copy_registry.hpp>
 #include <mfbe/log.hpp>
 #include <mfbe/platform.hpp>
+#include <mfbe/utf8_paths.hpp>
 #include <mfbe/version.hpp>
 
 #include <filesystem>
@@ -96,6 +98,77 @@ void register_app_handlers(rpc::RpcRouter& router, Services& services) {
     // follows. Without a shell (browser/dev mode) the call is unavailable (1070) and the UI
     // reloads its page; a shell that could not start the new instance answers 1071 {reason} and
     // the editor stays open. With test hooks every call is recorded (test.restartRequests).
+    // Feature 008 (rpc-api.md §1): the open requests between copies.
+    router.add_method("app.openRequestAck", [&services](const json& params, rpc::RpcContext&) {
+        const std::string id = rpc::params::string(params, "requestId");
+        services.open_request_acks.push_back(id);
+        if (services.options.on_open_request_ack)
+            services.options.on_open_request_ack(id);
+        return json::object();
+    });
+    router.add_method("app.openInNewCopy", [&services](const json& params, rpc::RpcContext&) {
+        if (!params.is_object() || !params.contains("paths") || !params["paths"].is_array()) {
+            throw rpc::RpcError(rpc::codes::kInvalidParams, "paths must be an array of strings");
+        }
+        std::vector<std::string> paths;
+        for (const auto& p : params["paths"]) {
+            if (!p.is_string()) {
+                throw rpc::RpcError(rpc::codes::kInvalidParams,
+                                    "paths must be an array of strings");
+            }
+            paths.push_back(p.get<std::string>());
+        }
+        services.new_copy_requests.push_back(paths);
+        std::string reason = "unavailable";
+        const bool started =
+            services.options.open_in_new_copy && services.options.open_in_new_copy(paths, &reason);
+        json result{{"started", started}};
+        if (!started)
+            result["reason"] = reason;
+        return result;
+    });
+    router.add_method("app.bookHolder", [&services](const json& params, rpc::RpcContext&) {
+        const std::string path = rpc::params::string(params, "path");
+        copies::CopyRegistry* registry = services.copies();
+        if (registry == nullptr)
+            return json{{"slot", nullptr}};
+        const auto holder =
+            registry->find_book(copies::file_identity(platform::path_from_utf8(path)));
+        return holder ? json{{"slot", holder->slot}} : json{{"slot", nullptr}};
+    });
+    router.add_method("app.activateCopy", [&services](const json& params, rpc::RpcContext&) {
+        const std::string path = rpc::params::string(params, "path");
+        if (!params.contains("slot") || !params["slot"].is_number_integer()) {
+            throw rpc::RpcError(rpc::codes::kInvalidParams, "slot must be an integer");
+        }
+        const int slot = params["slot"].get<int>();
+        services.activation_requests.emplace_back(slot, path);
+        const bool started =
+            services.options.activate_copy && services.options.activate_copy(slot, path);
+        return json{{"started", started}};
+    });
+    router.add_method("app.copyState", [&services](const json& params, rpc::RpcContext&) {
+        const std::string state = rpc::params::string(params, "state");
+        if (state != "ready" && state != "busy") {
+            throw rpc::RpcError(rpc::codes::kInvalidParams, "state must be ready or busy");
+        }
+        const bool untouched = params.value("untouched", false);
+        if (copies::CopyRegistry* registry = services.copies()) {
+            registry->set_state(state);
+            registry->set_untouched(untouched);
+            if (params.contains("path")) {
+                if (params["path"].is_string() && !params["path"].get<std::string>().empty()) {
+                    const std::string path = params["path"].get<std::string>();
+                    registry->set_book(copies::BookRef{
+                        path, copies::file_identity(platform::path_from_utf8(path))});
+                } else {
+                    registry->set_book(std::nullopt);
+                }
+            }
+        }
+        return json::object();
+    });
+
     router.add_method("app.restart", [&services](const json& params, rpc::RpcContext&) {
         const std::optional<std::string> reopen = rpc::params::opt_string(params, "reopen");
         log::info("server", reopen ? "app.restart requested with a document to reopen"

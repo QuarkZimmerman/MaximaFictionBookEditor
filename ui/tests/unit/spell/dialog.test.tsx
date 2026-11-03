@@ -18,6 +18,8 @@ import { changeLanguage, initI18n } from '@/i18n';
 import type { AnnotationNode, BodyNode, Document } from '@/model/document';
 import { actions, createAppStore } from '@/model/store';
 
+import { defaultSettings } from '../settings/fixtures';
+
 import { fakeDocument, fakeRpc } from '../features/testUtils';
 
 configure({ asyncUtilTimeout: 5000 });
@@ -95,6 +97,9 @@ async function renderApp(doc: Document) {
   await initI18n({ language: 'en' });
   await changeLanguage('en');
   const store = createAppStore();
+  // The flow below starts from the book's language alone: no extra dictionaries (feature 008).
+  const base = defaultSettings();
+  actions.setSettings(store, { ...base, view: { ...base.view, spellExtraDictionaries: [] } });
   const custom: string[] = [];
   const rpc = fakeRpc({
     'settings.get': new Error('no settings'),

@@ -40,14 +40,15 @@ bool takesValue(const std::string& name) {
 // document and the previous restart's own additions (replaced by this one's).
 bool droppedOnRestart(const std::string& name) {
     return name == "--lang" || name == "--new" || name == "--wait-for-exit" ||
-           name == "--window-geometry";
+           name == "--window-geometry" || name == "--mfbe-new-copy" || name == "--mfbe-slot" ||
+           name == "--mfbe-request";
 }
 
 }  // namespace
 
 std::vector<std::string> relaunchArguments(const std::vector<std::string>& own_args, long long pid,
                                            const std::string& window_geometry,
-                                           const std::optional<std::string>& reopen) {
+                                           const std::optional<std::string>& reopen, int slot) {
     std::vector<std::string> args;
     for (size_t i = 0; i < own_args.size(); ++i) {
         const std::string& arg = own_args[i];
@@ -73,6 +74,12 @@ std::vector<std::string> relaunchArguments(const std::vector<std::string>& own_a
     }
     args.push_back("--wait-for-exit");
     args.push_back(std::to_string(pid));
+    if (slot > 0) {
+        // Feature 008 (T019): the restart restarts this copy only - in its own slot, with its
+        // engine profile, never handing its book to another copy.
+        args.push_back("--mfbe-new-copy");
+        args.push_back("--mfbe-slot=" + std::to_string(slot));
+    }
     if (!window_geometry.empty()) {
         args.push_back("--window-geometry");
         args.push_back(window_geometry);
@@ -212,6 +219,9 @@ bool spawnDetached(const std::string& program, const std::vector<std::string>& a
     PROCESS_INFORMATION process = {};
     // Its own process group: a console Ctrl+C aimed at this process never reaches it; it does
     // not inherit our handles.
+    // Feature 008: a new copy started for a book (busy copy, New window, a restart) may take the
+    // foreground when this process may - Windows otherwise opens its window behind the others.
+    ::AllowSetForegroundWindow(ASFW_ANY);
     const BOOL created =
         ::CreateProcessW(program_path.c_str(), command_line.data(), nullptr, nullptr, FALSE,
                          CREATE_NEW_PROCESS_GROUP | CREATE_UNICODE_ENVIRONMENT, nullptr, nullptr,

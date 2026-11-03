@@ -60,6 +60,7 @@ struct ServeArgs {
     std::string resources;
     std::string scripts;
     bool test_hooks = false;
+    bool copy_registry = false;  // feature 008: take a copy slot (journeys)
     std::string log_level = "error";
 };
 
@@ -83,6 +84,7 @@ int run_serve(const ServeArgs& args) {
     options.resources_dir = args.resources;
     options.scripts_dir = args.scripts;
     options.test_hooks = args.test_hooks;
+    options.own_copy_registry = args.copy_registry;
     options.open_paths = args.open;
 
     std::unique_ptr<mfbe::CoreServer> server;
@@ -375,6 +377,8 @@ int run_command_line(int argc, const Char* const* argv) {
         ->check(CLI::ExistingDirectory);
     serve->add_flag("--test-hooks", serve_args.test_hooks,
                     "enable test.* RPC methods and the queued dialog provider");
+    serve->add_flag("--copy-registry", serve_args.copy_registry,
+                    "take part in the copies' registry of the data folder (feature 008)");
     serve->add_option("--log-level", serve_args.log_level, "console log level")
         ->check(CLI::IsMember({"error", "warn", "info", "debug"}))
         ->default_val("error");

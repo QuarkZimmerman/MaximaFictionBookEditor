@@ -18,10 +18,11 @@ import { useTranslation } from 'react-i18next';
 import { setNodeAttr } from '@/editor/commands/table';
 import { registerBarFocus, type BarField } from '@/features/editing/barFocus';
 import { setHrefAtSelection } from '@/features/footnotes';
-import { normalizeHref } from '@/features/linkTargets';
+import { collectImageRefs, collectJumpTargets, normalizeHref } from '@/features/linkTargets';
 import { isRunLocked, useAppState } from '@/model/store';
 import { useBodySelectionContext } from '@/views/body/useBodySelection';
 
+import { HrefCombo } from './HrefCombo';
 import { useAppServices } from './services';
 
 export interface BarTextFieldProps {
@@ -174,13 +175,16 @@ export function LinksBar() {
         focusKey="id"
         onCommit={(value) => setAttr(context?.idElement?.pos, 'id', value)}
       />
-      <BarTextField
-        id="links-bar-href"
+      <HrefCombo
         label={t('linksBar.href')}
         value={context?.link?.href ?? ''}
         disabled={!bodyActive || !context?.link}
         width={200}
-        focusKey="href"
+        options={() => {
+          // Feature 008 (FR-040): a picture lists the book's images, a link its jump targets.
+          const document = store.getState().document;
+          return context?.image ? collectImageRefs(document) : collectJumpTargets(document);
+        }}
         onCommit={(value) => {
           if (controller) setHrefAtSelection(controller, normalizeHref(value));
         }}

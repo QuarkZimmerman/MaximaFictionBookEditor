@@ -678,7 +678,9 @@
         "spellcheck": "Spellcheck",
         "useSpellchecker": "Use spellchecker",
         "highlightMisspelled": "Highlight misspelled words",
-        "customDictionary": "Custom dictionary:"
+        "customDictionary": "Custom dictionary:",
+        "spellAlsoUse": "Also use these dictionaries:",
+        "spellBaseDictionary": "{{name}} (the book's language)"
       },
       "other": {
         "saveFile": "Save File",
@@ -970,5 +972,16 @@
     "ru": "Russian",
     "uk": "Ukrainian",
     "system": "System default"
+  },
+  "openElsewhere": {
+    "question": "Open «{{name}}» in this window or in a new window?",
+    "thisWindow": "&This window",
+    "newWindow": "&New window",
+    "remember": "Don't ask again",
+    "settingLabel": "When a book is opened from outside the editor:",
+    "settingAsk": "Ask",
+    "settingThisWindow": "Open it in the running window",
+    "settingNewWindow": "Open it in a new window",
+    "settingGroup": "Books opened from outside"
   }
 }

@@ -1,15 +1,19 @@
 #include "mfbe_app.h"
 
+#include "copy_bridge.h"
 #include "core_host.h"
 #include "dialog_provider.h"
+#include "include/base/cef_callback.h"
 #include "include/base/cef_logging.h"
 #include "include/cef_browser.h"
 #include "include/cef_command_line.h"
 #include "include/cef_preference.h"
 #include "include/cef_request_context.h"
+#include "include/cef_task.h"
 #include "include/cef_values.h"
 #include "include/views/cef_browser_view.h"
 #include "include/views/cef_window.h"
+#include "include/wrapper/cef_closure_task.h"
 #include "include/wrapper/cef_helpers.h"
 #include "mfbe_client.h"
 #include "shell_runner.h"
@@ -99,6 +103,9 @@ void MfbeApp::OnBeforeCommandLineProcessing(const CefString& process_type,
     if (!process_type.empty()) {
         return;  // browser process only; sub-processes inherit what Chromium gives them
     }
+    if (!config_.relay_payload.empty()) {
+        command_line->AppendSwitchWithValue("mfbe-request", config_.relay_payload);
+    }
     if (config_.no_sandbox && !command_line->HasSwitch("no-sandbox")) {
         command_line->AppendSwitch("no-sandbox");
     }
@@ -116,12 +123,43 @@ void MfbeApp::OnBeforeCommandLineProcessing(const CefString& process_type,
     if (!locale.empty() && !command_line->HasSwitch("lang")) {
         command_line->AppendSwitchWithValue("lang", locale);
     }
+#if defined(_WIN32)
+    // Feature 008 (smoke test of 0.0.7-rc.2): Chromium treats a window that other windows cover as
+    // hidden and stops painting its page; raised by a book opened from the file manager, the
+    // window then showed the question only after the next click. A covered window counts as
+    // visible, so the editor keeps painting. (Disabling the occlusion feature itself crashed
+    // libcef at start.)
+    command_line->AppendSwitch("disable-backgrounding-occluded-windows");
+#endif
     if (!config_.extra_chromium_flags.empty()) {
         appendExtraFlags(config_.extra_chromium_flags, command_line);
     }
 }
 
+namespace {
+// Feature 008 (contracts/shell.md §3): the record's heartbeat, every 2 s on the browser UI
+// thread, so a frozen browser process stops it and other starts pass this copy over.
+void heartbeatTick() {
+    copyHeartbeat();
+    CefPostDelayedTask(TID_UI, base::BindOnce(&heartbeatTick), 2000);
+}
+
+// A relayed request the page did not acknowledge within 5 s goes to a new copy (FR-011).
+void ackDeadline(std::string request_id, std::vector<std::string> paths) {
+    if (takeAcked(request_id) || paths.empty()) {
+        return;
+    }
+    std::string reason;
+    if (!spawnCopy(paths, &reason)) {
+        LOG(ERROR) << "mfbe: could not start a new copy for an unanswered request: " << reason;
+    }
+}
+}  // namespace
+
 void MfbeApp::OnContextInitialized() {
+    if (copyRegistry() != nullptr) {
+        CefPostDelayedTask(TID_UI, base::BindOnce(&heartbeatTick), 2000);
+    }
     CEF_REQUIRE_UI_THREAD();
 
     // The engine's own spell checking off before any window exists (feature 004 US9). A refused
@@ -191,26 +229,38 @@ CefRefPtr<CefClient> MfbeApp::GetDefaultClient() {
     return client_;
 }
 
+void deliverOpenRequest(CoreHost* host, const RelayedRequest& request) {
+    CEF_REQUIRE_UI_THREAD();
+    if (host == nullptr) {
+        return;
+    }
+    expectAck(request.request_id);
+    host->notifyOpenRequest(request);
+    if (request.kind == "open") {
+        CefPostDelayedTask(TID_UI, base::BindOnce(&ackDeadline, request.request_id, request.paths),
+                           5000);
+    }
+}
+
 bool MfbeApp::OnAlreadyRunningAppRelaunch(CefRefPtr<CefCommandLine> command_line,
                                           const CefString& current_directory) {
     CEF_REQUIRE_UI_THREAD();
+    (void)current_directory;
 
-    // Re-parse the second instance's command line with the shell grammar and forward FILEs
-    // (relative to the second instance's working directory). Its other options are ignored:
-    // the running instance keeps its language, sandbox and display settings.
+    // Feature 008 (contracts/cli.md §3): only the editor's own --mfbe-request switch is read;
+    // every other switch and argument of the relayed line is ignored. A start without books never
+    // relays (it opens a new copy), so a line without the switch only raises the window.
     std::vector<CefString> argv;
     command_line->GetArgv(argv);
     std::vector<std::string> args;
     for (size_t i = 1; i < argv.size(); ++i) {
         args.push_back(argv[i].ToString());
     }
-    const std::vector<std::string> paths =
-        relaunchFilePaths(args, mfbe::platform::path_from_utf8(current_directory.ToString()));
-    if (!paths.empty() && core_host_ != nullptr) {
-        core_host_->notifyOpenPaths(paths);
+    if (const auto request = parseRelayedRequest(args)) {
+        deliverOpenRequest(core_host_, *request);
     }
     if (MfbeClient* client = MfbeClient::GetInstance()) {
-        client->ShowMainWindow();  // plain relaunch without FILEs: just raise the window
+        client->ShowMainWindow();
     }
     return true;  // handled; do not open a default Chrome window
 }

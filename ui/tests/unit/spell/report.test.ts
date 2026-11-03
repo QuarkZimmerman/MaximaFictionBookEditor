@@ -110,8 +110,8 @@ describe('SpellChecker.refreshDictionaries', () => {
     expect(result?.dictionaries.map((d) => d.tag)).toEqual(['en_US', 'ru_RU', 'de_DE']);
     expect(checker.report).toBe(result);
     expect(checker.dictionaries?.map((d) => d.tag)).toEqual(['en_US', 'ru_RU', 'de_DE']);
-    // The de-AT document uses de_DE by language.
-    expect(checker.activeLangs()).toEqual(['de_DE']);
+    // The de-AT document uses de_DE by language, then the extra dictionaries (feature 008).
+    expect(checker.activeLangs()).toEqual(['de_DE', 'en_US', 'ru_RU']);
     expect(events).toEqual(['invalidate', 'report']);
   });
 
@@ -119,8 +119,9 @@ describe('SpellChecker.refreshDictionaries', () => {
     const harness = setup(report(BUNDLED));
     const { checker, events, rpc } = harness;
     await checker.refreshDictionaries();
-    // No German dictionary yet: de-AT resolves to itself, verdicts are cached per word.
-    expect(checker.activeLangs()).toEqual(['de-AT']);
+    // No German dictionary yet: the interface language's dictionary is the base (feature 008,
+    // FR-031), then the extras; verdicts are cached per word.
+    expect(checker.activeLangs()).toEqual(['en_US', 'ru_RU']);
     await checker.check(['Haus', 'Hausx']);
     expect(checker.lookup('Haus')).toBe(false);
     expect(checker.lookup('Hausx')).toBe(true);
@@ -138,14 +139,17 @@ describe('SpellChecker.refreshDictionaries', () => {
     harness.setReport(report([...BUNDLED, dictionary('de_DE', 'user')]));
     await checker.refreshDictionaries();
     expect(events).toEqual(['report', 'invalidate', 'report']);
-    expect(checker.activeLangs()).toEqual(['de_DE']);
+    expect(checker.activeLangs()).toEqual(['de_DE', 'en_US', 'ru_RU']);
     expect(checker.lookup('Haus')).toBeUndefined();
     const checks = rpc.calls.filter((call) => call.method === 'spell.check');
     await checker.check(['Haus']);
     expect(rpc.calls.filter((call) => call.method === 'spell.check').length).toBe(
       checks.length + 1,
     );
-    expect(rpc.calls[rpc.calls.length - 1]!.params).toEqual({ words: ['Haus'], langs: ['de_DE'] });
+    expect(rpc.calls[rpc.calls.length - 1]!.params).toEqual({
+      words: ['Haus'],
+      langs: ['de_DE', 'en_US', 'ru_RU'],
+    });
   });
 
   it('shares one request between concurrent calls', async () => {
