@@ -577,3 +577,31 @@ a.fb-note {
   background-color: Highlight;
   color: HighlightText;
 }
+
+/* Feature 009 (US3, DP-11): the note tooltip - the theme's popup colours, the interface font
+   (it lives in <body>), at most 60 characters wide and 15 lines high. */
+.mfbe-note-tooltip {
+  position: fixed;
+  z-index: 2000;
+  max-width: 60ch;
+  padding: 4px 8px;
+  border: 1px solid var(--mfbe-color-border);
+  border-radius: 3px;
+  background: var(--mfbe-color-menu-bg);
+  color: var(--mfbe-color-menu-fg);
+  box-shadow: 0 2px 6px var(--mfbe-color-shadow);
+  white-space: pre-line;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 15;
+  overflow: hidden;
+  pointer-events: none;
+}
+.mfbe-note-tooltip[hidden] {
+  display: none;
+}
+/* Ctrl (Cmd on macOS) held: links take the hand pointer, a click follows them (DP-12). */
+.mfbe-mod-held a.fb-link,
+.mfbe-mod-held a.fb-link * {
+  cursor: pointer;
+}

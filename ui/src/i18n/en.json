@@ -1010,5 +1010,15 @@
       "multiVolume": "«{{path}}» is part of a multi-volume archive, which the editor does not read.",
       "missing": "The book «{{entry}}» is no longer in «{{path}}»."
     }
+  },
+  "links": {
+    "tooltip": {
+      "picture": "[picture]",
+      "table": "[table]",
+      "notFound": "Note not found"
+    },
+    "msg": {
+      "unsupportedAddress": "The editor opens only web addresses (http and https): «{{address}}»."
+    }
   }
 }

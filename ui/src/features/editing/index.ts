@@ -13,6 +13,8 @@
 
 import type { Command } from '@/app/commands';
 import type { FeatureContext } from '@/app/services';
+import { linkClicksPlugin } from '@/editor/plugins/linkClicks';
+import { noteTooltipPlugin } from '@/editor/plugins/noteTooltip';
 import { getSpellPlugin } from '@/features/spell';
 import { isRunLocked } from '@/model/store';
 import {
@@ -23,7 +25,7 @@ import {
 
 import { registerClipboardCommands } from '../clipboard';
 import { activeTableTarget } from '../tables/target';
-import { registerFootnoteCommands } from '../footnotes';
+import { followLink, registerFootnoteCommands } from '../footnotes';
 import { BodySearchTarget } from '../search/bodyTarget';
 import { IncrementalSearch, registerIncrementalSearch } from '../search/incremental';
 import { getSearchSession, registerSearchCommands } from '../search/search';
@@ -46,10 +48,32 @@ export function getSymbolsFeature(store: FeatureContext['store']): SymbolsFeatur
 /** Creates the controller, wires it to the store and the undo coordinator. */
 export function installBodyEditor(ctx: FeatureContext): BodyEditorController {
   const { store, undo, carets } = ctx;
+  // Feature 009 (US3): the note tooltip and Ctrl (Cmd) + click on links (DP-11, DP-12).
+  const translate = (key: string): string => ctx.getCommandContext?.().t(key) ?? key;
+  let followed: BodyEditorController | null = null;
   const controller = getBodyController(store, undo, {
     editable: true,
-    plugins: [getSpellPlugin(store)],
+    plugins: [
+      getSpellPlugin(store),
+      noteTooltipPlugin({
+        getModel: () => store.getState().document,
+        getTexts: () => ({
+          picture: translate('links.tooltip.picture'),
+          table: translate('links.tooltip.table'),
+          notFound: translate('links.tooltip.notFound'),
+        }),
+        isBlocked: () => ctx.getCommandContext?.().dialogs.isModalOpen === true,
+      }),
+      linkClicksPlugin({
+        isMac: ctx.hotkeys.platform === 'mac',
+        onFollow: (href, pos) => {
+          const command = ctx.getCommandContext?.();
+          if (command && followed) void followLink(command, followed, href, pos);
+        },
+      }),
+    ],
   });
+  followed = controller;
 
   undo.registerView('body', {
     undo: () => controller.undoStep(),
