@@ -61,7 +61,7 @@ void set32(std::string& bytes, std::size_t at, std::uint32_t value) {
 }  // namespace
 
 TEST_CASE("zip reader: books, folders, sizes and other files, in archive order", "[archive]") {
-    const auto many = archive::list(fixture("many-200.zip"));
+    const auto many = mfbe::archive::list(fixture("many-200.zip"));
     REQUIRE(many.books.size() == 200);
     CHECK(many.books_total == 200);
     CHECK(many.other_files == 2);  // cover.jpg, readme.txt
@@ -72,24 +72,24 @@ TEST_CASE("zip reader: books, folders, sizes and other files, in archive order",
     CHECK(many.books.front().size > 0);
     CHECK(many.books.back().entry == "folder-10/book-200.fb2");
 
-    const auto single = archive::list(fixture("single.fb2.zip"));
+    const auto single = mfbe::archive::list(fixture("single.fb2.zip"));
     REQUIRE(single.books.size() == 1);
     CHECK(single.books[0].entry == "book.fb2");
     CHECK(single.books[0].folder.empty());
-    const std::string book = archive::read_entry(fixture("single.fb2.zip"), "book.fb2");
+    const std::string book = mfbe::archive::read_entry(fixture("single.fb2.zip"), "book.fb2");
     CHECK(book == test::read_text(test::fixtures_dir() / "books" / "modern-utf8.fb2"));
 
-    const auto pair = archive::list(fixture("book-and-fbd.zip"));
+    const auto pair = mfbe::archive::list(fixture("book-and-fbd.zip"));
     REQUIRE(pair.books.size() == 2);
     CHECK(pair.books[1].kind == "fbd");
 
     // An archive inside an archive is another file; its books are not listed.
-    const auto nested = archive::list(fixture("nested.zip"));
+    const auto nested = mfbe::archive::list(fixture("nested.zip"));
     REQUIRE(nested.books.size() == 1);
     CHECK(nested.books[0].entry == "outer.fb2");
     CHECK(nested.other_files == 1);
 
-    CHECK(archive::list(fixture("no-book.zip")).books.empty());
+    CHECK(mfbe::archive::list(fixture("no-book.zip")).books.empty());
 }
 
 TEST_CASE("zip reader: '..' and absolute names are shown as they are, never used as paths",
@@ -97,10 +97,10 @@ TEST_CASE("zip reader: '..' and absolute names are shown as they are, never used
     for (const auto& [file, entry] :
          {std::pair{"dotdot-names.zip", "../evil.fb2"}, std::pair{"absolute-names.zip",
                                                                   "/abs/evil.fb2"}}) {
-        const auto listing = archive::list(fixture(file));
+        const auto listing = mfbe::archive::list(fixture(file));
         REQUIRE(listing.books.size() == 1);
         CHECK(listing.books[0].entry == entry);
-        CHECK_FALSE(archive::read_entry(fixture(file), entry).empty());
+        CHECK_FALSE(mfbe::archive::read_entry(fixture(file), entry).empty());
     }
     CHECK_FALSE(fs::exists(fixture("../evil.fb2")));
 }
@@ -109,12 +109,12 @@ TEST_CASE("zip reader: the refusals and their reasons", "[archive]") {
     auto reason_of = [](const std::string& file, const std::string& entry) {
         try {
             if (entry.empty()) {
-                archive::list(fixture(file));
+                mfbe::archive::list(fixture(file));
             } else {
-                archive::read_entry(fixture(file), entry);
+                mfbe::archive::read_entry(fixture(file), entry);
             }
-        } catch (const archive::ArchiveError& e) {
-            return std::string(archive::reason_name(e.reason));
+        } catch (const mfbe::archive::ArchiveError& e) {
+            return std::string(mfbe::archive::reason_name(e.reason));
         }
         return std::string("read");
     };
@@ -127,19 +127,19 @@ TEST_CASE("zip reader: the refusals and their reasons", "[archive]") {
 
 TEST_CASE("zip reader: every compression method this build reads (DP-3 as revised)",
           "[archive]") {
-    const std::string expected = archive::read_entry(fixture("method-bzip2.zip"), "book.fb2");
+    const std::string expected = mfbe::archive::read_entry(fixture("method-bzip2.zip"), "book.fb2");
     CHECK(expected.find("\xD0\x9A\xD0\xB0\xD0\xB6\xD0\xB4\xD1\x8B\xD0\xB9") != std::string::npos);
     for (const char* file : {"method-lzma.zip", "method-xz.zip", "method-zstd.zip"}) {
         INFO(file);
-        CHECK(archive::read_entry(fixture(file), "book.fb2") == expected);
+        CHECK(mfbe::archive::read_entry(fixture(file), "book.fb2") == expected);
     }
     // Deflate64 is not read by libarchive 3.8 (T003): refused as "compressed in a way the
     // editor does not read".
     try {
-        archive::read_entry(fixture("method-deflate64.zip"), "book.fb2");
+        mfbe::archive::read_entry(fixture("method-deflate64.zip"), "book.fb2");
         FAIL("deflate64 was read: update research DP-3 and this test");
-    } catch (const archive::ArchiveError& e) {
-        CHECK(e.reason == archive::Reason::method);
+    } catch (const mfbe::archive::ArchiveError& e) {
+        CHECK(e.reason == mfbe::archive::Reason::method);
     }
 }
 
@@ -153,10 +153,10 @@ TEST_CASE("zip reader: an entry larger than 512 MiB is refused, declared or foun
     set32(declared, cd + 24, 600u * 1024 * 1024);
     test::write_text(tmp / "declared.zip", declared);
     try {
-        archive::read_entry(tmp / "declared.zip", "book.fb2");
+        mfbe::archive::read_entry(tmp / "declared.zip", "book.fb2");
         FAIL("expected tooLarge");
-    } catch (const archive::ArchiveError& e) {
-        CHECK(e.reason == archive::Reason::too_large);
+    } catch (const mfbe::archive::ArchiveError& e) {
+        CHECK(e.reason == mfbe::archive::Reason::too_large);
     }
 
     // Found: an entry that declares 1 KiB and expands without end (a "bomb").
@@ -186,14 +186,14 @@ TEST_CASE("zip reader: an entry larger than 512 MiB is refused, declared or foun
     REQUIRE(bomb_cd != std::string::npos);
     set32(bomb, bomb_cd + 24, 1024);
     test::write_text(tmp / "bomb.zip", bomb);
-    REQUIRE(archive::list(tmp / "bomb.zip").books.at(0).size == 1024);
+    REQUIRE(mfbe::archive::list(tmp / "bomb.zip").books.at(0).size == 1024);
     try {
-        archive::read_entry(tmp / "bomb.zip", "bomb.fb2");
+        mfbe::archive::read_entry(tmp / "bomb.zip", "bomb.fb2");
         FAIL("expected a refusal");
-    } catch (const archive::ArchiveError& e) {
+    } catch (const mfbe::archive::ArchiveError& e) {
         // libarchive either stops at the declared size (the CRC then fails) or the editor's
         // own limit stops it; either way nothing past 512 MiB is held.
-        CHECK((e.reason == archive::Reason::too_large || e.reason == archive::Reason::damaged));
+        CHECK((e.reason == mfbe::archive::Reason::too_large || e.reason == mfbe::archive::Reason::damaged));
     }
 }
 
@@ -203,9 +203,9 @@ TEST_CASE("zip reader: a ZIP64 archive of 100,005 books lists 100,000 and counts
     const std::string zip =
         many_entries(100005, [](std::size_t i) { return "b/" + std::to_string(i) + ".fb2"; });
     test::write_text(tmp / "big.zip", zip);
-    const auto listing = archive::list(tmp / "big.zip");
+    const auto listing = mfbe::archive::list(tmp / "big.zip");
     CHECK(listing.entries.size() == 100005);
     CHECK(listing.books_total == 100005);
-    CHECK(listing.books.size() == archive::kMaxListedBooks);
-    CHECK(archive::read_entry(tmp / "big.zip", "b/100004.fb2") == "<FictionBook/>");
+    CHECK(listing.books.size() == mfbe::archive::kMaxListedBooks);
+    CHECK(mfbe::archive::read_entry(tmp / "big.zip", "b/100004.fb2") == "<FictionBook/>");
 }
