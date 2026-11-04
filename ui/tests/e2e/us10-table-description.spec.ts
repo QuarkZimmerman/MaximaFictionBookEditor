@@ -768,7 +768,7 @@ test.describe('US10 (feature 006) - tables in the annotation and history fields'
       const { regular, paragraph } = await fieldParts(page, field);
       const regularRef = idOf(regular);
 
-      // The menu at the end of the paragraph: today's four entries, then Table… alone.
+      // The menu at the end of the paragraph: today's entries, then Table… alone.
       await paragraphEnd(page, field);
       await rightClickParagraphEnd(page, field);
       expect(await topLevel(page)).toEqual([
@@ -777,6 +777,8 @@ test.describe('US10 (feature 006) - tables in the annotation and history fields'
         'context-menu-edit.cut',
         'context-menu-edit.copy',
         'context-menu-edit.paste',
+        // Feature 009 (FR-040): Paste as plain text right after Paste.
+        'context-menu-edit.pastePlain',
       ]);
       await expect(page.getByTestId('context-menu-insert.inlineImage')).toHaveCount(0);
       await expect(page.getByTestId('context-menu-tableStructure')).toHaveCount(0);
@@ -816,6 +818,8 @@ test.describe('US10 (feature 006) - tables in the annotation and history fields'
         'context-menu-edit.cut',
         'context-menu-edit.copy',
         'context-menu-edit.paste',
+        // Feature 009 (FR-040): Paste as plain text right after Paste.
+        'context-menu-edit.pastePlain',
         '|',
         'context-menu-insert.inlineImage',
         '|',
@@ -840,6 +844,8 @@ test.describe('US10 (feature 006) - tables in the annotation and history fields'
         'context-menu-edit.cut',
         'context-menu-edit.copy',
         'context-menu-edit.paste',
+        // Feature 009 (FR-040): Paste as plain text right after Paste.
+        'context-menu-edit.pastePlain',
       ]);
       await page.keyboard.press('Escape');
       await expect(page.getByTestId('context-menu')).toHaveCount(0);

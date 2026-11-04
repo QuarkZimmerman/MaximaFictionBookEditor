@@ -53,7 +53,8 @@
       "clone": "C&lone container",
       "split": "&Split container",
       "merge": "&Merge containers",
-      "removeOuter": "Remove outer container"
+      "removeOuter": "Remove outer container",
+      "pastePlain": "Paste as pla&in text"
     },
     "view": {
       "caption": "&View",
@@ -196,7 +197,8 @@
       "cut": "Cut",
       "copy": "Copy",
       "paste": "Paste",
-      "select": "Select {{element}}"
+      "select": "Select {{element}}",
+      "pastePlain": "Paste as plain text"
     },
     "msg": {
       "binaryAddUnavailable": "The image file could not be added as a binary object yet; the image refers to #{{name}}."
@@ -297,6 +299,10 @@
       "completeTag": {
         "tooltip": "Complete tag",
         "description": "Offer the FB2 elements allowed at the cursor in the Source view, or the open elements after </"
+      },
+      "pastePlain": {
+        "tooltip": "Paste as plain text",
+        "description": "Insert the Clipboard's text without formatting, links or pictures"
       }
     },
     "view": {
@@ -854,7 +860,8 @@
       "copy": "Copy",
       "paste": "Paste",
       "delete": "Delete",
-      "selectAll": "Select All"
+      "selectAll": "Select All",
+      "pastePlain": "Paste as plain text"
     },
     "foldLevel": "Fold level:",
     "collapse": "Collapse",
@@ -1019,6 +1026,11 @@
     },
     "msg": {
       "unsupportedAddress": "The editor opens only web addresses (http and https): «{{address}}»."
+    }
+  },
+  "edit": {
+    "msg": {
+      "clipboardNoText": "The Clipboard holds no text."
     }
   }
 }

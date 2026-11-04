@@ -22,6 +22,7 @@ import { useAppRevision, useAppServices, useCommandContext } from '@/app/service
 import { cutOrCopy, hasSelectedText, isWritable, pasteIntoField } from '@/app/textFields';
 import { caretInCell } from '@/editor/commands/insert';
 import { cutOrCopyTarget, pasteIntoTarget } from '@/features/clipboard';
+import { pastePlainInto } from '@/features/pastePlain';
 import { tableSectionItems } from '@/features/tables/contextMenu';
 import { fieldTargetFor } from '@/features/tables/target';
 import {
@@ -94,6 +95,12 @@ export function FieldContextMenu({ field, position, click, onClose }: FieldConte
         enabled: writable,
         run: () => void pasteIntoField(field),
       },
+      {
+        id: 'edit.pastePlain',
+        label: t('editing.contextMenu.pastePlain'),
+        enabled: writable,
+        run: () => void pastePlainInto(ctx, { field }),
+      },
     ];
     return <PopupMenu items={items} position={position} onClose={onClose} testId="context-menu" />;
   }
@@ -121,6 +128,12 @@ export function FieldContextMenu({ field, position, click, onClose }: FieldConte
       label: t('editing.contextMenu.paste'),
       enabled: target.editable,
       run: () => void pasteIntoTarget(ctx, target),
+    },
+    {
+      id: 'edit.pastePlain',
+      label: t('editing.contextMenu.pastePlain'),
+      enabled: target.editable,
+      run: () => void pastePlainInto(ctx, { view: target.view }),
     },
   ];
   if (state && caretInCell(state)) {

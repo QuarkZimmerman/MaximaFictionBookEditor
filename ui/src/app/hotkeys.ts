@@ -438,6 +438,8 @@ export const DEFAULT_HOTKEYS: readonly DefaultHotkey[] = [
   { commandId: 'edit.cut', keys: 'Mod+X' },
   { commandId: 'edit.copy', keys: 'Mod+C' },
   { commandId: 'edit.paste', keys: 'Shift+Insert' },
+  // Addition of feature 009 (FR-041): Paste as plain text.
+  { commandId: 'edit.pastePlain', keys: 'Mod+Shift+V' },
   { commandId: 'edit.find', keys: 'Mod+F' },
   { commandId: 'edit.findNext', keys: 'F3' },
   { commandId: 'edit.replace', keys: 'Mod+H', mac: 'Alt+Mod+F' },

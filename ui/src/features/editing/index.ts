@@ -24,6 +24,7 @@ import {
 } from '@/views/body/bodyEditor';
 
 import { registerClipboardCommands } from '../clipboard';
+import { pastePlainCommand } from '../pastePlain';
 import { activeTableTarget } from '../tables/target';
 import { followLink, registerFootnoteCommands } from '../footnotes';
 import { BodySearchTarget } from '../search/bodyTarget';
@@ -141,6 +142,7 @@ export function registerEditingFeature(ctx: FeatureContext): void {
   registerStructureCommands(commands);
   registerFootnoteCommands(commands);
   registerClipboardCommands(commands);
+  commands.replace(pastePlainCommand);
   registerSymbolCommands(commands, hotkeys);
   symbolFeatures.set(store, new SymbolsFeature(commands, hotkeys, store));
 

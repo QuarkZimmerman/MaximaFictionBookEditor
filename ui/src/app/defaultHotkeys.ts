@@ -92,6 +92,7 @@ export const FBE_DEFAULT_HOTKEYS: readonly FbeDefaultHotkey[] = [
   // Source view tag completion (feature 003 US8): Ctrl+Space on every platform, the usual
   // completion chord (Cmd+Space is Spotlight on macOS).
   { group: 'edit', fbeName: '', commandId: 'edit.completeTag', keys: 'Ctrl+Space' },
+  { group: 'edit', fbeName: '', commandId: 'edit.pastePlain', keys: 'Mod+Shift+V' },
 
   // ---- Navigation ------------------------------------------------------
   {

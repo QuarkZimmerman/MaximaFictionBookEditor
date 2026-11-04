@@ -76,11 +76,18 @@ export function ContextMenu({ controller, click, onClose }: ContextMenuProps) {
     command('edit.cut', 'editing.contextMenu.cut'),
     command('edit.copy', 'editing.contextMenu.copy'),
     command('edit.paste', 'editing.contextMenu.paste'),
+    command('edit.pastePlain', 'editing.contextMenu.pastePlain'),
     { separator: true, id: 'sep-2' },
     ...selectEntries(controller, (element) => t('editing.contextMenu.select', { element })),
   ];
   // The command entries' labels carry their `&` letters; every other label is shown as it is.
-  const accelerated = new Set(['edit.undo', 'edit.cut', 'edit.copy', 'edit.paste']);
+  const accelerated = new Set([
+    'edit.undo',
+    'edit.cut',
+    'edit.copy',
+    'edit.paste',
+    'edit.pastePlain',
+  ]);
   const spelling = contextMenuExtensions.spelling?.(controller) ?? [];
   if (spelling.length > 0) items.push({ separator: true, id: 'sep-spelling' }, ...spelling);
   const image = contextMenuExtensions.image?.(controller) ?? [];

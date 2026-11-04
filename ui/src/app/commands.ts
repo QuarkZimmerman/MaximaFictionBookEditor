@@ -679,6 +679,7 @@ export function createBuiltinCommands(): Command[] {
     stub('edit.cut', 'edit', cmdKeys('edit.cut', 'menu.edit.cut'), 'id_edit_cut'),
     stub('edit.copy', 'edit', cmdKeys('edit.copy', 'menu.edit.copy'), 'id_edit_copy'),
     stub('edit.paste', 'edit', cmdKeys('edit.paste', 'menu.edit.paste'), 'id_edit_paste'),
+    stub('edit.pastePlain', 'edit', cmdKeys('edit.pastePlain', 'menu.edit.pastePlain')),
     stub('edit.find', 'edit', cmdKeys('edit.find', 'menu.edit.find'), 'id_edit_find'),
     stub(
       'edit.findNext',

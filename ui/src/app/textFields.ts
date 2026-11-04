@@ -81,20 +81,31 @@ export async function clipboardText(): Promise<string | null> {
   }
 }
 
+/**
+ * Inserts `text` at the field's selection as Paste does with the clipboard's text: typed into
+ * a form field; a paste of plain text for rich text, so its editor splits paragraphs as on
+ * Ctrl+V (also Paste as plain text, feature 009).
+ */
+export function insertTextIntoField(field: HTMLElement, text: string): void {
+  field.focus();
+  if (isFormField(field)) {
+    document.execCommand('insertText', false, text);
+  } else {
+    const data = new DataTransfer();
+    data.setData('text/plain', text);
+    field.dispatchEvent(
+      new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }),
+    );
+  }
+}
+
 /** Pastes the clipboard's text at the field's selection. */
 export async function pasteIntoField(field: HTMLElement): Promise<void> {
   field.focus();
   const text = await clipboardText();
   if (text === null) {
     document.execCommand('paste');
-  } else if (isFormField(field)) {
-    document.execCommand('insertText', false, text);
   } else {
-    // Rich text takes the text as a paste, so its editor splits paragraphs as on Ctrl+V.
-    const data = new DataTransfer();
-    data.setData('text/plain', text);
-    field.dispatchEvent(
-      new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }),
-    );
+    insertTextIntoField(field, text);
   }
 }

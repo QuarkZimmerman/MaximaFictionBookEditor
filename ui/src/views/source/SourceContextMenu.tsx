@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 
 import { PopupMenu, type PopupMenuEntry, type PopupMenuItem } from '@/app/PopupMenu';
 import { useAppServices, useCommandContext } from '@/app/services';
+import { pastePlainInto } from '@/features/pastePlain';
 import { useAppState } from '@/model/store';
 
 import { pasteIntoSource } from './sourceClipboard';
@@ -70,6 +71,14 @@ export function SourceContextMenu({ controller, position, onClose }: SourceConte
       enabled: writable,
       run: () => {
         if (view) void pasteIntoSource(view);
+      },
+    },
+    {
+      id: 'pastePlain',
+      label: t('source.contextMenu.pastePlain'),
+      enabled: writable,
+      run: () => {
+        if (view) void pastePlainInto(ctx, { source: view });
       },
     },
     {

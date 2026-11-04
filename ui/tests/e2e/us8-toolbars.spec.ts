@@ -609,6 +609,8 @@ test.describe('US8 - toolbars and right-click as in the original', () => {
       await pageText(page, 'editing.contextMenu.cut'),
       await pageText(page, 'editing.contextMenu.copy'),
       await pageText(page, 'editing.contextMenu.paste'),
+      // Feature 009 (FR-040): Paste as plain text right after Paste.
+      await pageText(page, 'editing.contextMenu.pastePlain'),
     ]);
     await page.getByTestId('context-menu-edit.cut').click();
     await expect(title).toHaveValue('');
@@ -625,14 +627,24 @@ test.describe('US8 - toolbars and right-click as in the original', () => {
     const clicks = (await page.evaluate(TAKE_RIGHT_CLICKS)) as RightClick[];
     expect(clicks.every((click) => click.cancelled)).toBe(true);
 
-    // Source: Undo, Redo, Cut, Copy, Paste, Delete, Select All, then Table... (feature 006,
-    // FR-061: Add → Table in the Source view, judged at the clicked point).
+    // Source: Undo, Redo, Cut, Copy, Paste, Paste as plain text (feature 009), Delete, Select
+    // All, then Table... (feature 006, FR-061: Add → Table in the Source view, judged at the
+    // clicked point).
     await page.getByTestId('view-source').click();
     const source = page.getByTestId('source-editor');
     await expect(source).toContainText('FictionBook');
     await source.click({ button: 'right' });
     const sourceMenu = page.getByTestId('source-context-menu');
-    const sourceEntries = ['undo', 'redo', 'cut', 'copy', 'paste', 'delete', 'selectAll'];
+    const sourceEntries = [
+      'undo',
+      'redo',
+      'cut',
+      'copy',
+      'paste',
+      'pastePlain',
+      'delete',
+      'selectAll',
+    ];
     await expect(sourceMenu.getByRole('menuitem')).toHaveText([
       ...(await Promise.all(
         sourceEntries.map((entry) => pageText(page, `source.contextMenu.${entry}`)),
