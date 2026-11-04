@@ -40,7 +40,11 @@ export type { BinaryMeta, Document, ValidationIssue, ValidationReport } from '@/
 export const RPC_API_VERSION = 1;
 /**
  * Additive contract revision within RPC_API_VERSION (`app.info().apiMinor`; absent = 0). The
- * revision this UI was written for (7 since feature 008: the open requests between copies -
+ * revision this UI was written for (8 since feature 009: books in ZIP archives - `doc.open` with
+ * `entry` and `needsChoice`, `Document.source`, `files.inspect`, the archive errors - backups and
+ * ZIP saves through `doc.save`, the Save As dialog's ZIP checkbox, `binary.rename`, and the
+ * settings `other.keepBackup` and `view.statusBarPanes`; 7 since feature 008: the open requests
+ * between copies -
  * `app.openRequest`, `app.openRequestAck`, `app.openInNewCopy`, `app.bookHolder`,
  * `app.activateCopy`, `app.copyState`, `app.activated` - and the settings `other.openFromOutside`
  * and `view.spellExtraDictionaries`; 6 since feature 007: the scripts' `legacy.sourceVersion`,
@@ -48,11 +52,11 @@ export const RPC_API_VERSION = 1;
  * `files.saveBinaries`, the script backups; 5 since feature 006: the cell's and the marks'
  * languages, marks on inline atoms, the writer's link rule, `session.tableDialog`); it accepts
  * any core answering minor >= 1 (rpc-api.md §6) - the client performs no minor check at connect
- * time and gates nothing on 7; the AI assistant (feature 005) reads `app.info().apiMinor` itself
+ * time and gates nothing on 8; the AI assistant (feature 005) reads `app.info().apiMinor` itself
  * and requires >= 5 since feature 006 (`AI_REQUIRED_API_MINOR` in `ui/src/ai/index.ts`; 4
  * before).
  */
-export const RPC_API_MINOR = 7;
+export const RPC_API_MINOR = 8;
 
 /* ------------------------------------------------------------------------ */
 /* Error codes (rpc-api.md §1)                                              */
@@ -230,6 +234,10 @@ export interface AppInfo {
 
 export type ImageFormat = 'jpeg' | 'png';
 
+/** A status bar pane the user can hide (feature 009, `view.statusBarPanes`). */
+export type StatusBarPane =
+  'path' | 'position' | 'selection' | 'character' | 'encoding' | 'validity' | 'insmode';
+
 /** settings.json, resource-formats.md §6. */
 export interface Settings {
   schemaVersion: 1;
@@ -256,10 +264,14 @@ export interface Settings {
     spellExtraDictionaries: string[];
     customDictionaryPath: string;
     fastMode: boolean;
+    /** The status bar panes shown (feature 009, FR-056); the message pane always shows. */
+    statusBarPanes: StatusBarPane[];
   };
   other: {
     defaultEncoding: string;
     keepEncoding: boolean;
+    /** Keep the previous version as `<file>.bak` on every save (feature 009, FR-006; default on). */
+    keepBackup: boolean;
     restorePosition: boolean;
     scriptsFolder: string;
     genresFolder: string;
