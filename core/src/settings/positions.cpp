@@ -149,14 +149,19 @@ void Positions::load() {
             entry.at = item["at"].get<std::string>();
         }
         entry.position = *position;
+        if (item.contains("entry") && item["entry"].is_string() &&
+            !item["entry"].get<std::string>().empty()) {
+            entry.entry = item["entry"].get<std::string>();
+        }
         for (const auto& [key, value] : item.items()) {
-            if (key != "path" && key != "at" && key != "position") {
+            if (key != "path" && key != "at" && key != "position" && key != "entry") {
                 entry.extra[key] = value;
             }
         }
-        const bool duplicate = std::any_of(
-            items_.begin(), items_.end(),
-            [&](const PositionItem& p) { return platform::same_file_path(p.path, entry.path); });
+        const bool duplicate =
+            std::any_of(items_.begin(), items_.end(), [&](const PositionItem& p) {
+                return platform::same_file_path(p.path, entry.path) && p.entry == entry.entry;
+            });
         if (!duplicate) {
             items_.push_back(std::move(entry));
         }
@@ -182,7 +187,7 @@ bool Positions::save() const {
         std::vector<PositionItem> merged = items_;
         for (const auto& item : disk.items_) {
             auto it = std::find_if(merged.begin(), merged.end(), [&](const PositionItem& mine) {
-                return platform::same_file_path(mine.path, item.path);
+                return platform::same_file_path(mine.path, item.path) && mine.entry == item.entry;
             });
             if (it == merged.end()) {
                 merged.push_back(item);
@@ -201,6 +206,9 @@ bool Positions::save() const {
     for (const auto& item : items_) {
         json j = item.extra.is_object() ? item.extra : json::object();
         j["path"] = item.path;
+        if (item.entry) {
+            j["entry"] = *item.entry;
+        }
         if (!item.at.empty()) {
             j["at"] = item.at;
         }
@@ -222,9 +230,10 @@ bool Positions::save() const {
     }
 }
 
-std::optional<Position> Positions::get(const std::string& path) const {
+std::optional<Position> Positions::get(const std::string& path,
+                                       const std::optional<std::string>& entry) const {
     const auto it = std::find_if(items_.begin(), items_.end(), [&](const PositionItem& item) {
-        return platform::same_file_path(item.path, path);
+        return platform::same_file_path(item.path, path) && item.entry == entry;
     });
     if (it == items_.end()) {
         return std::nullopt;
@@ -232,16 +241,18 @@ std::optional<Position> Positions::get(const std::string& path) const {
     return it->position;
 }
 
-void Positions::set(const std::string& path, const Position& position) {
+void Positions::set(const std::string& path, const Position& position,
+                    const std::optional<std::string>& book) {
     if (path.empty()) {
         return;
     }
     PositionItem entry;
     entry.path = path;
+    entry.entry = book;
     entry.at = now_iso8601_utc();
     entry.position = position;
     const auto it = std::find_if(items_.begin(), items_.end(), [&](const PositionItem& item) {
-        return platform::same_file_path(item.path, path);
+        return platform::same_file_path(item.path, path) && item.entry == book;
     });
     if (it != items_.end()) {
         entry.extra = std::move(it->extra);

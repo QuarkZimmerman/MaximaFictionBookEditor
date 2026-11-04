@@ -97,8 +97,12 @@ json to_json(const Record& r) {
            {"untouched", r.untouched},
            {"book", nullptr},
            {"window", nullptr}};
-    if (r.book)
+    if (r.book) {
         j["book"] = json{{"path", r.book->path}, {"fileId", r.book->file_id}};
+        if (!r.book->entry.empty()) {
+            j["book"]["entry"] = r.book->entry;
+        }
+    }
     if (r.window) {
         j["window"] = json{{"x", r.window->x},
                            {"y", r.window->y},
@@ -124,7 +128,8 @@ std::optional<Record> from_json(const json& j) {
         r.untouched = j.value("untouched", false);
         if (j.contains("book") && j["book"].is_object()) {
             r.book = BookRef{j["book"].value("path", std::string{}),
-                             j["book"].value("fileId", std::string{})};
+                             j["book"].value("fileId", std::string{}),
+                             j["book"].value("entry", std::string{})};
         }
         if (j.contains("window") && j["window"].is_object()) {
             const auto& w = j["window"];
@@ -405,11 +410,12 @@ std::vector<Record> CopyRegistry::records(bool live_only) const {
     return out;
 }
 
-std::optional<Record> CopyRegistry::find_book(const std::string& file_id) const {
+std::optional<Record> CopyRegistry::find_book(const std::string& file_id,
+                                              const std::string& entry) const {
     if (file_id.empty())
         return std::nullopt;
     for (auto& r : records(true)) {
-        if (r.book && r.book->file_id == file_id)
+        if (r.book && r.book->file_id == file_id && r.book->entry == entry)
             return r;
     }
     return std::nullopt;

@@ -64,10 +64,15 @@ struct SaveFileRequest {
     int selectedFilter = 0;                       // index of the type selected when it opens
     std::optional<std::string> folder;            // where it opens when defaultPath names no folder
     bool documentDialog = false;  // offers FictionBook files (derived from `filters`)
+    // Feature 009 (DP-8): the "save as ZIP archive" checkbox beside the encoding choice - its
+    // label (none = no checkbox) and whether it starts ticked.
+    std::optional<std::string> zipLabel;
+    bool zipChecked = false;
 };
 struct SaveFileResult {
     std::optional<std::string> path;  // nullopt = cancelled
     std::optional<std::string> encoding;
+    std::optional<bool> zip;  // feature 009: nullopt when the dialog could not carry the box
 };
 
 struct PickFolderRequest {

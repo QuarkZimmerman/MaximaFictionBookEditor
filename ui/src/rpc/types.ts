@@ -32,6 +32,7 @@ import type {
   ValidationIssue,
   ValidationReport,
   VerseNode,
+  DocumentSource,
 } from '@/model/document';
 import type { ScriptSourceResult, ScriptsListResult } from '@/scripting/types';
 
@@ -80,6 +81,10 @@ export const RpcErrorCode = {
   /** `doc.exportDescription`: the target is the open document's own file (feature 004). */
   docSameAsOpenFile: 1006,
   binaryNotFound: 1010,
+  /** `binary.rename`: the new id is not an XML NCName; `data` {newId} (feature 009). */
+  binaryIdInvalid: 1011,
+  /** `binary.rename`: another binary has the new id; `data` {newId} (feature 009). */
+  binaryIdTaken: 1012,
   spellDictionaryUnavailable: 1020,
   scriptNotFound: 1030,
   scriptInvalidManifest: 1031,
@@ -90,6 +95,14 @@ export const RpcErrorCode = {
   restartUnavailable: 1070,
   /** `app.restart`: the shell could not start the new instance; `data.reason` (feature 003). */
   restartFailed: 1071,
+  /** `doc.open`: another archive kind; only ZIP is read - `data` {kind} (feature 009). */
+  archiveUnsupported: 1080,
+  /** `doc.open`: a ZIP archive without an FB2 book or descriptor (feature 009). */
+  archiveNoBook: 1081,
+  /** `doc.open`: the chosen book cannot be read - `data` {entry, reason} (feature 009). */
+  archiveEntryUnreadable: 1082,
+  /** `doc.open` with `entry`: that book is no longer in the archive - `data` {entry, books}. */
+  archiveEntryMissing: 1083,
   cancelled: 1090,
   /**
    * `ai.complete` / `ai.models` / `ai.test`: the target cannot be resolved to a service the
@@ -194,6 +207,8 @@ export interface ModelPoint {
 
 export interface RecentFile {
   path: string;
+  /** The book inside the ZIP archive at `path` (feature 009, resource formats 1.8). */
+  entry?: string;
   lastOpened: string; // ISO timestamp
   /**
    * @deprecated Since feature 004 the core never writes it again (remembered positions live in
@@ -623,6 +638,40 @@ export interface SaveResult {
   needsConfirmation?: false;
   /** Present when the save asked for `backup` (feature 009). */
   backup?: BackupOutcome;
+  /** Set after a ZIP save: the window's book now comes from that archive (feature 009). */
+  source?: DocumentSource;
+}
+
+/** A book of a ZIP archive, as the book chooser lists it (feature 009, data-model §3). */
+export interface ArchiveBook {
+  /** The full name inside the archive: what `doc.open` takes back as `entry`. */
+  entry: string;
+  name: string;
+  /** "/"-separated, "" at the top level. */
+  folder: string;
+  size: number;
+  kind: 'fb2' | 'fbd';
+}
+
+/** `doc.open`'s answer for a ZIP archive of several books (feature 009). */
+export interface ArchiveChoice {
+  archive: string;
+  /** In the archive's order, at most 100,000. */
+  books: ArchiveBook[];
+  otherFiles: number;
+  booksTotal: number;
+}
+
+/** `files.inspect` (feature 009, rpc-api §1). */
+export interface FileInspection {
+  exists: boolean;
+  kind: 'missing' | 'file' | 'folder' | 'zip' | 'otherArchive';
+  /** For a ZIP: its files other than one named `entryName`. */
+  otherEntries?: number;
+  /** For a ZIP: how many FB2 books and descriptors it holds. */
+  books?: number;
+  /** For a ZIP holding exactly one book: that book's entry. */
+  onlyBook?: string;
 }
 
 export interface SaveNeedsConfirmation {
@@ -1025,13 +1074,28 @@ export interface RpcMethods {
 
   // §3.2 doc
   'doc.new': { params: void; result: Document & LoadReport };
+  /**
+   * With `entry`, the book of that name inside the ZIP archive at `path` (feature 009). A ZIP
+   * with several books and no `entry` answers `needsChoice`; the UI shows the book chooser.
+   */
   'doc.open': {
-    params: { path: string };
-    result: MaybeJob<{ document: Document & LoadReport; warnings: ValidationIssue[] }>;
+    params: { path: string; entry?: string };
+    result: MaybeJob<
+      | { document: Document & LoadReport; warnings: ValidationIssue[] }
+      | { needsChoice: ArchiveChoice }
+    >;
   };
   'doc.openSource': {
-    params: { path: string };
-    result: { docId: string; text: string; encoding: string; error?: DocParseErrorData };
+    params: { path: string; entry?: string };
+    result:
+      | {
+          docId: string;
+          text: string;
+          encoding: string;
+          error?: DocParseErrorData;
+          source?: DocumentSource;
+        }
+      | { needsChoice: ArchiveChoice };
   };
   'doc.close': { params: { docId: string }; result: Empty };
   /**
@@ -1080,6 +1144,8 @@ export interface RpcMethods {
       force?: boolean;
       /** Keep a replaced file as `<path>.bak` (feature 009; absent = false). */
       backup?: boolean;
+      /** Write a new ZIP archive holding only the book under `entryName` (feature 009, DP-6). */
+      archive?: { entryName: string };
     };
     result: MaybeJob<SaveResult | SaveNeedsConfirmation>;
   };
@@ -1247,6 +1313,8 @@ export interface RpcMethods {
     };
     result: { paths: string[] };
   };
+  /** What a file is before Save As writes it (feature 009, DP-9, D32). */
+  'files.inspect': { params: { path: string; entryName?: string }; result: FileInspection };
   'dialog.saveFile': {
     params: {
       title: string;
@@ -1259,8 +1327,11 @@ export interface RpcMethods {
       encodingLabel?: string;
       /** Index of the type selected when the dialog opens (default 0). */
       selectedFilter?: number;
+      /** Feature 009 (DP-8): the "save as ZIP archive" checkbox beside the encoding choice. */
+      zipChoice?: { label: string; checked: boolean };
     };
-    result: { path?: string; encoding?: string };
+    /** `zip` is absent when the dialog could not carry the checkbox (feature 009). */
+    result: { path?: string; encoding?: string; zip?: boolean };
   };
   'dialog.pickFolder': { params: { title: string }; result: { path?: string } };
   'dialog.message': {
@@ -1424,7 +1495,10 @@ export interface RpcMethods {
     result: { started: boolean; reason?: string };
   };
   /** Feature 008: the copy slot holding the book, compared by file identity (FR-017). */
-  'app.bookHolder': { params: { path: string }; result: { slot: number | null } };
+  'app.bookHolder': {
+    params: { path: string; entry?: string };
+    result: { slot: number | null };
+  };
   /** Feature 008: brings the copy of `slot` forward to show `path`. */
   'app.activateCopy': { params: { slot: number; path: string }; result: { started: boolean } };
   /** Feature 008: this copy's state for its copy record (data-model §2). */

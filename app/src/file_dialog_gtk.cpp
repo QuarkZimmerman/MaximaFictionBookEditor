@@ -41,6 +41,7 @@ constexpr int kActionSelectFolder = 2;    // GTK_FILE_CHOOSER_ACTION_SELECT_FOLD
 constexpr int kResponseAccept = -3;       // GTK_RESPONSE_ACCEPT
 constexpr int kWindowStateWithdrawn = 1;  // GDK_WINDOW_STATE_WITHDRAWN
 constexpr const char* kEncodingChoice = "encoding";
+constexpr const char* kZipChoice = "zip";  // feature 009 (DP-8): a boolean choice
 
 struct GtkApi {
     int (*gtk_init_check)(int*, char***) = nullptr;
@@ -248,6 +249,7 @@ struct OpenDialog {
     void* chooser = nullptr;        // GtkFileChooserNative
     void* window_widget = nullptr;  // its GtkFileChooserDialog; null with the portal
     bool offers_encodings = false;
+    bool offers_zip = false;
     FileDialogCallback done;
 };
 
@@ -284,6 +286,10 @@ void onResponse(void* chooser, int response, void* data) {
             if (const char* encoding = api.gtk_file_chooser_get_choice(chooser, kEncodingChoice)) {
                 result.encoding = encoding;
             }
+        }
+        if (dialog->offers_zip) {
+            const char* zip = api.gtk_file_chooser_get_choice(chooser, kZipChoice);
+            result.zip = zip != nullptr && std::string(zip) == "true" ? 1 : 0;
         }
     }
     result.cancelled = result.paths.empty();
@@ -354,6 +360,19 @@ bool addEncodings(const GtkApi& api, void* chooser, const FileDialogRequest& req
     return true;
 }
 
+// Feature 009 (DP-8): the "save as ZIP archive" checkbox - a choice without options is a
+// boolean one ("true"/"false"). Missing choice functions (an old GTK): no box, no answer.
+bool addZipChoice(const GtkApi& api, void* chooser, const FileDialogRequest& request) {
+    if (request.mode != FileDialogMode::kSave || request.zip_label.empty() ||
+        !api.offersChoices()) {
+        return false;
+    }
+    api.gtk_file_chooser_add_choice(chooser, kZipChoice, request.zip_label.c_str(), nullptr,
+                                    nullptr);
+    api.gtk_file_chooser_set_choice(chooser, kZipChoice, request.zip_checked ? "true" : "false");
+    return true;
+}
+
 }  // namespace
 
 bool runPlatformFileDialog(std::uintptr_t owner, const FileDialogRequest& request,
@@ -393,6 +412,7 @@ bool runPlatformFileDialog(std::uintptr_t owner, const FileDialogRequest& reques
     dialog->chooser = chooser;
     dialog->window_widget = api->findsDialogWindow() ? chooserWindow(*api, before) : nullptr;
     dialog->offers_encodings = addEncodings(*api, chooser, request);
+    dialog->offers_zip = addZipChoice(*api, chooser, request);
     dialog->done = std::move(done);
     api->g_signal_connect_data(chooser, "response", reinterpret_cast<GCallback>(&onResponse),
                                dialog, nullptr, 0);

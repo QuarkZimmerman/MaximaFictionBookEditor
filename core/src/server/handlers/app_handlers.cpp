@@ -133,7 +133,8 @@ void register_app_handlers(rpc::RpcRouter& router, Services& services) {
         if (registry == nullptr)
             return json{{"slot", nullptr}};
         const auto holder =
-            registry->find_book(copies::file_identity(platform::path_from_utf8(path)));
+            registry->find_book(copies::file_identity(platform::path_from_utf8(path)),
+                                rpc::params::string_or(params, "entry", ""));
         return holder ? json{{"slot", holder->slot}} : json{{"slot", nullptr}};
     });
     router.add_method("app.activateCopy", [&services](const json& params, rpc::RpcContext&) {
@@ -159,8 +160,9 @@ void register_app_handlers(rpc::RpcRouter& router, Services& services) {
             if (params.contains("path")) {
                 if (params["path"].is_string() && !params["path"].get<std::string>().empty()) {
                     const std::string path = params["path"].get<std::string>();
-                    registry->set_book(copies::BookRef{
-                        path, copies::file_identity(platform::path_from_utf8(path))});
+                    registry->set_book(
+                        copies::BookRef{path, copies::file_identity(platform::path_from_utf8(path)),
+                                        rpc::params::string_or(params, "entry", "")});
                 } else {
                     registry->set_book(std::nullopt);
                 }

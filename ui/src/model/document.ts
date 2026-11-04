@@ -44,7 +44,17 @@ export const DOCUMENT_MODEL_VERSION = 1;
 /* Document                                                                 */
 /* ------------------------------------------------------------------------ */
 
+/** Where a book from a ZIP archive came from (feature 009, rpc-api §1, data-model §2). */
+export interface DocumentSource {
+  /** The archive's absolute path; `Document.path` is the same path. */
+  archive: string;
+  /** The book's full name inside the archive, folders included. */
+  entry: string;
+}
+
 export interface Document {
+  /** Set for a book read from, or last saved as, a ZIP archive (feature 009). */
+  source?: DocumentSource;
   modelVersion: 1;
   docId: string;
   path?: string;

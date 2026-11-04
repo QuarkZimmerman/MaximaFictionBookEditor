@@ -1457,7 +1457,10 @@ std::optional<std::string> not_fictionbook_reason(std::string_view bytes) {
 }
 
 SourceText read_source(const std::filesystem::path& path) {
-    const std::string bytes = read_file_bytes(path);
+    return read_source_bytes(read_file_bytes(path));
+}
+
+SourceText read_source_bytes(const std::string& bytes) {
     if (const auto reason = not_fictionbook_reason(bytes)) {
         throw NotFictionBookFailure(*reason);
     }

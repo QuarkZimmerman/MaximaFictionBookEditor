@@ -33,12 +33,17 @@ struct FileDialogRequest {
     std::string selected_encoding;       // the choice selected ("" = the first)
     std::string encoding_label;          // label of that choice
     bool document_dialog = false;        // Open / Save As of a document: one remembered folder
+    // Feature 009 (DP-8): Save As's "save as ZIP archive" checkbox beside the encoding choice
+    // ("" = none) and whether it starts ticked.
+    std::string zip_label;
+    bool zip_checked = false;
 };
 
 struct FileDialogResult {
     bool cancelled = true;           // true when dismissed without a selection
     std::vector<std::string> paths;  // UTF-8; one entry except for kOpenMultiple
     std::string encoding;            // Save As: the chosen encoding ("" when none was offered)
+    int zip = -1;  // feature 009: the checkbox's final state (0/1); -1 = the dialog had none
 };
 
 using FileDialogCallback = std::function<void(FileDialogResult)>;

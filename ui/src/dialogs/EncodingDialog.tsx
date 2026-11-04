@@ -16,17 +16,23 @@ export interface EncodingDialogProps {
   defaultEncoding: string;
   /** Shown as a hint, e.g. the file being saved. */
   path?: string;
-  onClose: (encoding: string | null) => void;
+  /**
+   * Feature 009 (DP-8): when set, the "save as ZIP archive" checkbox, starting in this state -
+   * the window then stands in for a Save As dialog that could not carry it.
+   */
+  zip?: boolean;
+  onClose: (encoding: string | null, zip: boolean) => void;
 }
 
-export function EncodingDialog({ defaultEncoding, path, onClose }: EncodingDialogProps) {
+export function EncodingDialog({ defaultEncoding, path, zip, onClose }: EncodingDialogProps) {
   const { t } = useTranslation();
   const [encoding, setEncoding] = useState(
     normalizeEncoding(defaultEncoding) ?? ENCODING_CHOICES[0]!,
   );
+  const [zipChecked, setZipChecked] = useState(zip ?? false);
   const buttons: DialogButton[] = [
-    { id: 'ok', label: t('dialog.buttons.ok'), onClick: () => onClose(encoding) },
-    { id: 'cancel', label: t('dialog.buttons.cancel'), onClick: () => onClose(null) },
+    { id: 'ok', label: t('dialog.buttons.ok'), onClick: () => onClose(encoding, zipChecked) },
+    { id: 'cancel', label: t('dialog.buttons.cancel'), onClick: () => onClose(null, zipChecked) },
   ];
   return (
     <Dialog
@@ -53,7 +59,7 @@ export function EncodingDialog({ defaultEncoding, path, onClose }: EncodingDialo
         size={ENCODING_CHOICES.length}
         value={encoding}
         onChange={(event) => setEncoding(event.target.value)}
-        onDoubleClick={() => onClose(encoding)}
+        onDoubleClick={() => onClose(encoding, zipChecked)}
         data-testid="dialog-encoding-select"
       >
         {ENCODING_CHOICES.map((choice) => (
@@ -62,6 +68,17 @@ export function EncodingDialog({ defaultEncoding, path, onClose }: EncodingDialo
           </option>
         ))}
       </select>
+      {zip !== undefined && (
+        <label className="mfbe-checkbox-row">
+          <input
+            type="checkbox"
+            checked={zipChecked}
+            onChange={(event) => setZipChecked(event.target.checked)}
+            data-testid="save-options-zip"
+          />
+          {t('dialog.saveFile.zip')}
+        </label>
+      )}
     </Dialog>
   );
 }

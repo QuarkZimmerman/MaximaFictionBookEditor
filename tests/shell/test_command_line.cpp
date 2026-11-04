@@ -143,3 +143,7 @@ TEST_CASE("command line: the copies' internal switches (feature 008)", "[command
     CHECK(parseArguments({"--mfbe-unknown"}).status != mfbe::shell::ParseStatus::kRun);
     CHECK(mfbe::shell::usageText().find("mfbe-") == std::string::npos);
 }
+
+TEST_CASE("command line: the help text offers ZIP archives (feature 009)", "[shell]") {
+    CHECK(usageText().find("document(s) or ZIP archive(s) to open") != std::string::npos);
+}

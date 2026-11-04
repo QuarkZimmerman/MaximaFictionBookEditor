@@ -40,7 +40,9 @@ struct Position {
 
 struct PositionItem {
     std::string path;  // the file: absolute, lexically normalised, UTF-8
-    std::string at;    // ISO 8601 UTC of the last remembering ("" when the file had none)
+    // Feature 009 (resource formats 1.8): the book's entry when `path` is a ZIP archive.
+    std::optional<std::string> entry;
+    std::string at;  // ISO 8601 UTC of the last remembering ("" when the file had none)
     Position position;
     nlohmann::json extra = nlohmann::json::object();  // unknown members, preserved on rewrite
 
@@ -68,11 +70,14 @@ public:
     const std::vector<PositionItem>& items() const { return items_; }
 
     // The position remembered for `path` (the platform's file-name comparison), if any.
-    std::optional<Position> get(const std::string& path) const;
+    // With `entry`, the book of that name inside the ZIP archive at `path` (feature 009).
+    std::optional<Position> get(const std::string& path,
+                                const std::optional<std::string>& entry = {}) const;
     // Remembers `position` for `path`: the item moves to the front with a fresh `at` (another
     // spelling of the same file is replaced by `path`), the list is trimmed to kMaxPositions.
     // Saves. An empty path is ignored.
-    void set(const std::string& path, const Position& position);
+    void set(const std::string& path, const Position& position,
+             const std::optional<std::string>& entry = {});
     void clear();
 
 private:

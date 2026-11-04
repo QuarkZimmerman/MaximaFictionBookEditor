@@ -20,11 +20,13 @@
 //        a token the document does not hold, 1002 doc.ioError.
 #include "server/services.hpp"
 
+#include <mfbe/archive.hpp>
 #include <mfbe/atomic_file.hpp>
 #include <mfbe/dialog_provider.hpp>
 #include <mfbe/encodings.hpp>
 #include <mfbe/platform.hpp>
 #include <mfbe/rpc.hpp>
+#include <mfbe/utf8_paths.hpp>
 
 #include <filesystem>
 #include <memory>
@@ -180,6 +182,41 @@ std::vector<std::string> requested_ids(const json& p, const BinaryStore& binarie
 }  // namespace
 
 void register_files_handlers(rpc::RpcRouter& router, Services& services) {
+    // Feature 009 (rpc-api §1): what a file is before Save As writes it - for the question when
+    // a completed name points at an existing file, and the one when the chosen archive holds
+    // other files (D32): `otherEntries` counts its files other than one named `entryName`.
+    router.add_method("files.inspect", [](const json& params, rpc::RpcContext&) {
+        const json& p = rpc::params::object(params);
+        const fs::path file = platform::path_from_utf8(rpc::params::string(p, "path"));
+        if (!file.is_absolute()) {
+            throw rpc::invalid_params("path must be absolute", json{{"field", "path"}});
+        }
+        const std::optional<std::string> entry_name = rpc::params::opt_string(p, "entryName");
+        const archive::Kind kind = archive::detect_kind(file);
+        json result{
+            {"exists", kind != archive::Kind::missing},
+            {"kind", archive::is_other_archive(kind) ? "otherArchive" : archive::kind_name(kind)}};
+        if (kind == archive::Kind::zip) {
+            try {
+                const archive::Listing listing = archive::list(file);
+                std::uint64_t others = 0;
+                for (const archive::Entry& e : listing.entries) {
+                    if (!e.directory && (!entry_name || e.name != *entry_name)) {
+                        ++others;
+                    }
+                }
+                result["otherEntries"] = others;
+                result["books"] = listing.books_total;
+                if (listing.books_total == 1) {
+                    result["onlyBook"] = listing.books.front().entry;
+                }
+            } catch (const archive::ArchiveError&) {
+                // A damaged archive: its contents are unknown; a ZIP save replaces it whole.
+            }
+        }
+        return result;
+    });
+
     router.add_async_method("files.saveText", [&services](const json& params, rpc::RpcContext&,
                                                           rpc::Responder respond) {
         const json& p = rpc::params::object(params);

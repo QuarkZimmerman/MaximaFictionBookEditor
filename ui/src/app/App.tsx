@@ -156,6 +156,7 @@ function Shell({
   const path = useAppState((s) => s.path, store);
   const modified = useAppState((s) => s.modified, store);
   const hasDocument = useAppState((s) => s.document !== null, store);
+  const archiveEntry = useAppState((s) => s.document?.source?.entry ?? null, store);
   const validation = useAppState((s) => s.validation, store);
   const search = startupSearch ?? (typeof window !== 'undefined' ? window.location.search : '');
   // Latest command context for notification handlers (updated after every render).
@@ -304,16 +305,18 @@ function Shell({
   // The Edit menu and the toolbar act on the text field the focus left for them.
   useEffect(() => followTextFieldFocus(), []);
 
-  // Window title: "<file>[*] - Maxima Fiction Book Editor".
+  // Window title: "<file>[*] - Maxima Fiction Book Editor"; a book from a ZIP archive names the
+  // book, then its archive: "book.fb2[*] (archive.zip) - ..." (feature 009, D11, DP-5).
   useEffect(() => {
     const name = hasDocument ? (documentFileName({ path }) ?? t('app.untitled')) : null;
+    const marker = modified ? t('app.modifiedMarker') : '';
+    const shown = archiveEntry
+      ? `${archiveEntry.slice(archiveEntry.lastIndexOf('/') + 1)}${marker} (${name})`
+      : `${name}${marker}`;
     document.title = name
-      ? t('app.windowTitle', {
-          document: `${name}${modified ? t('app.modifiedMarker') : ''}`,
-          app: t('app.name'),
-        })
+      ? t('app.windowTitle', { document: shown, app: t('app.name') })
       : t('app.name');
-  }, [hasDocument, path, modified, t]);
+  }, [hasDocument, path, modified, archiveEntry, t]);
 
   // <html lang> follows the interface language; once the start-up language is settled the
   // page says so (`data-lang-resolved`): the journeys read texts in the page's language only

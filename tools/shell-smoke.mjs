@@ -159,6 +159,9 @@ const expectTitle = process.env.MFBE_SMOKE_EXPECT_TITLE ?? 'mfbe-smoke';
 const expectSelector = process.env.MFBE_SMOKE_EXPECT_SELECTOR ?? '#menubar';
 const openFile = process.env.MFBE_SMOKE_OPEN_FILE ?? '';
 const expectText = process.env.MFBE_SMOKE_EXPECT_TEXT ?? '';
+// Feature 009: the title's document part when it is not the opened file's name - a book from a
+// ZIP archive shows "book.fb2 (archive.zip)".
+const expectDocument = process.env.MFBE_SMOKE_EXPECT_DOCUMENT ?? '';
 const checkAbout = process.env.MFBE_SMOKE_ABOUT === '1';
 const expectVersion = process.env.MFBE_SMOKE_EXPECT_VERSION ?? '';
 const expectBuild = process.env.MFBE_SMOKE_EXPECT_BUILD ?? '';
@@ -218,7 +221,7 @@ function titleMatches(title) {
     return false;
   }
   if (openFile) {
-    return title.startsWith(`${path.basename(openFile)} - `);
+    return title.startsWith(`${expectDocument || path.basename(openFile)} - `);
   }
   return true;
 }
@@ -234,7 +237,7 @@ async function waitForTitle(page) {
     await sleep(250);
   }
   const wanted = openFile
-    ? `"${path.basename(openFile)} - ${expectTitle}"`
+    ? `"${expectDocument || path.basename(openFile)} - ${expectTitle}"`
     : `a title containing "${expectTitle}"`;
   throw new Error(`expected ${wanted} but got "${title}" (url ${page.url()})`);
 }

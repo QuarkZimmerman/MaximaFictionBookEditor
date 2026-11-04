@@ -128,6 +128,8 @@ struct SourceText {
 // Decodes a file for Source-only mode (FR-021): the text is returned even when malformed.
 // Throws IoFailure, or NotFictionBookFailure when the file is not a FictionBook document.
 SourceText read_source(const std::filesystem::path& path);
+// The same for bytes already read (feature 009: a book inside a ZIP archive).
+SourceText read_source_bytes(const std::string& bytes);
 
 // Well-formedness check of UTF-8 text; nullopt when it parses.
 std::optional<ParseError> check_well_formed(std::string_view utf8_text);

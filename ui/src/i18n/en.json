@@ -730,7 +730,10 @@
       }
     },
     "saveFile": {
-      "encoding": "Encoding:"
+      "encoding": "Encoding:",
+      "zip": "Save as ZIP archive",
+      "replaceCompleted": "«{{path}}» already exists. Replace it?",
+      "archiveOthers": "The archive «{{path}}» holds {{count}} other files. The new archive will hold this book alone. Replace it?"
     },
     "addImage": {
       "caption": "Add image",
@@ -985,5 +988,27 @@
     "settingThisWindow": "Open it in the running window",
     "settingNewWindow": "Open it in a new window",
     "settingGroup": "Books opened from outside"
+  },
+  "archive": {
+    "chooser": {
+      "title": "Books in {{archive}}",
+      "filter": "Filter:",
+      "name": "Name",
+      "folder": "Folder",
+      "size": "Size",
+      "sizeKb": "{{size}} KB",
+      "more": "{{count}} more books are not listed."
+    },
+    "msg": {
+      "unsupported": "«{{path}}» is not a ZIP archive. Only ZIP archives are supported.",
+      "noBook": "The archive «{{path}}» holds no FictionBook book.",
+      "archiveDamaged": "The archive «{{path}}» is damaged and cannot be read.",
+      "encrypted": "The book «{{entry}}» in «{{path}}» is encrypted and cannot be opened.",
+      "method": "The book «{{entry}}» in «{{path}}» is compressed in a way the editor does not read.",
+      "damaged": "The book «{{entry}}» in «{{path}}» is damaged and cannot be opened.",
+      "tooLarge": "The book «{{entry}}» in «{{path}}» is too large to open.",
+      "multiVolume": "«{{path}}» is part of a multi-volume archive, which the editor does not read.",
+      "missing": "The book «{{entry}}» is no longer in «{{path}}»."
+    }
   }
 }
