@@ -18,6 +18,9 @@ find_package(WebP CONFIG REQUIRED)
 find_package(TIFF REQUIRED)
 find_package(GIF REQUIRED)
 find_package(Stb REQUIRED)
+# ZIP archives (feature 009, PD1): the ZIP reader and writer only; built with the bzip2, lzma and
+# zstd features so every ZIP compression method libarchive reads is read (research DP-1, DP-3).
+find_package(LibArchive REQUIRED)
 find_path(HUNSPELL_INCLUDE_DIR NAMES hunspell/hunspell.hxx REQUIRED)
 find_library(HUNSPELL_LIBRARY NAMES hunspell-1.7 hunspell libhunspell REQUIRED)
 
@@ -78,6 +81,7 @@ target_link_libraries(mfbe_core
     WebP::webp WebP::webpdecoder
     TIFF::TIFF
     GIF::GIF
+    LibArchive::LibArchive
     "${HUNSPELL_LIBRARY}")
 
 target_compile_definitions(mfbe_core

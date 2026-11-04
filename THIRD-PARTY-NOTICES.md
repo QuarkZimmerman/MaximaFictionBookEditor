@@ -22,12 +22,15 @@ each copyright file) and in the npm registry; they are not repeated here.
 
 | Component | Version | Licence | Full text | Notes |
 |---|---|---|---|---|
+| bzip2 | 1.0.8 | bzip2-1.0.6 | `build/vcpkg_installed/<triplet>/share/bzip2/copyright` | transitive dependency |
 | cli11 | 2.6.2 | BSD-3-Clause | `build/vcpkg_installed/<triplet>/share/cli11/copyright` |  |
 | curl | 8.21.0 | BSD-3-Clause AND ISC AND curl | `build/vcpkg_installed/<triplet>/share/curl/copyright` |  |
 | fmt | 12.2.0 | MIT | `build/vcpkg_installed/<triplet>/share/fmt/copyright` | transitive dependency |
 | giflib | 6.1.3 | MIT | `build/vcpkg_installed/<triplet>/share/giflib/copyright` |  |
 | hunspell | 1.7.3 | LGPL-2.1-or-later | `build/vcpkg_installed/<triplet>/share/hunspell/copyright` | MPL-1.1/GPL-2.0-or-later/LGPL-2.1-or-later tri-licence (LGPL-2.1-or-later used; MPL-1.1 alone is not compatible with GPL-3.0) |
+| libarchive | 3.8.7 | BSD-2-Clause | `build/vcpkg_installed/<triplet>/share/libarchive/copyright` |  |
 | libjpeg-turbo | 3.2.0 | BSD-3-Clause AND IJG | `build/vcpkg_installed/<triplet>/share/libjpeg-turbo/copyright` |  |
+| liblzma | 5.8.3 | LGPL-2.1-or-later | `build/vcpkg_installed/<triplet>/share/liblzma/copyright` | transitive dependency |
 | libpng | 1.6.58 | libpng-2.0 | `build/vcpkg_installed/<triplet>/share/libpng/copyright` |  |
 | libwebp | 1.6.0 | BSD-3-Clause | `build/vcpkg_installed/<triplet>/share/libwebp/copyright` |  |
 | libxml2 | 2.15.3 | MIT | `build/vcpkg_installed/<triplet>/share/libxml2/copyright` |  |
@@ -41,6 +44,7 @@ each copyright file) and in the npm registry; they are not repeated here.
 | usockets | 0.8.8 | Apache-2.0 | `build/vcpkg_installed/<triplet>/share/usockets/copyright` | transitive dependency |
 | uwebsockets | 20.79.0 | Apache-2.0 AND MIT | `build/vcpkg_installed/<triplet>/share/uwebsockets/copyright` |  |
 | zlib | 1.3.2 | Zlib | `build/vcpkg_installed/<triplet>/share/zlib/copyright` |  |
+| zstd | 1.5.7 | BSD-3-Clause | `build/vcpkg_installed/<triplet>/share/zstd/copyright` | dual licence (BSD-3-Clause chosen; alternative: GPL-2.0-only); transitive dependency |
 
 Paths of the licence texts are those of the vcpkg installed tree of a build; the version
 set is pinned by `builtin-baseline` in `vcpkg.json`, so every platform builds the same
@@ -152,19 +156,20 @@ ship with the Linux packages only (resources/certs/, refreshed by tools/refresh-
 |---|---|
 | MIT | 51 |
 | Apache-2.0 | 5 |
-| BSD-3-Clause | 4 |
+| BSD-3-Clause | 5 |
+| BSD-2-Clause | 2 |
 | ISC | 2 |
+| LGPL-2.1-or-later | 2 |
 | Apache-2.0 AND MIT | 1 |
-| BSD-2-Clause | 1 |
 | BSD-3-Clause AND IJG | 1 |
 | BSD-3-Clause AND ISC AND curl | 1 |
 | BSD-style | 1 |
 | GPL-3.0-only | 1 |
-| LGPL-2.1-or-later | 1 |
 | MPL-1.1 | 1 |
 | MPL-2.0 | 1 |
 | SCOWL AND BSD-style AND public-domain | 1 |
 | Zlib | 1 |
+| bzip2-1.0.6 | 1 |
 | libpng-2.0 | 1 |
 | libtiff | 1 |
 
