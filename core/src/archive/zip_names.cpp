@@ -126,7 +126,8 @@ long word_score(const std::map<int, long>& letters, bool common_vowel) {
 // Higher is more plausible: the sum of the words' scores, minus five per character no name
 // would hold (box drawing, controls, stray symbols).
 long score(const std::vector<std::string>& names) {
-    static constexpr std::u32string_view kVowels = U"\u0430\u0435\u0438\u043E\u0410\u0415\u0418\u041E";
+    static constexpr std::u32string_view kVowels =
+        U"\u0430\u0435\u0438\u043E\u0410\u0415\u0418\u041E";
     long total = 0;
     std::vector<char32_t> cps;
     for (const std::string& name : names) {
@@ -173,8 +174,8 @@ std::string convert_codepage(std::string_view raw, int codepage) {
         return "";
     }
 #ifdef _WIN32
-    const int wide = MultiByteToWideChar(static_cast<UINT>(codepage), MB_ERR_INVALID_CHARS, raw.data(),
-                                         static_cast<int>(raw.size()), nullptr, 0);
+    const int wide = MultiByteToWideChar(static_cast<UINT>(codepage), MB_ERR_INVALID_CHARS,
+                                         raw.data(), static_cast<int>(raw.size()), nullptr, 0);
     if (wide <= 0) {
         return "";
     }

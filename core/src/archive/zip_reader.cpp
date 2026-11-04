@@ -2,10 +2,9 @@
 // mfbe/archive.hpp.
 #include <mfbe/archive.hpp>
 
+#include <algorithm>
 #include <archive.h>
 #include <archive_entry.h>
-
-#include <algorithm>
 #include <cctype>
 #include <cstring>
 #include <fstream>
@@ -151,10 +150,9 @@ std::vector<Raw> read_central(const std::filesystem::path& path) {
                 take(raw.entry.compressed);
                 take(raw.entry.offset);
             } else if (id == 0x7075 && len >= 5 && d[0] == 1) {
-                const auto crc =
-                    static_cast<std::uint32_t>(crc32(0, reinterpret_cast<const Bytef*>(
-                                                            raw.entry.raw_name.data()),
-                                                     static_cast<uInt>(name_len)));
+                const auto crc = static_cast<std::uint32_t>(
+                    crc32(0, reinterpret_cast<const Bytef*>(raw.entry.raw_name.data()),
+                          static_cast<uInt>(name_len)));
                 if (u32(d + 1) == crc) {
                     raw.unicode_path.assign(reinterpret_cast<const char*>(d + 5), len - 5);
                 }

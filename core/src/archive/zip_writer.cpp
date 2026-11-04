@@ -2,10 +2,9 @@
 #include <mfbe/archive.hpp>
 #include <mfbe/utf8_paths.hpp>
 
+#include <algorithm>
 #include <archive.h>
 #include <archive_entry.h>
-
-#include <algorithm>
 #include <ctime>
 #include <memory>
 
@@ -58,8 +57,7 @@ std::string zip_one(const std::string& entry_name, std::string_view bytes) {
     // characters turned into UTF-8 on Windows, where its default would be the OEM code page.
     // The UTF-8 flag is then set in the headers (resource-formats §5).
     if (archive_write_set_format_zip(a.get()) != ARCHIVE_OK ||
-        archive_write_set_format_option(a.get(), "zip", "compression", "deflate") !=
-            ARCHIVE_OK ||
+        archive_write_set_format_option(a.get(), "zip", "compression", "deflate") != ARCHIVE_OK ||
 #ifdef _WIN32
         archive_write_set_format_option(a.get(), "zip", "hdrcharset", "UTF-8") < ARCHIVE_WARN ||
 #endif

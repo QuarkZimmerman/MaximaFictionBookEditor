@@ -26,17 +26,17 @@ const char* kind_name(Kind kind);
 bool is_other_archive(Kind kind);
 
 inline constexpr std::uint64_t kMaxBookBytes = 512ull * 1024 * 1024;  // DP-3
-inline constexpr std::size_t kMaxListedBooks = 100000;                 // DP-3
+inline constexpr std::size_t kMaxListedBooks = 100000;                // DP-3
 
 // One central-directory record.
 struct Entry {
-    std::string name;             // decoded to UTF-8 (DP-2), the full path inside the archive
-    std::string raw_name;         // the bytes as stored
-    std::uint64_t size = 0;       // uncompressed
+    std::string name;        // decoded to UTF-8 (DP-2), the full path inside the archive
+    std::string raw_name;    // the bytes as stored
+    std::uint64_t size = 0;  // uncompressed
     std::uint64_t compressed = 0;
-    std::uint64_t offset = 0;     // of the local header
+    std::uint64_t offset = 0;  // of the local header
     std::uint16_t method = 0;
-    std::uint16_t flags = 0;      // general-purpose bit flags (bit 0: encrypted)
+    std::uint16_t flags = 0;  // general-purpose bit flags (bit 0: encrypted)
     bool directory = false;
 };
 
@@ -46,14 +46,14 @@ struct Book {
     std::string name;    // without folders
     std::string folder;  // "/"-separated, "" at the top level
     std::uint64_t size = 0;
-    std::string kind;    // "fb2" | "fbd"
+    std::string kind;  // "fb2" | "fbd"
 };
 
 struct Listing {
-    std::vector<Book> books;          // archive order, at most kMaxListedBooks
-    std::uint64_t books_total = 0;    // every book entry, listed or not
-    std::uint64_t other_files = 0;    // entries that are neither books nor folders
-    std::vector<Entry> entries;       // every record, central-directory order
+    std::vector<Book> books;        // archive order, at most kMaxListedBooks
+    std::uint64_t books_total = 0;  // every book entry, listed or not
+    std::uint64_t other_files = 0;  // entries that are neither books nor folders
+    std::vector<Entry> entries;     // every record, central-directory order
 };
 
 // Why a book or an archive cannot be read (rpc-api §1 `archiveEntryUnreadable`).

@@ -13,7 +13,8 @@ namespace {
 using namespace std::string_view_literals;
 
 bool has(const std::string& head, std::string_view signature, std::size_t at = 0) {
-    return head.size() >= at + signature.size() && head.compare(at, signature.size(), signature) == 0;
+    return head.size() >= at + signature.size() &&
+           head.compare(at, signature.size(), signature) == 0;
 }
 
 }  // namespace
@@ -51,8 +52,9 @@ Kind detect_kind(const std::filesystem::path& path) {
     if (has(head, "BZh"sv)) {
         return Kind::bzip2;
     }
-    if (has(head, "\xfd"
-                  "7zXZ\x00"sv)) {
+    if (has(head,
+            "\xfd"
+            "7zXZ\x00"sv)) {
         return Kind::xz;
     }
     if (has(head, "\x28\xb5\x2f\xfd"sv)) {
