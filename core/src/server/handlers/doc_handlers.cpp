@@ -482,6 +482,7 @@ struct SaveRequest {
     std::string path;                         // absolute target
     std::string encoding;                     // canonical
     bool force = false;
+    bool backup = false;  // keep the replaced file as "<path>.bak" (feature 009, FR-001)
     std::string xlink_prefix;
     std::shared_ptr<BinaryStore> store;
     images::ConversionPolicy policy;  // image conversion on save (FR-110)
@@ -579,11 +580,18 @@ json perform_save(Services& services, SaveRequest& request, rpc::JobControl* con
     progress("write", 70);
     const std::string bytes = fb2::encode_document(text, request.encoding);
     const fs::path target = platform::path_from_utf8(request.path);
+    atomic_file::BackupOutcome backup;
     try {
-        atomic_file::write_atomic(target, bytes);
+        backup =
+            atomic_file::write_atomic(target, bytes, atomic_file::WriteOptions{request.backup});
     } catch (const atomic_file::WriteError& e) {
         // Logged once by the router as rpc.doc.ioError (method, docId, path, reason).
         throw io_error(e.path, e.reason);
+    }
+    if (!backup.reason.empty()) {
+        // A backup that could not be made never stops the save (D4); the UI says why.
+        log::error("core", "save.backupFailed", "the previous version was not kept as .bak",
+                   log::extras({{"reason", backup.reason}}));
     }
     const platform::FileStamp stamp = platform::stamp_of(target);
 
@@ -637,10 +645,17 @@ json perform_save(Services& services, SaveRequest& request, rpc::JobControl* con
         on_loop_thread(services, update, control);
     }
     progress("done", 100);
-    return json{{"path", path},
+    json result{{"path", path},
                 {"encoding", enc},
                 {"converted", converted_json(converted)},
                 {"validation", model::to_json(validation)}};
+    if (request.backup) {
+        result["backup"] = json{{"kept", backup.kept}};
+        if (!backup.reason.empty()) {
+            result["backup"]["reason"] = backup.reason;
+        }
+    }
+    return result;
 }
 
 /* ----------------------------------------------------------------------------------------- */
@@ -1226,6 +1241,7 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         request.encoding =
             effective_encoding(services, s, rpc::params::opt_string(params, "encoding"));
         request.force = rpc::params::boolean_or(params, "force", false);
+        request.backup = rpc::params::boolean_or(params, "backup", false);
         request.xlink_prefix = s.xlinkPrefix;
         request.store = s.binaries;
         request.policy = services.conversion_policy();

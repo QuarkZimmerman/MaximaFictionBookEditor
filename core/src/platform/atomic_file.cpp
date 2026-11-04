@@ -73,8 +73,9 @@ std::string last_error_message() {
     return result;
 }
 
-void write_temp_and_replace(const std::filesystem::path& target, const std::filesystem::path& temp,
-                            std::string_view bytes) {
+BackupOutcome write_temp_and_replace(const std::filesystem::path& target,
+                                     const std::filesystem::path& temp, std::string_view bytes,
+                                     const WriteOptions& options) {
     HANDLE h = CreateFileW(temp.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW,
                            FILE_ATTRIBUTE_NORMAL, nullptr);
     if (h == INVALID_HANDLE_VALUE) {
@@ -112,8 +113,44 @@ void write_temp_and_replace(const std::filesystem::path& target, const std::file
         DeleteFileW(temp.c_str());
         throw WriteError(platform::utf8_from_path(target), "injected fault: before_rename");
     }
+    BackupOutcome outcome;
     BOOL ok;
     if (GetFileAttributesW(target.c_str()) != INVALID_FILE_ATTRIBUTES) {
+        if (options.backup) {
+            outcome.requested = true;
+            const std::filesystem::path bak = backup_path(target);
+            if (take_fault(FaultPoint::before_backup)) {
+                outcome.reason = "injected fault: before_backup";
+            } else if (take_fault(FaultPoint::after_backup)) {
+                // Tests: the backup is made, then the replace fails; the target stays whole.
+                CopyFileW(target.c_str(), bak.c_str(), FALSE);
+                DeleteFileW(temp.c_str());
+                throw WriteError(platform::utf8_from_path(target), "injected fault: after_backup");
+            } else if (ReplaceFileW(target.c_str(), temp.c_str(), bak.c_str(),
+                                    REPLACEFILE_IGNORE_MERGE_ERRORS, nullptr, nullptr)) {
+                outcome.kept = true;
+                return outcome;
+            } else {
+                outcome.reason = last_error_message();
+                if (GetFileAttributesW(target.c_str()) == INVALID_FILE_ATTRIBUTES &&
+                    GetFileAttributesW(temp.c_str()) != INVALID_FILE_ATTRIBUTES) {
+                    // ERROR_UNABLE_TO_MOVE_REPLACEMENT_2: the replaced file already went to the
+                    // backup name; finish by moving the new file in.
+                    if (MoveFileExW(temp.c_str(), target.c_str(),
+                                    MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+                        outcome.kept = GetFileAttributesW(bak.c_str()) != INVALID_FILE_ATTRIBUTES;
+                        if (outcome.kept) {
+                            outcome.reason.clear();
+                        }
+                        return outcome;
+                    }
+                    throw WriteError(platform::utf8_from_path(target),
+                                     "replace failed: " + last_error_message() +
+                                         "; the previous version is in " +
+                                         platform::utf8_from_path(bak));
+                }
+            }
+        }
         ok = ReplaceFileW(target.c_str(), temp.c_str(), nullptr, REPLACEFILE_IGNORE_MERGE_ERRORS,
                           nullptr, nullptr);
     } else {
@@ -125,12 +162,97 @@ void write_temp_and_replace(const std::filesystem::path& target, const std::file
         DeleteFileW(temp.c_str());
         throw WriteError(platform::utf8_from_path(target), reason);
     }
+    return outcome;
 }
 
 #else
 
-void write_temp_and_replace(const std::filesystem::path& target, const std::filesystem::path& temp,
-                            std::string_view bytes) {
+// Copies `from` to the new file `to` (created exclusively) with fsync; "" or the reason.
+std::string copy_file(const std::filesystem::path& from, const std::filesystem::path& to,
+                      mode_t mode) {
+    const int in = ::open(from.c_str(), O_RDONLY | O_CLOEXEC);
+    if (in < 0) {
+        return errno_message(errno);
+    }
+    const int out = ::open(to.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
+    if (out < 0) {
+        const std::string why = errno_message(errno);
+        ::close(in);
+        return why;
+    }
+    std::string why;
+    char buffer[1 << 16];
+    for (;;) {
+        const ssize_t n = ::read(in, buffer, sizeof buffer);
+        if (n < 0 && errno == EINTR) {
+            continue;
+        }
+        if (n < 0) {
+            why = errno_message(errno);
+            break;
+        }
+        if (n == 0) {
+            break;
+        }
+        ssize_t done = 0;
+        while (done < n) {
+            const ssize_t w = ::write(out, buffer + done, static_cast<std::size_t>(n - done));
+            if (w < 0 && errno == EINTR) {
+                continue;
+            }
+            if (w < 0) {
+                why = errno_message(errno);
+                break;
+            }
+            done += w;
+        }
+        if (!why.empty()) {
+            break;
+        }
+    }
+    if (why.empty() && ::fsync(out) != 0) {
+        why = errno_message(errno);
+    }
+    (void)::fchmod(out, mode);
+    ::close(in);
+    if (::close(out) != 0 && why.empty()) {
+        why = errno_message(errno);
+    }
+    if (!why.empty()) {
+        ::unlink(to.c_str());
+    }
+    return why;
+}
+
+// Keeps `target` as "<target>.bak": a hard link (or, where the file system has none, a copy)
+// under a temporary name, then a rename over the backup. The target is never touched.
+// Returns "" on success, else the reason.
+std::string make_backup(const std::filesystem::path& target, mode_t mode) {
+    const std::filesystem::path bak = backup_path(target);
+    const std::filesystem::path staging = make_temp_path(bak);
+    const bool no_link = take_fault(FaultPoint::no_hard_link);
+    if (no_link || ::link(target.c_str(), staging.c_str()) != 0) {
+        const int err = no_link ? EPERM : errno;
+        if (err != EPERM && err != ENOTSUP && err != EOPNOTSUPP && err != EMLINK && err != EXDEV &&
+            err != ENOSYS) {
+            return errno_message(err);
+        }
+        const std::string why = copy_file(target, staging, mode);
+        if (!why.empty()) {
+            return why;
+        }
+    }
+    if (::rename(staging.c_str(), bak.c_str()) != 0) {
+        const std::string why = errno_message(errno);
+        ::unlink(staging.c_str());
+        return why;
+    }
+    return "";
+}
+
+BackupOutcome write_temp_and_replace(const std::filesystem::path& target,
+                                     const std::filesystem::path& temp, std::string_view bytes,
+                                     const WriteOptions& options) {
     // Keep the permissions of an existing target (default 0644 before umask otherwise).
     mode_t mode = 0644;
     struct stat st{};
@@ -182,6 +304,20 @@ void write_temp_and_replace(const std::filesystem::path& target, const std::file
         ::unlink(temp.c_str());
         throw WriteError(platform::utf8_from_path(target), "close failed: " + errno_message(errno));
     }
+    BackupOutcome outcome;
+    if (options.backup && target_exists) {
+        outcome.requested = true;
+        if (take_fault(FaultPoint::before_backup)) {
+            outcome.reason = "injected fault: before_backup";
+        } else {
+            outcome.reason = make_backup(target, mode);
+            outcome.kept = outcome.reason.empty();
+        }
+        if (outcome.kept && take_fault(FaultPoint::after_backup)) {
+            ::unlink(temp.c_str());
+            throw WriteError(platform::utf8_from_path(target), "injected fault: after_backup");
+        }
+    }
     if (take_fault(FaultPoint::before_rename)) {
         ::unlink(temp.c_str());
         throw WriteError(platform::utf8_from_path(target), "injected fault: before_rename");
@@ -197,6 +333,7 @@ void write_temp_and_replace(const std::filesystem::path& target, const std::file
         (void)::fsync(dir_fd);
         ::close(dir_fd);
     }
+    return outcome;
 }
 
 #endif
@@ -211,7 +348,18 @@ FaultPoint fault_injection() {
     return g_fault.load();
 }
 
+std::filesystem::path backup_path(const std::filesystem::path& path) {
+    std::filesystem::path bak = path;
+    bak += platform::path_from_utf8(".bak");
+    return bak;
+}
+
 void write_atomic(const std::filesystem::path& path, std::string_view bytes) {
+    (void)write_atomic(path, bytes, WriteOptions{});
+}
+
+BackupOutcome write_atomic(const std::filesystem::path& path, std::string_view bytes,
+                           const WriteOptions& options) {
     if (path.empty()) {
         throw WriteError("", "empty path");
     }
@@ -220,7 +368,7 @@ void write_atomic(const std::filesystem::path& path, std::string_view bytes) {
     if (!std::filesystem::is_directory(target.parent_path(), ec)) {
         throw WriteError(platform::utf8_from_path(target), "directory does not exist");
     }
-    write_temp_and_replace(target, make_temp_path(target), bytes);
+    return write_temp_and_replace(target, make_temp_path(target), bytes, options);
 }
 
 std::string read_file(const std::filesystem::path& path) {

@@ -79,6 +79,7 @@ import {
 import { getBodyController, hasBodyController } from '@/views/body/bodyEditor';
 
 import { proposedFileName } from './proposedName';
+import { keepsBackup, savedMessage } from './saveOutcome';
 import { RecentFilesStore, rememberPosition, restorePosition } from './recent';
 
 export { ENCODING_CHOICES };
@@ -803,7 +804,14 @@ export class FileFeature {
       try {
         const result = await rpc.runJob(
           'doc.save',
-          { docId: current.docId, document: current.document, path, encoding, force },
+          {
+            docId: current.docId,
+            document: current.document,
+            path,
+            encoding,
+            force,
+            backup: keepsBackup(store),
+          },
           { onProgress: (progress) => actions.setProgress(store, progress) },
         );
         actions.setProgress(store, null);
@@ -829,12 +837,7 @@ export class FileFeature {
         store.setState({ document: saved });
         actions.markSaved(store, result.path, saved.fileKind);
         if (editedMeanwhile) store.setState({ modified: true, sourceDirty: after.sourceDirty });
-        actions.setStatusMessage(
-          store,
-          result.validation.errorCount === 0
-            ? ctx.t('status.savedNoErrors')
-            : ctx.t('msg.errorsFound', { count: result.validation.errorCount }),
-        );
+        actions.setStatusMessage(store, savedMessage(ctx.t, result));
         if (store.getState().validation) actions.setValidation(store, result.validation);
         await this.watch(ctx, current.docId, true);
         // Every save remembers the position, under the saved path (FR-100).

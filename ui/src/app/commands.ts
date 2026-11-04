@@ -18,6 +18,7 @@ import { documentFileTypes } from '@/dialogs/fileTypes';
 import type { Dialogs } from '@/dialogs/types';
 import { toggleFastMode } from '@/editor/fastMode';
 import { proposedFileName } from '@/features/file/proposedName';
+import { keepsBackup, savedMessage } from '@/features/file/saveOutcome';
 import { parseAccelerator } from '@/i18n';
 import type { CaretRegistry } from '@/model/caret';
 import { actions, type AppStore, documentFileName, isRunLocked } from '@/model/store';
@@ -481,7 +482,14 @@ export async function saveDocument(
   for (;;) {
     const result = await rpc.runJob(
       'doc.save',
-      { docId: state.docId, document: ctx.store.getState().document!, path, encoding, force },
+      {
+        docId: state.docId,
+        document: ctx.store.getState().document!,
+        path,
+        encoding,
+        force,
+        backup: keepsBackup(ctx.store),
+      },
       { onProgress: (progress) => actions.setProgress(ctx.store, progress) },
     );
     actions.setProgress(ctx.store, null);
@@ -500,12 +508,7 @@ export async function saveDocument(
       continue;
     }
     actions.markSaved(ctx.store, result.path);
-    actions.setStatusMessage(
-      ctx.store,
-      result.validation.errorCount === 0
-        ? ctx.t('status.savedNoErrors')
-        : ctx.t('msg.errorsFound', { count: result.validation.errorCount }),
-    );
+    actions.setStatusMessage(ctx.store, savedMessage(ctx.t, result));
     return true;
   }
 }

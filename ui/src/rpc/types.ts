@@ -607,12 +607,22 @@ export interface WordsEntry {
   count: number;
 }
 
+/** What became of a requested backup of the replaced file (feature 009, data-model §1). */
+export interface BackupOutcome {
+  /** True when `<path>.bak` now holds the file this save replaced. */
+  kept: boolean;
+  /** Set only when a backup was wanted, a file was replaced, and none could be made. */
+  reason?: string;
+}
+
 export interface SaveResult {
   path: string;
   encoding: string;
   converted: BinaryMeta[];
   validation: ValidationReport;
   needsConfirmation?: false;
+  /** Present when the save asked for `backup` (feature 009). */
+  backup?: BackupOutcome;
 }
 
 export interface SaveNeedsConfirmation {
@@ -1068,6 +1078,8 @@ export interface RpcMethods {
       path?: string;
       encoding?: string;
       force?: boolean;
+      /** Keep a replaced file as `<path>.bak` (feature 009; absent = false). */
+      backup?: boolean;
     };
     result: MaybeJob<SaveResult | SaveNeedsConfirmation>;
   };
