@@ -105,7 +105,7 @@ bool plausible_other(char32_t c) {
 // script mixed into it (no real word mixes alphabets: "CafВ"). A Cyrillic word of four letters
 // or more without any of а, е, и, о is no Russian word: it is what CP866 makes of Hebrew CP1255
 // bytes (its р-я), so it earns nothing.
-long word_score(const std::map<int, long>& letters, bool common_vowel) {
+long word_score(const std::map<int, long>& letters, bool common_vowel, long accented) {
     long all = 0;
     long main = 0;
     int main_script = 0;
@@ -118,6 +118,11 @@ long word_score(const std::map<int, long>& letters, bool common_vowel) {
     }
     const long mixed = all - main;
     if (main_script == 2 && main >= 4 && !common_vowel) {
+        main = 0;
+    }
+    // A Latin word of three letters or more, most of them accented, is no Western word either:
+    // it is what CP1252 or CP437 make of Cyrillic and Hebrew bytes ("Âîéíà").
+    if (main_script == 1 && main >= 3 && accented * 2 > main) {
         main = 0;
     }
     return main - 2 * mixed;
@@ -136,15 +141,18 @@ long score(const std::vector<std::string>& names) {
         }
         std::map<int, long> letters;
         bool common_vowel = false;
+        long accented = 0;
         auto close_word = [&]() {
-            total += word_score(letters, common_vowel);
+            total += word_score(letters, common_vowel, accented);
             letters.clear();
             common_vowel = false;
+            accented = 0;
         };
         for (const char32_t c : cps) {
             if (const int script = script_of(c); script != 0) {
                 ++letters[script];
                 common_vowel = common_vowel || kVowels.find(c) != std::u32string_view::npos;
+                accented += script == 1 && c >= 0x80 ? 1 : 0;
                 continue;
             }
             close_word();

@@ -32,8 +32,9 @@ struct Fixture {
         server = CoreServer::start(options);
         REQUIRE(ws.open(server->port(), "/rpc?token=" + server->token()) == 101);
     }
+    // The path as the core reports it: native separators, lexically normal, UTF-8.
     static std::string archive(const char* name) {
-        return (test::fixtures_dir() / "archives" / name).string();
+        return platform::utf8_from_path((test::fixtures_dir() / "archives" / name).lexically_normal());
     }
     json call(const std::string& method, const json& params = json::object()) {
         return ws.call(method, params, 20000);

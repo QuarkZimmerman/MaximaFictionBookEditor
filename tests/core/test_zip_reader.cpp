@@ -8,6 +8,7 @@
 #include <archive_entry.h>
 #include <catch2/catch_test_macros.hpp>
 
+#include <algorithm>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -76,8 +77,13 @@ TEST_CASE("zip reader: books, folders, sizes and other files, in archive order",
     REQUIRE(single.books.size() == 1);
     CHECK(single.books[0].entry == "book.fb2");
     CHECK(single.books[0].folder.empty());
+    // The fixture archive holds the book with LF line ends; a Windows checkout has CRLF.
+    const auto lf = [](std::string text) {
+        text.erase(std::remove(text.begin(), text.end(), '\r'), text.end());
+        return text;
+    };
     const std::string book = mfbe::archive::read_entry(fixture("single.fb2.zip"), "book.fb2");
-    CHECK(book == test::read_text(test::fixtures_dir() / "books" / "modern-utf8.fb2"));
+    CHECK(lf(book) == lf(test::read_text(test::fixtures_dir() / "books" / "modern-utf8.fb2")));
 
     const auto pair = mfbe::archive::list(fixture("book-and-fbd.zip"));
     REQUIRE(pair.books.size() == 2);

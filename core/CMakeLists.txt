@@ -90,6 +90,13 @@ target_compile_definitions(mfbe_core
     MFBE_RESOURCES_SOURCE_DIR="${MFBE_RESOURCES_SOURCE_DIR}"
     MFBE_SCRIPTS_SOURCE_DIR="${MFBE_SCRIPTS_SOURCE_DIR}")
 
+if(NOT WIN32)
+  # The legacy ZIP entry names of feature 009 (research DP-2) are decoded with iconv: part of
+  # libc on Linux, a library of its own on macOS. Windows uses MultiByteToWideChar.
+  find_package(Iconv REQUIRED)
+  target_link_libraries(mfbe_core PRIVATE Iconv::Iconv)
+endif()
+
 if(WIN32)
   target_link_libraries(mfbe_core PRIVATE ws2_32 shell32 ole32)
 elseif(APPLE)

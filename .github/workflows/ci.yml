@@ -47,7 +47,13 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends desktop-file-utils
-          desktop-file-validate app/linux/mfbe.desktop
+          # The runner's desktop-file-utils predates the file's Version=1.5: that one message is
+          # tolerated, every other one fails the step.
+          out=$(desktop-file-validate app/linux/mfbe.desktop 2>&1 || true)
+          echo "$out"
+          if echo "$out" | grep -v 'for key "Version" in group "Desktop Entry" is not a known version' | grep -q 'error:'; then
+            exit 1
+          fi
           grep -q '^MimeType=.*application/x-zip-compressed-fb2;' app/linux/mfbe.desktop
       - name: Path portability (Windows/macOS checkouts)
         run: python3 tools/path-portability-check.py

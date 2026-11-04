@@ -73,3 +73,16 @@ TEST_CASE("zip names: ties go to the earlier candidate", "[archive]") {
         CHECK(std::find(candidates.begin(), candidates.end(), cp) != candidates.end());
     }
 }
+
+TEST_CASE("zip names: a Western system's code pages first (Windows) still read them right",
+          "[archive]") {
+    // Windows puts its OEM and ANSI code pages first: CP437 and CP1252 on a Western system,
+    // which read Cyrillic and Hebrew bytes as words of accented Latin letters ("Âîéíà").
+    const std::vector<int> western = {437, 1252, 866, 1251, 862, 1255};
+    CHECK(archive::decode_names(raw_of("names-cp1251.zip"), western).names == kCyrillic);
+    CHECK(archive::decode_names(raw_of("names-cp866.zip"), western).names == kCyrillic);
+    CHECK(archive::decode_names(raw_of("names-cp1255.zip"), western).names == kHebrew);
+    CHECK(archive::decode_names(raw_of("names-cp862.zip"), western).names == kHebrew);
+    CHECK(archive::decode_names(raw_of("names-cp437.zip"), western).names == kWestern);
+}
+
