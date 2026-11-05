@@ -524,11 +524,12 @@ test.describe('US4 (005) - nothing invalid reaches the book', () => {
     expect(xmlAfter).not.toContain('Дубль идентификатора');
     expect((xmlAfter.match(/id="ch1"/g) ?? []).length).toBe(1);
 
-    // Save still asks as before: Save as → the validation-failed question; No writes nothing.
+    // Save still asks: Save as → the validation-failed question; No writes nothing. Since feature
+    // 009 the question comes before the dialog (the requester at the rc.5 smoke test), so No asks
+    // for no file and no answer is queued - none is left over for a later Open.
     const dir = mkdtempSync(path.join(tmpdir(), 'mfbe-us4-'));
     const file = path.join(dir, 'preexisting-saved.fb2');
     try {
-      await core.enqueueDialog('dialog.saveFile', { path: file, encoding: 'utf-8' });
       await page.getByTestId('menu-file').click();
       await page.getByTestId('menu-file-saveAs').click();
       const prompt = page.getByTestId('dialog-validation-failed');
