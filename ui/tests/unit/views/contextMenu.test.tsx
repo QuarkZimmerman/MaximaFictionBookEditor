@@ -68,16 +68,17 @@ describe('the Body context menu', () => {
     const { menu } = openMenu(harness, click);
     expect(menu).toHaveClass('mfbe-popup-menu');
     const ids = topLevel(menu);
-    expect(ids.slice(0, 6)).toEqual([
+    expect(ids.slice(0, 7)).toEqual([
       'context-menu-edit.undo',
       '|',
       'context-menu-edit.cut',
       'context-menu-edit.copy',
       'context-menu-edit.paste',
+      'context-menu-edit.pastePlain',
       '|',
     ]);
     // One "Select <element>" entry per ancestor of the caret, innermost first: td … body.
-    expect(ids.slice(6, 11)).toEqual([
+    expect(ids.slice(7, 12)).toEqual([
       'context-menu-select-5',
       'context-menu-select-4',
       'context-menu-select-3',
