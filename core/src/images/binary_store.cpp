@@ -164,6 +164,20 @@ bool BinaryStore::remove(const std::string& id) {
     return true;
 }
 
+bool BinaryStore::rename(const std::string& old_id, const std::string& new_id) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto it = entries_.find(old_id);
+    if (it == entries_.end() || entries_.count(new_id) > 0) {
+        return false;
+    }
+    Entry entry = std::move(it->second);
+    entries_.erase(it);
+    entry.meta.id = new_id;
+    entries_.emplace(new_id, std::move(entry));
+    std::replace(order_.begin(), order_.end(), old_id, new_id);
+    return true;
+}
+
 bool BinaryStore::contains(const std::string& id) const {
     std::lock_guard<std::mutex> lock(mutex_);
     return entries_.count(id) > 0;

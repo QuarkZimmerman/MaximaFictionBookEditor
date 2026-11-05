@@ -236,6 +236,54 @@ model::BinaryMeta store_bytes(Services& services, session::DocumentSession& s, s
     return meta;
 }
 
+// Feature 009 (binary.rename): an XML NCName - a name start character other than ':' first,
+// then name characters (XML 1.0 fifth edition, productions [4], [4a]), in UTF-8.
+bool is_ncname(const std::string& name) {
+    if (name.empty()) {
+        return false;
+    }
+    auto start = [](char32_t c) {
+        return (c >= 'A' && c <= 'Z') || c == '_' || (c >= 'a' && c <= 'z') ||
+               (c >= 0xC0 && c <= 0xD6) || (c >= 0xD8 && c <= 0xF6) || (c >= 0xF8 && c <= 0x2FF) ||
+               (c >= 0x370 && c <= 0x37D) || (c >= 0x37F && c <= 0x1FFF) ||
+               (c >= 0x200C && c <= 0x200D) || (c >= 0x2070 && c <= 0x218F) ||
+               (c >= 0x2C00 && c <= 0x2FEF) || (c >= 0x3001 && c <= 0xD7FF) ||
+               (c >= 0xF900 && c <= 0xFDCF) || (c >= 0xFDF0 && c <= 0xFFFD) ||
+               (c >= 0x10000 && c <= 0xEFFFF);
+    };
+    auto rest = [&](char32_t c) {
+        return start(c) || c == '-' || c == '.' || (c >= '0' && c <= '9') || c == 0xB7 ||
+               (c >= 0x300 && c <= 0x36F) || (c >= 0x203F && c <= 0x2040);
+    };
+    std::size_t i = 0;
+    bool first = true;
+    while (i < name.size()) {
+        const auto b = static_cast<unsigned char>(name[i]);
+        const int extra = b < 0x80             ? 0
+                          : (b & 0xE0) == 0xC0 ? 1
+                          : (b & 0xF0) == 0xE0 ? 2
+                          : (b & 0xF8) == 0xF0 ? 3
+                                               : -1;
+        if (extra < 0 || i + static_cast<std::size_t>(extra) >= name.size()) {
+            return false;
+        }
+        char32_t c = extra == 0 ? b : static_cast<char32_t>(b & (0x3F >> extra));
+        for (int k = 1; k <= extra; ++k) {
+            const auto cb = static_cast<unsigned char>(name[i + static_cast<std::size_t>(k)]);
+            if ((cb & 0xC0) != 0x80) {
+                return false;
+            }
+            c = (c << 6) | (cb & 0x3F);
+        }
+        if (!(first ? start(c) : rest(c))) {
+            return false;
+        }
+        first = false;
+        i += static_cast<std::size_t>(extra) + 1;
+    }
+    return true;
+}
+
 }  // namespace
 
 void register_binary_http(LoopbackServer& server, Services& services) {
@@ -391,6 +439,31 @@ void register_binary_handlers(rpc::RpcRouter& router, Services& services) {
             sync_binaries(*s.snapshot, *s.binaries);
         }
         return json::object();
+    });
+
+    // Feature 009 (User Story 7, rpc-api §1): gives a binary a new id - the store entry moved,
+    // the bytes untouched, its previews forgotten; the UI rewrites every reference itself.
+    router.add_method("binary.rename", [&services](const json& params, rpc::RpcContext&) {
+        session::DocumentSession& s =
+            services.documents.require(rpc::params::string(params, "docId"));
+        const std::string id = rpc::params::string(params, "id");
+        const std::string new_id = rpc::params::string(params, "newId");
+        if (!s.binaries->contains(id)) {
+            throw rpc::RpcError(rpc::codes::kBinaryNotFound, "", json{{"id", id}});
+        }
+        if (!is_ncname(new_id)) {
+            throw rpc::RpcError(rpc::codes::kBinaryIdInvalid, "the new id is not an XML NCName",
+                                json{{"newId", new_id}});
+        }
+        if (new_id != id && !s.binaries->rename(id, new_id)) {
+            throw rpc::RpcError(rpc::codes::kBinaryIdTaken, "another binary has this id",
+                                json{{"newId", new_id}});
+        }
+        services.previews.invalidate_prefix(s.docId + "/" + id + "@");
+        if (s.snapshot) {
+            sync_binaries(*s.snapshot, *s.binaries);
+        }
+        return model::to_json(*s.binaries->meta(new_id));
     });
 
     router.add_method("binary.copy", [&services](const json& params, rpc::RpcContext&) {

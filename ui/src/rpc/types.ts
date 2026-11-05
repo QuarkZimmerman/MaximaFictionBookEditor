@@ -1209,6 +1209,11 @@ export interface RpcMethods {
   };
   'binary.addFromClipboard': { params: { docId: string }; result: BinaryMeta };
   'binary.remove': { params: { docId: string; id: string; force?: boolean }; result: Empty };
+  /**
+   * Feature 009 (US7): gives the binary a new id - 1011 when it is not an XML NCName, 1012 when
+   * another binary has it; the UI rewrites the references itself.
+   */
+  'binary.rename': { params: { docId: string; id: string; newId: string }; result: BinaryMeta };
   'binary.convert': {
     params: { docId: string; id: string; format: ImageFormat; quality?: number };
     result: BinaryMeta;

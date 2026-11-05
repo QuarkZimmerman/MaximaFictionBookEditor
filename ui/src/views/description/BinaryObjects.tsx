@@ -31,6 +31,7 @@ import { RpcError } from '@/rpc/client';
 
 import { EmptyHint, SmallButton } from './fields';
 import { useDescriptionForm } from './formContext';
+import { newIdProblem, renameBinary } from '@/features/images/rename';
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -117,6 +118,35 @@ export function BinaryObjects() {
     }
     removeBinaryFromModel(store, binary.id);
     actions.setStatusMessage(store, t('descriptionForm.binaries.removed', { id: binary.id }));
+  };
+
+  // Feature 009 (US7): Rename… - the id asked for with its reason when it cannot be used.
+  const rename = async (binary: BinaryMeta) => {
+    const model = store.getState().document;
+    if (!model) return;
+    const answer = await dialogs.showInput({
+      caption: t('descriptionForm.binaries.renameCaption'),
+      prompt: t('descriptionForm.binaries.renamePrompt'),
+      defaultValue: binary.id,
+      buttons: 'okCancel',
+      validate: (value) => {
+        const problem = newIdProblem(model, binary.id, value.trim());
+        return problem ? t(problem, { id: value.trim() }) : null;
+      },
+      testId: 'dialog-binary-rename',
+    });
+    const value = answer.value.trim();
+    if (answer.button !== 'ok' || !value || value === binary.id) return;
+    try {
+      await renameBinary(ctx, binary.id, value);
+    } catch (error) {
+      await dialogs.showMessage({
+        text: error instanceof Error ? error.message : String(error),
+        caption: ctx.t('dialog.error.caption'),
+        icon: 'error',
+        testId: 'binary-objects-rename-failed',
+      });
+    }
   };
 
   return (
@@ -235,6 +265,14 @@ export function BinaryObjects() {
                   </td>
                   <td>{refs}</td>
                   <td>
+                    <SmallButton
+                      testId={`binary-objects-rename-${binary.id}`}
+                      onClick={() => void rename(binary)}
+                      title={t('descriptionForm.binaries.rename')}
+                      disabled={!rpc || !connected || readOnly}
+                    >
+                      {t('descriptionForm.binaries.rename')}
+                    </SmallButton>
                     <SmallButton
                       testId={`binary-objects-remove-${binary.id}`}
                       onClick={() => void remove(binary)}

@@ -43,6 +43,10 @@ public:
     model::BinaryMeta put(const std::string& id, const std::string& content_type, std::string bytes,
                           bool raw_text = false);
     bool remove(const std::string& id);
+    // Feature 009 (binary.rename): the object of `old_id` under `new_id` - its bytes, spill file,
+    // metadata and place in document order kept. False when `old_id` is unknown or `new_id`
+    // taken.
+    bool rename(const std::string& old_id, const std::string& new_id);
     bool contains(const std::string& id) const;
     std::optional<model::BinaryMeta> meta(const std::string& id) const;
     // Updates mutable metadata (reference count, conversion flag); size always follows bytes.
