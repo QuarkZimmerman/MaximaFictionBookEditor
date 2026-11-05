@@ -105,6 +105,25 @@ async function clickIntoParagraph(page: Page): Promise<void> {
   await page.waitForTimeout(80);
 }
 
+/** The caret at the very end of the paragraph, set as the DOM selection the editor follows. */
+async function clickParagraphEnd(page: Page): Promise<void> {
+  await paragraph(page).evaluate((p) => {
+    const doc = p.ownerDocument;
+    (p.closest('[contenteditable="true"]') as unknown as { focus(): void }).focus();
+    const walker = doc.createTreeWalker(p, 4 /* NodeFilter.SHOW_TEXT */);
+    let last: { length: number } | null = null;
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) last = node as never;
+    const range = doc.createRange();
+    range.setStart(last as never, last!.length);
+    range.collapse(true);
+    const selection = doc.getSelection()!;
+    selection.removeAllRanges();
+    selection.addRange(range);
+  });
+  await expect(page.getByTestId('status-path')).toHaveText(/\/p\[\d+\]$/);
+  await page.waitForTimeout(80);
+}
+
 /** Save As to `file` through the queued native dialog; returns the written text. */
 async function saveAs(core: CoreHandle, page: Page, file: string): Promise<string> {
   await core.enqueueDialog('dialog.saveFile', { path: file, encoding: 'utf-8' });
@@ -209,8 +228,10 @@ test.describe('US7 - images and binary objects', () => {
   }) => {
     await openViaDialog(core, page, book(dir, 'insert.fb2'));
 
-    // Block image: the prompt appears (setting on); "No" opens the file dialog.
-    await clickIntoParagraph(page);
+    // Block image: the prompt appears (setting on); "No" opens the file dialog. At the
+    // paragraph's end the picture follows it (feature 009, data-model §11): the section's own
+    // picture keeps its place for Add > Section image below.
+    await clickParagraphEnd(page);
     await core.enqueueDialog('dialog.openFile', { paths: [image('tiny.jpg')] });
     await menu(page, 'add', 'image');
     const prompt = page.getByTestId('dialog-insert-clear-image');
@@ -235,8 +256,9 @@ test.describe('US7 - images and binary objects', () => {
     await page.getByTestId('dialog-insert-clear-image-button-no').click();
     await expect(page.getByTestId('body-inline-image')).toHaveAttribute('data-href', '#tiny.png');
 
-    // Section image with "Don't ask again" + Yes: a clear image, the answer is persisted.
-    await clickIntoParagraph(page);
+    // Section image with "Don't ask again" + Yes: a clear image, the answer is persisted. (The
+    // paragraph's start holds the inline image now: the caret goes to its end.)
+    await clickParagraphEnd(page);
     await menu(page, 'add', 'sectionImage');
     await page.getByTestId('dialog-insert-clear-image-dontask').check();
     await page.getByTestId('dialog-insert-clear-image-button-yes').click();
@@ -252,7 +274,7 @@ test.describe('US7 - images and binary objects', () => {
     await setSettings(core, { insertClearImages: false });
     await page.waitForTimeout(200); // the settings.changed notification reaches the UI
     for (const name of ['tiny.gif', 'tiny.bmp', 'tiny.webp', 'tiny.tif']) {
-      await clickIntoParagraph(page);
+      await clickParagraphEnd(page);
       await core.enqueueDialog('dialog.openFile', { paths: [image(name)] });
       await menu(page, 'add', 'image');
       await expect(page.getByTestId('dialog-insert-clear-image')).toHaveCount(0);
@@ -418,7 +440,12 @@ test.describe('US7 - images and binary objects', () => {
       paths: [image('alpha.png'), image('alpha.webp')],
     });
     await menu(page, 'add', 'binary');
-    await expect(page.getByTestId('status-message')).toHaveText('2 binary objects added');
+    // WebP is converted on save: the summary of the two files says so (feature 009, US9).
+    const summary = page.getByTestId('dialog-binaries-summary');
+    await expect(summary.getByTestId('dialog-binaries-summary-text')).toContainText(
+      'Will be converted to JPEG or PNG when the book is saved: alpha.webp',
+    );
+    await summary.getByTestId('dialog-binaries-summary-button-ok').click();
     await expect(page.getByTestId('body-image')).toHaveCount(0);
     await page.getByTestId('view-description').click();
     await expect(page.getByTestId('binary-objects-row-alpha.png')).toHaveAttribute(

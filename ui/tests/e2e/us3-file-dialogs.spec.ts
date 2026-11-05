@@ -210,6 +210,25 @@ async function clickIntoParagraph(page: Page): Promise<void> {
   await page.waitForTimeout(80);
 }
 
+/** The caret at the very end of the paragraph, set as the DOM selection the editor follows. */
+async function clickParagraphEnd(page: Page): Promise<void> {
+  await paragraph(page).evaluate((p) => {
+    const doc = p.ownerDocument;
+    (p.closest('[contenteditable="true"]') as unknown as { focus(): void }).focus();
+    const walker = doc.createTreeWalker(p, 4 /* NodeFilter.SHOW_TEXT */);
+    let last: { length: number } | null = null;
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) last = node as never;
+    const range = doc.createRange();
+    range.setStart(last as never, last!.length);
+    range.collapse(true);
+    const selection = doc.getSelection()!;
+    selection.removeAllRanges();
+    selection.addRange(range);
+  });
+  await expect(page.getByTestId('status-path')).toHaveText(/\/p\[\d+\]$/);
+  await page.waitForTimeout(80);
+}
+
 for (const language of ['en', 'ru', 'uk'] as const) {
   const names = NAMES[language];
 
@@ -317,8 +336,10 @@ for (const language of ['en', 'ru', 'uk'] as const) {
         await expect(page.getByTestId('body-view')).toBeVisible();
         const folder = KEEPS_LAST_FOLDER ? books : undefined;
 
-        // Block, inline and section image: "Supported images" selected, no "All files".
-        await clickIntoParagraph(page);
+        // Block, inline and section image: "Supported images" selected, no "All files". At the
+        // paragraph's end the block picture follows it (feature 009, data-model §11), leaving the
+        // section's own picture free for the section image.
+        await clickParagraphEnd(page);
         await core.enqueueDialog('dialog.openFile', { paths: [image('tiny.jpg')] });
         const block = await requestOf(core, () => menu(page, 'add', 'image'));
         expect(block).toMatchObject({

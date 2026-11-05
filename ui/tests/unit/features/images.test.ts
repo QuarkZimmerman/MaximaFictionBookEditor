@@ -300,7 +300,9 @@ describe('Add-menu image commands (T093)', () => {
       path: '/pictures/tiny.png',
       suggestedId: 'tiny.png',
     });
-    expect(section(store).content.map((c) => c.type)).toEqual(['p', 'image']);
+    // The harness's caret is inside the paragraph: it is split around the picture (feature 009,
+    // data-model §11).
+    expect(section(store).content.map((c) => c.type)).toEqual(['p', 'image', 'p']);
     expect(section(store).content[1]!.attrs).toMatchObject({ href: '#tiny.png' });
     expect(store.getState().document!.binaries).toEqual([META]);
     expect(store.getState().modified).toBe(true);
@@ -356,7 +358,11 @@ describe('Add-menu image commands (T093)', () => {
     expect(store.getState().document!.binaries.map((b) => b.id)).toEqual(['a.gif', 'b.webp']);
     expect(section(store).content.map((c) => c.type)).toEqual(['p']);
     expect(store.getState().modified).toBe(true);
-    expect(store.getState().statusMessage).toBe('2 binary objects added');
+    // Two files converted on save: the summary says so (feature 009, US9 scenario 3).
+    expect(ctx.dialogs.shown.at(-1)).toMatchObject({ testId: 'dialog-binaries-summary' });
+    expect(ctx.dialogs.shown.at(-1)?.text).toContain(
+      'Will be converted to JPEG or PNG when the book is saved: a.gif, b.webp',
+    );
   });
 });
 

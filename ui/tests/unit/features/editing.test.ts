@@ -357,7 +357,8 @@ describe('images and windowed documents', () => {
     await services.commands.execute('insert.image', ctx);
     expect(ctx.dialogs.shown.at(-1)?.text).toBe('Insert clear image?');
     let section = store.getState().document!.bodies[0]!.content[1] as SectionNode;
-    expect(section.content.map((c) => c.type)).toEqual(['title', 'p', 'image', 'p']);
+    // The caret inside p1 splits it around the picture (feature 009, data-model §11).
+    expect(section.content.map((c) => c.type)).toEqual(['title', 'p', 'image', 'p', 'p']);
     expect(section.content[2]!.attrs).toMatchObject({ href: '#cover.jpg' });
     expect(store.getState().statusMessage).toContain('#cover.jpg');
     // With binary.add available the new binary is referenced and listed.

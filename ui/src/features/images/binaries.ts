@@ -112,29 +112,51 @@ export interface AddFileOptions {
 }
 
 /** Lets the user pick image files and embeds them; empty when cancelled. */
+/** A file that could not be added (feature 009, User Story 9): its name and why. */
+export interface FailedFile {
+  file: string;
+  reason: string;
+  error: unknown;
+}
+
+/** The chosen files' outcomes: each one added or failed on its own (data-model §12). */
+export interface AddedFiles {
+  added: BinaryMeta[];
+  failed: FailedFile[];
+}
+
 export async function addBinariesFromFiles(
   rpc: RpcClient,
   docId: string,
   options: AddFileOptions,
-): Promise<BinaryMeta[]> {
+): Promise<AddedFiles> {
   const { paths } = await rpc.call('dialog.openFile', {
     title: options.title,
     filters: options.filters,
     selectedFilter: options.selectedFilter,
     multiple: options.multiple,
   });
-  const out: BinaryMeta[] = [];
+  const added: BinaryMeta[] = [];
+  const failed: FailedFile[] = [];
   for (const path of paths) {
-    out.push(
-      await rpc.call('binary.add', {
-        docId,
-        path,
-        suggestedId: fileName(path),
-        convertNow: options.convertNow,
-      }),
-    );
+    try {
+      added.push(
+        await rpc.call('binary.add', {
+          docId,
+          path,
+          suggestedId: fileName(path),
+          convertNow: options.convertNow,
+        }),
+      );
+    } catch (error) {
+      failed.push({
+        file: fileName(path),
+        reason: error instanceof Error ? error.message : String(error),
+        error,
+      });
+    }
   }
-  return out;
+  return { added, failed };
 }
 
 export async function addBinaryFromFile(
@@ -142,7 +164,9 @@ export async function addBinaryFromFile(
   docId: string,
   options: AddFileOptions,
 ): Promise<BinaryMeta | null> {
-  const added = await addBinariesFromFiles(rpc, docId, { ...options, multiple: false });
+  const { added, failed } = await addBinariesFromFiles(rpc, docId, { ...options, multiple: false });
+  // A single file behaves as before (US9 scenario 5): its failure is the command's.
+  if (failed[0]) throw failed[0].error;
   return added[0] ?? null;
 }
 
@@ -155,6 +179,15 @@ export function addBinaryToModel(store: AppStore, meta: BinaryMeta): void {
   const document = store.getState().document;
   if (!document) return;
   const binaries = document.binaries.filter((b) => b.id !== meta.id).concat(meta);
+  store.setState({ document: { ...document, binaries } });
+}
+
+/** Feature 009 (US9): several new binaries in the model at once - one update. */
+export function addBinariesToModel(store: AppStore, metas: readonly BinaryMeta[]): void {
+  const document = store.getState().document;
+  if (!document || metas.length === 0) return;
+  const ids = new Set(metas.map((meta) => meta.id));
+  const binaries = document.binaries.filter((b) => !ids.has(b.id)).concat(metas);
   store.setState({ document: { ...document, binaries } });
 }
 

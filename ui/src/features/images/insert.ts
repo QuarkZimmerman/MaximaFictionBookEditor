@@ -40,7 +40,8 @@ import { actions } from '@/model/store';
 import { RpcError } from '@/rpc/client';
 import { RpcErrorCode } from '@/rpc/types';
 
-import { addBinariesFromFiles, addBinaryToModel, fileName } from './binaries';
+import { showsSummary, summarize, summaryText } from './addSummary';
+import { addBinariesFromFiles, addBinariesToModel, addBinaryToModel, fileName } from './binaries';
 import { rememberCommandContext } from './context';
 
 export type ImageKind = 'block' | 'inline' | 'section';
@@ -236,18 +237,33 @@ export async function addBinaryObjects(ctx: CommandContext): Promise<number> {
   const { store, rpc } = ctx;
   const docId = store.getState().docId;
   if (!rpc || !docId) return 0;
-  const added = await addBinariesFromFiles(rpc, docId, {
+  const outcome = await addBinariesFromFiles(rpc, docId, {
     title: ctx.t('dialog.addImage.chooseBinaries'),
     filters: binaryFileTypes(ctx.t),
     selectedFilter: BINARY_SELECTED_TYPE,
     multiple: true,
   });
-  for (const meta of added) addBinaryToModel(store, meta);
-  if (added.length > 0) {
-    actions.setModified(store, true);
-    actions.setStatusMessage(store, ctx.t('images.msg.binariesAdded', { count: added.length }));
+  // Every file on its own (feature 009, US9): the successes in the model at once (§12).
+  addBinariesToModel(store, outcome.added);
+  if (outcome.added.length > 0) actions.setModified(store, true);
+  const summary = summarize(outcome);
+  if (showsSummary(summary)) {
+    await ctx.dialogs.showMessage({
+      caption: ctx.t('images.summary.caption'),
+      text: summaryText(ctx.t, summary),
+      icon: summary.failed.length > 0 ? 'warning' : 'info',
+      testId: 'dialog-binaries-summary',
+    });
+  } else if (outcome.added.length === 0 && outcome.failed[0]) {
+    // A single file behaves as before: its failure is the command's.
+    throw outcome.failed[0].error;
+  } else if (outcome.added.length > 0) {
+    actions.setStatusMessage(
+      store,
+      ctx.t('images.msg.binariesAdded', { count: outcome.added.length }),
+    );
   }
-  return added.length;
+  return outcome.added.length;
 }
 
 export function registerImageCommands(registry: CommandRegistry): void {

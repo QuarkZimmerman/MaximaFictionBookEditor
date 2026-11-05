@@ -179,12 +179,12 @@ describe('Add menu commands (T059)', () => {
     expect(addTextAuthor(stateAt(simpleBook, posOf(simpleBook, 'First')))).toBe(false);
   });
 
-  it('insertImage adds a block image after the paragraph, never as the first block', () => {
+  it('insertImage at the start of a paragraph adds the block image before it (feature 009, §11)', () => {
     const next = run(
       stateAt(simpleBook, posOf(simpleBook, 'First')),
       insertImage({ href: '#pic.jpg' }),
     )!;
-    expect(names(next.doc.child(0).child(1))).toEqual(['title', 'p', 'image', 'p']);
+    expect(names(next.doc.child(0).child(1))).toEqual(['title', 'image', 'p', 'p']);
     expect(next.selection).toBeInstanceOf(NodeSelection);
     // In a section whose only paragraph would be followed by the image: fine (image is 2nd).
     // Inside a title paragraph: disabled.

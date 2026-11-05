@@ -332,6 +332,13 @@ for (const dpr of [1, 2, 3] as const) {
       await expect
         .poll(async () => (await toolbarImages(page)).every((i) => i.complete))
         .toBe(true);
+      // A loaded image can still be laid out a moment later (width 0 under a busy machine):
+      // wait until every bitmap has its natural CSS size, then check each one.
+      await expect
+        .poll(async () =>
+          (await toolbarImages(page)).filter((i) => i.width !== i.natural).map((i) => i.src),
+        )
+        .toEqual([]);
       for (const image of await toolbarImages(page)) {
         // Bitmaps are shown at their natural CSS size: no fractional resampling at 1x.
         expect(image.width, image.src).toBe(image.natural);

@@ -236,7 +236,12 @@ export interface ImageAttrs {
   title?: string | null;
 }
 
-/** Block image after the current paragraph of a section (`InsImage`). */
+/**
+ * Block image at the caret of a paragraph directly in a section (`InsImage`; feature 009,
+ * User Story 8, data-model §11): before the paragraph at its start, after it at its end,
+ * between its two halves inside it (the second half without an `id`), in place of an empty
+ * paragraph. A selection uses its start. One transaction, so one undo step.
+ */
 export function insertImage(attrs: ImageAttrs = { href: CLEAR_IMAGE_HREF }): Command {
   return (state, dispatch) => {
     const { $from } = state.selection;
@@ -244,16 +249,49 @@ export function insertImage(attrs: ImageAttrs = { href: CLEAR_IMAGE_HREF }): Com
     if (!section || !$from.parent.isTextblock) return false;
     // The paragraph must be a direct child of the section.
     if ($from.depth !== section.depth + 1) return false;
-    const index = $from.index(section.depth) + 1;
-    if (!canInsertAt(section.node, index, N.image!)) return false;
+    const block = $from.parent;
+    const at = $from.index(section.depth);
+    const offset = $from.parentOffset;
+    let place: 'before' | 'after' | 'split' | 'replace' =
+      block.content.size === 0
+        ? 'replace'
+        : offset === 0
+          ? 'before'
+          : offset === block.content.size
+            ? 'after'
+            : 'split';
+    // Where no picture may stand before the paragraph (after a section's annotation, say),
+    // the picture follows it, as before feature 009.
+    if ((place === 'before' || place === 'replace') && !canInsertAt(section.node, at, N.image!)) {
+      place = 'after';
+    }
+    if ((place === 'after' || place === 'split') && !canInsertAt(section.node, at + 1, N.image!)) {
+      return false;
+    }
     if (dispatch) {
-      const pos = $from.after();
       const image = N.image!.create({
         href: attrs.href,
         alt: attrs.alt ?? null,
         title: attrs.title ?? null,
       });
-      const tr = state.tr.insert(pos, image);
+      const tr = state.tr;
+      let pos: number;
+      if (place === 'replace') {
+        pos = $from.before();
+        tr.replaceWith(pos, $from.after(), image);
+      } else if (place === 'before') {
+        pos = $from.before();
+        tr.insert(pos, image);
+      } else if (place === 'after') {
+        pos = $from.after();
+        tr.insert(pos, image);
+      } else {
+        tr.split($from.pos, 1, [
+          { type: block.type, attrs: { ...block.attrs, id: null, nodeId: null } },
+        ]);
+        pos = $from.pos + 1;
+        tr.insert(pos, image);
+      }
       dispatch(selectInside(tr, pos).scrollIntoView());
     }
     return true;
