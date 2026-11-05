@@ -8,12 +8,13 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 ### In short
 
 - Several editor windows; books open from the file manager again
-- Safeguards for the footnote and comment scripts
-- Spell check with English and Russian by default
-- Link targets list in the Links bar
-- Cover picture view
-- Option to start the editor after installation
-- Busy pointer while the AI assistant works
+- Books in ZIP archives open and save; every save keeps a backup of the previous version
+- Note text on hover; Ctrl+click follows links; Paste as plain text
+- More in the status bar; attribute and value completion in the Source view
+- Pictures: rename, placement at the caret, several files at once
+- Spell check with English and Russian by default; safeguards for the footnote scripts
+- Link targets list in the Links bar; cover picture view
+- Option to start the editor after installation; busy pointer while the AI assistant works
 
 ### Added
 
@@ -28,6 +29,25 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 - The Windows installer's last page offers to launch the editor.
 - While the AI assistant works, the pointer over the text, the banner and the status bar show
   a turning atom.
+- Saving keeps the previous version of the book beside it as `<name>.bak` (Settings > Other,
+  on by default); the save itself stays safe if the backup cannot be made.
+- Books inside ZIP archives open by every route - File > Open, the file manager, the command
+  line, dragging and Recent files; an archive with several books asks which one to open. Save
+  As can put the book into a ZIP archive, and an archive's other files are never lost silently.
+- Resting the pointer on a note mark shows the note's text; Ctrl+click (Cmd+click on macOS)
+  follows a link, and Go to footnote or reference returns to the link.
+- Edit > Paste as plain text (Ctrl+Shift+V) pastes the clipboard's text without formatting,
+  links or pictures, also from the context menus.
+- The status bar shows the position, the selection's counts, the character before the caret
+  with its code and name, the encoding and the validity; a right-click chooses the panes.
+- The Source view completes attributes and their values: ids after `#`, pictures, link types,
+  alignments, genres and languages.
+- A binary object can be renamed from the Binary objects list; every reference follows, and
+  one Undo restores the old name.
+- Add > Image puts the picture at the caret: before the paragraph, between its two halves,
+  after it, or in place of an empty paragraph.
+- Adding several binary objects adds each file on its own, then lists the files that failed
+  and the pictures that will be converted on save.
 
 ### Fixed
 
