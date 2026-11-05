@@ -353,8 +353,13 @@
       "children": ["output-document-class", "part"],
       "attributes": [
         { "name": "currency", "required": false, "type": "xs:string" },
-        { "name": "include-all", "required": true, "type": "docGenerationInstructionType" },
-        { "name": "mode", "required": true, "type": "shareModesType" },
+        {
+          "name": "include-all",
+          "required": true,
+          "type": "docGenerationInstructionType",
+          "values": ["require", "allow", "deny"]
+        },
+        { "name": "mode", "required": true, "type": "shareModesType", "values": ["free", "paid"] },
         { "name": "price", "required": false, "type": "xs:float" }
       ],
       "text": false,
@@ -363,7 +368,12 @@
     "output-document-class": {
       "children": ["part"],
       "attributes": [
-        { "name": "create", "required": false, "type": "docGenerationInstructionType" },
+        {
+          "name": "create",
+          "required": false,
+          "type": "docGenerationInstructionType",
+          "values": ["require", "allow", "deny"]
+        },
         { "name": "name", "required": true, "type": "xs:string" },
         { "name": "price", "required": false, "type": "xs:float" }
       ],
@@ -408,7 +418,12 @@
     "part": {
       "children": [],
       "attributes": [
-        { "name": "include", "required": true, "type": "docGenerationInstructionType" },
+        {
+          "name": "include",
+          "required": true,
+          "type": "docGenerationInstructionType",
+          "values": ["require", "allow", "deny"]
+        },
         { "name": "xlink:href", "required": true, "type": "xs:string" },
         { "name": "xlink:type", "required": false, "type": "xs:string" }
       ],
@@ -755,12 +770,22 @@
         "sup"
       ],
       "attributes": [
-        { "name": "align", "required": false, "type": "alignType" },
+        {
+          "name": "align",
+          "required": false,
+          "type": "alignType",
+          "values": ["left", "right", "center"]
+        },
         { "name": "colspan", "required": false, "type": "xs:integer" },
         { "name": "id", "required": false, "type": "xs:ID" },
         { "name": "rowspan", "required": false, "type": "xs:integer" },
         { "name": "style", "required": false, "type": "xs:string" },
-        { "name": "valign", "required": false, "type": "vAlignType" },
+        {
+          "name": "valign",
+          "required": false,
+          "type": "vAlignType",
+          "values": ["top", "middle", "bottom"]
+        },
         { "name": "xml:lang", "required": false, "type": "xs:language" }
       ],
       "text": true,
@@ -829,12 +854,22 @@
         "sup"
       ],
       "attributes": [
-        { "name": "align", "required": false, "type": "alignType" },
+        {
+          "name": "align",
+          "required": false,
+          "type": "alignType",
+          "values": ["left", "right", "center"]
+        },
         { "name": "colspan", "required": false, "type": "xs:integer" },
         { "name": "id", "required": false, "type": "xs:ID" },
         { "name": "rowspan", "required": false, "type": "xs:integer" },
         { "name": "style", "required": false, "type": "xs:string" },
-        { "name": "valign", "required": false, "type": "vAlignType" },
+        {
+          "name": "valign",
+          "required": false,
+          "type": "vAlignType",
+          "values": ["top", "middle", "bottom"]
+        },
         { "name": "xml:lang", "required": false, "type": "xs:language" }
       ],
       "text": true,
@@ -896,7 +931,14 @@
     },
     "tr": {
       "children": ["td", "th"],
-      "attributes": [{ "name": "align", "required": false, "type": "alignType" }],
+      "attributes": [
+        {
+          "name": "align",
+          "required": false,
+          "type": "alignType",
+          "values": ["left", "right", "center"]
+        }
+      ],
       "text": false,
       "model": {
         "final": [1],

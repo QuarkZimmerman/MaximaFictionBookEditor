@@ -747,7 +747,7 @@
         "showWhitespace": "Show white spaces",
         "lineNumbers": "Show line numbers",
         "matchTags": "Highlight matched tags",
-        "tagCompletion": "Tag completion",
+        "tagCompletion": "Completion in the Source view (tags, attributes, values)",
         "spellcheck": "Spellcheck",
         "useSpellchecker": "Use spellchecker",
         "highlightMisspelled": "Highlight misspelled words",

@@ -52,6 +52,7 @@ import type { SyntaxNode } from '@lezer/common';
 import type { AppStore } from '@/model/store';
 
 import type { ContentModel } from './contentModel';
+import { attributeCompletion } from './attributeCompletion';
 import fb2ElementsJson from './fb2Elements.json';
 
 /* ------------------------------------------------------------------------ */
@@ -63,6 +64,8 @@ export interface Fb2Attribute {
   name: string;
   required: boolean;
   type?: string;
+  /** Feature 009 (US6): the values of an enumerated simple type (`align`, `valign`). */
+  values?: string[];
 }
 
 export interface Fb2Elements {
@@ -295,7 +298,8 @@ export function sourceCompletionExtension(on: boolean): Extension {
   if (!on) return [];
   return [
     autocompletion({
-      override: [fb2Completion],
+      // Feature 009 (US6): attributes, values and the text of genre, lang and src-lang too.
+      override: [fb2Completion, attributeCompletion],
       activateOnTyping: true,
       icons: false,
       filterStrict: true,
