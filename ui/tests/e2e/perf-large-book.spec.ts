@@ -238,12 +238,14 @@ test.describe('performance - 10 MB text book', () => {
     await page.keyboard.press('ArrowUp');
     await page.keyboard.press(LINE_END);
 
-    // The list after `<sec` (section is offered whether or not the parser has reached here).
+    // The list after `<sub` (a subtitle fits after the section's last paragraph, and is offered
+    // whether or not the parser has reached here; since feature 009 the list follows the content
+    // model, so a section, which may not follow a paragraph, is not offered).
     const list = page.locator('.cm-tooltip-autocomplete');
     await page.evaluate(INSTALL_COMPLETION_TIMER);
-    await page.keyboard.type('<sec');
+    await page.keyboard.type('<sub');
     await expect(list).toBeVisible({ timeout: 5_000 });
-    await expect(list.locator('li[role="option"]')).toContainText(['section']);
+    await expect(list.locator('li[role="option"]')).toContainText(['subtitle']);
     const listAfterMs = await page.evaluate<number>(COMPLETION_LATENCY);
     test.info().annotations.push({
       type: 'perf',
@@ -254,12 +256,12 @@ test.describe('performance - 10 MB text book', () => {
       COMPLETION_LIST_BUDGET_MS,
     );
 
-    // Keystrokes with the list open (`tion` keeps filtering it) and after the space closed it.
+    // Keystrokes with the list open (`title` keeps filtering it) and after the space closed it.
     const samples: number[] = [];
-    for (const character of 'tion') {
+    for (const character of 'title') {
       samples.push(await page.evaluate<number>(typeAndMeasure(character)));
     }
-    await expect(list.locator('li[role="option"]')).toHaveText(['section']);
+    await expect(list.locator('li[role="option"]')).toHaveText(['subtitle']);
     for (const character of ' id="x"') {
       samples.push(await page.evaluate<number>(typeAndMeasure(character)));
     }
@@ -273,7 +275,7 @@ test.describe('performance - 10 MB text book', () => {
       typical,
       `Source keystroke latencies ${samples.map((s) => s.toFixed(0)).join(', ')} ms`,
     ).toBeLessThan(KEYSTROKE_BUDGET_MS);
-    await expect(activeLine).toContainText('<section id="x"');
+    await expect(activeLine).toContainText('<subtitle id="x"');
     await expect(page).toHaveTitle(/^large\.fb2\* - /);
   });
 
