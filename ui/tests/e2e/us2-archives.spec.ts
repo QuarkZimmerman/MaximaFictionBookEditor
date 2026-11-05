@@ -109,6 +109,47 @@ test.describe('US2 (feature 009) - books in ZIP archives', () => {
     expect(existsSync(`${archive}.bak`)).toBe(false);
   });
 
+  test('the validation question comes before Save As; No saves nothing and asks for no file', async ({
+    core,
+    page,
+  }) => {
+    // The requester at the smoke test of 0.0.7-rc.5: who does not want an invalid book saved stops
+    // at the question, before choosing a file.
+    const archive = copyOf('single.fb2.zip', 'invalid.fb2.zip');
+    const original = readFileSync(archive);
+    await core.openApp(page);
+    await openThroughDialog(core, page, archive);
+    await expect(page).toHaveTitle(`book.fb2 (invalid.fb2.zip) - ${APP_TITLE}`);
+    // An element the schema does not allow, typed into the Source view: the book is invalid now.
+    await page.getByTestId('view-source').click();
+    await expect(page.getByTestId('source-view')).toHaveAttribute('data-status', 'ready');
+    await page.locator('.mfbe-source-editor .cm-content').click();
+    await page.keyboard.press(`${MOD}+f`);
+    await page.getByTestId('dialog-find-query').fill('</section>');
+    await page.getByTestId('dialog-find-button-findNext').click();
+    await page.getByTestId('dialog-find-button-cancel').click();
+    await page.locator('.mfbe-source-editor .cm-content').focus();
+    await page.keyboard.press('ArrowLeft');
+    await page.keyboard.type('<zzz/>');
+    await page.keyboard.press('Escape');
+    const plain = path.join(dir, 'invalid-saved.fb2');
+    await core.enqueueDialog('dialog.saveFile', { path: plain, encoding: 'utf-8', zip: false });
+    const question = page.getByTestId('dialog-validation-failed');
+    await page.keyboard.press(`${MOD}+s`);
+    await expect(question).toBeVisible();
+    await question.getByTestId('dialog-validation-failed-button-no').click();
+    await expect(question).toHaveCount(0);
+    await page.waitForTimeout(500);
+    expect(existsSync(plain)).toBe(false);
+    expect(readFileSync(archive).equals(original)).toBe(true);
+    // Yes: then Save As (the queued answer, still unused) and the save.
+    await page.keyboard.press(`${MOD}+s`);
+    await expect(question).toBeVisible();
+    await question.getByTestId('dialog-validation-failed-button-yes').click();
+    await expect.poll(() => existsSync(plain)).toBe(true);
+    expect(readFileSync(archive).equals(original)).toBe(true);
+  });
+
   test('2, 3. several books: the chooser and its filter; Cancel keeps the window\u2019s book', async ({
     core,
     page,

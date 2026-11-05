@@ -36,6 +36,8 @@ async function setup(options: { keepBackup?: boolean; customAnswers?: unknown[] 
     'doc.watch': {},
     'doc.position': {},
     'doc.recent': [],
+    // Feature 009: Save As validates first (the requester at the smoke test of 0.0.7-rc.5).
+    'doc.validate': { errorCount: 0, warningCount: 0, issues: [] },
     'doc.save': saved,
     'dialog.saveFile': { path: '/books/copy.fb2', encoding: 'utf-8' },
   });

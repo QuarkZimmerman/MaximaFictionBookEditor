@@ -158,12 +158,22 @@ async function recordsDialogs(core: CoreHandle): Promise<boolean> {
 }
 
 /** Runs `action` and returns the first file dialog request it caused, as the core got it. */
-async function requestOf(core: CoreHandle, action: () => Promise<void>): Promise<DialogRequest> {
+async function requestOf(
+  core: CoreHandle,
+  action: () => Promise<void>,
+  page?: Page,
+): Promise<DialogRequest> {
   const before = (await core.rpc<DialogRequest[]>('test.dialogRequests')).length;
   await action();
   let requests: DialogRequest[] = [];
+  // Since feature 009 an invalid book's validation question comes before the Save dialog (the
+  // requester at the smoke test of 0.0.7-rc.5): Yes, then the dialog is asked for.
+  const question = page?.getByTestId('dialog-validation-failed');
   await expect
     .poll(async () => {
+      if (question && (await question.count()) > 0) {
+        await question.getByTestId('dialog-validation-failed-button-yes').click();
+      }
       requests = await core.rpc<DialogRequest[]>('test.dialogRequests');
       return requests.length;
     })
@@ -188,7 +198,7 @@ async function menu(page: Page, menuId: string, itemId: string): Promise<void> {
 /** File > Open answered with `file`; waits until the book is the open document. */
 async function openBook(core: CoreHandle, page: Page, file: string): Promise<DialogRequest> {
   await core.enqueueDialog('dialog.openFile', { paths: [file] });
-  const request = await requestOf(core, () => menu(page, 'file', 'open'));
+  const request = await requestOf(core, () => menu(page, 'file', 'open'), page);
   await waitForBook(page, file);
   return request;
 }
@@ -196,7 +206,7 @@ async function openBook(core: CoreHandle, page: Page, file: string): Promise<Dia
 /** File > Save As, cancelled. */
 async function saveAsCancelled(core: CoreHandle, page: Page): Promise<DialogRequest> {
   await core.enqueueDialog('dialog.saveFile', {});
-  return requestOf(core, () => menu(page, 'file', 'saveAs'));
+  return requestOf(core, () => menu(page, 'file', 'saveAs'), page);
 }
 
 function paragraph(page: Page): Locator {
@@ -296,7 +306,7 @@ for (const language of ['en', 'ru', 'uk'] as const) {
 
       // The next Open starts in the folder of the last one.
       await core.enqueueDialog('dialog.openFile', { paths: [] });
-      const again = await requestOf(core, () => menu(page, 'file', 'open'));
+      const again = await requestOf(core, () => menu(page, 'file', 'open'), page);
       expect(again.selectedFilter).toBe(0);
       expect(again.folder).toBe(KEEPS_LAST_FOLDER ? books : undefined);
 
@@ -341,7 +351,7 @@ for (const language of ['en', 'ru', 'uk'] as const) {
         // section's own picture free for the section image.
         await clickParagraphEnd(page);
         await core.enqueueDialog('dialog.openFile', { paths: [image('tiny.jpg')] });
-        const block = await requestOf(core, () => menu(page, 'add', 'image'));
+        const block = await requestOf(core, () => menu(page, 'add', 'image'), page);
         expect(block).toMatchObject({
           method: 'dialog.openFile',
           mode: 'open',
@@ -355,7 +365,7 @@ for (const language of ['en', 'ru', 'uk'] as const) {
         for (const command of ['inlineImage', 'sectionImage']) {
           await clickIntoParagraph(page);
           await core.enqueueDialog('dialog.openFile', { paths: [] });
-          const request = await requestOf(core, () => menu(page, 'add', command));
+          const request = await requestOf(core, () => menu(page, 'add', command), page);
           expect(request, command).toMatchObject({
             mode: 'open',
             filters: imageTypes(names),
@@ -385,7 +395,7 @@ for (const language of ['en', 'ru', 'uk'] as const) {
 
         // Add Binary Object: "All files" first, "Supported images" selected, several files.
         await core.enqueueDialog('dialog.openFile', { paths: [] });
-        const binary = await requestOf(core, () => menu(page, 'add', 'binary'));
+        const binary = await requestOf(core, () => menu(page, 'add', 'binary'), page);
         expect(binary).toMatchObject({
           method: 'dialog.openFile',
           mode: 'openMultiple',

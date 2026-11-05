@@ -1445,6 +1445,15 @@ async function saveThroughGtkDialog(page, env, dialogTitle, file, typed) {
   const item = page.locator('[data-testid="menu-file-saveAs"]');
   await item.waitFor({ state: 'visible', timeout: timeoutMs });
   await item.click();
+  // Since feature 009 the validation question of an invalid book comes before the dialog (the
+  // requester at the smoke test of 0.0.7-rc.5): Yes, then the dialog. A valid book asks nothing.
+  const question = page.locator('[data-testid="dialog-validation-failed"]');
+  try {
+    await question.waitFor({ state: 'visible', timeout: 5000 });
+    await question.locator('[data-testid="dialog-validation-failed-button-yes"]').click();
+  } catch {
+    // no question: the book is valid
+  }
   const dialog = await waitForWindow(env, dialogTitle);
   xdotool(env, 'windowactivate', '--sync', dialog);
   await sleep(500);

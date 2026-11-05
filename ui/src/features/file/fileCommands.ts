@@ -931,6 +931,24 @@ export class FileFeature {
   /* ------------------------------------------------------------------- save */
 
   /** Save / Save As. Returns true when the file was written. */
+  /** The book's validation as Save judges it (no panel, no message), or null without a core. */
+  private async validationBeforeSave(ctx: CommandContext): Promise<ValidationReport | null> {
+    const { store, rpc } = ctx;
+    const state = store.getState();
+    if (!rpc || !state.document || !state.docId) return null;
+    const session = sourceSession(store);
+    const useText = (state.sourceOnly || state.sourceDirty) && session.text !== null;
+    const report = await rpc.runJob(
+      'doc.validate',
+      useText
+        ? { docId: state.docId, text: session.text ?? '' }
+        : { docId: state.docId, document: state.document },
+      { onProgress: (progress) => actions.setProgress(store, progress) },
+    );
+    actions.setProgress(store, null);
+    return report;
+  }
+
   async saveDocument(ctx: CommandContext, options: { saveAs?: boolean }): Promise<boolean> {
     const { store, rpc } = ctx;
     if (!rpc) return false;
@@ -942,12 +960,20 @@ export class FileFeature {
 
     let path = state.path ?? undefined;
     let encoding: string | null;
+    let force = false;
     // Feature 009: a book from a ZIP archive is never saved back into it - every way of saving
     // shows the Save As dialog (D8, D30, FR-017), whose checkbox writes a new ZIP archive.
     const source = state.document.source;
     let archive: { entryName: string } | undefined;
     let zipChecked: boolean | null = null;
     if (options.saveAs || !path || source) {
+      // The validation question comes before the dialog (the requester at the smoke test of
+      // 0.0.7-rc.5): who does not want an invalid book saved stops here, choosing no file.
+      const report = await this.validationBeforeSave(ctx);
+      if (report && report.errorCount > 0) {
+        if (!(await confirmSaveWithErrors(ctx.dialogs, ctx.t, report))) return false;
+        force = true;
+      }
       const selectedFilter = saveAsSelectedType(state.fileKind);
       const startChecked = zipStartState(source !== undefined);
       // The document's own file, or - never saved - the bare name composed from its
@@ -1009,7 +1035,6 @@ export class FileFeature {
       encoding = defaultSaveEncoding(store);
     }
 
-    let force = false;
     for (;;) {
       const current = store.getState();
       if (!current.document || !current.docId) return false;

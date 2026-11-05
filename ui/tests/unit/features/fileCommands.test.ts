@@ -92,6 +92,8 @@ function setup(
     'doc.close': {},
     'doc.position': {},
     'doc.recent': [],
+    // Feature 009: Save As validates first (the requester at the smoke test of 0.0.7-rc.5).
+    'doc.validate': { errorCount: 0, warningCount: 0, issues: [] },
     ...responses,
   });
   const dialogs = fakeDialogs(...answers);
@@ -509,7 +511,11 @@ describe('file flows (T052)', () => {
     dialogs.customAnswers.push(null);
     const before = rpc.calls.length;
     expect(await feature.saveDocument(ctx, { saveAs: true })).toBe(false);
-    expect(rpc.calls.slice(before).map((c) => c.method)).toEqual(['dialog.saveFile']);
+    // Feature 009: the validation comes before the dialog (the requester, smoke test of rc.5).
+    expect(rpc.calls.slice(before).map((c) => c.method)).toEqual([
+      'doc.validate',
+      'dialog.saveFile',
+    ]);
   });
 
   it('Save As: the encoding chosen inside the native dialog is used without the chooser', async () => {

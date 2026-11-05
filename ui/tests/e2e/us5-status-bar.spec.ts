@@ -89,8 +89,10 @@ test.describe('US5 (feature 009) - more in the status bar', () => {
     await expect(page.getByTestId('status-position')).toHaveText(/^Ln \d+, Col \d+$/);
     await page.keyboard.press('Shift+ArrowDown');
     await page.keyboard.press('Shift+ArrowDown');
+    // Two Shift+Down span three lines, or two where a long line wraps (the wider fonts of macOS):
+    // the point is that the Source view adds the line count.
     await expect(page.getByTestId('status-selection')).toHaveText(
-      /^Characters: \d+, words: \d+, lines: 3$/,
+      /^Characters: \d+, words: \d+, lines: [23]$/,
     );
   });
 
