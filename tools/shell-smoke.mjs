@@ -939,10 +939,12 @@ const KEY_SETS = {
   // in every text field); on a link of the interface the engine of CEF 150 in Chrome style asks
   // for nothing either (no OnOpenURLFromTab, no OnBeforePopup; observed 2026-10-31 with real X
   // clicks that reach the link). The interface opens its links in the system browser itself
-  // (ExternalLink, app.openUrl), which a smoke run must not start.
+  // (ExternalLink, app.openUrl), which a smoke run must not start. Since feature 009 (FR-037)
+  // Ctrl+click on the book's web link follows it the same way: the address goes to the system
+  // browser through the core, here to shell-smoke.sh's stand-in xdg-open, which opens nothing.
   links: [
     { keys: { link: 'middle', where: 'body' }, state: 'body', logs: [], outcome: 'kept' },
-    { keys: { link: 'Control', where: 'body' }, state: 'body', logs: [], outcome: 'kept' },
+    { keys: { link: 'Control', where: 'body' }, state: 'body', logs: [], outcome: (ctx) => linkHandedOver(ctx) },
     { keys: { link: 'Shift', where: 'body' }, state: 'body', logs: [], outcome: 'kept' },
     { keys: { link: 'middle', where: 'about' }, state: 'modal', logs: [], outcome: 'kept' },
   ],
@@ -1213,6 +1215,22 @@ async function clickLink(ctx, how, where) {
     xdotool(ctx.env, 'click', '1');
     xdotool(ctx.env, 'keyup', key);
   }
+}
+
+// Feature 009 (FR-037): the book's web link, Ctrl+clicked, reached the system browser - here
+// shell-smoke.sh's stand-in xdg-open, which records the address and opens nothing. Exactly once:
+// the middle-click before it handed nothing over.
+async function linkHandedOver() {
+  const file = process.env.MFBE_SMOKE_OPENED_URLS ?? '';
+  const count = () =>
+    fs.existsSync(file)
+      ? fs.readFileSync(file, 'utf8').split('\n').filter((line) => line === EXTERNAL_LINK).length
+      : 0;
+  await waitUntil(`${EXTERNAL_LINK} handed to the system browser`, async () => count() > 0, timeoutMs);
+  if (count() !== 1) {
+    throw new Error(`${EXTERNAL_LINK} was handed to the system browser ${count()} times`);
+  }
+  return `${EXTERNAL_LINK} handed to the system browser (the smoke's stand-in xdg-open)`;
 }
 
 // A real mouse button over the page (8 = back, 9 = forward).
