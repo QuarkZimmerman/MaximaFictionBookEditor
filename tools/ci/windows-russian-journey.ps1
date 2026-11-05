@@ -820,6 +820,14 @@ function Save-ThroughNativeDialog([string]$ExpectedName, [string]$TypedName, [st
     $null = Get-CdpValue $script:cdp @'
 (() => { setTimeout(() => { (document.activeElement || document.body).dispatchEvent(new KeyboardEvent('keydown', { key: 'F2', code: 'F2', shiftKey: true, bubbles: true, cancelable: true })); }, 300); return true; })()
 '@
+    # Since feature 009 the validation question of an invalid book comes before the Save dialog
+    # (the requester at the smoke test of 0.0.7-rc.5). A new document's description is
+    # incomplete, so the question always comes here: Yes, clicked a moment later like the key
+    # above, since the dialog it opens is modal and the protocol answers nothing while it is open.
+    Wait-Until 'the validation prompt before the Save dialog' { Test-Element 'dialog-validation-failed' }
+    $null = Get-CdpValue $script:cdp @'
+(() => { setTimeout(() => { document.querySelector('[data-testid="dialog-validation-failed-button-yes"]').click(); }, 300); return true; })()
+'@
     $window = Wait-NativeDialog
     Write-Host ("journey: the Save dialog '{0}' (0x{1:X}, process {2}; title expected '{3}')" -f $window.Title, $window.Handle.ToInt64(), $window.ProcessId, $saveAsTitle)
     Start-Sleep -Milliseconds 500
