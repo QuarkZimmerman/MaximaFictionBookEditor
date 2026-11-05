@@ -82,6 +82,33 @@ test.describe('US2 (feature 009) - books in ZIP archives', () => {
     await expect(page.locator('[data-testid="body-editor"]')).toContainText('ZIPPED1');
   });
 
+  test('FR-016, FR-017. after a Source-view edit, Ctrl+S still asks Save As; the archive is never overwritten', async ({
+    core,
+    page,
+  }) => {
+    // The requester's smoke test of rc.5: the text parsed back from the Source view had lost the
+    // book's archive, and Save wrote the book over the .zip as a plain file.
+    const archive = copyOf('single.fb2.zip', 'source-edit.fb2.zip');
+    const original = readFileSync(archive);
+    await core.openApp(page);
+    await openThroughDialog(core, page, archive);
+    await expect(page).toHaveTitle(`book.fb2 (source-edit.fb2.zip) - ${APP_TITLE}`);
+    await page.getByTestId('view-source').click();
+    await expect(page.getByTestId('source-view')).toHaveAttribute('data-status', 'ready');
+    await page.locator('.mfbe-source-editor .cm-content').click();
+    await page.keyboard.press(`${MOD}+End`);
+    await page.keyboard.type('<!--edited in Source-->');
+    await page.keyboard.press('Escape');
+    const plain = path.join(dir, 'from-source.fb2');
+    await core.enqueueDialog('dialog.saveFile', { path: plain, encoding: 'utf-8', zip: false });
+    await page.keyboard.press(`${MOD}+s`);
+    await expect.poll(() => existsSync(plain)).toBe(true);
+    // (A comment after the root element is not part of the book; the save itself is the point.)
+    expect(readFileSync(plain, 'utf8')).toContain('<FictionBook');
+    expect(readFileSync(archive).equals(original)).toBe(true);
+    expect(existsSync(`${archive}.bak`)).toBe(false);
+  });
+
   test('2, 3. several books: the chooser and its filter; Cancel keeps the window\u2019s book', async ({
     core,
     page,

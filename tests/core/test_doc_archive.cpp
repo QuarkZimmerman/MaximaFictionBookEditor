@@ -10,7 +10,6 @@
 #include <mfbe/utf8_paths.hpp>
 
 #include <catch2/catch_test_macros.hpp>
-
 #include <filesystem>
 #include <string>
 
@@ -34,7 +33,8 @@ struct Fixture {
     }
     // The path as the core reports it: native separators, lexically normal, UTF-8.
     static std::string archive(const char* name) {
-        return platform::utf8_from_path((test::fixtures_dir() / "archives" / name).lexically_normal());
+        return platform::utf8_from_path(
+            (test::fixtures_dir() / "archives" / name).lexically_normal());
     }
     json call(const std::string& method, const json& params = json::object()) {
         return ws.call(method, params, 20000);
@@ -52,13 +52,13 @@ TEST_CASE("doc archive: a single-book archive opens at once, with its source", "
     const json opened = f.call("doc.open", json{{"path", Fixture::archive("single.fb2.zip")}});
     REQUIRE(opened.contains("result"));
     const json& doc = opened["result"]["document"];
-    CHECK(doc["source"] == json{{"archive", Fixture::archive("single.fb2.zip")}, {"entry", "book.fb2"}});
+    CHECK(doc["source"] ==
+          json{{"archive", Fixture::archive("single.fb2.zip")}, {"entry", "book.fb2"}});
     CHECK(doc["path"] == Fixture::archive("single.fb2.zip"));
     CHECK(doc["fileKind"] == "fb2");
 }
 
-TEST_CASE("doc archive: several books ask for a choice, then the chosen entry opens",
-          "[archive]") {
+TEST_CASE("doc archive: several books ask for a choice, then the chosen entry opens", "[archive]") {
     Fixture f;
     const json choice = f.call("doc.open", json{{"path", Fixture::archive("many-200.zip")}});
     REQUIRE(choice.contains("result"));
@@ -92,15 +92,16 @@ TEST_CASE("doc archive: the refusals", "[archive]") {
     CHECK(encrypted["error"]["data"] == json{{"entry", "book.fb2"}, {"reason", "encrypted"}});
     const json method = f.call("doc.open", json{{"path", Fixture::archive("method-unknown.zip")}});
     CHECK(method["error"]["data"]["reason"] == "method");
-    const json missing = f.call("doc.open", json{{"path", Fixture::archive("single.fb2.zip")},
-                                                 {"entry", "gone.fb2"}});
+    const json missing = f.call(
+        "doc.open", json{{"path", Fixture::archive("single.fb2.zip")}, {"entry", "gone.fb2"}});
     CHECK(error_code(missing) == 1083);
     CHECK(missing["error"]["data"] == json{{"entry", "gone.fb2"}, {"books", 1}});
 }
 
 TEST_CASE("doc archive: Source-only opening takes the entry too", "[archive]") {
     Fixture f;
-    const json source = f.call("doc.openSource", json{{"path", Fixture::archive("single.fb2.zip")}});
+    const json source =
+        f.call("doc.openSource", json{{"path", Fixture::archive("single.fb2.zip")}});
     REQUIRE(source.contains("result"));
     CHECK(source["result"]["source"]["entry"] == "book.fb2");
     CHECK(source["result"]["text"].get<std::string>().find("<FictionBook") != std::string::npos);
@@ -156,6 +157,43 @@ TEST_CASE("doc archive: a book from an archive is saved with a path, as a ZIP or
     CHECK(test::read_text(test::fixtures_dir() / "archives" / "single.fb2.zip").size() == 2543);
 }
 
+TEST_CASE("doc archive: parsed-back text keeps the archive; never a plain file over it",
+          "[archive]") {
+    Fixture f;
+    // A copy of the fixture: the refused save must leave it byte for byte.
+    const std::string zip = (f.data.path() / "book.fb2.zip").string();
+    std::filesystem::copy_file(test::fixtures_dir() / "archives" / "single.fb2.zip",
+                               platform::path_from_utf8(zip));
+    const json opened = f.call("doc.open", json{{"path", zip}});
+    REQUIRE(opened.contains("result"));
+    const json doc = opened["result"]["document"];
+    const std::string doc_id = doc["docId"];
+    const json origin = doc["source"];
+    REQUIRE(origin.is_object());
+
+    // The Source view's text parsed back is still the book of the archive.
+    const json xml = f.call("doc.toXml", json{{"docId", doc_id}, {"document", doc}});
+    REQUIRE(xml.contains("result"));
+    const json parsed =
+        f.call("doc.fromXml", json{{"docId", doc_id}, {"text", xml["result"]["text"]}});
+    REQUIRE(parsed.contains("result"));
+    CHECK(parsed["result"]["document"]["source"] == origin);
+
+    // A plain save named at the archive itself is refused, and the archive is untouched.
+    const std::string archive_path = origin["archive"];
+    const std::string before = test::read_text(platform::path_from_utf8(archive_path));
+    CHECK(error_code(f.call("doc.save",
+                            json{{"docId", doc_id}, {"document", doc}, {"path", archive_path}})) ==
+          -32602);
+    CHECK(test::read_text(platform::path_from_utf8(archive_path)) == before);
+    // A ZIP save may replace it (the UI proposes it for an archive of this book alone).
+    CHECK(f.call("doc.save", json{{"docId", doc_id},
+                                  {"document", doc},
+                                  {"path", archive_path},
+                                  {"archive", {{"entryName", "book.fb2"}}}})
+              .contains("result"));
+}
+
 TEST_CASE("doc archive: files.inspect", "[archive]") {
     Fixture f;
     auto inspect = [&](const std::string& path, const json& extra = json::object()) {
@@ -172,7 +210,8 @@ TEST_CASE("doc archive: files.inspect", "[archive]") {
     CHECK(many["kind"] == "zip");
     CHECK(many["otherEntries"] == 202);
     CHECK(many["books"] == 200);
-    const json single = inspect(Fixture::archive("single.fb2.zip"), json{{"entryName", "book.fb2"}});
+    const json single =
+        inspect(Fixture::archive("single.fb2.zip"), json{{"entryName", "book.fb2"}});
     CHECK(single["otherEntries"] == 0);
     CHECK(single["onlyBook"] == "book.fb2");
     CHECK_FALSE(many.contains("onlyBook"));

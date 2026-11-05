@@ -1263,6 +1263,11 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
             s.positionMap.reset();
         }
         result["document"] = loaded_document_json(doc, filled_in);
+        // Feature 009 (D8, FR-016): a book from a ZIP archive stays one when its text is parsed
+        // back, so every save still goes through Save As.
+        if (s.archiveEntry && s.path) {
+            result["document"]["source"] = json{{"archive", *s.path}, {"entry", *s.archiveEntry}};
+        }
         return result;
     });
 
@@ -1384,8 +1389,20 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
             throw rpc::invalid_params("document or text is required", json{{"field", "document"}});
         }
         const auto path = rpc::params::opt_string(params, "path");
+        const auto archive_param = params.find("archive");
+        const bool zip_save = archive_param != params.end() && !archive_param->is_null();
         if (path && !path->empty()) {
             request.path = absolute_path(*path);
+            // Never over the archive a book came from as a plain file (D8, FR-016): only a ZIP
+            // save may replace it, which the UI proposes when the archive held only this book.
+            std::error_code same_ec;
+            if (s.archiveEntry && s.path && !zip_save &&
+                (request.path == *s.path ||
+                 std::filesystem::equivalent(platform::path_from_utf8(request.path),
+                                             platform::path_from_utf8(*s.path), same_ec))) {
+                throw rpc::invalid_params("a book from a ZIP archive is saved through Save As",
+                                          json{{"field", "path"}});
+            }
         } else if (s.archiveEntry) {
             // Never back into the archive a book came from (D8, FR-016): its saves name a file.
             throw rpc::invalid_params("a book from a ZIP archive is saved through Save As",

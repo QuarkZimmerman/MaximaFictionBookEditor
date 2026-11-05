@@ -394,6 +394,16 @@ export function isRunLocked(state: Pick<AppState, 'runLock'>): boolean {
 /* Actions (plain functions so commands and RPC handlers can use them too)   */
 /* ------------------------------------------------------------------------ */
 
+/**
+ * Feature 009 (D8, FR-016): a book from a ZIP archive stays one while it is edited - a model
+ * that arrives without its origin (parsed back from the Source text, rebuilt by a feature) keeps
+ * the previous one, so every save still asks Save As. Saving drops the origin itself (DP-5).
+ */
+function keepArchiveOrigin(previous: Document | null, next: Document): Document {
+  if (next.source || !previous?.source || previous.docId !== next.docId) return next;
+  return { ...next, source: previous.source };
+}
+
 export const actions = {
   setConnection(store: AppStore, connection: ConnectionStatus): void {
     store.setState({ connection });
@@ -429,7 +439,7 @@ export const actions = {
   /** Applies an edited model (same docId) and marks the document modified. */
   updateDocument(store: AppStore, document: Document): void {
     store.setState((s) => ({
-      document: ensureUniqueNodeIds(document),
+      document: ensureUniqueNodeIds(keepArchiveOrigin(s.document, document)),
       modified: true,
       contentRevision: s.contentRevision + 1,
     }));
@@ -463,7 +473,7 @@ export const actions = {
    */
   replaceDocumentFromSource(store: AppStore, document: Document, modified?: boolean): void {
     store.setState((s) => ({
-      document,
+      document: keepArchiveOrigin(s.document, document),
       docId: document.docId,
       path: document.path ?? s.path,
       fileKind: document.fileKind,
