@@ -20,7 +20,73 @@
     "incrementalSearch": "Incremental Search: {{text}}",
     "failingIncrementalSearch": "Failing Incremental Search: {{text}}",
     "progress": "{{phase}}: {{done}} of {{total}}",
-    "progressPercent": "{{phase}}: {{percent}}%"
+    "progressPercent": "{{phase}}: {{percent}}%",
+    "pane": {
+      "path": "Element path",
+      "position": "Position",
+      "selection": "Selection",
+      "character": "Character",
+      "encoding": "Encoding",
+      "validity": "Validity",
+      "insmode": "Insert / Overwrite"
+    },
+    "position": "Ln {{line}}, Col {{column}}",
+    "selection": {
+      "body": "Characters: {{chars}}, words: {{words}}, paragraphs: {{units}}",
+      "source": "Characters: {{chars}}, words: {{words}}, lines: {{units}}",
+      "counting": "Characters: {{chars}}, counting words…"
+    },
+    "characterCopied": "Copied {{code}}",
+    "character": {
+      "tooltip": "Double-click to copy the code"
+    },
+    "validity": {
+      "valid": "Valid",
+      "problems": "Errors: {{count}}",
+      "unchecked": "Not checked",
+      "tooltip": "Click to validate the document"
+    },
+    "panesMenu": "Status bar panes",
+    "char": {
+      "tab": "Tab",
+      "space": "Space",
+      "nbsp": "No-break space",
+      "narrowNbsp": "Narrow no-break space",
+      "softHyphen": "Soft hyphen",
+      "zwsp": "Zero-width space",
+      "zwnj": "Zero-width non-joiner",
+      "zwj": "Zero-width joiner",
+      "wordJoiner": "Word joiner",
+      "bom": "Zero-width no-break space (BOM)",
+      "enSpace": "En space",
+      "emSpace": "Em space",
+      "figureSpace": "Figure space",
+      "thinSpace": "Thin space",
+      "hairSpace": "Hair space",
+      "hyphen": "Hyphen",
+      "nbHyphen": "Non-breaking hyphen",
+      "figureDash": "Figure dash",
+      "enDash": "En dash",
+      "emDash": "Em dash",
+      "minus": "Minus sign",
+      "hyphenMinus": "Hyphen-minus",
+      "combining": "Combining mark",
+      "script": {
+        "latin": "Latin letter",
+        "cyrillic": "Cyrillic letter",
+        "greek": "Greek letter",
+        "hebrew": "Hebrew letter",
+        "arabic": "Arabic letter",
+        "armenian": "Armenian letter",
+        "georgian": "Georgian letter",
+        "devanagari": "Devanagari letter",
+        "thai": "Thai letter",
+        "han": "Han character",
+        "hiragana": "Hiragana",
+        "katakana": "Katakana",
+        "hangul": "Hangul"
+      }
+    }
   },
   "menu": {
     "file": {

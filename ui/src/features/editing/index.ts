@@ -108,6 +108,9 @@ export function installBodyEditor(ctx: FeatureContext): BodyEditorController {
     if (state.document !== previous.document || state.docId !== previous.docId) {
       controller.setModel(state.document, state.docId);
     }
+    // Feature 009 (US5): back in the Body view, its caret panes again.
+    if (state.activeView === 'body' && previous.activeView !== 'body')
+      controller.refreshCaretInfo();
     // The run lock (a script run or an AI request): locked while it is held, whoever holds it.
     const locked = isRunLocked(state);
     if (locked !== isRunLocked(previous)) controller.setLocked(locked);

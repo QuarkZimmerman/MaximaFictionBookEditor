@@ -1057,6 +1057,10 @@ export class FileFeature {
         if (editedMeanwhile) store.setState({ modified: true, sourceDirty: after.sourceDirty });
         actions.setStatusMessage(store, savedMessage(ctx.t, result));
         if (store.getState().validation) actions.setValidation(store, result.validation);
+        // Save's validation checked what was saved: the validity pane's, unless edited since.
+        if (result.validation && !editedMeanwhile) {
+          actions.setLastCheck(store, result.validation.errorCount);
+        }
         // A plain file is watched again; an archive is not (D9, FR-028).
         await this.watch(ctx, current.docId, !result.source);
         // Every save remembers the position, under the saved path (FR-100).
@@ -1102,6 +1106,8 @@ export class FileFeature {
     );
     actions.setProgress(store, null);
     actions.setValidation(store, report);
+    // Feature 009 (FR-055): the validity pane shows this result until the content changes.
+    actions.setLastCheck(store, report.errorCount);
     actions.setStatusMessage(
       store,
       report.errorCount === 0

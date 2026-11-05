@@ -22,7 +22,73 @@
     "incrementalSearch": "Інкрементальний пошук: {{text}}",
     "failingIncrementalSearch": "Інкрементальний пошук (не знайдено): {{text}}",
     "progress": "{{phase}}: {{done}} з {{total}}",
-    "progressPercent": "{{phase}}: {{percent}}%"
+    "progressPercent": "{{phase}}: {{percent}}%",
+    "pane": {
+      "path": "Шлях елемента",
+      "position": "Позиція",
+      "selection": "Виділення",
+      "character": "Символ",
+      "encoding": "Кодування",
+      "validity": "Коректність",
+      "insmode": "Вставлення / заміна"
+    },
+    "position": "Рядок {{line}}, ст. {{column}}",
+    "selection": {
+      "body": "Символів: {{chars}}, слів: {{words}}, абзаців: {{units}}",
+      "source": "Символів: {{chars}}, слів: {{words}}, рядків: {{units}}",
+      "counting": "Символів: {{chars}}, підрахунок слів…"
+    },
+    "characterCopied": "Скопійовано: {{code}}",
+    "character": {
+      "tooltip": "Подвійне клацання копіює код"
+    },
+    "validity": {
+      "valid": "Коректний",
+      "problems": "Помилок: {{count}}",
+      "unchecked": "Не перевірено",
+      "tooltip": "Клацніть, щоб перевірити документ"
+    },
+    "panesMenu": "Панелі рядка стану",
+    "char": {
+      "tab": "Табуляція",
+      "space": "Пробіл",
+      "nbsp": "Нерозривний пробіл",
+      "narrowNbsp": "Вузький нерозривний пробіл",
+      "softHyphen": "М'який перенос",
+      "zwsp": "Пробіл нульової ширини",
+      "zwnj": "Роз'єднувач нульової ширини",
+      "zwj": "З'єднувач нульової ширини",
+      "wordJoiner": "Об'єднувач слів",
+      "bom": "Нерозривний пробіл нульової ширини (BOM)",
+      "enSpace": "Короткий пробіл (en)",
+      "emSpace": "Довгий пробіл (em)",
+      "figureSpace": "Цифровий пробіл",
+      "thinSpace": "Тонкий пробіл",
+      "hairSpace": "Волосяна шпація",
+      "hyphen": "Дефіс",
+      "nbHyphen": "Нерозривний дефіс",
+      "figureDash": "Цифрове тире",
+      "enDash": "Коротке тире",
+      "emDash": "Довге тире",
+      "minus": "Знак мінуса",
+      "hyphenMinus": "Дефіс-мінус",
+      "combining": "Комбінований знак",
+      "script": {
+        "latin": "Латинська літера",
+        "cyrillic": "Кирилична літера",
+        "greek": "Грецька літера",
+        "hebrew": "Єврейська літера",
+        "arabic": "Арабська літера",
+        "armenian": "Вірменська літера",
+        "georgian": "Грузинська літера",
+        "devanagari": "Літера деванагарі",
+        "thai": "Тайська літера",
+        "han": "Китайський ієрогліф",
+        "hiragana": "Хірагана",
+        "katakana": "Катакана",
+        "hangul": "Хангиль"
+      }
+    }
   },
   "menu": {
     "file": {

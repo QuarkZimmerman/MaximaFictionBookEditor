@@ -312,8 +312,9 @@ test.describe('US8 - toolbars and right-click as in the original', () => {
     expect(onToolbars).toHaveLength(places.length);
     expect(onToolbars.every((click) => click.cancelled)).toBe(true);
 
-    // The other bars, the menu bar and the status bar: nothing, and no browser menu.
-    for (const place of ['linksbar', 'tablebar', 'tree-toolbar', 'menubar', 'statusbar']) {
+    // The other bars and the menu bar: nothing, and no browser menu. (The status bar has its
+    // own menu since feature 009, choosing its panes - us5-status-bar.spec.ts.)
+    for (const place of ['linksbar', 'tablebar', 'tree-toolbar', 'menubar']) {
       await page.getByTestId(place).click({ button: 'right', position: { x: 3, y: 3 } });
       await expect(page.getByRole('menu')).toHaveCount(0);
     }
@@ -323,7 +324,7 @@ test.describe('US8 - toolbars and right-click as in the original', () => {
     await page.mouse.click(belowItems.x, belowItems.y, { button: 'right' });
     await expect(page.getByTestId('tree-menu')).toHaveCount(0);
     const elsewhere = (await page.evaluate(TAKE_RIGHT_CLICKS)) as RightClick[];
-    expect(elsewhere).toHaveLength(7);
+    expect(elsewhere).toHaveLength(6);
     expect(elsewhere.filter((click) => !click.cancelled)).toEqual([]);
 
     // A text box keeps the shell's edit menu: its right-click is not cancelled.

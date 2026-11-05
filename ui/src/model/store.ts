@@ -148,11 +148,39 @@ export interface CustomModelsMemory {
   models: FetchedModel[];
 }
 
+/**
+ * Feature 009 (User Story 5, data-model §8): what the status bar's position, selection and
+ * character panes show, written by the Body editor and the Source view at most once a frame.
+ */
+export interface CaretInfo {
+  view: 'body' | 'source';
+  /** Source view only, 1-based. */
+  line?: number;
+  column?: number;
+  /** The code point before the caret, or the single selected character. */
+  char?: number;
+  /** A non-empty selection: characters, words (null while a long one is counted), and
+   * paragraphs (Body) or lines (Source). */
+  selection?: { chars: number; words: number | null; units: number };
+}
+
+/** Feature 009 (FR-055): the last validation and the content revision it checked. */
+export interface LastCheck {
+  problems: number;
+  revision: number;
+}
+
 export interface AppState {
   /** Core connection status (mirrors the RPC client). */
   connection: ConnectionStatus;
   /** Current document model, or null before New/Open. */
   document: Document | null;
+  /** Feature 009 (US5): the status bar's caret and selection panes. */
+  caretInfo: CaretInfo | null;
+  /** Feature 009 (US5): File > Validate's or Save's last validation. */
+  lastCheck: LastCheck | null;
+  /** Feature 009 (US5): content changes since the document was loaded (the validity pane). */
+  contentRevision: number;
   docId: string | null;
   /** Absolute path; null for a new, unsaved document. */
   path: string | null;
@@ -266,6 +294,9 @@ export function createInitialState(overrides: Partial<AppState> = {}): AppState 
     insertMode: 'insert',
     statusMessage: null,
     progress: null,
+    caretInfo: null,
+    lastCheck: null,
+    contentRevision: 0,
     runLock: null,
     validation: null,
     toolbars: { ...DEFAULT_TOOLBARS },
@@ -388,13 +419,20 @@ export const actions = {
       selectionNodeId: null,
       progress: null,
       validation: null,
+      caretInfo: null,
+      lastCheck: null,
+      contentRevision: 0,
       activeView: options.sourceOnly ? 'source' : store.getState().activeView,
     });
   },
 
   /** Applies an edited model (same docId) and marks the document modified. */
   updateDocument(store: AppStore, document: Document): void {
-    store.setState({ document: ensureUniqueNodeIds(document), modified: true });
+    store.setState((s) => ({
+      document: ensureUniqueNodeIds(document),
+      modified: true,
+      contentRevision: s.contentRevision + 1,
+    }));
   },
 
   closeDocument(store: AppStore): void {
@@ -412,6 +450,9 @@ export const actions = {
       selectionNodeId: null,
       progress: null,
       validation: null,
+      caretInfo: null,
+      lastCheck: null,
+      contentRevision: 0,
     });
   },
 
@@ -430,11 +471,26 @@ export const actions = {
       sourceOnly: false,
       sourceParseError: null,
       modified: modified ?? s.modified,
+      contentRevision: s.contentRevision + 1,
     }));
   },
 
   setSourceDirty(store: AppStore, sourceDirty: boolean): void {
-    store.setState((s) => ({ sourceDirty, modified: s.modified || sourceDirty }));
+    store.setState((s) => ({
+      sourceDirty,
+      modified: s.modified || sourceDirty,
+      contentRevision: sourceDirty && !s.sourceDirty ? s.contentRevision + 1 : s.contentRevision,
+    }));
+  },
+
+  /** Feature 009 (US5): the status bar's caret and selection panes. */
+  setCaretInfo(store: AppStore, caretInfo: CaretInfo | null): void {
+    store.setState({ caretInfo });
+  },
+
+  /** Feature 009 (FR-055): a validation of the current content found `problems`. */
+  setLastCheck(store: AppStore, problems: number): void {
+    store.setState((s) => ({ lastCheck: { problems, revision: s.contentRevision } }));
   },
 
   setSourceParseError(store: AppStore, sourceParseError: DocParseErrorData | null): void {

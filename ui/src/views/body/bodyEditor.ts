@@ -75,6 +75,7 @@ import {
   windowSliceUnchanged,
   type SectionWindow,
 } from '@/editor/virtualization';
+import { bodyCaretInfo, CaretInfoFeed } from '@/app/caretInfo';
 import { pathOfCaret, type StructuralPosition } from '@/editor/structuralPath';
 import type { Document } from '@/model/document';
 import { collectBookIds } from '@/model/ids';
@@ -431,8 +432,12 @@ export class BodyEditorController {
    */
   private shown = false;
 
+  /** Feature 009 (US5): writes the status bar's caret panes, at most once a frame. */
+  private readonly caretFeed: CaretInfoFeed;
+
   constructor(options: BodyEditorOptions) {
     this.store = options.store;
+    this.caretFeed = new CaretInfoFeed(options.store);
     this.undo = options.undo;
     this.windowSize = options.windowSize ?? DEFAULT_WINDOW_SIZE;
     this.editable = options.editable ?? true;
@@ -520,6 +525,16 @@ export class BodyEditorController {
     this.context = state ? computeSelectionContext(state, this.window) : EMPTY_SELECTION_CONTEXT;
     actions.setSelection(this.store, this.context.path, this.context.nodeId);
     for (const listener of [...this.contextListeners]) listener();
+    this.refreshCaretInfo();
+  }
+
+  /** Feature 009 (US5): the status bar's caret panes, while the Body view is the active one. */
+  refreshCaretInfo(): void {
+    if (this.store.getState().activeView !== 'body') return;
+    this.caretFeed.request(() => {
+      const state = this.editorState;
+      return state ? bodyCaretInfo(state) : null;
+    });
   }
 
   /* ------------------------------------------------------------- mounting */
@@ -531,6 +546,7 @@ export class BodyEditorController {
     this.container = container;
     this.ensureView();
     if (this.view) this.shown = true;
+    this.refreshCaretInfo();
   }
 
   /** Detaches the DOM view; the state (with its history) is kept for the next mount. */

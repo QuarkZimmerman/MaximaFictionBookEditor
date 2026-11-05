@@ -50,6 +50,8 @@ export interface PopupMenuEntry {
   items?: readonly PopupMenuItem[];
   /** Runs the entry; not called for an entry that opens a submenu. */
   run: () => void;
+  /** A ticked or unticked entry (feature 009: the status bar's panes); absent for others. */
+  checked?: boolean;
 }
 
 export type PopupMenuItem = PopupMenuEntry | 'separator';
@@ -279,7 +281,8 @@ export function PopupMenu({ items, position, onClose, testId, ariaLabel }: Popup
     return (
       <div
         key={entry.id}
-        role="menuitem"
+        role={entry.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
+        aria-checked={entry.checked}
         aria-disabled={!enabled || undefined}
         aria-haspopup={submenu ? 'menu' : undefined}
         aria-expanded={submenu ? open : undefined}
@@ -292,7 +295,11 @@ export function PopupMenu({ items, position, onClose, testId, ariaLabel }: Popup
         onMouseMove={onHover}
         onClick={() => activate(entry, inSubmenu)}
       >
-        <MenuItemSlot checked={false} checkable={false} icon={entry.icon} />
+        <MenuItemSlot
+          checked={entry.checked === true}
+          checkable={entry.checked !== undefined}
+          icon={entry.icon}
+        />
         <span className="mfbe-menu-label">
           <EntryLabel label={entry.label} />
         </span>

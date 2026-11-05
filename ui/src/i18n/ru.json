@@ -22,7 +22,73 @@
     "incrementalSearch": "Инкрементальный поиск: {{text}}",
     "failingIncrementalSearch": "Инкрементальный поиск (не найдено): {{text}}",
     "progress": "{{phase}}: {{done}} из {{total}}",
-    "progressPercent": "{{phase}}: {{percent}}%"
+    "progressPercent": "{{phase}}: {{percent}}%",
+    "pane": {
+      "path": "Путь элемента",
+      "position": "Позиция",
+      "selection": "Выделение",
+      "character": "Символ",
+      "encoding": "Кодировка",
+      "validity": "Корректность",
+      "insmode": "Вставка / замена"
+    },
+    "position": "Стр {{line}}, кол {{column}}",
+    "selection": {
+      "body": "Символов: {{chars}}, слов: {{words}}, абзацев: {{units}}",
+      "source": "Символов: {{chars}}, слов: {{words}}, строк: {{units}}",
+      "counting": "Символов: {{chars}}, подсчёт слов…"
+    },
+    "characterCopied": "Скопировано: {{code}}",
+    "character": {
+      "tooltip": "Двойной щелчок копирует код"
+    },
+    "validity": {
+      "valid": "Корректен",
+      "problems": "Ошибок: {{count}}",
+      "unchecked": "Не проверен",
+      "tooltip": "Щёлкните, чтобы проверить документ"
+    },
+    "panesMenu": "Панели строки состояния",
+    "char": {
+      "tab": "Табуляция",
+      "space": "Пробел",
+      "nbsp": "Неразрывный пробел",
+      "narrowNbsp": "Узкий неразрывный пробел",
+      "softHyphen": "Мягкий перенос",
+      "zwsp": "Пробел нулевой ширины",
+      "zwnj": "Разъединитель нулевой ширины",
+      "zwj": "Соединитель нулевой ширины",
+      "wordJoiner": "Объединитель слов",
+      "bom": "Неразрывный пробел нулевой ширины (BOM)",
+      "enSpace": "Короткий пробел (en)",
+      "emSpace": "Длинный пробел (em)",
+      "figureSpace": "Цифровой пробел",
+      "thinSpace": "Тонкий пробел",
+      "hairSpace": "Волосяная шпация",
+      "hyphen": "Дефис",
+      "nbHyphen": "Неразрывный дефис",
+      "figureDash": "Цифровое тире",
+      "enDash": "Короткое тире",
+      "emDash": "Длинное тире",
+      "minus": "Знак минуса",
+      "hyphenMinus": "Дефис-минус",
+      "combining": "Комбинируемый знак",
+      "script": {
+        "latin": "Латинская буква",
+        "cyrillic": "Кириллическая буква",
+        "greek": "Греческая буква",
+        "hebrew": "Еврейская буква",
+        "arabic": "Арабская буква",
+        "armenian": "Армянская буква",
+        "georgian": "Грузинская буква",
+        "devanagari": "Буква деванагари",
+        "thai": "Тайская буква",
+        "han": "Китайский иероглиф",
+        "hiragana": "Хирагана",
+        "katakana": "Катакана",
+        "hangul": "Хангыль"
+      }
+    }
   },
   "menu": {
     "file": {
