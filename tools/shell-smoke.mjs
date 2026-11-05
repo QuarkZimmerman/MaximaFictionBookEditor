@@ -1486,14 +1486,25 @@ async function checkSaveAsDialog(page) {
   const dialogTitle = catalogueText(lang, 'cmd.file.saveAs.tooltip');
   const untitled = catalogueText(lang, 'app.untitled');
 
-  // File > New, then the author and the title in the Description view.
+  // File > New, then the author and the title in the Description view. The start-up document is
+  // untitled too, so the title alone does not show that New is done: the Body view's document id
+  // changes as well. (On a slow shell the fills otherwise went into the old document's form, which
+  // the new document then replaced.)
+  const bodyView = page.locator('[data-testid="body-view"]');
+  const docIdOf = async () => ((await bodyView.count()) > 0 ? await bodyView.getAttribute('data-doc-id') : null);
+  const docBefore = await docIdOf();
   await page.locator('[data-testid="menu-file"]').click();
   const item = page.locator('[data-testid="menu-file-new"]');
   await item.waitFor({ state: 'visible', timeout: timeoutMs });
   await item.click();
   await waitUntil(
     `the new document "${untitled}"`,
-    async () => (await page.title()).startsWith(`${untitled} - `),
+    async () => {
+      if (!(await page.title()).startsWith(`${untitled} - `)) return false;
+      if (docBefore === null) return true;
+      const docNow = await docIdOf();
+      return docNow !== null && docNow !== docBefore;
+    },
     timeoutMs,
   );
   await page.locator('[data-testid="view-description"]').click();
