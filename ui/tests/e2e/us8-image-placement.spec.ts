@@ -48,8 +48,19 @@ async function caretIn(page: Page, text: string, where: 'start' | 'end' | number
     for (let node = walker.nextNode(); node; node = walker.nextNode()) texts.push(node);
     const where = ${JSON.stringify(where)};
     const range = document.createRange();
-    if (where === 'end') range.setStart(texts[texts.length - 1], texts[texts.length - 1].length);
-    else range.setStart(texts[0], where === 'start' ? 0 : where);
+    if (where === 'end') {
+      range.setStart(texts[texts.length - 1], texts[texts.length - 1].length);
+    } else {
+      // The text may be split into several nodes (the spelling marks of macOS, for one): the
+      // offset counts across them.
+      let rest = where === 'start' ? 0 : where;
+      const node = texts.find((text) => {
+        if (rest <= text.length) return true;
+        rest -= text.length;
+        return false;
+      });
+      range.setStart(node, rest);
+    }
     range.collapse(true);
     getSelection().removeAllRanges();
     getSelection().addRange(range);

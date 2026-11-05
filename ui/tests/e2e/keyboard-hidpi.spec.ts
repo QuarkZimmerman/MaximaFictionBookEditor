@@ -197,6 +197,27 @@ async function tabCycle(page: Page, dialogTestId: string): Promise<TabCycle> {
   return { ...setup, visited, invisible };
 }
 
+/**
+ * Waits until the dialog's controls stop changing: a page whose lists arrive later (the
+ * dictionaries of Settings > View) would otherwise be marked before they render, and a control
+ * rendered after the marking reads as outside the dialog.
+ */
+async function controlsSettled(page: Page, dialogTestId: string): Promise<void> {
+  const count = () =>
+    page.evaluate<number>(
+      `document.querySelectorAll(${JSON.stringify(
+        `[data-testid="${dialogTestId}"] :is(a[href], button, input, select, textarea, [tabindex], [contenteditable="true"])`,
+      )}).length`,
+    );
+  await expect
+    .poll(async () => {
+      const before = await count();
+      await page.waitForTimeout(300);
+      return before > 0 && before === (await count());
+    })
+    .toBe(true);
+}
+
 function assertCycle(cycle: TabCycle, name: string): void {
   const reached = new Set(cycle.visited);
   expect(cycle.expected.length, `${name}: has keyboard-reachable controls`).toBeGreaterThan(0);
@@ -607,6 +628,7 @@ test.describe('dialogs from the keyboard', () => {
       await expect(tab).toHaveAttribute('aria-selected', 'true');
       await expect(tab).toBeFocused();
       if (id === 'other') await layoutsRead(page);
+      await controlsSettled(page, 'dialog-settings');
       assertCycle(await tabCycle(page, 'dialog-settings'), `Settings/${id}`);
       // Back on the tab button, ArrowRight selects the next page.
       await tab.focus();
