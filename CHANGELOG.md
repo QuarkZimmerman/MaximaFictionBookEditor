@@ -24,7 +24,9 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 - Spelling uses the book's dictionary, else the interface language's, plus the extra
   dictionaries ticked in Settings > View (English and Russian by default).
 - The Links bar's Href box lists the book's jump destinations in book order at a link and its
-  images at a picture; Style > Link lists the destinations in the same order.
+  images at a picture; Style > Link lists the destinations in the same order. At a picture, a
+  click on the box opens the list, with a preview of each picture and a button showing it
+  enlarged.
 - A click on the cover's thumbnail shows the cover; Choose... picks another one.
 - The Windows installer's last page offers to launch the editor.
 - While the AI assistant works, the pointer over the text, the banner and the status bar show
@@ -34,6 +36,7 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 - Books inside ZIP archives open by every route - File > Open, the file manager, the command
   line, dragging and Recent files; an archive with several books asks which one to open. Save
   As can put the book into a ZIP archive, and an archive's other files are never lost silently.
+  File > Open shows FictionBook files, descriptors and ZIP archives together by default.
 - Resting the pointer on a note mark shows the note's text; Ctrl+click (Cmd+click on macOS)
   follows a link, and Go to footnote or reference returns to the link.
 - Edit > Paste as plain text (Ctrl+Shift+V) pastes the clipboard's text without formatting,
@@ -48,6 +51,15 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   after it, or in place of an empty paragraph.
 - Adding several binary objects adds each file on its own, then lists the files that failed
   and the pictures that will be converted on save.
+- The AI assistant's address offers well-known services to fill it in: OpenAI, Anthropic,
+  Google Gemini, xAI Grok and OpenRouter.
+
+### Changed
+
+- Add > Image asks whether to insert a picture from a file - the default - or an empty picture
+  to fill in later, instead of "Insert clear image?".
+- Saving an invalid book asks about its errors before Save As opens; No saves nothing.
+- Tag completion in the Source view offers only the elements the schema allows at the cursor.
 
 ### Fixed
 
@@ -56,6 +68,7 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   a footnote was inserted between existing ones after earlier insertions in the same session. The
   cause was repeated internal element names, fixed in 0.0.6; this version adds safeguards, so that
   a repeat from any source is repaired and can no longer freeze the editor.
+- The AI assistant could not list Anthropic's models: its version header was missing.
 
 ## 0.0.6 - 2026-11-01
 

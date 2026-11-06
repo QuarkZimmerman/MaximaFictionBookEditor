@@ -19,6 +19,9 @@ by the next save. *Settings > Other > Keep Backup Copy of the Previous Version (
 it off. When
 the backup cannot be made the book is still saved, and the status bar says so.
 
+A book with validation errors is saved only after a question; when saving opens *Save As*, the
+question comes first, so *No* ends the save without choosing a file.
+
 ## Books in ZIP archives
 
 A `.zip` (or `.fb2.zip`) opens like a book, by every route: *File > Open*, the file manager,
@@ -27,7 +30,8 @@ asks which one to open; each book of an archive has its own entry in *Recent fil
 window title shows the book with its archive. The editor never writes into an archive behind
 your back: saving a book from an archive always opens *Save As*, whose *Save as ZIP archive*
 box (ticked for such a book) puts it into a ZIP archive; replacing an archive that holds other
-files asks first, so nothing in it is lost without a word.
+files asks first, so nothing in it is lost without a word. *File > Open* shows FictionBook
+files, descriptors and ZIP archives together by default (*Book files*).
 
 ## Notes and links
 
@@ -70,13 +74,22 @@ With the caret in a link, the arrow of the *Href* («Ссылка») box lists e
 a link can lead to - sections, footnotes, comments, every element with an id - in book order;
 with a picture selected it lists the book's images. Alt+Down or F4 open the list, typing
 narrows it, Enter or a click applies the choice as one undo step. Typing any address still
-works. *Style > Link…* lists the same places in the same order.
+works. *Style > Link…* lists the same places in the same order. With a picture selected, a click
+on the box opens the list too: each picture shows a preview, and the button beside it shows the
+picture enlarged - the way to give an empty picture its image, or another one.
 
 ## Pictures
 
 In the Description view a click on the cover's thumbnail shows the cover at its natural size;
 *Choose…* beside it picks another one. A thumbnail of the Binary objects list shows its picture
-the same way.
+the same way. *Add > Image* asks whether to insert a picture from a file - the default - or an
+empty picture to fill in later.
+
+## The AI assistant's address
+
+In *Settings > AI assistant*, the button beside your own service's address lists well-known
+services - OpenAI, Anthropic, Google Gemini, xAI Grok and OpenRouter - to fill it in; the address
+stays editable, and the one typed is the one saved.
 
 *Rename…* on a row of the Binary objects list gives a picture a new id: a letter or `_` first,
 then letters, digits, `.`, `-` and `_`, and no other element of the book may have it. Every
