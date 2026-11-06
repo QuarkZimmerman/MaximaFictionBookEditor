@@ -76,7 +76,17 @@ with a picture selected it lists the book's images. Alt+Down or F4 open the list
 narrows it, Enter or a click applies the choice as one undo step. Typing any address still
 works. *Style > Link…* lists the same places in the same order. With a picture selected, a click
 on the box opens the list too: each picture shows a preview, and the button beside it shows the
-picture enlarged - the way to give an empty picture its image, or another one.
+picture enlarged.
+
+To give an empty picture its image, or a picture another one:
+
+1. Make sure the Links bar is shown (*View > Links Bar*).
+2. Click the picture in the Body view; an empty picture is the dashed box reading `#undefined`.
+   The *Href* box then shows its reference.
+3. Click the *Href* box: the book's pictures are listed with their previews.
+4. Click the one to show; *Edit > Undo* brings the previous one back.
+
+A picture that is not in the book yet is added first with *Add > Add Binary Object…*.
 
 ## Pictures
 
@@ -98,7 +108,7 @@ id back.
 
 *Add > Image* puts the picture where the caret is: at the start of a paragraph before it,
 inside it between its two halves, at its end after it, and in place of an empty paragraph.
-*Add > Binary Object…* with several files adds each one on its own; when some fail, or are in a
+*Add > Add Binary Object…* with several files adds each one on its own; when some fail, or are in a
 format that is converted to JPEG or PNG on save, a summary lists them.
 
 ## The AI assistant at work
