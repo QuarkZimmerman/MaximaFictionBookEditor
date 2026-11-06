@@ -189,6 +189,32 @@ test.describe('US5: the Links bar list of jump destinations and images', () => {
     await expect(page.getByTestId('picture-view')).toHaveCount(0);
   });
 
+  test('feature 009: an empty picture gets its image from the list', async ({ core, page }) => {
+    // The requester at the smoke test of 0.0.7-rc.6: an empty picture could not be given an image
+    // from the Body view. Selected, its Href box lists the book's pictures; a choice is applied.
+    await openBook(core, page);
+    // A paragraph directly in a section, where a block picture may stand.
+    await page.locator('[data-testid="body-editor"] .fb-section > p.fb-p').first().click();
+    await page.getByTestId('menu-add').click();
+    await page.getByTestId('menu-add-image').click();
+    await page.getByTestId('dialog-insert-clear-image-button-no').click();
+    const empty = page
+      .locator('[data-testid="body-editor"] figure.fb-image.fb-image-missing')
+      .first();
+    await expect(empty).toBeVisible();
+    await empty.click();
+    const href = page.getByTestId('links-bar-href');
+    await expect(href).toHaveValue('#undefined');
+    await href.click();
+    const list = page.getByTestId('links-bar-href-list');
+    await expect(list).toBeVisible();
+    await list.locator('li[role="option"]', { hasText: /^#pic_2\.png$/ }).click();
+    await expect(href).toHaveValue('#pic_2.png');
+    await expect(
+      page.locator('[data-testid="body-editor"] figure.fb-image.fb-image-missing'),
+    ).toHaveCount(0);
+  });
+
   test('a typed address is applied as before', async ({ core, page }) => {
     await openBook(core, page);
     const nodeId = await caretInLink(page, '#n_4');
