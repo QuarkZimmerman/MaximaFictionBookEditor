@@ -197,6 +197,7 @@
     "table": "Table Bar"
   },
   "linksBar": {
+    "enlargePicture": "Enlarge picture",
     "id": "ID:",
     "href": "Href:",
     "sectionId": "Section ID:",

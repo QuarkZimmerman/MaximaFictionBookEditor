@@ -199,6 +199,7 @@
     "table": "Панель таблиц"
   },
   "linksBar": {
+    "enlargePicture": "Увеличить картинку",
     "id": "ID:",
     "href": "Ссылка:",
     "sectionId": "ID секции:",

@@ -161,6 +161,34 @@ test.describe('US5: the Links bar list of jump destinations and images', () => {
     await page.keyboard.press('Escape');
   });
 
+  test('feature 009: at a picture a click on the field opens the list, with thumbnails and the picture view', async ({
+    core,
+    page,
+  }) => {
+    // The requester at the smoke test of 0.0.7-rc.6: the picture's id lists the book's pictures
+    // with a preview, and one opens enlarged as in the Description view.
+    await openBook(core, page);
+    const picture = page.getByTestId('body-editor').locator('img').first();
+    await picture.scrollIntoViewIfNeeded();
+    await picture.click();
+    await expect(page.getByTestId('links-bar-href')).toHaveValue('#pic_1.png');
+    await page.getByTestId('links-bar-href').click();
+    const list = page.getByTestId('links-bar-href-list');
+    await expect(list).toBeVisible();
+    await expect(list.locator('img.mfbe-hrefcombo-thumb').first()).toBeVisible();
+    await expect
+      .poll(() =>
+        page.evaluate<number>(
+          'document.querySelector("[data-testid=links-bar-href-list] img.mfbe-hrefcombo-thumb").naturalWidth',
+        ),
+      )
+      .toBeGreaterThan(0);
+    await page.getByTestId('links-bar-href-enlarge-1').click();
+    await expect(page.getByTestId('picture-view')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('picture-view')).toHaveCount(0);
+  });
+
   test('a typed address is applied as before', async ({ core, page }) => {
     await openBook(core, page);
     const nodeId = await caretInLink(page, '#n_4');

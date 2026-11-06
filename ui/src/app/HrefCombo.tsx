@@ -20,6 +20,14 @@ export interface HrefComboProps {
   /** The entries, computed when the list opens (FR-042). */
   options: () => ListTarget[];
   onCommit: (value: string) => void;
+  /**
+   * Feature 009 (the requester at the smoke test of 0.0.7-rc.6): at a picture, a click on the
+   * field opens the list, each entry shows its thumbnail and offers the picture view.
+   */
+  openOnClick?: boolean;
+  preview?: (href: string) => string | null;
+  onEnlarge?: (href: string) => void;
+  enlargeLabel?: string;
 }
 
 export function HrefCombo({
@@ -29,6 +37,10 @@ export function HrefCombo({
   width = 200,
   options,
   onCommit,
+  openOnClick = false,
+  preview,
+  onEnlarge,
+  enlargeLabel,
 }: HrefComboProps) {
   const [draft, setDraft] = useState(value);
   const [open, setOpen] = useState(false);
@@ -100,6 +112,9 @@ export function HrefCombo({
           data-testid="links-bar-href"
           onFocus={() => {
             editing.current = true;
+          }}
+          onClick={() => {
+            if (openOnClick && !open && !disabled) openList();
           }}
           onChange={(event) => {
             setDraft(event.target.value);
@@ -194,12 +209,40 @@ export function HrefCombo({
                   inputRef.current?.blur();
                 }}
               >
-                {item.label}
+                {preview ? <PreviewThumb url={preview(item.href)} /> : null}
+                <span className="mfbe-hrefcombo-label">{item.label}</span>
+                {onEnlarge && preview?.(item.href) ? (
+                  <button
+                    type="button"
+                    className="mfbe-hrefcombo-enlarge"
+                    tabIndex={-1}
+                    aria-label={enlargeLabel}
+                    title={enlargeLabel}
+                    data-testid={`links-bar-href-enlarge-${index}`}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setOpen(false);
+                      onEnlarge(item.href);
+                    }}
+                  >
+                    <span className="mfbe-hrefcombo-enlarge-glyph" aria-hidden="true" />
+                  </button>
+                ) : null}
               </li>
             ))}
           </ul>
         ) : null}
       </span>
     </label>
+  );
+}
+
+/** A picture entry's thumbnail; an empty box for an entry without a picture to show. */
+function PreviewThumb({ url }: { url: string | null }) {
+  return url ? (
+    <img className="mfbe-hrefcombo-thumb" src={url} alt="" draggable={false} />
+  ) : (
+    <span className="mfbe-hrefcombo-thumb" aria-hidden="true" />
   );
 }
