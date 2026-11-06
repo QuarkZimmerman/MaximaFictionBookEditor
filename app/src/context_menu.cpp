@@ -16,6 +16,7 @@ std::vector<ContextMenuItem> contextMenuItems(const EditState& state) {
         item(EditCommand::Cut, state.can_cut),
         item(EditCommand::Copy, state.can_copy),
         item(EditCommand::Paste, state.can_paste),
+        item(EditCommand::PastePlain, state.can_paste),
         item(EditCommand::Delete, state.can_delete),
         separator,
         item(EditCommand::SelectAll, state.can_select_all),
@@ -38,6 +39,10 @@ std::string contextMenuLabel(EditCommand command, std::string_view language) {
             return russian ? "&Удалить" : ukrainian ? "Ви&далити" : "&Delete";
         case EditCommand::SelectAll:
             return russian ? "Выделить &все" : ukrainian ? "Виділити вс&е" : "Select &All";
+        case EditCommand::PastePlain:
+            return russian     ? "Вставить без &форматирования"
+                   : ukrainian ? "Вставити без &форматування"
+                               : "Paste as pla&in text";
     }
     return {};
 }

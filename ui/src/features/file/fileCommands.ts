@@ -48,15 +48,21 @@ import {
 import { describeError, isClientSideError, logUiError } from '@/app/diagnostics';
 import { ENCODING_CHOICES, normalizeEncoding } from '@/dialogs/encodings';
 import type { StructuralPosition } from '@/editor/structuralPath';
-import { documentFileTypes } from '@/dialogs/fileTypes';
+import { documentFileTypes, openFileTypes } from '@/dialogs/fileTypes';
 import type { Dialogs } from '@/dialogs/types';
-import { showEncodingDialog, showOpenElsewhereDialog, showSaveChangesPrompt } from '@/dialogs/show';
+import {
+  showArchiveBookChooser,
+  showEncodingDialog,
+  showOpenElsewhereDialog,
+  showSaveChangesPrompt,
+  showSaveOptionsDialog,
+} from '@/dialogs/show';
 import { confirmSaveWithErrors } from '@/dialogs/validation';
 import { getScriptsFeature } from '@/features/scripts';
 import { flushSessionSave } from '@/features/settings/apply';
-import type { Document, ValidationReport } from '@/model/document';
+import type { Document, DocumentSource, ValidationReport } from '@/model/document';
 import { actions, isRunLocked, kindFromPath, type AppStore, type FileKind } from '@/model/store';
-import i18next from 'i18next';
+import i18next, { type TFunction } from 'i18next';
 
 import { RpcError, type RpcClient } from '@/rpc/client';
 import { loadedDocument } from '@/rpc/loaded';
@@ -79,6 +85,13 @@ import {
 import { getBodyController, hasBodyController } from '@/views/body/bodyEditor';
 
 import { proposedFileName } from './proposedName';
+import { keepsBackup, savedMessage } from './saveOutcome';
+import {
+  completeSaveTarget,
+  proposedSavePath,
+  rememberZipChoice,
+  zipStartState,
+} from './saveNames';
 import { RecentFilesStore, rememberPosition, restorePosition } from './recent';
 
 export { ENCODING_CHOICES };
@@ -167,6 +180,41 @@ export function defaultSaveEncoding(store: AppStore): string {
 }
 
 /** Empty description used for the Source-only placeholder document. */
+/**
+ * The message of an archive refusal (feature 009, FR-020, FR-021, rpc-api §1), or null when
+ * `error` is not one.
+ */
+export function archiveErrorMessage(t: TFunction, error: unknown, path: string): string | null {
+  if (!(error instanceof RpcError)) return null;
+  const data = (error.data ?? {}) as { entry?: string; reason?: string };
+  switch (error.code) {
+    case RpcErrorCode.archiveUnsupported:
+      return t('archive.msg.unsupported', { path });
+    case RpcErrorCode.archiveNoBook:
+      return t('archive.msg.noBook', { path });
+    case RpcErrorCode.archiveEntryMissing:
+      return t('archive.msg.missing', { path, entry: data.entry ?? '' });
+    case RpcErrorCode.archiveEntryUnreadable: {
+      if (data.reason === 'multiVolume') return t('archive.msg.multiVolume', { path });
+      if (!data.entry) return t('archive.msg.archiveDamaged', { path });
+      const reason = ['encrypted', 'method', 'tooLarge'].includes(data.reason ?? '')
+        ? data.reason!
+        : 'damaged';
+      return t(`archive.msg.${reason}`, { path, entry: data.entry });
+    }
+    default:
+      return null;
+  }
+}
+
+/** Whether the archive a book came from holds only that book (D31: proposed for replacing). */
+async function archiveHeldOnly(rpc: RpcClient, source: DocumentSource): Promise<boolean> {
+  const inspected = await rpc
+    .call('files.inspect', { path: source.archive, entryName: source.entry })
+    .catch(() => null);
+  return inspected?.kind === 'zip' && inspected.otherEntries === 0;
+}
+
 export function sourceOnlyDocument(docId: string, path: string, encoding: string): Document {
   return {
     modelVersion: 1,
@@ -334,7 +382,9 @@ export class FileFeature {
 
   constructor(registry: CommandRegistry, options: FileFeatureOptions = {}) {
     this.selfSaveGraceMs = options.selfSaveGraceMs ?? 1500;
-    this.recent = new RecentFilesStore(registry, (ctx, path) => this.openFromRecent(ctx, path));
+    this.recent = new RecentFilesStore(registry, (ctx, path, entry) =>
+      this.openFromRecent(ctx, path, entry),
+    );
     for (const command of this.createCommands()) registry.replace(command);
   }
 
@@ -502,7 +552,7 @@ export class FileFeature {
     try {
       ({ paths } = await ctx.rpc.call('dialog.openFile', {
         title: ctx.t('cmd.file.open.tooltip'),
-        filters: documentFilters(ctx),
+        filters: openFileTypes(ctx.t),
         selectedFilter: 0,
       }));
     } finally {
@@ -514,11 +564,15 @@ export class FileFeature {
     return this.openDocument(ctx, path);
   }
 
-  private async openFromRecent(ctx: CommandContext, path: string): Promise<boolean> {
+  private async openFromRecent(
+    ctx: CommandContext,
+    path: string,
+    entry?: string,
+  ): Promise<boolean> {
     this.userRequests += 1;
-    if (await this.showHeldBook(ctx, path)) return true;
+    if (await this.showHeldBook(ctx, path, entry)) return true;
     if (!(await this.confirmDiscardChanges(ctx))) return false;
-    return this.openDocument(ctx, path);
+    return this.openDocument(ctx, path, entry);
   }
 
   /**
@@ -526,20 +580,91 @@ export class FileFeature {
    * copy nothing reopens; when another copy holds it, that copy comes to the front. True when
    * the book is shown that way.
    */
-  private async showHeldBook(ctx: CommandContext, path: string): Promise<boolean> {
-    if (ctx.store.getState().path === path) {
+  private async showHeldBook(ctx: CommandContext, path: string, entry?: string): Promise<boolean> {
+    const state = ctx.store.getState();
+    // A book from a ZIP archive is the same book only for the same entry (feature 009, D11).
+    if (state.path === path && state.document?.source?.entry === entry) {
       window.focus();
       return true;
     }
     if (!ctx.rpc) return false;
     try {
-      const { slot } = await ctx.rpc.call('app.bookHolder', { path });
+      const { slot } = await ctx.rpc.call('app.bookHolder', entry ? { path, entry } : { path });
       if (slot === null) return false;
       await ctx.rpc.call('app.activateCopy', { slot, path });
       return true;
     } catch {
       return false; // no copies (developer runs): open here as before
     }
+  }
+
+  /**
+   * Feature 009 (D10, D32): the questions before a Save As writes - a completed name pointing
+   * at an existing file (the system's dialog only checked the name as typed), and an archive
+   * to replace that holds other files. No cancels the save.
+   */
+  private async confirmSaveTarget(
+    ctx: CommandContext,
+    chosen: string,
+    target: { path: string; entryName?: string },
+  ): Promise<boolean> {
+    const rpc = ctx.rpc;
+    if (!rpc) return false;
+    const inspected = await rpc
+      .call(
+        'files.inspect',
+        target.entryName
+          ? { path: target.path, entryName: target.entryName }
+          : { path: target.path },
+      )
+      .catch(() => null);
+    if (target.path !== chosen && inspected?.exists) {
+      const answer = await ctx.dialogs.showMessage({
+        text: ctx.t('dialog.saveFile.replaceCompleted', { path: target.path }),
+        caption: ctx.t('app.name'),
+        buttons: 'yesNo',
+        icon: 'warning',
+        testId: 'dialog-replace-completed',
+      });
+      if (answer !== 'yes') return false;
+    }
+    if (target.entryName && inspected?.kind === 'zip' && (inspected.otherEntries ?? 0) > 0) {
+      const answer = await ctx.dialogs.showMessage({
+        text: ctx.t('dialog.saveFile.archiveOthers', {
+          path: target.path,
+          count: inspected.otherEntries,
+        }),
+        caption: ctx.t('app.name'),
+        buttons: 'yesNo',
+        icon: 'warning',
+        testId: 'dialog-archive-others',
+      });
+      if (answer !== 'yes') return false;
+    }
+    return true;
+  }
+
+  /**
+   * Feature 009 (D7): the book of a ZIP archive to open - undefined when `path` is not an
+   * archive of books (a plain file opens as before), null when the user cancelled the chooser.
+   */
+  private async chooseArchiveBook(
+    ctx: CommandContext,
+    path: string,
+  ): Promise<string | null | undefined> {
+    const rpc = ctx.rpc;
+    if (!rpc) return undefined;
+    const inspected = await rpc.call('files.inspect', { path }).catch(() => null);
+    if (!inspected || inspected.kind !== 'zip') return undefined;
+    if (inspected.onlyBook !== undefined) return inspected.onlyBook;
+    if ((inspected.books ?? 0) < 2) return undefined;
+    const answer = await rpc.runJob('doc.open', { path });
+    if (!('needsChoice' in answer)) {
+      // Opened after all (the archive changed meanwhile): let the normal route reopen it.
+      await rpc.call('doc.close', { docId: answer.document.docId }).catch(() => undefined);
+      return undefined;
+    }
+    return showArchiveBookChooser(ctx.dialogs, answer.needsChoice, fileName(path));
   }
 
   /** Feature 008 (FR-011, clarify Q2): only what blocks the window makes this copy busy. */
@@ -637,18 +762,43 @@ export class FileFeature {
    * parse-error messages; Source-only mode for malformed files. Returns true when a document
    * (model or raw text) is now open.
    */
-  async openDocument(ctx: CommandContext, path: string): Promise<boolean> {
+  async openDocument(ctx: CommandContext, path: string, entry?: string): Promise<boolean> {
     const { store, rpc } = ctx;
     if (!rpc) return false;
+    // Feature 009: a ZIP archive of several books asks which one before the window's book is
+    // closed, so Cancel leaves it as it was (D7); one of a single book is opened by its entry,
+    // so the one-window rule sees the book itself (D11, FR-015).
+    if (entry === undefined && /\.zip$/i.test(path)) {
+      const chosen = await this.chooseArchiveBook(ctx, path);
+      if (chosen === null) return false;
+      if (chosen !== undefined) {
+        if (await this.showHeldBook(ctx, path, chosen)) return true;
+        entry = chosen;
+      }
+    }
     const pending = this.pendingPosition;
     this.pendingPosition = null;
     await this.closeCurrentDocument(ctx);
     try {
-      const result = await rpc.runJob(
-        'doc.open',
-        { path },
-        { onProgress: (progress) => actions.setProgress(store, progress) },
-      );
+      let result = await rpc.runJob('doc.open', entry ? { path, entry } : { path }, {
+        onProgress: (progress) => actions.setProgress(store, progress),
+      });
+      if ('needsChoice' in result) {
+        // An archive without the .zip name: asked once the window's book is closed.
+        const chosen = await showArchiveBookChooser(
+          ctx.dialogs,
+          result.needsChoice,
+          fileName(path),
+        );
+        if (chosen === null) return false;
+        entry = chosen;
+        result = await rpc.runJob(
+          'doc.open',
+          { path, entry },
+          { onProgress: (progress) => actions.setProgress(store, progress) },
+        );
+        if ('needsChoice' in result) return false;
+      }
       this.loadDocument(ctx, result.document);
       if (result.warnings.length > 0) {
         actions.setStatusMessage(
@@ -656,7 +806,8 @@ export class FileFeature {
           ctx.t('status.openedWithWarnings', { count: result.warnings.length }),
         );
       }
-      await this.watch(ctx, result.document.docId, true);
+      // An archive is not watched: the editor never saves into it (D9, DP-10).
+      await this.watch(ctx, result.document.docId, !result.document.source);
       void this.recent.refresh(rpc);
       // Every opening route ends here (Open, Recent Files, the command line, a forwarded file,
       // the `?open=` restart, the reload): the remembered place - or the reload's own caret -
@@ -676,8 +827,27 @@ export class FileFeature {
         void this.recent.refresh(rpc);
         return false;
       }
+      const archiveMessage = archiveErrorMessage(ctx.t, error, path);
+      if (archiveMessage) {
+        await ctx.dialogs.showMessage({
+          text: archiveMessage,
+          caption: ctx.t('dialog.error.caption'),
+          icon: 'error',
+          testId: 'dialog-archive-error',
+        });
+        void this.recent.refresh(rpc);
+        // A remembered book no longer in its archive: the chooser offers the others (FR-014).
+        if (
+          error instanceof RpcError &&
+          error.code === RpcErrorCode.archiveEntryMissing &&
+          Number((error.data as { books?: number } | undefined)?.books ?? 0) > 0
+        ) {
+          return this.openDocument(ctx, path);
+        }
+        return false;
+      }
       const parseError = parseErrorData(error);
-      if (parseError) return this.openSourceOnly(ctx, path, parseError);
+      if (parseError) return this.openSourceOnly(ctx, path, parseError, entry);
       // Core-side failures (I/O, parse) are logged by the core; log the client-side ones.
       if (isClientSideError(error)) {
         void logUiError(rpc, {
@@ -704,6 +874,7 @@ export class FileFeature {
     ctx: CommandContext,
     path: string,
     parseError: DocParseErrorData,
+    entry?: string,
   ): Promise<boolean> {
     const { store, rpc } = ctx;
     if (!rpc) return false;
@@ -719,13 +890,17 @@ export class FileFeature {
       testId: 'dialog-parse-error',
     });
     try {
-      const source = await rpc.call('doc.openSource', { path });
+      const source = await rpc.call('doc.openSource', entry ? { path, entry } : { path });
+      if ('needsChoice' in source) return false;
       const error = source.error ?? parseError;
       resetSourceSession(store);
       ctx.undo.clear();
-      actions.setDocument(store, sourceOnlyDocument(source.docId, path, source.encoding), {
-        sourceOnly: true,
-      });
+      const document = sourceOnlyDocument(source.docId, path, source.encoding);
+      actions.setDocument(
+        store,
+        source.source ? { ...document, source: source.source } : document,
+        { sourceOnly: true },
+      );
       setSourceOnlyText(store, source.docId, source.text);
       sourceSession(store).pendingCaret = { line: error.line, column: error.column };
       actions.setSourceParseError(store, error);
@@ -739,7 +914,7 @@ export class FileFeature {
         }),
       );
       this.documentOpened(ctx); // a malformed file in the Source view is a document opened
-      await this.watch(ctx, source.docId, true);
+      await this.watch(ctx, source.docId, !source.source);
       void this.recent.refresh(rpc);
       return true;
     } catch (error) {
@@ -756,6 +931,24 @@ export class FileFeature {
   /* ------------------------------------------------------------------- save */
 
   /** Save / Save As. Returns true when the file was written. */
+  /** The book's validation as Save judges it (no panel, no message), or null without a core. */
+  private async validationBeforeSave(ctx: CommandContext): Promise<ValidationReport | null> {
+    const { store, rpc } = ctx;
+    const state = store.getState();
+    if (!rpc || !state.document || !state.docId) return null;
+    const session = sourceSession(store);
+    const useText = (state.sourceOnly || state.sourceDirty) && session.text !== null;
+    const report = await rpc.runJob(
+      'doc.validate',
+      useText
+        ? { docId: state.docId, text: session.text ?? '' }
+        : { docId: state.docId, document: state.document },
+      { onProgress: (progress) => actions.setProgress(store, progress) },
+    );
+    actions.setProgress(store, null);
+    return report;
+  }
+
   async saveDocument(ctx: CommandContext, options: { saveAs?: boolean }): Promise<boolean> {
     const { store, rpc } = ctx;
     if (!rpc) return false;
@@ -767,43 +960,96 @@ export class FileFeature {
 
     let path = state.path ?? undefined;
     let encoding: string | null;
-    if (options.saveAs || !path) {
+    let force = false;
+    // Feature 009: a book from a ZIP archive is never saved back into it - every way of saving
+    // shows the Save As dialog (D8, D30, FR-017), whose checkbox writes a new ZIP archive.
+    const source = state.document.source;
+    let archive: { entryName: string } | undefined;
+    let zipChecked: boolean | null = null;
+    if (options.saveAs || !path || source) {
+      // The validation question comes before the dialog (the requester at the smoke test of
+      // 0.0.7-rc.5): who does not want an invalid book saved stops here, choosing no file.
+      const report = await this.validationBeforeSave(ctx);
+      if (report && report.errorCount > 0) {
+        if (!(await confirmSaveWithErrors(ctx.dialogs, ctx.t, report))) return false;
+        force = true;
+      }
       const selectedFilter = saveAsSelectedType(state.fileKind);
+      const startChecked = zipStartState(source !== undefined);
+      // The document's own file, or - never saved - the bare name composed from its
+      // description, which the dialog places in the folder it remembers (FR-050, FR-053).
+      const current = path ?? saveAsProposedName(ctx, state.document, selectedFilter);
+      const defaultPath =
+        source || startChecked
+          ? proposedSavePath({
+              current,
+              source,
+              archiveHeldOnlyThisBook: source ? await archiveHeldOnly(rpc, source) : false,
+              checked: startChecked,
+            })
+          : current;
       const choice = await rpc.call('dialog.saveFile', {
         title: ctx.t('cmd.file.saveAs.tooltip'),
         filters: documentFilters(ctx),
         selectedFilter,
-        // The document's own file, or - never saved - the bare name composed from its
-        // description, which the dialog places in the folder it remembers (FR-050, FR-053).
-        defaultPath: path ?? saveAsProposedName(ctx, state.document, selectedFilter),
+        defaultPath,
         encodingChoices: [...ENCODING_CHOICES],
         selectedEncoding: defaultSaveEncoding(store),
         encodingLabel: ctx.t('dialog.saveFile.encoding'),
+        zipChoice: { label: ctx.t('dialog.saveFile.zip'), checked: startChecked },
       });
       if (!choice.path) return false;
-      path = choice.path;
       encoding = normalizeEncoding(choice.encoding);
+      let zip = choice.zip;
+      // A dialog without the checkbox: the editor's own window asks when the box matters (a
+      // book from an archive, or a box that starts ticked); otherwise it stays unticked.
+      if (zip === undefined && (source !== undefined || startChecked)) {
+        const answer = await showSaveOptionsDialog(ctx.dialogs, {
+          defaultEncoding: encoding ?? defaultSaveEncoding(store),
+          path: choice.path,
+          zip: startChecked,
+        });
+        if (!answer) return false;
+        encoding = answer.encoding;
+        zip = answer.zip;
+      }
+      zip = zip ?? false;
       // The platform dialogs return the encoding chosen inside them; answers without one (the
       // queued test dialogs, CEF's fallback dialog) get the original's choice in a window.
       if (!encoding) {
         encoding = await showEncodingDialog(ctx.dialogs, {
           defaultEncoding: defaultSaveEncoding(store),
-          path,
+          path: choice.path,
         });
         if (!encoding) return false;
       }
+      const target = completeSaveTarget(choice.path, zip, {
+        descriptor: state.fileKind === 'fbd',
+        sourceEntry: source?.entry,
+      });
+      if (!(await this.confirmSaveTarget(ctx, choice.path, target))) return false;
+      path = target.path;
+      archive = target.entryName ? { entryName: target.entryName } : undefined;
+      zipChecked = zip;
     } else {
       encoding = defaultSaveEncoding(store);
     }
 
-    let force = false;
     for (;;) {
       const current = store.getState();
       if (!current.document || !current.docId) return false;
       try {
         const result = await rpc.runJob(
           'doc.save',
-          { docId: current.docId, document: current.document, path, encoding, force },
+          {
+            docId: current.docId,
+            document: current.document,
+            path,
+            encoding,
+            force,
+            backup: keepsBackup(store),
+            ...(archive ? { archive } : {}),
+          },
           { onProgress: (progress) => actions.setProgress(store, progress) },
         );
         actions.setProgress(store, null);
@@ -820,23 +1066,28 @@ export class FileFeature {
         const after = store.getState();
         if (after.docId !== current.docId || !after.document) return true;
         const editedMeanwhile = after.document !== current.document;
+        if (zipChecked !== null) rememberZipChoice(zipChecked);
+        // Once saved, the book is tied to the file just written (DP-5 remark): no archive
+        // after a plain save, the new archive after a ZIP save (D30).
         const saved: Document = {
           ...after.document,
           path: result.path,
           sourceEncoding: result.encoding,
-          fileKind: kindFromPath(result.path),
+          fileKind: kindFromPath(result.source?.entry ?? result.path),
         };
+        if (result.source) saved.source = result.source;
+        else delete saved.source;
         store.setState({ document: saved });
         actions.markSaved(store, result.path, saved.fileKind);
         if (editedMeanwhile) store.setState({ modified: true, sourceDirty: after.sourceDirty });
-        actions.setStatusMessage(
-          store,
-          result.validation.errorCount === 0
-            ? ctx.t('status.savedNoErrors')
-            : ctx.t('msg.errorsFound', { count: result.validation.errorCount }),
-        );
+        actions.setStatusMessage(store, savedMessage(ctx.t, result));
         if (store.getState().validation) actions.setValidation(store, result.validation);
-        await this.watch(ctx, current.docId, true);
+        // Save's validation checked what was saved: the validity pane's, unless edited since.
+        if (result.validation && !editedMeanwhile) {
+          actions.setLastCheck(store, result.validation.errorCount);
+        }
+        // A plain file is watched again; an archive is not (D9, FR-028).
+        await this.watch(ctx, current.docId, !result.source);
         // Every save remembers the position, under the saved path (FR-100).
         void rememberPosition(ctx, current.docId);
         void this.recent.refresh(rpc);
@@ -880,6 +1131,8 @@ export class FileFeature {
     );
     actions.setProgress(store, null);
     actions.setValidation(store, report);
+    // Feature 009 (FR-055): the validity pane shows this result until the content changes.
+    actions.setLastCheck(store, report.errorCount);
     actions.setStatusMessage(
       store,
       report.errorCount === 0

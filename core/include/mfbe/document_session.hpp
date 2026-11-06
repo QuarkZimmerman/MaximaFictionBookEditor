@@ -28,6 +28,9 @@ namespace mfbe::session {
 struct DocumentSession {
     std::string docId;
     std::optional<std::string> path;  // absolute; nullopt for a new unsaved document
+    // Feature 009: the book's entry when `path` is the ZIP archive it was read from or saved
+    // as (data-model §2); a book from an archive is never saved back into it.
+    std::optional<std::string> archiveEntry;
     model::FileKind fileKind = model::FileKind::fb2;
     std::string sourceEncoding = "utf-8";
     std::string xlinkPrefix = "l";  // xlink namespace prefix of the opened file (kept on save)

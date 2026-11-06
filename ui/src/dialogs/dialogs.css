@@ -291,3 +291,42 @@
   display: flex;
   outline: none;
 }
+
+/* The book chooser of a ZIP archive with several books (feature 009, ArchiveBookChooser.tsx). */
+.mfbe-archive-chooser-filter {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.mfbe-archive-chooser-filter input {
+  flex: 1;
+}
+.mfbe-archive-chooser-list {
+  min-width: 480px;
+  max-height: 320px;
+  overflow: auto;
+  border: 1px solid GrayText;
+}
+.mfbe-archive-chooser-list table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.mfbe-archive-chooser-list th {
+  position: sticky;
+  top: 0;
+  text-align: start;
+  background: Canvas;
+}
+.mfbe-archive-chooser-list tr.is-selected {
+  background: Highlight;
+  color: HighlightText;
+}
+.mfbe-archive-chooser-size {
+  text-align: end;
+  white-space: nowrap;
+}
+.mfbe-archive-chooser-more {
+  margin-top: 4px;
+  opacity: 0.8;
+}

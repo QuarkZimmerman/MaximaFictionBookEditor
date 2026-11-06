@@ -81,6 +81,30 @@ function descriptionField(ctx: CommandContext): HTMLElement | null {
   return field?.closest('[data-testid="description-view"]') ? field : null;
 }
 
+/** Where Paste puts the clipboard (also Paste as plain text, feature 009). */
+export type PasteTarget =
+  { kind: 'source'; view: EditorView } | { kind: 'field'; field: HTMLElement } | { kind: 'body' };
+
+export function pasteTargetOf(ctx: CommandContext): PasteTarget {
+  const source = sourceView(ctx);
+  if (source) return { kind: 'source', view: source };
+  const field = descriptionField(ctx);
+  if (field) return { kind: 'field', field };
+  return { kind: 'body' };
+}
+
+/** Paste is available: a writable Source view, field or mounted, editable Body (FR-045). */
+export function pasteEnabled(ctx: CommandContext): boolean {
+  const source = sourceView(ctx);
+  if (source) return !source.state.readOnly;
+  const field = descriptionField(ctx);
+  if (field) {
+    const target = fieldTargetFor(field);
+    return target ? target.editable : isWritable(field);
+  }
+  return bodyEditable(ctx) && !!bodyController(ctx.store)?.isMounted;
+}
+
 function sourceSelected(view: EditorView): boolean {
   return view.state.selection.ranges.some((range) => !range.empty);
 }
@@ -317,16 +341,7 @@ export function registerClipboardCommands(registry: CommandRegistry): void {
       group: 'edit',
       ...cmdKeys('edit.paste', 'menu.edit.paste'),
       icon: 'id_edit_paste',
-      enabled: (ctx) => {
-        const source = sourceView(ctx);
-        if (source) return !source.state.readOnly;
-        const field = descriptionField(ctx);
-        if (field) {
-          const target = fieldTargetFor(field);
-          return target ? target.editable : isWritable(field);
-        }
-        return bodyEditable(ctx) && !!bodyController(ctx.store)?.isMounted;
-      },
+      enabled: (ctx) => pasteEnabled(ctx),
       run: (ctx) => {
         const source = sourceView(ctx);
         if (source) return pasteIntoSource(source);

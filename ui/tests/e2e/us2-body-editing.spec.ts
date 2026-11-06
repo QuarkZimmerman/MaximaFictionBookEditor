@@ -323,7 +323,7 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     const prompt = page.getByTestId('dialog-insert-clear-image');
     await expect(prompt).toBeVisible();
     await page.getByTestId('dialog-insert-clear-image-dontask').check();
-    await page.getByTestId('dialog-insert-clear-image-button-yes').click();
+    await page.getByTestId('dialog-insert-clear-image-button-no').click();
     await expect(section.locator('> figure.fb-image')).toHaveCount(1);
     await clickInto(page, paragraph, { path: MAIN_PARAGRAPH });
     await menu(page, 'add', 'image');

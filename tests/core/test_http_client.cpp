@@ -729,3 +729,14 @@ TEST_CASE("http client: libcurl is initialised lazily and cleaned up only when i
     REQUIRE(client.perform(get_request(server.url("/v1/models")), control).ok());
     CHECK(net::global_init_ran());
 }
+
+TEST_CASE("http client: Anthropic's hosts get its version header (feature 009)", "[http]") {
+    CHECK(net::needs_anthropic_version("https://api.anthropic.com/v1/models"));
+    CHECK(net::needs_anthropic_version("https://API.Anthropic.com/v1"));
+    CHECK(net::needs_anthropic_version("https://api.anthropic.com:443/v1/models"));
+    CHECK(net::needs_anthropic_version("https://anthropic.com/v1"));
+    CHECK_FALSE(net::needs_anthropic_version("https://api.openai.com/v1/models"));
+    CHECK_FALSE(net::needs_anthropic_version("https://notanthropic.com/v1"));
+    CHECK_FALSE(net::needs_anthropic_version("https://anthropic.com.example.org/v1"));
+    CHECK_FALSE(net::needs_anthropic_version("http://127.0.0.1:8080/v1?host=api.anthropic.com"));
+}

@@ -40,7 +40,8 @@ import { actions } from '@/model/store';
 import { RpcError } from '@/rpc/client';
 import { RpcErrorCode } from '@/rpc/types';
 
-import { addBinariesFromFiles, addBinaryToModel, fileName } from './binaries';
+import { showsSummary, summarize, summaryText } from './addSummary';
+import { addBinariesFromFiles, addBinariesToModel, addBinaryToModel, fileName } from './binaries';
 import { rememberCommandContext } from './context';
 
 export type ImageKind = 'block' | 'inline' | 'section';
@@ -66,22 +67,29 @@ const FACTORIES: Record<ImageKind, (attrs?: ImageAttrs) => PMCommand> = {
 
 /**
  * Decides between a clear (empty) image and a file per the settings, asking when
- * `askOnNonClearImage` is on. Persists "Don't ask again". Returns true for a clear image.
+ * `askOnNonClearImage` is on. Persists "Don't ask again". Returns true for a clear image, false
+ * for a file, null when cancelled.
  */
-export async function wantsClearImage(ctx: CommandContext): Promise<boolean> {
+export async function wantsClearImage(ctx: CommandContext): Promise<boolean | null> {
   const { store, rpc } = ctx;
   const settings = store.getState().settings;
   let clear = settings?.other.insertClearImages ?? false;
   if (!(settings?.other.askOnNonClearImage ?? true)) return clear;
+  // From a file (the usual case, the default), an empty picture, or nothing (the requester at
+  // the smoke test of 0.0.7-rc.6: the original's "Insert clear image?" did not say that No
+  // meant a file).
   const answer = await ctx.dialogs.showMessageWithResult({
-    text: ctx.t('dialog.addImage.insertClear'),
+    text: ctx.t('dialog.addImage.chooseSource'),
     caption: ctx.t('dialog.addImage.caption'),
-    buttons: 'yesNo',
+    buttons: 'yesNoCancel',
+    labels: { yes: ctx.t('dialog.addImage.fromFile'), no: ctx.t('dialog.addImage.empty') },
+    defaultButton: 'yes',
     icon: 'question',
     dontAskAgain: true,
     testId: 'dialog-insert-clear-image',
   });
-  clear = answer.button === 'yes';
+  if (answer.button === 'cancel') return null;
+  clear = answer.button === 'no';
   if (answer.dontAskAgain && rpc) {
     try {
       const result = await rpc.call('settings.set', {
@@ -100,7 +108,9 @@ export async function wantsClearImage(ctx: CommandContext): Promise<boolean> {
  * placeholder or a file embedded as a binary. Null when cancelled.
  */
 export async function chooseImage(ctx: CommandContext): Promise<ImageAttrs | null> {
-  if (await wantsClearImage(ctx)) return { href: CLEAR_IMAGE_HREF };
+  const clear = await wantsClearImage(ctx);
+  if (clear === null) return null;
+  if (clear) return { href: CLEAR_IMAGE_HREF };
   const { store, rpc } = ctx;
   const docId = store.getState().docId;
   if (!rpc || !docId) return null;
@@ -236,18 +246,33 @@ export async function addBinaryObjects(ctx: CommandContext): Promise<number> {
   const { store, rpc } = ctx;
   const docId = store.getState().docId;
   if (!rpc || !docId) return 0;
-  const added = await addBinariesFromFiles(rpc, docId, {
+  const outcome = await addBinariesFromFiles(rpc, docId, {
     title: ctx.t('dialog.addImage.chooseBinaries'),
     filters: binaryFileTypes(ctx.t),
     selectedFilter: BINARY_SELECTED_TYPE,
     multiple: true,
   });
-  for (const meta of added) addBinaryToModel(store, meta);
-  if (added.length > 0) {
-    actions.setModified(store, true);
-    actions.setStatusMessage(store, ctx.t('images.msg.binariesAdded', { count: added.length }));
+  // Every file on its own (feature 009, US9): the successes in the model at once (§12).
+  addBinariesToModel(store, outcome.added);
+  if (outcome.added.length > 0) actions.setModified(store, true);
+  const summary = summarize(outcome);
+  if (showsSummary(summary)) {
+    await ctx.dialogs.showMessage({
+      caption: ctx.t('images.summary.caption'),
+      text: summaryText(ctx.t, summary),
+      icon: summary.failed.length > 0 ? 'warning' : 'info',
+      testId: 'dialog-binaries-summary',
+    });
+  } else if (outcome.added.length === 0 && outcome.failed[0]) {
+    // A single file behaves as before: its failure is the command's.
+    throw outcome.failed[0].error;
+  } else if (outcome.added.length > 0) {
+    actions.setStatusMessage(
+      store,
+      ctx.t('images.msg.binariesAdded', { count: outcome.added.length }),
+    );
   }
-  return added.length;
+  return outcome.added.length;
 }
 
 export function registerImageCommands(registry: CommandRegistry): void {

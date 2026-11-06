@@ -7,7 +7,8 @@
 #     language from the user's regional format, GetUserDefaultLocaleName);
 #   - Save (F2, the original editor's key) rewrites the book in place, and so does Ctrl+S sent as a
 #     real keystroke (SendInput, feature 007 FR-001) after an edit - never the browser engine's
-#     "save the page";
+#     "save the page" -, keeping the previous version beside it as "<name>.bak" (feature 009,
+#     FR-006);
 #   - the browser engine's keys sent as real keystrokes (feature 007 FR-002 to FR-005) keep an
 #     unsaved edit, the process and the window: Ctrl+R, F5 with Help > About open, Ctrl+F4, and
 #     Ctrl+W with About open; no key opens a window: Ctrl+N with About open, and F12 in a run without
@@ -819,6 +820,14 @@ function Save-ThroughNativeDialog([string]$ExpectedName, [string]$TypedName, [st
     $null = Get-CdpValue $script:cdp @'
 (() => { setTimeout(() => { (document.activeElement || document.body).dispatchEvent(new KeyboardEvent('keydown', { key: 'F2', code: 'F2', shiftKey: true, bubbles: true, cancelable: true })); }, 300); return true; })()
 '@
+    # Since feature 009 the validation question of an invalid book comes before the Save dialog
+    # (the requester at the smoke test of 0.0.7-rc.5). A new document's description is
+    # incomplete, so the question always comes here: Yes, clicked a moment later like the key
+    # above, since the dialog it opens is modal and the protocol answers nothing while it is open.
+    Wait-Until 'the validation prompt before the Save dialog' { Test-Element 'dialog-validation-failed' }
+    $null = Get-CdpValue $script:cdp @'
+(() => { setTimeout(() => { document.querySelector('[data-testid="dialog-validation-failed-button-yes"]').click(); }, 300); return true; })()
+'@
     $window = Wait-NativeDialog
     Write-Host ("journey: the Save dialog '{0}' (0x{1:X}, process {2}; title expected '{3}')" -f $window.Title, $window.Handle.ToInt64(), $window.ProcessId, $saveAsTitle)
     Start-Sleep -Milliseconds 500
@@ -1149,8 +1158,12 @@ if ($unexpected.Count -gt 0) { throw "folders appeared under C:\: $($unexpected 
 $savedEntries = @($savedFiles | ForEach-Object { $_.Substring($documentsFolder.Length) })
 $unexpected = @(Get-Entries $documentsFolder | Where-Object { $_ -notin $documentsBefore -and $_ -cnotin $savedEntries })
 if ($unexpected.Count -gt 0) { throw "entries appeared next to the book's folder: $($unexpected -join ', ')" }
-$inBooks = @(Get-Entries $booksFolder)
-if ($inBooks.Count -ne 1 -or $inBooks[0] -cne "\$bookName") { throw "the book's folder holds: $($inBooks -join ', ')" }
+# The book's folder: the book and, from the save over it, its backup under exactly
+# "<name>.bak" (feature 009, FR-006 - other.keepBackup is on by default).
+$inBooks = @(Get-Entries $booksFolder | Sort-Object)
+if ($inBooks.Count -ne 2 -or $inBooks[0] -cne "\$bookName" -or $inBooks[1] -cne "\$bookName.bak") {
+    throw "the book's folder holds: $($inBooks -join ', ')"
+}
 if ($programFolder) {
     $unexpected = @(Get-Entries $programFolder -Recurse | Where-Object { $_ -notin $programBefore })
     if ($unexpected.Count -gt 0) { throw "the installed editor wrote into its program folder: $($unexpected -join ', ')" }

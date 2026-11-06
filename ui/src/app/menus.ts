@@ -130,6 +130,7 @@ export const MAIN_MENU: readonly MenuSpec[] = [
       cmd('edit.cut'),
       cmd('edit.copy'),
       cmd('edit.paste'),
+      cmd('edit.pastePlain'),
       sep,
       cmd('edit.find'),
       cmd('edit.findNext'),

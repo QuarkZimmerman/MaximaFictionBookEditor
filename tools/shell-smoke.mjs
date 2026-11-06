@@ -159,6 +159,9 @@ const expectTitle = process.env.MFBE_SMOKE_EXPECT_TITLE ?? 'mfbe-smoke';
 const expectSelector = process.env.MFBE_SMOKE_EXPECT_SELECTOR ?? '#menubar';
 const openFile = process.env.MFBE_SMOKE_OPEN_FILE ?? '';
 const expectText = process.env.MFBE_SMOKE_EXPECT_TEXT ?? '';
+// Feature 009: the title's document part when it is not the opened file's name - a book from a
+// ZIP archive shows "book.fb2 (archive.zip)".
+const expectDocument = process.env.MFBE_SMOKE_EXPECT_DOCUMENT ?? '';
 const checkAbout = process.env.MFBE_SMOKE_ABOUT === '1';
 const expectVersion = process.env.MFBE_SMOKE_EXPECT_VERSION ?? '';
 const expectBuild = process.env.MFBE_SMOKE_EXPECT_BUILD ?? '';
@@ -218,7 +221,7 @@ function titleMatches(title) {
     return false;
   }
   if (openFile) {
-    return title.startsWith(`${path.basename(openFile)} - `);
+    return title.startsWith(`${expectDocument || path.basename(openFile)} - `);
   }
   return true;
 }
@@ -234,7 +237,7 @@ async function waitForTitle(page) {
     await sleep(250);
   }
   const wanted = openFile
-    ? `"${path.basename(openFile)} - ${expectTitle}"`
+    ? `"${expectDocument || path.basename(openFile)} - ${expectTitle}"`
     : `a title containing "${expectTitle}"`;
   throw new Error(`expected ${wanted} but got "${title}" (url ${page.url()})`);
 }
@@ -936,10 +939,12 @@ const KEY_SETS = {
   // in every text field); on a link of the interface the engine of CEF 150 in Chrome style asks
   // for nothing either (no OnOpenURLFromTab, no OnBeforePopup; observed 2026-10-31 with real X
   // clicks that reach the link). The interface opens its links in the system browser itself
-  // (ExternalLink, app.openUrl), which a smoke run must not start.
+  // (ExternalLink, app.openUrl), which a smoke run must not start. Since feature 009 (FR-037)
+  // Ctrl+click on the book's web link follows it the same way: the address goes to the system
+  // browser through the core, here to shell-smoke.sh's stand-in xdg-open, which opens nothing.
   links: [
     { keys: { link: 'middle', where: 'body' }, state: 'body', logs: [], outcome: 'kept' },
-    { keys: { link: 'Control', where: 'body' }, state: 'body', logs: [], outcome: 'kept' },
+    { keys: { link: 'Control', where: 'body' }, state: 'body', logs: [], outcome: (ctx) => linkHandedOver(ctx) },
     { keys: { link: 'Shift', where: 'body' }, state: 'body', logs: [], outcome: 'kept' },
     { keys: { link: 'middle', where: 'about' }, state: 'modal', logs: [], outcome: 'kept' },
   ],
@@ -1212,6 +1217,22 @@ async function clickLink(ctx, how, where) {
   }
 }
 
+// Feature 009 (FR-037): the book's web link, Ctrl+clicked, reached the system browser - here
+// shell-smoke.sh's stand-in xdg-open, which records the address and opens nothing. Exactly once:
+// the middle-click before it handed nothing over.
+async function linkHandedOver() {
+  const file = process.env.MFBE_SMOKE_OPENED_URLS ?? '';
+  const count = () =>
+    fs.existsSync(file)
+      ? fs.readFileSync(file, 'utf8').split('\n').filter((line) => line === EXTERNAL_LINK).length
+      : 0;
+  await waitUntil(`${EXTERNAL_LINK} handed to the system browser`, async () => count() > 0, timeoutMs);
+  if (count() !== 1) {
+    throw new Error(`${EXTERNAL_LINK} was handed to the system browser ${count()} times`);
+  }
+  return `${EXTERNAL_LINK} handed to the system browser (the smoke's stand-in xdg-open)`;
+}
+
 // A real mouse button over the page (8 = back, 9 = forward).
 function clickButton(ctx, button) {
   xdotool(ctx.env, 'windowactivate', '--sync', ctx.window);
@@ -1424,6 +1445,15 @@ async function saveThroughGtkDialog(page, env, dialogTitle, file, typed) {
   const item = page.locator('[data-testid="menu-file-saveAs"]');
   await item.waitFor({ state: 'visible', timeout: timeoutMs });
   await item.click();
+  // Since feature 009 the validation question of an invalid book comes before the dialog (the
+  // requester at the smoke test of 0.0.7-rc.5): Yes, then the dialog. A valid book asks nothing.
+  const question = page.locator('[data-testid="dialog-validation-failed"]');
+  try {
+    await question.waitFor({ state: 'visible', timeout: 5000 });
+    await question.locator('[data-testid="dialog-validation-failed-button-yes"]').click();
+  } catch {
+    // no question: the book is valid
+  }
   const dialog = await waitForWindow(env, dialogTitle);
   xdotool(env, 'windowactivate', '--sync', dialog);
   await sleep(500);
@@ -1465,14 +1495,25 @@ async function checkSaveAsDialog(page) {
   const dialogTitle = catalogueText(lang, 'cmd.file.saveAs.tooltip');
   const untitled = catalogueText(lang, 'app.untitled');
 
-  // File > New, then the author and the title in the Description view.
+  // File > New, then the author and the title in the Description view. The start-up document is
+  // untitled too, so the title alone does not show that New is done: the Body view's document id
+  // changes as well. (On a slow shell the fills otherwise went into the old document's form, which
+  // the new document then replaced.)
+  const bodyView = page.locator('[data-testid="body-view"]');
+  const docIdOf = async () => ((await bodyView.count()) > 0 ? await bodyView.getAttribute('data-doc-id') : null);
+  const docBefore = await docIdOf();
   await page.locator('[data-testid="menu-file"]').click();
   const item = page.locator('[data-testid="menu-file-new"]');
   await item.waitFor({ state: 'visible', timeout: timeoutMs });
   await item.click();
   await waitUntil(
     `the new document "${untitled}"`,
-    async () => (await page.title()).startsWith(`${untitled} - `),
+    async () => {
+      if (!(await page.title()).startsWith(`${untitled} - `)) return false;
+      if (docBefore === null) return true;
+      const docNow = await docIdOf();
+      return docNow !== null && docNow !== docBefore;
+    },
     timeoutMs,
   );
   await page.locator('[data-testid="view-description"]').click();

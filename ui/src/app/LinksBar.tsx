@@ -18,7 +18,10 @@ import { useTranslation } from 'react-i18next';
 import { setNodeAttr } from '@/editor/commands/table';
 import { registerBarFocus, type BarField } from '@/features/editing/barFocus';
 import { setHrefAtSelection } from '@/features/footnotes';
+import { canViewPicture } from '@/features/images/pictureViewModel';
+import { openPictureView } from '@/features/images/openPictureView';
 import { collectImageRefs, collectJumpTargets, normalizeHref } from '@/features/linkTargets';
+import { binaryPreviewUrl } from '@/model/binaryUrls';
 import { isRunLocked, useAppState } from '@/model/store';
 import { useBodySelectionContext } from '@/views/body/useBodySelection';
 
@@ -146,7 +149,15 @@ export function BarTextField({
 
 export function LinksBar() {
   const { t } = useTranslation();
-  const { store } = useAppServices();
+  const { store, dialogs } = useAppServices();
+  // Feature 009: an image entry of the Href list opens in the picture view, as the cover does.
+  const enlargePicture = (href: string) => {
+    const state = store.getState();
+    const binary = state.document?.binaries.find((entry) => `#${entry.id}` === href);
+    if (binary && state.docId && canViewPicture(binary)) {
+      void openPictureView(dialogs, { docId: state.docId, binary, store });
+    }
+  };
   const activeView = useAppState((s) => s.activeView, store);
   const runLocked = useAppState(isRunLocked, store);
   const { controller, context } = useBodySelectionContext();
@@ -188,6 +199,12 @@ export function LinksBar() {
         onCommit={(value) => {
           if (controller) setHrefAtSelection(controller, normalizeHref(value));
         }}
+        openOnClick={Boolean(context?.image)}
+        preview={
+          context?.image ? (href) => binaryPreviewUrl(store.getState().docId, href, 64) : undefined
+        }
+        onEnlarge={context?.image ? (href) => enlargePicture(href) : undefined}
+        enlargeLabel={t('linksBar.enlargePicture')}
       />
       <BarTextField
         id="links-bar-section-id"

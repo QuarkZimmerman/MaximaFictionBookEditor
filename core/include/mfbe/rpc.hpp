@@ -51,6 +51,10 @@ inline constexpr int kDocPositionsStale = 1005;
 // Feature 004 (doc.exportDescription): the target is the open document's own file.
 inline constexpr int kDocSameAsOpenFile = 1006;
 inline constexpr int kBinaryNotFound = 1010;
+// Feature 009 (binary.rename): the new id is not an XML NCName {newId} / another binary has it
+// {newId}.
+inline constexpr int kBinaryIdInvalid = 1011;
+inline constexpr int kBinaryIdTaken = 1012;
 inline constexpr int kSpellDictionaryUnavailable = 1020;
 inline constexpr int kScriptNotFound = 1030;
 inline constexpr int kScriptInvalidManifest = 1031;
@@ -60,6 +64,13 @@ inline constexpr int kReleaseUnavailable = 1060;
 // Feature 003 (app.restart): no shell attached / the shell could not start the new instance.
 inline constexpr int kRestartUnavailable = 1070;
 inline constexpr int kRestartFailed = 1071;
+// Feature 009 (books in ZIP archives, rpc-api §1): another archive kind {kind}; a ZIP without
+// a book {}; a book that cannot be read {entry, reason}; a remembered book no longer there
+// {entry, books}.
+inline constexpr int kArchiveUnsupported = 1080;
+inline constexpr int kArchiveNoBook = 1081;
+inline constexpr int kArchiveEntryUnreadable = 1082;
+inline constexpr int kArchiveEntryMissing = 1083;
 inline constexpr int kCancelled = 1090;
 // Feature 005 (ai.*): the target cannot be resolved to a service the call may contact -
 // {reason: disabled | unknownService | emptyAddress | noModel | noAgreement, id?, service?}.

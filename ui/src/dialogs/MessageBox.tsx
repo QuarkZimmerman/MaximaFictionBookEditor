@@ -31,7 +31,7 @@ export function MessageBox({ options, onClose }: MessageBoxProps) {
 
   const buttons: DialogButton[] = set.buttons.map((id) => ({
     id,
-    label: t(`dialog.buttons.${id}`),
+    label: options.labels?.[id] ?? t(`dialog.buttons.${id}`),
     onClick: () => onClose({ button: id, dontAskAgain }),
   }));
 

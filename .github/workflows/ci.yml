@@ -43,6 +43,18 @@ jobs:
           shellcheck tools/*.sh tools/ci/*.sh packaging/appimage/build.sh packaging/appimage/AppRun tests/corpus/run.sh
           shellcheck -s sh packaging/deb-rpm/postinst packaging/deb-rpm/prerm packaging/deb-rpm/postrm \
             packaging/deb-rpm/rpm-post.sh packaging/deb-rpm/rpm-preun.sh packaging/deb-rpm/rpm-postun.sh
+      - name: Desktop file (feature 009, FR-024)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends desktop-file-utils
+          # The runner's desktop-file-utils predates the file's Version=1.5: that one message is
+          # tolerated, every other one fails the step.
+          out=$(desktop-file-validate app/linux/mfbe.desktop 2>&1 || true)
+          echo "$out"
+          if echo "$out" | grep -v 'for key "Version" in group "Desktop Entry" is not a known version' | grep -q 'error:'; then
+            exit 1
+          fi
+          grep -q '^MimeType=.*application/x-zip-compressed-fb2;' app/linux/mfbe.desktop
       - name: Path portability (Windows/macOS checkouts)
         run: python3 tools/path-portability-check.py
       - name: Path conversions (paths <-> text without the Windows code page, feature 002)
@@ -587,6 +599,18 @@ jobs:
           MFBE_SMOKE_OPEN_FILE: tests/fixtures/books/modern-utf8.fb2
           MFBE_SMOKE_ABOUT: "1"
 
+      - name: "Shell smoke: a book in a ZIP archive from the command line (feature 009, T044)"
+        # The real shell hands a .fb2.zip to the core, which opens its only book; the title
+        # names the book and its archive (D11). Reuses the step above's ui/node_modules.
+        if: runner.os == 'Linux'
+        run: tools/shell-smoke.sh
+        env:
+          MFBE_APP_BIN: ${{ github.workspace }}/build/${{ matrix.preset }}/bin/mfbe
+          MFBE_SMOKE_REAL_UI: "1"
+          MFBE_SMOKE_OPEN_FILE: tests/fixtures/archives/single.fb2.zip
+          MFBE_SMOKE_EXPECT_DOCUMENT: book.fb2 (single.fb2.zip)
+          MFBE_SMOKE_SCREENSHOT: build/shell-smoke-archive.png
+
       - name: "Shell smoke: pictures in table cells in CEF (feature 006, R9.5)"
         # The layout gates of the pictures in table cells in the real CEF shell, at 1280 and
         # 640 px, Fast Mode off and on - CI's only CEF evidence for this layout, since the shell
@@ -851,6 +875,12 @@ jobs:
           $cmd = (Get-ItemProperty 'HKLM:\Software\Classes\MaximaFBE.fb2\shell\open\command').'(default)'
           Write-Host "open command: $cmd"
           if (-not (Test-Path 'HKLM:\Software\Classes\.fbd')) { throw ".fbd association missing" }
+          # Feature 009 (D12, DP-19): offered in "Open with" for .zip, never its default program.
+          if (-not (Test-Path 'HKLM:\Software\Classes\MaximaFBE.fb2zip\shell\open\command')) { throw "the ProgId MaximaFBE.fb2zip is missing" }
+          $openWith = Get-ItemProperty 'HKLM:\Software\Classes\.zip\OpenWithProgids' -ErrorAction Stop
+          if ($null -eq $openWith.'MaximaFBE.fb2zip') { throw ".zip does not offer MaximaFBE.fb2zip in Open with" }
+          $zipDefault = (Get-ItemProperty HKLM:\Software\Classes\.zip -ErrorAction SilentlyContinue).'(default)'
+          if ($zipDefault -eq 'MaximaFBE.fb2zip') { throw "the editor became the default program of .zip" }
           tools/ci/windows-start-smoke.ps1 -Exe $exe
           # Feature 002: mfbe.exe carries the editor's manifest (UTF-8 process code page), and the
           # editor starts for standard users whose names hold non-English letters - 0.0.1 ended

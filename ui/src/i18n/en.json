@@ -14,12 +14,79 @@
     "ovr": "OVR",
     "noErrors": "No errors found.",
     "savedNoErrors": "Document saved - No errors found.",
+    "savedBackupNotKept": "Document saved - no backup copy of the previous version was kept: {{reason}}",
     "openedWithWarnings_one": "Document opened with {{count}} warning.",
     "openedWithWarnings_other": "Document opened with {{count}} warnings.",
     "incrementalSearch": "Incremental Search: {{text}}",
     "failingIncrementalSearch": "Failing Incremental Search: {{text}}",
     "progress": "{{phase}}: {{done}} of {{total}}",
-    "progressPercent": "{{phase}}: {{percent}}%"
+    "progressPercent": "{{phase}}: {{percent}}%",
+    "pane": {
+      "path": "Element path",
+      "position": "Position",
+      "selection": "Selection",
+      "character": "Character",
+      "encoding": "Encoding",
+      "validity": "Validity",
+      "insmode": "Insert / Overwrite"
+    },
+    "position": "Ln {{line}}, Col {{column}}",
+    "selection": {
+      "body": "Characters: {{chars}}, words: {{words}}, paragraphs: {{units}}",
+      "source": "Characters: {{chars}}, words: {{words}}, lines: {{units}}",
+      "counting": "Characters: {{chars}}, counting words…"
+    },
+    "characterCopied": "Copied {{code}}",
+    "character": {
+      "tooltip": "Double-click to copy the code"
+    },
+    "validity": {
+      "valid": "Valid",
+      "problems": "Errors: {{count}}",
+      "unchecked": "Not checked",
+      "tooltip": "Click to validate the document"
+    },
+    "panesMenu": "Status bar panes",
+    "char": {
+      "tab": "Tab",
+      "space": "Space",
+      "nbsp": "No-break space",
+      "narrowNbsp": "Narrow no-break space",
+      "softHyphen": "Soft hyphen",
+      "zwsp": "Zero-width space",
+      "zwnj": "Zero-width non-joiner",
+      "zwj": "Zero-width joiner",
+      "wordJoiner": "Word joiner",
+      "bom": "Zero-width no-break space (BOM)",
+      "enSpace": "En space",
+      "emSpace": "Em space",
+      "figureSpace": "Figure space",
+      "thinSpace": "Thin space",
+      "hairSpace": "Hair space",
+      "hyphen": "Hyphen",
+      "nbHyphen": "Non-breaking hyphen",
+      "figureDash": "Figure dash",
+      "enDash": "En dash",
+      "emDash": "Em dash",
+      "minus": "Minus sign",
+      "hyphenMinus": "Hyphen-minus",
+      "combining": "Combining mark",
+      "script": {
+        "latin": "Latin letter",
+        "cyrillic": "Cyrillic letter",
+        "greek": "Greek letter",
+        "hebrew": "Hebrew letter",
+        "arabic": "Arabic letter",
+        "armenian": "Armenian letter",
+        "georgian": "Georgian letter",
+        "devanagari": "Devanagari letter",
+        "thai": "Thai letter",
+        "han": "Han character",
+        "hiragana": "Hiragana",
+        "katakana": "Katakana",
+        "hangul": "Hangul"
+      }
+    }
   },
   "menu": {
     "file": {
@@ -52,7 +119,8 @@
       "clone": "C&lone container",
       "split": "&Split container",
       "merge": "&Merge containers",
-      "removeOuter": "Remove outer container"
+      "removeOuter": "Remove outer container",
+      "pastePlain": "Paste as pla&in text"
     },
     "view": {
       "caption": "&View",
@@ -129,6 +197,7 @@
     "table": "Table Bar"
   },
   "linksBar": {
+    "enlargePicture": "Enlarge picture",
     "id": "ID:",
     "href": "Href:",
     "sectionId": "Section ID:",
@@ -195,7 +264,8 @@
       "cut": "Cut",
       "copy": "Copy",
       "paste": "Paste",
-      "select": "Select {{element}}"
+      "select": "Select {{element}}",
+      "pastePlain": "Paste as plain text"
     },
     "msg": {
       "binaryAddUnavailable": "The image file could not be added as a binary object yet; the image refers to #{{name}}."
@@ -296,6 +366,10 @@
       "completeTag": {
         "tooltip": "Complete tag",
         "description": "Offer the FB2 elements allowed at the cursor in the Source view, or the open elements after </"
+      },
+      "pastePlain": {
+        "tooltip": "Paste as plain text",
+        "description": "Insert the Clipboard's text without formatting, links or pictures"
       }
     },
     "view": {
@@ -674,7 +748,7 @@
         "showWhitespace": "Show white spaces",
         "lineNumbers": "Show line numbers",
         "matchTags": "Highlight matched tags",
-        "tagCompletion": "Tag completion",
+        "tagCompletion": "Completion in the Source view (tags, attributes, values)",
         "spellcheck": "Spellcheck",
         "useSpellchecker": "Use spellchecker",
         "highlightMisspelled": "Highlight misspelled words",
@@ -686,6 +760,7 @@
         "saveFile": "Save File",
         "defaultEncoding": "Default encoding:",
         "keepEncoding": "Keep Encoding",
+        "keepBackup": "Keep Backup Copy of the Previous Version (.bak)",
         "openFile": "Open File",
         "restorePosition": "Restore Position",
         "scriptsFolder": "Scripts folder",
@@ -728,11 +803,17 @@
       }
     },
     "saveFile": {
-      "encoding": "Encoding:"
+      "encoding": "Encoding:",
+      "zip": "Save as ZIP archive",
+      "replaceCompleted": "«{{path}}» already exists. Replace it?",
+      "archiveOthers": "The archive «{{path}}» holds {{count}} other files. The new archive will hold this book alone. Replace it?"
     },
     "addImage": {
       "caption": "Add image",
       "insertClear": "Insert clear image?",
+      "chooseSource": "Insert a picture from a file, or an empty picture to fill in later?",
+      "fromFile": "&From File…",
+      "empty": "&Empty Picture",
       "chooseImage": "Choose image to add:",
       "chooseBinaries": "Choose binaries to add:"
     },
@@ -849,7 +930,8 @@
       "copy": "Copy",
       "paste": "Paste",
       "delete": "Delete",
-      "selectAll": "Select All"
+      "selectAll": "Select All",
+      "pastePlain": "Paste as plain text"
     },
     "foldLevel": "Fold level:",
     "collapse": "Collapse",
@@ -983,5 +1065,42 @@
     "settingThisWindow": "Open it in the running window",
     "settingNewWindow": "Open it in a new window",
     "settingGroup": "Books opened from outside"
+  },
+  "archive": {
+    "chooser": {
+      "title": "Books in {{archive}}",
+      "filter": "Filter:",
+      "name": "Name",
+      "folder": "Folder",
+      "size": "Size",
+      "sizeKb": "{{size}} KB",
+      "more": "{{count}} more books are not listed."
+    },
+    "msg": {
+      "unsupported": "«{{path}}» is not a ZIP archive. Only ZIP archives are supported.",
+      "noBook": "The archive «{{path}}» holds no FictionBook book.",
+      "archiveDamaged": "The archive «{{path}}» is damaged and cannot be read.",
+      "encrypted": "The book «{{entry}}» in «{{path}}» is encrypted and cannot be opened.",
+      "method": "The book «{{entry}}» in «{{path}}» is compressed in a way the editor does not read.",
+      "damaged": "The book «{{entry}}» in «{{path}}» is damaged and cannot be opened.",
+      "tooLarge": "The book «{{entry}}» in «{{path}}» is too large to open.",
+      "multiVolume": "«{{path}}» is part of a multi-volume archive, which the editor does not read.",
+      "missing": "The book «{{entry}}» is no longer in «{{path}}»."
+    }
+  },
+  "links": {
+    "tooltip": {
+      "picture": "[picture]",
+      "table": "[table]",
+      "notFound": "Note not found"
+    },
+    "msg": {
+      "unsupportedAddress": "The editor opens only web addresses (http and https): «{{address}}»."
+    }
+  },
+  "edit": {
+    "msg": {
+      "clipboardNoText": "The Clipboard holds no text."
+    }
   }
 }

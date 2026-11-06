@@ -33,8 +33,15 @@ export function recentCommandId(index: number): string {
   return `file.recent${index + 1}`;
 }
 
-/** Display label: `1. /path/to/book.fb2` (numbered like the original MRU list). */
+/**
+ * Display label: `1. /path/to/book.fb2` (numbered like the original MRU list); a book from a
+ * ZIP archive names the book, then its archive: `2. book.fb2 (/path/to/books.zip)` (D11).
+ */
 export function recentLabel(file: RecentFile, index: number): string {
+  if (file.entry) {
+    const name = file.entry.slice(file.entry.lastIndexOf('/') + 1);
+    return `${index + 1}. ${name} (${file.path})`;
+  }
   return `${index + 1}. ${file.path}`;
 }
 
@@ -45,7 +52,7 @@ export class RecentFilesStore {
 
   constructor(
     private readonly registry: CommandRegistry,
-    private readonly open: (ctx: CommandContext, path: string) => Promise<boolean>,
+    private readonly open: (ctx: CommandContext, path: string, entry?: string) => Promise<boolean>,
   ) {}
 
   get files(): readonly RecentFile[] {
@@ -89,7 +96,7 @@ export class RecentFilesStore {
           ctx.rpc !== null &&
           ctx.store.getState().connection === 'connected',
         run: async (ctx) => {
-          await this.open(ctx, file.path);
+          await this.open(ctx, file.path, file.entry);
         },
       };
       this.registry.replace(command);

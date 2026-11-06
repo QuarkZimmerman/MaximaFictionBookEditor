@@ -13,6 +13,8 @@
 
 import type { Command } from '@/app/commands';
 import type { FeatureContext } from '@/app/services';
+import { linkClicksPlugin } from '@/editor/plugins/linkClicks';
+import { noteTooltipPlugin } from '@/editor/plugins/noteTooltip';
 import { getSpellPlugin } from '@/features/spell';
 import { isRunLocked } from '@/model/store';
 import {
@@ -22,8 +24,9 @@ import {
 } from '@/views/body/bodyEditor';
 
 import { registerClipboardCommands } from '../clipboard';
+import { pastePlainCommand } from '../pastePlain';
 import { activeTableTarget } from '../tables/target';
-import { registerFootnoteCommands } from '../footnotes';
+import { followLink, registerFootnoteCommands } from '../footnotes';
 import { BodySearchTarget } from '../search/bodyTarget';
 import { IncrementalSearch, registerIncrementalSearch } from '../search/incremental';
 import { getSearchSession, registerSearchCommands } from '../search/search';
@@ -46,10 +49,32 @@ export function getSymbolsFeature(store: FeatureContext['store']): SymbolsFeatur
 /** Creates the controller, wires it to the store and the undo coordinator. */
 export function installBodyEditor(ctx: FeatureContext): BodyEditorController {
   const { store, undo, carets } = ctx;
+  // Feature 009 (US3): the note tooltip and Ctrl (Cmd) + click on links (DP-11, DP-12).
+  const translate = (key: string): string => ctx.getCommandContext?.().t(key) ?? key;
+  let followed: BodyEditorController | null = null;
   const controller = getBodyController(store, undo, {
     editable: true,
-    plugins: [getSpellPlugin(store)],
+    plugins: [
+      getSpellPlugin(store),
+      noteTooltipPlugin({
+        getModel: () => store.getState().document,
+        getTexts: () => ({
+          picture: translate('links.tooltip.picture'),
+          table: translate('links.tooltip.table'),
+          notFound: translate('links.tooltip.notFound'),
+        }),
+        isBlocked: () => ctx.getCommandContext?.().dialogs.isModalOpen === true,
+      }),
+      linkClicksPlugin({
+        isMac: ctx.hotkeys.platform === 'mac',
+        onFollow: (href, pos) => {
+          const command = ctx.getCommandContext?.();
+          if (command && followed) void followLink(command, followed, href, pos);
+        },
+      }),
+    ],
   });
+  followed = controller;
 
   undo.registerView('body', {
     undo: () => controller.undoStep(),
@@ -83,6 +108,9 @@ export function installBodyEditor(ctx: FeatureContext): BodyEditorController {
     if (state.document !== previous.document || state.docId !== previous.docId) {
       controller.setModel(state.document, state.docId);
     }
+    // Feature 009 (US5): back in the Body view, its caret panes again.
+    if (state.activeView === 'body' && previous.activeView !== 'body')
+      controller.refreshCaretInfo();
     // The run lock (a script run or an AI request): locked while it is held, whoever holds it.
     const locked = isRunLocked(state);
     if (locked !== isRunLocked(previous)) controller.setLocked(locked);
@@ -117,6 +145,7 @@ export function registerEditingFeature(ctx: FeatureContext): void {
   registerStructureCommands(commands);
   registerFootnoteCommands(commands);
   registerClipboardCommands(commands);
+  commands.replace(pastePlainCommand);
   registerSymbolCommands(commands, hotkeys);
   symbolFeatures.set(store, new SymbolsFeature(commands, hotkeys, store));
 

@@ -1044,6 +1044,44 @@ textarea {
   border-right: 0;
 }
 
+/* Feature 009 (User Story 5): position, selection, character, encoding and validity panes. */
+.mfbe-status-position,
+.mfbe-status-encoding {
+  flex: 0 0 auto;
+}
+
+.mfbe-status-selection,
+.mfbe-status-character {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.mfbe-status-character {
+  font-variant-numeric: tabular-nums;
+  cursor: copy;
+}
+
+/* The validity pane is a button (a click validates) that looks like the other panes. */
+button.mfbe-status-validity {
+  flex: 0 0 auto;
+  height: 100%;
+  margin: 0;
+  border: 0;
+  border-right: 1px solid var(--mfbe-color-border);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+button.mfbe-status-validity:hover {
+  background: var(--mfbe-color-button-hover);
+}
+
+.mfbe-status-validity[data-state='problems'] {
+  color: var(--mfbe-color-danger);
+}
+
 /*
  * The warning badge of an irregular table (feature 006 US8, FR-057; C52, C59): its own class with
  * exactly the values of the Validation panel's warning icon (`dialogs/validation.css`) - the
@@ -1062,4 +1100,36 @@ textarea {
   font-weight: 700;
   line-height: 14px;
   text-align: center;
+}
+
+/* Feature 009: a picture's entries in the Href list - thumbnail, id, enlarge (the requester at the
+   smoke test of 0.0.7-rc.6). */
+.mfbe-hrefcombo-list > li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mfbe-hrefcombo-thumb {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
+.mfbe-hrefcombo-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mfbe-hrefcombo-enlarge {
+  flex: none;
+  min-width: 24px;
+}
+
+/* The enlarge glyph is drawn, so that an entry's text stays its id. */
+.mfbe-hrefcombo-enlarge-glyph::before {
+  content: '\2922';
 }

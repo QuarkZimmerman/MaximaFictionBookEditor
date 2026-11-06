@@ -18,6 +18,9 @@ find_package(WebP CONFIG REQUIRED)
 find_package(TIFF REQUIRED)
 find_package(GIF REQUIRED)
 find_package(Stb REQUIRED)
+# ZIP archives (feature 009, PD1): the ZIP reader and writer only; built with the bzip2, lzma and
+# zstd features so every ZIP compression method libarchive reads is read (research DP-1, DP-3).
+find_package(LibArchive REQUIRED)
 find_path(HUNSPELL_INCLUDE_DIR NAMES hunspell/hunspell.hxx REQUIRED)
 find_library(HUNSPELL_LIBRARY NAMES hunspell-1.7 hunspell libhunspell REQUIRED)
 
@@ -78,6 +81,7 @@ target_link_libraries(mfbe_core
     WebP::webp WebP::webpdecoder
     TIFF::TIFF
     GIF::GIF
+    LibArchive::LibArchive
     "${HUNSPELL_LIBRARY}")
 
 target_compile_definitions(mfbe_core
@@ -85,6 +89,13 @@ target_compile_definitions(mfbe_core
     $<$<BOOL:${MFBE_TEST_HOOKS}>:MFBE_TEST_HOOKS=1>
     MFBE_RESOURCES_SOURCE_DIR="${MFBE_RESOURCES_SOURCE_DIR}"
     MFBE_SCRIPTS_SOURCE_DIR="${MFBE_SCRIPTS_SOURCE_DIR}")
+
+if(NOT WIN32)
+  # The legacy ZIP entry names of feature 009 (research DP-2) are decoded with iconv: part of
+  # libc on Linux, a library of its own on macOS. Windows uses MultiByteToWideChar.
+  find_package(Iconv REQUIRED)
+  target_link_libraries(mfbe_core PRIVATE Iconv::Iconv)
+endif()
 
 if(WIN32)
   target_link_libraries(mfbe_core PRIVATE ws2_32 shell32 ole32)

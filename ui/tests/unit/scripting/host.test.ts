@@ -613,11 +613,14 @@ describe('ScriptHost', () => {
   it('ticks the elapsed time while running and stops ticking at the end', async () => {
     const h = await harness({ tickMs: 20 });
     let notified = 0;
+    const seen: number[] = [];
     h.host.subscribe(() => {
       notified += 1;
+      if (h.host.current) seen.push(h.host.current.elapsedMs);
     });
     const { done } = await started(h);
-    expect(h.host.current?.elapsedMs).toBe(0);
+    // The run starts at 0; on a busy machine the first tick may come before this line runs.
+    expect(seen[0]).toBe(0);
     await waitUntil(() => (h.host.current?.elapsedMs ?? 0) > 0, 'an elapsed-time tick');
     const first = h.host.current!.elapsedMs;
     await waitUntil(() => h.host.current!.elapsedMs > first, 'the next tick');

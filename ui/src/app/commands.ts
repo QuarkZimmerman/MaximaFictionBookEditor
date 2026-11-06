@@ -18,6 +18,7 @@ import { documentFileTypes } from '@/dialogs/fileTypes';
 import type { Dialogs } from '@/dialogs/types';
 import { toggleFastMode } from '@/editor/fastMode';
 import { proposedFileName } from '@/features/file/proposedName';
+import { keepsBackup, savedMessage } from '@/features/file/saveOutcome';
 import { parseAccelerator } from '@/i18n';
 import type { CaretRegistry } from '@/model/caret';
 import { actions, type AppStore, documentFileName, isRunLocked } from '@/model/store';
@@ -434,6 +435,8 @@ async function openDocument(ctx: CommandContext, path: string): Promise<void> {
       { path },
       { onProgress: (progress) => actions.setProgress(ctx.store, progress) },
     );
+    // This minimal path has no book chooser; the File commands' own route has (feature 009).
+    if ('needsChoice' in result) return;
     loadDocument(ctx, result.document);
   } catch (error) {
     const reason = error instanceof RpcError ? error.message : String(error);
@@ -481,7 +484,14 @@ export async function saveDocument(
   for (;;) {
     const result = await rpc.runJob(
       'doc.save',
-      { docId: state.docId, document: ctx.store.getState().document!, path, encoding, force },
+      {
+        docId: state.docId,
+        document: ctx.store.getState().document!,
+        path,
+        encoding,
+        force,
+        backup: keepsBackup(ctx.store),
+      },
       { onProgress: (progress) => actions.setProgress(ctx.store, progress) },
     );
     actions.setProgress(ctx.store, null);
@@ -500,12 +510,7 @@ export async function saveDocument(
       continue;
     }
     actions.markSaved(ctx.store, result.path);
-    actions.setStatusMessage(
-      ctx.store,
-      result.validation.errorCount === 0
-        ? ctx.t('status.savedNoErrors')
-        : ctx.t('msg.errorsFound', { count: result.validation.errorCount }),
-    );
+    actions.setStatusMessage(ctx.store, savedMessage(ctx.t, result));
     return true;
   }
 }
@@ -674,6 +679,7 @@ export function createBuiltinCommands(): Command[] {
     stub('edit.cut', 'edit', cmdKeys('edit.cut', 'menu.edit.cut'), 'id_edit_cut'),
     stub('edit.copy', 'edit', cmdKeys('edit.copy', 'menu.edit.copy'), 'id_edit_copy'),
     stub('edit.paste', 'edit', cmdKeys('edit.paste', 'menu.edit.paste'), 'id_edit_paste'),
+    stub('edit.pastePlain', 'edit', cmdKeys('edit.pastePlain', 'menu.edit.pastePlain')),
     stub('edit.find', 'edit', cmdKeys('edit.find', 'menu.edit.find'), 'id_edit_find'),
     stub(
       'edit.findNext',

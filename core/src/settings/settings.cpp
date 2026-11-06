@@ -59,6 +59,10 @@ Field integer(const char* path, int min, int max) {
 Field enumeration(const char* path, std::vector<std::string> values) {
     return Field{path, Kind::enumeration, 0, -1, std::move(values)};
 }
+// An array of strings, each one of `values` (feature 009: the status bar's panes).
+Field string_set(const char* path, std::vector<std::string> values) {
+    return Field{path, Kind::string_array, 0, -1, std::move(values)};
+}
 // A string of min_chars..max_chars code points without control characters.
 Field text(const char* path, int min_chars, int max_chars) {
     return Field{path, Kind::text, min_chars, max_chars, {}};
@@ -91,8 +95,13 @@ const std::vector<Field>& schema() {
         field("view.spellExtraDictionaries", Kind::string_array),
         field("view.customDictionaryPath", Kind::string),
         field("view.fastMode", Kind::boolean),
+        // The status bar panes shown (feature 009, FR-056); the message pane always shows.
+        string_set("view.statusBarPanes", {"path", "position", "selection", "character", "encoding",
+                                           "validity", "insmode"}),
         enumeration("other.defaultEncoding", supported_encodings()),
         field("other.keepEncoding", Kind::boolean),
+        // A backup of the previous version beside the saved file (feature 009, FR-006).
+        field("other.keepBackup", Kind::boolean),
         field("other.restorePosition", Kind::boolean),
         field("other.scriptsFolder", Kind::string),
         field("other.genresFolder", Kind::string),
@@ -390,6 +399,11 @@ std::string check_value(const Field& field, const json& value) {
                 if (!item.is_string()) {
                     return "expected an array of strings";
                 }
+                if (!field.values.empty() &&
+                    std::find(field.values.begin(), field.values.end(), item.get<std::string>()) ==
+                        field.values.end()) {
+                    return "unsupported value";
+                }
             }
             return "";
         }
@@ -540,10 +554,13 @@ json defaults() {
           {"spellHighlight", true},
           {"spellExtraDictionaries", json::array({"en_US", "ru_RU"})},
           {"customDictionaryPath", ""},
-          {"fastMode", false}}},
+          {"fastMode", false},
+          {"statusBarPanes", json::array({"path", "position", "selection", "character", "encoding",
+                                          "validity", "insmode"})}}},
         {"other",
          {{"defaultEncoding", "utf-8"},
           {"keepEncoding", false},
+          {"keepBackup", true},
           {"restorePosition", true},
           {"scriptsFolder", ""},
           {"genresFolder", ""},

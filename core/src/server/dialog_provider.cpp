@@ -170,6 +170,9 @@ json to_json(const SaveFileRequest& r) {
     if (r.folder) {
         j["folder"] = *r.folder;
     }
+    if (r.zipLabel) {
+        j["zipChoice"] = json{{"label", *r.zipLabel}, {"checked", r.zipChecked}};
+    }
     return j;
 }
 
@@ -180,6 +183,9 @@ json to_json(const SaveFileResult& r) {
     }
     if (r.encoding) {
         j["encoding"] = *r.encoding;
+    }
+    if (r.zip) {
+        j["zip"] = *r.zip;
     }
     return j;
 }
@@ -246,6 +252,10 @@ SaveFileRequest save_file_request_from_json(const json& j) {
     r.encodingLabel = opt_str(o, "encodingLabel");
     r.selectedFilter = index_or(o, "selectedFilter", 0);
     r.documentDialog = offers_fictionbook_files(r.filters);
+    if (const auto it = o.find("zipChoice"); it != o.end() && it->is_object()) {
+        r.zipLabel = opt_str(*it, "label");
+        r.zipChecked = it->value("checked", false);
+    }
     return r;
 }
 
@@ -254,6 +264,9 @@ SaveFileResult save_file_result_from_json(const json& j) {
     SaveFileResult r;
     r.path = opt_str(o, "path");
     r.encoding = opt_str(o, "encoding");
+    if (const auto it = o.find("zip"); it != o.end() && it->is_boolean()) {
+        r.zip = it->get<bool>();
+    }
     return r;
 }
 

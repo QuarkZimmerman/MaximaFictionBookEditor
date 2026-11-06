@@ -479,6 +479,7 @@
           "addressError": "The service address must be an http or https URL with a host name (for example https://api.openai.com/v1).",
           "modelError": "Name the model of your service (type it or pick one with Fetch models).",
           "addressPlaceholder": "for example {{hosted}} — or {{local}} for a model server on this computer",
+          "presets": "Well-known services",
           "keyPlaceholder": "leave empty for a server on this computer that needs none",
           "showKey": "Show",
           "hideKey": "Hide",

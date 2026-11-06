@@ -413,6 +413,8 @@ test.describe('US8 (005) - use my own service and key @platform', () => {
     }
     expect(reached).toEqual([
       'settings-ai-address',
+      // Feature 009: the well-known services, beside the address (the requester at rc.6).
+      'settings-ai-address-presets',
       'settings-ai-key',
       'settings-ai-key-reveal',
       'settings-ai-model',

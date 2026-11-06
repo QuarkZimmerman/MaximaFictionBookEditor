@@ -82,6 +82,32 @@
         </RegistryKey>
       </Component>
 
+      <!-- Feature 009 (D12, DP-19): offered in "Open with" for ZIP archives; the default
+           value of .zip is never written, so the editor never becomes their default program. -->
+      <Component Id="MfbeProgIdFb2Zip" Guid="85E36D60-750F-4531-B02D-751DCA779CF3">
+        <RegistryKey Root="HKMU" Key="Software\Classes\MaximaFBE.fb2zip">
+          <RegistryValue Type="string" Value="FictionBook 2 books in a ZIP archive" KeyPath="yes"/>
+          <RegistryValue Name="FriendlyTypeName" Type="string" Value="FictionBook 2 books in a ZIP archive"/>
+          <RegistryKey Key="DefaultIcon">
+            <RegistryValue Type="string" Value="&quot;[INSTALL_ROOT]bin\mfbe.exe&quot;,0"/>
+          </RegistryKey>
+          <RegistryKey Key="shell">
+            <RegistryValue Type="string" Value="open"/>
+            <RegistryKey Key="open">
+              <RegistryValue Type="string" Value="Open"/>
+              <RegistryKey Key="command">
+                <RegistryValue Type="string" Value="&quot;[INSTALL_ROOT]bin\mfbe.exe&quot; &quot;%1&quot;"/>
+              </RegistryKey>
+            </RegistryKey>
+          </RegistryKey>
+        </RegistryKey>
+      </Component>
+      <Component Id="MfbeZipOpenWith" Guid="B1E4465D-4889-4220-96C2-DF98B651312F">
+        <RegistryKey Root="HKMU" Key="Software\Classes\.zip\OpenWithProgids">
+          <RegistryValue Name="MaximaFBE.fb2zip" Type="string" Value="" KeyPath="yes"/>
+        </RegistryKey>
+      </Component>
+
       <!-- Extensions -->
       <Component Id="MfbeExtensionFb2" Guid="6C16B187-2932-4DF1-84BF-44D9AABB785E">
         <RegistryKey Root="HKMU" Key="Software\Classes\.fb2">

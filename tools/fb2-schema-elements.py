@@ -304,6 +304,22 @@ class Schema:
 
     # -------------------------------------------------------------- attributes
 
+    def enumeration_of(self, type_name):
+        """The values of an enumerated simple type (feature 009: `alignType` -> left, right,
+        center), in schema order; None for any other type."""
+        if not type_name or ":" in type_name and type_name.split(":", 1)[0] in ("xs", "xsd"):
+            return None
+        local = type_name.split(":", 1)[-1]
+        for (_, name), (_, node) in self.types.items():
+            if name != local or node.tag != XS + "simpleType":
+                continue
+            restriction = node.find(XS + "restriction")
+            if restriction is None:
+                return None
+            values = [e.get("value") for e in restriction.findall(XS + "enumeration")]
+            return values or None
+        return None
+
     def attributes_of_element(self, doc: SchemaDocument, element: ET.Element):
         """name -> (required, type or None) of the attributes the declaration allows."""
         type_doc, type_node = self.type_of_element(doc, element)
@@ -508,7 +524,8 @@ class Schema:
             table[name] = {
                 "children": sorted(children[name]),
                 "attributes": [
-                    {"name": attribute, "required": required, "type": type_name}
+                    {"name": attribute, "required": required, "type": type_name,
+                     "values": self.enumeration_of(type_name)}
                     for attribute, (required, type_name) in sorted(attributes[name].items())
                 ],
                 "text": text[name],
@@ -740,13 +757,20 @@ def format_model(model, indent: int):
     return lines
 
 
-def format_attribute(attribute) -> str:
-    """One attribute object on one line, Prettier's spacing inside the braces."""
+def format_attribute(attribute, indent: int = 8) -> str:
+    """One attribute object: on one line, Prettier's spacing inside the braces, when it fits
+    (its comma included) at `indent`; otherwise one member per line, as Prettier breaks it."""
     members = ['"name": %s' % json_string(attribute["name"]),
                '"required": %s' % ("true" if attribute["required"] else "false")]
     if attribute["type"]:
         members.append('"type": %s' % json_string(attribute["type"]))
-    return "{ " + ", ".join(members) + " }"
+    if attribute.get("values"):
+        members.append('"values": [%s]' % ", ".join(json_string(v) for v in attribute["values"]))
+    line = "{ " + ", ".join(members) + " }"
+    if indent + len(line) + 1 <= PRINT_WIDTH:
+        return line
+    pad = " " * indent
+    return "{\n" + ",\n".join(pad + "  " + m for m in members) + "\n" + pad + "}"
 
 
 def render(root: str, table) -> str:

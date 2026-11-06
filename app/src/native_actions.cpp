@@ -121,7 +121,8 @@ bool isDocumentPath(const std::string& path) {
         mfbe::platform::utf8_from_path(mfbe::platform::path_from_utf8(path).extension());
     std::transform(ext.begin(), ext.end(), ext.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    return ext == ".fb2" || ext == ".fbd" || ext == ".xml";
+    // Feature 009 (DP-20): ZIP archives too, `.fb2.zip` included; the core reads their books.
+    return ext == ".fb2" || ext == ".fbd" || ext == ".xml" || ext == ".zip";
 }
 
 // --- clipboard ----------------------------------------------------------------------------

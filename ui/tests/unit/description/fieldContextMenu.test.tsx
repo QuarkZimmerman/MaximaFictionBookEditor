@@ -88,6 +88,8 @@ const EDIT_ENTRIES = [
   'context-menu-edit.cut',
   'context-menu-edit.copy',
   'context-menu-edit.paste',
+  // Feature 009 (FR-040): Paste as plain text right after Paste.
+  'context-menu-edit.pastePlain',
 ];
 
 describe('the context menu of a rich field (feature 006, US10)', () => {

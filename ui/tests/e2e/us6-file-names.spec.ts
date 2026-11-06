@@ -75,12 +75,22 @@ async function recordsDialogs(core: CoreHandle): Promise<boolean> {
 }
 
 /** Runs `action` and returns the first file dialog request it caused, as the core got it. */
-async function requestOf(core: CoreHandle, action: () => Promise<void>): Promise<DialogRequest> {
+async function requestOf(
+  core: CoreHandle,
+  action: () => Promise<void>,
+  page?: Page,
+): Promise<DialogRequest> {
   const before = (await core.rpc<DialogRequest[]>('test.dialogRequests')).length;
   await action();
   let requests: DialogRequest[] = [];
+  // Since feature 009 an invalid book's validation question comes before the Save dialog (the
+  // requester at the smoke test of 0.0.7-rc.5): Yes, then the dialog is asked for.
+  const question = page?.getByTestId('dialog-validation-failed');
   await expect
     .poll(async () => {
+      if (question && (await question.count()) > 0) {
+        await question.getByTestId('dialog-validation-failed-button-yes').click();
+      }
       requests = await core.rpc<DialogRequest[]>('test.dialogRequests');
       return requests.length;
     })
@@ -128,7 +138,7 @@ async function dialogClosed(page: Page): Promise<void> {
 /** File > Save As, cancelled; returns what the dialog was asked to show. */
 async function saveAsCancelled(core: CoreHandle, page: Page): Promise<DialogRequest> {
   await core.enqueueDialog('dialog.saveFile', {});
-  const request = await requestOf(core, () => menu(page, 'file', 'saveAs'));
+  const request = await requestOf(core, () => menu(page, 'file', 'saveAs'), page);
   await dialogClosed(page);
   return request;
 }
@@ -158,7 +168,7 @@ async function saveAs(
   encoding: string,
 ): Promise<DialogRequest> {
   await core.enqueueDialog('dialog.saveFile', { path: file, encoding });
-  const request = await requestOf(core, () => menu(page, 'file', 'saveAs'));
+  const request = await requestOf(core, () => menu(page, 'file', 'saveAs'), page);
   const prompt = page.getByTestId('dialog-validation-failed');
   await expect.poll(async () => (await prompt.count()) > 0 || existsSync(file)).toBe(true);
   if ((await prompt.count()) > 0) {

@@ -685,12 +685,17 @@ public:
             native.encoding_label = encodingLabel(dialogs_->language());
         }
         native.document_dialog = request.documentDialog;
+        native.zip_label = request.zipLabel.value_or(std::string());
+        native.zip_checked = request.zipChecked;
         const bool posted = dialogs_->runFileDialog(native, [done](FileDialogResult result) {
             mfbe::SaveFileResult out;
             if (!result.cancelled && !result.paths.empty()) {
                 out.path = result.paths.front();
                 if (!result.encoding.empty()) {
                     out.encoding = std::move(result.encoding);
+                }
+                if (result.zip >= 0) {
+                    out.zip = result.zip == 1;
                 }
             }
             done(std::move(out));

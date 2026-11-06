@@ -47,6 +47,19 @@
 				<string>fbd</string>
 			</array>
 		</dict>
+		<!-- Feature 009 (D12, DP-19): offered for ZIP archives, never their default program. -->
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>ZIP archive with FictionBook books</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.pkware.zip-archive</string>
+			</array>
+		</dict>
 	</array>
 	<key>UTExportedTypeDeclarations</key>
 	<array>

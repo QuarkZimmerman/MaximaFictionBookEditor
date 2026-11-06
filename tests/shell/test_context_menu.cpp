@@ -44,19 +44,24 @@ std::vector<std::string> describe(const std::vector<ContextMenuItem>& items) {
             case EditCommand::SelectAll:
                 name = "selectAll";
                 break;
+            case EditCommand::PastePlain:
+                name = "pastePlain";
+                break;
         }
         out.push_back(name + (item.enabled ? "+" : "-"));
     }
     return out;
 }
 
-constexpr EditCommand kCommands[] = {EditCommand::Undo,   EditCommand::Cut,
-                                     EditCommand::Copy,   EditCommand::Paste,
-                                     EditCommand::Delete, EditCommand::SelectAll};
+constexpr EditCommand kCommands[] = {EditCommand::Undo,      EditCommand::Cut,
+                                     EditCommand::Copy,      EditCommand::Paste,
+                                     EditCommand::Delete,    EditCommand::SelectAll,
+                                     EditCommand::PastePlain};
 
 }  // namespace
 
-TEST_CASE("context menu: a text box keeps the six edit commands", "[shell]") {
+TEST_CASE("context menu: a text box keeps the edit commands, Paste as plain text after Paste",
+          "[shell]") {
     EditState state;
     state.editable = true;
     state.can_undo = true;
@@ -66,21 +71,21 @@ TEST_CASE("context menu: a text box keeps the six edit commands", "[shell]") {
     state.can_delete = true;
     state.can_select_all = true;
     CHECK(describe(contextMenuItems(state)) ==
-          std::vector<std::string>{"undo+", "-", "cut+", "copy+", "paste+", "delete+", "-",
-                                   "selectAll+"});
+          std::vector<std::string>{"undo+", "-", "cut+", "copy+", "paste+", "pastePlain+",
+                                   "delete+", "-", "selectAll+"});
 }
 
 TEST_CASE("context menu: each command is enabled as the browser reports", "[shell]") {
     EditState state;
     state.editable = true;
     CHECK(describe(contextMenuItems(state)) ==
-          std::vector<std::string>{"undo-", "-", "cut-", "copy-", "paste-", "delete-", "-",
-                                   "selectAll-"});
+          std::vector<std::string>{"undo-", "-", "cut-", "copy-", "paste-", "pastePlain-",
+                                   "delete-", "-", "selectAll-"});
     state.can_copy = true;
     state.can_select_all = true;
     CHECK(describe(contextMenuItems(state)) ==
-          std::vector<std::string>{"undo-", "-", "cut-", "copy+", "paste-", "delete-", "-",
-                                   "selectAll+"});
+          std::vector<std::string>{"undo-", "-", "cut-", "copy+", "paste-", "pastePlain-",
+                                   "delete-", "-", "selectAll+"});
 }
 
 TEST_CASE("context menu: nothing outside a text box", "[shell]") {
@@ -96,6 +101,8 @@ TEST_CASE("context menu: labels in the shell's language with distinct accelerato
     CHECK(contextMenuLabel(EditCommand::SelectAll, "en") == "Select &All");
     CHECK(contextMenuLabel(EditCommand::Paste, "ru") == "Вст&авить");
     CHECK(contextMenuLabel(EditCommand::Paste, "uk") == "&Вставити");
+    CHECK(contextMenuLabel(EditCommand::PastePlain, "en") == "Paste as pla&in text");
+    CHECK(contextMenuLabel(EditCommand::PastePlain, "ru") == "Вставить без &форматирования");
     CHECK(contextMenuLabel(EditCommand::Copy, "de") == "&Copy");
     CHECK(contextMenuLabel(EditCommand::Copy, "") == "&Copy");
     for (const char* language : {"en", "ru", "uk"}) {

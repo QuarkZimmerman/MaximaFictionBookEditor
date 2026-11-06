@@ -50,6 +50,7 @@ const TODAY = [
   'source-context-menu-cut',
   'source-context-menu-copy',
   'source-context-menu-paste',
+  'source-context-menu-pastePlain',
   'source-context-menu-delete',
   '|',
   'source-context-menu-selectAll',
@@ -61,7 +62,16 @@ describe('the Source context menu (issue #8: no Table… entry)', () => {
     const { menu, view } = openMenu(h);
     expect(topLevel(menu)).toEqual(TODAY);
     expect(screen.queryByTestId('source-context-menu-insert.table')).toBeNull();
-    for (const id of ['undo', 'redo', 'cut', 'copy', 'paste', 'delete', 'selectAll']) {
+    for (const id of [
+      'undo',
+      'redo',
+      'cut',
+      'copy',
+      'paste',
+      'pastePlain',
+      'delete',
+      'selectAll',
+    ]) {
       expect(screen.getByTestId(`source-context-menu-${id}`)).toHaveTextContent(
         i18next.t(`source.contextMenu.${id}`),
       );

@@ -121,7 +121,14 @@
       "removeReferenced_one": "The binary object \"{{id}}\" is still referenced {{count}} time. Remove it anyway?",
       "removeReferenced_other": "The binary object \"{{id}}\" is still referenced {{count}} times. Remove it anyway?",
       "removed": "Binary object \"{{id}}\" removed",
-      "viewNatural": "Click to see the picture at its natural size"
+      "viewNatural": "Click to see the picture at its natural size",
+      "rename": "Rename…",
+      "renameCaption": "Rename the binary object",
+      "renamePrompt": "New id:",
+      "idInvalid": "«{{id}}» is not a valid id: it must start with a letter or _, then letters, digits, \".\", \"-\" or \"_\".",
+      "idTaken": "The id «{{id}}» is already used in this book.",
+      "renamed": "«{{from}}» renamed to «{{to}}».",
+      "renameUndo": "Rename binary object"
     }
   }
 }

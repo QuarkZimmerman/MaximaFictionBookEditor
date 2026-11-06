@@ -65,7 +65,7 @@ describe('Recent Files (T054)', () => {
     expect(registry.isEnabled('file.recent1', ctx)).toBe(true);
     expect(registry.isEnabled('file.recent2', ctx)).toBe(false); // missing file is greyed
     await registry.execute('file.recent1', ctx);
-    expect(open).toHaveBeenCalledWith(ctx, '/books/a.fb2');
+    expect(open).toHaveBeenCalledWith(ctx, '/books/a.fb2', undefined);
 
     // A shorter list unregisters the stale commands; failures keep the old list.
     rpc.responses['doc.recent'] = [{ path: '/books/b.fb2', lastOpened: 'x' }];
@@ -391,5 +391,14 @@ describe('view switching rules (FR-021)', () => {
     expect(await requestViewSwitch(ctx, 'body')).toBe(true);
     expect(ctx.store.getState()).toMatchObject({ activeView: 'body', sourceOnly: false });
     expect(await requestViewSwitch(ctx, 'body')).toBe(true); // already there
+  });
+});
+
+describe('Recent Files - books from ZIP archives (feature 009, D11)', () => {
+  it('names the book, then its archive', () => {
+    expect(recentLabel({ path: '/books/a.fb2', lastOpened: '' }, 0)).toBe('1. /books/a.fb2');
+    expect(
+      recentLabel({ path: '/books/lib.zip', entry: 'tolstoy/War.fb2', lastOpened: '' }, 1),
+    ).toBe('2. War.fb2 (/books/lib.zip)');
   });
 });

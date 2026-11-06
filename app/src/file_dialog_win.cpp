@@ -37,6 +37,7 @@ constexpr GUID kDocumentDialogsGuid = {
 // Ids of the encoding group and combo, as the original (items: kEncodingItemBase + index).
 constexpr DWORD kEncodingGroup = 1000;
 constexpr DWORD kEncodingCombo = 1001;
+constexpr DWORD kZipCheck = 1002;  // feature 009 (DP-8): "save as ZIP archive"
 
 // Releases a COM interface when it goes out of scope.
 template <typename T>
@@ -264,6 +265,14 @@ bool showDialog(HWND owner, const FileDialogRequest& request, FileDialogResult& 
             kEncodingCombo, static_cast<DWORD>(kEncodingItemBase + selectedEncodingIndex(request)));
         customize->EndVisualGroup();
     }
+    // Feature 009 (DP-8): the ZIP checkbox, added the same way beside the encoding choice.
+    const bool offers_zip = save && !request.zip_label.empty() &&
+                            (customize.get() != nullptr ||
+                             SUCCEEDED(dialog->QueryInterface(IID_PPV_ARGS(customize.put()))));
+    if (offers_zip) {
+        customize->AddCheckButton(kZipCheck, wideText(request.zip_label).c_str(),
+                                  request.zip_checked ? TRUE : FALSE);
+    }
 
     if (FAILED(dialog->Show(owner))) {
         return true;  // cancelled (ERROR_CANCELLED) or not shown: no file
@@ -273,6 +282,12 @@ bool showDialog(HWND owner, const FileDialogRequest& request, FileDialogResult& 
         DWORD item = 0;
         if (SUCCEEDED(customize->GetSelectedControlItem(kEncodingCombo, &item))) {
             result.encoding = encodingOfItem(request, item);
+        }
+    }
+    if (offers_zip) {
+        BOOL checked = FALSE;
+        if (SUCCEEDED(customize->GetCheckButtonState(kZipCheck, &checked))) {
+            result.zip = checked ? 1 : 0;
         }
     }
     result.cancelled = result.paths.empty();

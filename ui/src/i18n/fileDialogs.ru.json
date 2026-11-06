@@ -4,6 +4,8 @@
     "types": {
       "fictionBook": "Файлы FictionBook",
       "fictionBookDescriptors": "Описания FictionBook",
+      "books": "Файлы книг",
+      "zipArchives": "Архивы ZIP",
       "all": "Все файлы",
       "supportedImages": "Поддерживаемые изображения",
       "jpeg": "JPEG",

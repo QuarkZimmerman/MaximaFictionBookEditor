@@ -72,8 +72,24 @@ std::optional<Caret> caret_from_json(const json& j) {
 json to_json(const RecentFile& file) {
     // No `caret` any more (feature 004 US8): a legacy one read from an older file is dropped
     // here, at the next write.
-    return json{{"path", file.path}, {"lastOpened", file.lastOpened}};
+    json j{{"path", file.path}, {"lastOpened", file.lastOpened}};
+    if (file.entry) {
+        j["entry"] = *file.entry;
+    }
+    return j;
 }
+
+namespace {
+
+bool same_book(const RecentFile& a, const RecentFile& b) {
+    return a.path == b.path && a.entry == b.entry;
+}
+
+std::pair<std::string, std::string> key_of(const RecentFile& f) {
+    return {f.path, f.entry.value_or("")};
+}
+
+}  // namespace
 
 RecentFiles::RecentFiles(std::filesystem::path file) : file_(std::move(file)) {}
 
@@ -105,6 +121,10 @@ void RecentFiles::load() {
         if (item.contains("lastOpened") && item["lastOpened"].is_string()) {
             f.lastOpened = item["lastOpened"].get<std::string>();
         }
+        if (item.contains("entry") && item["entry"].is_string() &&
+            !item["entry"].get<std::string>().empty()) {
+            f.entry = item["entry"].get<std::string>();
+        }
         if (item.contains("caret")) {
             // A release 0.0.3 caret: a Body caret with a node id is kept for the one-time
             // conversion into the positions record; any other is ignored.
@@ -114,7 +134,7 @@ void RecentFiles::load() {
             }
         }
         const bool duplicate = std::any_of(items_.begin(), items_.end(),
-                                           [&](const RecentFile& r) { return r.path == f.path; });
+                                           [&](const RecentFile& r) { return same_book(r, f); });
         if (!duplicate && !f.path.empty()) {
             items_.push_back(std::move(f));
         }
@@ -134,10 +154,10 @@ bool RecentFiles::save() const {
             disk.load();
             std::vector<RecentFile> merged = items_;
             for (const auto& item : disk.items_) {
-                if (removed_.count(item.path) != 0)
+                if (removed_.count(key_of(item)) != 0)
                     continue;
                 auto it = std::find_if(merged.begin(), merged.end(),
-                                       [&](const RecentFile& r) { return r.path == item.path; });
+                                       [&](const RecentFile& r) { return same_book(r, item); });
                 if (it == merged.end()) {
                     merged.push_back(item);
                 } else if (item.lastOpened > it->lastOpened) {
@@ -174,15 +194,16 @@ json RecentFiles::to_json() const {
     return arr;
 }
 
-void RecentFiles::touch(const std::string& path) {
+void RecentFiles::touch(const std::string& path, const std::optional<std::string>& book) {
     if (path.empty()) {
         return;
     }
     RecentFile entry;
     entry.path = path;
+    entry.entry = book;
     entry.lastOpened = now_iso8601_utc();
     auto it = std::find_if(items_.begin(), items_.end(),
-                           [&](const RecentFile& r) { return r.path == path; });
+                           [&](const RecentFile& r) { return same_book(r, entry); });
     if (it != items_.end()) {
         entry.legacyCaret = std::move(it->legacyCaret);
         items_.erase(it);
@@ -194,16 +215,21 @@ void RecentFiles::touch(const std::string& path) {
     save();
 }
 
-bool RecentFiles::remove(const std::string& path) {
-    auto it = std::find_if(items_.begin(), items_.end(),
-                           [&](const RecentFile& r) { return r.path == path; });
-    if (it == items_.end()) {
-        return false;
+bool RecentFiles::remove(const std::string& path, const std::optional<std::string>& book) {
+    bool removed = false;
+    for (auto it = items_.begin(); it != items_.end();) {
+        if (it->path == path && (!book || it->entry == book)) {
+            removed_.insert(key_of(*it));
+            it = items_.erase(it);
+            removed = true;
+        } else {
+            ++it;
+        }
     }
-    removed_.insert(it->path);
-    items_.erase(it);
-    save();
-    return true;
+    if (removed) {
+        save();
+    }
+    return removed;
 }
 
 void RecentFiles::clear() {
@@ -214,7 +240,7 @@ void RecentFiles::clear() {
 
 std::optional<Caret> RecentFiles::legacy_caret(const std::string& path) const {
     auto it = std::find_if(items_.begin(), items_.end(),
-                           [&](const RecentFile& r) { return r.path == path; });
+                           [&](const RecentFile& r) { return r.path == path && !r.entry; });
     if (it == items_.end()) {
         return std::nullopt;
     }

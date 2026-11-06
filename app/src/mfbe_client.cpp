@@ -413,7 +413,7 @@ bool MfbeClient::OnContextMenuCommand(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>
                                       CefRefPtr<CefContextMenuParams>, int command_id, EventFlags) {
     CEF_REQUIRE_UI_THREAD();
     const int index = command_id - kEditCommandFirstId;
-    if (index < 0 || index > static_cast<int>(EditCommand::SelectAll)) {
+    if (index < 0 || index > static_cast<int>(EditCommand::PastePlain)) {
         return false;
     }
     switch (static_cast<EditCommand>(index)) {
@@ -434,6 +434,10 @@ bool MfbeClient::OnContextMenuCommand(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>
             break;
         case EditCommand::SelectAll:
             frame->SelectAll();
+            break;
+        case EditCommand::PastePlain:
+            // A text box holds plain text only: the text of the clipboard, as Paste (D20).
+            frame->Paste();
             break;
     }
     return true;

@@ -14,7 +14,9 @@
 
 namespace mfbe::shell {
 
-enum class EditCommand { Undo, Cut, Copy, Paste, Delete, SelectAll };
+// PastePlain (feature 009, D20) is last so the menu ids of the others stay as they were; in a
+// text box it does what Paste does, since the box holds plain text only.
+enum class EditCommand { Undo, Cut, Copy, Paste, Delete, SelectAll, PastePlain };
 
 // What the browser reports for the place right-clicked.
 struct EditState {

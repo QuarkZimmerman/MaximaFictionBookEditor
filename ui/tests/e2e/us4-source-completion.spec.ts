@@ -176,6 +176,18 @@ async function newLine(page: Page): Promise<void> {
   await page.keyboard.press('Enter');
 }
 
+/**
+ * A fresh line between two sections, where a section fits: since feature 009 (the requester at
+ * the smoke test of 0.0.7-rc.5) the list offers only what the content model allows at the
+ * cursor, and after a paragraph no section may follow.
+ */
+async function newLineBetweenSections(page: Page): Promise<void> {
+  await goToLineWith(page, '</poem>');
+  await page.keyboard.press('ArrowDown'); // the line of the section's </section>
+  await page.keyboard.press(LINE_END);
+  await newLine(page);
+}
+
 /** Waits past CodeMirror's interaction delay, during which keys do not reach a fresh list. */
 async function listReady(page: Page): Promise<void> {
   await expect(list(page)).toBeVisible();
@@ -202,8 +214,7 @@ test.describe('US8 (feature 003) - tag completion in the Source view', () => {
   }) => {
     await openBook(core, page);
     await showSource(page);
-    await goToLineWith(page, 'Nobody answered the knock');
-    await newLine(page);
+    await newLineBetweenSections(page);
 
     await page.evaluate(INSTALL_TIMER);
     await page.keyboard.type('<sec');
@@ -319,13 +330,15 @@ test.describe('US8 (feature 003) - tag completion in the Source view', () => {
     await page.keyboard.press(LINE_START);
     await page.keyboard.press('Insert');
     await expect(page.getByTestId('status-insmode')).toHaveText('OVR');
-    // Overtype replaces four characters while `<sec` is typed (`<p>N` or indentation); the
-    // accepted completion adds `tion` and eats nothing more.
-    await page.keyboard.type('<sec');
-    await expect(options(page)).toHaveText(['section']);
+    // Overtype replaces four characters while `<sub` is typed (`<p>N` or indentation); the
+    // accepted completion adds `title` and eats nothing more. (A subtitle fits after the
+    // section's subtitle and paragraph; since feature 009 a section, which does not, is not
+    // offered here.)
+    await page.keyboard.type('<sub');
+    await expect(options(page)).toHaveText(['subtitle']);
     await listReady(page);
     await page.keyboard.press('Enter');
-    await expect(activeLine(page)).toHaveText(/<section(\s*<p>N|)obody answered the knock/);
+    await expect(activeLine(page)).toHaveText(/<subtitle(\s*<p>N|)obody answered the knock/);
     await page.keyboard.press('Insert');
     await expect(page.getByTestId('status-insmode')).toHaveText('INS');
   });
@@ -384,8 +397,7 @@ test.describe('US8 (feature 003) - tag completion in the Source view', () => {
         .sourceTagCompletion,
     ).toBe(false);
 
-    await goToLineWith(page, 'Nobody answered the knock');
-    await newLine(page);
+    await newLineBetweenSections(page);
     await page.keyboard.type('<sec');
     await page.keyboard.press('Control+Space');
     await page.waitForTimeout(400);
@@ -407,9 +419,10 @@ test.describe('US8 (feature 003) - tag completion in the Source view', () => {
     await goToLineWith(page, 'Nobody answered the knock');
     await newLine(page);
 
+    // Two entries after a paragraph of a section: a paragraph and a poem fit there.
     const check = async (what: string) => {
-      await page.keyboard.type('<s');
-      await expect(options(page)).toHaveText(['section', 'subtitle']);
+      await page.keyboard.type('<p');
+      await expect(options(page)).toHaveText(['p', 'poem']);
       const colors = (await page.evaluate<ListColors | null>(LIST_COLORS))!;
       expect(colors, what).not.toBeNull();
       expect(

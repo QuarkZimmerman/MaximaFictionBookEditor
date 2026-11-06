@@ -125,7 +125,7 @@ test.describe('smoke', () => {
     }>('app.info');
     expect(info.apiVersion).toBe(1);
     // rpc-api.md §6: feature 007 = minor 6.
-    expect(info.apiMinor).toBe(7);
+    expect(info.apiMinor).toBe(8);
     // Feature 006 (FR-055, decision 14): the version label - 0.0.6-rc untagged, 0.0.6-rc.N from a
     // release tag - and the build id, the label, "+" and the commit hash.
     expect(info.version).toMatch(/^\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$/);

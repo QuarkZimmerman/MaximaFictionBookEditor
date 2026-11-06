@@ -175,7 +175,8 @@ std::string usageText() {
     text += std::string(kProductName) + " " + std::string(kVersion) + "\n\n";
     text +=
         "Usage: mfbe [options] [FILE...]\n"
-        "  FILE                           .fb2 / .fbd / .xml document(s) to open\n"
+        "  FILE                           .fb2 / .fbd / .xml document(s) or ZIP archive(s) to "
+        "open\n"
         "  --lang <en|ru|uk>              override the interface language for this run\n"
         "  --new                          start with a new document from the blank template (the "
         "same as starting without FILE)\n"

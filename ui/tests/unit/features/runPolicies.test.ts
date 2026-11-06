@@ -17,6 +17,8 @@ const ALLOWED = [
   'edit.findNext',
   'edit.incrementalSearch',
   'edit.copy',
+  // Feature 009 (FR-038): the jumps only move the caret.
+  'edit.gotoFootnote',
   'help.about',
   'help.checkVersion',
   'file.exit',

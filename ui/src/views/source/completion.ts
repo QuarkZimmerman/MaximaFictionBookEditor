@@ -51,7 +51,8 @@ import type { SyntaxNode } from '@lezer/common';
 
 import type { AppStore } from '@/model/store';
 
-import type { ContentModel } from './contentModel';
+import { contentModelOf, step, type ContentModel } from './contentModel';
+import { attributeCompletion } from './attributeCompletion';
 import fb2ElementsJson from './fb2Elements.json';
 
 /* ------------------------------------------------------------------------ */
@@ -63,6 +64,8 @@ export interface Fb2Attribute {
   name: string;
   required: boolean;
   type?: string;
+  /** Feature 009 (US6): the values of an enumerated simple type (`align`, `valign`). */
+  values?: string[];
 }
 
 export interface Fb2Elements {
@@ -103,6 +106,12 @@ export interface OpenTagContext {
   enclosing: string | null;
   /** False when the syntax tree does not reach the cursor: the context is unknown. */
   resolved: boolean;
+  /**
+   * The enclosing element's child elements before and after the tag being typed (requester at
+   * the smoke test of 0.0.7-rc.5): the list offers what the content model allows there.
+   */
+  before?: string[];
+  after?: string[];
 }
 
 export interface CloseTagContext {
@@ -186,6 +195,7 @@ export function tagContextAt(state: EditorState, pos: number): TagContext | null
     if (FORBIDDEN.has(cur.name)) return null;
   }
   const open: string[] = [];
+  let enclosingNode: SyntaxNode | null = null;
   for (let cur: SyntaxNode | null = node; cur; cur = cur.parent) {
     if (cur.name !== 'Element') continue;
     const openTag = cur.firstChild;
@@ -194,10 +204,32 @@ export function tagContextAt(state: EditorState, pos: number): TagContext | null
     const last = cur.lastChild;
     if (last && last.name === 'CloseTag' && last.to <= from) continue; // closed already
     const name = tagName(state, openTag);
-    if (name && !open.includes(name)) open.push(name);
+    if (name && !open.includes(name)) {
+      if (open.length === 0) enclosingNode = cur;
+      open.push(name);
+    }
   }
   if (close) return { kind: 'close', from, prefix, open };
-  return { kind: 'open', from, prefix, enclosing: open[0] ?? null, resolved: true };
+  const siblingsBefore: string[] = [];
+  const siblingsAfter: string[] = [];
+  for (let child = enclosingNode?.firstChild ?? null; child; child = child.nextSibling) {
+    if (child.name !== 'Element' || child.from === from) continue;
+    const name = child.firstChild ? tagName(state, child.firstChild) : null;
+    if (!name) continue;
+    if (child.to <= from) siblingsBefore.push(name);
+  }
+  // The elements after it are read from the text: the parser's recovery around the half-typed
+  // tag may nest them under that tag.
+  siblingsAfter.push(...followingSiblings(state, pos));
+  return {
+    kind: 'open',
+    from,
+    prefix,
+    enclosing: open[0] ?? null,
+    resolved: true,
+    before: siblingsBefore,
+    after: siblingsAfter,
+  };
 }
 
 /* ------------------------------------------------------------------------ */
@@ -223,6 +255,57 @@ function childrenOf(element: string): readonly string[] | null {
   return FB2_ELEMENTS.elements[localName(element)]?.children ?? null;
 }
 
+/** The names of the elements that follow `pos` at its own level, up to the enclosing end tag. */
+function followingSiblings(state: EditorState, pos: number): string[] {
+  const text = state.sliceDoc(pos, Math.min(state.doc.length, pos + LEXICAL_WINDOW));
+  // A name typed into an existing tag (`<sec|tion>`): what follows is that element's content.
+  const lt = text.indexOf('<');
+  if (text.slice(0, lt < 0 ? text.length : lt).includes('>')) return [];
+  const names: string[] = [];
+  let depth = 0;
+  const markup =
+    /<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>|<\?[\s\S]*?\?>|<(\/?)([\w.:-]+)[^<>]*?(\/?)>/g;
+  for (const match of text.matchAll(markup)) {
+    if (!match[2]) continue; // a comment, CDATA or processing instruction
+    if (match[1]) {
+      if (depth === 0) break; // the enclosing element ends
+      depth -= 1;
+      continue;
+    }
+    if (depth === 0) names.push(match[2]);
+    if (!match[3]) depth += 1;
+  }
+  return names;
+}
+
+/**
+ * The children the enclosing element's content model allows at the cursor, between the elements
+ * before and after it. When the elements before do not fit the model (the text is invalid there
+ * already), every child; when none fits before the elements after, those that fit after the ones
+ * before.
+ */
+function allowedHere(tag: OpenTagContext, children: readonly string[]): readonly string[] {
+  const model = tag.enclosing ? contentModelOf(localName(tag.enclosing)) : null;
+  if (!model || !tag.before) return children;
+  let state: number | undefined = 0;
+  for (const name of tag.before) {
+    state = step(model, state, localName(name));
+    if (state === undefined) return children;
+  }
+  const start = state;
+  const fitsBefore = children.filter((name) => step(model, start, localName(name)) !== undefined);
+  const fitsBoth = fitsBefore.filter((name) => {
+    let next = step(model, start, localName(name));
+    for (const following of tag.after ?? []) {
+      if (next === undefined) return false;
+      next = step(model, next, localName(following));
+    }
+    return next !== undefined;
+  });
+  if (fitsBoth.length > 0) return fitsBoth;
+  return fitsBefore.length > 0 ? fitsBefore : children;
+}
+
 /** The completion source: FB2 element names after `<`, closing tags after `</`. */
 export function fb2Completion(context: CompletionContext): CompletionResult | null {
   const tag = tagContextAt(context.state, context.pos);
@@ -243,7 +326,7 @@ export function fb2Completion(context: CompletionContext): CompletionResult | nu
   let names: readonly string[];
   if (!tag.resolved) names = NON_ROOT_NAMES;
   else if (tag.enclosing === null) names = [FB2_ELEMENTS.root];
-  else names = childrenOf(tag.enclosing) ?? NON_ROOT_NAMES;
+  else names = allowedHere(tag, childrenOf(tag.enclosing) ?? NON_ROOT_NAMES);
   if (names.length === 0) return null;
   return {
     from: tag.from + 1,
@@ -295,7 +378,8 @@ export function sourceCompletionExtension(on: boolean): Extension {
   if (!on) return [];
   return [
     autocompletion({
-      override: [fb2Completion],
+      // Feature 009 (US6): attributes, values and the text of genre, lang and src-lang too.
+      override: [fb2Completion, attributeCompletion],
       activateOnTyping: true,
       icons: false,
       filterStrict: true,

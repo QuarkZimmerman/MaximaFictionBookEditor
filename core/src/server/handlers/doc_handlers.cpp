@@ -60,6 +60,7 @@
 // to the loop thread (Services::post), so the registry stays single-threaded.
 #include "server/services.hpp"
 
+#include <mfbe/archive.hpp>
 #include <mfbe/atomic_file.hpp>
 #include <mfbe/document_details.hpp>
 #include <mfbe/encodings.hpp>
@@ -257,7 +258,7 @@ bool restore_position_enabled(const Services& services) {
 // R5.1 H6), so a UI that has not received the settings yet cannot record either.
 void record_position(Services& services, const session::DocumentSession& s) {
     if (s.position && s.path && !s.sourceOnly && restore_position_enabled(services)) {
-        services.positions.set(*s.path, *s.position);
+        services.positions.set(*s.path, *s.position, s.archiveEntry);
     }
 }
 
@@ -281,9 +282,101 @@ struct Opened {
     model::NodeIdAllocator ids;
     platform::FileStamp stamp;
     std::string path;
+    // Feature 009: the book's entry when `path` is a ZIP archive.
+    std::optional<std::string> entry;
     // Document details filled in on load (see the header).
     std::vector<std::string> filled_in;
 };
+
+// Feature 009: the document's `source` (rpc-api §1) for a book from a ZIP archive.
+void add_source(json& document, const Opened& opened) {
+    if (opened.entry) {
+        document["source"] = json{{"archive", opened.path}, {"entry", *opened.entry}};
+    }
+}
+
+// Feature 009: an archive's refusal as the contract's error (rpc-api §1).
+rpc::RpcError archive_error(const archive::ArchiveError& e, std::uint64_t books = 0) {
+    log::error("core", "archive.openFailed", "a book of a ZIP archive could not be read",
+               log::extras({{"reason", archive::reason_name(e.reason)}}));
+    if (e.reason == archive::Reason::missing) {
+        return rpc::RpcError(rpc::codes::kArchiveEntryMissing,
+                             "the book is no longer in the archive",
+                             json{{"entry", e.entry}, {"books", books}});
+    }
+    return rpc::RpcError(rpc::codes::kArchiveEntryUnreadable, e.what(),
+                         json{{"entry", e.entry}, {"reason", archive::reason_name(e.reason)}});
+}
+
+// Feature 009: the bytes of a book in a ZIP archive.
+std::string archive_book_bytes(const std::string& path, const std::string& entry) {
+    try {
+        return archive::read_entry(platform::path_from_utf8(path), entry);
+    } catch (const archive::ArchiveError& e) {
+        throw archive_error(e);
+    }
+}
+
+// Feature 009: what a ZIP archive offers to open (data-model §3) - the entry to open, or the
+// `needsChoice` answer when several books and no entry were given (rpc-api §1).
+struct ArchiveChoice {
+    std::optional<std::string> entry;
+    std::uint64_t size = 0;
+    json needs_choice;  // set when the UI must ask
+};
+
+ArchiveChoice choose_entry(const std::string& path, const std::optional<std::string>& wanted) {
+    archive::Listing listing;
+    try {
+        listing = archive::list(platform::path_from_utf8(path));
+    } catch (const archive::ArchiveError& e) {
+        throw archive_error(e);
+    }
+    ArchiveChoice choice;
+    if (wanted) {
+        const auto it = std::find_if(listing.books.begin(), listing.books.end(),
+                                     [&](const archive::Book& b) { return b.entry == *wanted; });
+        if (it == listing.books.end()) {
+            throw rpc::RpcError(rpc::codes::kArchiveEntryMissing,
+                                "the book is no longer in the archive",
+                                json{{"entry", *wanted}, {"books", listing.books_total}});
+        }
+        choice.entry = it->entry;
+        choice.size = it->size;
+        return choice;
+    }
+    if (listing.books_total == 0) {
+        throw rpc::RpcError(rpc::codes::kArchiveNoBook, "the archive holds no FictionBook book",
+                            json::object());
+    }
+    if (listing.books_total == 1) {
+        choice.entry = listing.books.front().entry;
+        choice.size = listing.books.front().size;
+        return choice;
+    }
+    json books = json::array();
+    for (const archive::Book& b : listing.books) {
+        books.push_back(json{{"entry", b.entry},
+                             {"name", b.name},
+                             {"folder", b.folder},
+                             {"size", b.size},
+                             {"kind", b.kind}});
+    }
+    choice.needs_choice = json{{"archive", path},
+                               {"books", std::move(books)},
+                               {"otherFiles", listing.other_files},
+                               {"booksTotal", listing.books_total}};
+    return choice;
+}
+
+// Feature 009: the archive kinds the editor does not read are refused before any parsing.
+void refuse_other_archives(const fs::path& file) {
+    const archive::Kind kind = archive::detect_kind(file);
+    if (archive::is_other_archive(kind)) {
+        throw rpc::RpcError(rpc::codes::kArchiveUnsupported, "only ZIP archives are supported",
+                            json{{"kind", archive::kind_name(kind)}});
+    }
+}
 
 // The document JSON of a loaded document, with the details filled in on load.
 json loaded_document_json(const model::Document& doc, const std::vector<std::string>& filled_in) {
@@ -307,16 +400,30 @@ fb2::ReadResult read_book(const std::string& path, BinaryStore& store,
     }
 }
 
-// `ui_language` is the interface language setting for the filled-in date (see above).
+// `ui_language` is the interface language setting for the filled-in date (see above). With
+// `entry`, `path` is a ZIP archive and the book is that entry (feature 009).
 Opened open_document(const std::string& path, const std::string& ui_language,
-                     rpc::JobControl* control) {
+                     rpc::JobControl* control, const std::optional<std::string>& entry = {}) {
     Opened opened;
     opened.path = path;
+    opened.entry = entry;
     opened.stamp = platform::stamp_of(platform::path_from_utf8(path));
     if (control != nullptr) {
         control->progress("read", 0, 100);
     }
-    opened.read = read_book(path, *opened.store, opened.ids);
+    if (entry) {
+        const std::string bytes = archive_book_bytes(path, *entry);
+        try {
+            opened.read = fb2::read_bytes(bytes, *opened.store, opened.ids, {}, path);
+        } catch (const fb2::NotFictionBookFailure& e) {
+            throw not_fictionbook(path, e.reason);
+        } catch (const fb2::ParseFailure& e) {
+            throw parse_error(e.error);
+        }
+        opened.read.document.fileKind = file_kind_of(*entry);
+    } else {
+        opened.read = read_book(path, *opened.store, opened.ids);
+    }
     opened.filled_in = model::fill_in_document_details(
         opened.read.document, model::details_context_now(false, ui_language));
     if (control != nullptr) {
@@ -332,6 +439,7 @@ void fill_session(Services& services, session::DocumentSession& s, Opened& opene
     model::Document& doc = opened.read.document;
     doc.docId = s.docId;
     s.path = opened.path;
+    s.archiveEntry = opened.entry;
     s.fileKind = doc.fileKind;
     s.sourceEncoding = doc.sourceEncoding;
     s.xlinkPrefix = opened.read.xlink_prefix;
@@ -343,8 +451,8 @@ void fill_session(Services& services, session::DocumentSession& s, Opened& opene
     }
     s.binaries = std::move(opened.store);
     s.ids = opened.ids;
-    s.position = services.positions.get(opened.path);
-    if (!s.position) {
+    s.position = services.positions.get(opened.path, opened.entry);
+    if (!s.position && !opened.entry) {
         // The one-time conversion of a release 0.0.3 caret kept in recent.json: a Body caret
         // whose node id the freshly loaded document has (ids are deterministic in document
         // order, so "it still fits" = the id exists) becomes a position by place and is
@@ -357,7 +465,7 @@ void fill_session(Services& services, session::DocumentSession& s, Opened& opene
             }
         }
     }
-    services.recent.touch(opened.path);  // written without the legacy caret from now on
+    services.recent.touch(opened.path, opened.entry);  // without the legacy caret from now on
     s.snapshot = std::move(doc);
 }
 
@@ -367,6 +475,7 @@ json register_session(Services& services, Opened&& opened) {
     opened.read.document.docId = s.docId;
     json result{{"document", loaded_document_json(opened.read.document, opened.filled_in)},
                 {"warnings", issues_json(opened.read.warnings)}};
+    add_source(result["document"], opened);
     fill_session(services, s, opened);
     return result;
 }
@@ -482,6 +591,9 @@ struct SaveRequest {
     std::string path;                         // absolute target
     std::string encoding;                     // canonical
     bool force = false;
+    bool backup = false;  // keep the replaced file as "<path>.bak" (feature 009, FR-001)
+    // Feature 009 (DP-6): write a new ZIP archive holding only the book under this name.
+    std::optional<std::string> archive_entry;
     std::string xlink_prefix;
     std::shared_ptr<BinaryStore> store;
     images::ConversionPolicy policy;  // image conversion on save (FR-110)
@@ -579,11 +691,27 @@ json perform_save(Services& services, SaveRequest& request, rpc::JobControl* con
     progress("write", 70);
     const std::string bytes = fb2::encode_document(text, request.encoding);
     const fs::path target = platform::path_from_utf8(request.path);
+    // A ZIP save writes a new archive; the file it replaces is never read (D8, FR-016).
+    std::string archive_bytes;
+    if (request.archive_entry) {
+        try {
+            archive_bytes = archive::zip_one(*request.archive_entry, bytes);
+        } catch (const std::exception& e) {
+            throw io_error(request.path, e.what());
+        }
+    }
+    atomic_file::BackupOutcome backup;
     try {
-        atomic_file::write_atomic(target, bytes);
+        backup = atomic_file::write_atomic(target, request.archive_entry ? archive_bytes : bytes,
+                                           atomic_file::WriteOptions{request.backup});
     } catch (const atomic_file::WriteError& e) {
         // Logged once by the router as rpc.doc.ioError (method, docId, path, reason).
         throw io_error(e.path, e.reason);
+    }
+    if (!backup.reason.empty()) {
+        // A backup that could not be made never stops the save (D4); the UI says why.
+        log::error("core", "save.backupFailed", "the previous version was not kept as .bak",
+                   log::extras({{"reason", backup.reason}}));
     }
     const platform::FileStamp stamp = platform::stamp_of(target);
 
@@ -591,6 +719,7 @@ json perform_save(Services& services, SaveRequest& request, rpc::JobControl* con
     const std::string doc_id = request.doc_id;
     const std::string path = request.path;
     const std::string enc = request.encoding;
+    const std::optional<std::string> archive_entry = request.archive_entry;
     auto snapshot = request.document
                         ? std::make_shared<model::Document>(std::move(*request.document))
                         : nullptr;
@@ -598,14 +727,18 @@ json perform_save(Services& services, SaveRequest& request, rpc::JobControl* con
     for (const auto& c : converted) {
         converted_ids.push_back(c.id);
     }
-    auto update = [&services, doc_id, path, enc, stamp, snapshot, converted_ids]() -> int {
+    auto update = [&services, doc_id, path, enc, stamp, snapshot, converted_ids,
+                   archive_entry]() -> int {
         session::DocumentSession* s = services.documents.find(doc_id);
         for (const std::string& id : converted_ids) {
             services.previews.invalidate_prefix(doc_id + "/" + id + "@");
         }
         if (s != nullptr) {
             s->path = path;
-            s->fileKind = file_kind_of(path);
+            // Once saved, the book is tied to the file just written: no archive after a plain
+            // save, the new archive after a ZIP save (DP-5 remark, D30).
+            s->archiveEntry = archive_entry;
+            s->fileKind = file_kind_of(archive_entry ? *archive_entry : path);
             s->sourceEncoding = enc;
             if (stamp.exists) {
                 s->lastKnownMtime = stamp.mtime;
@@ -628,7 +761,7 @@ json perform_save(Services& services, SaveRequest& request, rpc::JobControl* con
             // record stays (FR-100).
             record_position(services, *s);
         }
-        services.recent.touch(path);
+        services.recent.touch(path, archive_entry);
         return 0;
     };
     if (control == nullptr) {
@@ -637,10 +770,20 @@ json perform_save(Services& services, SaveRequest& request, rpc::JobControl* con
         on_loop_thread(services, update, control);
     }
     progress("done", 100);
-    return json{{"path", path},
+    json result{{"path", path},
                 {"encoding", enc},
                 {"converted", converted_json(converted)},
                 {"validation", model::to_json(validation)}};
+    if (archive_entry) {
+        result["source"] = json{{"archive", path}, {"entry", *archive_entry}};
+    }
+    if (request.backup) {
+        result["backup"] = json{{"kept", backup.kept}};
+        if (!backup.reason.empty()) {
+            result["backup"]["reason"] = backup.reason;
+        }
+    }
+    return result;
 }
 
 /* ----------------------------------------------------------------------------------------- */
@@ -886,20 +1029,31 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
             services.recent.remove(path);  // prune missing files (resource-formats.md §8)
             throw io_error(path, "file not found");
         }
-        const std::uintmax_t size = fs::file_size(file, ec);
+        std::uintmax_t size = fs::file_size(file, ec);
+        // Feature 009: ZIP archives are read, other archive kinds refused (FR-010 to FR-022).
+        refuse_other_archives(file);
+        std::optional<std::string> entry;
+        if (archive::detect_kind(file) == archive::Kind::zip) {
+            ArchiveChoice choice = choose_entry(path, rpc::params::opt_string(params, "entry"));
+            if (!choice.needs_choice.is_null()) {
+                return json{{"needsChoice", std::move(choice.needs_choice)}};
+            }
+            entry = choice.entry;
+            size = static_cast<std::uintmax_t>(choice.size);
+        }
         const std::string ui_language = ui_language_setting(services);
         if (ec || size < kJobThresholdBytes) {
-            Opened opened = open_document(path, ui_language, nullptr);
+            Opened opened = open_document(path, ui_language, nullptr, entry);
             return register_session(services, std::move(opened));
         }
         // The session (and its docId) exists from the start; the worker parses and builds the
         // JSON result, the loop thread only moves the data into the session at the end.
         const std::string doc_id = services.documents.create().docId;
         const std::string job_id = ctx.jobs.start(
-            [&services, path, doc_id, ui_language](rpc::JobControl& control) -> json {
+            [&services, path, doc_id, ui_language, entry](rpc::JobControl& control) -> json {
                 auto opened = std::make_shared<Opened>();
                 try {
-                    *opened = open_document(path, ui_language, &control);
+                    *opened = open_document(path, ui_language, &control, entry);
                 } catch (...) {
                     on_loop_thread(
                         services,
@@ -914,6 +1068,7 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
                 json result{
                     {"document", loaded_document_json(opened->read.document, opened->filled_in)},
                     {"warnings", issues_json(opened->read.warnings)}};
+                add_source(result["document"], *opened);
                 const bool registered = on_loop_thread(
                     services,
                     [&services, doc_id, opened] {
@@ -939,8 +1094,18 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         const std::string path = absolute_path(rpc::params::string(params, "path"));
         const fs::path file = platform::path_from_utf8(path);
         fb2::SourceText source;
+        std::optional<std::string> entry;
+        refuse_other_archives(file);
+        if (archive::detect_kind(file) == archive::Kind::zip) {
+            ArchiveChoice choice = choose_entry(path, rpc::params::opt_string(params, "entry"));
+            if (!choice.needs_choice.is_null()) {
+                return json{{"needsChoice", std::move(choice.needs_choice)}};
+            }
+            entry = choice.entry;
+        }
         try {
-            source = fb2::read_source(file);
+            source = entry ? fb2::read_source_bytes(archive_book_bytes(path, *entry))
+                           : fb2::read_source(file);
         } catch (const fb2::NotFictionBookFailure& e) {
             throw not_fictionbook(path, e.reason);
         } catch (const fb2::IoFailure& e) {
@@ -949,7 +1114,8 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         }
         session::DocumentSession& s = services.documents.create();
         s.path = path;
-        s.fileKind = file_kind_of(path);
+        s.archiveEntry = entry;
+        s.fileKind = file_kind_of(entry ? *entry : path);
         s.sourceEncoding = source.encoding;
         s.schemaHint = model::SchemaHint::unknown;
         s.sourceOnly = source.error.has_value();
@@ -959,11 +1125,14 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
             s.lastKnownSize = stamp.size;
         }
         // A Source-only session takes no Body caret (FR-101): no position is loaded.
-        services.recent.touch(path);
+        services.recent.touch(path, entry);
         json result{{"docId", s.docId},
                     {"text", source.text},
                     {"encoding", source.encoding},
                     {"warnings", issues_json(source.warnings)}};
+        if (entry) {
+            result["source"] = json{{"archive", path}, {"entry", *entry}};
+        }
         if (source.error) {
             result["error"] = json{{"line", source.error->line},
                                    {"column", source.error->column},
@@ -1094,6 +1263,11 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
             s.positionMap.reset();
         }
         result["document"] = loaded_document_json(doc, filled_in);
+        // Feature 009 (D8, FR-016): a book from a ZIP archive stays one when its text is parsed
+        // back, so every save still goes through Save As.
+        if (s.archiveEntry && s.path) {
+            result["document"]["source"] = json{{"archive", *s.path}, {"entry", *s.archiveEntry}};
+        }
         return result;
     });
 
@@ -1215,8 +1389,24 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
             throw rpc::invalid_params("document or text is required", json{{"field", "document"}});
         }
         const auto path = rpc::params::opt_string(params, "path");
+        const auto archive_param = params.find("archive");
+        const bool zip_save = archive_param != params.end() && !archive_param->is_null();
         if (path && !path->empty()) {
             request.path = absolute_path(*path);
+            // Never over the archive a book came from as a plain file (D8, FR-016): only a ZIP
+            // save may replace it, which the UI proposes when the archive held only this book.
+            std::error_code same_ec;
+            if (s.archiveEntry && s.path && !zip_save &&
+                (request.path == *s.path ||
+                 std::filesystem::equivalent(platform::path_from_utf8(request.path),
+                                             platform::path_from_utf8(*s.path), same_ec))) {
+                throw rpc::invalid_params("a book from a ZIP archive is saved through Save As",
+                                          json{{"field", "path"}});
+            }
+        } else if (s.archiveEntry) {
+            // Never back into the archive a book came from (D8, FR-016): its saves name a file.
+            throw rpc::invalid_params("a book from a ZIP archive is saved through Save As",
+                                      json{{"field", "path"}});
         } else if (s.path) {
             request.path = *s.path;
         } else {
@@ -1226,6 +1416,16 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         request.encoding =
             effective_encoding(services, s, rpc::params::opt_string(params, "encoding"));
         request.force = rpc::params::boolean_or(params, "force", false);
+        request.backup = rpc::params::boolean_or(params, "backup", false);
+        if (const auto it = params.find("archive"); it != params.end() && !it->is_null()) {
+            const auto name = it->is_object() ? it->find("entryName") : it->end();
+            if (!it->is_object() || name == it->end() || !name->is_string() ||
+                name->get<std::string>().empty()) {
+                throw rpc::invalid_params("archive.entryName is required",
+                                          json{{"field", "archive.entryName"}});
+            }
+            request.archive_entry = name->get<std::string>();
+        }
         request.xlink_prefix = s.xlinkPrefix;
         request.store = s.binaries;
         request.policy = services.conversion_policy();

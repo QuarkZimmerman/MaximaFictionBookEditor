@@ -328,6 +328,25 @@ std::optional<RateLimit> rate_limit_of(
 
 }  // namespace
 
+// Feature 009 (the requester at the smoke test of 0.0.7-rc.6): Anthropic's API answers its
+// OpenAI-style requests only with its version header - without it even the model list is refused
+// ("anthropic-version: header is required").
+bool needs_anthropic_version(const std::string& url) {
+    const auto scheme = url.find("://");
+    if (scheme == std::string::npos)
+        return false;
+    const auto start = scheme + 3;
+    const auto end = url.find_first_of(":/?#", start);
+    std::string host =
+        url.substr(start, end == std::string::npos ? std::string::npos : end - start);
+    for (char& c : host)
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    const std::string domain = "anthropic.com";
+    return host == domain ||
+           (host.size() > domain.size() &&
+            host.compare(host.size() - domain.size() - 1, std::string::npos, "." + domain) == 0);
+}
+
 /* ----------------------------------------------------------------------------------------- */
 /* Global initialisation                                                                      */
 /* ----------------------------------------------------------------------------------------- */
@@ -680,6 +699,9 @@ AiOutcome HttpClient::perform(const HttpRequest& request, rpc::JobControl& contr
     headers.add(std::string("User-Agent: MaximaFictionBookEditor/") + version::kVersion);
     if (!request.key.empty()) {
         headers.add("Authorization: Bearer " + request.key);
+    }
+    if (needs_anthropic_version(request.url)) {
+        headers.add("anthropic-version: 2023-06-01");
     }
     headers.add("Expect:");
     curl_easy_setopt(easy, CURLOPT_HTTPHEADER, headers.list);

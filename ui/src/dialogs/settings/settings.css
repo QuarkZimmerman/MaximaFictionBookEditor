@@ -420,3 +420,23 @@
 .mfbe-ai-notice-warning {
   color: var(--mfbe-color-danger, #c42b1c);
 }
+
+/* Feature 009: the well-known services' button beside the custom address (the requester at the
+   smoke test of 0.0.7-rc.6). */
+.mfbe-settings-ai-address {
+  display: flex;
+  gap: 4px;
+  align-items: stretch;
+  flex: 1;
+  min-width: 0;
+}
+
+.mfbe-settings-ai-address > input {
+  flex: 1;
+  min-width: 0;
+}
+
+.mfbe-settings-ai-presets {
+  flex: none;
+  min-width: 26px;
+}

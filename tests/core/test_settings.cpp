@@ -33,7 +33,11 @@ TEST_CASE("settings: defaults are exactly resource-formats.md section 6", "[sett
     CHECK(d["view"]["customDictionaryPath"] == "");
     CHECK(d["view"]["fastMode"] == false);
     CHECK(d["view"]["spellExtraDictionaries"] == json::array({"en_US", "ru_RU"}));  // feature 008
-    CHECK(d["view"].size() == 19);
+    // Feature 009 (FR-056): every pane shown.
+    CHECK(d["view"]["statusBarPanes"] ==
+          json::array(
+              {"path", "position", "selection", "character", "encoding", "validity", "insmode"}));
+    CHECK(d["view"].size() == 20);
     CHECK(d["view"]["theme"] == "system");
     CHECK(d["other"]["defaultEncoding"] == "utf-8");
     CHECK(d["other"]["keepEncoding"] == false);
@@ -52,7 +56,8 @@ TEST_CASE("settings: defaults are exactly resource-formats.md section 6", "[sett
     CHECK(d["other"]["keyboardLayoutId"] == "");
     CHECK(d["other"]["keyboardLayoutName"] == "");
     CHECK(d["other"]["openFromOutside"] == "ask");  // feature 008
-    CHECK(d["other"].size() == 17);
+    CHECK(d["other"]["keepBackup"] == true);        // feature 009 (FR-006)
+    CHECK(d["other"].size() == 18);
     CHECK(d["words"] == json{{"showExclusionsInWordsDialog", false}});
     CHECK(d["session"]["windowGeometry"].is_null());
     CHECK(d["session"]["toolbars"] == json{{"commands", true},
@@ -274,6 +279,10 @@ TEST_CASE("settings: invalid patch values are rejected with the field name", "[s
     expect_field(json{{"session", {{"findHistory", "x"}}}}, "session.findHistory");
     expect_field(json{{"session", {{"toolbars", {{"links", 1}}}}}}, "session.toolbars");
     expect_field(json{{"view", "not an object"}}, "view");
+    // Feature 009: only the known status bar panes, and a boolean backup switch.
+    expect_field(json{{"view", {{"statusBarPanes", json::array({"position", "bogus"})}}}},
+                 "view.statusBarPanes");
+    expect_field(json{{"other", {{"keepBackup", "yes"}}}}, "other.keepBackup");
     CHECK_THROWS_AS(store.apply_patch(json::array()), settings::SettingsError);
     CHECK(store.get() == before);  // nothing applied
 }
@@ -519,8 +528,10 @@ TEST_CASE("settings: a 0.0.2 settings file keeps every value; the new keys take 
     CHECK(s["session"]["aiPanelVisible"] == true);
     CHECK(s["ai"] == settings::defaults()["ai"]);
     CHECK(s["session"]["tableDialog"] == settings::defaults()["session"]["tableDialog"]);
-    CHECK(s["view"].size() == 19);
-    CHECK(s["other"].size() == 17);
+    CHECK(s["view"]["statusBarPanes"] == settings::defaults()["view"]["statusBarPanes"]);  // 009
+    CHECK(s["other"]["keepBackup"] == true);                                                // 009
+    CHECK(s["view"].size() == 20);
+    CHECK(s["other"].size() == 18);
     CHECK(s["session"].size() == 11);
 
     // Saving the migrated file keeps the key absent; the shell's maximised flag is accepted.
@@ -590,7 +601,8 @@ TEST_CASE(
     CHECK(s["other"]["keyboardLayoutId"] == "");
     CHECK(s["other"]["keyboardLayoutName"] == "");
     CHECK(s["session"]["treeWidth"] == 260);
-    CHECK(s["other"].size() == 17);
+    CHECK(s["other"]["keepBackup"] == true);  // feature 009
+    CHECK(s["other"].size() == 18);
     // The eight of 0.0.3 (lastVersionCheck set) + treeWidth + aiPanelWidth and aiPanelVisible
     // (feature 005) + tableDialog (feature 006).
     CHECK(s["session"].size() == 12);

@@ -173,6 +173,10 @@ CaSelection select_ca_bundle(const EnvLookup& env, const std::filesystem::path& 
 // exposed so that a test can assert that it is never what the client uses.
 std::optional<std::string> compiled_in_ca_info();
 
+/// Whether a request to `url` needs Anthropic's version header (a host of anthropic.com): its API
+/// refuses requests without it, even the model list (feature 009).
+bool needs_anthropic_version(const std::string& url);
+
 /* ----------------------------------------------------------------------------------------- */
 /* Client                                                                                     */
 /* ----------------------------------------------------------------------------------------- */

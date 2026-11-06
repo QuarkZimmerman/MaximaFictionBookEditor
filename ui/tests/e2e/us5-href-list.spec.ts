@@ -161,6 +161,60 @@ test.describe('US5: the Links bar list of jump destinations and images', () => {
     await page.keyboard.press('Escape');
   });
 
+  test('feature 009: at a picture a click on the field opens the list, with thumbnails and the picture view', async ({
+    core,
+    page,
+  }) => {
+    // The requester at the smoke test of 0.0.7-rc.6: the picture's id lists the book's pictures
+    // with a preview, and one opens enlarged as in the Description view.
+    await openBook(core, page);
+    const picture = page.getByTestId('body-editor').locator('img').first();
+    await picture.scrollIntoViewIfNeeded();
+    await picture.click();
+    await expect(page.getByTestId('links-bar-href')).toHaveValue('#pic_1.png');
+    await page.getByTestId('links-bar-href').click();
+    const list = page.getByTestId('links-bar-href-list');
+    await expect(list).toBeVisible();
+    await expect(list.locator('img.mfbe-hrefcombo-thumb').first()).toBeVisible();
+    await expect
+      .poll(() =>
+        page.evaluate<number>(
+          'document.querySelector("[data-testid=links-bar-href-list] img.mfbe-hrefcombo-thumb").naturalWidth',
+        ),
+      )
+      .toBeGreaterThan(0);
+    await page.getByTestId('links-bar-href-enlarge-1').click();
+    await expect(page.getByTestId('picture-view')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('picture-view')).toHaveCount(0);
+  });
+
+  test('feature 009: an empty picture gets its image from the list', async ({ core, page }) => {
+    // The requester at the smoke test of 0.0.7-rc.6: an empty picture could not be given an image
+    // from the Body view. Selected, its Href box lists the book's pictures; a choice is applied.
+    await openBook(core, page);
+    // A paragraph directly in a section, where a block picture may stand.
+    await page.locator('[data-testid="body-editor"] .fb-section > p.fb-p').first().click();
+    await page.getByTestId('menu-add').click();
+    await page.getByTestId('menu-add-image').click();
+    await page.getByTestId('dialog-insert-clear-image-button-no').click();
+    const empty = page
+      .locator('[data-testid="body-editor"] figure.fb-image.fb-image-missing')
+      .first();
+    await expect(empty).toBeVisible();
+    await empty.click();
+    const href = page.getByTestId('links-bar-href');
+    await expect(href).toHaveValue('#undefined');
+    await href.click();
+    const list = page.getByTestId('links-bar-href-list');
+    await expect(list).toBeVisible();
+    await list.locator('li[role="option"]', { hasText: /^#pic_2\.png$/ }).click();
+    await expect(href).toHaveValue('#pic_2.png');
+    await expect(
+      page.locator('[data-testid="body-editor"] figure.fb-image.fb-image-missing'),
+    ).toHaveCount(0);
+  });
+
   test('a typed address is applied as before', async ({ core, page }) => {
     await openBook(core, page);
     const nodeId = await caretInLink(page, '#n_4');

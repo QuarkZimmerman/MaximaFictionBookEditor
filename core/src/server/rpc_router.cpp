@@ -38,6 +38,18 @@ const char* error_name(int code) {
             return "doc.positionsStale";
         case codes::kDocSameAsOpenFile:
             return "doc.sameAsOpenFile";
+        case codes::kBinaryIdInvalid:
+            return "binary.idInvalid";
+        case codes::kBinaryIdTaken:
+            return "binary.idTaken";
+        case codes::kArchiveUnsupported:
+            return "archive.unsupported";
+        case codes::kArchiveNoBook:
+            return "archive.noBook";
+        case codes::kArchiveEntryUnreadable:
+            return "archive.entryUnreadable";
+        case codes::kArchiveEntryMissing:
+            return "archive.entryMissing";
         case codes::kBinaryNotFound:
             return "binary.notFound";
         case codes::kSpellDictionaryUnavailable:

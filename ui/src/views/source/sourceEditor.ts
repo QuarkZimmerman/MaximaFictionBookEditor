@@ -74,6 +74,7 @@ import {
   keymap,
 } from '@codemirror/view';
 
+import { CaretInfoFeed, sourceCaretInfo } from '@/app/caretInfo';
 import type { CommandContext } from '@/app/commands';
 import { nbspMarker } from '@/editor/plugins/nbsp';
 import type { CaretProvider } from '@/model/caret';
@@ -298,6 +299,8 @@ class SourceHistoryAdapter implements ViewHistoryAdapter {
 
 export class SourceEditorController {
   private readonly store: AppStore;
+  /** Feature 009 (US5): writes the status bar's caret panes, at most once a frame. */
+  private readonly caretFeed: CaretInfoFeed;
   private readonly undo: UndoCoordinator;
   private translate: Translate;
   private settings: SourceEditorSettings;
@@ -358,6 +361,7 @@ export class SourceEditorController {
 
   constructor(options: SourceEditorOptions) {
     this.store = options.store;
+    this.caretFeed = new CaretInfoFeed(options.store);
     this.undo = options.undo;
     this.translate = options.translate ?? ((key) => key);
     this.settings = options.settings ?? DEFAULT_SOURCE_SETTINGS;
@@ -415,6 +419,7 @@ export class SourceEditorController {
         ) {
           this.scheduleContextCheck();
         }
+        if (update.docChanged || update.selectionSet) this.refreshCaretInfo();
       }),
       EditorView.contentAttributes.of({ 'data-testid': 'source-editor', spellcheck: 'false' }),
     ];
@@ -423,6 +428,8 @@ export class SourceEditorController {
     // `edit.completeTag` opens the list of the mounted editor (nothing while unmounted).
     registerCompletionEditor(this.store, () => this.view);
     this.store.subscribe((state, previous) => {
+      if (state.activeView === 'source' && previous.activeView !== 'source')
+        this.refreshCaretInfo();
       if (state.insertMode !== previous.insertMode) this.applyOvertype();
       // The quiet lock of a run applies mounted or not (the kept state is what the next mount
       // shows).
@@ -479,6 +486,13 @@ export class SourceEditorController {
     this.container = container;
     this.view = new EditorView({ state: this.headless, parent: container });
     if (this.revealPending) this.revealSelection();
+    this.refreshCaretInfo();
+  }
+
+  /** Feature 009 (US5): the status bar's caret panes, while the Source view is the active one. */
+  refreshCaretInfo(): void {
+    if (this.store.getState().activeView !== 'source') return;
+    this.caretFeed.request(() => (this.view ? sourceCaretInfo(this.view.state) : null));
   }
 
   unmount(): void {

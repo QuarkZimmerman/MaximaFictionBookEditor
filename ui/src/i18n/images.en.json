@@ -17,6 +17,15 @@
       "pastedNoPlace": "The image was embedded as binary object \"{{id}}\" but cannot be placed at the caret; insert it through the Add menu or the cover page.",
       "failed": "The image could not be embedded: {{reason}}",
       "saved": "Image saved to {{path}}"
+    },
+    "summary": {
+      "caption": "Add binary objects",
+      "added_one": "Added {{count}} file: {{files}}",
+      "added_other": "Added {{count}} files: {{files}}",
+      "none": "Nothing was added.",
+      "toConvert": "Will be converted to JPEG or PNG when the book is saved: {{files}}",
+      "failed_one": "Not added ({{count}} file):",
+      "failed_other": "Not added ({{count}} files):"
     }
   },
   "pictureView": {

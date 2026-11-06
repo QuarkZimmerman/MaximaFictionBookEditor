@@ -86,6 +86,7 @@ ALLOWED: dict[str, str] = {
     "0BSD": "",
     "ISC": "",
     "curl": "curl licence - X11-derived, GPL-compatible",
+    "bzip2-1.0.6": "bzip2 licence - BSD-style, GPL-compatible (libarchive's bzip2 method, feature 009)",
     "Apache-2.0": "",
     "Zlib": "",
     "libpng-2.0": "",

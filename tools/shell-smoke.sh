@@ -209,6 +209,19 @@ if [[ "${MFBE_SMOKE_ABOUT:-0}" == "1" ]] &&
 fi
 
 TMP=$(mktemp -d -t mfbe-smoke.XXXXXX)
+# Feature 009 (FR-037): Ctrl+click on a web link of the Body view opens it in the system's
+# browser through the core (app.openUrl -> xdg-open, looked up on PATH). A smoke run starts no
+# browser: this stand-in xdg-open, first on PATH for the shell and the core, records the address
+# instead, and shell-smoke.mjs checks it.
+mkdir -p "$TMP/bin"
+cat >"$TMP/bin/xdg-open" <<'STUB'
+#!/bin/sh
+printf '%s\n' "$*" >>"${MFBE_SMOKE_OPENED_URLS:?}"
+STUB
+chmod +x "$TMP/bin/xdg-open"
+export MFBE_SMOKE_OPENED_URLS="$TMP/opened-urls.txt"
+: >"$MFBE_SMOKE_OPENED_URLS"
+export PATH="$TMP/bin:$PATH"
 HTTP_PID=""
 APP_PID=""
 CDP_PORT=""

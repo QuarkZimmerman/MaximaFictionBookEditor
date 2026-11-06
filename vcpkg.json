@@ -20,7 +20,8 @@
     "cli11",
     "stduuid",
     "platform-folders",
-    "zlib"
+    "zlib",
+    { "name": "libarchive", "default-features": false, "features": ["bzip2", "lzma", "zstd"] }
   ],
   "features": {
     "tests": {

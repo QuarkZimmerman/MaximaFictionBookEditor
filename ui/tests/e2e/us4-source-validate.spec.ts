@@ -431,7 +431,8 @@ test.describe('US4 - edit the XML source and validate', () => {
     const target = path.join(dir, 'scenario6-invalid-saved.fb2');
 
     // No: nothing is written.
-    await core.enqueueDialog('dialog.saveFile', { path: target, encoding: 'utf-8' });
+    // No ends the save before the dialog (feature 009, the requester at the rc.5 smoke test):
+    // no answer is queued for it, so none is left over for the next test.
     await page.getByTestId('menu-file').click();
     await page.getByTestId('menu-file-saveAs').click();
     const prompt = page.getByTestId('dialog-validation-failed');

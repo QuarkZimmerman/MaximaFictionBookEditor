@@ -8,12 +8,13 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 ### In short
 
 - Several editor windows; books open from the file manager again
-- Safeguards for the footnote and comment scripts
-- Spell check with English and Russian by default
-- Link targets list in the Links bar
-- Cover picture view
-- Option to start the editor after installation
-- Busy pointer while the AI assistant works
+- Books in ZIP archives open and save; every save keeps a backup of the previous version
+- Note text on hover; Ctrl+click follows links; Paste as plain text
+- More in the status bar; attribute and value completion in the Source view
+- Pictures: rename, placement at the caret, several files at once
+- Spell check with English and Russian by default; safeguards for the footnote scripts
+- Link targets list in the Links bar; cover picture view
+- Option to start the editor after installation; busy pointer while the AI assistant works
 
 ### Added
 
@@ -23,11 +24,42 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 - Spelling uses the book's dictionary, else the interface language's, plus the extra
   dictionaries ticked in Settings > View (English and Russian by default).
 - The Links bar's Href box lists the book's jump destinations in book order at a link and its
-  images at a picture; Style > Link lists the destinations in the same order.
+  images at a picture; Style > Link lists the destinations in the same order. At a picture, a
+  click on the box opens the list, with a preview of each picture and a button showing it
+  enlarged.
 - A click on the cover's thumbnail shows the cover; Choose... picks another one.
 - The Windows installer's last page offers to launch the editor.
 - While the AI assistant works, the pointer over the text, the banner and the status bar show
   a turning atom.
+- Saving keeps the previous version of the book beside it as `<name>.bak` (Settings > Other,
+  on by default); the save itself stays safe if the backup cannot be made.
+- Books inside ZIP archives open by every route - File > Open, the file manager, the command
+  line, dragging and Recent files; an archive with several books asks which one to open. Save
+  As can put the book into a ZIP archive, and an archive's other files are never lost silently.
+  File > Open shows FictionBook files, descriptors and ZIP archives together by default.
+- Resting the pointer on a note mark shows the note's text; Ctrl+click (Cmd+click on macOS)
+  follows a link, and Go to footnote or reference returns to the link.
+- Edit > Paste as plain text (Ctrl+Shift+V) pastes the clipboard's text without formatting,
+  links or pictures, also from the context menus.
+- The status bar shows the position, the selection's counts, the character before the caret
+  with its code and name, the encoding and the validity; a right-click chooses the panes.
+- The Source view completes attributes and their values: ids after `#`, pictures, link types,
+  alignments, genres and languages.
+- A binary object can be renamed from the Binary objects list; every reference follows, and
+  one Undo restores the old name.
+- Add > Image puts the picture at the caret: before the paragraph, between its two halves,
+  after it, or in place of an empty paragraph.
+- Adding several binary objects adds each file on its own, then lists the files that failed
+  and the pictures that will be converted on save.
+- The AI assistant's address offers well-known services to fill it in: OpenAI, Anthropic,
+  Google Gemini, xAI Grok and OpenRouter.
+
+### Changed
+
+- Add > Image asks whether to insert a picture from a file - the default - or an empty picture
+  to fill in later, instead of "Insert clear image?".
+- Saving an invalid book asks about its errors before Save As opens; No saves nothing.
+- Tag completion in the Source view offers only the elements the schema allows at the cursor.
 
 ### Fixed
 
@@ -36,6 +68,7 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   a footnote was inserted between existing ones after earlier insertions in the same session. The
   cause was repeated internal element names, fixed in 0.0.6; this version adds safeguards, so that
   a repeat from any source is repaired and can no longer freeze the editor.
+- The AI assistant could not list Anthropic's models: its version header was missing.
 
 ## 0.0.6 - 2026-11-01
 

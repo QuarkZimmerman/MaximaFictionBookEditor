@@ -230,6 +230,12 @@ export function OtherPage({ draft, onChange, ctx }: OtherPageProps) {
             onChange={(checked) => onChange({ keepEncoding: checked })}
             testId="settings-other-keep-encoding"
           />
+          <CheckField
+            label={t('dialog.settings.other.keepBackup')}
+            checked={other.keepBackup !== false}
+            onChange={(checked) => onChange({ keepBackup: checked })}
+            testId="settings-other-keep-backup"
+          />
         </GroupBox>
         <GroupBox title={t('dialog.settings.other.openFile')} testId="settings-other-open-file">
           <CheckField

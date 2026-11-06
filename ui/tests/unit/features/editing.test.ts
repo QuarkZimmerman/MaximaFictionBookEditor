@@ -352,12 +352,15 @@ describe('images and windowed documents', () => {
     });
     const { services, ctx, store } = h;
     // "Insert clear image?" -> No -> file dialog -> binary.add missing -> #cover.jpg reference.
-    ctx.dialogs.messageAnswers.push('no');
+    ctx.dialogs.messageAnswers.push('yes');
     caret(h, 'p1', 3);
     await services.commands.execute('insert.image', ctx);
-    expect(ctx.dialogs.shown.at(-1)?.text).toBe('Insert clear image?');
+    expect(ctx.dialogs.shown.at(-1)?.text).toBe(
+      'Insert a picture from a file, or an empty picture to fill in later?',
+    );
     let section = store.getState().document!.bodies[0]!.content[1] as SectionNode;
-    expect(section.content.map((c) => c.type)).toEqual(['title', 'p', 'image', 'p']);
+    // The caret inside p1 splits it around the picture (feature 009, data-model §11).
+    expect(section.content.map((c) => c.type)).toEqual(['title', 'p', 'image', 'p', 'p']);
     expect(section.content[2]!.attrs).toMatchObject({ href: '#cover.jpg' });
     expect(store.getState().statusMessage).toContain('#cover.jpg');
     // With binary.add available the new binary is referenced and listed.
@@ -369,7 +372,7 @@ describe('images and windowed documents', () => {
       willConvert: false,
       referenceCount: 1,
     };
-    ctx.dialogs.messageAnswers.push('no');
+    ctx.dialogs.messageAnswers.push('yes');
     caret(h, 'p3', 2);
     await services.commands.execute('insert.inlineImage', ctx);
     const p3 = (store.getState().document!.bodies[0]!.content[2] as SectionNode).content[0] as {
@@ -378,7 +381,7 @@ describe('images and windowed documents', () => {
     expect(p3.content.find((c) => c.type === 'inline-image')?.attrs?.href).toBe('#cover_1.jpg');
     expect(store.getState().document!.binaries.map((b) => b.id)).toEqual(['cover_1.jpg']);
     // "Yes" inserts a clear image (the placeholder reference edited through the Links bar).
-    ctx.dialogs.messageAnswers.push('yes');
+    ctx.dialogs.messageAnswers.push('no');
     caret(h, 'p1', 0);
     await services.commands.execute('insert.sectionImage', ctx);
     section = store.getState().document!.bodies[0]!.content[1] as SectionNode;

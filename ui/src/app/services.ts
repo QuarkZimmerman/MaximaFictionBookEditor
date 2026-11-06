@@ -24,6 +24,8 @@ import { registerViewCommands } from '@/views/source/sourceSession';
 
 import { CommandRegistry, createCommandRegistry, type CommandContext } from './commands';
 import { HotkeyMap, detectPlatform } from './hotkeys';
+import { resourceCatalogsFor } from '@/views/description/resources';
+import { provideCompletionLists } from '@/views/source/attributeCompletion';
 
 /** What a feature registrar receives; keep it minimal and stable. */
 export interface FeatureContext {
@@ -81,6 +83,20 @@ export function createAppServices(options: CreateAppServicesOptions = {}): AppSe
   const hotkeys = options.hotkeys ?? new HotkeyMap(platform);
   const undo = options.undo ?? new UndoCoordinator();
   const dialogs = createDialogs(options.dialogService ?? new DialogService());
+  // Feature 009 (US6): the Source view completes genre and language codes from the lists the
+  // Description view loads; the first request starts their loading.
+  if (options.rpc) {
+    const catalogs = resourceCatalogsFor(options.rpc);
+    provideCompletionLists(() => {
+      if (!catalogs.genres) void catalogs.loadGenres().catch(() => undefined);
+      if (!catalogs.languages) void catalogs.loadLanguages().catch(() => undefined);
+      return {
+        genres: catalogs.genres?.entries.map((entry) => entry.code) ?? [],
+        languages:
+          catalogs.languages?.groups.flatMap((group) => group.languages.map((l) => l.code)) ?? [],
+      };
+    });
+  }
   const carets = options.carets ?? new CaretRegistry();
   // The File flows and the parse-before-leaving view commands take over the foundation stubs.
   const files = options.files ?? registerFileCommands(commands);

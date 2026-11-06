@@ -312,8 +312,9 @@ test.describe('US8 - toolbars and right-click as in the original', () => {
     expect(onToolbars).toHaveLength(places.length);
     expect(onToolbars.every((click) => click.cancelled)).toBe(true);
 
-    // The other bars, the menu bar and the status bar: nothing, and no browser menu.
-    for (const place of ['linksbar', 'tablebar', 'tree-toolbar', 'menubar', 'statusbar']) {
+    // The other bars and the menu bar: nothing, and no browser menu. (The status bar has its
+    // own menu since feature 009, choosing its panes - us5-status-bar.spec.ts.)
+    for (const place of ['linksbar', 'tablebar', 'tree-toolbar', 'menubar']) {
       await page.getByTestId(place).click({ button: 'right', position: { x: 3, y: 3 } });
       await expect(page.getByRole('menu')).toHaveCount(0);
     }
@@ -323,7 +324,7 @@ test.describe('US8 - toolbars and right-click as in the original', () => {
     await page.mouse.click(belowItems.x, belowItems.y, { button: 'right' });
     await expect(page.getByTestId('tree-menu')).toHaveCount(0);
     const elsewhere = (await page.evaluate(TAKE_RIGHT_CLICKS)) as RightClick[];
-    expect(elsewhere).toHaveLength(7);
+    expect(elsewhere).toHaveLength(6);
     expect(elsewhere.filter((click) => !click.cancelled)).toEqual([]);
 
     // A text box keeps the shell's edit menu: its right-click is not cancelled.
@@ -609,6 +610,8 @@ test.describe('US8 - toolbars and right-click as in the original', () => {
       await pageText(page, 'editing.contextMenu.cut'),
       await pageText(page, 'editing.contextMenu.copy'),
       await pageText(page, 'editing.contextMenu.paste'),
+      // Feature 009 (FR-040): Paste as plain text right after Paste.
+      await pageText(page, 'editing.contextMenu.pastePlain'),
     ]);
     await page.getByTestId('context-menu-edit.cut').click();
     await expect(title).toHaveValue('');
@@ -625,14 +628,24 @@ test.describe('US8 - toolbars and right-click as in the original', () => {
     const clicks = (await page.evaluate(TAKE_RIGHT_CLICKS)) as RightClick[];
     expect(clicks.every((click) => click.cancelled)).toBe(true);
 
-    // Source: Undo, Redo, Cut, Copy, Paste, Delete, Select All, then Table... (feature 006,
-    // FR-061: Add → Table in the Source view, judged at the clicked point).
+    // Source: Undo, Redo, Cut, Copy, Paste, Paste as plain text (feature 009), Delete, Select
+    // All, then Table... (feature 006, FR-061: Add → Table in the Source view, judged at the
+    // clicked point).
     await page.getByTestId('view-source').click();
     const source = page.getByTestId('source-editor');
     await expect(source).toContainText('FictionBook');
     await source.click({ button: 'right' });
     const sourceMenu = page.getByTestId('source-context-menu');
-    const sourceEntries = ['undo', 'redo', 'cut', 'copy', 'paste', 'delete', 'selectAll'];
+    const sourceEntries = [
+      'undo',
+      'redo',
+      'cut',
+      'copy',
+      'paste',
+      'pastePlain',
+      'delete',
+      'selectAll',
+    ];
     await expect(sourceMenu.getByRole('menuitem')).toHaveText([
       ...(await Promise.all(
         sourceEntries.map((entry) => pageText(page, `source.contextMenu.${entry}`)),

@@ -28,6 +28,7 @@ struct WindowRect {
 struct BookRef {
     std::string path;
     std::string file_id;
+    std::string entry;  // feature 009: the book inside the ZIP archive at `path` ("" for none)
 };
 
 struct Record {
@@ -83,7 +84,10 @@ public:
     // The records of the other copies; `live_only` drops stale ones.
     std::vector<Record> records(bool live_only = true) const;
     // The live copy, other than this one, that holds the book with this identity.
-    std::optional<Record> find_book(const std::string& file_id) const;
+    // The copy holding the book: the same file and, for a book from a ZIP archive, the same
+    // entry (feature 009, FR-015).
+    std::optional<Record> find_book(const std::string& file_id,
+                                    const std::string& entry = "") const;
 
     const std::filesystem::path& copies_dir() const { return dir_; }
 

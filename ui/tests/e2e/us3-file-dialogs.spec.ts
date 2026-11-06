@@ -63,6 +63,8 @@ const ENCODING_LABEL: Record<Language, string> = {
 /** The type names the dialogs must show (FR-010, FR-011). */
 const NAMES: Record<Language, Record<string, string>> = {
   en: {
+    books: 'Book files (*.fb2;*.fbd;*.zip)',
+    zip: 'ZIP archives (*.zip)',
     fb2: 'FictionBook files (*.fb2)',
     fbd: 'FictionBook descriptors (*.fbd)',
     all: 'All files (*.*)',
@@ -78,6 +80,8 @@ const NAMES: Record<Language, Record<string, string>> = {
     dictionaries: 'Dictionaries (*.dic)',
   },
   ru: {
+    books: 'Файлы книг (*.fb2;*.fbd;*.zip)',
+    zip: 'Архивы ZIP (*.zip)',
     fb2: 'Файлы FictionBook (*.fb2)',
     fbd: 'Описания FictionBook (*.fbd)',
     all: 'Все файлы (*.*)',
@@ -93,6 +97,8 @@ const NAMES: Record<Language, Record<string, string>> = {
     dictionaries: 'Словари (*.dic)',
   },
   uk: {
+    books: 'Файли книг (*.fb2;*.fbd;*.zip)',
+    zip: 'Архіви ZIP (*.zip)',
     fb2: 'Файли FictionBook (*.fb2)',
     fbd: 'Описи FictionBook (*.fbd)',
     all: 'Усі файли (*.*)',
@@ -133,6 +139,17 @@ function documentTypes(names: Record<string, string>): FileType[] {
   ];
 }
 
+/** File > Open: every kind of book together first (the requester at the rc.6 smoke test). */
+function openTypes(names: Record<string, string>): FileType[] {
+  return [
+    { name: names.books!, extensions: ['fb2', 'fbd', 'zip'] },
+    { name: names.fb2!, extensions: ['fb2'] },
+    { name: names.fbd!, extensions: ['fbd'] },
+    { name: names.zip!, extensions: ['zip'] },
+    { name: names.all!, extensions: ['*'] },
+  ];
+}
+
 function imageTypes(names: Record<string, string>): FileType[] {
   return [
     { name: names.supported!, extensions: ['jpg', 'jpeg', 'png'] },
@@ -158,12 +175,22 @@ async function recordsDialogs(core: CoreHandle): Promise<boolean> {
 }
 
 /** Runs `action` and returns the first file dialog request it caused, as the core got it. */
-async function requestOf(core: CoreHandle, action: () => Promise<void>): Promise<DialogRequest> {
+async function requestOf(
+  core: CoreHandle,
+  action: () => Promise<void>,
+  page?: Page,
+): Promise<DialogRequest> {
   const before = (await core.rpc<DialogRequest[]>('test.dialogRequests')).length;
   await action();
   let requests: DialogRequest[] = [];
+  // Since feature 009 an invalid book's validation question comes before the Save dialog (the
+  // requester at the smoke test of 0.0.7-rc.5): Yes, then the dialog is asked for.
+  const question = page?.getByTestId('dialog-validation-failed');
   await expect
     .poll(async () => {
+      if (question && (await question.count()) > 0) {
+        await question.getByTestId('dialog-validation-failed-button-yes').click();
+      }
       requests = await core.rpc<DialogRequest[]>('test.dialogRequests');
       return requests.length;
     })
@@ -188,7 +215,7 @@ async function menu(page: Page, menuId: string, itemId: string): Promise<void> {
 /** File > Open answered with `file`; waits until the book is the open document. */
 async function openBook(core: CoreHandle, page: Page, file: string): Promise<DialogRequest> {
   await core.enqueueDialog('dialog.openFile', { paths: [file] });
-  const request = await requestOf(core, () => menu(page, 'file', 'open'));
+  const request = await requestOf(core, () => menu(page, 'file', 'open'), page);
   await waitForBook(page, file);
   return request;
 }
@@ -196,7 +223,7 @@ async function openBook(core: CoreHandle, page: Page, file: string): Promise<Dia
 /** File > Save As, cancelled. */
 async function saveAsCancelled(core: CoreHandle, page: Page): Promise<DialogRequest> {
   await core.enqueueDialog('dialog.saveFile', {});
-  return requestOf(core, () => menu(page, 'file', 'saveAs'));
+  return requestOf(core, () => menu(page, 'file', 'saveAs'), page);
 }
 
 function paragraph(page: Page): Locator {
@@ -206,6 +233,25 @@ function paragraph(page: Page): Locator {
 /** Puts the caret into the first paragraph (the editor reads the selection asynchronously). */
 async function clickIntoParagraph(page: Page): Promise<void> {
   await paragraph(page).click({ position: { x: 8, y: 8 } });
+  await expect(page.getByTestId('status-path')).toHaveText(/\/p\[\d+\]$/);
+  await page.waitForTimeout(80);
+}
+
+/** The caret at the very end of the paragraph, set as the DOM selection the editor follows. */
+async function clickParagraphEnd(page: Page): Promise<void> {
+  await paragraph(page).evaluate((p) => {
+    const doc = p.ownerDocument;
+    (p.closest('[contenteditable="true"]') as unknown as { focus(): void }).focus();
+    const walker = doc.createTreeWalker(p, 4 /* NodeFilter.SHOW_TEXT */);
+    let last: { length: number } | null = null;
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) last = node as never;
+    const range = doc.createRange();
+    range.setStart(last as never, last!.length);
+    range.collapse(true);
+    const selection = doc.getSelection()!;
+    selection.removeAllRanges();
+    selection.addRange(range);
+  });
   await expect(page.getByTestId('status-path')).toHaveText(/\/p\[\d+\]$/);
   await page.waitForTimeout(80);
 }
@@ -252,7 +298,7 @@ for (const language of ['en', 'ru', 'uk'] as const) {
       expect(open).toMatchObject({
         method: 'dialog.openFile',
         mode: 'open',
-        filters: documentTypes(names),
+        filters: openTypes(names),
         selectedFilter: 0,
         multiple: false,
       });
@@ -277,7 +323,7 @@ for (const language of ['en', 'ru', 'uk'] as const) {
 
       // The next Open starts in the folder of the last one.
       await core.enqueueDialog('dialog.openFile', { paths: [] });
-      const again = await requestOf(core, () => menu(page, 'file', 'open'));
+      const again = await requestOf(core, () => menu(page, 'file', 'open'), page);
       expect(again.selectedFilter).toBe(0);
       expect(again.folder).toBe(KEEPS_LAST_FOLDER ? books : undefined);
 
@@ -317,10 +363,12 @@ for (const language of ['en', 'ru', 'uk'] as const) {
         await expect(page.getByTestId('body-view')).toBeVisible();
         const folder = KEEPS_LAST_FOLDER ? books : undefined;
 
-        // Block, inline and section image: "Supported images" selected, no "All files".
-        await clickIntoParagraph(page);
+        // Block, inline and section image: "Supported images" selected, no "All files". At the
+        // paragraph's end the block picture follows it (feature 009, data-model §11), leaving the
+        // section's own picture free for the section image.
+        await clickParagraphEnd(page);
         await core.enqueueDialog('dialog.openFile', { paths: [image('tiny.jpg')] });
-        const block = await requestOf(core, () => menu(page, 'add', 'image'));
+        const block = await requestOf(core, () => menu(page, 'add', 'image'), page);
         expect(block).toMatchObject({
           method: 'dialog.openFile',
           mode: 'open',
@@ -334,7 +382,7 @@ for (const language of ['en', 'ru', 'uk'] as const) {
         for (const command of ['inlineImage', 'sectionImage']) {
           await clickIntoParagraph(page);
           await core.enqueueDialog('dialog.openFile', { paths: [] });
-          const request = await requestOf(core, () => menu(page, 'add', command));
+          const request = await requestOf(core, () => menu(page, 'add', command), page);
           expect(request, command).toMatchObject({
             mode: 'open',
             filters: imageTypes(names),
@@ -364,7 +412,7 @@ for (const language of ['en', 'ru', 'uk'] as const) {
 
         // Add Binary Object: "All files" first, "Supported images" selected, several files.
         await core.enqueueDialog('dialog.openFile', { paths: [] });
-        const binary = await requestOf(core, () => menu(page, 'add', 'binary'));
+        const binary = await requestOf(core, () => menu(page, 'add', 'binary'), page);
         expect(binary).toMatchObject({
           method: 'dialog.openFile',
           mode: 'openMultiple',

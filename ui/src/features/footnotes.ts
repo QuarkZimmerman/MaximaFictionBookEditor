@@ -11,6 +11,8 @@
 import { TextSelection } from 'prosemirror-state';
 
 import type { Command, CommandContext, CommandRegistry } from '@/app/commands';
+import { openExternalUrl } from '@/dialogs/externalUrl';
+
 import { collectJumpTargets, showLinkDialog } from './linkTargets';
 import {
   appendNoteSection,
@@ -21,7 +23,6 @@ import {
   findById,
   findNotesBody,
   findReference,
-  gotoFootnote,
   gotoReference,
   linkRangeAt,
   linkTargetAt,
@@ -39,7 +40,7 @@ import { nodeToModel } from '@/editor/toModel';
 import type { BodyNode, Document, SectionNode } from '@/model/document';
 import type { BodyEditorController, ModelStep } from '@/views/body/bodyEditor';
 
-import { bodyController, bodyEditable, cmdKeys, pmCommand } from './editing/common';
+import { bodyActive, bodyController, bodyEditable, cmdKeys, pmCommand } from './editing/common';
 
 const modelNodeIds = createNodeIdGenerator('uim_');
 
@@ -225,6 +226,70 @@ export function createFootnote(ctx: CommandContext, controller: BodyEditorContro
 /* Go to footnote or reference                                              */
 /* ------------------------------------------------------------------------ */
 
+/**
+ * Jumps to the element of XML id `targetId` (mounted or not) and remembers where the jump
+ * started, for the way back (feature 009, FR-036, data-model §7). False when there is no such
+ * element.
+ */
+function jumpToTarget(controller: BodyEditorController, targetId: string): boolean {
+  const model = controller.currentModel;
+  if (!model) return false;
+  const origin = controller.getCaret();
+  const nodeId = findIdInModel(model, targetId);
+  if (!nodeId || !controller.moveWindowTo(nodeId)) return false;
+  const doc = controller.editorState!.doc;
+  const target = findById(doc, targetId) ?? findNodeById(doc, nodeId);
+  if (!target) return false;
+  // The focus first: ProseMirror scrolls to the selection only while it owns the DOM
+  // selection (as `BodyEditorController.setCaret` does).
+  controller.focus();
+  controller.apply(
+    controller.editorState!.tr.setSelection(selectionIntoTarget(doc, target)).scrollIntoView(),
+  );
+  const targetNodeId = target.node.attrs.nodeId;
+  controller.jumpOrigin =
+    origin && typeof targetNodeId === 'string' ? { caret: origin, targetNodeId } : null;
+  return true;
+}
+
+/**
+ * Follows the link `href` clicked at `pos` with Ctrl (Cmd on macOS) - feature 009, FR-034,
+ * FR-035, DP-12: an internal address jumps like *Go to footnote or reference*, from the clicked
+ * link; a web address opens in the system's browser; any other gives a message.
+ */
+export async function followLink(
+  ctx: CommandContext,
+  controller: BodyEditorController,
+  href: string,
+  pos: number,
+): Promise<void> {
+  if (href.startsWith('#')) {
+    const state = controller.editorState;
+    if (!state) return;
+    // The caret on the clicked link first: the jump starts there, and the way back ends there.
+    const at = Math.max(0, Math.min(pos, state.doc.content.size));
+    controller.apply(state.tr.setSelection(TextSelection.near(state.doc.resolve(at))));
+    if (jumpToTarget(controller, href.slice(1))) return;
+    await ctx.dialogs.showMessage({
+      text: ctx.t('msg.referenceNotFound'),
+      caption: ctx.t('app.name'),
+      icon: 'info',
+      testId: 'dialog-reference-not-found',
+    });
+    return;
+  }
+  if (/^https?:\/\//i.test(href)) {
+    openExternalUrl(ctx.rpc, href);
+    return;
+  }
+  await ctx.dialogs.showMessage({
+    text: ctx.t('links.msg.unsupportedAddress', { address: href }),
+    caption: ctx.t('app.name'),
+    icon: 'info',
+    testId: 'dialog-unsupported-address',
+  });
+}
+
 export async function gotoFootnoteOrReference(
   ctx: CommandContext,
   controller: BodyEditorController,
@@ -235,23 +300,12 @@ export async function gotoFootnoteOrReference(
   // 1. Link at the caret -> its target (mounted or not).
   const targetId = linkTargetAt(state);
   if (targetId) {
-    if (controller.execute(gotoFootnote)) return true;
-    const nodeId = findIdInModel(model, targetId);
-    if (nodeId && controller.moveWindowTo(nodeId)) {
-      const doc = controller.editorState!.doc;
-      const target = findById(doc, targetId) ?? findNodeById(doc, nodeId);
-      if (target) {
-        // The focus first: ProseMirror scrolls to the selection only while it owns the DOM
-        // selection (as `BodyEditorController.setCaret` does).
-        controller.focus();
-        controller.apply(
-          controller
-            .editorState!.tr.setSelection(selectionIntoTarget(doc, target))
-            .scrollIntoView(),
-        );
-        return true;
-      }
-    }
+    if (jumpToTarget(controller, targetId)) return true;
+  } else if (controller.jumpOrigin && controller.caretInside(controller.jumpOrigin.targetNodeId)) {
+    // 2. In the target of the last jump from a link -> back to that very link (FR-036).
+    const { caret } = controller.jumpOrigin;
+    controller.jumpOrigin = null;
+    if (controller.setCaret(caret)) return true;
   } else {
     // 2. Inside a note section -> the text referencing it.
     const refId = referenceIdAt(state);
@@ -350,12 +404,19 @@ export function registerFootnoteCommands(registry: CommandRegistry): void {
       group: 'navigation',
       ...cmdKeys('edit.gotoFootnote', 'menu.edit.gotoFootnote'),
       icon: 'id_goto_footnote',
+      // It only moves the caret, so it stays available while a script or an assistant request
+      // runs (feature 009, FR-038), and it also leads back to the link of the last jump.
+      duringScriptRun: 'allowed',
       enabled: (ctx) => {
-        const state = bodyController(ctx.store)?.editorState;
+        const controller = bodyController(ctx.store);
+        const state = controller?.editorState;
+        const origin = controller?.jumpOrigin;
         return (
           !!state &&
-          bodyEditable(ctx) &&
-          (linkTargetAt(state) !== null || referenceIdAt(state) !== null)
+          bodyActive(ctx) &&
+          (linkTargetAt(state) !== null ||
+            referenceIdAt(state) !== null ||
+            (!!origin && controller!.caretInside(origin.targetNodeId)))
         );
       },
       async run(ctx) {

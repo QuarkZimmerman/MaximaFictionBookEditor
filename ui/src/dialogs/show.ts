@@ -4,6 +4,8 @@
  */
 
 import { OpenElsewhereDialog, type OpenElsewhereAnswer } from './OpenElsewhereDialog';
+import { ArchiveBookChooser } from './ArchiveBookChooser';
+import type { ArchiveChoice } from '@/rpc/types';
 import { createElement } from 'react';
 
 import type { DialogService } from './DialogService';
@@ -76,6 +78,22 @@ export function showEncodingDialog(
   );
 }
 
+/**
+ * Feature 009 (DP-8): the encoding window with the "save as ZIP archive" checkbox, for a Save As
+ * dialog that answered without it (the queued test dialogs, the engine's fallback dialog).
+ */
+export function showSaveOptionsDialog(
+  dialogs: Dialogs,
+  options: { defaultEncoding: string; path?: string; zip: boolean },
+): Promise<{ encoding: string; zip: boolean } | null> {
+  return dialogs.openCustom<{ encoding: string; zip: boolean } | null>((close) =>
+    createElement(EncodingDialog, {
+      ...options,
+      onClose: (encoding, zip) => close(encoding === null ? null : { encoding, zip }),
+    }),
+  );
+}
+
 /** Binds the standard dialogs to a service (`Dialogs` is what commands depend on). */
 export function createDialogs(service: DialogService): Dialogs & { service: DialogService } {
   return {
@@ -89,4 +107,18 @@ export function createDialogs(service: DialogService): Dialogs & { service: Dial
     },
     subscribe: (listener) => service.subscribe(listener),
   };
+}
+
+/**
+ * The book chooser of a ZIP archive with several books (ArchiveBookChooser.tsx, feature 009):
+ * the chosen book's entry, or null when cancelled.
+ */
+export function showArchiveBookChooser(
+  dialogs: Dialogs,
+  choice: ArchiveChoice,
+  archiveName: string,
+): Promise<string | null> {
+  return dialogs.openCustom<string | null>((close) =>
+    createElement(ArchiveBookChooser, { choice, archiveName, onClose: close }),
+  );
 }

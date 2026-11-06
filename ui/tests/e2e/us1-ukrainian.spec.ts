@@ -887,8 +887,8 @@ test.describe('US1 (feature 003) - the interface in Ukrainian (?lang=uk)', () =>
     await menu(page, 'add', 'image');
     const prompt = page.getByTestId('dialog-insert-clear-image');
     await expectDialogIn(page, UK, 'dialog-insert-clear-image', 'Insert clear image');
-    await expect(prompt).toContainText(uiText(UK, 'dialog.addImage.insertClear').split('\n')[0]!);
-    await prompt.getByTestId('dialog-insert-clear-image-button-no').click();
+    await expect(prompt).toContainText(uiText(UK, 'dialog.addImage.chooseSource').split('\n')[0]!);
+    await prompt.getByTestId('dialog-insert-clear-image-button-yes').click();
     await expect(prompt).toBeHidden();
 
     // Validation panel (the issue list is data from the core).
@@ -972,8 +972,10 @@ test.describe('US1 (feature 003) - the interface in Ukrainian (?lang=uk)', () =>
     const request = requests[before]!;
     const names = (request.filters ?? []).map((filter) => filter.name);
     expect(names).toEqual([
+      `${uiText(UK, 'fileDialogs.types.books')} (*.fb2;*.fbd;*.zip)`,
       `${uiText(UK, 'fileDialogs.types.fictionBook')} (*.fb2)`,
       `${uiText(UK, 'fileDialogs.types.fictionBookDescriptors')} (*.fbd)`,
+      `${uiText(UK, 'fileDialogs.types.zipArchives')} (*.zip)`,
       `${uiText(UK, 'fileDialogs.types.all')} (*.*)`,
     ]);
     const problems = [request.title, ...names]

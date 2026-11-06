@@ -75,6 +75,7 @@ import {
   windowSliceUnchanged,
   type SectionWindow,
 } from '@/editor/virtualization';
+import { bodyCaretInfo, CaretInfoFeed } from '@/app/caretInfo';
 import { pathOfCaret, type StructuralPosition } from '@/editor/structuralPath';
 import type { Document } from '@/model/document';
 import { collectBookIds } from '@/model/ids';
@@ -431,8 +432,12 @@ export class BodyEditorController {
    */
   private shown = false;
 
+  /** Feature 009 (US5): writes the status bar's caret panes, at most once a frame. */
+  private readonly caretFeed: CaretInfoFeed;
+
   constructor(options: BodyEditorOptions) {
     this.store = options.store;
+    this.caretFeed = new CaretInfoFeed(options.store);
     this.undo = options.undo;
     this.windowSize = options.windowSize ?? DEFAULT_WINDOW_SIZE;
     this.editable = options.editable ?? true;
@@ -520,6 +525,16 @@ export class BodyEditorController {
     this.context = state ? computeSelectionContext(state, this.window) : EMPTY_SELECTION_CONTEXT;
     actions.setSelection(this.store, this.context.path, this.context.nodeId);
     for (const listener of [...this.contextListeners]) listener();
+    this.refreshCaretInfo();
+  }
+
+  /** Feature 009 (US5): the status bar's caret panes, while the Body view is the active one. */
+  refreshCaretInfo(): void {
+    if (this.store.getState().activeView !== 'body') return;
+    this.caretFeed.request(() => {
+      const state = this.editorState;
+      return state ? bodyCaretInfo(state) : null;
+    });
   }
 
   /* ------------------------------------------------------------- mounting */
@@ -531,6 +546,7 @@ export class BodyEditorController {
     this.container = container;
     this.ensureView();
     if (this.view) this.shown = true;
+    this.refreshCaretInfo();
   }
 
   /** Detaches the DOM view; the state (with its history) is kept for the next mount. */
@@ -710,6 +726,8 @@ export class BodyEditorController {
       }
     }
     if (docChanged || transactions.some((t) => t.selectionSet)) this.publishSelection();
+    // Leaving the target of the last jump forgets where it started (FR-036).
+    if (this.jumpOrigin && !this.caretInside(this.jumpOrigin.targetNodeId)) this.jumpOrigin = null;
   }
 
   /**
@@ -789,6 +807,7 @@ export class BodyEditorController {
       this.bodyIndex = 0;
       this.range = null;
       this.docId = docId;
+      this.jumpOrigin = null;
       // A new document: its Body view has not been shown yet (the view may be mounted right
       // away, which `mount()` records; a caret placed by `setCaret()` counts as well).
       this.shown = this.view !== null && model !== null;
@@ -1284,6 +1303,25 @@ export class BodyEditorController {
   }
 
   /** Moves the window so that the section containing `nodeId` is mounted (if not already). */
+  /**
+   * Feature 009 (FR-036, data-model §7): where the last jump from a link started - the caret on
+   * the link and the target's node - kept while the caret stays in the target or inside it.
+   */
+  jumpOrigin: { caret: Caret; targetNodeId: string } | null = null;
+
+  /** True when the caret is in the node `nodeId` or inside it. */
+  caretInside(nodeId: string): boolean {
+    const state = this.editorState;
+    if (!state) return false;
+    const node = (state.selection as { node?: PMNode }).node;
+    if (node?.attrs.nodeId === nodeId) return true;
+    const { $head } = state.selection;
+    for (let depth = $head.depth; depth >= 0; depth--) {
+      if ($head.node(depth).attrs.nodeId === nodeId) return true;
+    }
+    return false;
+  }
+
   moveWindowTo(nodeId: string): boolean {
     if (!this.model) return false;
     const state = this.editorState;

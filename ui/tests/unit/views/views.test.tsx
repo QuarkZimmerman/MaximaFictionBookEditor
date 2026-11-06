@@ -298,8 +298,25 @@ describe('Save changes prompt and Encoding dialog (T052)', () => {
     expect(screen.getByTestId('dialog-encoding-path')).toHaveTextContent('/x.fb2');
     await user.selectOptions(select, 'koi8-r');
     await user.click(screen.getByTestId('dialog-encoding-button-ok'));
-    expect(onClose).toHaveBeenCalledWith('koi8-r');
+    expect(onClose).toHaveBeenCalledWith('koi8-r', false);
     await user.click(screen.getByTestId('dialog-encoding-button-cancel'));
-    expect(onClose).toHaveBeenLastCalledWith(null);
+    expect(onClose).toHaveBeenLastCalledWith(null, false);
+  });
+});
+
+describe('the save options window (feature 009, DP-8)', () => {
+  it('shows the ZIP checkbox only when asked, and returns its state', () => {
+    const onClose = vi.fn();
+    const { unmount } = render(
+      <EncodingDialog defaultEncoding="utf-8" path="/x.fb2" zip onClose={onClose} />,
+    );
+    const box = screen.getByTestId('save-options-zip') as HTMLInputElement;
+    expect(box.checked).toBe(true);
+    fireEvent.click(box);
+    fireEvent.click(screen.getByTestId('dialog-encoding-button-ok'));
+    expect(onClose).toHaveBeenCalledWith('utf-8', false);
+    unmount();
+    render(<EncodingDialog defaultEncoding="utf-8" onClose={vi.fn()} />);
+    expect(screen.queryByTestId('save-options-zip')).toBeNull();
   });
 });

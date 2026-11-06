@@ -135,6 +135,13 @@ bool runPlatformFileDialog(std::uintptr_t owner, const FileDialogRequest& reques
         row.orientation = NSUserInterfaceLayoutOrientationHorizontal;
         [rows addObject:row];
     }
+    // Feature 009 (DP-8): the "save as ZIP archive" checkbox, below the encoding choice.
+    NSButton* zip_box = nil;
+    if (mode == FileDialogMode::kSave && !request.zip_label.empty()) {
+        zip_box = [NSButton checkboxWithTitle:toNSString(request.zip_label) target:nil action:nil];
+        zip_box.state = request.zip_checked ? NSControlStateValueOn : NSControlStateValueOff;
+        [rows addObject:zip_box];
+    }
     if (rows.count > 0) {
         NSStackView* accessory = [NSStackView stackViewWithViews:rows];
         accessory.orientation = NSUserInterfaceLayoutOrientationVertical;
@@ -174,6 +181,9 @@ bool runPlatformFileDialog(std::uintptr_t owner, const FileDialogRequest& reques
           }
           if (encoding_popup != nil && encoding_popup.titleOfSelectedItem != nil) {
               result.encoding = encoding_popup.titleOfSelectedItem.UTF8String;
+          }
+          if (zip_box != nil) {
+              result.zip = zip_box.state == NSControlStateValueOn ? 1 : 0;
           }
       }
       (void)type_switch;  // the pop-up's target lives as long as the panel
