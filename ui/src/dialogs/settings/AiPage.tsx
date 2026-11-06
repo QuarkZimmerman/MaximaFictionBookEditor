@@ -43,6 +43,7 @@ import type { NoticeTarget, RequireAgreementOptions } from '@/ai/notice';
 import { KEY_MASK, hostOf, isLocalAddress, maskKey, needsUnencryptedWarning } from '@/ai/address';
 import { agreementsOf, saveAgreements, settingsWithoutAgreement } from '@/ai/agreements';
 import type { CommandContext } from '@/app/commands';
+import { PopupMenu, type PopupMenuItem } from '@/app/PopupMenu';
 import { ExternalLink } from '@/dialogs/ExternalLink';
 import { isOpenableUrl } from '@/dialogs/externalUrl';
 import { actions, useAppState } from '@/model/store';
@@ -139,6 +140,19 @@ function agreementDate(at: string, language: string): string {
   }
 }
 
+/**
+ * Well-known services that speak the OpenAI-style interface, offered under the address field
+ * (the requester at the smoke test of 0.0.7-rc.6). The address stays editable; a choice only
+ * fills it in.
+ */
+const ADDRESS_PRESETS: readonly { name: string; address: string }[] = [
+  { name: 'OpenAI', address: 'https://api.openai.com/v1' },
+  { name: 'Anthropic', address: 'https://api.anthropic.com/v1' },
+  { name: 'Google Gemini', address: 'https://generativelanguage.googleapis.com/v1beta/openai/' },
+  { name: 'xAI Grok', address: 'https://api.x.ai/v1' },
+  { name: 'OpenRouter', address: 'https://openrouter.ai/api/v1' },
+];
+
 export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement }: AiPageProps) {
   const { t, i18n } = useTranslation();
   const { rpc, store } = ctx;
@@ -146,6 +160,7 @@ export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement 
   const [list, setList] = useState<ListState>(() => ({ kind: 'loading' }));
   const [status, setStatus] = useState<TestStatus>({ kind: 'untested' });
   const [listNote, setListNote] = useState<string | null>(null);
+  const [presetsAt, setPresetsAt] = useState<{ x: number; y: number } | null>(null);
   const [featureTooOld, setFeatureTooOld] = useState(
     () => getAiFeature(store)?.coreTooOld ?? false,
   );
@@ -690,26 +705,57 @@ export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement 
           </label>
           <div className="mfbe-settings-ai-block">
             <FieldRow label={t('dialog.settings.ai.custom.address')} htmlFor="settings-ai-address">
-              <input
-                id="settings-ai-address"
-                className="mfbe-inputdialog-input"
-                type="text"
-                value={triple.address}
-                disabled={mode !== 'custom'}
-                spellCheck={false}
-                autoComplete="off"
-                placeholder={t('dialog.settings.ai.custom.addressPlaceholder', {
-                  hosted: t('dialog.settings.ai.custom.exampleHosted'),
-                  local: t('dialog.settings.ai.custom.exampleLocal'),
-                })}
-                aria-invalid={
-                  mode === 'custom' && (addressProblem === 'empty' || addressProblem === 'invalid')
-                }
-                onChange={(event) =>
-                  ai && onChange({ custom: { ...ai.custom, address: event.target.value.trim() } })
-                }
-                data-testid="settings-ai-address"
-              />
+              <span className="mfbe-settings-ai-address">
+                <input
+                  id="settings-ai-address"
+                  className="mfbe-inputdialog-input"
+                  type="text"
+                  value={triple.address}
+                  disabled={mode !== 'custom'}
+                  spellCheck={false}
+                  autoComplete="off"
+                  placeholder={t('dialog.settings.ai.custom.addressPlaceholder', {
+                    hosted: t('dialog.settings.ai.custom.exampleHosted'),
+                    local: t('dialog.settings.ai.custom.exampleLocal'),
+                  })}
+                  aria-invalid={
+                    mode === 'custom' &&
+                    (addressProblem === 'empty' || addressProblem === 'invalid')
+                  }
+                  onChange={(event) =>
+                    ai && onChange({ custom: { ...ai.custom, address: event.target.value.trim() } })
+                  }
+                  data-testid="settings-ai-address"
+                />
+                <button
+                  type="button"
+                  className="mfbe-settings-ai-presets"
+                  disabled={mode !== 'custom'}
+                  aria-label={t('dialog.settings.ai.custom.presets')}
+                  title={t('dialog.settings.ai.custom.presets')}
+                  onClick={(event) => {
+                    const box = event.currentTarget.getBoundingClientRect();
+                    setPresetsAt({ x: box.left, y: box.bottom });
+                  }}
+                  data-testid="settings-ai-address-presets"
+                >
+                  ▾
+                </button>
+                {presetsAt ? (
+                  <PopupMenu
+                    items={ADDRESS_PRESETS.map((preset): PopupMenuItem => ({
+                      id: preset.address,
+                      label: `${preset.name} - ${preset.address}`,
+                      run: () =>
+                        ai && onChange({ custom: { ...ai.custom, address: preset.address } }),
+                    }))}
+                    position={presetsAt}
+                    onClose={() => setPresetsAt(null)}
+                    testId="settings-ai-address-presets-menu"
+                    ariaLabel={t('dialog.settings.ai.custom.presets')}
+                  />
+                ) : null}
+              </span>
             </FieldRow>
             {mode === 'custom' && needsUnencryptedWarning(triple.address) ? (
               // FR-003: a plain address off this computer is accepted with a warning.
