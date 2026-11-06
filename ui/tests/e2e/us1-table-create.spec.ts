@@ -1931,7 +1931,7 @@ test.describe('US1 (feature 006) - create a table where it is needed', () => {
       await core.enqueueDialog('dialog.openFile', { paths: [TINY_PNG] });
       await menu(page, 'add', 'inlineImage');
       await expect(page.getByTestId('dialog-insert-clear-image')).toBeVisible();
-      await page.getByTestId('dialog-insert-clear-image-button-no').click();
+      await page.getByTestId('dialog-insert-clear-image-button-yes').click();
       const after4 = await changed(before4);
       expect(flat(withoutBinaries(after4))).toBe(
         flat(withoutBinaries(before4)).replace(

@@ -311,7 +311,7 @@ async function addImageFromFile(
   await core.enqueueDialog('dialog.openFile', { paths: [file] });
   await menu(page, 'add', item);
   await expect(page.getByTestId('dialog-insert-clear-image')).toBeVisible();
-  await page.getByTestId('dialog-insert-clear-image-button-no').click();
+  await page.getByTestId('dialog-insert-clear-image-button-yes').click();
 }
 
 function picture(scope: Locator, href: string): Locator {
@@ -1026,7 +1026,7 @@ test.describe('US3 - pictures in table cells', () => {
       await core.enqueueDialog('dialog.openFile', { paths: [TINY_PNG] });
       await page.getByTestId('context-menu-insert.inlineImage').click();
       await expect(page.getByTestId('dialog-insert-clear-image')).toBeVisible();
-      await page.getByTestId('dialog-insert-clear-image-button-no').click();
+      await page.getByTestId('dialog-insert-clear-image-button-yes').click();
       await expect(third.locator('[data-testid="body-inline-image"]')).toHaveCount(1);
     });
     expect(tableXml(after, 'c21')).toContain('<td>r2c1<image l:href="#tiny.png"/></td>');

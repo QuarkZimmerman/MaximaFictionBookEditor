@@ -20,6 +20,8 @@ export interface MessageBoxOptions {
   icon?: MessageIcon;
   /** Button focused initially and triggered by Enter; defaults to the first button. */
   defaultButton?: MessageButtonId;
+  /** Labels replacing the set's own, per button (with their access letters). */
+  labels?: Partial<Record<MessageButtonId, string>>;
   /** Optional "Don't ask again" checkbox; its state is returned in `MessageBoxResult`. */
   dontAskAgain?: boolean;
   testId?: string;

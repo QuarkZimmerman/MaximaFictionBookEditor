@@ -24,6 +24,20 @@ export function documentFileTypes(t: TFunction): FileFilter[] {
   ];
 }
 
+/**
+ * File > Open: every kind of book together first and selected (the requester at the smoke test
+ * of 0.0.7-rc.6), then each kind - ZIP archives included (feature 009) - and all files.
+ */
+export function openFileTypes(t: TFunction): FileFilter[] {
+  return [
+    fileType(t('fileDialogs.types.books'), ['fb2', 'fbd', 'zip']),
+    fileType(t('fileDialogs.types.fictionBook'), ['fb2']),
+    fileType(t('fileDialogs.types.fictionBookDescriptors'), ['fbd']),
+    fileType(t('fileDialogs.types.zipArchives'), ['zip']),
+    fileType(t('fileDialogs.types.all'), ['*']),
+  ];
+}
+
 /** Adding a block, inline or section image and choosing a cover image file. */
 export function imageFileTypes(t: TFunction): FileFilter[] {
   return [

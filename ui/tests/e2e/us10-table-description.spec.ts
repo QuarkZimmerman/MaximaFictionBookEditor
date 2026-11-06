@@ -1077,7 +1077,7 @@ test.describe('US10 (feature 006) - tables in the annotation and history fields'
       await core.enqueueDialog('dialog.openFile', { paths: [path.join(IMAGES_DIR, 'tiny.jpg')] });
       await page.getByTestId('context-menu-insert.inlineImage').click();
       await expect(page.getByTestId('dialog-insert-clear-image')).toBeVisible();
-      await page.getByTestId('dialog-insert-clear-image-button-no').click();
+      await page.getByTestId('dialog-insert-clear-image-button-yes').click();
       await expect(cellOf(page, field, r2c1).getByTestId('body-inline-image')).toHaveCount(1);
       after = await changedField(page, field, before);
       expect(after).toContain('<td>r2c1<image l:href="#tiny.jpg"/></td>');

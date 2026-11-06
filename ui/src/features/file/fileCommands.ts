@@ -48,7 +48,7 @@ import {
 import { describeError, isClientSideError, logUiError } from '@/app/diagnostics';
 import { ENCODING_CHOICES, normalizeEncoding } from '@/dialogs/encodings';
 import type { StructuralPosition } from '@/editor/structuralPath';
-import { documentFileTypes } from '@/dialogs/fileTypes';
+import { documentFileTypes, openFileTypes } from '@/dialogs/fileTypes';
 import type { Dialogs } from '@/dialogs/types';
 import {
   showArchiveBookChooser,
@@ -552,7 +552,7 @@ export class FileFeature {
     try {
       ({ paths } = await ctx.rpc.call('dialog.openFile', {
         title: ctx.t('cmd.file.open.tooltip'),
-        filters: documentFilters(ctx),
+        filters: openFileTypes(ctx.t),
         selectedFilter: 0,
       }));
     } finally {

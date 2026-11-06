@@ -263,7 +263,7 @@ describe('binary helpers', () => {
 });
 
 describe('Add-menu image commands (T093)', () => {
-  it('replaces the stubs; "Insert clear image?" No -> file dialog -> binary.add -> node', async () => {
+  it('replaces the stubs; "From File…" (feature 009; was "Insert clear image?" No) -> file dialog -> binary.add -> node', async () => {
     const { store, rpc, services, ctx } = await harness();
     for (const id of [
       'insert.image',
@@ -274,10 +274,10 @@ describe('Add-menu image commands (T093)', () => {
       expect(services.commands.get(id)?.stub).toBeUndefined();
     }
     expect(services.commands.isEnabled('insert.image', ctx)).toBe(true);
-    ctx.dialogs.messageAnswers.push('no');
+    ctx.dialogs.messageAnswers.push('yes');
     await services.commands.execute('insert.image', ctx);
     expect(ctx.dialogs.shown.at(-1)).toMatchObject({
-      text: 'Insert clear image?',
+      text: 'Insert a picture from a file, or an empty picture to fill in later?',
       dontAskAgain: true,
       testId: 'dialog-insert-clear-image',
     });
@@ -308,11 +308,11 @@ describe('Add-menu image commands (T093)', () => {
     expect(store.getState().modified).toBe(true);
   });
 
-  it('"Yes" inserts a clear image and "Don\'t ask again" persists the settings', async () => {
+  it('"Empty Picture" (was "Yes") inserts a clear image and "Don\'t ask again" persists the settings', async () => {
     const { store, rpc, services, ctx, controller } = await harness();
     ctx.dialogs.showMessageWithResult = async (options) => {
       ctx.dialogs.shown.push(options);
-      return { button: 'yes', dontAskAgain: true };
+      return { button: 'no', dontAskAgain: true };
     };
     await services.commands.execute('insert.sectionImage', ctx);
     expect(section(store).content[0]).toMatchObject({
@@ -742,10 +742,10 @@ describe('pictures in table cells (feature 006, US3, T081)', () => {
   it('insert.inlineImage in a cell asks Insert clear image? and inserts the chosen binary in that cell', async () => {
     const { store, rpc, services, ctx, controller } = await harness({}, tableBook());
     caretAtEndOf(controller, 'Cell two');
-    ctx.dialogs.messageAnswers.push('no');
+    ctx.dialogs.messageAnswers.push('yes');
     await services.commands.execute('insert.inlineImage', ctx);
     expect(ctx.dialogs.shown.at(-1)).toMatchObject({
-      text: 'Insert clear image?',
+      text: 'Insert a picture from a file, or an empty picture to fill in later?',
       dontAskAgain: true,
       testId: 'dialog-insert-clear-image',
     });

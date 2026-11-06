@@ -506,9 +506,11 @@ test.describe('US8 - the interface in Russian (?lang=ru)', () => {
     await menu(page, 'add', 'image');
     const prompt = page.getByTestId('dialog-insert-clear-image');
     await expectRussianDialog(page, 'dialog-insert-clear-image', 'Insert clear image');
-    await expect(prompt).toContainText('Вставить пустую картинку?');
+    await expect(prompt).toContainText(
+      'Вставить картинку из файла или пустую картинку, чтобы заполнить её позже?',
+    );
     await expect(prompt.getByTestId('dialog-insert-clear-image-dontask')).toBeAttached();
-    await prompt.getByTestId('dialog-insert-clear-image-button-no').click();
+    await prompt.getByTestId('dialog-insert-clear-image-button-yes').click();
     await expect(prompt).toBeHidden();
 
     // Validation panel.

@@ -67,22 +67,29 @@ const FACTORIES: Record<ImageKind, (attrs?: ImageAttrs) => PMCommand> = {
 
 /**
  * Decides between a clear (empty) image and a file per the settings, asking when
- * `askOnNonClearImage` is on. Persists "Don't ask again". Returns true for a clear image.
+ * `askOnNonClearImage` is on. Persists "Don't ask again". Returns true for a clear image, false
+ * for a file, null when cancelled.
  */
-export async function wantsClearImage(ctx: CommandContext): Promise<boolean> {
+export async function wantsClearImage(ctx: CommandContext): Promise<boolean | null> {
   const { store, rpc } = ctx;
   const settings = store.getState().settings;
   let clear = settings?.other.insertClearImages ?? false;
   if (!(settings?.other.askOnNonClearImage ?? true)) return clear;
+  // From a file (the usual case, the default), an empty picture, or nothing (the requester at
+  // the smoke test of 0.0.7-rc.6: the original's "Insert clear image?" did not say that No
+  // meant a file).
   const answer = await ctx.dialogs.showMessageWithResult({
-    text: ctx.t('dialog.addImage.insertClear'),
+    text: ctx.t('dialog.addImage.chooseSource'),
     caption: ctx.t('dialog.addImage.caption'),
-    buttons: 'yesNo',
+    buttons: 'yesNoCancel',
+    labels: { yes: ctx.t('dialog.addImage.fromFile'), no: ctx.t('dialog.addImage.empty') },
+    defaultButton: 'yes',
     icon: 'question',
     dontAskAgain: true,
     testId: 'dialog-insert-clear-image',
   });
-  clear = answer.button === 'yes';
+  if (answer.button === 'cancel') return null;
+  clear = answer.button === 'no';
   if (answer.dontAskAgain && rpc) {
     try {
       const result = await rpc.call('settings.set', {
@@ -101,7 +108,9 @@ export async function wantsClearImage(ctx: CommandContext): Promise<boolean> {
  * placeholder or a file embedded as a binary. Null when cancelled.
  */
 export async function chooseImage(ctx: CommandContext): Promise<ImageAttrs | null> {
-  if (await wantsClearImage(ctx)) return { href: CLEAR_IMAGE_HREF };
+  const clear = await wantsClearImage(ctx);
+  if (clear === null) return null;
+  if (clear) return { href: CLEAR_IMAGE_HREF };
   const { store, rpc } = ctx;
   const docId = store.getState().docId;
   if (!rpc || !docId) return null;

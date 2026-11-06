@@ -236,8 +236,10 @@ test.describe('US7 - images and binary objects', () => {
     await menu(page, 'add', 'image');
     const prompt = page.getByTestId('dialog-insert-clear-image');
     await expect(prompt).toBeVisible();
-    await expect(prompt).toContainText('Insert clear image?');
-    await page.getByTestId('dialog-insert-clear-image-button-no').click();
+    await expect(prompt).toContainText(
+      'Insert a picture from a file, or an empty picture to fill in later?',
+    );
+    await page.getByTestId('dialog-insert-clear-image-button-yes').click();
     const block = page.getByTestId('body-image').first();
     await expect(block).toHaveAttribute('data-href', '#tiny.jpg');
     await expect
@@ -253,7 +255,7 @@ test.describe('US7 - images and binary objects', () => {
     await clickIntoParagraph(page);
     await core.enqueueDialog('dialog.openFile', { paths: [image('tiny.png')] });
     await menu(page, 'add', 'inlineImage');
-    await page.getByTestId('dialog-insert-clear-image-button-no').click();
+    await page.getByTestId('dialog-insert-clear-image-button-yes').click();
     await expect(page.getByTestId('body-inline-image')).toHaveAttribute('data-href', '#tiny.png');
 
     // Section image with "Don't ask again" + Yes: a clear image, the answer is persisted. (The
@@ -261,7 +263,7 @@ test.describe('US7 - images and binary objects', () => {
     await clickParagraphEnd(page);
     await menu(page, 'add', 'sectionImage');
     await page.getByTestId('dialog-insert-clear-image-dontask').check();
-    await page.getByTestId('dialog-insert-clear-image-button-yes').click();
+    await page.getByTestId('dialog-insert-clear-image-button-no').click();
     await expect(page.getByTestId('body-image').first()).toHaveAttribute('data-href', '#undefined');
     await expect
       .poll(async () => {

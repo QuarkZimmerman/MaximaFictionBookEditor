@@ -165,8 +165,10 @@ describe('file flows (T052)', () => {
     expect(flowCalls(rpc)[0]!.params).toEqual({
       title: 'Open',
       filters: [
+        { name: 'Book files (*.fb2;*.fbd;*.zip)', extensions: ['fb2', 'fbd', 'zip'] },
         { name: 'FictionBook files (*.fb2)', extensions: ['fb2'] },
         { name: 'FictionBook descriptors (*.fbd)', extensions: ['fbd'] },
+        { name: 'ZIP archives (*.zip)', extensions: ['zip'] },
         { name: 'All files (*.*)', extensions: ['*'] },
       ],
       selectedFilter: 0,

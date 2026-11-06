@@ -63,6 +63,8 @@ const ENCODING_LABEL: Record<Language, string> = {
 /** The type names the dialogs must show (FR-010, FR-011). */
 const NAMES: Record<Language, Record<string, string>> = {
   en: {
+    books: 'Book files (*.fb2;*.fbd;*.zip)',
+    zip: 'ZIP archives (*.zip)',
     fb2: 'FictionBook files (*.fb2)',
     fbd: 'FictionBook descriptors (*.fbd)',
     all: 'All files (*.*)',
@@ -78,6 +80,8 @@ const NAMES: Record<Language, Record<string, string>> = {
     dictionaries: 'Dictionaries (*.dic)',
   },
   ru: {
+    books: 'Файлы книг (*.fb2;*.fbd;*.zip)',
+    zip: 'Архивы ZIP (*.zip)',
     fb2: 'Файлы FictionBook (*.fb2)',
     fbd: 'Описания FictionBook (*.fbd)',
     all: 'Все файлы (*.*)',
@@ -93,6 +97,8 @@ const NAMES: Record<Language, Record<string, string>> = {
     dictionaries: 'Словари (*.dic)',
   },
   uk: {
+    books: 'Файли книг (*.fb2;*.fbd;*.zip)',
+    zip: 'Архіви ZIP (*.zip)',
     fb2: 'Файли FictionBook (*.fb2)',
     fbd: 'Описи FictionBook (*.fbd)',
     all: 'Усі файли (*.*)',
@@ -129,6 +135,17 @@ function documentTypes(names: Record<string, string>): FileType[] {
   return [
     { name: names.fb2!, extensions: ['fb2'] },
     { name: names.fbd!, extensions: ['fbd'] },
+    { name: names.all!, extensions: ['*'] },
+  ];
+}
+
+/** File > Open: every kind of book together first (the requester at the rc.6 smoke test). */
+function openTypes(names: Record<string, string>): FileType[] {
+  return [
+    { name: names.books!, extensions: ['fb2', 'fbd', 'zip'] },
+    { name: names.fb2!, extensions: ['fb2'] },
+    { name: names.fbd!, extensions: ['fbd'] },
+    { name: names.zip!, extensions: ['zip'] },
     { name: names.all!, extensions: ['*'] },
   ];
 }
@@ -281,7 +298,7 @@ for (const language of ['en', 'ru', 'uk'] as const) {
       expect(open).toMatchObject({
         method: 'dialog.openFile',
         mode: 'open',
-        filters: documentTypes(names),
+        filters: openTypes(names),
         selectedFilter: 0,
         multiple: false,
       });

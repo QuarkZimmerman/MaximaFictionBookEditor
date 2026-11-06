@@ -810,6 +810,9 @@
     "addImage": {
       "caption": "Add image",
       "insertClear": "Insert clear image?",
+      "chooseSource": "Insert a picture from a file, or an empty picture to fill in later?",
+      "fromFile": "&From File…",
+      "empty": "&Empty Picture",
       "chooseImage": "Choose image to add:",
       "chooseBinaries": "Choose binaries to add:"
     },

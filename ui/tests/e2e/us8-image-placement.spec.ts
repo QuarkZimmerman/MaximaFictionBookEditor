@@ -76,7 +76,7 @@ async function addImage(page: Page, clear: boolean): Promise<void> {
   await page.getByTestId('menu-add-image').click();
   const question = page.getByTestId('dialog-insert-clear-image');
   await expect(question).toBeVisible();
-  await question.getByTestId(`dialog-insert-clear-image-button-${clear ? 'yes' : 'no'}`).click();
+  await question.getByTestId(`dialog-insert-clear-image-button-${clear ? 'no' : 'yes'}`).click();
 }
 
 /** The index of the paragraph starting with `prefix` among `blocks`. */
