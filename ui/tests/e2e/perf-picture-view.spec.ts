@@ -13,7 +13,7 @@
  * Run it against the Release core: MFBE_CORE_BIN=../build/linux-core-release/bin/mfbe-core.
  */
 
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -183,6 +183,36 @@ test.describe(
       // An interaction while the view is open answers at once: Escape closes it.
       const closed = (await page.evaluate(ESCAPE_TIMED)) as number;
       expect(closed).toBeLessThan(FRAME_BUDGET_MS * PERF_FACTOR);
+    });
+
+    test('a second 150 MB book opened over the first: two documents held a moment, memory in budget (feature 010, T030)', async ({
+      core,
+      page,
+    }) => {
+      test.skip(!core.hasCore, 'needs the real core (MFBE_CORE_BIN)');
+      test.setTimeout(300_000);
+      const book = writeBigPictureBook(dir);
+      // Feature 010 (US10, DP-8): the new book is read before the open one is closed, so the
+      // core holds both while the second loads.
+      const second = path.join(dir, `second-${path.basename(book.file)}`);
+      copyFileSync(book.file, second);
+      await core.openApp(page);
+      for (const file of [book.file, second]) {
+        await core.enqueueDialog('dialog.openFile', { paths: [file] });
+        await page.getByTestId('menu-file').click();
+        await page.getByTestId('menu-file-open').click();
+        await waitForBook(page, path.basename(file), 120_000);
+      }
+      const coreMemory = peakRssBytes(core.pid);
+      const rendererMemory = rendererPids()
+        .map((pid) => peakRssBytes(pid) ?? 0)
+        .reduce<number | null>((max, bytes) => Math.max(max ?? 0, bytes), null);
+      console.log(
+        `two 150 MB books: book ${mb(book.bytes)}; peak memory: core ${mb(coreMemory)}, ` +
+          `renderer ${mb(rendererMemory)}`,
+      );
+      if (coreMemory !== null) expect(coreMemory).toBeLessThan(MEMORY_BUDGET_BYTES);
+      if (rendererMemory !== null) expect(rendererMemory).toBeLessThan(MEMORY_BUDGET_BYTES);
     });
   },
 );
