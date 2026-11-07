@@ -835,6 +835,8 @@ export interface AiSettings {
   mode: 'free' | 'custom' | 'disabled';
   /** The chosen free entry's id (default `ovhcloud`); not validated against the list. */
   freeServiceId: string;
+  /** Feature 010 (US11, D41): the chosen thinking effort; null = Model's default. */
+  effort?: AiEffort | null;
   custom: {
     /** `""` or an absolute http(s) URL with a host, no query/fragment/user info, <= 2048. */
     address: string;
@@ -895,6 +897,8 @@ export interface AiServiceEntry {
   /** Missing languages filled from `en`. */
   limits: { en: string; ru: string; uk: string };
   contextLength?: number;
+  /** Feature 010 (US11, D39): the thinking efforts of the entry's model, if it has any. */
+  efforts?: string[];
   /** The file the entry in effect comes from. */
   source: 'bundled' | 'user' | 'portable';
   /** A user entry that replaced a bundled one. */
@@ -937,6 +941,25 @@ export interface AiServicesResult {
     portable?: string;
   };
   issues: AiServiceIssue[];
+  /** Feature 010 (US11, D39): the known models - name patterns with their efforts, user's first. */
+  models?: AiKnownModel[];
+}
+
+/** Feature 010 (US11, resource-formats §1): a known model name pattern and its efforts. */
+export interface AiKnownModel {
+  /** `*` wildcard, case-insensitive. */
+  match: string;
+  efforts: string[];
+  /** The request member that carries the choice: `reasoning_effort` or a nested `reasoning.effort`. */
+  param: string;
+}
+
+/** Feature 010 (US11, resource-formats §2): the chosen thinking effort, for one target and model. */
+export interface AiEffort {
+  /** `free:<id>` or `custom`. */
+  target: string;
+  model: string;
+  value: string;
 }
 
 /**
@@ -1003,7 +1026,14 @@ export type AiModelsResult =
       ok: true;
       status: number;
       /** `efforts`: the model's thinking-effort values where the service's list gives them (feature 010). */
-      models: { id: string; contextLength?: number; tools?: boolean; efforts?: string[] }[];
+      models: {
+        id: string;
+        contextLength?: number;
+        tools?: boolean;
+        /** Feature 010 (US11): the model's efforts and the member that carries one. */
+        efforts?: string[];
+        effortParam?: string;
+      }[];
       retryAfterSeconds?: number;
       rateLimit?: AiRateLimit;
       elapsedMs: number;

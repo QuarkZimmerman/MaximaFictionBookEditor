@@ -80,6 +80,7 @@ import {
 } from '@/views/body/bodyEditor';
 import { activeTableTarget } from '@/features/tables/target';
 import { getSourceEditor } from '@/views/source/sourceEditor';
+import { effortMembers } from '@/model/aiEffort';
 
 import {
   appendActivity,
@@ -1132,7 +1133,16 @@ class RequestRun {
     this.kind = this.selection ? 'selection' : 'general';
     this.publish({ kind: this.kind });
 
-    const label = t('ai.banner.label', { service: target.name, model: target.model });
+    // Feature 010 (D41): the banner shows the effort beside the model.
+    const label = t('ai.banner.label', {
+      service: target.name,
+      model: target.effort
+        ? t('ai.banner.withEffort', {
+            model: target.model,
+            effort: t(`ai.effort.${target.effort.value}`, { defaultValue: target.effort.value }),
+          })
+        : target.model,
+    });
     // The request's `sc_<N>` allocator (feature 006, I26; ai-catalogue Δ§3 "Ids of new nodes"):
     // seeded past the highest `sc_<N>` of the document the session starts on, before the session
     // and the catalogue deps receive it. Without a document the session would not start.
@@ -1470,7 +1480,13 @@ class RequestRun {
         if (this.cancelled) return { kind: 'cancelled' };
       }
       const messages = compose();
-      const body: ChatRequest = { messages, ...toolsMembers };
+      // Feature 010 (US11, D40): the chosen thinking effort goes with every request; Model's
+      // default sends nothing, so the body is the one 0.0.7 sent.
+      const body: ChatRequest = {
+        messages,
+        ...toolsMembers,
+        ...(target.effort ? effortMembers(target.effort.param, target.effort.value) : {}),
+      };
       // Development builds: no docId, path, key or token member leaves with the body (§9, T082).
       assertChatRequestPrivate(body);
       const bytes = JSON.stringify(body).length;

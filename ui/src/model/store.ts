@@ -140,6 +140,9 @@ export interface FetchedModel {
   id: string;
   contextLength?: number;
   tools?: boolean;
+  /** Feature 010 (US11): the model's thinking efforts and the member that carries one. */
+  efforts?: string[];
+  effortParam?: string;
 }
 
 /** The last *Fetch models* answer and the custom address it came from (data-model §2.4, §2.6). */

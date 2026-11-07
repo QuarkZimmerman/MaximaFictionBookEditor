@@ -40,7 +40,14 @@ import { useTranslation } from 'react-i18next';
 
 import { getAiFeature } from '@/ai';
 import type { NoticeTarget, RequireAgreementOptions } from '@/ai/notice';
-import { KEY_MASK, hostOf, isLocalAddress, maskKey, needsUnencryptedWarning } from '@/ai/address';
+import {
+  KEY_MASK,
+  hostOf,
+  isLocalAddress,
+  maskKey,
+  needsUnencryptedWarning,
+  stripTrailingSlash,
+} from '@/ai/address';
 import { agreementsOf, saveAgreements, settingsWithoutAgreement } from '@/ai/agreements';
 import type { CommandContext } from '@/app/commands';
 import { PopupMenu, type PopupMenuItem } from '@/app/PopupMenu';
@@ -51,6 +58,7 @@ import { RpcError } from '@/rpc/client';
 import {
   RpcErrorCode,
   type AiAgreement,
+  type AiEffort,
   type AiNoServiceData,
   type AiServicesResult,
   type AiTarget,
@@ -73,6 +81,7 @@ import {
   type ModelSuggestion,
 } from './model';
 import { tip } from '@/app/tooltips';
+import { chosenEffort, effortsOf, type ModelEfforts } from '@/model/aiEffort';
 
 export type RequireAgreementFn = (
   target: NoticeTarget,
@@ -154,10 +163,63 @@ const ADDRESS_PRESETS: readonly { name: string; address: string }[] = [
   { name: 'OpenRouter', address: 'https://openrouter.ai/api/v1' },
 ];
 
+/** Feature 010 (US11, D38): the Thinking effort drop-down - Model's default, then the model's efforts. */
+function EffortRow({
+  id,
+  offered,
+  target,
+  model,
+  setting,
+  disabled,
+  onPick,
+}: {
+  id: string;
+  offered: ModelEfforts | null;
+  target: string;
+  model: string;
+  setting: AiEffort | null | undefined;
+  disabled: boolean;
+  onPick: (effort: AiEffort | null) => void;
+}) {
+  const { t } = useTranslation();
+  const none = !offered || offered.efforts.length === 0;
+  const tooltip = t(none ? 'tip.settings.ai.effortNone' : 'tip.settings.ai.effort');
+  return (
+    <FieldRow label={t('dialog.settings.ai.effort')} tooltip={tooltip} htmlFor={id}>
+      <select
+        {...tip(tooltip)}
+        id={id}
+        value={chosenEffort(setting, target, model, offered) ?? ''}
+        disabled={disabled || none}
+        onChange={(event) =>
+          onPick(event.target.value ? { target, model, value: event.target.value } : null)
+        }
+        data-testid={id}
+      >
+        <option value="">{t('dialog.settings.ai.effortDefault')}</option>
+        {offered?.efforts.map((value) => (
+          <option key={value} value={value}>
+            {t(`ai.effort.${value}`, { defaultValue: value })}
+          </option>
+        ))}
+      </select>
+    </FieldRow>
+  );
+}
+
 export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement }: AiPageProps) {
   const { t, i18n } = useTranslation();
   const { rpc, store } = ctx;
   const ai = draft.ai;
+  // Feature 010 (US11, D40): another service, model or mode returns the effort to Model's default.
+  const change = (patch: Partial<Settings['ai']>) => {
+    const moved =
+      (patch.mode !== undefined && patch.mode !== ai?.mode) ||
+      (patch.freeServiceId !== undefined && patch.freeServiceId !== ai?.freeServiceId) ||
+      (patch.custom !== undefined &&
+        (patch.custom.model !== ai?.custom.model || patch.custom.address !== ai?.custom.address));
+    onChange(moved && ai?.effort ? { ...patch, effort: null } : patch);
+  };
   const [list, setList] = useState<ListState>(() => ({ kind: 'loading' }));
   const [status, setStatus] = useState<TestStatus>({ kind: 'untested' });
   const [listNote, setListNote] = useState<string | null>(null);
@@ -267,12 +329,27 @@ export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement 
   useEffect(() => cancelJob, [cancelJob]); // the page unmounts: the job goes with it
 
   const syncAgreements = () => {
-    onChange({ agreements: agreementsOf(store.getState().settings) });
+    change({ agreements: agreementsOf(store.getState().settings) });
   };
 
   const services = list.kind === 'ready' ? list.result : null;
   const choice = aiServiceChoice(services, ai?.freeServiceId ?? '');
   const entry = choice.entry;
+  // Feature 010 (US11, D38, D39): the efforts the chosen model offers.
+  const freeEfforts = entry
+    ? effortsOf(entry.model, { entryEfforts: entry.efforts, known: services?.models })
+    : null;
+  const memory = store.getState().ai.customModels;
+  const customEfforts = ai
+    ? effortsOf(ai.custom.model, {
+        fetched:
+          memory &&
+          stripTrailingSlash(memory.address.trim()) === stripTrailingSlash(ai.custom.address.trim())
+            ? memory.models.find((item) => item.id === ai.custom.model)
+            : null,
+        known: services?.models,
+      })
+    : null;
   const coreTooOld = !ai || featureTooOld || list.kind === 'tooOld';
   const jobRunning = status.kind === 'running' || models.kind === 'running';
 
@@ -353,7 +430,7 @@ export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement 
           setStatus({ kind: 'untested' });
           if (result.verified && result.fingerprint) {
             setCustomFailure(null);
-            onChange({
+            change({
               customVerified: {
                 fingerprint: result.fingerprint,
                 model: result.model || tested.model,
@@ -449,7 +526,7 @@ export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement 
   /** A picked suggestion's context length becomes the session's hint (review C13). */
   const changeModel = (model: string) => {
     if (!ai) return;
-    onChange({ custom: { ...ai.custom, model } });
+    change({ custom: { ...ai.custom, model } });
     const known = store.getState().ai.customModels?.models.find((item) => item.id === model);
     if (known?.contextLength !== undefined && known.contextLength > 0) {
       actions.updateAi(store, { contextLengthHint: known.contextLength });
@@ -495,7 +572,7 @@ export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement 
 
   const revoke = async (service: string) => {
     const remaining = settingsWithoutAgreement(store.getState().settings ?? draft, service);
-    onChange({ agreements: remaining });
+    change({ agreements: remaining });
     await saveAgreements(store, rpc, remaining);
   };
 
@@ -605,7 +682,7 @@ export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement 
               value="free"
               checked={mode === 'free'}
               disabled={!ai}
-              onChange={() => onChange({ mode: 'free' })}
+              onChange={() => change({ mode: 'free' })}
               data-testid="settings-ai-mode-free"
             />
             <span>{t('dialog.settings.ai.modeFree')}</span>
@@ -621,7 +698,7 @@ export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement 
                 id="settings-ai-service"
                 value={choice.shownId}
                 disabled={!ai || choice.options.length === 0}
-                onChange={(event) => onChange({ freeServiceId: event.target.value })}
+                onChange={(event) => change({ freeServiceId: event.target.value })}
                 data-testid="settings-ai-service"
               >
                 {choice.options.map((option) => (
@@ -631,6 +708,15 @@ export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement 
                 ))}
               </select>
             </FieldRow>
+            <EffortRow
+              id="settings-ai-effort-free"
+              offered={freeEfforts}
+              target={entry ? `free:${entry.id}` : ''}
+              model={entry?.model ?? ''}
+              setting={ai?.effort}
+              disabled={!ai || !entry || mode !== 'free'}
+              onPick={(effort) => onChange({ effort })}
+            />
             {list.kind === 'loading' && rpc ? (
               <div className="mfbe-settings-note" data-testid="settings-ai-list-loading">
                 {t('dialog.settings.ai.loading')}
@@ -706,7 +792,7 @@ export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement 
               value="custom"
               checked={mode === 'custom'}
               disabled={!ai}
-              onChange={() => onChange({ mode: 'custom' })}
+              onChange={() => change({ mode: 'custom' })}
               data-testid="settings-ai-mode-custom"
             />
             <span>{t('dialog.settings.ai.modeCustom')}</span>
@@ -736,7 +822,7 @@ export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement 
                     (addressProblem === 'empty' || addressProblem === 'invalid')
                   }
                   onChange={(event) =>
-                    ai && onChange({ custom: { ...ai.custom, address: event.target.value.trim() } })
+                    ai && change({ custom: { ...ai.custom, address: event.target.value.trim() } })
                   }
                   data-testid="settings-ai-address"
                 />
@@ -760,7 +846,7 @@ export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement 
                       id: preset.address,
                       label: `${preset.name} - ${preset.address}`,
                       run: () =>
-                        ai && onChange({ custom: { ...ai.custom, address: preset.address } }),
+                        ai && change({ custom: { ...ai.custom, address: preset.address } }),
                     }))}
                     position={presetsAt}
                     onClose={() => setPresetsAt(null)}
@@ -795,7 +881,7 @@ export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement 
                 autoComplete="off"
                 placeholder={t('dialog.settings.ai.custom.keyPlaceholder')}
                 onChange={(event) =>
-                  ai && onChange({ custom: { ...ai.custom, key: event.target.value.trim() } })
+                  ai && change({ custom: { ...ai.custom, key: event.target.value.trim() } })
                 }
                 data-testid="settings-ai-key"
               />
@@ -857,6 +943,15 @@ export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement 
                 </button>
               ) : null}
             </FieldRow>
+            <EffortRow
+              id="settings-ai-effort-custom"
+              offered={customEfforts}
+              target="custom"
+              model={ai?.custom.model ?? ''}
+              setting={ai?.effort}
+              disabled={!ai || mode !== 'custom'}
+              onPick={(effort) => onChange({ effort })}
+            />
             {mode === 'custom' && modelsNote() !== null ? (
               <div
                 className={`mfbe-settings-note${models.kind === 'failed' ? ' mfbe-settings-ai-warning' : ''}`}
@@ -878,7 +973,7 @@ export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement 
               value="disabled"
               checked={mode === 'disabled'}
               disabled={!ai}
-              onChange={() => onChange({ mode: 'disabled' })}
+              onChange={() => change({ mode: 'disabled' })}
               data-testid="settings-ai-mode-disabled"
             />
             <span>{t('dialog.settings.ai.modeDisabled')}</span>

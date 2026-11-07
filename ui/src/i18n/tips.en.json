@@ -108,7 +108,9 @@
         "test": "Sends a short test request to the service with these settings and reports whether it answers.",
         "editList": "Opens your own service list file for editing; the first time, it is created as a copy of the bundled list.",
         "reloadList": "Reads the service list files again after you edited them.",
-        "revoke": "Withdraws your agreement: before the next request to this service the editor asks again."
+        "revoke": "Withdraws your agreement: before the next request to this service the editor asks again.",
+        "effort": "How much the model thinks before it answers: more effort gives better answers to hard tasks, slower and dearer; Model's default sends nothing.",
+        "effortNone": "The model offers no choice of thinking effort."
       },
       "hotkeys": {
         "group": "Shows the commands of this group, with their shortcuts.",
