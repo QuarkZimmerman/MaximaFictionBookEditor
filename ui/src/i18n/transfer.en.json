@@ -3,7 +3,8 @@
   "menu": {
     "file": {
       "importDescription": "&Description from FictionBook file...",
-      "exportFbd": "Export as &FBD..."
+      "exportFbd": "Export as &FBD...",
+      "importMarkdown": "&Markdown File..."
     }
   },
   "cmd": {
@@ -15,6 +16,10 @@
       "exportFbd": {
         "tooltip": "Export as FBD",
         "description": "Write the description of this document, with its cover, as an FBD file"
+      },
+      "importMarkdown": {
+        "tooltip": "Import Markdown",
+        "description": "Make a new book from a Markdown file: its headings become sections, its pictures and notes come along"
       }
     }
   },

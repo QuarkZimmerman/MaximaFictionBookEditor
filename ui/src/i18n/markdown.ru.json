@@ -1,0 +1,24 @@
+{
+  "markdown": {
+    "caption": "Импорт Markdown",
+    "openTitle": "Импорт файла Markdown",
+    "filter": "Файлы Markdown",
+    "allFiles": "Все файлы",
+    "picture": {
+      "missing": "файл не найден",
+      "notPicture": "не картинка",
+      "error": "не удалось добавить"
+    },
+    "done": "Импортировано из Markdown ({{encoding}}): секций {{sections}}, картинок {{pictures}}, таблиц {{tables}}, сносок {{notes}}.",
+    "summaryIntro": "Не всё перенесено так, как написано:",
+    "summary": {
+      "webPicture": "Картинка не добавлена: {{detail}}",
+      "missingTarget": "Ссылка на несуществующий заголовок: {{detail}}",
+      "htmlTag": "Тег HTML пропущен, его текст сохранён: <{{detail}}>",
+      "droppedChar": "Символ, которого нет в шрифтах редактора, пропущен: {{detail}}"
+    },
+    "notText": "Файл не является текстом.",
+    "tooLarge": "Файл больше, чем может прочитать импорт.",
+    "failed": "Не удалось импортировать файл Markdown {{path}}:\n{{reason}}"
+  }
+}

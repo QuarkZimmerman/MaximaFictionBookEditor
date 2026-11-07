@@ -429,6 +429,30 @@ export class FileFeature {
   /* ------------------------------------------------------------------ close */
 
   /** Remembers the position, stops watching and closes the current document in the core. */
+  /** Feature 010 (US8): the Markdown file each imported document came from, by docId. */
+  private readonly importOrigins = new Map<string, string>();
+
+  /**
+   * Feature 010 (US8, D36): shows the document the Markdown import made - modified, tied to no
+   * file. The window's book is closed only now that the new one exists; Save As proposes the
+   * Markdown file's name with `.fb2` in its folder (FR-094).
+   */
+  async loadImported(
+    ctx: CommandContext,
+    document: Document & LoadReport,
+    markdownPath: string,
+  ): Promise<void> {
+    await this.closeCurrentDocument(ctx);
+    this.loadDocument(ctx, document);
+    this.importOrigins.set(document.docId, markdownPath);
+    actions.setModified(ctx.store, true);
+  }
+
+  private importedSaveName(docId: string | null): string | null {
+    const origin = docId ? this.importOrigins.get(docId) : undefined;
+    return origin ? `${origin.replace(/\.(md|markdown)$/i, '')}.fb2` : null;
+  }
+
   async closeCurrentDocument(ctx: CommandContext): Promise<void> {
     const { store, rpc } = ctx;
     const state = store.getState();
@@ -984,7 +1008,10 @@ export class FileFeature {
       const startChecked = zipStartState(source !== undefined);
       // The document's own file, or - never saved - the bare name composed from its
       // description, which the dialog places in the folder it remembers (FR-050, FR-053).
-      const current = path ?? saveAsProposedName(ctx, state.document, selectedFilter);
+      const current =
+        path ??
+        this.importedSaveName(state.docId) ??
+        saveAsProposedName(ctx, state.document, selectedFilter);
       const defaultPath =
         source || startChecked
           ? proposedSavePath({

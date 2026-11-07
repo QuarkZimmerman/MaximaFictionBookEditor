@@ -3,7 +3,8 @@
   "menu": {
     "file": {
       "importDescription": "Опис&ание из файла FictionBook...",
-      "exportFbd": "Экспорт в &FBD..."
+      "exportFbd": "Экспорт в &FBD...",
+      "importMarkdown": "Файл &Markdown..."
     }
   },
   "cmd": {
@@ -15,6 +16,10 @@
       "exportFbd": {
         "tooltip": "Экспорт в FBD",
         "description": "Записать описание этого документа вместе с обложкой в файл FBD"
+      },
+      "importMarkdown": {
+        "tooltip": "Импорт Markdown",
+        "description": "Создать новую книгу из файла Markdown: заголовки становятся секциями, картинки и сноски переносятся"
       }
     }
   },

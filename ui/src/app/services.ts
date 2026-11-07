@@ -26,6 +26,7 @@ import { CommandRegistry, createCommandRegistry, type CommandContext } from './c
 import { HotkeyMap, detectPlatform } from './hotkeys';
 import { resourceCatalogsFor } from '@/views/description/resources';
 import { provideCompletionLists } from '@/views/source/attributeCompletion';
+import { registerMarkdownImport } from '@/features/markdown/importCommand';
 
 /** What a feature registrar receives; keep it minimal and stable. */
 export interface FeatureContext {
@@ -100,6 +101,8 @@ export function createAppServices(options: CreateAppServicesOptions = {}): AppSe
   const carets = options.carets ?? new CaretRegistry();
   // The File flows and the parse-before-leaving view commands take over the foundation stubs.
   const files = options.files ?? registerFileCommands(commands);
+  // Feature 010 (US8): File > Import > Markdown File..., which hands its book to the file feature.
+  registerMarkdownImport(commands, files);
   registerViewCommands(commands);
   // Feature modules (editing, source tools, description, tree, spelling, images, words,
   // settings, scripts) register their commands/plugins through their own registrar file;
