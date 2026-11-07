@@ -2,7 +2,7 @@
  * A toolbar button tells why it is disabled (feature 006, T044; FR-043, U40; data-model §9.6,
  * vR2 missing 8): a disabled button whose command gives a reason shows "Command: reason" as its
  * title in place of "tooltip (hotkey)" and adds it to its description after ". "; one without a
- * reason, and an enabled one, keep "tooltip (hotkey)" and the description alone; the title
+ * reason, and an enabled one, keep "tooltip (hotkey) — description" and the description alone; the title
  * follows the state on every revision.
  */
 
@@ -75,25 +75,25 @@ describe('ToolbarButton reasons (feature 006)', () => {
     );
   });
 
-  it('an enabled button, and a disabled one without a reason, keep "tooltip (hotkey)" and the description alone', async () => {
+  it('an enabled button, and a disabled one without a reason, keep "tooltip (hotkey) — description" and the description alone', async () => {
     const { setEnabled, setReason } = await setup();
     const button = screen.getByTestId('toolbar-table.deleteRow');
     setEnabled(true);
     expect(button).toBeEnabled();
-    expect(button).toHaveAttribute('title', 'Delete row (Ctrl+Alt+D)');
+    expect(button).toHaveAttribute('title', `Delete row (Ctrl+Alt+D) \u2014 ${DESCRIPTION}`);
     expect(button).toHaveAttribute('aria-description', DESCRIPTION);
 
     setEnabled(false);
     setReason(null);
     expect(button).toBeDisabled();
-    expect(button).toHaveAttribute('title', 'Delete row (Ctrl+Alt+D)');
+    expect(button).toHaveAttribute('title', `Delete row (Ctrl+Alt+D) \u2014 ${DESCRIPTION}`);
     expect(button).toHaveAttribute('aria-description', DESCRIPTION);
 
     // A command that defines no reason keeps today's tooltip (an opt-in): Save, no core.
     const save = screen.getByTestId('toolbar-file.save');
     expect(save).toBeDisabled();
     // Feature 007: the tooltip names every chord of Save - F2, then the fixed Ctrl+S.
-    expect(save).toHaveAttribute('title', 'Save (F2, Ctrl+S)');
+    expect(save).toHaveAttribute('title', 'Save (F2, Ctrl+S) \u2014 Save the active document');
     expect(save).toHaveAttribute('aria-description', 'Save the active document');
   });
 
@@ -109,6 +109,6 @@ describe('ToolbarButton reasons (feature 006)', () => {
     act(() => {
       actions.setRunLock(store, null);
     });
-    expect(button).toHaveAttribute('title', 'Delete row (Ctrl+Alt+D)');
+    expect(button).toHaveAttribute('title', `Delete row (Ctrl+Alt+D) \u2014 ${DESCRIPTION}`);
   });
 });

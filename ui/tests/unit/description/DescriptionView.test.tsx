@@ -422,3 +422,58 @@ describe('Description forms (T075)', () => {
     expect(await screen.findByTestId('description-publish-city')).toHaveValue('');
   });
 });
+
+describe('Description view tooltips (feature 010, FR-040, FR-044)', () => {
+  it('every field, list and button of the view carries a tooltip', async () => {
+    const base = richDocument();
+    const person = {
+      firstName: 'Anna',
+      middleName: 'B.',
+      lastName: 'Writer',
+      nickname: 'aw',
+      homePages: ['https://example.com'],
+      emails: ['a@example.com'],
+      id: 'p1',
+    };
+    await renderDescription({
+      ...base,
+      description: {
+        ...base.description,
+        titleInfo: { ...base.description.titleInfo, translators: [person], srcLang: 'de' },
+        srcTitleInfo: { ...base.description.titleInfo, bookTitle: 'Original', authors: [person] },
+        documentInfo: {
+          ...base.description.documentInfo,
+          authors: [person],
+          publishers: [person],
+          programUsed: 'Editor',
+          srcUrls: ['https://example.com/book'],
+          srcOcr: 'scanner',
+          date: { text: '2026', value: '2026-01-01' },
+          version: '1.0',
+        },
+        publishInfo: {
+          bookName: 'Printed',
+          publisher: 'Press',
+          city: 'Town',
+          year: '2020',
+          isbn: '978-3-16-148410-0',
+          sequences: [{ name: 'Series', number: 1, children: [] }],
+        },
+      },
+    });
+    const view = screen.getByTestId('description-view');
+    const untitled = Array.from(
+      view.querySelectorAll<HTMLElement>('input, select, textarea, button, [role="option"]'),
+    )
+      .filter((control) => !(control instanceof HTMLInputElement && control.type === 'hidden'))
+      .filter((control) => !control.hasAttribute('data-no-tooltip'))
+      .filter((control) => !control.getAttribute('title')?.trim())
+      .map(
+        (control) =>
+          control.getAttribute('data-testid') ??
+          control.getAttribute('data-field') ??
+          control.outerHTML.slice(0, 80),
+      );
+    expect(untitled).toEqual([]);
+  });
+});

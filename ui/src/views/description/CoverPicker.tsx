@@ -166,7 +166,9 @@ export function CoverList({ fieldKey, testPrefix }: CoverListProps) {
                   className={`mfbe-desc-select${dangling ? ' mfbe-desc-input-invalid' : ''}`}
                   data-testid={`${testPrefix}-${index}-href`}
                   value={cover.href}
-                  title={dangling ? t('descriptionForm.cover.dangling') : undefined}
+                  title={
+                    dangling ? t('descriptionForm.cover.dangling') : t('tip.description.coverHref')
+                  }
                   {...readOnlySelectProps(readOnly, (event) =>
                     controller.setValue(`${fieldKey}.${index}.href`, event.target.value),
                   )}

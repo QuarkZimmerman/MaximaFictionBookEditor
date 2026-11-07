@@ -270,7 +270,8 @@
       },
       "role": "The person's part in the book, for example illustrator or editor; it is written as a custom-info entry.",
       "genreFilter": "Shows only the genres whose name or code contains this text.",
-      "genreList": "The genres of the list: pick one and press OK, or double-click it."
+      "genreList": "The genres of the list: pick one and press OK, or double-click it.",
+      "coverHref": "The picture shown as the book's cover, chosen among the book's pictures."
     },
     "body": {
       "tab": "Shows this body of the book - the main text or, for example, the notes.",
