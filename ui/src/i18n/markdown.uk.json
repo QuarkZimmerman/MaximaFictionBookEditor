@@ -3,7 +3,6 @@
     "caption": "Імпорт Markdown",
     "openTitle": "Імпорт файлу Markdown",
     "filter": "Файли Markdown",
-    "allFiles": "Усі файли",
     "picture": {
       "missing": "файл не знайдено",
       "notPicture": "не малюнок",

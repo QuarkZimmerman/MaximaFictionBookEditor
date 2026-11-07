@@ -7,6 +7,7 @@
  */
 
 import type { CommandContext } from '@/app/commands';
+import { markdownFileTypes } from '@/dialogs/fileTypes';
 import { showEncodingDialog } from '@/dialogs/show';
 import { addBinariesToModel } from '@/features/images/binaries';
 import type { FileFeature } from '@/features/file/fileCommands';
@@ -54,10 +55,7 @@ export async function importMarkdown(
   if (!path) {
     const { paths } = await rpc.call('dialog.openFile', {
       title: ctx.t('markdown.openTitle'),
-      filters: [
-        { name: ctx.t('markdown.filter'), extensions: ['md', 'markdown'] },
-        { name: ctx.t('markdown.allFiles'), extensions: ['*'] },
-      ],
+      filters: markdownFileTypes(ctx.t),
       selectedFilter: 0,
     });
     path = paths[0];

@@ -171,6 +171,7 @@ describe('file flows (T052)', () => {
         { name: 'FictionBook files (*.fb2)', extensions: ['fb2'] },
         { name: 'FictionBook descriptors (*.fbd)', extensions: ['fbd'] },
         { name: 'ZIP archives (*.zip)', extensions: ['zip'] },
+        { name: 'Markdown files (*.md;*.markdown)', extensions: ['md', 'markdown'] },
         { name: 'All files (*.*)', extensions: ['*'] },
       ],
       selectedFilter: 0,

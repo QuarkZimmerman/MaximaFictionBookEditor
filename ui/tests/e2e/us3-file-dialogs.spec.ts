@@ -65,6 +65,7 @@ const NAMES: Record<Language, Record<string, string>> = {
   en: {
     books: 'Book files (*.fb2;*.fbd;*.zip)',
     zip: 'ZIP archives (*.zip)',
+    markdown: 'Markdown files (*.md;*.markdown)',
     fb2: 'FictionBook files (*.fb2)',
     fbd: 'FictionBook descriptors (*.fbd)',
     all: 'All files (*.*)',
@@ -82,6 +83,7 @@ const NAMES: Record<Language, Record<string, string>> = {
   ru: {
     books: 'Файлы книг (*.fb2;*.fbd;*.zip)',
     zip: 'Архивы ZIP (*.zip)',
+    markdown: 'Файлы Markdown (*.md;*.markdown)',
     fb2: 'Файлы FictionBook (*.fb2)',
     fbd: 'Описания FictionBook (*.fbd)',
     all: 'Все файлы (*.*)',
@@ -99,6 +101,7 @@ const NAMES: Record<Language, Record<string, string>> = {
   uk: {
     books: 'Файли книг (*.fb2;*.fbd;*.zip)',
     zip: 'Архіви ZIP (*.zip)',
+    markdown: 'Файли Markdown (*.md;*.markdown)',
     fb2: 'Файли FictionBook (*.fb2)',
     fbd: 'Описи FictionBook (*.fbd)',
     all: 'Усі файли (*.*)',
@@ -146,6 +149,8 @@ function openTypes(names: Record<string, string>): FileType[] {
     { name: names.fb2!, extensions: ['fb2'] },
     { name: names.fbd!, extensions: ['fbd'] },
     { name: names.zip!, extensions: ['zip'] },
+    // Feature 010 (US8, FR-080): a Markdown file chosen here is imported.
+    { name: names.markdown!, extensions: ['md', 'markdown'] },
     { name: names.all!, extensions: ['*'] },
   ];
 }

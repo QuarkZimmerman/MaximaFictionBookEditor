@@ -3,7 +3,6 @@
     "caption": "Markdown import",
     "openTitle": "Import a Markdown file",
     "filter": "Markdown files",
-    "allFiles": "All files",
     "picture": {
       "missing": "file not found",
       "notPicture": "not a picture",
