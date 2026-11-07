@@ -94,6 +94,22 @@ async function menu(page: Page, menuId: string, itemId: string): Promise<void> {
   await page.getByTestId(`menu-${menuId}-${itemId}`).click();
 }
 
+/**
+ * Waits until a picture just inserted has its image loaded and decoded: the editor redraws it
+ * then, moving what follows and putting its own selection back, so a caret placed before that is
+ * lost (feature 010).
+ */
+async function pictureShown(picture: Locator): Promise<void> {
+  await expect
+    .poll(() =>
+      picture.locator('img').evaluate((img) => {
+        const el = img as unknown as { complete: boolean; naturalWidth: number };
+        return el.complete && el.naturalWidth > 0;
+      }),
+    )
+    .toBe(true);
+}
+
 function paragraph(page: Page): Locator {
   return page.getByTestId('body-editor').locator('.fb-section > p.fb-p').first();
 }
@@ -242,14 +258,7 @@ test.describe('US7 - images and binary objects', () => {
     await page.getByTestId('dialog-insert-clear-image-button-yes').click();
     const block = page.getByTestId('body-image').first();
     await expect(block).toHaveAttribute('data-href', '#tiny.jpg');
-    await expect
-      .poll(() =>
-        block.locator('img').evaluate((img) => {
-          const el = img as unknown as { complete: boolean; naturalWidth: number };
-          return el.complete && el.naturalWidth > 0;
-        }),
-      )
-      .toBe(true);
+    await pictureShown(block);
 
     // Inline image.
     await clickIntoParagraph(page);
@@ -257,6 +266,7 @@ test.describe('US7 - images and binary objects', () => {
     await menu(page, 'add', 'inlineImage');
     await page.getByTestId('dialog-insert-clear-image-button-yes').click();
     await expect(page.getByTestId('body-inline-image')).toHaveAttribute('data-href', '#tiny.png');
+    await pictureShown(page.getByTestId('body-inline-image'));
 
     // Section image with "Don't ask again" + Yes: a clear image, the answer is persisted. (The
     // paragraph's start holds the inline image now: the caret goes to its end.)
@@ -280,7 +290,9 @@ test.describe('US7 - images and binary objects', () => {
       await core.enqueueDialog('dialog.openFile', { paths: [image(name)] });
       await menu(page, 'add', 'image');
       await expect(page.getByTestId('dialog-insert-clear-image')).toHaveCount(0);
-      await expect(page.locator(`[data-testid="body-image"][data-href="#${name}"]`)).toBeVisible();
+      const inserted = page.locator(`[data-testid="body-image"][data-href="#${name}"]`);
+      await expect(inserted).toBeVisible();
+      await pictureShown(inserted);
     }
 
     // Binary Objects list: unique ids, content types as loaded, conversion badges.

@@ -231,6 +231,22 @@ function paragraph(page: Page): Locator {
 }
 
 /** Puts the caret into the first paragraph (the editor reads the selection asynchronously). */
+/**
+ * Waits until a picture just inserted has its image loaded and decoded: the editor redraws it
+ * then, moving what follows and putting its own selection back, so a caret placed before that is
+ * lost (feature 010).
+ */
+async function pictureShown(picture: Locator): Promise<void> {
+  await expect
+    .poll(() =>
+      picture.locator('img').evaluate((img) => {
+        const el = img as unknown as { complete: boolean; naturalWidth: number };
+        return el.complete && el.naturalWidth > 0;
+      }),
+    )
+    .toBe(true);
+}
+
 async function clickIntoParagraph(page: Page): Promise<void> {
   await paragraph(page).click({ position: { x: 8, y: 8 } });
   await expect(page.getByTestId('status-path')).toHaveText(/\/p\[\d+\]$/);
@@ -379,6 +395,7 @@ for (const language of ['en', 'ru', 'uk'] as const) {
         expect(block.folder).toBe(folder);
         const figure = page.locator('[data-testid="body-image"][data-href="#tiny.jpg"]');
         await expect(figure).toBeVisible();
+        await pictureShown(figure);
         for (const command of ['inlineImage', 'sectionImage']) {
           await clickIntoParagraph(page);
           await core.enqueueDialog('dialog.openFile', { paths: [] });
