@@ -605,8 +605,11 @@ test.describe('US8 - toolbars and right-click as in the original', () => {
     await title.click({ button: 'right' });
     const menu = page.getByTestId('context-menu');
     await expect(menu).toBeVisible();
+    // Feature 010 (US9, D33): Undo names the step - the edit of the Book title field.
+    const field = (await pageText(page, 'description.fields.bookTitle')).replace(/[\s*:]+$/u, '');
+    const step = `${await pageText(page, 'undoNames.fieldPrefix')} ${field}`;
     await expect(menu.getByRole('menuitem')).toHaveText([
-      await pageText(page, 'menu.edit.undo'),
+      (await pageText(page, 'undoNames.undo', { name: step })).replace('&', ''),
       await pageText(page, 'editing.contextMenu.cut'),
       await pageText(page, 'editing.contextMenu.copy'),
       await pageText(page, 'editing.contextMenu.paste'),

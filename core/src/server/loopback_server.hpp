@@ -6,6 +6,7 @@
 
 #include <mfbe/rpc.hpp>
 
+#include <chrono>
 #include <cstdint>
 #include <deque>
 #include <map>
@@ -19,6 +20,9 @@ namespace mfbe::server {
 
 struct WsClient {
     std::uint64_t id = 0;
+    // Feature 010 (test.holdStartup, test hooks only): requests of this connection are queued
+    // and answered from this time on.
+    std::chrono::steady_clock::time_point held_until{};
 };
 
 using WebSocketPtr = uWS::WebSocket<false, true, WsClient>*;
@@ -43,6 +47,8 @@ public:
     void notify_open_paths(const std::vector<std::string>& paths);
     // Queues app.openRequest for the next client when nobody is connected (feature 008).
     void notify_open_request(const nlohmann::json& request);
+    // Feature 010 (test.holdStartup): answers the queued requests of a held connection.
+    void release_held(std::uint64_t client_id);
 
     uWS::Loop* loop() const { return loop_; }
     uWS::App& app() { return *app_; }
@@ -77,6 +83,8 @@ private:
     std::unique_ptr<uWS::App> app_;
     us_listen_socket_t* listen_socket_ = nullptr;
     std::map<std::uint64_t, WebSocketPtr> clients_;
+    // Feature 010 (test.holdStartup): the requests a held connection sent, in order.
+    std::map<std::uint64_t, std::deque<std::string>> held_messages_;
     std::uint64_t next_client_id_ = 1;
     std::vector<std::string> pending_open_paths_;
     std::vector<nlohmann::json> pending_open_requests_;

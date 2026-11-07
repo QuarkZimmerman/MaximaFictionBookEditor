@@ -3,6 +3,10 @@
 
 #include <mfbe/log.hpp>
 
+#include <algorithm>
+#include <chrono>
+#include <libusockets.h>
+
 namespace mfbe::server {
 namespace {
 
@@ -37,6 +41,11 @@ void LoopbackServer::setup_ws() {
     };
     behavior.open = [this](WebSocketPtr ws) {
         clients_[ws->getUserData()->id] = ws;
+        // Feature 010 (test.holdStartup): this connection's requests wait out the hold.
+        if (const int hold = services_.hold_next_connection_ms.exchange(0); hold > 0) {
+            ws->getUserData()->held_until =
+                std::chrono::steady_clock::now() + std::chrono::milliseconds(hold);
+        }
         log::debug("server", "client connected: " + std::to_string(ws->getUserData()->id));
         deliver_pending_open_paths();
         for (const auto& request : pending_open_requests_) {
@@ -49,10 +58,41 @@ void LoopbackServer::setup_ws() {
         if (op != uWS::OpCode::TEXT) {
             return;  // binary payloads never travel over the RPC channel
         }
+        WsClient* client = ws->getUserData();
+        const auto now = std::chrono::steady_clock::now();
+        if (client->held_until > now) {
+            // Feature 010 (test.holdStartup): queued in order, answered when a loop timer fires;
+            // nothing else waits.
+            std::deque<std::string>& queue = held_messages_[client->id];
+            const bool first = queue.empty();
+            queue.emplace_back(message);
+            if (first) {
+                struct HoldTimer {
+                    LoopbackServer* server;
+                    std::uint64_t client;
+                };
+                const auto left =
+                    std::chrono::duration_cast<std::chrono::milliseconds>(client->held_until - now)
+                        .count();
+                us_timer_t* timer =
+                    us_create_timer(reinterpret_cast<us_loop_t*>(loop_), 0, sizeof(HoldTimer));
+                *static_cast<HoldTimer*>(us_timer_ext(timer)) = HoldTimer{this, client->id};
+                us_timer_set(
+                    timer,
+                    [](us_timer_t* t) {
+                        const HoldTimer hold = *static_cast<HoldTimer*>(us_timer_ext(t));
+                        us_timer_close(t);
+                        hold.server->release_held(hold.client);
+                    },
+                    static_cast<int>(std::max<long long>(1, left)), 0);
+            }
+            return;
+        }
         on_message(ws, message);
     };
     behavior.close = [this](WebSocketPtr ws, int /*code*/, std::string_view /*reason*/) {
         clients_.erase(ws->getUserData()->id);
+        held_messages_.erase(ws->getUserData()->id);
         log::debug("server", "client disconnected: " + std::to_string(ws->getUserData()->id));
     };
     app_->ws<WsClient>("/rpc", std::move(behavior));
@@ -70,6 +110,23 @@ void LoopbackServer::on_message(WebSocketPtr ws, std::string_view message) {
     auto response = router_.dispatch_text(message, ctx, sink);
     if (response) {
         ws->send(rpc::RpcRouter::wire_text(*response), uWS::OpCode::TEXT);
+    }
+}
+
+void LoopbackServer::release_held(std::uint64_t client_id) {
+    auto queued = held_messages_.find(client_id);
+    if (queued == held_messages_.end()) {
+        return;
+    }
+    std::deque<std::string> messages = std::move(queued->second);
+    held_messages_.erase(queued);
+    auto it = clients_.find(client_id);
+    if (it == clients_.end()) {
+        return;
+    }
+    it->second->getUserData()->held_until = {};
+    for (const std::string& message : messages) {
+        on_message(it->second, message);
     }
 }
 

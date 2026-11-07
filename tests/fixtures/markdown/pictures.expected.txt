@@ -1,0 +1,48 @@
+<body><title><p>Pictures</p>
+</title>
+<section><image l:href="#red.png" alt="Red" title="A red square"/><p>Inline <image l:href="#red.png" alt="red"/> again, <image l:href="#picture.png" alt="blue"/> and <image l:href="https://example.com/a.png" alt="web"/>.</p>
+<image l:href="#none.png" alt="missing"/><image l:href="#not-a-picture.png" alt="wrong"/></section>
+</body>
+
+{
+  "description": {
+    "title": "Pictures",
+    "authors": [],
+    "annotation": [],
+    "genres": []
+  },
+  "pictures": [
+    {
+      "id": "red.png",
+      "kind": "file",
+      "path": "/fixtures/pictures/red.png"
+    },
+    {
+      "id": "picture.png",
+      "kind": "data"
+    },
+    {
+      "id": "none.png",
+      "kind": "file",
+      "path": "/fixtures/pictures/none.png"
+    },
+    {
+      "id": "not-a-picture.png",
+      "kind": "file",
+      "path": "/fixtures/pictures/not-a-picture.png"
+    }
+  ],
+  "chars": [],
+  "summary": [
+    {
+      "kind": "webPicture",
+      "detail": "https://example.com/a.png"
+    }
+  ],
+  "stats": {
+    "sections": 1,
+    "pictures": 6,
+    "tables": 0,
+    "notes": 0
+  }
+}

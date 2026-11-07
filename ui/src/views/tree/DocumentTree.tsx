@@ -86,6 +86,7 @@ export function DocumentTree() {
   const ctx = useCommandContext();
   useAppRevision();
   const document = useAppState((s) => s.document, store);
+  const startup = useAppState((s) => s.startup, store);
   const selectionNodeId = useAppState((s) => s.selectionNodeId, store);
   const selectionPath = useAppState((s) => s.selectionPath, store);
   const sourceDirty = useAppState((s) => s.sourceDirty || s.sourceOnly, store);
@@ -266,7 +267,7 @@ export function DocumentTree() {
         </div>
         <div className="mfbe-tree-content" role="tree" aria-label={t('tree.caption')}>
           <div className="mfbe-view-placeholder" data-testid="panel-tree-empty">
-            {t('tree.empty')}
+            {startup === 'starting' ? t('app.starting') : t('tree.empty')}
           </div>
         </div>
       </div>
@@ -363,6 +364,7 @@ export function DocumentTree() {
               }}
               expandLabel={t('tree.a11y.expand')}
               collapseLabel={t('tree.a11y.collapse')}
+              emptyPictureLabel={t('tree.emptyPicture')}
             />
           ))}
         </div>
@@ -386,6 +388,8 @@ interface TreeRowViewProps {
   onContextMenu: (x: number, y: number) => void;
   expandLabel: string;
   collapseLabel: string;
+  /** Feature 010 (D8): the caption of a picture without an image. */
+  emptyPictureLabel: string;
 }
 
 function TreeRowView({
@@ -400,6 +404,7 @@ function TreeRowView({
   onContextMenu,
   expandLabel,
   collapseLabel,
+  emptyPictureLabel,
 }: TreeRowViewProps) {
   return (
     <div
@@ -435,6 +440,7 @@ function TreeRowView({
           className="mfbe-tree-toggle"
           tabIndex={-1}
           aria-label={expanded ? collapseLabel : expandLabel}
+          title={expanded ? collapseLabel : expandLabel}
           data-testid={`tree-toggle-${row.id}`}
           onClick={(event) => {
             event.stopPropagation();
@@ -452,8 +458,11 @@ function TreeRowView({
         alt=""
         draggable={false}
       />
-      <span className="mfbe-tree-row-caption" title={row.caption}>
-        {row.caption}
+      <span
+        className="mfbe-tree-row-caption"
+        title={row.emptyPicture ? emptyPictureLabel : row.caption}
+      >
+        {row.emptyPicture ? emptyPictureLabel : row.caption}
       </span>
       {mark ? (
         <span

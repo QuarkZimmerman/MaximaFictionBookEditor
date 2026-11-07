@@ -18,6 +18,7 @@ import { parseAccelerator } from '@/i18n';
 import { Dialog, type DialogButton } from './Dialog';
 
 import './editing.css';
+import { tip } from '@/app/tooltips';
 
 export interface TableProperties {
   rows: number;
@@ -79,6 +80,17 @@ export function TablePropertiesDialog({ initial, onClose }: TablePropertiesDialo
       <label htmlFor={id}>{label(labelKey)}</label>
       <input
         id={id}
+        {...tip(
+          t(
+            labelKey === 'dialog.table.rowCount'
+              ? 'tip.tableDialog.rows'
+              : 'tip.tableDialog.columns',
+            {
+              min: range.min,
+              max: range.max,
+            },
+          ),
+        )}
         className="mfbe-inputdialog-input mfbe-number-input"
         type="number"
         min={range.min}
@@ -124,6 +136,7 @@ export function TablePropertiesDialog({ initial, onClose }: TablePropertiesDialo
       </div>
       <label className="mfbe-check-field" htmlFor="dialog-table-header">
         <input
+          {...tip(t('tip.tableDialog.headerRow'))}
           id="dialog-table-header"
           type="checkbox"
           checked={headerRow}
@@ -134,6 +147,7 @@ export function TablePropertiesDialog({ initial, onClose }: TablePropertiesDialo
       </label>
       <label className="mfbe-check-field" htmlFor="dialog-table-header-column">
         <input
+          {...tip(t('tip.tableDialog.headerColumn'))}
           id="dialog-table-header-column"
           type="checkbox"
           checked={headerColumn}

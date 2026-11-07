@@ -244,6 +244,11 @@ jobs:
         run: |
           node ../tools/i18n-check.mjs --strict-identical --accelerators
           node ../tools/i18n-literals.mjs
+      - name: Tooltips (guard G8)
+        if: runner.os == 'Linux'
+        # Feature 010 (FR-046): every interactive control carries a tooltip - a control without one
+        # fails the run. Guards G7 and G9 run with the unit tests.
+        run: node ../tools/tooltip-check.mjs --strict
       - name: Upload UI bundle
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v6

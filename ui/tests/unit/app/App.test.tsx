@@ -348,9 +348,16 @@ describe('App shell', () => {
     const { user } = await renderApp();
     const body = screen.getByTestId('toolbar-view.body');
     expect(body).toHaveAttribute('aria-pressed', 'true');
-    expect(body).toHaveAttribute('title', 'Body (Alt+F2)');
-    expect(screen.getByTestId('toolbar-file.open')).toHaveAttribute('title', 'Open (Ctrl+O)');
-    expect(screen.getByTestId('toolbar-file.new')).toHaveAttribute('title', 'New');
+    // Feature 010 (FR-042): name and key, then what the command does.
+    expect(body).toHaveAttribute('title', 'Body (Alt+F2) \u2014 Show document body');
+    expect(screen.getByTestId('toolbar-file.open')).toHaveAttribute(
+      'title',
+      'Open (Ctrl+O) \u2014 Open an existing document',
+    );
+    expect(screen.getByTestId('toolbar-file.new')).toHaveAttribute(
+      'title',
+      'New \u2014 Create a new document',
+    );
     await user.click(screen.getByTestId('view-description'));
     expect(screen.getByTestId('toolbar-view.description')).toHaveAttribute('aria-pressed', 'true');
     expect(body).toHaveAttribute('aria-pressed', 'false');

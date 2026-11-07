@@ -175,7 +175,7 @@ function appUrl(core: CoreHandle, params: Record<string, string>): string {
 
 async function openApp(core: CoreHandle, page: Page, params: Record<string, string> = {}) {
   await page.goto(appUrl(core, params));
-  await page.getByTestId('app-root').waitFor();
+  await page.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
   if (core.hasCore) {
     await expect(page.getByTestId('status-message')).toHaveText(/Готово|Ready/);
   }
@@ -598,7 +598,7 @@ test.describe('US8 - switching the language', () => {
 
     // ... and after the "restart" the menus come back in English from settings.json.
     await page.reload();
-    await page.getByTestId('app-root').waitFor();
+    await page.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
     await expect(page.getByTestId('menu-file')).toHaveText('File');
     await expect(page.getByTestId('menu-help')).toHaveText('Help');
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
@@ -618,7 +618,7 @@ test.describe('US8 - switching the language', () => {
     settings = await core.rpc<{ view: { uiLanguage: string } }>('settings.get');
     expect(settings.view.uiLanguage).toBe('ru');
     await page.reload();
-    await page.getByTestId('app-root').waitFor();
+    await page.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
     await expect(page.getByTestId('menu-file')).toHaveText('Файл');
     await expect(page.getByTestId('menu-help')).toHaveText('Справка');
     await expect(page.locator('html')).toHaveAttribute('lang', 'ru');
@@ -650,7 +650,7 @@ test.describe('US8 - switching the language', () => {
     settings = await core.rpc<{ view: { uiLanguage: string } }>('settings.get');
     expect(settings.view.uiLanguage).toBe('uk');
     await page.reload();
-    await page.getByTestId('app-root').waitFor();
+    await page.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
     await expect(page.locator('html')).toHaveAttribute('lang', 'uk');
     await expect(page.getByTestId('menu-help')).toHaveText(uiText('uk', 'menu.help.caption'));
     await expect(page.getByTestId('panel-tree-caption')).toHaveText(uiText('uk', 'tree.caption'));
@@ -747,7 +747,7 @@ test.describe('US8 - "Restart now?" restarts the editor (feature 003 US3)', () =
     expect(url.searchParams.get('token')).toBe(core.token);
     expect(url.searchParams.has('lang')).toBe(false);
     expect(url.searchParams.has('new')).toBe(false);
-    await page.getByTestId('app-root').waitFor();
+    await page.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
     await waitForBook(page, book);
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
     await expect(page.getByTestId('menu-file')).toHaveText('File');
@@ -782,7 +782,7 @@ test.describe('US8 - "Restart now?" restarts the editor (feature 003 US3)', () =
 
     // Reloaded without open=, token and lang kept; a fresh document, not the typed text.
     await expect.poll(() => page.url()).not.toContain('open=');
-    await page.getByTestId('app-root').waitFor();
+    await page.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
     await waitForStartupDocument(page);
     const url = new URL(page.url());
     expect(url.searchParams.get('token')).toBe(core.token);

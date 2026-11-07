@@ -1,0 +1,3 @@
+# Feature 010 (US8): the Markdown fixtures are compared byte for byte - one text in several
+# encodings, UTF-16 among them - so no checkout converts their line endings.
+tests/fixtures/markdown/** -text

@@ -146,6 +146,7 @@ function FormFieldView({ field, value, onChange, htmlId, testId }: FormFieldView
           </label>
           {field.multiline ? (
             <textarea
+              data-no-tooltip
               id={htmlId}
               className="mfbe-script-form-input mfbe-script-form-textarea"
               value={String(value ?? '')}
@@ -157,6 +158,7 @@ function FormFieldView({ field, value, onChange, htmlId, testId }: FormFieldView
             />
           ) : (
             <input
+              data-no-tooltip
               id={htmlId}
               type="text"
               className="mfbe-script-form-input"
@@ -176,6 +178,7 @@ function FormFieldView({ field, value, onChange, htmlId, testId }: FormFieldView
             {field.label}
           </label>
           <input
+            data-no-tooltip
             id={htmlId}
             type="number"
             className="mfbe-script-form-input mfbe-script-form-number"
@@ -196,6 +199,7 @@ function FormFieldView({ field, value, onChange, htmlId, testId }: FormFieldView
         <div className="mfbe-script-form-row mfbe-script-form-row-check">
           <label className="mfbe-script-form-check">
             <input
+              data-no-tooltip
               id={htmlId}
               type="checkbox"
               checked={!!value}
@@ -214,6 +218,7 @@ function FormFieldView({ field, value, onChange, htmlId, testId }: FormFieldView
             {field.label}
           </label>
           <select
+            data-no-tooltip
             id={htmlId}
             className="mfbe-script-form-input"
             value={String(value ?? '')}
@@ -236,6 +241,7 @@ function FormFieldView({ field, value, onChange, htmlId, testId }: FormFieldView
           {field.options.map((option, index) => (
             <label key={option.value} className="mfbe-script-form-check">
               <input
+                data-no-tooltip
                 type="radio"
                 name={htmlId}
                 value={option.value}
@@ -257,6 +263,7 @@ function FormFieldView({ field, value, onChange, htmlId, testId }: FormFieldView
             {field.label}
           </label>
           <select
+            data-no-tooltip
             id={htmlId}
             multiple={field.multiple}
             size={Math.min(Math.max(field.options.length, 3), 8)}
@@ -307,6 +314,7 @@ function RegexpFieldView({
             {field.presetsLabel ?? t('scripting.form.regexpPresets')}
           </label>
           <select
+            data-no-tooltip
             id={`${htmlId}-presets`}
             className="mfbe-script-form-input"
             value={preset}
@@ -328,6 +336,7 @@ function RegexpFieldView({
         {field.label}
       </label>
       <input
+        data-no-tooltip
         id={htmlId}
         type="text"
         spellCheck={false}

@@ -352,7 +352,8 @@
     },
     "banner": {
       "$comment": "The run banner's label while an AI request holds the lock (FR-022): `<service name> · <model>`.",
-      "label": "{{service}} · {{model}}"
+      "label": "{{service}} · {{model}}",
+      "withEffort": "{{model}} — {{effort}}"
     },
     "phase": {
       "$comment": "The current operation shown by the banner, the panel and the popup (FR-022; data-model §4.3).",
@@ -446,6 +447,14 @@
       "terms": "Terms of use and privacy policy of the service",
       "unencrypted": "The address is plain http: the text travels unencrypted.",
       "question": "Do you agree to send this to the service?"
+    },
+    "effort": {
+      "minimal": "Minimal",
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "xhigh": "Extra high",
+      "max": "Maximum"
     }
   },
   "dialog": {
@@ -529,7 +538,9 @@
           "none": "None yet: the notice is shown before the first request to a hosted service.",
           "row": "{{service}} ({{host}}), agreed on {{date}}",
           "revoke": "Withdraw"
-        }
+        },
+        "effort": "Thinking effort:",
+        "effortDefault": "Model's default"
       }
     }
   }

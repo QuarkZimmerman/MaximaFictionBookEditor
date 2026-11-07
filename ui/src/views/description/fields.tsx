@@ -12,7 +12,10 @@
 import { useEffect, useRef, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { tip } from '@/app/tooltips';
+
 import type { FormInput } from './binding';
+import { descriptionFieldTip } from './fieldTips';
 import { useDescriptionForm, useFieldValue, useFormReadOnly } from './formContext';
 import type { FieldKey } from './model';
 
@@ -56,8 +59,11 @@ export function TextField({
   title,
   inputRef,
 }: TextFieldProps) {
+  const { t } = useTranslation();
   const { controller, readOnly: formReadOnly } = useDescriptionForm();
   const value = useFieldValue(fieldKey);
+  // Feature 010 (US4): a problem first, then the caller's text, then the field's own tooltip.
+  const help = invalid ?? title ?? descriptionFieldTip(t, fieldKey);
   const ref = useRef<FormInput | null>(null);
   useEffect(() => {
     const input = ref.current;
@@ -83,7 +89,6 @@ export function TextField({
     placeholder,
     maxLength,
     readOnly: readOnly || formReadOnly,
-    title: invalid ?? title,
     'aria-invalid': invalid ? true : undefined,
     'aria-required': required || undefined,
     'data-testid': testId,
@@ -95,9 +100,9 @@ export function TextField({
     onBlur: () => controller.closeEntry(),
   };
   const input = multiline ? (
-    <textarea ref={setRef} rows={rows ?? 4} {...shared} />
+    <textarea ref={setRef} rows={rows ?? 4} {...shared} {...tip(help)} />
   ) : (
-    <input ref={setRef} type="text" {...shared} />
+    <input ref={setRef} type="text" {...shared} {...tip(help)} />
   );
   if (!label) return input;
   return (

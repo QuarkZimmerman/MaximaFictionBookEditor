@@ -85,7 +85,8 @@ describe('the Body context menu', () => {
       'context-menu-select-2',
       'context-menu-select-1',
     ]);
-    expect(screen.getByTestId('context-menu-select-5')).toHaveTextContent('Select td');
+    // Feature 010 (D15): the element in words.
+    expect(screen.getByTestId('context-menu-select-5')).toHaveTextContent('Select cell');
     // The table section comes last, after a separator: Table structure only (issue #8: no
     // Table…, inserting a table is an Add-menu operation).
     expect(ids.slice(-2)).toEqual(['|', 'context-menu-tableStructure']);

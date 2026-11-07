@@ -178,3 +178,47 @@ TEST_CASE("binary store: reference counts come from the document's hrefs", "[bin
     update_reference_counts(doc, store);
     CHECK(store.meta("orphan.png")->referenceCount == 0);
 }
+
+TEST_CASE("image probe: transparency from the headers (feature 010)", "[binary]") {
+    struct Case {
+        const char* file;
+        bool transparent;
+    };
+    // alpha.png is RGBA, alpha.webp lossless with alpha; the others are opaque or have no
+    // transparent colour (tiny.png is a palette PNG without tRNS, tiny.gif's GCE flag is 0).
+    for (const Case& c :
+         {Case{"alpha.png", true}, Case{"opaque-rgb.png", false}, Case{"tiny.png", false},
+          Case{"alpha.webp", true}, Case{"tiny.webp", false}, Case{"tiny.gif", false},
+          Case{"tiny.jpg", false}, Case{"tiny.bmp", false}}) {
+        INFO(c.file);
+        CHECK(images::probe(image(c.file)).transparent == c.transparent);
+    }
+    // A palette PNG whose tRNS chunk precedes the image data.
+    auto chunk = [](const char* type, const std::string& data) {
+        std::string out;
+        const auto n = static_cast<std::uint32_t>(data.size());
+        out += static_cast<char>((n >> 24) & 0xFF);
+        out += static_cast<char>((n >> 16) & 0xFF);
+        out += static_cast<char>((n >> 8) & 0xFF);
+        out += static_cast<char>(n & 0xFF);
+        out += type;
+        out += data;
+        out += std::string("\0\0\0\0", 4);  // the probe reads no CRC
+        return out;
+    };
+    std::string png("\x89PNG\r\n\x1A\n", 8);
+    png += chunk("IHDR", std::string("\0\0\0\x08\0\0\0\x06\x08\x03\0\0\0", 13));
+    png += chunk("PLTE", std::string("\0\0\0\xFF\xFF\xFF", 6));
+    png += chunk("tRNS", std::string("\0", 1));
+    png += chunk("IDAT", std::string("\0", 1));
+    CHECK(images::probe(png).transparent);
+    // A GIF89a whose Graphic Control Extension sets the transparent-colour flag.
+    std::string gif("GIF89a\x08\0\x06\0\0\0\0", 13);
+    gif += std::string("\x21\xF9\x04\x01\0\0\0\0", 8);
+    gif += std::string("\x2C\0\0\0\0\x08\0\x06\0\0", 10);
+    CHECK(images::probe(gif).transparent);
+    // The metadata carries it.
+    BinaryStore store;
+    CHECK(store.put("a.png", "", image("alpha.png"), false).transparent);
+    CHECK_FALSE(store.put("o.png", "", image("opaque-rgb.png"), false).transparent);
+}

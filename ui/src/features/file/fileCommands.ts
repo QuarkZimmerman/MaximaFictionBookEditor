@@ -429,6 +429,30 @@ export class FileFeature {
   /* ------------------------------------------------------------------ close */
 
   /** Remembers the position, stops watching and closes the current document in the core. */
+  /** Feature 010 (US8): the Markdown file each imported document came from, by docId. */
+  private readonly importOrigins = new Map<string, string>();
+
+  /**
+   * Feature 010 (US8, D36): shows the document the Markdown import made - modified, tied to no
+   * file. The window's book is closed only now that the new one exists; Save As proposes the
+   * Markdown file's name with `.fb2` in its folder (FR-094).
+   */
+  async loadImported(
+    ctx: CommandContext,
+    document: Document & LoadReport,
+    markdownPath: string,
+  ): Promise<void> {
+    await this.closeCurrentDocument(ctx);
+    this.loadDocument(ctx, document);
+    this.importOrigins.set(document.docId, markdownPath);
+    actions.setModified(ctx.store, true);
+  }
+
+  private importedSaveName(docId: string | null): string | null {
+    const origin = docId ? this.importOrigins.get(docId) : undefined;
+    return origin ? `${origin.replace(/\.(md|markdown)$/i, '')}.fb2` : null;
+  }
+
   async closeCurrentDocument(ctx: CommandContext): Promise<void> {
     const { store, rpc } = ctx;
     const state = store.getState();
@@ -778,13 +802,16 @@ export class FileFeature {
     }
     const pending = this.pendingPosition;
     this.pendingPosition = null;
-    await this.closeCurrentDocument(ctx);
+    // Feature 010 (US10, D36): the new file is read before the window's book is closed, so a
+    // file that cannot be opened leaves that book - its unsaved changes and its undo history -
+    // exactly as it was, whatever the way of opening (Open, Recent files, a drop, a relayed book,
+    // the reload).
     try {
       let result = await rpc.runJob('doc.open', entry ? { path, entry } : { path }, {
         onProgress: (progress) => actions.setProgress(store, progress),
       });
       if ('needsChoice' in result) {
-        // An archive without the .zip name: asked once the window's book is closed.
+        // An archive without the .zip name: asked while the window's book is still open.
         const chosen = await showArchiveBookChooser(
           ctx.dialogs,
           result.needsChoice,
@@ -799,6 +826,7 @@ export class FileFeature {
         );
         if ('needsChoice' in result) return false;
       }
+      await this.closeCurrentDocument(ctx);
       this.loadDocument(ctx, result.document);
       if (result.warnings.length > 0) {
         actions.setStatusMessage(
@@ -893,6 +921,8 @@ export class FileFeature {
       const source = await rpc.call('doc.openSource', entry ? { path, entry } : { path });
       if ('needsChoice' in source) return false;
       const error = source.error ?? parseError;
+      // A malformed file still opens, in the Source view: only now is the window's book closed.
+      await this.closeCurrentDocument(ctx);
       resetSourceSession(store);
       ctx.undo.clear();
       const document = sourceOnlyDocument(source.docId, path, source.encoding);
@@ -978,7 +1008,10 @@ export class FileFeature {
       const startChecked = zipStartState(source !== undefined);
       // The document's own file, or - never saved - the bare name composed from its
       // description, which the dialog places in the folder it remembers (FR-050, FR-053).
-      const current = path ?? saveAsProposedName(ctx, state.document, selectedFilter);
+      const current =
+        path ??
+        this.importedSaveName(state.docId) ??
+        saveAsProposedName(ctx, state.document, selectedFilter);
       const defaultPath =
         source || startChecked
           ? proposedSavePath({

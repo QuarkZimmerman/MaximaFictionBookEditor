@@ -34,6 +34,7 @@ import { SourceContextMenu } from './SourceContextMenu';
 import { sourceEditorFor, sourceSettingsOf } from './sourceEditor';
 
 import './source.css';
+import { tip } from '@/app/tooltips';
 
 const FOLD_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8, 9] as const;
 
@@ -158,6 +159,7 @@ export function SourceView() {
           <label className="mfbe-source-tools-label">
             {t('source.foldLevel')}
             <select
+              {...tip(t('tip.source.foldLevel'))}
               className="mfbe-source-fold-level"
               data-testid="source-fold-level"
               value={foldLevel}

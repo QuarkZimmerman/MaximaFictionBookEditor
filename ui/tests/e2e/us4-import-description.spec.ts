@@ -137,7 +137,7 @@ async function supportsDocuments(core: CoreHandle): Promise<boolean> {
 async function openApp(core: CoreHandle, page: Page, lang?: UiLang): Promise<void> {
   if (lang) {
     await page.goto(withUiLang(core.baseURL, lang));
-    await page.getByTestId('app-root').waitFor();
+    await page.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
   } else {
     await core.openApp(page);
   }

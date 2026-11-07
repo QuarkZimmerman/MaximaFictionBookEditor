@@ -371,6 +371,7 @@ BinaryMeta parse_binary_meta(const json& j, const std::string& path) {
     b.height = r.opt_int("height");
     b.decodable = r.bool_or("decodable", false);
     b.willConvert = r.bool_or("willConvert", false);
+    b.transparent = r.bool_or("transparent", false);
     b.referenceCount = r.int_or("referenceCount", 0);
     return b;
 }
@@ -608,6 +609,10 @@ json to_json(const BinaryMeta& meta) {
     put_opt(j, "height", meta.height);
     j["decodable"] = meta.decodable;
     j["willConvert"] = meta.willConvert;
+    // Feature 010 (DP-6): written only when true, so other binaries read as before.
+    if (meta.transparent) {
+        j["transparent"] = true;
+    }
     j["referenceCount"] = meta.referenceCount;
     return j;
 }

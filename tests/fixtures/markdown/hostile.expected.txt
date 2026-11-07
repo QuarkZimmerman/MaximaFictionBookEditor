@@ -1,0 +1,74 @@
+<body><section><p>alert(1)</p>
+<p>p{}</p>
+<cite><p>deep quote</p>
+</cite>
+<p>• level 0</p>
+<p>    • level 1</p>
+<p>        • level 2</p>
+<p>            • level 3</p>
+<p>                • level 4</p>
+<p>                    • level 5</p>
+<p>                        • level 6</p>
+<p>                            • level 7</p>
+<p>                                • level 8</p>
+<p>                                    • level 9</p>
+<p>                                        • level 10</p>
+<p>                                            • level 11</p>
+<p>                                                • level 12</p>
+<p>                                                    • level 13</p>
+<p>                                                        • level 14</p>
+<p>                                                            • level 15</p>
+<p>                                                                • level 16</p>
+<p>                                                                    • level 17</p>
+<p>                                                                        • level 18</p>
+<p>                                                                            • level 19</p>
+<p>                                                                                • level 20</p>
+<p>                                                                                    • level 21</p>
+<p>                                                                                        • level 22</p>
+<p>                                                                                            • level 23</p>
+<p>                                                                                                • level 24</p>
+<p>                                                                                                    • level 25</p>
+<p>                                                                                                        • level 26</p>
+<p>                                                                                                            • level 27</p>
+<p>                                                                                                                • level 28</p>
+<p>                                                                                                                    • level 29</p>
+<p><a l:href="#loop">loop</a> [js](javascript:alert(1)) </p>
+<p>####### not a heading</p>
+<subtitle>* * *</subtitle>
+</section>
+</body>
+
+{
+  "description": {
+    "title": "hostile",
+    "authors": [],
+    "annotation": [],
+    "genres": []
+  },
+  "pictures": [],
+  "chars": [],
+  "summary": [
+    {
+      "kind": "htmlTag",
+      "detail": "script"
+    },
+    {
+      "kind": "htmlTag",
+      "detail": "style"
+    },
+    {
+      "kind": "missingTarget",
+      "detail": "#loop"
+    },
+    {
+      "kind": "htmlTag",
+      "detail": "iframe"
+    }
+  ],
+  "stats": {
+    "sections": 1,
+    "pictures": 0,
+    "tables": 0,
+    "notes": 0
+  }
+}

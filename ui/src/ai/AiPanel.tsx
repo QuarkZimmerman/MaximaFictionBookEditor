@@ -57,6 +57,7 @@ import { failureText, maskKey, type Failure } from './protocol';
 import { resolveActiveTarget, type ActiveTarget } from './target';
 
 import './ai.css';
+import { tip } from '@/app/tooltips';
 
 /** The panel takes no props: everything comes from the services of the `AppProvider`. */
 export type AiPanelProps = Record<string, never>;
@@ -646,6 +647,7 @@ export function AiPanel() {
             {serviceText}
           </span>
           <button
+            {...tip(t('tip.ai.settingsLink'))}
             type="button"
             className="mfbe-link-button mfbe-ai-settings-link"
             data-testid="ai-settings-link"
@@ -727,6 +729,7 @@ export function AiPanel() {
           ) : null}
         </div>
         <textarea
+          {...tip(t('tip.ai.input'))}
           ref={inputRef}
           className="mfbe-ai-input"
           data-testid="ai-input"
@@ -743,6 +746,7 @@ export function AiPanel() {
         <div className="mfbe-ai-buttons">
           {running ? (
             <button
+              {...tip(t('tip.ai.stop'))}
               type="button"
               className="mfbe-button mfbe-button-default"
               data-testid="ai-stop"
@@ -763,6 +767,7 @@ export function AiPanel() {
             </button>
           )}
           <button
+            {...tip(t('tip.ai.clear'))}
             type="button"
             className="mfbe-button"
             data-testid="ai-clear"

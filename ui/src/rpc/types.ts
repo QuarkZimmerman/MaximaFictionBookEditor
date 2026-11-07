@@ -41,7 +41,9 @@ export type { BinaryMeta, Document, ValidationIssue, ValidationReport } from '@/
 export const RPC_API_VERSION = 1;
 /**
  * Additive contract revision within RPC_API_VERSION (`app.info().apiMinor`; absent = 0). The
- * revision this UI was written for (8 since feature 009: books in ZIP archives - `doc.open` with
+ * revision this UI was written for (9 since feature 010: `import.readMarkdown`, `template.xml`,
+ * `doc.newFromXml`, `binary.add`'s `imagesOnly`, `BinaryMeta.transparent`, the models' `efforts`
+ * of `ai.models`, the service list's known models, `test.holdStartup`; 8 since feature 009: books in ZIP archives - `doc.open` with
  * `entry` and `needsChoice`, `Document.source`, `files.inspect`, the archive errors - backups and
  * ZIP saves through `doc.save`, the Save As dialog's ZIP checkbox, `binary.rename`, and the
  * settings `other.keepBackup` and `view.statusBarPanes`; 7 since feature 008: the open requests
@@ -57,7 +59,7 @@ export const RPC_API_VERSION = 1;
  * and requires >= 5 since feature 006 (`AI_REQUIRED_API_MINOR` in `ui/src/ai/index.ts`; 4
  * before).
  */
-export const RPC_API_MINOR = 8;
+export const RPC_API_MINOR = 9;
 
 /* ------------------------------------------------------------------------ */
 /* Error codes (rpc-api.md §1)                                              */
@@ -85,6 +87,11 @@ export const RpcErrorCode = {
   binaryIdInvalid: 1011,
   /** `binary.rename`: another binary has the new id; `data` {newId} (feature 009). */
   binaryIdTaken: 1012,
+  /** Feature 010: `binary.add` with `imagesOnly` - the file is not a picture the core decodes {path}. */
+  binaryNotImage: 1013,
+  /** Feature 010: `import.readMarkdown` - the file is not text {path} / larger than it reads {path, limit}. */
+  importNotText: 1100,
+  importTooLarge: 1101,
   spellDictionaryUnavailable: 1020,
   scriptNotFound: 1030,
   scriptInvalidManifest: 1031,
@@ -828,6 +835,8 @@ export interface AiSettings {
   mode: 'free' | 'custom' | 'disabled';
   /** The chosen free entry's id (default `ovhcloud`); not validated against the list. */
   freeServiceId: string;
+  /** Feature 010 (US11, D41): the chosen thinking effort; null = Model's default. */
+  effort?: AiEffort | null;
   custom: {
     /** `""` or an absolute http(s) URL with a host, no query/fragment/user info, <= 2048. */
     address: string;
@@ -888,6 +897,8 @@ export interface AiServiceEntry {
   /** Missing languages filled from `en`. */
   limits: { en: string; ru: string; uk: string };
   contextLength?: number;
+  /** Feature 010 (US11, D39): the thinking efforts of the entry's model, if it has any. */
+  efforts?: string[];
   /** The file the entry in effect comes from. */
   source: 'bundled' | 'user' | 'portable';
   /** A user entry that replaced a bundled one. */
@@ -930,6 +941,27 @@ export interface AiServicesResult {
     portable?: string;
   };
   issues: AiServiceIssue[];
+  /** Feature 010 (US11, D39): the known models - name patterns with their efforts, user's first. */
+  models?: AiKnownModel[];
+}
+
+/** Feature 010 (US11, resource-formats §1): a known model name pattern and its efforts. */
+export interface AiKnownModel {
+  /** `*` wildcard, case-insensitive. */
+  match: string;
+  efforts: string[];
+  /** The request member that carries the choice: `reasoning_effort` or a nested `reasoning.effort`. */
+  param: string;
+}
+
+/** Feature 010 (US11, resource-formats §2): the chosen thinking effort, for one target and model. */
+export interface AiEffort {
+  /** `free:<id>` or `custom`. */
+  target: string;
+  model: string;
+  value: string;
+  /** The member that carries it, kept so that a restart sends it without the model list. */
+  param?: string;
 }
 
 /**
@@ -983,11 +1015,27 @@ export type AiOutcome =
 export type ChatRequest = { messages: unknown[]; [member: string]: unknown };
 
 /** `ai.models`: the service's list normalised (`id` from `id` or `name`, strings as ids). */
+/** Feature 010 (US8): a Markdown file read as text (`import.readMarkdown`). */
+export interface MarkdownText {
+  text: string;
+  encoding: string;
+  encodingSource: 'bom' | 'utf8' | 'judged' | 'chosen';
+  size: number;
+}
+
 export type AiModelsResult =
   | {
       ok: true;
       status: number;
-      models: { id: string; contextLength?: number; tools?: boolean }[];
+      /** `efforts`: the model's thinking-effort values where the service's list gives them (feature 010). */
+      models: {
+        id: string;
+        contextLength?: number;
+        tools?: boolean;
+        /** Feature 010 (US11): the model's efforts and the member that carries one. */
+        efforts?: string[];
+        effortParam?: string;
+      }[];
       retryAfterSeconds?: number;
       rateLimit?: AiRateLimit;
       elapsedMs: number;
@@ -1203,8 +1251,29 @@ export interface RpcMethods {
 
   // §3.3 binary
   'binary.list': { params: { docId: string }; result: BinaryMeta[] };
+  /** Feature 010 (US8): a Markdown file as text, or a request for its encoding. Never writes it. */
+  'import.readMarkdown': {
+    params: { path: string; encoding?: string };
+    result: MarkdownText | { needsEncoding: { candidates: string[] } };
+  };
+  /** Feature 010 (US8): the effective template's FB2 text, for the import's description. */
+  'template.xml': { params: void; result: { xml: string } };
+  /** Feature 010 (US8): a new untitled, modified document from FB2 text, tied to no file. */
+  'doc.newFromXml': {
+    params: { xml: string; origin?: { kind: 'markdown'; path: string } };
+    result: MaybeJob<{ document: Document & LoadReport; warnings: ValidationIssue[] }>;
+  };
+  /** Feature 010 (US1, test hooks only): the core answers the next connection's requests after `ms`. */
+  'test.holdStartup': { params: { ms: number }; result: Empty };
   'binary.add': {
-    params: { docId: string; path: string; suggestedId?: string; convertNow?: boolean };
+    /** `imagesOnly` (feature 010): refuse a file that is not a picture the core decodes (`binary.notImage`). */
+    params: {
+      docId: string;
+      path: string;
+      suggestedId?: string;
+      convertNow?: boolean;
+      imagesOnly?: boolean;
+    };
     result: BinaryMeta;
   };
   'binary.addFromClipboard': { params: { docId: string }; result: BinaryMeta };

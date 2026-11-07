@@ -75,7 +75,23 @@ export function isAiAssistantModule(id: string): boolean {
 
 // Kept as a plain object (not a callback) so vitest.config.ts can merge it.
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      // The version the bundle is compiled with (`__MFBE_UI_VERSION__`), also as a file of the
+      // bundle: the one source the tests that compare with it read (guard G5), so a test always
+      // compares with the version of the build it runs against.
+      name: 'mfbe-version-file',
+      apply: 'build',
+      generateBundle() {
+        this.emitFile({
+          type: 'asset',
+          fileName: 'version.json',
+          source: `${JSON.stringify({ version: uiVersion })}\n`,
+        });
+      },
+    },
+  ],
   // The core serves the bundle from a sub-path, so every asset URL must be relative.
   base: './',
   resolve: {

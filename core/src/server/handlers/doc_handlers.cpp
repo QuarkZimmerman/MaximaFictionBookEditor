@@ -72,6 +72,7 @@
 #include <mfbe/node_ids.hpp>
 #include <mfbe/platform.hpp>
 #include <mfbe/templates.hpp>
+#include <mfbe/text_encoding.hpp>
 #include <mfbe/validator.hpp>
 
 #include <algorithm>
@@ -1019,6 +1020,106 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
             result["templateIssue"] = resources::to_json(*effective.issue);
         }
         return result;
+    });
+
+    // Feature 010 (US8, rpc-api "template.xml"): the effective template's FB2 text in UTF-8, for
+    // the Markdown import to take its description from - the template doc.new would use.
+    router.add_method("template.xml", [&services](const json&, rpc::RpcContext&) {
+        const resources::EffectiveTemplate effective = resources::resolve_template(
+            services.layers,
+            platform::path_from_utf8(services.settings.get_string("other.templateFolder")));
+        std::string bytes;
+        try {
+            bytes = fb2::read_file_bytes(effective.path);
+        } catch (const std::exception&) {
+            bytes = fb2::read_file_bytes(services.layers.roots().bundled_resources /
+                                         resources::kTemplateFileName);
+        }
+        std::string name = "utf-8";
+        if (const encoding::Bom bom = encoding::detect_bom(bytes); !bom.encoding.empty()) {
+            name = bom.encoding;
+        } else if (const std::optional<std::string> declared =
+                       encoding::normalize_name(encoding::declared_encoding(bytes));
+                   declared && encoding::is_supported(*declared)) {
+            name = *declared;
+        }
+        return json{{"xml", encoding::decode_to_utf8(bytes, name).utf8}};
+    });
+
+    // Feature 010 (US8, rpc-api "doc.newFromXml"): a new untitled document from FB2 text - the
+    // Markdown import's book. Like doc.new it is tied to no file: no recent entry, no position.
+    router.add_method("doc.newFromXml", [&services](const json& params, rpc::RpcContext&) {
+        const std::string xml = rpc::params::string(params, "xml");
+        Opened opened;
+        fb2::ReadOptions options;
+        options.file_kind = model::FileKind::fb2;
+        try {
+            opened.read = fb2::read_bytes(xml, *opened.store, opened.ids, options);
+        } catch (const fb2::NotFictionBookFailure& e) {
+            throw not_fictionbook("", e.reason);
+        } catch (const fb2::ParseFailure& e) {
+            throw parse_error(e.error);
+        }
+        session::DocumentSession& s = services.documents.create();
+        model::Document& doc = opened.read.document;
+        doc.docId = s.docId;
+        doc.path.reset();
+        doc.sourceEncoding = "utf-8";
+        const std::vector<std::string> filled_in = model::fill_in_document_details(
+            doc, model::details_context_now(true, ui_language_setting(services)));
+        s.fileKind = model::FileKind::fb2;
+        s.sourceEncoding = "utf-8";
+        s.xlinkPrefix = opened.read.xlink_prefix;
+        s.schemaHint = doc.schemaHint;
+        s.binaries = std::move(opened.store);
+        s.ids = opened.ids;
+        s.snapshot = doc;
+        return json{{"document", loaded_document_json(doc, filled_in)},
+                    {"warnings", issues_json(opened.read.warnings)}};
+    });
+
+    // Feature 010 (US8, D31, rpc-api "import.readMarkdown"): a Markdown file read as text, never
+    // written; without `encoding` the text judge decides, or asks through `needsEncoding`.
+    router.add_method("import.readMarkdown", [](const json& params, rpc::RpcContext&) {
+        constexpr std::uintmax_t kLimit = 128ULL * 1024 * 1024;
+        const std::string path = absolute_path(rpc::params::string(params, "path"));
+        const fs::path file = platform::path_from_utf8(path);
+        std::error_code ec;
+        if (!fs::exists(file, ec)) {
+            throw io_error(path, "file not found");
+        }
+        if (const std::uintmax_t size = fs::file_size(file, ec); !ec && size > kLimit) {
+            throw rpc::RpcError(rpc::codes::kImportTooLarge, "",
+                                json{{"path", path}, {"limit", kLimit}});
+        }
+        std::string bytes;
+        try {
+            bytes = fb2::read_file_bytes(file);
+        } catch (const fb2::IoFailure& e) {
+            throw io_error(e.path, e.reason);
+        }
+        if (text::looks_binary(bytes)) {
+            throw rpc::RpcError(rpc::codes::kImportNotText, "", json{{"path", path}});
+        }
+        const std::string wanted = rpc::params::string_or(params, "encoding", "");
+        if (!wanted.empty()) {
+            std::optional<std::string> decoded = text::decode_text(bytes, wanted);
+            if (!decoded) {
+                throw rpc::invalid_params("unknown encoding", json{{"field", "encoding"}});
+            }
+            return json{{"text", std::move(*decoded)},
+                        {"encoding", wanted},
+                        {"encodingSource", "chosen"},
+                        {"size", bytes.size()}};
+        }
+        text::TextReading reading = text::read_text(bytes);
+        if (!reading.decided) {
+            return json{{"needsEncoding", json{{"candidates", reading.candidates}}}};
+        }
+        return json{{"text", std::move(reading.utf8)},
+                    {"encoding", reading.encoding},
+                    {"encodingSource", reading.source},
+                    {"size", bytes.size()}};
     });
 
     router.add_method("doc.open", [&services](const json& params, rpc::RpcContext& ctx) {

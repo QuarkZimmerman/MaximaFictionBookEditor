@@ -89,7 +89,7 @@ async function openBook(core: CoreHandle, page: Page, file: string): Promise<Loc
 async function openApp(core: CoreHandle, page: Page, lang?: UiLang): Promise<void> {
   if (lang) {
     await page.goto(withUiLang(core.baseURL, lang));
-    await page.getByTestId('app-root').waitFor();
+    await page.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
   } else {
     await core.openApp(page);
   }
@@ -547,11 +547,18 @@ test.describe('US2 (004) - annotation and history at the top of the Body view', 
       }
       await page.getByTestId(row).click({ button: 'right' });
       await expect(page.getByTestId('tree-menu')).toBeVisible();
-      for (const item of ['moveRight', 'moveWithChildren', 'moveLeft', 'merge', 'delete']) {
-        await expect(page.getByTestId(`tree-menu-${item}`)).toHaveAttribute(
-          'aria-disabled',
-          'true',
-        );
+      // Feature 010 (FR-070, D19): the block rows list only what applies to them - Go To and
+      // Go To Source; no section operation, no Delete.
+      for (const item of [
+        'moveUp',
+        'moveDown',
+        'moveRight',
+        'moveWithChildren',
+        'moveLeft',
+        'merge',
+        'delete',
+      ]) {
+        await expect(page.getByTestId(`tree-menu-${item}`)).toHaveCount(0);
       }
       await expect(page.getByTestId('tree-menu-view')).not.toHaveAttribute('aria-disabled', 'true');
       await expect(page.getByTestId('tree-menu-viewSource')).not.toHaveAttribute(

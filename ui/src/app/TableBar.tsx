@@ -66,6 +66,7 @@ import { actions, isRunLocked, useAppState, type AppStore } from '@/model/store'
 import { localName, useResourceCatalogs } from '@/views/description/resources';
 
 import { BarTextField } from './LinksBar';
+import { tip } from './tooltips';
 import { useAppServices, useCommandContext } from './services';
 
 interface BarSelectProps {
@@ -76,6 +77,9 @@ interface BarSelectProps {
   disabled: boolean;
   /** The targets' values differ: the list shows the empty entry and `data-mixed="true"`. */
   mixed?: boolean;
+  /** Feature 010 (US4, D11): what the list sets, and when a greyed one becomes available. */
+  tooltip?: string;
+  whenAvailable?: string;
   onChange: (value: string) => void;
 }
 
@@ -86,13 +90,17 @@ function BarSelect({
   options,
   disabled,
   mixed = false,
+  tooltip,
+  whenAvailable,
   onChange,
 }: BarSelectProps) {
+  const helpText = disabled && whenAvailable ? `${tooltip} ${whenAvailable}` : tooltip;
   return (
-    <label className="mfbe-bar-field" htmlFor={`${id}-input`}>
+    <label className="mfbe-bar-field" htmlFor={`${id}-input`} {...tip(helpText)}>
       <span className="mfbe-bar-label">{label}</span>
       <select
         id={`${id}-input`}
+        {...tip(helpText)}
         className="mfbe-bar-input mfbe-bar-select"
         value={disabled ? '' : value}
         disabled={disabled}
@@ -359,6 +367,8 @@ export function TableBar() {
       <BarTextField
         id="table-bar-table-id"
         label={t('tableBar.tableId')}
+        tooltip={t('tip.table.tableId')}
+        whenAvailable={t('tip.table.whenTable')}
         value={tableAttr('id')}
         disabled={disabled}
         focusKey="tableId"
@@ -369,6 +379,8 @@ export function TableBar() {
       <BarTextField
         id="table-bar-table-style"
         label={t('tableBar.tableStyle')}
+        tooltip={t('tip.table.tableStyle')}
+        whenAvailable={t('tip.table.whenTable')}
         value={tableAttr('style')}
         disabled={disabled}
         width={100}
@@ -379,6 +391,8 @@ export function TableBar() {
       <BarTextField
         id="table-bar-cell-id"
         label={t('linksBar.id')}
+        tooltip={t('tip.table.cellId')}
+        whenAvailable={t('tip.table.whenCell')}
         value={headAttr('id')}
         disabled={disabled || !head}
         onCommit={(value) => setCells({ id: value }, textTable())}
@@ -386,6 +400,8 @@ export function TableBar() {
       <BarTextField
         id="table-bar-style"
         label={t('tableBar.style')}
+        tooltip={t('tip.table.style')}
+        whenAvailable={t('tip.table.whenCell')}
         value={style.value}
         mixed={style.mixed}
         disabled={disabled || cells.length === 0}
@@ -395,6 +411,8 @@ export function TableBar() {
       <BarTextField
         id="table-bar-lang"
         label={t('tableBar.lang')}
+        tooltip={t('tip.table.lang')}
+        whenAvailable={t('tip.table.whenCell')}
         value={lang.value}
         mixed={lang.mixed}
         disabled={disabled || cells.length === 0}
@@ -410,6 +428,8 @@ export function TableBar() {
       <BarTextField
         id="table-bar-colspan"
         label={t('tableBar.colspan')}
+        tooltip={t('tip.table.colspan')}
+        whenAvailable={t('tip.table.whenCell')}
         value={headAttr('colspan')}
         disabled={disabled || !head || tooLarge}
         title={spanTitle}
@@ -419,6 +439,8 @@ export function TableBar() {
       <BarTextField
         id="table-bar-rowspan"
         label={t('tableBar.rowspan')}
+        tooltip={t('tip.table.rowspan')}
+        whenAvailable={t('tip.table.whenCell')}
         value={headAttr('rowspan')}
         disabled={disabled || !head || tooLarge}
         title={spanTitle}
@@ -428,6 +450,8 @@ export function TableBar() {
       <BarSelect
         id="table-bar-tr-align"
         label={t('tableBar.trAlign')}
+        tooltip={t('tip.table.trAlign')}
+        whenAvailable={t('tip.table.whenCell')}
         value={rowAlign.value}
         mixed={rowAlign.mixed}
         options={ALIGN_VALUES}
@@ -439,6 +463,8 @@ export function TableBar() {
       <BarSelect
         id="table-bar-td-align"
         label={t('tableBar.tdAlign')}
+        tooltip={t('tip.table.tdAlign')}
+        whenAvailable={t('tip.table.whenCell')}
         value={align.value}
         mixed={align.mixed}
         options={ALIGN_VALUES}
@@ -448,6 +474,8 @@ export function TableBar() {
       <BarSelect
         id="table-bar-td-valign"
         label={t('tableBar.tdValign')}
+        tooltip={t('tip.table.tdValign')}
+        whenAvailable={t('tip.table.whenCell')}
         value={valign.value}
         mixed={valign.mixed}
         options={VALIGN_VALUES}

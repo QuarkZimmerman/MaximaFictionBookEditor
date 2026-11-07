@@ -1,0 +1,232 @@
+{
+  "menus": [
+    {
+      "menu": "file",
+      "items": [
+        "file.new",
+        "file.open",
+        "file.save",
+        "file.saveAs",
+        "file.validate",
+        "---",
+        {
+          "submenu": "import",
+          "items": [
+            "file.importDescription",
+            "file.importMarkdown"
+          ]
+        },
+        {
+          "submenu": "export",
+          "items": [
+            "file.exportFbd"
+          ]
+        },
+        "---",
+        {
+          "submenu": "recent",
+          "items": [
+            {
+              "placeholder": "none"
+            }
+          ]
+        },
+        "---",
+        "file.exit"
+      ]
+    },
+    {
+      "menu": "edit",
+      "items": [
+        "edit.undo",
+        "edit.redo",
+        "---",
+        "edit.cut",
+        "edit.copy",
+        "edit.paste",
+        "edit.pastePlain",
+        "---",
+        "edit.find",
+        "edit.findNext",
+        "edit.replace",
+        "---",
+        "edit.gotoFootnote",
+        "edit.gotoMatchTag",
+        "edit.gotoWrongTag",
+        "---",
+        "edit.clone",
+        "edit.split",
+        "edit.merge",
+        "edit.removeOuter",
+        "---",
+        {
+          "submenu": "tableStructure",
+          "items": [
+            "table.insertRowAbove",
+            "table.insertRowBelow",
+            "table.deleteRow",
+            "---",
+            "table.insertColumnLeft",
+            "table.insertColumnRight",
+            "table.deleteColumn",
+            "---",
+            "table.mergeCells",
+            "table.splitCell",
+            "---",
+            "table.toggleHeaderCell",
+            "table.makeHeaderCells",
+            "table.makeNormalCells",
+            "table.toggleHeaderRow",
+            "table.toggleHeaderColumn",
+            "---",
+            "table.repair",
+            "---",
+            "table.select",
+            "table.delete",
+            "---",
+            "table.moveRowUp",
+            "table.moveRowDown",
+            "table.moveColumnLeft",
+            "table.moveColumnRight",
+            "table.duplicateRow",
+            "table.duplicateColumn",
+            "---",
+            "table.paragraphBefore",
+            "table.paragraphAfter"
+          ]
+        }
+      ]
+    },
+    {
+      "menu": "view",
+      "items": [
+        "view.toolbarCommands",
+        "view.toolbarScripts",
+        "view.linksBar",
+        "view.tableBar",
+        "view.statusBar",
+        "view.tree",
+        "ai.toggle",
+        "---",
+        "view.description",
+        "view.body",
+        "view.source",
+        "---",
+        "view.fastMode"
+      ]
+    },
+    {
+      "menu": "add",
+      "items": [
+        "insert.body",
+        "insert.title",
+        "insert.epigraph",
+        "insert.annotation",
+        "---",
+        "insert.textAuthor",
+        "insert.image",
+        "insert.inlineImage",
+        "insert.poem",
+        "insert.cite",
+        "insert.table",
+        "insert.sectionImage",
+        "---",
+        "insert.binary"
+      ]
+    },
+    {
+      "menu": "style",
+      "items": [
+        "style.normal",
+        "style.textAuthor",
+        "style.subtitle",
+        "---",
+        "style.link",
+        "style.footnote",
+        "style.removeLink"
+      ]
+    },
+    {
+      "menu": "tools",
+      "items": [
+        "tools.words",
+        "tools.settings",
+        "---",
+        "tools.spellcheck"
+      ]
+    },
+    {
+      "menu": "scripts",
+      "items": [
+        {
+          "placeholder": "none"
+        }
+      ]
+    },
+    {
+      "menu": "help",
+      "items": [
+        "help.checkVersion",
+        "help.about"
+      ]
+    }
+  ],
+  "hotkeys": [
+    "{\"commandId\":\"ai.ask\",\"keys\":\"Mod+K\"}",
+    "{\"commandId\":\"ai.toggle\",\"keys\":\"Mod+Shift+A\"}",
+    "{\"commandId\":\"edit.clone\",\"keys\":\"Mod+Enter\"}",
+    "{\"commandId\":\"edit.completeTag\",\"keys\":\"Ctrl+Space\"}",
+    "{\"commandId\":\"edit.copy\",\"keys\":\"Mod+C\"}",
+    "{\"commandId\":\"edit.cut\",\"keys\":\"Mod+X\"}",
+    "{\"commandId\":\"edit.find\",\"keys\":\"Mod+F\"}",
+    "{\"commandId\":\"edit.findNext\",\"keys\":\"F3\"}",
+    "{\"commandId\":\"edit.gotoFootnote\",\"keys\":\"Mod+Backspace\"}",
+    "{\"commandId\":\"edit.gotoMatchTag\",\"keys\":\"Alt+Shift+;\"}",
+    "{\"commandId\":\"edit.gotoWrongTag\",\"keys\":\"Mod+Shift+;\"}",
+    "{\"commandId\":\"edit.incrementalSearch\",\"keys\":\"Alt+I\"}",
+    "{\"commandId\":\"edit.merge\",\"keys\":\"Alt+Delete\"}",
+    "{\"commandId\":\"edit.paste\",\"keys\":\"Shift+Insert\"}",
+    "{\"commandId\":\"edit.pastePlain\",\"keys\":\"Mod+Shift+V\"}",
+    "{\"commandId\":\"edit.redo\",\"keys\":\"Mod+Y\"}",
+    "{\"commandId\":\"edit.removeOuter\",\"keys\":\"Mod+Alt+Space\"}",
+    "{\"commandId\":\"edit.replace\",\"keys\":\"Mod+H\",\"mac\":\"Alt+Mod+F\"}",
+    "{\"commandId\":\"edit.split\",\"keys\":\"Shift+Enter\"}",
+    "{\"commandId\":\"edit.undo\",\"keys\":\"Mod+Z\"}",
+    "{\"commandId\":\"file.open\",\"keys\":\"Mod+O\"}",
+    "{\"commandId\":\"file.save\",\"keys\":\"F2\"}",
+    "{\"commandId\":\"file.saveAs\",\"keys\":\"Shift+F2\"}",
+    "{\"commandId\":\"file.validate\",\"keys\":\"F8\"}",
+    "{\"commandId\":\"insert.annotation\",\"keys\":\"Mod+J\"}",
+    "{\"commandId\":\"insert.body\",\"keys\":\"Alt+Shift+B\"}",
+    "{\"commandId\":\"insert.cite\",\"keys\":\"Alt+C\"}",
+    "{\"commandId\":\"insert.epigraph\",\"keys\":\"Mod+N\"}",
+    "{\"commandId\":\"insert.image\",\"keys\":\"Mod+M\",\"mac\":\"Ctrl+M\"}",
+    "{\"commandId\":\"insert.inlineImage\",\"keys\":\"Alt+M\"}",
+    "{\"commandId\":\"insert.poem\",\"keys\":\"Mod+P\"}",
+    "{\"commandId\":\"insert.sectionImage\",\"keys\":\"Mod+G\"}",
+    "{\"commandId\":\"insert.table\",\"keys\":\"Alt+T\"}",
+    "{\"commandId\":\"insert.textAuthor\",\"keys\":\"Mod+D\"}",
+    "{\"commandId\":\"insert.title\",\"keys\":\"Mod+T\"}",
+    "{\"commandId\":\"nav.nextItem\",\"keys\":\"Mod+Tab\",\"mac\":\"Ctrl+Tab\"}",
+    "{\"commandId\":\"nav.selectHref\",\"keys\":\"Alt+H\"}",
+    "{\"commandId\":\"nav.selectText\",\"keys\":\"Escape\"}",
+    "{\"commandId\":\"nav.selectTree\",\"keys\":\"Alt+Q\"}",
+    "{\"commandId\":\"scripts.last\",\"keys\":\"Mod+`\"}",
+    "{\"commandId\":\"style.emphasis\",\"keys\":\"Mod+I\"}",
+    "{\"commandId\":\"style.footnote\",\"keys\":\"Mod+W\"}",
+    "{\"commandId\":\"style.link\",\"keys\":\"Mod+L\"}",
+    "{\"commandId\":\"style.normal\",\"keys\":\"Alt+N\"}",
+    "{\"commandId\":\"style.removeLink\",\"keys\":\"Mod+U\"}",
+    "{\"commandId\":\"style.strong\",\"keys\":\"Mod+B\"}",
+    "{\"commandId\":\"style.subtitle\",\"keys\":\"Alt+S\"}",
+    "{\"commandId\":\"style.textAuthor\",\"keys\":\"Alt+A\"}",
+    "{\"commandId\":\"tools.spellHighlight\",\"keys\":\"Shift+F7\"}",
+    "{\"commandId\":\"tools.spellcheck\",\"keys\":\"F7\"}",
+    "{\"commandId\":\"tools.words\",\"keys\":\"Alt+W\"}",
+    "{\"commandId\":\"view.body\",\"keys\":\"Alt+F2\"}",
+    "{\"commandId\":\"view.description\",\"keys\":\"Alt+F1\"}",
+    "{\"commandId\":\"view.fastMode\",\"keys\":\"F5\"}",
+    "{\"commandId\":\"view.source\",\"keys\":\"Alt+F3\"}",
+    "{\"commandId\":\"view.tree\",\"keys\":\"Mod+F5\"}"
+  ]
+}

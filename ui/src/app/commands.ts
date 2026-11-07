@@ -22,7 +22,7 @@ import { keepsBackup, savedMessage } from '@/features/file/saveOutcome';
 import { parseAccelerator } from '@/i18n';
 import type { CaretRegistry } from '@/model/caret';
 import { actions, type AppStore, documentFileName, isRunLocked } from '@/model/store';
-import type { UndoCoordinator } from '@/model/undo';
+import { namingUndo, type UndoCoordinator } from '@/model/undo';
 import { RpcError, type RpcClient } from '@/rpc/client';
 import type { Document, ViewId } from '@/rpc/types';
 import { startSourceTagCompletion } from '@/views/source/completion';
@@ -181,6 +181,8 @@ export class CommandRegistry {
   isEnabled(id: string, ctx: CommandContext): boolean {
     const command = this.commands.get(id);
     if (!command || command.stub) return false;
+    // Feature 010 (US1, D1): nothing runs before the start-up document is shown.
+    if (ctx.store.getState().startup === 'starting') return false;
     if (isRunLocked(ctx.store.getState()) && command.duringScriptRun !== 'allowed') return false;
     return command.enabled ? command.enabled(ctx) : true;
   }
@@ -263,7 +265,9 @@ export class CommandRegistry {
     const command = this.commands.get(id);
     if (!command || !this.isEnabled(id, ctx)) return false;
     try {
-      await command.run(ctx);
+      // Feature 010 (US9, DP-12): the steps the command makes are named after it.
+      if (id === 'edit.undo' || id === 'edit.redo') await command.run(ctx);
+      else await ctx.undo.runNamed(undoNameOf(command, ctx.t), () => command.run(ctx));
     } catch (error) {
       await reportCommandError(ctx, command, error);
     }
@@ -303,6 +307,25 @@ export function commandLabelRaw(command: Command, t: TFunction): string {
 /** Menu label without `&` markers. */
 export function commandLabel(command: Command, t: TFunction): string {
   return parseAccelerator(commandLabelRaw(command, t)).text;
+}
+
+/**
+ * Feature 010 (US9, D34): the name a command gives its undo step - its menu label without `&` or
+ * the trailing dots, with the Add menu's name before an Add entry ("Add Title").
+ */
+export function undoNameOf(command: Command, t: TFunction): string {
+  const name = commandLabel(command, t)
+    .replace(/\s*(\.\.\.|\u2026)$/, '')
+    .trim();
+  return command.id.startsWith('insert.')
+    ? `${parseAccelerator(t('menu.add.caption') as string).text} ${name}`
+    : name;
+}
+
+/** Feature 010 (US9, D33): the name of the step Undo (or Redo) would undo (redo), if any. */
+function topStepName(which: 'undo' | 'redo'): string | undefined {
+  const entry = which === 'undo' ? namingUndo?.peekUndo() : namingUndo?.peekRedo();
+  return entry?.label || undefined;
 }
 
 /** Short name for tooltips and the Hotkeys page. */
@@ -660,6 +683,16 @@ export function createBuiltinCommands(): Command[] {
       id: 'edit.undo',
       group: 'edit',
       ...cmdKeys('edit.undo', 'menu.edit.undo'),
+      // Feature 010 (US9, D33): "Undo Merge Sections"; plain "Undo" with nothing to undo.
+      get labelKey() {
+        return topStepName('undo') ? 'undoNames.undo' : 'menu.edit.undo';
+      },
+      get tooltipKey() {
+        return topStepName('undo') ? 'undoNames.undoTooltip' : 'cmd.edit.undo.tooltip';
+      },
+      get labelParams() {
+        return { name: topStepName('undo') ?? '' };
+      },
       icon: 'id_edit_undo',
       enabled: (ctx) => ctx.undo.canUndo,
       run(ctx) {
@@ -670,6 +703,15 @@ export function createBuiltinCommands(): Command[] {
       id: 'edit.redo',
       group: 'edit',
       ...cmdKeys('edit.redo', 'menu.edit.redo'),
+      get labelKey() {
+        return topStepName('redo') ? 'undoNames.redo' : 'menu.edit.redo';
+      },
+      get tooltipKey() {
+        return topStepName('redo') ? 'undoNames.redoTooltip' : 'cmd.edit.redo.tooltip';
+      },
+      get labelParams() {
+        return { name: topStepName('redo') ?? '' };
+      },
       icon: 'id_edit_redo',
       enabled: (ctx) => ctx.undo.canRedo,
       run(ctx) {

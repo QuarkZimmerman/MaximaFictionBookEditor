@@ -25,7 +25,12 @@ import { useTranslation } from 'react-i18next';
 
 import { parseAccelerator } from '@/i18n';
 
-import { commandLabelRaw, unavailableTitle, type CommandContext } from './commands';
+import {
+  commandDescription,
+  commandLabelRaw,
+  unavailableTitle,
+  type CommandContext,
+} from './commands';
 import { MenuItemSlot } from './MenuIcon';
 import {
   MAIN_MENU,
@@ -37,6 +42,7 @@ import {
 } from './menus';
 import { fitPopupInViewport, refitSubmenus, revealItem } from './popupFit';
 import { useAppRevision, useAppServices, useCommandContext, type AppServices } from './services';
+import { actions, useAppState } from '@/model/store';
 
 export interface MenuBarProps {
   menus?: readonly MenuSpec[];
@@ -62,6 +68,8 @@ interface ResolvedItem {
    * FR-043), set as `title` and `aria-description`.
    */
   title?: string;
+  /** Feature 010 (US4, D13): the command's description, shown by the status bar on highlight. */
+  description?: string;
   items?: ResolvedItem[];
 }
 
@@ -145,6 +153,7 @@ function resolveItems(
         hotkey: services.hotkeys.display(spec.commandId),
         ...(spec.icon ? { icon: spec.icon } : {}),
         title: command && reason ? unavailableTitle(command, reason, t) : undefined,
+        description: command ? commandDescription(command, t) || undefined : undefined,
       });
       return;
     }
@@ -224,6 +233,19 @@ export function MenuBar({ menus = MAIN_MENU, dynamicItems = {} }: MenuBarProps) 
     ? resolveItems(openMenu.id, openMenu.items, openMenu.dynamic, resolveDeps)
     : [];
   const submenuItems = openSubmenu >= 0 ? (openItems[openSubmenu]?.items ?? []) : [];
+  // Feature 010 (US4, D13): the status bar shows the highlighted entry's description while a
+  // menu is open, and what it showed before once the menus close.
+  const hinted =
+    openSubmenu >= 0 && subHighlight >= 0
+      ? submenuItems[subHighlight]
+      : highlight >= 0
+        ? openItems[highlight]
+        : undefined;
+  const menuHint = openMenuId ? (hinted?.description ?? null) : null;
+  useEffect(() => {
+    actions.setMenuHint(services.store, menuHint);
+  }, [menuHint, services.store]);
+  useEffect(() => () => actions.setMenuHint(services.store, null), [services.store]);
 
   const close = useCallback(() => {
     setOpenMenuId(null);
@@ -233,7 +255,15 @@ export function MenuBar({ menus = MAIN_MENU, dynamicItems = {} }: MenuBarProps) 
     setSubmenuByHover(false);
   }, []);
 
+  // Feature 010 (US1, D1): before the start-up document is shown, the menus open nothing.
+  const starting = useAppState((state) => state.startup, services.store) === 'starting';
+  const startingRef = useRef(starting);
+  useEffect(() => {
+    startingRef.current = starting;
+  }, [starting]);
+
   const open = useCallback((menuId: string, viaKeyboard: boolean) => {
+    if (startingRef.current) return;
     setOpenMenuId(menuId);
     setOpenSubmenu(-1);
     setSubHighlight(-1);
@@ -560,6 +590,8 @@ export function MenuBar({ menus = MAIN_MENU, dynamicItems = {} }: MenuBarProps) 
             <button
               type="button"
               role="menuitem"
+              // Feature 010 (D13): the menus get no tooltips of their own.
+              data-no-tooltip
               aria-haspopup="menu"
               aria-expanded={isOpen}
               className={`mfbe-menubar-button${isOpen ? ' mfbe-menubar-button-open' : ''}`}

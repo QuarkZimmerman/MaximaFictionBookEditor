@@ -56,6 +56,7 @@ model::BinaryMeta BinaryStore::put(const std::string& id, const std::string& con
         entry.meta.width = probe.width;
         entry.meta.height = probe.height;
         entry.meta.decodable = probe.decodable;
+        entry.meta.transparent = probe.transparent;
         entry.meta.willConvert = probe.decodable && !images::is_jpeg_or_png(probe.contentType);
     }
     entry.meta.contentType = content_type.empty() ? entry.sniffed : content_type;

@@ -19,11 +19,12 @@ import { actions, type AppStore } from '@/model/store';
 import type { RpcClient } from '@/rpc/client';
 import { selectionFor, type BodyEditorController } from '@/views/body/bodyEditor';
 import { loadSourceText, requestViewSwitch, setCaretWhenReady } from '@/views/source/sync';
+import { titleText } from '@/views/tree/treeModel';
 
 import { FIXED_BLOCK_IDS } from '@/editor/schema';
 
 import { bodyController, cmdKeys } from '../editing/common';
-import { canRunTreeOp, runTreeOp, type TreeOp } from '../treeOps';
+import { canRunTreeOp, locateNode, runTreeOp, type TreeOp } from '../treeOps';
 
 import { locateInSource } from './sourceLocate';
 
@@ -158,7 +159,10 @@ export function revealInBody(controller: BodyEditorController, nodeId: string): 
   if (!state) return false;
   const selection = selectionFor(state.doc, nodeId, 0);
   if (!selection) return false;
-  controller.apply(state.tr.setSelection(selection).scrollIntoView());
+  controller.apply(state.tr.setSelection(selection));
+  // Feature 010 (US6, D17, D18): the element lands at the top with its label or title, also
+  // when the Body view does not hold the focus (a single click on a row).
+  controller.scrollNodeToTop(nodeId);
   return true;
 }
 
@@ -167,6 +171,8 @@ export function revealInBody(controller: BodyEditorController, nodeId: string): 
 /* ------------------------------------------------------------------------ */
 
 const OP_COMMAND_IDS: Record<TreeOp, string> = {
+  moveUp: 'tree.moveUp',
+  moveDown: 'tree.moveDown',
   moveRight: 'tree.moveRight',
   moveWithChildren: 'tree.moveWithChildren',
   moveLeft: 'tree.moveLeft',
@@ -213,8 +219,16 @@ export async function runTreeCommand(ctx: CommandContext, op: TreeOp): Promise<b
   const model = store.getState().document;
   if (!nodeId || isBlockRow(nodeId) || !model || !modelEditable(ctx)) return false;
   if (op === 'delete') {
+    // Feature 010 (FR-075, D20): the question names what it removes.
+    const located = locateNode(model, nodeId);
+    const type = located?.node.type ?? '';
+    const name =
+      located && type === 'section' ? titleText(located.node).replace(/\s+/g, ' ').trim() : '';
+    const text = name
+      ? t('tree.deleteConfirmSection', { name })
+      : t(`tree.deleteConfirmFor.${type}`, { defaultValue: t('tree.deleteConfirm') });
     const answer = await ctx.dialogs.showMessage({
-      text: t('tree.deleteConfirm'),
+      text,
       caption: t('tree.caption'),
       buttons: 'yesNo',
       icon: 'warning',
@@ -262,6 +276,8 @@ export async function viewSelected(ctx: CommandContext, nodeId?: string | null):
   const controller = bodyController(ctx.store);
   if (controller && controller.setCaret({ view: 'body', nodeId: target })) {
     controller.focus();
+    // Feature 010 (US6, D17): the caret is on the first line; the element's top goes to the top.
+    controller.scrollNodeToTop(target);
     return true;
   }
   return setCaretWhenReady(ctx, { view: 'body', nodeId: target });

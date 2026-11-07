@@ -107,6 +107,7 @@ ALLOWED: dict[str, str] = {
     "GPL-2.0-or-later": "copyleft: used under GPL-3.0",
     "GPL-3.0-only": "copyleft: the project's own licence",
     "GPL-3.0-or-later": "copyleft: used under GPL-3.0",
+    "PSF-2.0": "Python Software Foundation licence - GPL-compatible (argparse, which markdown-it's command line uses; feature 010)",
 }
 # Licences that may not be part of a GPL-3.0 work (reported with a specific message; anything
 # else outside ALLOWED is reported as "not in the allowed list").
@@ -118,7 +119,7 @@ INCOMPATIBLE = {"GPL-1.0-only", "GPL-2.0-only", "GPL-2.0", "MPL-1.0", "MPL-1.1",
 # their notice - every ALLOWED licence plus the ones below (Constitution VI, D16). Licences
 # forbidding redistribution or commercial use (CC BY-NC-*, "no redistribution") are not here
 # and fail like any other licence outside the lists.
-AGGREGATE_ALLOWED = {"MPL-1.1"}
+AGGREGATE_ALLOWED = {"MPL-1.1", "OFL-1.1"}
 
 # The project's own licence (Constitution VI) and the SHA-256 of the FSF text of the GNU GPL
 # version 3 (https://www.gnu.org/licenses/gpl-3.0.txt) that LICENSE must hold.
@@ -473,8 +474,17 @@ def collect_npm(problems: list[str]) -> list[Component]:
         if isinstance(declared, list):
             declared = " OR ".join(d.get("type", "") if isinstance(d, dict) else str(d) for d in declared)
         licence, note = choose_licence(declared, [])
+        # Feature 010 (PD2): the Noto fonts are data - separate font files of the interface that
+        # the Markdown import reads at run time to draw pictures of special characters, never
+        # combined into the program (aggregate, GPLv3 section 5), shipped with the OFL text.
+        is_font = name.startswith("@fontsource/")
+        if is_font:
+            note = ("font files shipped as separate files of the interface and read at run time by "
+                    "the Markdown import to draw pictures of special characters; not combined into "
+                    "the program (aggregate, GPLv3 section 5; feature 010, PD2); the OFL text ships "
+                    "as ui/public/fonts/OFL-1.1.txt")
         component = Component(
-            group="npm",
+            group="aggregate" if is_font else "npm",
             name=name,
             version=version,
             licence=licence,
@@ -482,6 +492,15 @@ def collect_npm(problems: list[str]) -> list[Component]:
             note=note,
             homepage=f"https://www.npmjs.com/package/{name}",
         )
+        if is_font:
+            # The notice that ships with the fonts - committed, so that it is found the same way
+            # whether ui/node_modules is installed or not (CI's lint job has none).
+            shipped = REPO / "ui" / "public" / "fonts" / "OFL-1.1.txt"
+            component.text = "ui/public/fonts/OFL-1.1.txt"
+            if shipped.is_file():
+                component.text_paths.append(shipped)
+            else:
+                component.problems.append("the shipped OFL text ui/public/fonts/OFL-1.1.txt is missing")
         if have_modules:
             package_dir = node_modules / name
             installed_json = package_dir / "package.json"
@@ -501,10 +520,10 @@ def collect_npm(problems: list[str]) -> list[Component]:
             texts = sorted(
                 p for p in package_dir.glob("*") if p.is_file() and re.match(r"(?i)^(licen[cs]e|copying)", p.name)
             ) if package_dir.is_dir() else []
-            if texts:
+            if texts and not is_font:
                 component.text = f"ui/node_modules/{name}/{texts[0].name}"
                 component.text_paths.append(texts[0])
-            elif package_dir.is_dir():
+            elif package_dir.is_dir() and not is_font:
                 component.problems.append("no LICENSE file in the installed package")
         components.append(component)
     return components

@@ -1,0 +1,23 @@
+{
+  "markdown": {
+    "caption": "Імпорт Markdown",
+    "openTitle": "Імпорт файлу Markdown",
+    "filter": "Файли Markdown",
+    "picture": {
+      "missing": "файл не знайдено",
+      "notPicture": "не малюнок",
+      "error": "не вдалося додати"
+    },
+    "done": "Імпортовано з Markdown ({{encoding}}): секцій {{sections}}, малюнків {{pictures}}, таблиць {{tables}}, виносок {{notes}}.",
+    "summaryIntro": "Не все перенесено так, як написано:",
+    "summary": {
+      "webPicture": "Малюнок не додано: {{detail}}",
+      "missingTarget": "Посилання на заголовок, якого немає: {{detail}}",
+      "htmlTag": "Тег HTML пропущено, його текст збережено: <{{detail}}>",
+      "droppedChar": "Символ, якого немає в шрифтах редактора, пропущено: {{detail}}"
+    },
+    "notText": "Файл не є текстом.",
+    "tooLarge": "Файл більший, ніж може прочитати імпорт.",
+    "failed": "Не вдалося імпортувати файл Markdown {{path}}:\n{{reason}}"
+  }
+}

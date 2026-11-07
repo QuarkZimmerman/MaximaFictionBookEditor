@@ -681,10 +681,12 @@ test.describe('US2 (003) a running script is unmistakable and can be stopped', (
     await page.getByTestId('tree-content').focus();
     await page.keyboard.press('Delete');
     await expect(page.getByTestId('tree-delete-confirm')).toHaveCount(0);
-    await rows.nth(1).click({ button: 'right' });
+    // Feature 010 (FR-070, D19): a section row lists the editing entries (the block rows list
+    // only Go To and Go To Source); during the run they are greyed.
+    await page.locator('.mfbe-tree-row[data-kind="section"]').first().click({ button: 'right' });
     await expect(page.getByTestId('tree-menu')).toBeVisible();
     await expect(page.getByTestId('tree-menu-delete')).toHaveAttribute('aria-disabled', 'true');
-    await expect(page.getByTestId('tree-menu-moveRight')).toHaveAttribute('aria-disabled', 'true');
+    await expect(page.getByTestId('tree-menu-moveDown')).toHaveAttribute('aria-disabled', 'true');
     await page.keyboard.press('Escape');
     await expect(page.getByTestId('tree-menu')).toHaveCount(0);
     expect(await toXml(page)).toBe(before);

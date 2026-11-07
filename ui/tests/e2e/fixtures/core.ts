@@ -28,7 +28,7 @@
  */
 
 import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -324,7 +324,7 @@ async function startCore(
   binary: string,
   extraEnv: Record<string, string> | undefined,
 ): Promise<CoreServer> {
-  const uiDist = process.env.MFBE_UI_DIST ?? path.join(UI_DIR, 'dist');
+  const uiDist = builtUiDir();
   if (!existsSync(path.join(uiDist, 'index.html'))) {
     throw new Error(`UI bundle not found at ${uiDist}; run "npm run build" first`);
   }
@@ -710,6 +710,8 @@ export const test = base.extend<
       openApp: async (page) => {
         await page.goto(baseURL);
         await page.getByTestId('app-root').waitFor();
+        // Feature 010 (US1, FR-001): the window works once the start-up document is shown.
+        await page.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
       },
       aiRequests: () => requireCore().call<AiRequestRecord[]>('test.aiRequests'),
       resetAiRequests: async () => {
@@ -725,3 +727,17 @@ export const test = base.extend<
     await use(handle);
   },
 });
+
+/** The UI bundle the core serves to the journeys. */
+export function builtUiDir(): string {
+  return process.env.MFBE_UI_DIST ?? path.join(UI_DIR, 'dist');
+}
+
+/**
+ * The version that bundle was compiled with (`version.json`, written by the build from the same
+ * value it compiles in): what a test compares the editor's own version with.
+ */
+export function builtUiVersion(): string {
+  const file = path.join(builtUiDir(), 'version.json');
+  return (JSON.parse(readFileSync(file, 'utf8')) as { version: string }).version;
+}

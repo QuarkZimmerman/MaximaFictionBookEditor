@@ -3,6 +3,77 @@
 All notable changes to Maxima Fiction Book Editor. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.0.8 - unreleased
+
+### In short
+
+- Markdown files become books, with their pictures, footnotes and special characters
+- Every control has a tooltip; the status bar describes the highlighted menu entry
+- Pictures: a chooser for empty and missing ones, a white background, a switch for transparency
+- The Document tree: a menu for each kind of row, Move Up and Move Down, clearer names
+- Undo and Redo name the step; the Body view's menu acts on what was clicked
+- A file that cannot be opened leaves the open book as it was, unsaved changes included
+- The AI assistant's thinking effort can be chosen in Settings
+- The menus wait until the editor has started; a tree click brings the element to the top
+
+### Added
+
+- File > Import > Markdown File... makes a new book from a Markdown file - Markdown is imported,
+  not opened, so File > Open and a drop refuse it like any file that is no book. Headings become
+  sections - a single
+  level-1 heading that opens the file becomes the book's title -, the front matter fills the
+  description (title, authors, date, language, annotation, keywords, series, cover, genres),
+  footnotes become notes as Style > Footnote... makes them, lists become marked paragraphs,
+  quotes, code, tables and pictures keep their form. The file's local pictures are added; a
+  picture on the web or a missing file stays a picture that names it. Emoji, check boxes and the
+  other symbols readers' fonts may lack become small pictures drawn from the bundled Noto fonts.
+  A summary lists what could not come over as written. The file's encoding is recognised - the
+  editor asks only when it cannot tell -, and Save As proposes its name with `.fb2`.
+- Every control has a tooltip saying what it is for; a greyed one also says when it becomes
+  available. Toolbar buttons show the command's name, shortcut and description, and the status
+  bar describes the highlighted entry of a menu.
+- The picture chooser: a double-click on an empty picture, or on one whose file is missing or on
+  the web, picks a picture of the book or a file; Change Picture... and Show Picture are in the
+  context menus of the Body view, the Description fields and the cover.
+- A picture with transparent areas has a switch in its corner that shows it on the page's own
+  background instead of white, for the session.
+- The Document tree's context menu has the entries of each kind of row - section, body, picture,
+  table, title, epigraph, annotation, poem, quote -, among them Move Up and Move Down, which are
+  also two new buttons of the tree's toolbar; its scripts act on the clicked row.
+- Undo and Redo name the step they undo or redo - "Undo Merge Sections", "Redo Typing" - in the
+  Edit menu, the toolbar's tooltips and the context menus.
+- Settings > AI assistant: Thinking effort, beside the model - Model's default or the efforts the
+  model offers; the chosen one goes with every request of the assistant and shows in its banner.
+  The bundled free service's model offers Low, Medium and High; Claude models offer the levels
+  Anthropic's list names.
+
+### Changed
+
+- While the editor starts, its window says so and the menus and toolbars wait until the start-up
+  book is shown.
+- Pictures are shown on a white background in both themes.
+- A click on a row of the Document tree brings its element to the top of the Body view, its
+  heading in full, whatever had the focus before.
+- The tree's operations name what they do and the section they involve - Move Into «Chapter 1»,
+  Move Out of «Part 1», Merge With «Chapter 3» - instead of Move Right, Move Left, Move With
+  Children and Merge; Delete asks about the element by its name.
+- The Body view's context menu names elements in words (Select paragraph, Select verse, Select
+  history), and a right-click outside the selection first moves the caret to the clicked point.
+- For a service on Anthropic's address the AI assistant speaks Anthropic's own interface, its
+  Messages API, instead of the OpenAI-compatible one, which ignores the thinking effort; its requests
+  use Anthropic's automatic prompt caching.
+- The tree-command sample script Example 1 is called after what it does: Paragraphs Without a
+  Full Stop...; its id stays, so its hotkey and toolbar button still find it.
+
+### Fixed
+
+- Opening a file that turned out not to be a book - not FictionBook, broken, or an archive
+  without a book - closed the open book first, losing its unsaved changes and Undo history.
+- A transparent picture was hard to make out on the dark theme.
+- A click on a row of the Document tree did not always bring its element into view.
+- The editor's core could stop when the window closed its connection while an answer was being
+  written (Linux and macOS).
+
 ## 0.0.7 - 2026-11-06
 
 ### In short

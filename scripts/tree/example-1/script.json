@@ -2,9 +2,9 @@
   "manifestVersion": 1,
   "id": "tree/example-1",
   "name": {
-    "en": "Example 1",
-    "ru": "Пример 1",
-    "uk": "Приклад 1"
+    "en": "Paragraphs Without a Full Stop...",
+    "ru": "Абзацы без точки...",
+    "uk": "Абзаци без крапки..."
   },
   "description": {
     "en": "Sample tree command: lists the paragraphs of the clicked node (or of the whole book) that contain no full stop and jumps to the chosen one",
@@ -16,8 +16,8 @@
   "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Example 1",
-    "ru": "Пример 1"
+    "en": "Paragraphs Without a Full Stop",
+    "ru": "Абзацы без точки"
   },
   "legacy": {
     "source": "TreeCmd/Пример 1.js",

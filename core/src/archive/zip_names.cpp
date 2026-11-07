@@ -215,6 +215,10 @@ std::string convert_codepage(std::string_view raw, int codepage) {
 #endif
 }
 
+long plausibility(const std::vector<std::string>& utf8_words) {
+    return score(utf8_words);
+}
+
 std::vector<int> default_candidates() {
     std::vector<int> result;
     auto add = [&](int cp) {

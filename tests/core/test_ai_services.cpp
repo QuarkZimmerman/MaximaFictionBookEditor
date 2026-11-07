@@ -144,6 +144,8 @@ TEST_CASE(
                         {"name", "OVHcloud AI Endpoints"},
                         {"address", "https://oai.endpoints.kepler.ai.cloud.ovh.net/v1"},
                         {"model", "gpt-oss-120b"},
+                        // Feature 010 (D39): checked to act on reasoning_effort.
+                        {"efforts", json::array({"low", "medium", "high"})},
                         {"keyRequired", false},
                         {"hasKey", false},
                         {"tools", true},
@@ -561,4 +563,31 @@ TEST_CASE(
     CHECK_THROWS_AS(ai::create_user_copy(env.tmp.path() / "absent.json", user),
                     atomic_file::WriteError);
     CHECK_FALSE(fs::exists(user));
+}
+
+TEST_CASE(
+    "ai.services: a free service's efforts and the known models, the user file's first "
+    "(feature 010, D39)",
+    "[ai][services]") {
+    Layered env;
+    test::write_text(env.data / "ai-services.json", R"({"version": 1, "services": [
+        {"id": "ovhcloud", "name": "OVH", "address": "https://oai.endpoints.kepler.ai.cloud.ovh.net/v1",
+         "model": "gpt-oss-120b", "efforts": ["low", "high"], "limits": "few"}],
+      "models": [{"match": "mine-*", "efforts": ["low"], "param": "reasoning.effort"},
+                 {"match": "", "efforts": ["low"]}, {"match": "no-efforts"}]})");
+    const ai::ServiceList list = env.load();
+    const ai::ServiceEntry* entry = list.find("ovhcloud");
+    REQUIRE(entry != nullptr);
+    CHECK(entry->efforts == std::vector<std::string>{"low", "high"});
+    REQUIRE_FALSE(list.models.empty());
+    CHECK(list.models[0].match == "mine-*");
+    CHECK(list.models[0].param == "reasoning.effort");
+    const auto bad = std::count_if(list.issues.begin(), list.issues.end(), [](const auto& issue) {
+        return issue.field == std::optional<std::string>("models");
+    });
+    CHECK(bad == 2);
+    const json j = list.to_json();
+    CHECK(j["models"][0] ==
+          json{{"match", "mine-*"}, {"efforts", {"low"}}, {"param", "reasoning.effort"}});
+    CHECK(j["services"][0]["efforts"] == json::array({"low", "high"}));
 }

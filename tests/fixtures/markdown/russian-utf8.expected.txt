@@ -1,0 +1,27 @@
+<body><title><p>Глава первая</p>
+</title>
+<section><p>Съешь же ещё этих мягких французских булок да выпей чаю.</p>
+</section>
+<section id="раздел"><title><p>Раздел</p>
+</title>
+<p>Привет, мир!</p>
+</section>
+</body>
+
+{
+  "description": {
+    "title": "Глава первая",
+    "authors": [],
+    "annotation": [],
+    "genres": []
+  },
+  "pictures": [],
+  "chars": [],
+  "summary": [],
+  "stats": {
+    "sections": 2,
+    "pictures": 0,
+    "tables": 0,
+    "notes": 0
+  }
+}

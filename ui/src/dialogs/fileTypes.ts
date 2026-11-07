@@ -38,6 +38,14 @@ export function openFileTypes(t: TFunction): FileFilter[] {
   ];
 }
 
+/** Feature 010 (US8): File > Import > Markdown File.... */
+export function markdownFileTypes(t: TFunction): FileFilter[] {
+  return [
+    fileType(t('markdown.filter'), ['md', 'markdown']),
+    fileType(t('fileDialogs.types.all'), ['*']),
+  ];
+}
+
 /** Adding a block, inline or section image and choosing a cover image file. */
 export function imageFileTypes(t: TFunction): FileFilter[] {
   return [

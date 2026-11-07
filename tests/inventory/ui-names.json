@@ -1,0 +1,2003 @@
+{
+  "en": {
+    "ai.ask": {
+      "label": "Ask AI",
+      "tooltip": "Ask AI",
+      "description": "Change the selected text as you instruct the AI assistant"
+    },
+    "ai.toggle": {
+      "label": "&AI Assistant",
+      "tooltip": "AI Assistant",
+      "description": "Show or hide the AI assistant panel"
+    },
+    "edit.clone": {
+      "label": "C&lone container",
+      "tooltip": "Clone",
+      "description": "Clone selected object"
+    },
+    "edit.completeTag": {
+      "label": "Complete tag",
+      "tooltip": "Complete tag",
+      "description": "Offer the FB2 elements allowed at the cursor in the Source view, or the open elements after </"
+    },
+    "edit.copy": {
+      "label": "&Copy",
+      "tooltip": "Copy",
+      "description": "Copy the selection and put it on the Clipboard"
+    },
+    "edit.cut": {
+      "label": "Cu&t",
+      "tooltip": "Cut",
+      "description": "Cut the selection and put it on the Clipboard"
+    },
+    "edit.find": {
+      "label": "&Find...",
+      "tooltip": "Find",
+      "description": "Find the specified text"
+    },
+    "edit.findNext": {
+      "label": "Find &Next",
+      "tooltip": "Find next",
+      "description": "Repeats the last find"
+    },
+    "edit.gotoFootnote": {
+      "label": "&Go to footnote or reference",
+      "tooltip": "Go to footnote or reference",
+      "description": "Go to footnote or reference"
+    },
+    "edit.gotoMatchTag": {
+      "label": "Go to m&atching tag",
+      "tooltip": "Go to matching tag",
+      "description": "Go to matching tag"
+    },
+    "edit.gotoWrongTag": {
+      "label": "Go to &wrong tag",
+      "tooltip": "Go to wrong tag",
+      "description": "Go to wrong tag"
+    },
+    "edit.incrementalSearch": {
+      "label": "Incremental search",
+      "tooltip": "Incremental search",
+      "description": "Search while typing; the status bar shows the current match"
+    },
+    "edit.insertNbsp": {
+      "label": "Insert non-breaking space",
+      "tooltip": "Insert non-breaking space",
+      "description": "Insert a non-breaking space at the caret"
+    },
+    "edit.merge": {
+      "label": "&Merge containers",
+      "tooltip": "Merge containers",
+      "description": "Merge selected container with next"
+    },
+    "edit.paste": {
+      "label": "&Paste",
+      "tooltip": "Paste",
+      "description": "Insert Clipboard contents"
+    },
+    "edit.pastePlain": {
+      "label": "Paste as pla&in text",
+      "tooltip": "Paste as plain text",
+      "description": "Insert the Clipboard's text without formatting, links or pictures"
+    },
+    "edit.redo": {
+      "label": "&Redo",
+      "tooltip": "Redo",
+      "description": "Redo the previously undone action"
+    },
+    "edit.removeOuter": {
+      "label": "Remove outer container",
+      "tooltip": "Remove outer section",
+      "description": "Remove the container surrounding the selection, keeping its content"
+    },
+    "edit.replace": {
+      "label": "R&eplace...",
+      "tooltip": "Replace",
+      "description": "Replace specific text with different text"
+    },
+    "edit.split": {
+      "label": "&Split container",
+      "tooltip": "Split container",
+      "description": "Split parent container at selection"
+    },
+    "edit.undo": {
+      "label": "&Undo",
+      "tooltip": "Undo",
+      "description": "Undo the last action"
+    },
+    "file.exit": {
+      "label": "E&xit",
+      "tooltip": "Exit",
+      "description": "Quit the application; prompts to save documents"
+    },
+    "file.exportFbd": {
+      "label": "Export as &FBD...",
+      "tooltip": "Export as FBD",
+      "description": "Write the description of this document, with its cover, as an FBD file"
+    },
+    "file.importDescription": {
+      "label": "&Description from FictionBook file...",
+      "tooltip": "Import description",
+      "description": "Import the description of another FictionBook file into this document"
+    },
+    "file.importMarkdown": {
+      "label": "&Markdown File...",
+      "tooltip": "Import Markdown",
+      "description": "Make a new book from a Markdown file: its headings become sections, its pictures and notes come along"
+    },
+    "file.new": {
+      "label": "&New",
+      "tooltip": "New",
+      "description": "Create a new document"
+    },
+    "file.open": {
+      "label": "&Open...",
+      "tooltip": "Open",
+      "description": "Open an existing document"
+    },
+    "file.save": {
+      "label": "&Save",
+      "tooltip": "Save",
+      "description": "Save the active document"
+    },
+    "file.saveAs": {
+      "label": "Save &As...",
+      "tooltip": "Save As",
+      "description": "Save the active document with a new name"
+    },
+    "file.validate": {
+      "label": "&Validate",
+      "tooltip": "Validate",
+      "description": "Validate current document against FictionBook schema"
+    },
+    "help.about": {
+      "label": "&About Maxima Fiction Book Editor...",
+      "tooltip": "About",
+      "description": "Display program information, version number and copyright"
+    },
+    "help.checkVersion": {
+      "label": "Check for new &version...",
+      "tooltip": "Check for new version",
+      "description": "Look for a newer release of the editor on its release page"
+    },
+    "image.change": {
+      "label": "Change picture...",
+      "tooltip": "Change picture",
+      "description": "Choose another image for the picture: one of the book's pictures or a file from disk"
+    },
+    "image.saveAs": {
+      "label": "Save image as...",
+      "tooltip": "Save image as",
+      "description": "Export the selected image to a file"
+    },
+    "image.show": {
+      "label": "Show picture",
+      "tooltip": "Show picture",
+      "description": "Show the picture enlarged in the picture view"
+    },
+    "insert.annotation": {
+      "label": "A&nnotation",
+      "tooltip": "Add annotation",
+      "description": "Add annotation to the selected object"
+    },
+    "insert.binary": {
+      "label": "Add Binary &Object...",
+      "tooltip": "Add binary object",
+      "description": "Add a new binary object to the document"
+    },
+    "insert.body": {
+      "label": "&Body",
+      "tooltip": "Add body",
+      "description": "Add a new body to the document"
+    },
+    "insert.cite": {
+      "label": "&Cite",
+      "tooltip": "Insert cite",
+      "description": "Replace selection with a cite container"
+    },
+    "insert.epigraph": {
+      "label": "&Epigraph",
+      "tooltip": "Add epigraph",
+      "description": "Add epigraph to selected object"
+    },
+    "insert.image": {
+      "label": "&Image",
+      "tooltip": "Insert image",
+      "description": "Insert an image at cursor"
+    },
+    "insert.inlineImage": {
+      "label": "In&line image",
+      "tooltip": "Insert inline image",
+      "description": "Insert an inline image at cursor"
+    },
+    "insert.poem": {
+      "label": "&Poem",
+      "tooltip": "Insert poem",
+      "description": "Replace selection with a poem container"
+    },
+    "insert.sectionImage": {
+      "label": "&Section image",
+      "tooltip": "Add image",
+      "description": "Add an image to the selected object"
+    },
+    "insert.table": {
+      "label": "T&able",
+      "tooltip": "Insert table",
+      "description": "Insert a table at cursor"
+    },
+    "insert.textAuthor": {
+      "label": "Te&xt author",
+      "tooltip": "Add text author",
+      "description": "Add a text author paragraph to the selected container"
+    },
+    "insert.title": {
+      "label": "&Title",
+      "tooltip": "Add title",
+      "description": "Add a title to the selected object"
+    },
+    "nav.nextItem": {
+      "label": "Next item",
+      "tooltip": "Next item",
+      "description": "Move the focus to the next item"
+    },
+    "nav.selectHref": {
+      "label": "Href",
+      "tooltip": "Href",
+      "description": "Focus the Href field of the links bar"
+    },
+    "nav.selectId": {
+      "label": "ID",
+      "tooltip": "ID",
+      "description": "Focus the ID field of the links bar"
+    },
+    "nav.selectTableId": {
+      "label": "Table ID",
+      "tooltip": "Table ID",
+      "description": "Focus the Table ID field of the table bar"
+    },
+    "nav.selectText": {
+      "label": "Text",
+      "tooltip": "Text",
+      "description": "Return the focus to the document text"
+    },
+    "nav.selectTree": {
+      "label": "Tree",
+      "tooltip": "Tree",
+      "description": "Focus the document tree"
+    },
+    "scripts.last": {
+      "label": "&Last script",
+      "tooltip": "Last script",
+      "description": "Execute last called script"
+    },
+    "scripts.openFolder": {
+      "label": "&Open scripts folder",
+      "tooltip": "Open scripts folder",
+      "description": "Open the folder where your own scripts are kept"
+    },
+    "scripts.reload": {
+      "label": "&Reload scripts",
+      "tooltip": "Reload scripts",
+      "description": "Scan the scripts folders again"
+    },
+    "source.collapse1": {
+      "label": "Collapse 1 tree level",
+      "tooltip": "Collapse 1 tree level",
+      "description": "Fold the XML source 1 level deep"
+    },
+    "source.collapse2": {
+      "label": "Collapse 2 tree levels",
+      "tooltip": "Collapse 2 tree levels",
+      "description": "Fold the XML source 2 levels deep"
+    },
+    "source.collapse3": {
+      "label": "Collapse 3 tree levels",
+      "tooltip": "Collapse 3 tree levels",
+      "description": "Fold the XML source 3 levels deep"
+    },
+    "source.collapse4": {
+      "label": "Collapse 4 tree levels",
+      "tooltip": "Collapse 4 tree levels",
+      "description": "Fold the XML source 4 levels deep"
+    },
+    "source.collapse5": {
+      "label": "Collapse 5 tree levels",
+      "tooltip": "Collapse 5 tree levels",
+      "description": "Fold the XML source 5 levels deep"
+    },
+    "source.collapse6": {
+      "label": "Collapse 6 tree levels",
+      "tooltip": "Collapse 6 tree levels",
+      "description": "Fold the XML source 6 levels deep"
+    },
+    "source.collapse7": {
+      "label": "Collapse 7 tree levels",
+      "tooltip": "Collapse 7 tree levels",
+      "description": "Fold the XML source 7 levels deep"
+    },
+    "source.collapse8": {
+      "label": "Collapse 8 tree levels",
+      "tooltip": "Collapse 8 tree levels",
+      "description": "Fold the XML source 8 levels deep"
+    },
+    "source.collapse9": {
+      "label": "Collapse 9 tree levels",
+      "tooltip": "Collapse 9 tree levels",
+      "description": "Fold the XML source 9 levels deep"
+    },
+    "source.expand1": {
+      "label": "Expand 1 tree level",
+      "tooltip": "Expand 1 tree level",
+      "description": "Unfold the XML source 1 level deep"
+    },
+    "source.expand2": {
+      "label": "Expand 2 tree levels",
+      "tooltip": "Expand 2 tree levels",
+      "description": "Unfold the XML source 2 levels deep"
+    },
+    "source.expand3": {
+      "label": "Expand 3 tree levels",
+      "tooltip": "Expand 3 tree levels",
+      "description": "Unfold the XML source 3 levels deep"
+    },
+    "source.expand4": {
+      "label": "Expand 4 tree levels",
+      "tooltip": "Expand 4 tree levels",
+      "description": "Unfold the XML source 4 levels deep"
+    },
+    "source.expand5": {
+      "label": "Expand 5 tree levels",
+      "tooltip": "Expand 5 tree levels",
+      "description": "Unfold the XML source 5 levels deep"
+    },
+    "source.expand6": {
+      "label": "Expand 6 tree levels",
+      "tooltip": "Expand 6 tree levels",
+      "description": "Unfold the XML source 6 levels deep"
+    },
+    "source.expand7": {
+      "label": "Expand 7 tree levels",
+      "tooltip": "Expand 7 tree levels",
+      "description": "Unfold the XML source 7 levels deep"
+    },
+    "source.expand8": {
+      "label": "Expand 8 tree levels",
+      "tooltip": "Expand 8 tree levels",
+      "description": "Unfold the XML source 8 levels deep"
+    },
+    "source.expand9": {
+      "label": "Expand 9 tree levels",
+      "tooltip": "Expand 9 tree levels",
+      "description": "Unfold the XML source 9 levels deep"
+    },
+    "style.code": {
+      "label": "Code",
+      "tooltip": "Code",
+      "description": "Marks the selection \"code\" (toggle)"
+    },
+    "style.emphasis": {
+      "label": "Emphasis",
+      "tooltip": "Emphasis",
+      "description": "Marks the selection \"emphasis\" (toggle)"
+    },
+    "style.footnote": {
+      "label": "&Footnote...",
+      "tooltip": "Footnote",
+      "description": "Add a footnote"
+    },
+    "style.link": {
+      "label": "&Link...",
+      "tooltip": "Hyperlink",
+      "description": "Add a hyperlink"
+    },
+    "style.normal": {
+      "label": "&Normal",
+      "tooltip": "Normal",
+      "description": "Normal paragraph style"
+    },
+    "style.removeLink": {
+      "label": "&Remove link",
+      "tooltip": "Remove links",
+      "description": "Remove links from selected text"
+    },
+    "style.strikethrough": {
+      "label": "Strikethrough",
+      "tooltip": "Strikethrough",
+      "description": "Marks the selection \"strikethrough\" (toggle)"
+    },
+    "style.strong": {
+      "label": "Strong",
+      "tooltip": "Strong",
+      "description": "Marks the selection \"strong\" (toggle)"
+    },
+    "style.sub": {
+      "label": "Sub",
+      "tooltip": "Sub",
+      "description": "Marks the selection \"sub\" (toggle)"
+    },
+    "style.subtitle": {
+      "label": "&Subtitle",
+      "tooltip": "Subtitle",
+      "description": "Subtitle paragraph style"
+    },
+    "style.sup": {
+      "label": "Sup",
+      "tooltip": "Sup",
+      "description": "Marks the selection \"sup\" (toggle)"
+    },
+    "style.textAuthor": {
+      "label": "Text &Author",
+      "tooltip": "Text author",
+      "description": "Text author paragraph style"
+    },
+    "table.delete": {
+      "label": "Delete &table",
+      "tooltip": "Delete table",
+      "description": "Delete the whole table"
+    },
+    "table.deleteColumn": {
+      "label": "Delete c&olumn",
+      "tooltip": "Delete column",
+      "description": "Delete the caret's column or the columns of the selected block"
+    },
+    "table.deleteRow": {
+      "label": "&Delete row",
+      "tooltip": "Delete row",
+      "description": "Delete the caret's row or the rows of the selected block"
+    },
+    "table.duplicateColumn": {
+      "label": "Duplicate column",
+      "tooltip": "Duplicate column",
+      "description": "Insert a copy of the caret's column or the selected columns to their right"
+    },
+    "table.duplicateRow": {
+      "label": "Duplicate row",
+      "tooltip": "Duplicate row",
+      "description": "Insert a copy of the caret's row or the selected rows below them"
+    },
+    "table.insertColumnLeft": {
+      "label": "Insert column to the &left",
+      "tooltip": "Insert column to the left",
+      "description": "Insert empty columns to the left of the caret's column or the selected block"
+    },
+    "table.insertColumnRight": {
+      "label": "Insert column to the &right",
+      "tooltip": "Insert column to the right",
+      "description": "Insert empty columns to the right of the caret's column or the selected block"
+    },
+    "table.insertRowAbove": {
+      "label": "Insert row &above",
+      "tooltip": "Insert row above",
+      "description": "Insert empty rows above the caret's row or the selected block"
+    },
+    "table.insertRowBelow": {
+      "label": "Insert row &below",
+      "tooltip": "Insert row below",
+      "description": "Insert empty rows below the caret's row or the selected block"
+    },
+    "table.makeHeaderCells": {
+      "label": "Ma&ke header cells",
+      "tooltip": "Make header cells",
+      "description": "Make every cell of the selected block a header cell"
+    },
+    "table.makeNormalCells": {
+      "label": "Make &normal cells",
+      "tooltip": "Make normal cells",
+      "description": "Make every cell of the selected block a normal cell"
+    },
+    "table.mergeCells": {
+      "label": "&Merge cells",
+      "tooltip": "Merge cells",
+      "description": "Merge the selected block into one cell"
+    },
+    "table.moveColumnLeft": {
+      "label": "Move column le&ft",
+      "tooltip": "Move column left",
+      "description": "Move the caret's column or the selected columns to the left"
+    },
+    "table.moveColumnRight": {
+      "label": "Move column r&ight",
+      "tooltip": "Move column right",
+      "description": "Move the caret's column or the selected columns to the right"
+    },
+    "table.moveRowDown": {
+      "label": "Mo&ve row down",
+      "tooltip": "Move row down",
+      "description": "Move the caret's row or the selected rows down"
+    },
+    "table.moveRowUp": {
+      "label": "Move row &up",
+      "tooltip": "Move row up",
+      "description": "Move the caret's row or the selected rows up"
+    },
+    "table.paragraphAfter": {
+      "label": "Paragrap&h after table",
+      "tooltip": "Paragraph after table",
+      "description": "Insert an empty paragraph directly after the table"
+    },
+    "table.paragraphBefore": {
+      "label": "Paragraph before table",
+      "tooltip": "Paragraph before table",
+      "description": "Insert an empty paragraph directly before the table"
+    },
+    "table.repair": {
+      "label": "Re&pair table",
+      "tooltip": "Repair table",
+      "description": "Make an irregular table regular without deleting any content"
+    },
+    "table.select": {
+      "label": "S&elect table",
+      "tooltip": "Select table",
+      "description": "Select the whole table"
+    },
+    "table.splitCell": {
+      "label": "&Split cell",
+      "tooltip": "Split cell",
+      "description": "Split a merged cell into one cell per position"
+    },
+    "table.toggleHeaderCell": {
+      "label": "To&ggle header cell",
+      "tooltip": "Toggle header cell",
+      "description": "Switch the caret's cell between header and normal"
+    },
+    "table.toggleHeaderColumn": {
+      "label": "Toggle header &column",
+      "tooltip": "Toggle header column",
+      "description": "Make the cells of the caret's column header cells, or normal cells when all already are"
+    },
+    "table.toggleHeaderRow": {
+      "label": "Toggle header ro&w",
+      "tooltip": "Toggle header row",
+      "description": "Make the cells of the caret's row header cells, or normal cells when all already are"
+    },
+    "tools.settings": {
+      "label": "&Settings...",
+      "tooltip": "Display options",
+      "description": "Display options"
+    },
+    "tools.spellHighlight": {
+      "label": "Toggle highlight",
+      "tooltip": "Toggle highlight",
+      "description": "Toggle highlighting of misspelled words"
+    },
+    "tools.spellcheck": {
+      "label": "Spell &check...",
+      "tooltip": "Check document spelling",
+      "description": "Check document spelling..."
+    },
+    "tools.words": {
+      "label": "&Words...",
+      "tooltip": "Words",
+      "description": "Word frequency list with replacements"
+    },
+    "tree.delete": {
+      "label": "Tree: delete",
+      "tooltip": "Tree: delete",
+      "description": "Delete the selected tree element"
+    },
+    "tree.merge": {
+      "label": "Tree: merge",
+      "tooltip": "Tree: merge",
+      "description": "Merge the selected section with the following section"
+    },
+    "tree.moveDown": {
+      "label": "Tree: move down",
+      "tooltip": "Tree: move down",
+      "description": "Swap the selected section with the section after it"
+    },
+    "tree.moveLeft": {
+      "label": "Tree: move left",
+      "tooltip": "Tree: move left",
+      "description": "Lift the selected section to the level of its parent"
+    },
+    "tree.moveRight": {
+      "label": "Tree: move right",
+      "tooltip": "Tree: move right",
+      "description": "Make the selected section a child of the previous section"
+    },
+    "tree.moveUp": {
+      "label": "Tree: move up",
+      "tooltip": "Tree: move up",
+      "description": "Swap the selected section with the section before it"
+    },
+    "tree.moveWithChildren": {
+      "label": "Tree: move with children",
+      "tooltip": "Tree: move with children",
+      "description": "Move the selected section with its children into the previous section"
+    },
+    "tree.view": {
+      "label": "Tree: view",
+      "tooltip": "Tree: view",
+      "description": "Show the selected element in the Body view"
+    },
+    "tree.viewSource": {
+      "label": "Tree: view source",
+      "tooltip": "Tree: view source",
+      "description": "Show the selected element in the Source view"
+    },
+    "view.body": {
+      "label": "&Body",
+      "tooltip": "Body",
+      "description": "Show document body"
+    },
+    "view.description": {
+      "label": "D&escription",
+      "tooltip": "Description",
+      "description": "Show document description"
+    },
+    "view.fastMode": {
+      "label": "Fast Mode",
+      "tooltip": "Toggle fast mode",
+      "description": "Toggle fast mode"
+    },
+    "view.linksBar": {
+      "label": "&Links Bar",
+      "tooltip": "Toggle LinksBar",
+      "description": "Show or hide the links bar"
+    },
+    "view.source": {
+      "label": "So&urce",
+      "tooltip": "Source",
+      "description": "Show document source code"
+    },
+    "view.statusBar": {
+      "label": "&Status Bar",
+      "tooltip": "Toggle StatusBar",
+      "description": "Show or hide the status bar"
+    },
+    "view.tableBar": {
+      "label": "Table Bar",
+      "tooltip": "Toggle TableBar",
+      "description": "Show or hide the table bar"
+    },
+    "view.toolbarCommands": {
+      "label": "&Commands toolbar",
+      "tooltip": "Toggle Command ToolBar",
+      "description": "Show or hide the command toolbar"
+    },
+    "view.toolbarScripts": {
+      "label": "Scripts toolbar",
+      "tooltip": "Toggle Scripts ToolBar",
+      "description": "Show or hide the scripts toolbar"
+    },
+    "view.tree": {
+      "label": "&Document Tree",
+      "tooltip": "Toggle document tree",
+      "description": "Show or hide the document tree"
+    }
+  },
+  "ru": {
+    "ai.ask": {
+      "label": "Спросить ИИ",
+      "tooltip": "Спросить ИИ",
+      "description": "Изменить выделенный текст по вашей инструкции для ИИ-помощника"
+    },
+    "ai.toggle": {
+      "label": "&ИИ-помощник",
+      "tooltip": "ИИ-помощник",
+      "description": "Показать или скрыть панель ИИ-помощника"
+    },
+    "edit.clone": {
+      "label": "К&лонировать",
+      "tooltip": "Клонировать",
+      "description": "Клонировать контейнер"
+    },
+    "edit.completeTag": {
+      "label": "Дополнить тег",
+      "tooltip": "Дополнить тег",
+      "description": "Предложить элементы FB2, допустимые в позиции курсора в редакторе кода, или открытые элементы после </"
+    },
+    "edit.copy": {
+      "label": "&Копировать",
+      "tooltip": "Копировать",
+      "description": "Скопировать выделенный фрагмент в буфер обмена"
+    },
+    "edit.cut": {
+      "label": "В&ырезать",
+      "tooltip": "Вырезать",
+      "description": "Вырезать выделенный фрагмент и положить его в буфер обмена"
+    },
+    "edit.find": {
+      "label": "&Найти...",
+      "tooltip": "Найти",
+      "description": "Найти текст"
+    },
+    "edit.findNext": {
+      "label": "Н&айти далее",
+      "tooltip": "Найти далее",
+      "description": "Повторить последний поиск"
+    },
+    "edit.gotoFootnote": {
+      "label": "&Перейти к сноске или к ссылке",
+      "tooltip": "Перейти на текст сноски или к ссылке",
+      "description": "Перейти на текст сноски или к ссылке"
+    },
+    "edit.gotoMatchTag": {
+      "label": "Перейти к парному &тегу",
+      "tooltip": "Перейти к парному тегу",
+      "description": "Перейти к парному тегу"
+    },
+    "edit.gotoWrongTag": {
+      "label": "Перейти к о&шибочному тегу",
+      "tooltip": "Перейти к ошибочному тегу",
+      "description": "Перейти к ошибочному тегу"
+    },
+    "edit.incrementalSearch": {
+      "label": "Инкрементальный поиск",
+      "tooltip": "Инкрементальный поиск",
+      "description": "Поиск по мере ввода; текущее совпадение показывается в строке состояния"
+    },
+    "edit.insertNbsp": {
+      "label": "Вставить неразрывный пробел",
+      "tooltip": "Вставить неразрывный пробел",
+      "description": "Вставить неразрывный пробел в позиции курсора"
+    },
+    "edit.merge": {
+      "label": "Скле&ить",
+      "tooltip": "Слить контейнеры",
+      "description": "Слить выделенный контейнер со следующим"
+    },
+    "edit.paste": {
+      "label": "В&ставить",
+      "tooltip": "Вставить",
+      "description": "Вставить содержимое буфера обмена"
+    },
+    "edit.pastePlain": {
+      "label": "Вставить без &форматирования",
+      "tooltip": "Вставить без форматирования",
+      "description": "Вставить текст из буфера обмена без форматирования, ссылок и рисунков"
+    },
+    "edit.redo": {
+      "label": "&Вернуть",
+      "tooltip": "Вернуть",
+      "description": "Вернуть последнее отмененное действие"
+    },
+    "edit.removeOuter": {
+      "label": "&Убрать внешний",
+      "tooltip": "Удалить внешнюю секцию",
+      "description": "Убрать контейнер вокруг выделения, сохранив его содержимое"
+    },
+    "edit.replace": {
+      "label": "&Заменить...",
+      "tooltip": "Заменить",
+      "description": "Найти текст и заменить его другим текстом"
+    },
+    "edit.split": {
+      "label": "Разр&езать",
+      "tooltip": "Разрезать контейнер",
+      "description": "Разрезать контейнер"
+    },
+    "edit.undo": {
+      "label": "&Отменить",
+      "tooltip": "Отменить",
+      "description": "Отменить последнее действие"
+    },
+    "file.exit": {
+      "label": "&Выход",
+      "tooltip": "Выход",
+      "description": "Закрыть программу; будет предложено сохранить документ перед закрытием"
+    },
+    "file.exportFbd": {
+      "label": "Экспорт в &FBD...",
+      "tooltip": "Экспорт в FBD",
+      "description": "Записать описание этого документа вместе с обложкой в файл FBD"
+    },
+    "file.importDescription": {
+      "label": "Опис&ание из файла FictionBook...",
+      "tooltip": "Импорт описания",
+      "description": "Импортировать описание из другого файла FictionBook в этот документ"
+    },
+    "file.importMarkdown": {
+      "label": "Файл &Markdown...",
+      "tooltip": "Импорт Markdown",
+      "description": "Создать новую книгу из файла Markdown: заголовки становятся секциями, картинки и сноски переносятся"
+    },
+    "file.new": {
+      "label": "&Создать",
+      "tooltip": "Новый",
+      "description": "Создать новый документ"
+    },
+    "file.open": {
+      "label": "&Открыть...",
+      "tooltip": "Открыть",
+      "description": "Открыть документ"
+    },
+    "file.save": {
+      "label": "Со&хранить",
+      "tooltip": "Сохранить",
+      "description": "Сохранить документ"
+    },
+    "file.saveAs": {
+      "label": "Сохранить &как...",
+      "tooltip": "Сохранить как",
+      "description": "Сохранить активный документ под новым именем"
+    },
+    "file.validate": {
+      "label": "&Проверить",
+      "tooltip": "Проверить",
+      "description": "Проверить документ на соответствие формату Fiction Book"
+    },
+    "help.about": {
+      "label": "&О программе...",
+      "tooltip": "О программе",
+      "description": "Показать информацию о программе, номер версии и копирайт"
+    },
+    "help.checkVersion": {
+      "label": "Проверить &новую версию...",
+      "tooltip": "Проверить новую версию",
+      "description": "Найти более новый выпуск редактора на его странице выпусков"
+    },
+    "image.change": {
+      "label": "Сменить картинку...",
+      "tooltip": "Сменить картинку",
+      "description": "Выбрать для картинки другое изображение: одну из картинок книги или файл с диска"
+    },
+    "image.saveAs": {
+      "label": "Сохранить картинку как...",
+      "tooltip": "Сохранить картинку как",
+      "description": "Сохранить выбранное изображение в файл"
+    },
+    "image.show": {
+      "label": "Показать картинку",
+      "tooltip": "Показать картинку",
+      "description": "Показать картинку увеличенной в окне просмотра"
+    },
+    "insert.annotation": {
+      "label": "&Аннотация",
+      "tooltip": "Добавить аннотацию",
+      "description": "Добавить аннотацию к выделенному фрагменту"
+    },
+    "insert.binary": {
+      "label": "&Прикрепить",
+      "tooltip": "Прикрепить бинарный файл",
+      "description": "Прикрепить бинарный файл к документу"
+    },
+    "insert.body": {
+      "label": "&Тело",
+      "tooltip": "Добавить тело",
+      "description": "Добавить новое тело документа"
+    },
+    "insert.cite": {
+      "label": "&Цитата",
+      "tooltip": "Вставить цитату",
+      "description": "Вставить цитату"
+    },
+    "insert.epigraph": {
+      "label": "&Эпиграф",
+      "tooltip": "Добавить эпиграф",
+      "description": "Добавить эпиграф к выделенному фрагменту"
+    },
+    "insert.image": {
+      "label": "&Рисунок",
+      "tooltip": "Вставить изображение",
+      "description": "Вставить изображение на месте курсора"
+    },
+    "insert.inlineImage": {
+      "label": "Рисунок в т&екст",
+      "tooltip": "Вставить изображение в текст",
+      "description": "Вставить изображение в текст на месте курсора"
+    },
+    "insert.poem": {
+      "label": "&Стихи",
+      "tooltip": "Добавить стихи",
+      "description": "Добавить стихи"
+    },
+    "insert.sectionImage": {
+      "label": "Р&исунок секции",
+      "tooltip": "Добавить изображение",
+      "description": "Добавить изображение"
+    },
+    "insert.table": {
+      "label": "Та&блица",
+      "tooltip": "Вставить таблицу",
+      "description": "Вставить таблицу на место курсора"
+    },
+    "insert.textAuthor": {
+      "label": "А&втор",
+      "tooltip": "Добавить автора текста",
+      "description": "Добавить автора текста в контейнер"
+    },
+    "insert.title": {
+      "label": "&Заголовок",
+      "tooltip": "Добавить заголовок",
+      "description": "Добавить заголовок к выделенному элементу"
+    },
+    "nav.nextItem": {
+      "label": "Следующий элемент",
+      "tooltip": "Следующий элемент",
+      "description": "Перейти к следующему элементу"
+    },
+    "nav.selectHref": {
+      "label": "Ссылка",
+      "tooltip": "Ссылка",
+      "description": "Перейти в поле «Ссылка» панели ссылок"
+    },
+    "nav.selectId": {
+      "label": "ID",
+      "tooltip": "ID",
+      "description": "Перейти в поле «ID» панели ссылок"
+    },
+    "nav.selectTableId": {
+      "label": "ID таблицы",
+      "tooltip": "ID таблицы",
+      "description": "Перейти в поле «ID таблицы» панели таблиц"
+    },
+    "nav.selectText": {
+      "label": "Текст",
+      "tooltip": "Текст",
+      "description": "Вернуть фокус в текст документа"
+    },
+    "nav.selectTree": {
+      "label": "Дерево",
+      "tooltip": "Дерево",
+      "description": "Перейти в дерево документа"
+    },
+    "scripts.last": {
+      "label": "&Последний скрипт",
+      "tooltip": "Последний скрипт",
+      "description": "Выполнить последний запущенный скрипт"
+    },
+    "scripts.openFolder": {
+      "label": "&Открыть папку скриптов",
+      "tooltip": "Открыть папку скриптов",
+      "description": "Открыть папку, в которой хранятся ваши собственные скрипты"
+    },
+    "scripts.reload": {
+      "label": "Пере&читать скрипты",
+      "tooltip": "Перечитать скрипты",
+      "description": "Заново просмотреть папки со скриптами"
+    },
+    "source.collapse1": {
+      "label": "Свернуть дерево на 1 уровень",
+      "tooltip": "Свернуть дерево на 1 уровень",
+      "description": "Свернуть XML-код на 1 уровень вложенности"
+    },
+    "source.collapse2": {
+      "label": "Свернуть дерево на 2 уровня",
+      "tooltip": "Свернуть дерево на 2 уровня",
+      "description": "Свернуть XML-код на 2 уровня вложенности"
+    },
+    "source.collapse3": {
+      "label": "Свернуть дерево на 3 уровня",
+      "tooltip": "Свернуть дерево на 3 уровня",
+      "description": "Свернуть XML-код на 3 уровня вложенности"
+    },
+    "source.collapse4": {
+      "label": "Свернуть дерево на 4 уровня",
+      "tooltip": "Свернуть дерево на 4 уровня",
+      "description": "Свернуть XML-код на 4 уровня вложенности"
+    },
+    "source.collapse5": {
+      "label": "Свернуть дерево на 5 уровней",
+      "tooltip": "Свернуть дерево на 5 уровней",
+      "description": "Свернуть XML-код на 5 уровней вложенности"
+    },
+    "source.collapse6": {
+      "label": "Свернуть дерево на 6 уровней",
+      "tooltip": "Свернуть дерево на 6 уровней",
+      "description": "Свернуть XML-код на 6 уровней вложенности"
+    },
+    "source.collapse7": {
+      "label": "Свернуть дерево на 7 уровней",
+      "tooltip": "Свернуть дерево на 7 уровней",
+      "description": "Свернуть XML-код на 7 уровней вложенности"
+    },
+    "source.collapse8": {
+      "label": "Свернуть дерево на 8 уровней",
+      "tooltip": "Свернуть дерево на 8 уровней",
+      "description": "Свернуть XML-код на 8 уровней вложенности"
+    },
+    "source.collapse9": {
+      "label": "Свернуть дерево на 9 уровней",
+      "tooltip": "Свернуть дерево на 9 уровней",
+      "description": "Свернуть XML-код на 9 уровней вложенности"
+    },
+    "source.expand1": {
+      "label": "Развернуть дерево на 1 уровень",
+      "tooltip": "Развернуть дерево на 1 уровень",
+      "description": "Развернуть XML-код на 1 уровень вложенности"
+    },
+    "source.expand2": {
+      "label": "Развернуть дерево на 2 уровня",
+      "tooltip": "Развернуть дерево на 2 уровня",
+      "description": "Развернуть XML-код на 2 уровня вложенности"
+    },
+    "source.expand3": {
+      "label": "Развернуть дерево на 3 уровня",
+      "tooltip": "Развернуть дерево на 3 уровня",
+      "description": "Развернуть XML-код на 3 уровня вложенности"
+    },
+    "source.expand4": {
+      "label": "Развернуть дерево на 4 уровня",
+      "tooltip": "Развернуть дерево на 4 уровня",
+      "description": "Развернуть XML-код на 4 уровня вложенности"
+    },
+    "source.expand5": {
+      "label": "Развернуть дерево на 5 уровней",
+      "tooltip": "Развернуть дерево на 5 уровней",
+      "description": "Развернуть XML-код на 5 уровней вложенности"
+    },
+    "source.expand6": {
+      "label": "Развернуть дерево на 6 уровней",
+      "tooltip": "Развернуть дерево на 6 уровней",
+      "description": "Развернуть XML-код на 6 уровней вложенности"
+    },
+    "source.expand7": {
+      "label": "Развернуть дерево на 7 уровней",
+      "tooltip": "Развернуть дерево на 7 уровней",
+      "description": "Развернуть XML-код на 7 уровней вложенности"
+    },
+    "source.expand8": {
+      "label": "Развернуть дерево на 8 уровней",
+      "tooltip": "Развернуть дерево на 8 уровней",
+      "description": "Развернуть XML-код на 8 уровней вложенности"
+    },
+    "source.expand9": {
+      "label": "Развернуть дерево на 9 уровней",
+      "tooltip": "Развернуть дерево на 9 уровней",
+      "description": "Развернуть XML-код на 9 уровней вложенности"
+    },
+    "style.code": {
+      "label": "Код",
+      "tooltip": "Код",
+      "description": "Код"
+    },
+    "style.emphasis": {
+      "label": "Курсив",
+      "tooltip": "Курсив",
+      "description": "Курсив"
+    },
+    "style.footnote": {
+      "label": "С&носка...",
+      "tooltip": "Сноска",
+      "description": "Добавить сноску"
+    },
+    "style.link": {
+      "label": "&Ссылка...",
+      "tooltip": "Гиперссылка",
+      "description": "Добавить гиперссылку"
+    },
+    "style.normal": {
+      "label": "&Обычный",
+      "tooltip": "Обычный текст",
+      "description": "Обычный текст"
+    },
+    "style.removeLink": {
+      "label": "&Удалить ссылку",
+      "tooltip": "Удалить ссылки",
+      "description": "Удалить ссылки из выделенного текста"
+    },
+    "style.strikethrough": {
+      "label": "Зачеркнутый текст",
+      "tooltip": "Зачеркнутый текст",
+      "description": "Зачеркнутый текст"
+    },
+    "style.strong": {
+      "label": "Жирный",
+      "tooltip": "Жирный",
+      "description": "Жирный"
+    },
+    "style.sub": {
+      "label": "Нижний индекс",
+      "tooltip": "Нижний индекс",
+      "description": "Нижний индекс"
+    },
+    "style.subtitle": {
+      "label": "&Подзаголовок",
+      "tooltip": "Подзаголовок",
+      "description": "Подзаголовок"
+    },
+    "style.sup": {
+      "label": "Верхний индекс",
+      "tooltip": "Верхний индекс",
+      "description": "Верхний индекс"
+    },
+    "style.textAuthor": {
+      "label": "&Автор",
+      "tooltip": "Автор текста",
+      "description": "Автор текста параграфа"
+    },
+    "table.delete": {
+      "label": "Удалить &таблицу",
+      "tooltip": "Удалить таблицу",
+      "description": "Удалить всю таблицу"
+    },
+    "table.deleteColumn": {
+      "label": "Удалить столбе&ц",
+      "tooltip": "Удалить столбец",
+      "description": "Удалить столбец с курсором или столбцы выделенного блока"
+    },
+    "table.deleteRow": {
+      "label": "&Удалить строку",
+      "tooltip": "Удалить строку",
+      "description": "Удалить строку с курсором или строки выделенного блока"
+    },
+    "table.duplicateColumn": {
+      "label": "&Дублировать столбец",
+      "tooltip": "Дублировать столбец",
+      "description": "Вставить копию столбца с курсором или выделенных столбцов справа от них"
+    },
+    "table.duplicateRow": {
+      "label": "Дублировать стро&ку",
+      "tooltip": "Дублировать строку",
+      "description": "Вставить копию строки с курсором или выделенных строк под ними"
+    },
+    "table.insertColumnLeft": {
+      "label": "Вставить столбец с&лева",
+      "tooltip": "Вставить столбец слева",
+      "description": "Вставить пустые столбцы слева от столбца с курсором или от выделенного блока"
+    },
+    "table.insertColumnRight": {
+      "label": "Вставить столбец с&права",
+      "tooltip": "Вставить столбец справа",
+      "description": "Вставить пустые столбцы справа от столбца с курсором или от выделенного блока"
+    },
+    "table.insertRowAbove": {
+      "label": "Вставить строку вы&ше",
+      "tooltip": "Вставить строку выше",
+      "description": "Вставить пустые строки над строкой с курсором или над выделенным блоком"
+    },
+    "table.insertRowBelow": {
+      "label": "Вставить строку ни&же",
+      "tooltip": "Вставить строку ниже",
+      "description": "Вставить пустые строки под строкой с курсором или под выделенным блоком"
+    },
+    "table.makeHeaderCells": {
+      "label": "&Сделать ячейками заголовка",
+      "tooltip": "Сделать ячейками заголовка",
+      "description": "Сделать все ячейки выделенного блока ячейками заголовка"
+    },
+    "table.makeNormalCells": {
+      "label": "Сделать о&бычными ячейками",
+      "tooltip": "Сделать обычными ячейками",
+      "description": "Сделать все ячейки выделенного блока обычными ячейками"
+    },
+    "table.mergeCells": {
+      "label": "&Объединить ячейки",
+      "tooltip": "Объединить ячейки",
+      "description": "Объединить выделенный блок в одну ячейку"
+    },
+    "table.moveColumnLeft": {
+      "label": "Пере&местить столбец влево",
+      "tooltip": "Переместить столбец влево",
+      "description": "Переместить столбец с курсором или выделенные столбцы влево"
+    },
+    "table.moveColumnRight": {
+      "label": "Переместить столбец впр&аво",
+      "tooltip": "Переместить столбец вправо",
+      "description": "Переместить столбец с курсором или выделенные столбцы вправо"
+    },
+    "table.moveRowDown": {
+      "label": "Переместить строку в&низ",
+      "tooltip": "Переместить строку вниз",
+      "description": "Переместить строку с курсором или выделенные строки вниз"
+    },
+    "table.moveRowUp": {
+      "label": "Переместить строку ввер&х",
+      "tooltip": "Переместить строку вверх",
+      "description": "Переместить строку с курсором или выделенные строки вверх"
+    },
+    "table.paragraphAfter": {
+      "label": "Абзац после таблиц&ы",
+      "tooltip": "Абзац после таблицы",
+      "description": "Вставить пустой абзац непосредственно после таблицы"
+    },
+    "table.paragraphBefore": {
+      "label": "Абзац пе&ред таблицей",
+      "tooltip": "Абзац перед таблицей",
+      "description": "Вставить пустой абзац непосредственно перед таблицей"
+    },
+    "table.repair": {
+      "label": "&Исправить таблицу",
+      "tooltip": "Исправить таблицу",
+      "description": "Сделать неправильную таблицу правильной, не удаляя содержимого"
+    },
+    "table.select": {
+      "label": "Выд&елить таблицу",
+      "tooltip": "Выделить таблицу",
+      "description": "Выделить всю таблицу"
+    },
+    "table.splitCell": {
+      "label": "Ра&зделить ячейку",
+      "tooltip": "Разделить ячейку",
+      "description": "Разделить объединённую ячейку на ячейки, по одной на каждую позицию"
+    },
+    "table.toggleHeaderCell": {
+      "label": "Переключить &ячейку заголовка",
+      "tooltip": "Переключить ячейку заголовка",
+      "description": "Превратить ячейку с курсором в ячейку заголовка или обратно в обычную"
+    },
+    "table.toggleHeaderColumn": {
+      "label": "Переключить столбец заголо&вков",
+      "tooltip": "Переключить столбец заголовков",
+      "description": "Сделать ячейки столбца с курсором ячейками заголовка или, если все они уже такие, обычными ячейками"
+    },
+    "table.toggleHeaderRow": {
+      "label": "Переключить строку за&головков",
+      "tooltip": "Переключить строку заголовков",
+      "description": "Сделать ячейки строки с курсором ячейками заголовка или, если все они уже такие, обычными ячейками"
+    },
+    "tools.settings": {
+      "label": "&Настройки...",
+      "tooltip": "Настройки",
+      "description": "Настройки редактора"
+    },
+    "tools.spellHighlight": {
+      "label": "Переключить выделение слов с ошибками",
+      "tooltip": "Переключить выделение слов с ошибками",
+      "description": "Включить или выключить выделение слов с ошибками"
+    },
+    "tools.spellcheck": {
+      "label": "&Орфография...",
+      "tooltip": "Проверка орфографии",
+      "description": "Проверка орфографии документа..."
+    },
+    "tools.words": {
+      "label": "&Слова...",
+      "tooltip": "Слова",
+      "description": "Частотный список слов книги с заменами"
+    },
+    "tree.delete": {
+      "label": "Структура: удалить",
+      "tooltip": "Структура: удалить",
+      "description": "Удалить выбранный элемент дерева"
+    },
+    "tree.merge": {
+      "label": "Структура: слить",
+      "tooltip": "Структура: слить",
+      "description": "Слить выбранную секцию со следующей"
+    },
+    "tree.moveDown": {
+      "label": "Дерево: вниз",
+      "tooltip": "Дерево: вниз",
+      "description": "Поменять выбранную секцию местами со следующей"
+    },
+    "tree.moveLeft": {
+      "label": "Структура: сдвинуть влево",
+      "tooltip": "Структура: сдвинуть влево",
+      "description": "Поднять выбранную секцию на уровень родительской"
+    },
+    "tree.moveRight": {
+      "label": "Структура: сдвинуть вправо",
+      "tooltip": "Структура: сдвинуть вправо",
+      "description": "Сделать выбранную секцию дочерней для предыдущей секции"
+    },
+    "tree.moveUp": {
+      "label": "Дерево: вверх",
+      "tooltip": "Дерево: вверх",
+      "description": "Поменять выбранную секцию местами с предыдущей"
+    },
+    "tree.moveWithChildren": {
+      "label": "Структура: перенести с дочерними",
+      "tooltip": "Структура: перенести с дочерними",
+      "description": "Перенести выбранную секцию вместе с дочерними в предыдущую секцию"
+    },
+    "tree.view": {
+      "label": "Структура: показать",
+      "tooltip": "Структура: показать",
+      "description": "Показать выбранный элемент в режиме «Дизайн»"
+    },
+    "tree.viewSource": {
+      "label": "Структура: показать код",
+      "tooltip": "Структура: показать код",
+      "description": "Показать выбранный элемент в режиме «Код»"
+    },
+    "view.body": {
+      "label": "&Дизайн",
+      "tooltip": "Тело",
+      "description": "Перейти к телу документа"
+    },
+    "view.description": {
+      "label": "&Описание документа",
+      "tooltip": "Описание документа",
+      "description": "Перейти к описанию документа"
+    },
+    "view.fastMode": {
+      "label": "&Ускоренный режим",
+      "tooltip": "Переключить в ускоренный режим",
+      "description": "Переключить в ускоренный режим"
+    },
+    "view.linksBar": {
+      "label": "Па&нель ссылок",
+      "tooltip": "Панель ссылок",
+      "description": "Показать или скрыть панель ссылок"
+    },
+    "view.source": {
+      "label": "&Код",
+      "tooltip": "Перейти к коду",
+      "description": "Перейти к коду"
+    },
+    "view.statusBar": {
+      "label": "&Строка состояния",
+      "tooltip": "Строка состояния",
+      "description": "Показать или скрыть строку состояния"
+    },
+    "view.tableBar": {
+      "label": "П&анель таблиц",
+      "tooltip": "Панель таблиц",
+      "description": "Показать или скрыть панель редактирования параметров таблиц"
+    },
+    "view.toolbarCommands": {
+      "label": "&Панель инструментов",
+      "tooltip": "Панель инструментов",
+      "description": "Показать или скрыть панель инструментов"
+    },
+    "view.toolbarScripts": {
+      "label": "Панель скриптов",
+      "tooltip": "Панель скриптов",
+      "description": "Показать или скрыть панель скриптов"
+    },
+    "view.tree": {
+      "label": "С&труктура книги",
+      "tooltip": "Структура документа",
+      "description": "Показать или скрыть структуру документа"
+    }
+  },
+  "uk": {
+    "ai.ask": {
+      "label": "Запитати ШІ",
+      "tooltip": "Запитати ШІ",
+      "description": "Змінити виділений текст за вашою інструкцією для ШІ-помічника"
+    },
+    "ai.toggle": {
+      "label": "&ШІ-помічник",
+      "tooltip": "ШІ-помічник",
+      "description": "Показати або сховати панель ШІ-помічника"
+    },
+    "edit.clone": {
+      "label": "К&лонувати",
+      "tooltip": "Клонувати",
+      "description": "Клонувати контейнер"
+    },
+    "edit.completeTag": {
+      "label": "Доповнити тег",
+      "tooltip": "Доповнити тег",
+      "description": "Запропонувати елементи FB2, дозволені в позиції курсора в редакторі коду, або відкриті елементи після </"
+    },
+    "edit.copy": {
+      "label": "&Копіювати",
+      "tooltip": "Копіювати",
+      "description": "Копіювати виділений фрагмент до буфера обміну"
+    },
+    "edit.cut": {
+      "label": "В&ирізати",
+      "tooltip": "Вирізати",
+      "description": "Вирізати виділений фрагмент і помістити його до буфера обміну"
+    },
+    "edit.find": {
+      "label": "З&найти...",
+      "tooltip": "Знайти",
+      "description": "Знайти текст"
+    },
+    "edit.findNext": {
+      "label": "Знайти &далі",
+      "tooltip": "Знайти далі",
+      "description": "Повторити останній пошук"
+    },
+    "edit.gotoFootnote": {
+      "label": "П&ерейти до примітки або до посилання",
+      "tooltip": "Перейти до тексту примітки або до посилання",
+      "description": "Перейти до тексту примітки або до посилання"
+    },
+    "edit.gotoMatchTag": {
+      "label": "Перейти до парного &тегу",
+      "tooltip": "Перейти до парного тегу",
+      "description": "Перейти до парного тегу"
+    },
+    "edit.gotoWrongTag": {
+      "label": "Перейти до по&милкового тегу",
+      "tooltip": "Перейти до помилкового тегу",
+      "description": "Перейти до помилкового тегу"
+    },
+    "edit.incrementalSearch": {
+      "label": "Інкрементальний пошук",
+      "tooltip": "Інкрементальний пошук",
+      "description": "Пошук під час набору; поточний збіг показується у смузі стану"
+    },
+    "edit.insertNbsp": {
+      "label": "Вставити нерозривний пробіл",
+      "tooltip": "Вставити нерозривний пробіл",
+      "description": "Вставити нерозривний пробіл у позиції курсора"
+    },
+    "edit.merge": {
+      "label": "&Об'єднати",
+      "tooltip": "Об'єднати контейнери",
+      "description": "Об'єднати виділений контейнер з наступним"
+    },
+    "edit.paste": {
+      "label": "&Вставити",
+      "tooltip": "Вставити",
+      "description": "Вставити вміст буфера обміну"
+    },
+    "edit.pastePlain": {
+      "label": "Вставити без &форматування",
+      "tooltip": "Вставити без форматування",
+      "description": "Вставити текст із буфера обміну без форматування, посилань і малюнків"
+    },
+    "edit.redo": {
+      "label": "&Повторити дію",
+      "tooltip": "Повторити дію",
+      "description": "Повторити останню скасовану дію"
+    },
+    "edit.removeOuter": {
+      "label": "За&брати зовнішній",
+      "tooltip": "Видалити зовнішню секцію",
+      "description": "Забрати контейнер навколо виділення, зберігши його вміст"
+    },
+    "edit.replace": {
+      "label": "&Замінити...",
+      "tooltip": "Замінити",
+      "description": "Знайти текст і замінити його іншим текстом"
+    },
+    "edit.split": {
+      "label": "Розр&ізати",
+      "tooltip": "Розрізати контейнер",
+      "description": "Розрізати контейнер"
+    },
+    "edit.undo": {
+      "label": "&Скасувати дію",
+      "tooltip": "Скасувати дію",
+      "description": "Скасувати останню виконану дію"
+    },
+    "file.exit": {
+      "label": "Ви&йти",
+      "tooltip": "Вийти",
+      "description": "Закрити програму; перед закриттям буде запропоновано зберегти документ"
+    },
+    "file.exportFbd": {
+      "label": "Експорт у &FBD...",
+      "tooltip": "Експорт у FBD",
+      "description": "Записати опис цього документа разом з обкладинкою у файл FBD"
+    },
+    "file.importDescription": {
+      "label": "Оп&ис із файлу FictionBook...",
+      "tooltip": "Імпорт опису",
+      "description": "Імпортувати опис з іншого файлу FictionBook у цей документ"
+    },
+    "file.importMarkdown": {
+      "label": "Файл &Markdown...",
+      "tooltip": "Імпорт Markdown",
+      "description": "Створити нову книгу з файлу Markdown: заголовки стають секціями, малюнки й виноски переносяться"
+    },
+    "file.new": {
+      "label": "&Створити",
+      "tooltip": "Створити",
+      "description": "Створити новий документ"
+    },
+    "file.open": {
+      "label": "&Відкрити...",
+      "tooltip": "Відкрити",
+      "description": "Відкрити документ"
+    },
+    "file.save": {
+      "label": "&Зберегти",
+      "tooltip": "Зберегти",
+      "description": "Зберегти документ"
+    },
+    "file.saveAs": {
+      "label": "Зберегти &як...",
+      "tooltip": "Зберегти як",
+      "description": "Зберегти активний документ з іншим ім'ям"
+    },
+    "file.validate": {
+      "label": "&Перевірити",
+      "tooltip": "Перевірити",
+      "description": "Перевірити документ на відповідність формату FictionBook"
+    },
+    "help.about": {
+      "label": "&Про програму...",
+      "tooltip": "Про програму",
+      "description": "Показати інформацію про програму, номер версії та авторські права"
+    },
+    "help.checkVersion": {
+      "label": "Перевірити &нову версію...",
+      "tooltip": "Перевірити нову версію",
+      "description": "Знайти новіший випуск редактора на його сторінці випусків"
+    },
+    "image.change": {
+      "label": "Змінити малюнок...",
+      "tooltip": "Змінити малюнок",
+      "description": "Вибрати для малюнка інше зображення: один із малюнків книги або файл із диска"
+    },
+    "image.saveAs": {
+      "label": "Зберегти малюнок як...",
+      "tooltip": "Зберегти малюнок як",
+      "description": "Зберегти вибране зображення у файл"
+    },
+    "image.show": {
+      "label": "Показати малюнок",
+      "tooltip": "Показати малюнок",
+      "description": "Показати малюнок збільшеним у вікні перегляду"
+    },
+    "insert.annotation": {
+      "label": "&Анотація",
+      "tooltip": "Додати анотацію",
+      "description": "Додати анотацію до виділеного фрагмента"
+    },
+    "insert.binary": {
+      "label": "&Долучити",
+      "tooltip": "Долучити двійковий файл",
+      "description": "Долучити до документа двійковий файл"
+    },
+    "insert.body": {
+      "label": "&Тіло",
+      "tooltip": "Додати тіло",
+      "description": "Додати нове тіло документа"
+    },
+    "insert.cite": {
+      "label": "&Цитата",
+      "tooltip": "Вставити цитату",
+      "description": "Вставити цитату"
+    },
+    "insert.epigraph": {
+      "label": "&Епіграф",
+      "tooltip": "Додати епіграф",
+      "description": "Додати епіграф до виділеного фрагмента"
+    },
+    "insert.image": {
+      "label": "&Малюнок",
+      "tooltip": "Вставити малюнок",
+      "description": "Вставити малюнок на місці курсора"
+    },
+    "insert.inlineImage": {
+      "label": "Малюнок у те&ксті",
+      "tooltip": "Вставити малюнок у текст",
+      "description": "Вставити малюнок у текст на місці курсора"
+    },
+    "insert.poem": {
+      "label": "В&ірш",
+      "tooltip": "Додати вірш",
+      "description": "Додати вірш"
+    },
+    "insert.sectionImage": {
+      "label": "Ма&люнок секції",
+      "tooltip": "Додати малюнок",
+      "description": "Додати малюнок"
+    },
+    "insert.table": {
+      "label": "Та&блиця",
+      "tooltip": "Вставити таблицю",
+      "description": "Вставити таблицю на місце курсора"
+    },
+    "insert.textAuthor": {
+      "label": "А&втор",
+      "tooltip": "Додати автора тексту",
+      "description": "Додати автора тексту до контейнера"
+    },
+    "insert.title": {
+      "label": "&Заголовок",
+      "tooltip": "Додати заголовок",
+      "description": "Додати заголовок до виділеного елемента"
+    },
+    "nav.nextItem": {
+      "label": "Наступний елемент",
+      "tooltip": "Наступний елемент",
+      "description": "Перейти до наступного елемента"
+    },
+    "nav.selectHref": {
+      "label": "Посилання",
+      "tooltip": "Посилання",
+      "description": "Перейти в поле «Посилання» панелі посилань"
+    },
+    "nav.selectId": {
+      "label": "ID",
+      "tooltip": "ID",
+      "description": "Перейти в поле «ID» панелі посилань"
+    },
+    "nav.selectTableId": {
+      "label": "ID таблиці",
+      "tooltip": "ID таблиці",
+      "description": "Перейти в поле «ID таблиці» панелі таблиць"
+    },
+    "nav.selectText": {
+      "label": "Текст",
+      "tooltip": "Текст",
+      "description": "Повернути фокус у текст документа"
+    },
+    "nav.selectTree": {
+      "label": "Дерево",
+      "tooltip": "Дерево",
+      "description": "Перейти в дерево документа"
+    },
+    "scripts.last": {
+      "label": "&Останній скрипт",
+      "tooltip": "Останній скрипт",
+      "description": "Виконати останній запущений скрипт"
+    },
+    "scripts.openFolder": {
+      "label": "&Відкрити теку скриптів",
+      "tooltip": "Відкрити теку скриптів",
+      "description": "Відкрити теку, у якій зберігаються ваші власні скрипти"
+    },
+    "scripts.reload": {
+      "label": "Пере&читати скрипти",
+      "tooltip": "Перечитати скрипти",
+      "description": "Заново переглянути теки зі скриптами"
+    },
+    "source.collapse1": {
+      "label": "Згорнути дерево на 1 рівень",
+      "tooltip": "Згорнути дерево на 1 рівень",
+      "description": "Згорнути XML-код на 1 рівень вкладеності"
+    },
+    "source.collapse2": {
+      "label": "Згорнути дерево на 2 рівні",
+      "tooltip": "Згорнути дерево на 2 рівні",
+      "description": "Згорнути XML-код на 2 рівні вкладеності"
+    },
+    "source.collapse3": {
+      "label": "Згорнути дерево на 3 рівні",
+      "tooltip": "Згорнути дерево на 3 рівні",
+      "description": "Згорнути XML-код на 3 рівні вкладеності"
+    },
+    "source.collapse4": {
+      "label": "Згорнути дерево на 4 рівні",
+      "tooltip": "Згорнути дерево на 4 рівні",
+      "description": "Згорнути XML-код на 4 рівні вкладеності"
+    },
+    "source.collapse5": {
+      "label": "Згорнути дерево на 5 рівнів",
+      "tooltip": "Згорнути дерево на 5 рівнів",
+      "description": "Згорнути XML-код на 5 рівнів вкладеності"
+    },
+    "source.collapse6": {
+      "label": "Згорнути дерево на 6 рівнів",
+      "tooltip": "Згорнути дерево на 6 рівнів",
+      "description": "Згорнути XML-код на 6 рівнів вкладеності"
+    },
+    "source.collapse7": {
+      "label": "Згорнути дерево на 7 рівнів",
+      "tooltip": "Згорнути дерево на 7 рівнів",
+      "description": "Згорнути XML-код на 7 рівнів вкладеності"
+    },
+    "source.collapse8": {
+      "label": "Згорнути дерево на 8 рівнів",
+      "tooltip": "Згорнути дерево на 8 рівнів",
+      "description": "Згорнути XML-код на 8 рівнів вкладеності"
+    },
+    "source.collapse9": {
+      "label": "Згорнути дерево на 9 рівнів",
+      "tooltip": "Згорнути дерево на 9 рівнів",
+      "description": "Згорнути XML-код на 9 рівнів вкладеності"
+    },
+    "source.expand1": {
+      "label": "Розгорнути дерево на 1 рівень",
+      "tooltip": "Розгорнути дерево на 1 рівень",
+      "description": "Розгорнути XML-код на 1 рівень вкладеності"
+    },
+    "source.expand2": {
+      "label": "Розгорнути дерево на 2 рівні",
+      "tooltip": "Розгорнути дерево на 2 рівні",
+      "description": "Розгорнути XML-код на 2 рівні вкладеності"
+    },
+    "source.expand3": {
+      "label": "Розгорнути дерево на 3 рівні",
+      "tooltip": "Розгорнути дерево на 3 рівні",
+      "description": "Розгорнути XML-код на 3 рівні вкладеності"
+    },
+    "source.expand4": {
+      "label": "Розгорнути дерево на 4 рівні",
+      "tooltip": "Розгорнути дерево на 4 рівні",
+      "description": "Розгорнути XML-код на 4 рівні вкладеності"
+    },
+    "source.expand5": {
+      "label": "Розгорнути дерево на 5 рівнів",
+      "tooltip": "Розгорнути дерево на 5 рівнів",
+      "description": "Розгорнути XML-код на 5 рівнів вкладеності"
+    },
+    "source.expand6": {
+      "label": "Розгорнути дерево на 6 рівнів",
+      "tooltip": "Розгорнути дерево на 6 рівнів",
+      "description": "Розгорнути XML-код на 6 рівнів вкладеності"
+    },
+    "source.expand7": {
+      "label": "Розгорнути дерево на 7 рівнів",
+      "tooltip": "Розгорнути дерево на 7 рівнів",
+      "description": "Розгорнути XML-код на 7 рівнів вкладеності"
+    },
+    "source.expand8": {
+      "label": "Розгорнути дерево на 8 рівнів",
+      "tooltip": "Розгорнути дерево на 8 рівнів",
+      "description": "Розгорнути XML-код на 8 рівнів вкладеності"
+    },
+    "source.expand9": {
+      "label": "Розгорнути дерево на 9 рівнів",
+      "tooltip": "Розгорнути дерево на 9 рівнів",
+      "description": "Розгорнути XML-код на 9 рівнів вкладеності"
+    },
+    "style.code": {
+      "label": "Код",
+      "tooltip": "Код",
+      "description": "Код"
+    },
+    "style.emphasis": {
+      "label": "Курсив",
+      "tooltip": "Курсив",
+      "description": "Курсив"
+    },
+    "style.footnote": {
+      "label": "При&мітка...",
+      "tooltip": "Примітка",
+      "description": "Додати примітку"
+    },
+    "style.link": {
+      "label": "По&силання...",
+      "tooltip": "Гіперпосилання",
+      "description": "Додати гіперпосилання"
+    },
+    "style.normal": {
+      "label": "&Звичайний",
+      "tooltip": "Звичайний текст",
+      "description": "Звичайний текст"
+    },
+    "style.removeLink": {
+      "label": "&Видалити посилання",
+      "tooltip": "Видалити посилання",
+      "description": "Видалити посилання з виділеного тексту"
+    },
+    "style.strikethrough": {
+      "label": "Закреслений текст",
+      "tooltip": "Закреслений текст",
+      "description": "Закреслений текст"
+    },
+    "style.strong": {
+      "label": "Жирний",
+      "tooltip": "Жирний",
+      "description": "Жирний"
+    },
+    "style.sub": {
+      "label": "Нижній індекс",
+      "tooltip": "Нижній індекс",
+      "description": "Нижній індекс"
+    },
+    "style.subtitle": {
+      "label": "&Підзаголовок",
+      "tooltip": "Підзаголовок",
+      "description": "Підзаголовок"
+    },
+    "style.sup": {
+      "label": "Верхній індекс",
+      "tooltip": "Верхній індекс",
+      "description": "Верхній індекс"
+    },
+    "style.textAuthor": {
+      "label": "&Автор",
+      "tooltip": "Автор тексту",
+      "description": "Стиль абзацу «Автор тексту»"
+    },
+    "table.delete": {
+      "label": "Видалити &таблицю",
+      "tooltip": "Видалити таблицю",
+      "description": "Видалити всю таблицю"
+    },
+    "table.deleteColumn": {
+      "label": "Видалити стовпе&ць",
+      "tooltip": "Видалити стовпець",
+      "description": "Видалити стовпець із курсором або стовпці виділеного блоку"
+    },
+    "table.deleteRow": {
+      "label": "&Видалити рядок",
+      "tooltip": "Видалити рядок",
+      "description": "Видалити рядок із курсором або рядки виділеного блоку"
+    },
+    "table.duplicateColumn": {
+      "label": "Дублювати стовп&ець",
+      "tooltip": "Дублювати стовпець",
+      "description": "Вставити копію стовпця з курсором або виділених стовпців праворуч від них"
+    },
+    "table.duplicateRow": {
+      "label": "Дубл&ювати рядок",
+      "tooltip": "Дублювати рядок",
+      "description": "Вставити копію рядка з курсором або виділених рядків під ними"
+    },
+    "table.insertColumnLeft": {
+      "label": "Вставити стовпець &ліворуч",
+      "tooltip": "Вставити стовпець ліворуч",
+      "description": "Вставити порожні стовпці ліворуч від стовпця з курсором або від виділеного блоку"
+    },
+    "table.insertColumnRight": {
+      "label": "Вставити стовпець &праворуч",
+      "tooltip": "Вставити стовпець праворуч",
+      "description": "Вставити порожні стовпці праворуч від стовпця з курсором або від виділеного блоку"
+    },
+    "table.insertRowAbove": {
+      "label": "Вставити рядок ви&ще",
+      "tooltip": "Вставити рядок вище",
+      "description": "Вставити порожні рядки над рядком із курсором або над виділеним блоком"
+    },
+    "table.insertRowBelow": {
+      "label": "Вставити рядок ни&жче",
+      "tooltip": "Вставити рядок нижче",
+      "description": "Вставити порожні рядки під рядком із курсором або під виділеним блоком"
+    },
+    "table.makeHeaderCells": {
+      "label": "Зробити клітинками за&головка",
+      "tooltip": "Зробити клітинками заголовка",
+      "description": "Зробити всі клітинки виділеного блоку клітинками заголовка"
+    },
+    "table.makeNormalCells": {
+      "label": "Зробити зви&чайними клітинками",
+      "tooltip": "Зробити звичайними клітинками",
+      "description": "Зробити всі клітинки виділеного блоку звичайними клітинками"
+    },
+    "table.mergeCells": {
+      "label": "&Об'єднати клітинки",
+      "tooltip": "Об'єднати клітинки",
+      "description": "Об'єднати виділений блок в одну клітинку"
+    },
+    "table.moveColumnLeft": {
+      "label": "Перемістити стовпець л&іворуч",
+      "tooltip": "Перемістити стовпець ліворуч",
+      "description": "Перемістити стовпець із курсором або виділені стовпці ліворуч"
+    },
+    "table.moveColumnRight": {
+      "label": "Перемістити стовпець пр&аворуч",
+      "tooltip": "Перемістити стовпець праворуч",
+      "description": "Перемістити стовпець із курсором або виділені стовпці праворуч"
+    },
+    "table.moveRowDown": {
+      "label": "Перемістити рядок у&низ",
+      "tooltip": "Перемістити рядок униз",
+      "description": "Перемістити рядок із курсором або виділені рядки вниз"
+    },
+    "table.moveRowUp": {
+      "label": "Перемістити рядок &угору",
+      "tooltip": "Перемістити рядок угору",
+      "description": "Перемістити рядок із курсором або виділені рядки вгору"
+    },
+    "table.paragraphAfter": {
+      "label": "А&бзац після таблиці",
+      "tooltip": "Абзац після таблиці",
+      "description": "Вставити порожній абзац безпосередньо після таблиці"
+    },
+    "table.paragraphBefore": {
+      "label": "Абзац пе&ред таблицею",
+      "tooltip": "Абзац перед таблицею",
+      "description": "Вставити порожній абзац безпосередньо перед таблицею"
+    },
+    "table.repair": {
+      "label": "В&иправити таблицю",
+      "tooltip": "Виправити таблицю",
+      "description": "Зробити неправильну таблицю правильною, не видаляючи вмісту"
+    },
+    "table.select": {
+      "label": "Ви&ділити таблицю",
+      "tooltip": "Виділити таблицю",
+      "description": "Виділити всю таблицю"
+    },
+    "table.splitCell": {
+      "label": "Ро&зділити клітинку",
+      "tooltip": "Розділити клітинку",
+      "description": "Розділити об'єднану клітинку на клітинки, по одній на кожну позицію"
+    },
+    "table.toggleHeaderCell": {
+      "label": "Перемкнути &клітинку заголовка",
+      "tooltip": "Перемкнути клітинку заголовка",
+      "description": "Перетворити клітинку з курсором на клітинку заголовка або назад на звичайну"
+    },
+    "table.toggleHeaderColumn": {
+      "label": "Перемкнути &стовпець заголовків",
+      "tooltip": "Перемкнути стовпець заголовків",
+      "description": "Зробити клітинки стовпця з курсором клітинками заголовка або, якщо всі вони вже такі, звичайними клітинками"
+    },
+    "table.toggleHeaderRow": {
+      "label": "Перемкнути р&ядок заголовків",
+      "tooltip": "Перемкнути рядок заголовків",
+      "description": "Зробити клітинки рядка з курсором клітинками заголовка або, якщо всі вони вже такі, звичайними клітинками"
+    },
+    "tools.settings": {
+      "label": "&Налаштування...",
+      "tooltip": "Налаштування",
+      "description": "Налаштування редактора"
+    },
+    "tools.spellHighlight": {
+      "label": "Перемкнути виділення слів з помилками",
+      "tooltip": "Перемкнути виділення слів з помилками",
+      "description": "Увімкнути або вимкнути виділення слів з помилками"
+    },
+    "tools.spellcheck": {
+      "label": "&Орфографія...",
+      "tooltip": "Перевірка орфографії",
+      "description": "Перевірка орфографії документа..."
+    },
+    "tools.words": {
+      "label": "&Слова...",
+      "tooltip": "Слова",
+      "description": "Частотний список слів книги із замінами"
+    },
+    "tree.delete": {
+      "label": "Структура: видалити",
+      "tooltip": "Структура: видалити",
+      "description": "Видалити вибраний елемент дерева"
+    },
+    "tree.merge": {
+      "label": "Структура: об'єднати",
+      "tooltip": "Структура: об'єднати",
+      "description": "Об'єднати вибрану секцію з наступною"
+    },
+    "tree.moveDown": {
+      "label": "Дерево: вниз",
+      "tooltip": "Дерево: вниз",
+      "description": "Поміняти вибрану секцію місцями з наступною"
+    },
+    "tree.moveLeft": {
+      "label": "Структура: перемістити ліворуч",
+      "tooltip": "Структура: перемістити ліворуч",
+      "description": "Підняти вибрану секцію на рівень батьківської"
+    },
+    "tree.moveRight": {
+      "label": "Структура: перемістити праворуч",
+      "tooltip": "Структура: перемістити праворуч",
+      "description": "Зробити вибрану секцію дочірньою для попередньої секції"
+    },
+    "tree.moveUp": {
+      "label": "Дерево: вгору",
+      "tooltip": "Дерево: вгору",
+      "description": "Поміняти вибрану секцію місцями з попередньою"
+    },
+    "tree.moveWithChildren": {
+      "label": "Структура: перенести з дочірніми",
+      "tooltip": "Структура: перенести з дочірніми",
+      "description": "Перенести вибрану секцію разом із дочірніми до попередньої секції"
+    },
+    "tree.view": {
+      "label": "Структура: показати",
+      "tooltip": "Структура: показати",
+      "description": "Показати вибраний елемент у режимі «Тіло документа»"
+    },
+    "tree.viewSource": {
+      "label": "Структура: показати код",
+      "tooltip": "Структура: показати код",
+      "description": "Показати вибраний елемент у режимі «Код»"
+    },
+    "view.body": {
+      "label": "&Тіло документа",
+      "tooltip": "Тіло документа",
+      "description": "Перейти до тіла документа"
+    },
+    "view.description": {
+      "label": "&Опис документа",
+      "tooltip": "Опис документа",
+      "description": "Перейти до опису документа"
+    },
+    "view.fastMode": {
+      "label": "Прискорений &режим",
+      "tooltip": "Перемкнути в прискорений режим",
+      "description": "Перемкнути в прискорений режим"
+    },
+    "view.linksBar": {
+      "label": "Па&нель посилань",
+      "tooltip": "Панель посилань",
+      "description": "Показати чи сховати панель посилань"
+    },
+    "view.source": {
+      "label": "&Код",
+      "tooltip": "Перейти до коду",
+      "description": "Перейти до коду"
+    },
+    "view.statusBar": {
+      "label": "&Смуга стану",
+      "tooltip": "Смуга стану",
+      "description": "Показати чи сховати смугу стану"
+    },
+    "view.tableBar": {
+      "label": "П&анель таблиць",
+      "tooltip": "Панель таблиць",
+      "description": "Показати чи сховати панель редагування параметрів таблиць"
+    },
+    "view.toolbarCommands": {
+      "label": "&Панель інструментів",
+      "tooltip": "Панель інструментів",
+      "description": "Показати чи сховати панель інструментів"
+    },
+    "view.toolbarScripts": {
+      "label": "Панель скриптів",
+      "tooltip": "Панель скриптів",
+      "description": "Показати чи сховати панель скриптів"
+    },
+    "view.tree": {
+      "label": "Стр&уктура книги",
+      "tooltip": "Структура документа",
+      "description": "Показати чи сховати структуру документа"
+    }
+  }
+}

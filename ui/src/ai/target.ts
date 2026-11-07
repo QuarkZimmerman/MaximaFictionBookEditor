@@ -14,6 +14,14 @@ import type { CustomModelsMemory } from '@/model/store';
 import type { RpcClient } from '@/rpc/client';
 import type { AiServiceEntry, AiTarget, Settings } from '@/rpc/types';
 
+import {
+  chosenEffort,
+  effortsOf,
+  effortTarget,
+  offeredOrStored,
+  type ModelEfforts,
+} from '@/model/aiEffort';
+
 import { hostOf, isHostedAddress, isPlainHttp, stripTrailingSlash } from './address';
 import type { NoticeTarget } from './notice';
 
@@ -32,6 +40,8 @@ export interface ActiveTarget {
   fallback: boolean;
   /** The agreement subject of the first-use notice (FR-021). */
   notice: NoticeTarget;
+  /** Feature 010 (US11, D40): the chosen thinking effort and its member; absent = Model's default. */
+  effort?: { value: string; param: string };
 }
 
 export type ResolveTargetResult =
@@ -70,7 +80,7 @@ export function fetchedModelInfo(
   memory: CustomModelsMemory | null | undefined,
   address: string,
   model: string,
-): { tools?: boolean; contextLength?: number } {
+): { tools?: boolean; contextLength?: number; efforts?: string[]; effortParam?: string } {
   if (!memory || stripTrailingSlash(memory.address.trim()) !== stripTrailingSlash(address)) {
     return {};
   }
@@ -81,7 +91,21 @@ export function fetchedModelInfo(
     ...(known.contextLength !== undefined && known.contextLength > 0
       ? { contextLength: known.contextLength }
       : {}),
+    ...(known.efforts?.length ? { efforts: known.efforts } : {}),
+    ...(known.effortParam ? { effortParam: known.effortParam } : {}),
   };
+}
+
+/** Feature 010 (US11, D40): the target with the effort chosen for it, when its model offers it. */
+function withEffort(
+  target: ActiveTarget,
+  settings: Settings['ai'],
+  offered: ModelEfforts | null,
+): ActiveTarget {
+  const key = effortTarget(target.target);
+  const offers = offeredOrStored(offered, settings.effort, key, target.model);
+  const value = chosenEffort(settings.effort, key, target.model, offers);
+  return value && offers ? { ...target, effort: { value, param: offers.param } } : target;
 }
 
 /**
@@ -105,26 +129,34 @@ export async function resolveActiveTarget(
     if (!model) return { ok: false, reason: 'noModel' };
     const host = hostOf(address);
     const known = fetchedModelInfo(customModels, address, ai.custom.model);
+    const offered = effortsOf(ai.custom.model, {
+      fetched: known,
+      known: ai.effort ? (await rpc.call('ai.services')).models : undefined,
+    });
     return {
       ok: true,
-      target: {
-        target: { kind: 'custom' },
-        name: host || address,
-        model: ai.custom.model,
-        address,
-        hosted: isHostedAddress(address),
-        plain: isPlainHttp(address),
-        tools: known.tools ?? true,
-        ...(known.contextLength === undefined ? {} : { contextLength: known.contextLength }),
-        fallback: false,
-        notice: { kind: 'custom', address, name: host || address },
-      },
+      target: withEffort(
+        {
+          target: { kind: 'custom' },
+          name: host || address,
+          model: ai.custom.model,
+          address,
+          hosted: isHostedAddress(address),
+          plain: isPlainHttp(address),
+          tools: known.tools ?? true,
+          ...(known.contextLength === undefined ? {} : { contextLength: known.contextLength }),
+          fallback: false,
+          notice: { kind: 'custom', address, name: host || address },
+        },
+        ai,
+        offered,
+      ),
     };
   }
   const list = await rpc.call('ai.services');
   const chosen = list.services.find((entry) => entry.id === ai.freeServiceId);
-  if (chosen) return { ok: true, target: fromEntry(chosen, false) };
-  const first = list.services[0];
-  if (!first) return { ok: false, reason: 'emptyList' };
-  return { ok: true, target: fromEntry(first, true) };
+  const entry = chosen ?? list.services[0];
+  if (!entry) return { ok: false, reason: 'emptyList' };
+  const offered = effortsOf(entry.model, { entryEfforts: entry.efforts, known: list.models });
+  return { ok: true, target: withEffort(fromEntry(entry, !chosen), ai, offered) };
 }

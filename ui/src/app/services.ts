@@ -13,7 +13,7 @@ import { FileFeature, registerFileCommands } from '@/features/file/fileCommands'
 import i18next from '@/i18n';
 import { CaretRegistry } from '@/model/caret';
 import { appStore, type AppStore } from '@/model/store';
-import { UndoCoordinator } from '@/model/undo';
+import { nameStepsFrom, UndoCoordinator } from '@/model/undo';
 import type { RpcClient } from '@/rpc/client';
 import type { Platform, ViewId } from '@/rpc/types';
 import { featureRegistrars } from '@/features/registry';
@@ -26,6 +26,7 @@ import { CommandRegistry, createCommandRegistry, type CommandContext } from './c
 import { HotkeyMap, detectPlatform } from './hotkeys';
 import { resourceCatalogsFor } from '@/views/description/resources';
 import { provideCompletionLists } from '@/views/source/attributeCompletion';
+import { registerMarkdownImport } from '@/features/markdown/importCommand';
 
 /** What a feature registrar receives; keep it minimal and stable. */
 export interface FeatureContext {
@@ -82,6 +83,8 @@ export function createAppServices(options: CreateAppServicesOptions = {}): AppSe
   const commands = options.commands ?? createCommandRegistry();
   const hotkeys = options.hotkeys ?? new HotkeyMap(platform);
   const undo = options.undo ?? new UndoCoordinator();
+  // Feature 010 (US9): Edit > Undo and Redo name this coordinator's steps.
+  nameStepsFrom(undo);
   const dialogs = createDialogs(options.dialogService ?? new DialogService());
   // Feature 009 (US6): the Source view completes genre and language codes from the lists the
   // Description view loads; the first request starts their loading.
@@ -100,6 +103,8 @@ export function createAppServices(options: CreateAppServicesOptions = {}): AppSe
   const carets = options.carets ?? new CaretRegistry();
   // The File flows and the parse-before-leaving view commands take over the foundation stubs.
   const files = options.files ?? registerFileCommands(commands);
+  // Feature 010 (US8): File > Import > Markdown File..., which hands its book to the file feature.
+  registerMarkdownImport(commands, files);
   registerViewCommands(commands);
   // Feature modules (editing, source tools, description, tree, spelling, images, words,
   // settings, scripts) register their commands/plugins through their own registrar file;

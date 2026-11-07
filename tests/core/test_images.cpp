@@ -697,3 +697,39 @@ TEST_CASE("images: roundtrip and the CLI convert images", "[images][cli]") {
     CHECK(test::read_text(out / "png" / "modern-utf8.fb2")
               .find("id=\"dot.gif\" content-type=\"image/png\"") != std::string::npos);
 }
+
+TEST_CASE("images: binary.add with imagesOnly refuses a file that is not a picture (feature 010)",
+          "[images][server]") {
+    test::TempDir data{"mfbe-images-only"};
+    CoreServerOptions options;
+    options.data_dir = data.path().string();
+    options.test_hooks = true;
+    auto server = CoreServer::start(options);
+    test::WsClient ws;
+    REQUIRE(ws.open(server->port(), "/rpc?token=" + server->token()) == 101);
+    const json opened = ws.call(
+        "doc.open", json{{"path", (test::fixtures_dir() / "books" / "modern-utf8.fb2").string()}});
+    REQUIRE(opened.contains("result"));
+    const std::string doc_id = opened["result"]["document"]["docId"];
+    // A picture passes, under the wanted id.
+    const json gif = ws.call("binary.add",
+                             json{{"docId", doc_id},
+                                  {"path", (test::fixtures_dir() / "images" / "tiny.gif").string()},
+                                  {"suggestedId", "ch-2705"},
+                                  {"imagesOnly", true}});
+    REQUIRE(gif.contains("result"));
+    CHECK(gif["result"]["id"] == "ch-2705");
+    // A text file named like a picture is refused with its path, and nothing is added.
+    test::write_text(data / "notes.png", "plain text, not a picture");
+    const json refused = ws.call(
+        "binary.add",
+        json{{"docId", doc_id}, {"path", (data / "notes.png").string()}, {"imagesOnly", true}});
+    REQUIRE(refused.contains("error"));
+    CHECK(refused["error"]["code"] == 1013);
+    CHECK(refused["error"]["data"]["path"] == (data / "notes.png").string());
+    const json list = ws.call("binary.list", json{{"docId", doc_id}});
+    if (list.contains("result")) {
+        for (const json& meta : list["result"])
+            CHECK(meta["id"] != "notes.png");
+    }
+}

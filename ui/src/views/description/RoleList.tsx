@@ -15,6 +15,7 @@ import { emptyRoleEntry, ROLES, type Role } from '@/features/description/roles';
 
 import { AddButton, RemoveButton, Row, SubSection, TextField } from './fields';
 import { readOnlySelectProps, useDescriptionForm } from './formContext';
+import { tip } from '@/app/tooltips';
 
 const TEST_PREFIX = 'description-role';
 
@@ -64,6 +65,7 @@ export function RoleList() {
                 <label className="mfbe-desc-field" data-testid={`${TEST_PREFIX}-${index}-role-row`}>
                   <span className="mfbe-desc-label">{t('descriptionForm.roles.role')}</span>
                   <select
+                    {...tip(t('tip.description.role'))}
                     className="mfbe-desc-select mfbe-desc-role-select"
                     data-testid={`${TEST_PREFIX}-${index}-role`}
                     value={entry.role}

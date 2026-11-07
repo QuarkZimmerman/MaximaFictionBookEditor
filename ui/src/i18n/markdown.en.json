@@ -1,0 +1,23 @@
+{
+  "markdown": {
+    "caption": "Markdown import",
+    "openTitle": "Import a Markdown file",
+    "filter": "Markdown files",
+    "picture": {
+      "missing": "file not found",
+      "notPicture": "not a picture",
+      "error": "could not be added"
+    },
+    "done": "Imported from Markdown ({{encoding}}): {{sections}} sections, {{pictures}} pictures, {{tables}} tables, {{notes}} notes.",
+    "summaryIntro": "Not everything came over as written:",
+    "summary": {
+      "webPicture": "Picture not added: {{detail}}",
+      "missingTarget": "Link to a heading that does not exist: {{detail}}",
+      "htmlTag": "HTML tag left out, its text kept: <{{detail}}>",
+      "droppedChar": "Character no bundled font draws, left out: {{detail}}"
+    },
+    "notText": "The file is not text.",
+    "tooLarge": "The file is larger than the import reads.",
+    "failed": "The Markdown file {{path}} could not be imported:\n{{reason}}"
+  }
+}

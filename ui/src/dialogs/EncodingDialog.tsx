@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Dialog, type DialogButton } from './Dialog';
 import { ENCODING_CHOICES, normalizeEncoding } from './encodings';
+import { tip } from '@/app/tooltips';
 
 export interface EncodingDialogProps {
   defaultEncoding: string;
@@ -54,6 +55,7 @@ export function EncodingDialog({ defaultEncoding, path, zip, onClose }: Encoding
         {t('dialog.saveFile.encoding')}
       </label>
       <select
+        {...tip(t('tip.saveFile.encoding'))}
         id="dialog-encoding-select"
         className="mfbe-encodingdialog-select"
         size={ENCODING_CHOICES.length}
@@ -71,6 +73,7 @@ export function EncodingDialog({ defaultEncoding, path, zip, onClose }: Encoding
       {zip !== undefined && (
         <label className="mfbe-checkbox-row">
           <input
+            {...tip(t('tip.saveFile.zip'))}
             type="checkbox"
             checked={zipChecked}
             onChange={(event) => setZipChecked(event.target.checked)}

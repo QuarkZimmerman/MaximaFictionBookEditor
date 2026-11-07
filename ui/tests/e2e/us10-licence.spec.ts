@@ -43,7 +43,7 @@ async function openAbout(core: CoreHandle, page: Page, lang?: 'ru'): Promise<voi
     const url = new URL(core.baseURL);
     url.searchParams.set('lang', lang);
     await page.goto(url.toString());
-    await page.getByTestId('app-root').waitFor();
+    await page.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
   } else {
     await core.openApp(page);
   }

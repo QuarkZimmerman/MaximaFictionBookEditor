@@ -18,6 +18,7 @@ import { binaryPreviewUrl } from '@/model/binaryUrls';
 import { entryLabel, entryValueText, type ImportableEntry } from './importEntries';
 
 import './import.css';
+import { tip } from '@/app/tooltips';
 
 /** The width of the cover picture requested from the core (shown at a small fixed height). */
 const PICTURE_WIDTH = 160;
@@ -82,6 +83,7 @@ export function ImportDescriptionDialog({
             >
               <label className="mfbe-import-entry-row">
                 <input
+                  {...tip(t('tip.importDescription.entry'))}
                   type="checkbox"
                   className="mfbe-import-entry-check"
                   checked={ticked.has(entry.key)}

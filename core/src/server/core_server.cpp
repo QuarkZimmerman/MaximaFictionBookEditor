@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <csignal>
 #include <future>
 #include <random>
 #include <sstream>
@@ -412,6 +413,14 @@ CoreServer::~CoreServer() {
 }
 
 std::unique_ptr<CoreServer> CoreServer::start(const CoreServerOptions& options) {
+#ifndef _WIN32
+    // A peer that closes its connection while the server writes to it - a page that navigates
+    // away, a test browser that closes - and a parent that closes the core's output pipes must
+    // not kill the core: with SIGPIPE caught the write fails with EPIPE and the server goes on
+    // (feature 010: the core of an e2e worker died of SIGPIPE mid-run). A no-op handler, as in
+    // the tests, avoids the old-style cast hidden in SIG_IGN; it holds for every thread.
+    std::signal(SIGPIPE, +[](int) {});
+#endif
     std::unique_ptr<CoreServer> server(new CoreServer());
     Impl& impl = *server->impl_;
 

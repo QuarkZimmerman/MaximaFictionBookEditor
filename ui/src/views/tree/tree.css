@@ -2,6 +2,8 @@
 
 .mfbe-tree-toolbar {
   display: flex;
+  /* Feature 010 (D21): seven buttons - a narrow pane wraps them instead of cutting them off. */
+  flex-wrap: wrap;
   align-items: center;
   gap: 2px;
   padding: 2px 4px;

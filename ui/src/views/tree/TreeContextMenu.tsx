@@ -1,29 +1,28 @@
 /**
- * Context menu of the Document Tree (T084), after `IDR_DOCUMENT_TREE` of the original: View,
- * View Source | Move Right, Move With Children, Move Left | Merge, Delete (`TREE_MENU` in
- * treeModel.ts). Entries run the `tree.*` commands; disabled entries reflect the commands'
- * enable state. Keyboard: arrows, Enter, accelerator letters, Escape; a click elsewhere closes
- * the menu.
+ * Context menu of the Document Tree (T084; feature 010, US7): the actions of the right-clicked
+ * row's kind (`treeMenuFor`, treeMenuModel.ts) - Go To and Go To Source on every row, the section
+ * operations named after the section they involve, the picture actions, Delete with the kind's
+ * name - and the tree-command scripts of a body or section row, run on that row. Entries run
+ * their commands; an entry the registry refuses is greyed with its reason as tooltip. Keyboard:
+ * arrows, Enter, accelerator letters, Escape; a click elsewhere closes the menu.
  */
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useAppRevision, useAppServices, useCommandContext } from '@/app/services';
+import { getTreeFeature } from '@/features/tree';
 import { parseAccelerator } from '@/i18n';
 import { useAppState } from '@/model/store';
 import { getTreeScriptCommands } from '@/scripting/tree';
 
-import { TREE_MENU, type TreeMenuEntry } from './treeModel';
+import { buildTreeIndex } from './treeModel';
+import { treeMenuFor, type TreeMenuItem } from './treeMenuModel';
 
 export interface TreeContextMenuProps {
   position: { x: number; y: number };
   onClose: () => void;
 }
-
-const ENTRIES: readonly TreeMenuEntry[] = TREE_MENU.filter(
-  (item): item is TreeMenuEntry => item !== 'separator',
-);
 
 export function TreeContextMenu({ position, onClose }: TreeContextMenuProps) {
   const { t } = useTranslation();
@@ -32,14 +31,25 @@ export function TreeContextMenu({ position, onClose }: TreeContextMenuProps) {
   useAppRevision();
   const ref = useRef<HTMLDivElement>(null);
   const [highlighted, setHighlighted] = useState(0);
-  // Tree-command scripts (US12) for the selected node, appended after the built-in entries.
-  const selectionNodeId = useAppState((s) => s.selectionNodeId, services.store);
-  const scriptEntries = selectionNodeId
-    ? getTreeScriptCommands(services.store, selectionNodeId)
-    : [];
+  const document = useAppState((s) => s.document, services.store);
+  const captions = useMemo(
+    () => ({ annotation: t('tree.node.annotation'), history: t('tree.node.history') }),
+    [t],
+  );
+  const index = useMemo(() => buildTreeIndex(document, captions), [document, captions]);
+  // The right-clicked row (the tree selects it before the menu opens).
+  const rowId = getTreeFeature(services.store).selectedId;
+  const lines = useMemo(() => treeMenuFor(index, rowId, t), [index, rowId, t]);
+  const entries = lines.filter((line): line is TreeMenuItem => line !== 'separator');
+  // Tree-command scripts (US12) of the right-clicked body or section row (feature 010, D23).
+  const rowKind = rowId ? index.rows.get(rowId)?.kind : undefined;
+  const scriptEntries =
+    rowId && (rowKind === 'body' || rowKind === 'section')
+      ? getTreeScriptCommands(services.store, rowId)
+      : [];
 
   const activate = useCallback(
-    (entry: TreeMenuEntry) => {
+    (entry: TreeMenuItem) => {
       if (!services.commands.isEnabled(entry.commandId, ctx)) return;
       onClose();
       void services.commands.execute(entry.commandId, ctx);
@@ -58,23 +68,23 @@ export function TreeContextMenu({ position, onClose }: TreeContextMenuProps) {
     const onScroll = () => {
       if (Date.now() - openedAt > 250) onClose();
     };
-    document.addEventListener('mousedown', onPointerDown, true);
+    window.document.addEventListener('mousedown', onPointerDown, true);
     window.addEventListener('scroll', onScroll, true);
     window.addEventListener('resize', onScroll);
     return () => {
-      document.removeEventListener('mousedown', onPointerDown, true);
+      window.document.removeEventListener('mousedown', onPointerDown, true);
       window.removeEventListener('scroll', onScroll, true);
       window.removeEventListener('resize', onScroll);
     };
   }, [onClose]);
 
   const style: React.CSSProperties = {
-    left: Math.min(position.x, Math.max(0, window.innerWidth - 240)),
-    top: Math.min(position.y, Math.max(0, window.innerHeight - 24 * (TREE_MENU.length + 1))),
+    left: Math.min(position.x, Math.max(0, window.innerWidth - 320)),
+    top: Math.min(position.y, Math.max(0, window.innerHeight - 24 * (lines.length + 1))),
   };
 
   // Kept inside the window by its measured size (the estimate above only places the first
-  // paint): the Ukrainian and Russian labels make the menu taller than 24 px per item.
+  // paint): longer labels make the menu taller and wider.
   useLayoutEffect(() => {
     const menu = ref.current;
     if (!menu) return;
@@ -92,22 +102,22 @@ export function TreeContextMenu({ position, onClose }: TreeContextMenuProps) {
         break;
       case 'ArrowDown':
         event.preventDefault();
-        setHighlighted((h) => (h + 1) % ENTRIES.length);
+        setHighlighted((h) => (h + 1) % Math.max(1, entries.length));
         break;
       case 'ArrowUp':
         event.preventDefault();
-        setHighlighted((h) => (h - 1 + ENTRIES.length) % ENTRIES.length);
+        setHighlighted((h) => (h - 1 + entries.length) % Math.max(1, entries.length));
         break;
       case 'Enter':
       case ' ': {
         event.preventDefault();
-        const entry = ENTRIES[highlighted];
+        const entry = entries[highlighted];
         if (entry) activate(entry);
         break;
       }
       default: {
         const key = event.key.toLowerCase();
-        const match = ENTRIES.find((entry) => parseAccelerator(t(entry.labelKey)).key === key);
+        const match = entries.find((entry) => parseAccelerator(entry.label).key === key);
         if (match) {
           event.preventDefault();
           activate(match);
@@ -129,18 +139,21 @@ export function TreeContextMenu({ position, onClose }: TreeContextMenuProps) {
       onKeyDown={onKeyDown}
       onContextMenu={(event) => event.preventDefault()}
     >
-      {TREE_MENU.map((item, index) => {
+      {lines.map((item, lineIndex) => {
         if (item === 'separator') {
-          return <div key={`sep-${index}`} className="mfbe-menu-separator" role="separator" />;
+          return <div key={`sep-${lineIndex}`} className="mfbe-menu-separator" role="separator" />;
         }
-        const current = ENTRIES.indexOf(item);
+        const current = entries.indexOf(item);
         const enabled = services.commands.isEnabled(item.commandId, ctx);
-        const label = parseAccelerator(t(item.labelKey));
+        const label = parseAccelerator(item.label);
+        const title = enabled ? undefined : item.reason;
         return (
           <div
             key={item.id}
             role="menuitem"
             aria-disabled={!enabled || undefined}
+            title={title}
+            aria-description={title}
             className={`mfbe-menu-item${current === highlighted ? ' mfbe-menu-item-highlighted' : ''}${enabled ? '' : ' mfbe-menu-item-disabled'}`}
             data-testid={`tree-menu-${item.id}`}
             onMouseEnter={() => setHighlighted(current)}

@@ -11,12 +11,13 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { PopupMenu } from '@/app/PopupMenu';
+import { onPageClass, usePictureBackgrounds } from '@/app/usePictureBackground';
+
 import { useAppServices } from '@/app/services';
-import { Dialog, type DialogButton } from '@/dialogs/Dialog';
-import { imageFileTypes } from '@/dialogs/fileTypes';
 import { binaryPreviewUrl } from '@/model/binaryUrls';
-import { addBinaryFromFile } from '@/features/images/binaries';
 import { openPictureView } from '@/features/images/openPictureView';
+import { PictureChooser } from '@/features/images/PictureChooser';
 import type { BinaryMeta, ImageRef } from '@/model/document';
 import type { RpcClient } from '@/rpc/client';
 
@@ -37,6 +38,10 @@ export function CoverList({ fieldKey, testPrefix }: CoverListProps) {
   const { controller, form, binaries, docId, readOnly } = useDescriptionForm();
   const covers = (getAtPath(form, fieldKey) as ImageRef[] | undefined) ?? [];
   const images = binaries.filter((b) => b.decodable);
+  // Feature 010 (D10): the thumbnails follow the pictures' background switch.
+  usePictureBackgrounds();
+  // Feature 010 (D4): the cover thumbnail's context menu - Change picture…, Show picture.
+  const [menu, setMenu] = useState<{ x: number; y: number; index: number } | null>(null);
 
   const pick = async (current?: string): Promise<string | null> =>
     dialogs.openCustom<string | null>((close) => (
@@ -50,6 +55,15 @@ export function CoverList({ fieldKey, testPrefix }: CoverListProps) {
           if (!document) return;
           const list = document.binaries.filter((b) => b.id !== meta.id).concat(meta);
           store.setState({ document: { ...document, binaries: list } });
+        }}
+        onBinaryRemoved={(id) => {
+          const document = store.getState().document;
+          if (!document) return;
+          const list = document.binaries.filter((b) => b.id !== id);
+          store.setState({ document: { ...document, binaries: list } });
+        }}
+        onShowPicture={(binary) => {
+          if (docId) void openPictureView(dialogs, { docId, binary, store });
         }}
         onClose={close}
       />
@@ -122,6 +136,10 @@ export function CoverList({ fieldKey, testPrefix }: CoverListProps) {
                 title={t('descriptionForm.cover.view')}
                 data-testid={`${testPrefix}-${index}-thumb`}
                 disabled={!coverBinary}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  setMenu({ x: event.clientX, y: event.clientY, index });
+                }}
                 onClick={() => {
                   // Feature 008 (D9, FR-051): the thumbnail shows the cover, as a thumbnail of the
                   // Binary objects list does (feature 007); Choose... opens the picker.
@@ -131,7 +149,11 @@ export function CoverList({ fieldKey, testPrefix }: CoverListProps) {
                 }}
               >
                 {url && !dangling ? (
-                  <img className="mfbe-desc-thumb" src={url} alt={cover.alt ?? cover.href} />
+                  <img
+                    className={`mfbe-desc-thumb${onPageClass(docId, cover.href.slice(1))}`}
+                    src={url}
+                    alt={cover.alt ?? cover.href}
+                  />
                 ) : (
                   <span className="mfbe-desc-thumb mfbe-desc-thumb-missing">
                     {t('descriptionForm.cover.missing')}
@@ -144,7 +166,9 @@ export function CoverList({ fieldKey, testPrefix }: CoverListProps) {
                   className={`mfbe-desc-select${dangling ? ' mfbe-desc-input-invalid' : ''}`}
                   data-testid={`${testPrefix}-${index}-href`}
                   value={cover.href}
-                  title={dangling ? t('descriptionForm.cover.dangling') : undefined}
+                  title={
+                    dangling ? t('descriptionForm.cover.dangling') : t('tip.description.coverHref')
+                  }
                   {...readOnlySelectProps(readOnly, (event) =>
                     controller.setValue(`${fieldKey}.${index}.href`, event.target.value),
                   )}
@@ -186,6 +210,30 @@ export function CoverList({ fieldKey, testPrefix }: CoverListProps) {
           );
         })
       )}
+      {menu ? (
+        <PopupMenu
+          testId="cover-context-menu"
+          position={{ x: menu.x, y: menu.y }}
+          onClose={() => setMenu(null)}
+          items={[
+            {
+              id: 'image.change',
+              label: t('images.cmd.change.label'),
+              enabled: !readOnly,
+              run: () => void change(menu.index),
+            },
+            {
+              id: 'image.show',
+              label: t('images.cmd.show.label'),
+              enabled: true,
+              run: () => {
+                const binary = images.find((b) => `#${b.id}` === covers[menu.index]?.href);
+                if (binary && docId) void openPictureView(dialogs, { docId, binary, store });
+              },
+            },
+          ]}
+        />
+      ) : null}
     </SubSection>
   );
 }
@@ -199,112 +247,23 @@ export interface CoverPickerDialogProps {
   docId: string | null;
   binaries: BinaryMeta[];
   initial?: string;
-  /** A file was embedded through "Add file..." (the caller adds it to the model). */
+  /** A file was embedded through *From file...* (the caller adds it to the model). */
   onBinaryAdded: (meta: BinaryMeta) => void;
+  /** A file added in the dialog was removed again on Cancel (feature 010, D6). */
+  onBinaryRemoved?: (id: string) => void;
+  /** The enlarge button of a preview (feature 010, D3). */
+  onShowPicture?: (binary: BinaryMeta) => void;
   onClose: (href: string | null) => void;
 }
 
-export function CoverPickerDialog({
-  rpc,
-  docId,
-  binaries,
-  initial,
-  onBinaryAdded,
-  onClose,
-}: CoverPickerDialogProps) {
+/** The cover's chooser: the picture chooser of feature 010 with the cover's caption and test ids. */
+export function CoverPickerDialog(props: CoverPickerDialogProps) {
   const { t } = useTranslation();
-  const [items, setItems] = useState<BinaryMeta[]>(binaries);
-  const [selected, setSelected] = useState<string | null>(initial ?? null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const addFile = async () => {
-    if (!rpc || !docId) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const meta = await addBinaryFromFile(rpc, docId, {
-        title: t('descriptionForm.cover.addFile'),
-        filters: imageFileTypes(t),
-        selectedFilter: 0,
-      });
-      if (!meta) return;
-      onBinaryAdded(meta);
-      setItems((current) => current.filter((b) => b.id !== meta.id).concat(meta));
-      setSelected(`#${meta.id}`);
-    } catch (failure) {
-      setError(failure instanceof Error ? failure.message : String(failure));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const buttons: DialogButton[] = [
-    {
-      id: 'ok',
-      label: t('dialog.buttons.ok'),
-      disabled: !selected,
-      onClick: () => onClose(selected),
-    },
-    { id: 'cancel', label: t('dialog.buttons.cancel'), onClick: () => onClose(null) },
-  ];
-
   return (
-    <Dialog
-      title={t('descriptionForm.cover.pickerCaption')}
-      buttons={buttons}
-      defaultButtonId="ok"
-      cancelButtonId="cancel"
-      testId="cover-picker"
-      className="mfbe-coverpicker"
-      closeLabel={t('dialog.buttons.close')}
-    >
-      <div className="mfbe-coverpicker-toolbar">
-        <SmallButton
-          testId="cover-picker-add-file"
-          onClick={() => void addFile()}
-          disabled={busy || !rpc || !docId}
-          title={t('descriptionForm.cover.addFile')}
-        >
-          {t('descriptionForm.cover.addFile')}
-        </SmallButton>
-        {error ? (
-          <span className="mfbe-desc-warning" data-testid="cover-picker-error">
-            {error}
-          </span>
-        ) : null}
-      </div>
-      {items.length === 0 ? (
-        <EmptyHint>{t('descriptionForm.cover.noBinaries')}</EmptyHint>
-      ) : (
-        <div className="mfbe-coverpicker-grid" role="listbox" data-testid="cover-picker-grid">
-          {items.map((binary) => {
-            const href = `#${binary.id}`;
-            const url = binaryPreviewUrl(docId, href, 120);
-            const active = selected === href;
-            return (
-              <button
-                type="button"
-                role="option"
-                aria-selected={active}
-                key={binary.id}
-                className={`mfbe-coverpicker-item${active ? ' mfbe-coverpicker-item-selected' : ''}`}
-                data-testid={`cover-picker-item-${binary.id}`}
-                onClick={() => setSelected(href)}
-                onDoubleClick={() => onClose(href)}
-              >
-                {url ? <img src={url} alt={binary.id} className="mfbe-coverpicker-thumb" /> : null}
-                <span className="mfbe-coverpicker-caption">
-                  <code>{binary.id}</code>
-                  <span className="mfbe-desc-muted">
-                    {binary.width && binary.height ? ` ${binary.width}\u00D7${binary.height}` : ''}
-                  </span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </Dialog>
+    <PictureChooser
+      {...props}
+      caption={t('descriptionForm.cover.pickerCaption')}
+      testIdPrefix="cover-picker"
+    />
   );
 }

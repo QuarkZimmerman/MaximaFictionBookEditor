@@ -508,9 +508,14 @@ test.describe('US4 (feature 006) - blocks of cells', () => {
     await rightClick(page, cell(t1, 'r2c2'));
     const contextMenu = page.getByTestId('context-menu');
     await contextMenu
-      .getByText(await pageText(page, 'editing.contextMenu.select', { element: 'table' }), {
-        exact: true,
-      })
+      .getByText(
+        await pageText(page, 'editing.contextMenu.select', {
+          element: await pageText(page, 'editing.element.table'),
+        }),
+        {
+          exact: true,
+        },
+      )
       .click();
     await expect(t1.element).toHaveClass(/\bfb-selected\b/);
     const outline = await t1.element.evaluate((element) => {
@@ -892,9 +897,14 @@ test.describe('US4 (feature 006) - blocks of cells', () => {
     await expect(page.getByTestId('status-path')).toHaveText(/\/tr\[2\]\/td\[2\]$/);
     const contextMenu = page.getByTestId('context-menu');
     await contextMenu
-      .getByText(await pageText(page, 'editing.contextMenu.select', { element: 'table' }), {
-        exact: true,
-      })
+      .getByText(
+        await pageText(page, 'editing.contextMenu.select', {
+          element: await pageText(page, 'editing.element.table'),
+        }),
+        {
+          exact: true,
+        },
+      )
       .click();
     await expect(t3.element).toHaveClass(/\bfb-selected\b/);
     await focusEditor(page);

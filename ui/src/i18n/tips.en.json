@@ -1,0 +1,287 @@
+{
+  "tip": {
+    "links": {
+      "id": "The id of the element the caret is in - a paragraph, a title, a poem. Give it an id so that a link can jump to it as #id.",
+      "idWhen": "Available when the caret is in an element that can have an id.",
+      "href": "Where the link or the picture points: #id of a place in this book, #id of one of the book's pictures, or a web address. Pick it from the list or type it.",
+      "hrefWhen": "Available when the caret is in a link or on a picture.",
+      "sectionId": "The id of the section the caret is in. Give a section an id so that links - a footnote's, a table of contents' - can jump to it as #id.",
+      "sectionIdWhen": "Available when the caret is in a section.",
+      "imageTitle": "The picture's title, shown under it in the text; FB2 writes it as the title attribute of the image.",
+      "imageTitleWhen": "Available on a picture that stands on its own line; an inline picture has no title.",
+      "alt": "The picture's alternative text, for readers that show no pictures; FB2 writes it as the alt attribute of the image.",
+      "altWhen": "Available on a picture.",
+      "hrefList": "Open the list of the places and pictures the field can point to."
+    },
+    "table": {
+      "tableId": "The id of the table the caret is in, so that a link can jump to it as #id.",
+      "tableStyle": "The table's style: CSS declarations that readers may apply, for example border: 1px solid; FB2 writes it as the table's style attribute.",
+      "cellId": "The id of the cell the caret is in, so that a link can jump to it as #id.",
+      "style": "The style of the selected cells: CSS declarations, for example color: red; FB2 writes it as the cells' style attribute.",
+      "lang": "The language of the selected cells' text, for example en or ru; FB2 writes it as xml:lang. Leave it empty to use the book's language.",
+      "colspan": "How many columns the cell spans, 1 or more; FB2 writes it as colspan.",
+      "rowspan": "How many rows the cell spans, 1 or more; FB2 writes it as rowspan.",
+      "trAlign": "The horizontal alignment of the selected rows: left, center or right; FB2 writes it as the row's align.",
+      "tdAlign": "The horizontal alignment of the text in the selected cells: left, center or right; FB2 writes it as align.",
+      "tdValign": "The vertical alignment of the text in the selected cells: top, middle or bottom; FB2 writes it as valign.",
+      "whenTable": "Available when the caret is in a table.",
+      "whenCell": "Available when the caret is in a table cell."
+    },
+    "settings": {
+      "view": {
+        "language": "The language of the editor's menus, dialogs and messages; System default follows the operating system. A change takes effect after a restart.",
+        "theme": "Light, dark, or as the system is set. Colours of your own for the book's text, set below, stay as they are.",
+        "bodyFont": "The font of the book's text in the Body view; Default font is the editor's own. It changes how the text looks on screen, never the book.",
+        "bodyFontSize": "The size of the book's text in the Body view, in points, from 6 to 96.",
+        "textColor": "The colour of the book's text in the Body view, as #rrggbb. Black on white follows the theme; any other colour replaces the theme's.",
+        "background": "The colour behind the book's text in the Body view, as #rrggbb. White behind black text follows the theme; any other colour replaces the theme's.",
+        "fastMode": "Shows the book without frames, backgrounds, colours and picture previews, so that very large books scroll faster; the book itself does not change. Also View > Fast Mode (F5).",
+        "sourceFont": "The font of the Source view, where the book's XML is edited; Default font is the editor's own.",
+        "sourceFontSize": "The size of the Source view's text, in points, from 6 to 96.",
+        "wrap": "Long lines of the Source view continue on the next screen line instead of running off to the right.",
+        "showWhitespace": "Shows the spaces and tabs of the Source view as faint marks.",
+        "syntaxHighlight": "Colours the tags, attributes and text of the XML in the Source view.",
+        "lineNumbers": "Numbers the lines of the Source view in its left margin.",
+        "showEol": "Marks the end of every line of the Source view.",
+        "matchTags": "With the caret on a tag of the Source view, highlights the tag that opens or closes it.",
+        "tagCompletion": "While you type in the Source view, offers the tags, attributes and values the FB2 schema allows at that place.",
+        "useSpellchecker": "Checks the spelling of the book's text with the dictionaries of the book's language.",
+        "highlightMisspelled": "Underlines the words the dictionaries do not know with a wavy line.",
+        "baseDictionary": "The dictionary of the book's language: always used.",
+        "extraDictionary": "Also check the text with this dictionary, for books that mix languages.",
+        "customDictionary": "The file of your own words: Add to dictionary writes there, and its words are never marked as misspelled.",
+        "dictionariesDefault": "Look for dictionaries in the editor's own dictionaries folder.",
+        "dictionariesCustom": "Look for dictionaries in a folder you choose, for example one shared with another program.",
+        "dictionariesPath": "The folder with the dictionaries (.dic and .aff files) to use.",
+        "openDictionariesFolder": "Opens the dictionaries folder in the file manager, to add or remove dictionaries."
+      },
+      "other": {
+        "encoding": "The encoding a new book is saved in, and an opened one too unless Keep Encoding is on. UTF-8 suits every language.",
+        "keepEncoding": "Saves an opened book in the encoding it was read in, instead of the default encoding.",
+        "keepBackup": "Before a save replaces a file, keeps its previous version beside it as a .bak file.",
+        "restorePosition": "Reopening a book puts the caret back where it was when you left the book.",
+        "switchKeyboardLayout": "When a book opens, switches the keyboard to the layout chosen below, for example the language you type the book in.",
+        "keyboardLayout": "The keyboard layout to switch to when a book opens.",
+        "askNonClearImage": "Before Add > Image inserts a picture, asks whether to take it from a file or to insert an empty picture to fill in later.",
+        "insertClearImages": "Without the question, Add > Image inserts an empty picture to fill in later instead of asking for a file.",
+        "imageFormat": "The format a picture pasted from the clipboard is stored in: JPEG for photographs, PNG for drawings and pictures with transparent areas.",
+        "jpegQuality": "The quality of pictures stored as JPEG, from 1 to 100: higher looks better, lower makes the book smaller.",
+        "nbsp": "How a non-breaking space shows in the Body view; the book always keeps it as a non-breaking space.",
+        "openFromOutside": "What happens when you open a book from outside the editor - from the file manager or another program - while a book is open in it.",
+        "versionCheck": "How often the editor checks on the internet whether a newer version exists; Never keeps it fully offline.",
+        "folder": {
+          "scripts": {
+            "default": "Read your own scripts from the editor's own scripts folder.",
+            "path": "The folder your own scripts are read from, besides the scripts that come with the editor.",
+            "open": "Opens the scripts folder in the file manager."
+          },
+          "genres": {
+            "default": "Read your own genre lists from the editor's own genres folder.",
+            "path": "The folder with your own genre lists, which add to or replace the standard one.",
+            "open": "Opens the genres folder in the file manager."
+          },
+          "template": {
+            "default": "Read the template of new books from the editor's own template folder.",
+            "path": "The folder with blank.fb2, the template every new book starts from.",
+            "open": "Opens the template folder in the file manager."
+          }
+        }
+      },
+      "words": {
+        "rowCheck": "Select the word, to remove it with Remove selected.",
+        "selectAll": "Selects every word of the list, or none.",
+        "removeSelected": "Removes the selected words from the exclusion list; the Words dialog counts them again.",
+        "newWord": "A word the Words dialog leaves out of its list, for example a name that appears often: letters only, with at most one hyphen inside.",
+        "add": "Adds the word to the exclusion list.",
+        "showExclusions": "Shows the excluded words in the Words dialog too, marked, instead of leaving them out."
+      },
+      "ai": {
+        "modeFree": "Use one of the free services of the bundled list: no registration and no key, with the limits each one states.",
+        "service": "The free service and model the assistant sends your requests to; its limits and terms are shown below.",
+        "modeCustom": "Use a service of your own choice - a hosted one with your key, or a model server on this computer.",
+        "address": "The address of the service's OpenAI-compatible interface, for example https://api.openai.com/v1, or http://127.0.0.1:11434/v1 for a server on this computer.",
+        "key": "Your key for the service; it is stored with the settings, sent only to this address and never written to a log. Leave it empty for a local server that needs none.",
+        "revealKey": "Shows or hides the key's characters.",
+        "model": "The model of your service that answers, for example gpt-4o-mini; type it or pick one after Fetch models.",
+        "fetchModels": "Asks the service for the list of models it offers, to pick one in the Model field.",
+        "modeDisabled": "Turns the assistant off: it leaves the menus, the toolbar and the shortcuts, and nothing of it is loaded.",
+        "test": "Sends a short test request to the service with these settings and reports whether it answers.",
+        "editList": "Opens your own service list file for editing; the first time, it is created as a copy of the bundled list.",
+        "reloadList": "Reads the service list files again after you edited them.",
+        "revoke": "Withdraws your agreement: before the next request to this service the editor asks again.",
+        "effort": "How much the model thinks before it answers: more effort gives better answers to hard tasks, slower and dearer; Model's default sends nothing.",
+        "effortNone": "The model offers no choice of thinking effort."
+      },
+      "hotkeys": {
+        "group": "Shows the commands of this group, with their shortcuts.",
+        "capture": "Click here and press the new shortcut, for example Ctrl+Shift+K; Assign then gives it to the selected command.",
+        "default": "Gives the selected command back its default shortcut.",
+        "delete": "Removes the shortcut from the selected command.",
+        "assign": "Gives the shortcut you pressed to the selected command."
+      },
+      "tabs": {
+        "view": "How the editor looks: language, theme, fonts and colours, the Source view and spelling.",
+        "other": "Saving and opening books, pictures, non-breaking spaces, folders and the version check.",
+        "hotkeys": "The keyboard shortcuts of every command.",
+        "words": "The words the Words dialog leaves out of its list.",
+        "ai": "The AI assistant: which service answers, or none at all."
+      }
+    },
+    "dialog": {
+      "dontAskAgain": "Answer like this from now on, without asking again; the question can be turned back on in the Settings."
+    },
+    "words": {
+      "highlight": "Mark the word: the buttons under Process highlighted act on the marked words.",
+      "replaced": "Replace this word with its replacement when you press OK.",
+      "showExclusions": "Shows the words of the exclusion list too, marked, or hides them.",
+      "highlightAll": "Marks every word of the list.",
+      "setReplacedAll": "Sets every word that has a replacement to be replaced when you press OK.",
+      "toExclusions": "Moves the marked words to the exclusion list, so that this dialog leaves them out from now on.",
+      "setReplaced": "Sets the marked words to be replaced with their replacements when you press OK.",
+      "invert": "Marks the words that are not marked, and unmarks the others.",
+      "resetReplaced": "The marked words will not be replaced.",
+      "currentWord": "The word chosen in the list; Find shows it in the text.",
+      "replacement": "The word to put in its place: Replace changes the occurrence found, OK every word set to be replaced.",
+      "find": "Finds the word in the book's text, and the next occurrence on each further click.",
+      "replace": "Replaces the occurrence found with the replacement.",
+      "editReplacement": "The replacement of this word; Enter keeps it, Escape leaves it as it was."
+    },
+    "spelling": {
+      "notInDictionary": "The word the dictionaries do not know; it is highlighted in the text.",
+      "changeTo": "The spelling to put instead: pick a suggestion from the list or type it.",
+      "ignore": "Leaves this occurrence as it is and goes on to the next unknown word.",
+      "ignoreAll": "Leaves every occurrence of the word as it is until the editor closes.",
+      "change": "Changes this occurrence to the spelling in Change To.",
+      "changeAll": "Changes every occurrence of the word in the book to the spelling in Change To.",
+      "add": "Adds the word to your own dictionary, so that it is never marked again.",
+      "undo": "Takes back the last change made in this dialog.",
+      "dictionary": "Check the text with this dictionary too: a word counts as known when any ticked dictionary knows it.",
+      "suggestion": "A spelling the dictionaries know: a click puts it in Change To, a double-click changes the word to it."
+    },
+    "find": {
+      "findWhat": "The text to look for; with Regular expression it is a pattern, for example colou?r.",
+      "wholeWords": "Finds the text only as a whole word, not inside longer words.",
+      "matchCase": "Finds the text only with the same capital and small letters.",
+      "regex": "Reads the text to look for as a regular expression: . any character, \\d a digit, * repeats what stands before it.",
+      "up": "Searches from the caret towards the beginning of the book.",
+      "down": "Searches from the caret towards the end of the book.",
+      "replaceWith": "The text to put in place of each match; with Regular expression, $1 inserts the first group in brackets, $0 the whole match."
+    },
+    "tableDialog": {
+      "rows": "How many rows the table has, from {{min}} to {{max}}.",
+      "columns": "How many columns the table has, from {{min}} to {{max}}.",
+      "headerRow": "Makes the first row a header row: its cells become th, which readers show as headings.",
+      "headerColumn": "Makes the first cell of every row a header cell (th), for tables whose rows have names."
+    },
+    "saveFile": {
+      "encoding": "The encoding the book is saved in: UTF-8 suits every language, a legacy code page only the languages it covers.",
+      "zip": "Packs the saved book into a ZIP archive, which many readers and libraries accept; the book inside keeps its name."
+    },
+    "customizeToolbar": {
+      "available": "The buttons you can add: select one and press Add; Separator adds a dividing line.",
+      "current": "The toolbar's buttons in their order: select one to remove it or to move it up or down."
+    },
+    "about": {
+      "basedOn": "The licence, the copyright and the contributors of FictionBook Editor 2.7, which this editor is based on.",
+      "openLogFolder": "Opens the folder of the editor's error log in the file manager, for example to attach the log to a bug report."
+    },
+    "views": {
+      "description": "The book's description: its title, authors, genres, annotation, cover and the other data a library shows.",
+      "body": "The book's text as it reads, with its sections, titles, poems and pictures, to edit it.",
+      "source": "The book's XML, to edit it directly; the other views follow when you leave it."
+    },
+    "archive": {
+      "filter": "Shows only the books of the archive whose name contains this text."
+    },
+    "link": {
+      "href": "Where the link points: #id of a place in this book, for example #note1, or a web address such as https://example.com."
+    },
+    "openElsewhere": {
+      "remember": "Answer like this for every book opened from outside; Settings > Other can change it."
+    },
+    "importDescription": {
+      "entry": "Takes this part of the other book's description into this book; untick it to keep this book's own."
+    },
+    "run": {
+      "cancel": "Stops the running script or the assistant's request."
+    },
+    "ai": {
+      "settingsLink": "Opens Settings → AI assistant, to choose the service that answers.",
+      "input": "Your instruction or question for the assistant, about the selected text or the book; Enter sends it, Shift+Enter starts a new line.",
+      "stop": "Stops the request: the assistant stops answering.",
+      "clear": "Clears the conversation, so that the next request starts afresh.",
+      "popupInput": "What the assistant should do with the selected text, or your question; Enter sends it, Shift+Enter starts a new line.",
+      "continue": "Moves this request and its answer to the assistant's panel, to go on there.",
+      "enableLink": "Opens Settings → AI assistant, to turn the assistant on.",
+      "disabledInput": "The assistant is turned off: turn it on in Settings → AI assistant to give it an instruction.",
+      "disabledSend": "Sends the instruction to the assistant. Available when the assistant is turned on in Settings → AI assistant.",
+      "disabledClear": "Clears the conversation. Available when the assistant is turned on in Settings → AI assistant.",
+      "disabledUndo": "Undoes the assistant's last change to the book. Available when the assistant is turned on in Settings → AI assistant.",
+      "proposalAuthor": "The author line, written as the first comment of the script the assistant proposes; clear it to write none."
+    },
+    "description": {
+      "titleInfo": {
+        "bookTitle": "The book's title, as readers and libraries show it.",
+        "date": {
+          "text": "When the book was written, as it should read, for example 2026 or spring 2026."
+        }
+      },
+      "srcTitleInfo": {
+        "bookTitle": "For a translation: the title of the original book.",
+        "lang": "The language of the original book."
+      },
+      "keywords": "Words a library can find the book by, separated by commas.",
+      "lang": "The language of the book's text, for example en, ru or uk; the spelling check uses its dictionaries.",
+      "srcLang": "For a translation: the language the book was translated from.",
+      "documentInfo": {
+        "date": {
+          "text": "When this FB2 file was made, as it should read, for example 15 March 2026."
+        },
+        "programUsed": "The programs this FB2 file was made with.",
+        "srcUrls": "A web address the book's text was taken from.",
+        "srcOcr": "Who scanned and recognised the printed book, if it was.",
+        "id": "The unique id of this FB2 file; libraries tell the versions of one book apart by it. Keep it when you make a new version.",
+        "version": "The version of this FB2 file, for example 1.0; raise it with every new release of the file."
+      },
+      "date": {
+        "text": "The date as it should read, for example 2026 or March 2026.",
+        "value": "The same date for programs, as YYYY-MM-DD, for example 2026-03-15."
+      },
+      "name": "The name of the series the book belongs to, for example The Lord of the Rings.",
+      "number": "The book's number in the series, for example 2.",
+      "genres": {
+        "match": "How well the genre fits the book, in percent; empty means 100."
+      },
+      "firstName": "The person's first name.",
+      "middleName": "The person's middle name or patronymic.",
+      "lastName": "The person's last name.",
+      "nickname": "The person's nickname or pen name; a person without a first and a last name needs one.",
+      "homePages": "A web page of the person, for example https://example.com.",
+      "emails": "An e-mail address of the person.",
+      "id": "The person's id in a library catalogue, if there is one.",
+      "publishInfo": {
+        "bookName": "The title of the printed book this text comes from.",
+        "publisher": "The publisher of the printed book.",
+        "city": "The city where the printed book was published.",
+        "year": "The year the printed book was published.",
+        "isbn": "The ISBN of the printed book, for example 978-3-16-148410-0."
+      },
+      "customInfo": {
+        "infoType": "The kind of the extra information, as a short name of your own.",
+        "text": "The extra information itself."
+      },
+      "role": "The person's part in the book, for example illustrator or editor; it is written as a custom-info entry.",
+      "genreFilter": "Shows only the genres whose name or code contains this text.",
+      "genreList": "The genres of the list: pick one and press OK, or double-click it.",
+      "coverHref": "The picture shown as the book's cover, chosen among the book's pictures."
+    },
+    "body": {
+      "tab": "Shows this body of the book - the main text or, for example, the notes.",
+      "moreBefore": "Shows the sections before the ones on screen; the view holds a window of sections, so that large books stay quick.",
+      "moreAfter": "Shows the sections after the ones on screen; the view holds a window of sections, so that large books stay quick."
+    },
+    "source": {
+      "foldLevel": "The nesting level the Collapse and Expand buttons beside it act on: 1 folds the outermost elements, higher levels deeper ones."
+    }
+  }
+}

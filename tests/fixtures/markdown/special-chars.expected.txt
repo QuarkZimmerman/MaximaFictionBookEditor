@@ -1,0 +1,137 @@
+<body><title><p>Special characters</p>
+</title>
+<section><p>Kept: café, Ж, ω, 中文, № ™ © → ± ≤ —</p>
+<p>Emoji: <image l:href="#ch-2705" alt="✅"/> <image l:href="#ch-1f600" alt="😀"/> <image l:href="#ch-1f44d-1f3fd" alt="👍🏽"/> <image l:href="#ch-1f1fa-1f1e6" alt="🇺🇦"/> <image l:href="#ch-31-fe0f-20e3" alt="1️⃣"/> <image l:href="#ch-1f468-200d-1f469-200d-1f467" alt="👨‍👩‍👧"/> <image l:href="#ch-2705" alt="✅"/> <image l:href="#ch-1f680" alt="🚀"/></p>
+<p>Symbols: <image l:href="#ch-2610" alt="☐"/> <image l:href="#ch-2611" alt="☑"/> <image l:href="#ch-2713" alt="✓"/> <image l:href="#ch-2717" alt="✗"/> <image l:href="#ch-2605" alt="★"/> <image l:href="#ch-25a0" alt="■"/> <image l:href="#ch-2502" alt="│"/> <image l:href="#ch-21d2" alt="⇒"/></p>
+<p>Mathematics: <image l:href="#ch-2200" alt="∀"/>x <image l:href="#ch-2211" alt="∑"/> <image l:href="#ch-2282" alt="⊂"/> <image l:href="#ch-1d538" alt="𝔸"/> <image l:href="#ch-211d" alt="ℝ"/></p>
+<p>Dropped:  </p>
+</section>
+</body>
+
+{
+  "description": {
+    "title": "Special characters",
+    "authors": [],
+    "annotation": [],
+    "genres": []
+  },
+  "pictures": [],
+  "chars": [
+    {
+      "id": "ch-2705",
+      "text": "✅",
+      "font": "emoji"
+    },
+    {
+      "id": "ch-1f600",
+      "text": "😀",
+      "font": "emoji"
+    },
+    {
+      "id": "ch-1f44d-1f3fd",
+      "text": "👍🏽",
+      "font": "emoji"
+    },
+    {
+      "id": "ch-1f1fa-1f1e6",
+      "text": "🇺🇦",
+      "font": "emoji"
+    },
+    {
+      "id": "ch-31-fe0f-20e3",
+      "text": "1️⃣",
+      "font": "emoji"
+    },
+    {
+      "id": "ch-1f468-200d-1f469-200d-1f467",
+      "text": "👨‍👩‍👧",
+      "font": "emoji"
+    },
+    {
+      "id": "ch-1f680",
+      "text": "🚀",
+      "font": "emoji"
+    },
+    {
+      "id": "ch-2610",
+      "text": "☐",
+      "font": "symbol"
+    },
+    {
+      "id": "ch-2611",
+      "text": "☑",
+      "font": "symbol"
+    },
+    {
+      "id": "ch-2713",
+      "text": "✓",
+      "font": "symbol"
+    },
+    {
+      "id": "ch-2717",
+      "text": "✗",
+      "font": "symbol"
+    },
+    {
+      "id": "ch-2605",
+      "text": "★",
+      "font": "symbol"
+    },
+    {
+      "id": "ch-25a0",
+      "text": "■",
+      "font": "symbol"
+    },
+    {
+      "id": "ch-2502",
+      "text": "│",
+      "font": "symbol"
+    },
+    {
+      "id": "ch-21d2",
+      "text": "⇒",
+      "font": "symbol"
+    },
+    {
+      "id": "ch-2200",
+      "text": "∀",
+      "font": "math"
+    },
+    {
+      "id": "ch-2211",
+      "text": "∑",
+      "font": "math"
+    },
+    {
+      "id": "ch-2282",
+      "text": "⊂",
+      "font": "math"
+    },
+    {
+      "id": "ch-1d538",
+      "text": "𝔸",
+      "font": "math"
+    },
+    {
+      "id": "ch-211d",
+      "text": "ℝ",
+      "font": "math"
+    }
+  ],
+  "summary": [
+    {
+      "kind": "droppedChar",
+      "detail": "U+E000"
+    },
+    {
+      "kind": "droppedChar",
+      "detail": "U+F0001"
+    }
+  ],
+  "stats": {
+    "sections": 1,
+    "pictures": 0,
+    "tables": 0,
+    "notes": 0
+  }
+}

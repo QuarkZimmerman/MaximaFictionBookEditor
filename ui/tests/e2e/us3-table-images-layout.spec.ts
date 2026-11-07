@@ -325,7 +325,26 @@ function cellSelector(scope: string, id: string, row: number, col: number): stri
 }
 
 /** The light-theme shots of the transparent pictures, with their cell colours. */
+/**
+ * Feature 010 (D9, D10): a picture has white behind it, in both themes; the cell colour shows
+ * through its transparent areas once its switch shows it on the page's own background - what these
+ * pixel checks are about. Afterwards the pointer leaves the pictures, so no switch is in the shots.
+ */
+async function showTransparentOnPage(page: Page): Promise<void> {
+  for (const { table, row, col } of TRANSPARENT) {
+    const picture = page.locator(`${cellSelector(BODY, table, row, col)} .fb-inline-image`);
+    if ((await picture.getAttribute('class'))?.includes('fb-picture-on-page')) continue;
+    await picture.hover();
+    const toggle = picture.getByTestId('picture-bg-switch');
+    await expect(toggle).toBeVisible();
+    await toggle.click();
+    await expect(picture).toHaveClass(/fb-picture-on-page/);
+  }
+  await page.mouse.move(1, 1);
+}
+
 async function transparentShots(page: Page): Promise<{ shot: string; colour: number[] }[]> {
+  await showTransparentOnPage(page);
   const out: { shot: string; colour: number[] }[] = [];
   for (const { table, row, col } of TRANSPARENT) {
     const cell = cellSelector(BODY, table, row, col);
@@ -344,6 +363,7 @@ async function darkPixelChecks(
   light: { shot: string; colour: number[] }[] | null,
 ): Promise<string[]> {
   const problems: string[] = [];
+  if (light) await showTransparentOnPage(page);
   if (light) {
     for (const [index, { table, row, col }] of TRANSPARENT.entries()) {
       const cell = cellSelector(BODY, table, row, col);
@@ -685,7 +705,14 @@ test.describe('US3 - the layout of pictures in table cells (SC-006)', () => {
   }, testInfo) => {
     test.setTimeout(120_000);
     await openBook(core, page, 'first start');
-    const missing = uiText(await pageLang(page), 'views.body.imageMissing');
+    // Feature 010 (FR-018): a placeholder names its kind - empty, missing or external - in the
+    // interface language; the part of each text before the reference is what every one starts with.
+    const lang = await pageLang(page);
+    const starts = (['empty', 'missing', 'external'] as const).map(
+      // An inline picture shows only its kind, the text before " - " (feature 010, D8).
+      (kind) => uiText(lang, `views.body.picture.${kind}`).split('{{href}}')[0]!.split(' - ')[0]!,
+    );
+    const missing = starts.join('" | "');
     const results: EnvResult[] = [];
     const wrongText: string[] = [];
     for (const env of [
@@ -712,7 +739,8 @@ test.describe('US3 - the layout of pictures in table cells (SC-006)', () => {
           `.filter((ph) => getComputedStyle(ph).display !== 'none').map((ph) => ph.textContent)`,
       );
       for (const text of texts)
-        if (!text.startsWith(missing)) wrongText.push(`${label('first start', env)}: "${text}"`);
+        if (!starts.some((start) => text.startsWith(start)))
+          wrongText.push(`${label('first start', env)}: "${text}"`);
     }
     expect(wrongText, `every placeholder starts with "${missing}"`).toEqual([]);
     await report(testInfo, results);

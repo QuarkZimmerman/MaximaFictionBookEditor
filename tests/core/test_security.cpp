@@ -19,6 +19,13 @@
 
 #include <algorithm>
 #include <catch2/catch_test_macros.hpp>
+
+#ifndef _WIN32
+#include <cerrno>
+#include <csignal>
+#include <sys/socket.h>
+#include <unistd.h>
+#endif
 #include <catch2/matchers/catch_matchers_string.hpp>
 #include <cctype>
 #include <chrono>
@@ -709,3 +716,23 @@ TEST_CASE(
         CHECK(log.find("\"host\":\"ai.standin.test:8787\"") != std::string::npos);
     }
 }
+
+#ifndef _WIN32
+TEST_CASE("security: a peer that closes its connection does not kill the core (SIGPIPE)",
+          "[security][server]") {
+    // Back to the default action (a null handler is SIG_DFL), so only the server can save us.
+    struct sigaction defaults{};
+    defaults.sa_handler = nullptr;
+    sigaction(SIGPIPE, &defaults, nullptr);
+    ServerFixture f;
+    int fds[2] = {-1, -1};
+    REQUIRE(::socketpair(AF_UNIX, SOCK_STREAM, 0, fds) == 0);
+    ::close(fds[1]);
+    const char byte = 'x';
+    errno = 0;
+    // Without the server's handler this write would end the test process.
+    CHECK(::write(fds[0], &byte, 1) == -1);
+    CHECK(errno == EPIPE);
+    ::close(fds[0]);
+}
+#endif

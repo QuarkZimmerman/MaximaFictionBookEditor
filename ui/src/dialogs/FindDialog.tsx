@@ -18,6 +18,7 @@ import { Dialog, type DialogButton } from './Dialog';
 import { useSearchDialogFocus } from './useSearchDialogFocus';
 
 import './editing.css';
+import { tip } from '@/app/tooltips';
 
 export interface FindDialogProps {
   session: SearchSession;
@@ -52,6 +53,7 @@ export function FindFields({
       <label className="mfbe-field-row" htmlFor={`${idPrefix}-query`}>
         <span className="mfbe-find-label">{parseAccelerator(t('dialog.find.findWhat')).text}</span>
         <input
+          {...tip(t('tip.find.findWhat'))}
           ref={queryRef}
           id={`${idPrefix}-query`}
           className="mfbe-inputdialog-input"
@@ -74,6 +76,7 @@ export function FindFields({
         <div className="mfbe-find-checks">
           <label className="mfbe-check-field" htmlFor={`${idPrefix}-whole`}>
             <input
+              {...tip(t('tip.find.wholeWords'))}
               id={`${idPrefix}-whole`}
               type="checkbox"
               checked={options.wholeWord}
@@ -84,6 +87,7 @@ export function FindFields({
           </label>
           <label className="mfbe-check-field" htmlFor={`${idPrefix}-case`}>
             <input
+              {...tip(t('tip.find.matchCase'))}
               id={`${idPrefix}-case`}
               type="checkbox"
               checked={options.matchCase}
@@ -94,6 +98,7 @@ export function FindFields({
           </label>
           <label className="mfbe-check-field" htmlFor={`${idPrefix}-regex`}>
             <input
+              {...tip(t('tip.find.regex'))}
               id={`${idPrefix}-regex`}
               type="checkbox"
               checked={options.regex}
@@ -107,6 +112,7 @@ export function FindFields({
           <legend>{t('dialog.find.direction')}</legend>
           <label className="mfbe-check-field" htmlFor={`${idPrefix}-up`}>
             <input
+              {...tip(t('tip.find.up'))}
               id={`${idPrefix}-up`}
               type="radio"
               name={`${idPrefix}-direction`}
@@ -118,6 +124,7 @@ export function FindFields({
           </label>
           <label className="mfbe-check-field" htmlFor={`${idPrefix}-down`}>
             <input
+              {...tip(t('tip.find.down'))}
               id={`${idPrefix}-down`}
               type="radio"
               name={`${idPrefix}-direction`}

@@ -11,8 +11,16 @@
 import { useEffect, useState, type KeyboardEvent, type MouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { usePictureBackgrounds } from '@/app/usePictureBackground';
 import { ViewerFrame } from '@/dialogs/Dialog';
 import type { BinaryMeta } from '@/model/document';
+import {
+  confirmTransparency,
+  hasTransparentPixels,
+  pictureBackground,
+  togglePictureBackground,
+  transparencyConfirmed,
+} from '@/model/pictureBackground';
 import { useAppState, type AppStore } from '@/model/store';
 
 import {
@@ -76,6 +84,16 @@ export function PictureView({ docId, binary, store, onClose }: PictureViewProps)
   const onAreaClick = (event: MouseEvent<HTMLDivElement>) => {
     if (event.target === event.currentTarget) onClose();
   };
+  // Feature 010 (D9, D10): white behind the picture; a picture with transparent areas offers the
+  // switch to the view's own background, shared with every place that shows the image.
+  usePictureBackgrounds();
+  const background = pictureBackground(docId, binary.id);
+  const switchable = transparencyConfirmed(docId, binary.id) === true;
+  const onPictureLoad = (event: { currentTarget: HTMLImageElement }) => {
+    if (!binary.transparent || transparencyConfirmed(docId, binary.id) !== undefined) return;
+    const found = hasTransparentPixels(event.currentTarget);
+    if (found !== null) confirmTransparency(docId, binary.id, found);
+  };
 
   return (
     <ViewerFrame
@@ -91,7 +109,9 @@ export function PictureView({ docId, binary, store, onClose }: PictureViewProps)
           onClick={onAreaClick}
         >
           <img
-            className={`mfbe-picture-view-picture${zoom ? ` mfbe-picture-view-${zoom}` : ''}`}
+            className={`mfbe-picture-view-picture${zoom ? ` mfbe-picture-view-${zoom}` : ''}${
+              background === 'page' ? ' mfbe-picture-on-page' : ''
+            }`}
             src={pictureViewUrl(docId, binary) ?? undefined}
             alt={binary.id}
             width={size.width}
@@ -107,9 +127,22 @@ export function PictureView({ docId, binary, store, onClose }: PictureViewProps)
             data-testid="picture-view-picture"
             onClick={toggle}
             onKeyDown={onPictureKeyDown}
+            onLoad={onPictureLoad}
           />
         </div>
       </div>
+      {switchable ? (
+        <button
+          type="button"
+          className="mfbe-picture-view-background"
+          aria-label={t(`pictureView.background.${background}`)}
+          title={t(`pictureView.background.${background}`)}
+          data-testid="picture-view-background"
+          onClick={() => togglePictureBackground(docId, binary.id)}
+        >
+          <span aria-hidden="true" className="mfbe-picture-view-background-glyph" />
+        </button>
+      ) : null}
       <button
         type="button"
         className="mfbe-picture-view-close"

@@ -108,6 +108,8 @@ test.describe('US4 (feature 009) - Paste as plain text', () => {
       .locator('[data-testid="body-editor"] p.fb-p', { hasText: 'Сед темпор' })
       .first()
       .click({ button: 'right' });
+    // Feature 010 (D16): the click moves the caret first, and the menu opens a frame later.
+    await expect(page.getByTestId('context-menu')).toBeVisible();
     const entries = await page
       .locator('[data-testid^="context-menu-edit."]')
       .evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-testid')));

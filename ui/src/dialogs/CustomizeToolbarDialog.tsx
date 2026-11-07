@@ -35,6 +35,7 @@ import {
 import { useAppState } from '@/model/store';
 
 import { Dialog, type DialogButton } from './Dialog';
+import { tip } from '@/app/tooltips';
 
 export interface CustomizeToolbarDialogProps {
   ctx: CommandContext;
@@ -145,6 +146,7 @@ export function CustomizeToolbarDialog({
         <label className="mfbe-customize-toolbar-list" htmlFor="customize-toolbar-available">
           <span>{t('dialog.customizeToolbar.available')}</span>
           <select
+            {...tip(t('tip.customizeToolbar.available'))}
             id="customize-toolbar-available"
             size={12}
             value={String(selectedAvailable)}
@@ -162,6 +164,7 @@ export function CustomizeToolbarDialog({
         <label className="mfbe-customize-toolbar-list" htmlFor="customize-toolbar-current">
           <span>{t('dialog.customizeToolbar.current')}</span>
           <select
+            {...tip(t('tip.customizeToolbar.current'))}
             id="customize-toolbar-current"
             size={12}
             value={String(selectedCurrent)}

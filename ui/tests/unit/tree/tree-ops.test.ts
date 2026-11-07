@@ -10,8 +10,10 @@ import {
   deleteNode,
   locateNode,
   mergeWithNext,
+  moveDown,
   moveLeft,
   moveRight,
+  moveUp,
   moveWithChildren,
   runTreeOp,
   TREE_OPS,
@@ -453,5 +455,36 @@ describe('tree operations - helpers and sequences', () => {
       'section[C](title[tC](p[p6]) p[pC1] p[pC2])',
     );
     expectValid(noImage.model);
+  });
+});
+
+describe('tree operations - Move Up / Move Down (feature 010, D21)', () => {
+  it('swaps a section, with its subsections, with the section before or after it', () => {
+    const up = moveUp(nestedDocument(), 'C');
+    if (!up.ok) throw new Error(up.reason);
+    expect(sectionOrder(up.model)).toEqual(['A', 'C', 'B', 'B1', 'B2', 'D']);
+    expect(up.selectNodeId).toBe('C');
+    expectValid(up.model);
+    const down = moveDown(nestedDocument(), 'B');
+    if (!down.ok) throw new Error(down.reason);
+    expect(sectionOrder(down.model)).toEqual(['A', 'C', 'B', 'B1', 'B2', 'D']);
+    expectValid(down.model);
+    const nested = runTreeOp('moveUp', nestedDocument(), 'B2');
+    if (!nested.ok) throw new Error(nested.reason);
+    expect(sectionOrder(nested.model)).toEqual(['A', 'B', 'B2', 'B1', 'C', 'D']);
+    expectValid(nested.model);
+  });
+
+  it('refuses at the ends of the parent and for elements that are not sections', () => {
+    const doc = nestedDocument();
+    expect(moveUp(doc, 'A')).toEqual({ ok: false, reason: 'noPreviousSibling' });
+    expect(moveDown(doc, 'D')).toEqual({ ok: false, reason: 'noNextSibling' });
+    expect(moveDown(doc, 'B2')).toEqual({ ok: false, reason: 'noNextSibling' });
+    expect(moveUp(doc, 'tA')).toEqual({ ok: false, reason: 'notASection' });
+    expect(canRunTreeOp('moveUp', doc, 'A')).toBe(false);
+    expect(canRunTreeOp('moveUp', doc, 'B')).toBe(true);
+    expect(canRunTreeOp('moveDown', doc, 'D')).toBe(false);
+    expect(canRunTreeOp('moveDown', doc, 'C')).toBe(true);
+    expect(TREE_OPS).toEqual(expect.arrayContaining(['moveUp', 'moveDown']));
   });
 });

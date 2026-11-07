@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { BUTTON_SETS } from './buttonSets';
 import { Dialog, type DialogButton } from './Dialog';
 import type { MessageBoxOptions, MessageBoxResult, MessageIcon } from './types';
+import { tip } from '@/app/tooltips';
 
 const ICON_GLYPHS: Record<Exclude<MessageIcon, 'none'>, string> = {
   info: 'i',
@@ -62,6 +63,7 @@ export function MessageBox({ options, onClose }: MessageBoxProps) {
       {options.dontAskAgain ? (
         <label className="mfbe-messagebox-dontask">
           <input
+            {...tip(t('tip.dialog.dontAskAgain'))}
             type="checkbox"
             checked={dontAskAgain}
             onChange={(e) => setDontAskAgain(e.target.checked)}

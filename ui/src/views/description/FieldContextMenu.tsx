@@ -21,10 +21,14 @@ import { PopupMenu, type PopupMenuItem } from '@/app/PopupMenu';
 import { useAppRevision, useAppServices, useCommandContext } from '@/app/services';
 import { cutOrCopy, hasSelectedText, isWritable, pasteIntoField } from '@/app/textFields';
 import { caretInCell } from '@/editor/commands/insert';
+import { choosePictureFor } from '@/features/images/choosePicture';
+import { openPictureView } from '@/features/images/openPictureView';
+import { backgroundSwitchItem, pictureBinary, targetPicture } from '@/features/images/pictureMenu';
 import { cutOrCopyTarget, pasteIntoTarget } from '@/features/clipboard';
 import { pastePlainInto } from '@/features/pastePlain';
 import { tableSectionItems } from '@/features/tables/contextMenu';
 import { fieldTargetFor } from '@/features/tables/target';
+import { isRunLocked } from '@/model/store';
 import {
   isSeparator,
   type ContextMenuClick,
@@ -136,6 +140,30 @@ export function FieldContextMenu({ field, position, click, onClose }: FieldConte
       run: () => void pastePlainInto(ctx, { view: target.view }),
     },
   ];
+  // Feature 010 (D4): a picture of the field under the right-click - Change picture…, and Show
+  // picture when its image is in the book.
+  const fieldView = target.view;
+  const picture = fieldView ? targetPicture(fieldView, ctx.store) : null;
+  if (fieldView && picture) {
+    items.push('separator', {
+      id: 'image.change',
+      label: t('images.cmd.change.label'),
+      enabled: target.editable && !isRunLocked(ctx.store.getState()),
+      run: () => void choosePictureFor(fieldView, picture.pos, ctx),
+    });
+    const switchItem = backgroundSwitchItem(ctx.store, picture.node);
+    if (switchItem) items.push(...popupItems([switchItem]));
+    const binary = pictureBinary(ctx.store, picture.node);
+    const docId = ctx.store.getState().docId;
+    if (binary && docId) {
+      items.push({
+        id: 'image.show',
+        label: t('images.cmd.show.label'),
+        enabled: true,
+        run: () => void openPictureView(ctx.dialogs, { docId, binary, store: ctx.store }),
+      });
+    }
+  }
   if (state && caretInCell(state)) {
     const spec = services.commands.get('insert.inlineImage');
     const enabled = services.commands.isEnabled('insert.inlineImage', ctx);

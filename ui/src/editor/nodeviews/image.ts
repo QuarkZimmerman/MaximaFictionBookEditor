@@ -15,10 +15,19 @@
  */
 
 import type { Node as PMNode } from 'prosemirror-model';
-import type { NodeView, NodeViewConstructor } from 'prosemirror-view';
+import type { EditorView, NodeView, NodeViewConstructor } from 'prosemirror-view';
 
 import { binaryPreviewUrl, previewSize, PREVIEW_WIDTH } from '@/model/binaryUrls';
 import type { BinaryMeta } from '@/model/document';
+import {
+  confirmTransparency,
+  hasTransparentPixels,
+  pictureBackground,
+  subscribePictureBackgrounds,
+  togglePictureBackground,
+  transparencyConfirmed,
+  type PictureBackground,
+} from '@/model/pictureBackground';
 
 export interface ImageViewOptions {
   /** Current document id (binaries are addressed per document). */
@@ -35,6 +44,37 @@ export interface ImageViewOptions {
    * once - no refresh (feature 007).
    */
   onBinariesChange?: (listener: () => void) => () => void;
+  /**
+   * Feature 010 (D8): the placeholder's text for each kind of picture without an image; when
+   * absent, `getMissingText` and the reference as before.
+   */
+  getPlaceholderText?: (kind: PictureKind, href: string) => string;
+  /**
+   * Feature 010 (D10): the title of the background switch for the picture's current background;
+   * without it no switch is shown.
+   */
+  getBackgroundSwitchText?: (background: PictureBackground) => string;
+}
+
+/** Feature 010 (D8): the kinds of pictures that show no image. */
+export type PictureKind = 'empty' | 'missing' | 'external';
+
+/** The kind of a picture without an image from its reference (D8). */
+export function pictureKind(href: string): PictureKind {
+  if (href === '' || href === '#' || href === '#undefined') return 'empty';
+  return href.startsWith('#') ? 'missing' : 'external';
+}
+
+/**
+ * Feature 010 (D4): what a double-click on a picture without an image does - the images feature
+ * installs it (the picture chooser for that node); none until then.
+ */
+let placeholderAction: ((view: EditorView, pos: number) => void) | null = null;
+
+export function setPicturePlaceholderAction(
+  action: ((view: EditorView, pos: number) => void) | null,
+): void {
+  placeholderAction = action;
 }
 
 /**
@@ -61,12 +101,16 @@ export class ImageView implements NodeView {
   private readonly img: HTMLImageElement;
   private readonly caption: HTMLElement | null;
   private readonly missing: HTMLElement;
+  private readonly backgroundSwitch: HTMLElement;
   private readonly stopListening: (() => void) | undefined;
+  private readonly stopBackgrounds: () => void;
 
   constructor(
     private node: PMNode,
     private readonly inline: boolean,
     private readonly options: ImageViewOptions,
+    private readonly view?: EditorView,
+    private readonly getPos?: () => number | undefined,
   ) {
     this.dom = document.createElement(inline ? 'span' : 'figure');
     this.dom.className = inline ? 'fb-inline-image' : 'fb-image';
@@ -83,11 +127,43 @@ export class ImageView implements NodeView {
       if (this.img.naturalWidth > 0 && this.img.naturalHeight > 0) {
         this.setNaturalSize(this.img.naturalWidth, this.img.naturalHeight);
       }
+      this.checkTransparency();
     });
     this.dom.appendChild(this.img);
+    // Feature 010 (D4): a double-click on a picture without an image opens the picture chooser.
+    this.dom.addEventListener('dblclick', (event) => {
+      if (!this.dom.classList.contains('fb-image-missing') || !this.view || !placeholderAction) {
+        return;
+      }
+      const pos = this.getPos?.();
+      if (pos === undefined) return;
+      event.preventDefault();
+      placeholderAction(this.view, pos);
+    });
     this.missing = document.createElement('span');
     this.missing.className = 'fb-image-placeholder';
     this.dom.appendChild(this.missing);
+    // Feature 010 (D10): the background switch in the picture's top-right corner, shown on hover
+    // for a picture with transparent areas; it never moves the caret or the selection.
+    this.backgroundSwitch = document.createElement('span');
+    this.backgroundSwitch.className = 'fb-picture-bg-switch';
+    this.backgroundSwitch.setAttribute('role', 'button');
+    this.backgroundSwitch.setAttribute('contenteditable', 'false');
+    this.backgroundSwitch.setAttribute('data-testid', 'picture-bg-switch');
+    this.backgroundSwitch.hidden = true;
+    this.backgroundSwitch.addEventListener('mousedown', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+    this.backgroundSwitch.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const docId = this.options.getDocId();
+      const id = this.binaryId();
+      if (docId && id) togglePictureBackground(docId, id);
+    });
+    this.dom.appendChild(this.backgroundSwitch);
+    this.dom.addEventListener('mouseenter', () => this.placeSwitch());
     this.caption = inline ? null : document.createElement('figcaption');
     if (this.caption) {
       this.caption.className = 'fb-image-caption';
@@ -95,10 +171,52 @@ export class ImageView implements NodeView {
     }
     this.render();
     this.stopListening = this.options.onBinariesChange?.(() => this.render());
+    this.stopBackgrounds = subscribePictureBackgrounds(() => this.renderBackground());
   }
 
   destroy(): void {
     this.stopListening?.();
+    this.stopBackgrounds();
+  }
+
+  /** The id of the book's binary the picture shows, or null. */
+  private binaryId(): string | null {
+    const href = String(this.node.attrs.href ?? '');
+    return href.startsWith('#') && href.length > 1 && href !== '#undefined' ? href.slice(1) : null;
+  }
+
+  /** Settles once per image whether the loaded picture really has transparent pixels (D10). */
+  private checkTransparency(): void {
+    const docId = this.options.getDocId();
+    const id = this.binaryId();
+    if (!docId || !id || !this.options.getBinary?.(id)?.transparent) return;
+    if (transparencyConfirmed(docId, id) !== undefined) return;
+    const found = hasTransparentPixels(this.img);
+    if (found !== null) confirmTransparency(docId, id, found);
+  }
+
+  /** The background class and the switch for the picture's image (D9, D10). */
+  private renderBackground(): void {
+    const docId = this.options.getDocId();
+    const id = this.binaryId();
+    const background = id ? pictureBackground(docId, id) : 'white';
+    this.dom.classList.toggle('fb-picture-on-page', background === 'page');
+    const offered =
+      !!id && !!this.options.getBackgroundSwitchText && transparencyConfirmed(docId, id) === true;
+    this.backgroundSwitch.hidden = !offered;
+    if (offered && this.options.getBackgroundSwitchText) {
+      const text = this.options.getBackgroundSwitchText(background);
+      this.backgroundSwitch.title = text;
+      this.backgroundSwitch.setAttribute('aria-label', text);
+    }
+  }
+
+  /** Puts the switch at the top-right corner of the picture itself (a block figure is wider). */
+  private placeSwitch(): void {
+    if (this.backgroundSwitch.hidden) return;
+    const right = this.img.offsetLeft + this.img.offsetWidth;
+    this.backgroundSwitch.style.left = `${Math.max(0, right - 22)}px`;
+    this.backgroundSwitch.style.top = `${this.img.offsetTop + 2}px`;
   }
 
   private render(): void {
@@ -113,7 +231,15 @@ export class ImageView implements NodeView {
     else this.dom.removeAttribute('data-id');
     this.dom.title = [title, alt, href].filter(Boolean).join('\n');
     this.img.alt = alt;
-    this.missing.textContent = `${this.options.getMissingText()} ${href}`.trim();
+    if (this.options.getPlaceholderText) {
+      // Feature 010 (D8): a block picture says its kind and how to fix it; an inline picture,
+      // inside a line of text, only its kind - the whole sentence is its tooltip.
+      const text = this.options.getPlaceholderText(pictureKind(href), href);
+      this.missing.textContent = this.inline ? (text.split(' - ')[0] ?? text) : text;
+      this.missing.title = text;
+    } else {
+      this.missing.textContent = `${this.options.getMissingText()} ${href}`.trim();
+    }
     const url = binaryPreviewUrl(this.options.getDocId(), href, this.options.previewWidth);
     this.reserveBox(url, href);
     if (url) {
@@ -128,6 +254,7 @@ export class ImageView implements NodeView {
       this.caption.textContent = title;
       this.caption.hidden = !title;
     }
+    this.renderBackground();
   }
 
   /**
@@ -190,7 +317,7 @@ export function createImageNodeViews(
   options: ImageViewOptions,
 ): Record<string, NodeViewConstructor> {
   return {
-    image: (node) => new ImageView(node, false, options),
-    inline_image: (node) => new ImageView(node, true, options),
+    image: (node, view, getPos) => new ImageView(node, false, options, view, getPos),
+    inline_image: (node, view, getPos) => new ImageView(node, true, options, view, getPos),
   };
 }

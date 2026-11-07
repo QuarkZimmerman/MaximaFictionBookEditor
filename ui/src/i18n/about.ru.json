@@ -29,6 +29,9 @@
       "dictionaryNoNotice": "У этого словаря нет файла уведомления.",
       "caBundle": {
         "caption": "Набор корневых сертификатов пакетов для Linux (используется защищёнными соединениями ИИ-помощника, когда система его не предоставляет) и его уведомление:"
+      },
+      "fonts": {
+        "caption": "Noto Color Emoji, Noto Sans Symbols, Noto Sans Symbols 2 и Noto Sans Math (картинки особых символов в импортированном Markdown), SIL Open Font License 1.1:"
       }
     }
   }

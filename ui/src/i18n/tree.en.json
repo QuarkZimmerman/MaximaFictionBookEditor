@@ -7,14 +7,18 @@
       "moveWithChildren": "Move With &Children",
       "moveLeft": "Move &Left",
       "merge": "&Merge",
-      "delete": "&Delete"
+      "delete": "&Delete",
+      "moveUp": "Move &Up",
+      "moveDown": "Move Do&wn"
     },
     "toolbar": {
       "right": "Move node once to the right",
       "rightSmart": "Move one node to the right with smart mode",
       "left": "Move to the left",
       "merge": "Merge containers",
-      "delete": "Delete selected node"
+      "delete": "Delete selected node",
+      "up": "Move the section up: it swaps places with the section before it",
+      "down": "Move the section down: it swaps places with the section after it"
     },
     "node": {
       "annotation": "Annotation",
@@ -44,13 +48,64 @@
       "moveWithChildren": "Move section with children",
       "moveLeft": "Move section left",
       "merge": "Merge sections",
-      "delete": "Delete element"
+      "delete": "Delete element",
+      "moveUp": "Move section up",
+      "moveDown": "Move section down"
     },
     "a11y": {
       "toolbar": "Document tree toolbar",
       "contextMenu": "Document tree menu",
       "collapse": "Collapse",
       "expand": "Expand"
+    },
+    "menuFor": {
+      "goTo": "&Go To",
+      "goToSource": "Go To &Source",
+      "moveUp": "Move &Up, Before «{{name}}»",
+      "moveUpPlain": "Move &Up",
+      "moveDown": "Move Do&wn, After «{{name}}»",
+      "moveDownPlain": "Move Do&wn",
+      "moveInto": "Move &Into «{{name}}»",
+      "moveIntoPlain": "Move &Into the Section Before",
+      "moveIntoOnly": "Move Into «{{name}}» (Section &Only)",
+      "moveIntoOnlyPlain": "Move Into the Section Before (Section &Only)",
+      "moveOut": "Move Ou&t of «{{name}}»",
+      "moveOutPlain": "Move Ou&t of the Parent Section",
+      "merge": "&Merge With «{{name}}»",
+      "mergePlain": "&Merge With the Next Section",
+      "changePicture": "&Change Picture...",
+      "showPicture": "S&how Picture",
+      "saveImage": "Save Image &As...",
+      "untitled": "section {{number}}",
+      "delete": {
+        "section": "&Delete Section...",
+        "body": "&Delete Body...",
+        "title": "&Delete Title",
+        "epigraph": "&Delete Epigraph",
+        "annotation": "&Delete Annotation",
+        "image": "&Delete Picture",
+        "poem": "&Delete Poem",
+        "cite": "&Delete Quote",
+        "table": "&Delete Table"
+      }
+    },
+    "reason": {
+      "first": "«{{name}}» is the first section here: there is no section before it",
+      "last": "«{{name}}» is the last section here: there is no section after it",
+      "topLevel": "«{{name}}» is already at the top level of its body",
+      "cannotDelete": "This element cannot be deleted here: a body keeps at least one section, a book at least one body"
+    },
+    "deleteConfirmSection": "Delete the section «{{name}}» with everything in it?",
+    "deleteConfirmFor": {
+      "section": "Delete this untitled section with everything in it?",
+      "body": "Delete this body with everything in it?",
+      "title": "Delete this title?",
+      "epigraph": "Delete this epigraph?",
+      "annotation": "Delete this annotation?",
+      "image": "Delete this picture?",
+      "poem": "Delete this poem?",
+      "cite": "Delete this quote?",
+      "table": "Delete this table?"
     }
   },
   "cmd": {
@@ -82,6 +137,14 @@
       "viewSource": {
         "tooltip": "Tree: view source",
         "description": "Show the selected element in the Source view"
+      },
+      "moveUp": {
+        "tooltip": "Tree: move up",
+        "description": "Swap the selected section with the section before it"
+      },
+      "moveDown": {
+        "tooltip": "Tree: move down",
+        "description": "Swap the selected section with the section after it"
       }
     }
   }

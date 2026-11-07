@@ -635,6 +635,9 @@ AiOutcome HttpClient::perform(const HttpRequest& request, rpc::JobControl& contr
     // Transport policy - fixed, no option below is ever relaxed.
     curl_easy_setopt(easy, CURLOPT_URL, request.url.c_str());
     curl_easy_setopt(easy, CURLOPT_NOSIGNAL, 1L);
+    // Feature 010 (research DP-17): TCP keep-alive, as Anthropic advises for long requests
+    // without streaming - some networks drop a connection that stays idle while a model thinks.
+    curl_easy_setopt(easy, CURLOPT_TCP_KEEPALIVE, 1L);
     curl_easy_setopt(easy, CURLOPT_PROTOCOLS_STR, "http,https");
     curl_easy_setopt(easy, CURLOPT_FOLLOWLOCATION, 0L);
     curl_easy_setopt(easy, CURLOPT_CONNECTTIMEOUT_MS,

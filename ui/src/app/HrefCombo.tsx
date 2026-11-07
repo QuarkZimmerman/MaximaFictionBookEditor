@@ -11,9 +11,15 @@ import { useEffect, useRef, useState } from 'react';
 
 import { registerBarFocus } from '@/features/editing/barFocus';
 import type { ListTarget } from '@/features/linkTargets';
+import { tip } from './tooltips';
 
 export interface HrefComboProps {
   label: string;
+  /** Feature 010 (US4, D11): what the field is, and when a greyed one becomes available. */
+  tooltip?: string;
+  whenAvailable?: string;
+  /** Feature 010 (US4): the tooltip of the button that opens the list. */
+  listTooltip?: string;
   value: string;
   disabled: boolean;
   width?: number;
@@ -26,12 +32,17 @@ export interface HrefComboProps {
    */
   openOnClick?: boolean;
   preview?: (href: string) => string | null;
+  /** Feature 010 (D10): an extra class for a picture entry's thumbnail (the background switch). */
+  previewClass?: (href: string) => string;
   onEnlarge?: (href: string) => void;
   enlargeLabel?: string;
 }
 
 export function HrefCombo({
   label,
+  tooltip,
+  whenAvailable,
+  listTooltip,
   value,
   disabled,
   width = 200,
@@ -41,6 +52,7 @@ export function HrefCombo({
   preview,
   onEnlarge,
   enlargeLabel,
+  previewClass,
 }: HrefComboProps) {
   const [draft, setDraft] = useState(value);
   const [open, setOpen] = useState(false);
@@ -93,14 +105,16 @@ export function HrefCombo({
     if (next !== value) onCommit(next);
   };
 
+  const helpText = disabled && whenAvailable ? `${tooltip} ${whenAvailable}` : tooltip;
   return (
-    <label className="mfbe-bar-field" htmlFor="links-bar-href-input">
+    <label className="mfbe-bar-field" htmlFor="links-bar-href-input" {...tip(helpText)}>
       <span className="mfbe-bar-label">{label}</span>
       <span className="mfbe-hrefcombo" style={{ width }}>
         <input
           ref={inputRef}
           id="links-bar-href-input"
           className="mfbe-bar-input mfbe-hrefcombo-input"
+          {...tip(helpText)}
           type="text"
           role="combobox"
           aria-expanded={listOpen}
@@ -172,6 +186,7 @@ export function HrefCombo({
           tabIndex={-1}
           disabled={disabled}
           aria-label={label}
+          {...tip(listTooltip)}
           data-testid="links-bar-href-toggle"
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => {
@@ -198,6 +213,7 @@ export function HrefCombo({
               <li
                 key={item.href}
                 role="option"
+                title={item.href}
                 aria-selected={index === active}
                 data-index={index}
                 data-testid={`links-bar-href-option-${index}`}
@@ -209,7 +225,12 @@ export function HrefCombo({
                   inputRef.current?.blur();
                 }}
               >
-                {preview ? <PreviewThumb url={preview(item.href)} /> : null}
+                {preview ? (
+                  <PreviewThumb
+                    url={preview(item.href)}
+                    className={previewClass?.(item.href) ?? ''}
+                  />
+                ) : null}
                 <span className="mfbe-hrefcombo-label">{item.label}</span>
                 {onEnlarge && preview?.(item.href) ? (
                   <button
@@ -239,9 +260,9 @@ export function HrefCombo({
 }
 
 /** A picture entry's thumbnail; an empty box for an entry without a picture to show. */
-function PreviewThumb({ url }: { url: string | null }) {
+function PreviewThumb({ url, className = '' }: { url: string | null; className?: string }) {
   return url ? (
-    <img className="mfbe-hrefcombo-thumb" src={url} alt="" draggable={false} />
+    <img className={`mfbe-hrefcombo-thumb${className}`} src={url} alt="" draggable={false} />
   ) : (
     <span className="mfbe-hrefcombo-thumb" aria-hidden="true" />
   );

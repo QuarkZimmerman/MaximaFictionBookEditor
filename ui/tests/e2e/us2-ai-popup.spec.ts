@@ -157,9 +157,20 @@ async function turnOn(page: Page): Promise<void> {
   await ensureAssistantOn(page);
 }
 
-/** Right-click inside the selection → Ask AI... → the popup. */
+/**
+ * Right-click inside the selection → Ask AI... → the popup. With a selection, the click goes into
+ * its first line: since feature 010 (D16) a right-click outside the selection moves the caret, and
+ * the middle of `target` can lie outside a selection that starts halfway through it.
+ */
 async function openPopupFromMenu(page: Page, target: Locator): Promise<Locator> {
-  await target.click({ button: 'right' });
+  const inside = await page.evaluate<{ x: number; y: number } | null>(`(() => {
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || selection.rangeCount === 0) return null;
+    const rect = selection.getRangeAt(0).getClientRects()[0];
+    return rect && rect.width > 4 ? { x: rect.left + 3, y: rect.top + rect.height / 2 } : null;
+  })()`);
+  if (inside) await page.mouse.click(inside.x, inside.y, { button: 'right' });
+  else await target.click({ button: 'right' });
   await expect(page.getByTestId('context-menu')).toBeVisible();
   await page.getByTestId('context-menu-ai.ask').click();
   const popup = page.getByTestId('dialog-ai-ask');

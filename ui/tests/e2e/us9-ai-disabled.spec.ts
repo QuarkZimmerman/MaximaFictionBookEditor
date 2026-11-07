@@ -883,7 +883,7 @@ test.describe('US9 (005) - Disabled survives a restart and a portable move', () 
     const assets = recordAssets(page);
     const errors = recordErrors(page);
     await page.goto(withUiLang(started.url, uiLang));
-    await page.getByTestId('app-root').waitFor();
+    await page.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
     const parsed = new URL(started.url);
     const rpc = new NodeRpcClient(
       `ws://127.0.0.1:${parsed.port}/rpc?token=${parsed.searchParams.get('token') ?? ''}`,

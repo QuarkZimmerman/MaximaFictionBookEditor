@@ -20,6 +20,7 @@ import { FindFields } from './FindDialog';
 import { useSearchDialogFocus } from './useSearchDialogFocus';
 
 import './editing.css';
+import { tip } from '@/app/tooltips';
 
 export interface ReplaceDialogProps {
   session: SearchSession;
@@ -139,6 +140,7 @@ export function ReplaceDialog({ session, ctx, onClose }: ReplaceDialogProps) {
             </span>
             <input
               id="dialog-replace-with"
+              {...tip(t('tip.find.replaceWith'))}
               className="mfbe-inputdialog-input"
               type="text"
               value={replacement}

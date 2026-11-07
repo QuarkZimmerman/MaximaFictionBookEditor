@@ -36,6 +36,8 @@ export function StatusBar() {
   const { store, rpc } = services;
   const visible = useAppState((s) => s.toolbars.status, store);
   const connection = useAppState((s) => s.connection, store);
+  const startup = useAppState((s) => s.startup, store);
+  const menuHint = useAppState((s) => s.menuHint, store);
   const message = useAppState((s) => s.statusMessage, store);
   const progress = useAppState((s) => s.progress, store);
   const selectionPath = useAppState((s) => s.selectionPath, store);
@@ -53,7 +55,10 @@ export function StatusBar() {
   if (!visible && !runLocked) return null;
 
   let text: string;
-  if (progress) {
+  if (menuHint) {
+    // Feature 010 (US4, D13): the highlighted menu entry's description, while the menu is open.
+    text = menuHint;
+  } else if (progress) {
     text =
       progress.total > 0
         ? t('status.progressPercent', {
@@ -67,6 +72,9 @@ export function StatusBar() {
           });
   } else if (message) {
     text = message;
+  } else if (startup === 'starting') {
+    // Feature 010 (US1, D1): the start-up phase says so.
+    text = t('app.starting');
   } else if (connection === 'connected') {
     text = t('status.ready');
   } else if (connection === 'connecting') {

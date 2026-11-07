@@ -415,7 +415,9 @@ test.describe('US1 - open, review and save a book without loss', () => {
       await refused.getByTestId('dialog-not-fictionbook-button-ok').click();
       await expect(refused).toBeHidden();
       await expect(page.getByTestId('source-only-notice')).toHaveCount(0);
-      await expect(page).toHaveTitle(APP_TITLE);
+      // Feature 010 (FR-116): the refusal leaves the window's book - here the untouched
+      // start-up template - as it was, instead of a window without a book.
+      await expect(page).toHaveTitle(`${await pageText(page, 'app.untitled')} - ${APP_TITLE}`);
     }
     // The refused files are not remembered as recent files.
     await page.getByTestId('menu-file').click();

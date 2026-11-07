@@ -18,6 +18,7 @@ import { useAppState } from '@/model/store';
 
 import { getBodyController } from './bodyEditor';
 import { ContextMenu } from './ContextMenu';
+import { applyRightClick } from './rightClick';
 import {
   contextMenuClick,
   contextMenuExtensions,
@@ -25,6 +26,7 @@ import {
 } from './contextMenuExtensions';
 
 import '@/editor/styles.css';
+import { tip } from '@/app/tooltips';
 
 export interface BodyViewProps {
   /** Read-only mode (the view is editable by default since US2). */
@@ -39,6 +41,7 @@ export function BodyView({ editable = true }: BodyViewProps) {
   const sourceOnly = useAppState((s) => s.sourceOnly, store);
   const fastMode = useAppState((s) => s.fastMode, store);
   const connection = useAppState((s) => s.connection, store);
+  const startup = useAppState((s) => s.startup, store);
   const nbspChar = useAppState(
     (s) => s.settings?.other.nbspDisplayChar ?? DEFAULT_NBSP_DISPLAY_CHAR,
     store,
@@ -92,7 +95,7 @@ export function BodyView({ editable = true }: BodyViewProps) {
         data-testid="panel-body"
       >
         <div className="mfbe-view-placeholder" data-testid="panel-body-empty">
-          {t('views.body.empty')}
+          {startup === 'starting' ? t('app.starting') : t('views.body.empty')}
         </div>
       </div>
     );
@@ -118,10 +121,13 @@ export function BodyView({ editable = true }: BodyViewProps) {
         onContextMenu={(event) => {
           if (!controller.isEditable) return;
           event.preventDefault();
-          // The right-click rule of the tables feature first (C28), then the menu at the click.
+          // The right-click rule of the tables feature first (C28), then the general one (D16), then
+          // the menu at the click.
           const click = contextMenuClick(controller, event.clientX, event.clientY);
           const before = controller.editorState?.selection;
           contextMenuExtensions.prepare?.(controller, click);
+          // Feature 010 (D16): then the general rule - the caret to the clicked point.
+          applyRightClick(controller, click);
           if (controller.editorState?.selection === before) {
             setMenu(click);
             return;
@@ -142,6 +148,7 @@ export function BodyView({ editable = true }: BodyViewProps) {
           <div className="mfbe-body-selector" role="tablist" data-testid="body-selector">
             {snapshot.bodyNames.map((name, index) => (
               <button
+                {...tip(t('tip.body.tab'))}
                 key={index}
                 type="button"
                 role="tab"
@@ -157,6 +164,7 @@ export function BodyView({ editable = true }: BodyViewProps) {
         ) : null}
         {snapshot.before > 0 ? (
           <button
+            {...tip(t('tip.body.moreBefore'))}
             type="button"
             className="mfbe-body-more"
             data-testid="body-window-before"
@@ -175,6 +183,7 @@ export function BodyView({ editable = true }: BodyViewProps) {
         />
         {snapshot.after > 0 ? (
           <button
+            {...tip(t('tip.body.moreAfter'))}
             type="button"
             className="mfbe-body-more"
             data-testid="body-window-after"

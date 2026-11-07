@@ -62,6 +62,21 @@ bool is_terms_url(const json& v) {
     return v.is_string() && ai::is_http_url(v.get<std::string>());
 }
 
+// Feature 010: an array of non-empty strings ("efforts"); nullopt for anything else.
+std::optional<std::vector<std::string>> string_list(const json& value) {
+    if (!value.is_array()) {
+        return std::nullopt;
+    }
+    std::vector<std::string> list;
+    for (const auto& item : value) {
+        if (!item.is_string() || item.get<std::string>().empty()) {
+            return std::nullopt;
+        }
+        list.push_back(item.get<std::string>());
+    }
+    return list;
+}
+
 struct Parser {
     const fs::path& file;
     Layer layer;
@@ -180,6 +195,13 @@ struct Parser {
                 bad_field(index, "contextLength");
             }
         }
+        if (const auto it = item.find("efforts"); it != item.end()) {
+            if (const auto efforts = string_list(*it)) {
+                entry.efforts = *efforts;
+            } else {
+                bad_field(index, "efforts");
+            }
+        }
         seen[entry.id] = true;
         out.entries.push_back(std::move(entry));
     }
@@ -291,6 +313,9 @@ json ServiceEntry::to_json() const {
     if (terms_url) {
         j["termsUrl"] = *terms_url;
     }
+    if (!efforts.empty()) {
+        j["efforts"] = efforts;
+    }
     if (context_length) {
         j["contextLength"] = *context_length;
     }
@@ -350,7 +375,39 @@ ParsedFile parse_services_file(const fs::path& file, std::string_view bytes, Lay
     for (const auto& item : *services) {
         parser.parse_entry(item, index++, seen);
     }
+    // Feature 010 (US11, D39): the known models; an entry that is not one is reported and left.
+    if (const auto models = root.find("models"); models != root.end()) {
+        if (!models->is_array()) {
+            parser.issue("badField", std::nullopt, "models");
+        } else {
+            for (const auto& item : *models) {
+                KnownModel model;
+                const auto match = item.is_object() ? item.find("match") : item.end();
+                const auto efforts = item.is_object() ? item.find("efforts") : item.end();
+                const std::optional<std::vector<std::string>> list =
+                    item.is_object() && efforts != item.end() ? string_list(*efforts)
+                                                              : std::nullopt;
+                if (!item.is_object() || match == item.end() || !match->is_string() ||
+                    match->get<std::string>().empty() || !list || list->empty()) {
+                    parser.issue("badField", std::nullopt, "models");
+                    continue;
+                }
+                model.match = match->get<std::string>();
+                model.efforts = *list;
+                if (const auto param = item.find("param"); param != item.end() &&
+                                                           param->is_string() &&
+                                                           !param->get<std::string>().empty()) {
+                    model.param = param->get<std::string>();
+                }
+                parser.out.models.push_back(std::move(model));
+            }
+        }
+    }
     return std::move(parser.out);
+}
+
+json KnownModel::to_json() const {
+    return json{{"match", match}, {"efforts", efforts}, {"param", param}};
 }
 
 const ServiceEntry* ServiceList::find(std::string_view id) const {
@@ -373,6 +430,10 @@ json ServiceList::to_json() const {
     for (const auto& entry : services) {
         result["services"].push_back(entry.to_json());
     }
+    result["models"] = json::array();
+    for (const auto& model : models) {
+        result["models"].push_back(model.to_json());
+    }
     if (files.portable) {
         result["files"]["portable"] = platform::utf8_from_path(*files.portable);
     }
@@ -391,9 +452,11 @@ ServiceList ServiceList::load(const fs::path& bundled_path, const UserLayer& lay
 
     // The bundled file.
     std::vector<ServiceEntry> bundled;
+    std::vector<KnownModel> bundled_models;
     if (const auto bytes = read_list_file(bundled_path, list.files.bundled, list.issues)) {
         ParsedFile parsed = parse_services_file(list.files.bundled, *bytes, Layer::bundled);
         bundled = std::move(parsed.entries);
+        bundled_models = std::move(parsed.models);
         list.issues.insert(list.issues.end(), parsed.issues.begin(), parsed.issues.end());
     }
 
@@ -416,9 +479,13 @@ ServiceList ServiceList::load(const fs::path& bundled_path, const UserLayer& lay
         if (const auto bytes = read_list_file(*user_file->path, *user_file->name, list.issues)) {
             ParsedFile parsed = parse_services_file(*user_file->name, *bytes, user_file->layer);
             user = std::move(parsed.entries);
+            list.models = std::move(parsed.models);
             list.issues.insert(list.issues.end(), parsed.issues.begin(), parsed.issues.end());
         }
     }
+
+    // Feature 010 (US11): the known models - the user file's first, so they win a match.
+    list.models.insert(list.models.end(), bundled_models.begin(), bundled_models.end());
 
     // Union by id: bundled order, a user entry replaces or hides the bundled one, user-only
     // entries follow in user-file order (a user-only hide directive is simply absent).

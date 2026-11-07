@@ -38,6 +38,7 @@ import {
   type Transaction,
 } from 'prosemirror-state';
 import { EditorView, type NodeViewConstructor } from 'prosemirror-view';
+import { ReplaceStep } from 'prosemirror-transform';
 
 import { DISCRETE_STEP } from '@/editor/commands/util';
 import { nodeFromModel, type ModelNodeJson } from '@/editor/fromModel';
@@ -82,6 +83,7 @@ import { collectBookIds } from '@/model/ids';
 import { actions, type AppStore } from '@/model/store';
 import type { UndoCoordinator } from '@/model/undo';
 import type { Caret, ModelPoint } from '@/rpc/types';
+import { parseAccelerator } from '@/i18n';
 
 export { selectionNodeId, selectionPath } from '@/editor/plugins/selectionPath';
 
@@ -380,6 +382,8 @@ export class BodyEditorController {
   private readonly getNbspChar: () => string;
   private readonly extraPlugins: Plugin[];
   private translate: (key: string) => string;
+  /** Feature 010 (US9): the kind of the user's last own edit, to keep typing and deleting apart. */
+  private lastInputKind: 'typing' | 'delete' | null = null;
   /**
    * The generator of the editor's `ui_N` node ids, shared with `nodeIdPlugin` (feature 006,
    * data-model §1.6): a function property, so it may be passed on unbound - the table plans
@@ -638,6 +642,12 @@ export class BodyEditorController {
       ...createImageNodeViews({
         getDocId: () => this.store.getState().docId,
         getMissingText: () => this.translate('views.body.imageMissing'),
+        // Feature 010 (D8): the placeholder says which kind of picture it is and how to fix it.
+        getPlaceholderText: (kind, href) =>
+          this.translate(`views.body.picture.${kind}`).replace('{{href}}', href),
+        // Feature 010 (D10): the background switch's title for the current background.
+        getBackgroundSwitchText: (background) =>
+          this.translate(`views.body.picture.background.${background}`),
         // The pictures' boxes are reserved from the binary list (feature 006, R9.2).
         getBinary: binaryLookup(() => this.store.getState().document?.binaries),
         onBinariesChange: (listener) => {
@@ -704,6 +714,13 @@ export class BodyEditorController {
     if (tr.docChanged && this.locked && !modelShown) return;
     const discrete = tr.docChanged && tr.getMeta(DISCRETE_STEP) === true;
     if (tr.docChanged && (this.closeNextHistory || discrete)) closeHistory(tr);
+    // Feature 010 (US9, D34): typing and deleting are steps of their own - a change from one to
+    // the other starts a new history event, so that each is named and undone apart.
+    if (tr.docChanged) {
+      const kind = this.inputKind(tr);
+      if (kind && this.lastInputKind && kind !== this.lastInputKind) closeHistory(tr);
+      this.lastInputKind = kind;
+    }
     this.closeNextHistory = discrete;
     const { state: after, transactions } = before.applyTransaction(tr);
     if (this.view) this.view.updateState(after);
@@ -722,12 +739,37 @@ export class BodyEditorController {
         this.publish();
       }
       if (!this.replaying && undoDepth(after) > undoDepth(before)) {
-        this.undo.record('body', this.translate('views.body.undoLabel'));
+        this.undo.record('body', this.stepName(transactions));
       }
     }
     if (docChanged || transactions.some((t) => t.selectionSet)) this.publishSelection();
     // Leaving the target of the last jump forgets where it started (FR-036).
     if (this.jumpOrigin && !this.caretInside(this.jumpOrigin.targetNodeId)) this.jumpOrigin = null;
+  }
+
+  /**
+   * Feature 010 (US9, D34): the name of the history step a transaction starts - the command that
+   * made it, else what the user did: dropped, pasted or cut text, typing, deleting.
+   */
+  private stepName(transactions: readonly Transaction[]): string {
+    const command = this.undo.commandName;
+    if (command) return command;
+    const tr = transactions.find((transaction) => transaction.docChanged);
+    const event: unknown = tr?.getMeta('uiEvent');
+    if (event === 'drop') return this.translate('undoNames.dragAndDrop');
+    if (event === 'paste') return parseAccelerator(this.translate('menu.edit.paste')).text;
+    if (event === 'cut') return parseAccelerator(this.translate('menu.edit.cut')).text;
+    const kind = tr ? this.inputKind(tr) : null;
+    if (kind) return this.translate(kind === 'typing' ? 'undoNames.typing' : 'undoNames.delete');
+    return this.translate('views.body.undoLabel');
+  }
+
+  /** The user's own typing or deleting (text steps of no command or clipboard event), or null. */
+  private inputKind(tr: Transaction): 'typing' | 'delete' | null {
+    if (this.undo.commandName || tr.getMeta('uiEvent') !== undefined) return null;
+    if (tr.steps.length === 0 || !tr.steps.every((step) => step instanceof ReplaceStep))
+      return null;
+    return tr.steps.some((step) => (step as ReplaceStep).slice.size > 0) ? 'typing' : 'delete';
   }
 
   /**
@@ -944,7 +986,10 @@ export class BodyEditorController {
     if (!this.replaying) {
       this.modelUndo.push(step);
       this.modelRedo = [];
-      this.undo.record(BODY_MODEL_UNDO_VIEW, label ?? this.translate('views.body.undoLabel'));
+      this.undo.record(
+        BODY_MODEL_UNDO_VIEW,
+        label ?? this.undo.commandName ?? this.translate('views.body.undoLabel'),
+      );
     }
     return next;
   }
@@ -1320,6 +1365,37 @@ export class BodyEditorController {
       if ($head.node(depth).attrs.nodeId === nodeId) return true;
     }
     return false;
+  }
+
+  /**
+   * Feature 010 (US6, D17, D18): puts the element's top - the label tab of the Annotation and
+   * History blocks, a section's title, a picture's top - at the top of the view with a small
+   * margin, whether or not the editor has the focus; near the end of the book it goes as far up
+   * as the book allows. False when the element is not mounted.
+   */
+  scrollNodeToTop(nodeId: string, margin = 8): boolean {
+    const view = this.view;
+    if (!view) return false;
+    const found = findNodeById(view.state.doc, nodeId);
+    if (!found) return false;
+    const dom = view.nodeDOM(found.pos);
+    if (!(dom instanceof HTMLElement)) return false;
+    let scroller: HTMLElement | null = dom.parentElement;
+    while (scroller) {
+      const overflow = getComputedStyle(scroller).overflowY;
+      if (
+        (overflow === 'auto' || overflow === 'scroll') &&
+        scroller.scrollHeight > scroller.clientHeight
+      ) {
+        break;
+      }
+      scroller = scroller.parentElement;
+    }
+    if (!scroller) return false;
+    const offset =
+      dom.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+    scroller.scrollTop = Math.max(0, offset - margin);
+    return true;
   }
 
   moveWindowTo(nodeId: string): boolean {

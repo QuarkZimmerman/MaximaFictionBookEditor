@@ -4,7 +4,8 @@
     "shortName": "MFBE",
     "untitled": "Untitled",
     "windowTitle": "{{document}} - {{app}}",
-    "modifiedMarker": "*"
+    "modifiedMarker": "*",
+    "starting": "Starting..."
   },
   "status": {
     "ready": "Ready",
@@ -185,7 +186,9 @@
     "moveLeft": "Move Left",
     "delete": "Delete",
     "elements": "Elements",
-    "scripts": "Scripts"
+    "scripts": "Scripts",
+    "moveUp": "Move Up",
+    "moveDown": "Move Down"
   },
   "toolbarMenu": {
     "customize": "Customize toolbar..."
@@ -216,7 +219,8 @@
   "tree": {
     "caption": "Document structure",
     "clean": "Clean",
-    "empty": "No document is open."
+    "empty": "No document is open.",
+    "emptyPicture": "Empty picture"
   },
   "views": {
     "description": {
@@ -233,7 +237,16 @@
       "moreSections_one": "... {{count}} more section",
       "moreSections_other": "... {{count}} more sections",
       "conversionProblems_one": "{{count}} element does not match the FB2 structure and is shown as is.",
-      "conversionProblems_other": "{{count}} elements do not match the FB2 structure and are shown as is."
+      "conversionProblems_other": "{{count}} elements do not match the FB2 structure and are shown as is.",
+      "picture": {
+        "empty": "Empty picture - double-click to choose its image",
+        "missing": "Picture {{href}} not found - double-click to choose another",
+        "external": "External picture: {{href}} - double-click to choose a picture from the book or a file",
+        "background": {
+          "white": "On white - click to show the picture on the page's own background",
+          "page": "On the page's background - click to show the picture on white"
+        }
+      }
     },
     "source": {
       "title": "Source",
@@ -269,6 +282,26 @@
     },
     "msg": {
       "binaryAddUnavailable": "The image file could not be added as a binary object yet; the image refers to #{{name}}."
+    },
+    "element": {
+      "paragraph": "paragraph",
+      "title": "title",
+      "section": "section",
+      "body": "body",
+      "notes": "notes",
+      "epigraph": "epigraph",
+      "annotation": "annotation",
+      "history": "history",
+      "poem": "poem",
+      "stanza": "stanza",
+      "verse": "verse",
+      "quote": "quote",
+      "textAuthor": "text author",
+      "subtitle": "subtitle",
+      "date": "date",
+      "table": "table",
+      "row": "row",
+      "cell": "cell"
     }
   },
   "cmd": {
@@ -1102,5 +1135,15 @@
     "msg": {
       "clipboardNoText": "The Clipboard holds no text."
     }
+  },
+  "undoNames": {
+    "undo": "&Undo {{name}}",
+    "redo": "&Redo {{name}}",
+    "undoTooltip": "Undo {{name}}",
+    "redoTooltip": "Redo {{name}}",
+    "typing": "Typing",
+    "delete": "Delete",
+    "dragAndDrop": "Drag and Drop",
+    "fieldPrefix": "Description:"
   }
 }

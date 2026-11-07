@@ -39,6 +39,7 @@ import { RpcErrorCode } from '@/rpc/types';
 import { Dialog, type DialogButton } from './Dialog';
 
 import './words.css';
+import { tip } from '@/app/tooltips';
 
 export interface WordsDialogProps {
   ctx: CommandContext;
@@ -326,6 +327,7 @@ export function WordsDialog({ ctx, onClose, rowHeight = 24, viewportRows = 12 }:
             {'\u2713'}
           </span>
           <button
+            title={t('dialog.words.sortBy', { column: t('dialog.words.columns.word') })}
             type="button"
             onClick={() => sortBy('word')}
             aria-label={t('dialog.words.sortBy', { column: t('dialog.words.columns.word') })}
@@ -335,6 +337,7 @@ export function WordsDialog({ ctx, onClose, rowHeight = 24, viewportRows = 12 }:
             {sortLabel('word')}
           </button>
           <button
+            title={t('dialog.words.sortBy', { column: t('dialog.words.columns.replacement') })}
             type="button"
             onClick={() => sortBy('replacement')}
             aria-label={t('dialog.words.sortBy', { column: t('dialog.words.columns.replacement') })}
@@ -347,6 +350,7 @@ export function WordsDialog({ ctx, onClose, rowHeight = 24, viewportRows = 12 }:
             type="button"
             onClick={() => sortBy('count')}
             aria-label={t('dialog.words.sortBy', { column: t('dialog.words.columns.counted') })}
+            title={t('dialog.words.sortBy', { column: t('dialog.words.columns.counted') })}
             data-testid="words-sort-count"
           >
             {t('dialog.words.columns.counted')}
@@ -415,6 +419,7 @@ export function WordsDialog({ ctx, onClose, rowHeight = 24, viewportRows = 12 }:
                   >
                     <span className="mfbe-words-cell mfbe-words-cell-center" role="gridcell">
                       <input
+                        {...tip(t('tip.words.highlight'))}
                         type="checkbox"
                         tabIndex={-1}
                         checked={row.highlighted}
@@ -461,6 +466,7 @@ export function WordsDialog({ ctx, onClose, rowHeight = 24, viewportRows = 12 }:
                     </span>
                     <span className="mfbe-words-cell mfbe-words-cell-center" role="gridcell">
                       <input
+                        {...tip(t('tip.words.replaced'))}
                         type="checkbox"
                         tabIndex={-1}
                         checked={row.replaced}
@@ -501,6 +507,7 @@ export function WordsDialog({ ctx, onClose, rowHeight = 24, viewportRows = 12 }:
       <div className="mfbe-words-toolbar">
         <label className="mfbe-check-field">
           <input
+            {...tip(t('tip.words.showExclusions'))}
             type="checkbox"
             checked={session.showExclusions}
             onChange={(event) => setShowExclusions(event.target.checked)}
@@ -509,6 +516,7 @@ export function WordsDialog({ ctx, onClose, rowHeight = 24, viewportRows = 12 }:
           <span>{t('dialog.words.showHideExclusions')}</span>
         </label>
         <button
+          {...tip(t('tip.words.highlightAll'))}
           type="button"
           className="mfbe-button"
           disabled={status !== 'ready'}
@@ -518,6 +526,7 @@ export function WordsDialog({ ctx, onClose, rowHeight = 24, viewportRows = 12 }:
           {t('dialog.words.highlightAll')}
         </button>
         <button
+          {...tip(t('tip.words.setReplacedAll'))}
           type="button"
           className="mfbe-button"
           disabled={status !== 'ready'}
@@ -531,6 +540,7 @@ export function WordsDialog({ ctx, onClose, rowHeight = 24, viewportRows = 12 }:
       <fieldset className="mfbe-words-group" data-testid="words-process-highlighted">
         <legend>{t('dialog.words.processHighlighted')}</legend>
         <button
+          {...tip(t('tip.words.toExclusions'))}
           type="button"
           className="mfbe-button"
           disabled={busy || status !== 'ready' || !rpc}
@@ -540,6 +550,7 @@ export function WordsDialog({ ctx, onClose, rowHeight = 24, viewportRows = 12 }:
           {t('dialog.words.toExclusions')}
         </button>
         <button
+          {...tip(t('tip.words.setReplaced'))}
           type="button"
           className="mfbe-button"
           disabled={status !== 'ready'}
@@ -549,6 +560,7 @@ export function WordsDialog({ ctx, onClose, rowHeight = 24, viewportRows = 12 }:
           {t('dialog.words.setReplaced')}
         </button>
         <button
+          {...tip(t('tip.words.invert'))}
           type="button"
           className="mfbe-button"
           disabled={status !== 'ready'}
@@ -558,6 +570,7 @@ export function WordsDialog({ ctx, onClose, rowHeight = 24, viewportRows = 12 }:
           {t('dialog.words.invert')}
         </button>
         <button
+          {...tip(t('tip.words.resetReplaced'))}
           type="button"
           className="mfbe-button"
           disabled={status !== 'ready'}
@@ -573,6 +586,7 @@ export function WordsDialog({ ctx, onClose, rowHeight = 24, viewportRows = 12 }:
         <label>
           <span>{t('dialog.words.word')}</span>
           <input
+            {...tip(t('tip.words.currentWord'))}
             className="mfbe-inputdialog-input"
             type="text"
             readOnly
@@ -583,6 +597,7 @@ export function WordsDialog({ ctx, onClose, rowHeight = 24, viewportRows = 12 }:
         <label>
           <span>{t('dialog.words.replacement')}</span>
           <input
+            {...tip(t('tip.words.replacement'))}
             className="mfbe-inputdialog-input"
             type="text"
             value={current?.replacement ?? ''}
@@ -595,6 +610,7 @@ export function WordsDialog({ ctx, onClose, rowHeight = 24, viewportRows = 12 }:
           />
         </label>
         <button
+          {...tip(t('tip.words.find'))}
           type="button"
           className="mfbe-button"
           disabled={busy || !current || !rpc}
@@ -604,6 +620,7 @@ export function WordsDialog({ ctx, onClose, rowHeight = 24, viewportRows = 12 }:
           {found ? t('dialog.words.next') : t('dialog.words.find')}
         </button>
         <button
+          {...tip(t('tip.words.replace'))}
           type="button"
           className="mfbe-button"
           disabled={busy || !found || !currentReplacementUsable}
@@ -644,6 +661,7 @@ function ReplacementEditor({
   onCancel: () => void;
   testId: string;
 }) {
+  const { t } = useTranslation();
   const [text, setText] = useState(value);
   const committed = useRef(false);
   const commit = () => {
@@ -653,6 +671,7 @@ function ReplacementEditor({
   };
   return (
     <input
+      {...tip(t('tip.words.editReplacement'))}
       type="text"
       value={text}
       autoFocus

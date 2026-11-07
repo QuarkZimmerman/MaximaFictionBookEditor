@@ -181,7 +181,7 @@ TEST_CASE("server: app.info / settings round trip / notifications over WebSocket
     CHECK(r["apiVersion"] == 1);
     // Additive contract revision: feature 002 = 1, feature 003 = 2, feature 004 = 3,
     // feature 005 = 4, feature 006 = 5, feature 007 = 6.
-    CHECK(r["apiMinor"] == 8);
+    CHECK(r["apiMinor"] == 9);
     CHECK(r["apiMinor"] == version::kApiMinor);
     CHECK(r["platform"].is_string());
     CHECK(r["uiLanguage"] == "system");
@@ -884,4 +884,35 @@ TEST_CASE(
     CHECK(text.find("\"code\":\"rpc.doc.parseError\"") != std::string::npos);
     CHECK(text.find("\"method\":\"doc.open\"") != std::string::npos);
     CHECK(text.find("doc.fragmentFromXml") == std::string::npos);
+}
+
+TEST_CASE("test.holdStartup: the next connection's answers wait out the hold (feature 010)",
+          "[rpc][server]") {
+    test::TempDir data{"mfbe-hold-startup"};
+    CoreServerOptions options;
+    options.data_dir = data.path().string();
+    options.test_hooks = true;
+    auto server = CoreServer::start(options);
+    test::WsClient control;
+    REQUIRE(control.open(server->port(), "/rpc?token=" + server->token()) == 101);
+    REQUIRE(control.call("test.holdStartup", json{{"ms", 400}}).contains("result"));
+    CHECK(control.call("test.holdStartup", json{{"ms", -1}}).contains("error"));
+    REQUIRE(control.call("test.holdStartup", json{{"ms", 400}}).contains("result"));
+
+    test::WsClient held;
+    REQUIRE(held.open(server->port(), "/rpc?token=" + server->token()) == 101);
+    const auto start = std::chrono::steady_clock::now();
+    const json first = held.call("app.info", json::object(), 5000);
+    const auto waited = std::chrono::duration_cast<std::chrono::milliseconds>(
+                            std::chrono::steady_clock::now() - start)
+                            .count();
+    CHECK(first.contains("result"));
+    CHECK(waited >= 300);
+    // Once released, the connection answers at once; the control connection was never held.
+    const auto again = std::chrono::steady_clock::now();
+    CHECK(held.call("app.info", json::object()).contains("result"));
+    CHECK(control.call("app.info", json::object()).contains("result"));
+    CHECK(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
+                                                                again)
+              .count() < 300);
 }

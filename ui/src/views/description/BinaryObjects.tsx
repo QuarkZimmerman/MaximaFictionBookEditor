@@ -32,6 +32,7 @@ import { RpcError } from '@/rpc/client';
 import { EmptyHint, SmallButton } from './fields';
 import { useDescriptionForm } from './formContext';
 import { newIdProblem, renameBinary } from '@/features/images/rename';
+import { onPageClass, usePictureBackgrounds } from '@/app/usePictureBackground';
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -41,6 +42,8 @@ function formatSize(bytes: number): string {
 
 export function BinaryObjects() {
   const { t } = useTranslation();
+  // Feature 010 (D10): the previews follow the pictures' background switch.
+  usePictureBackgrounds();
   const { store, rpc, dialogs } = useAppServices();
   const ctx = useCommandContext();
   const runCommand = useRunCommand();
@@ -206,7 +209,7 @@ export function BinaryObjects() {
                         onClick={() => void openPictureView(dialogs, { docId, binary, store })}
                       >
                         <img
-                          className="mfbe-desc-thumb"
+                          className={`mfbe-desc-thumb${onPageClass(docId, binary.id)}`}
                           src={url}
                           alt={binary.id}
                           data-testid={`binary-objects-preview-${binary.id}`}
@@ -214,7 +217,7 @@ export function BinaryObjects() {
                       </button>
                     ) : url ? (
                       <img
-                        className="mfbe-desc-thumb"
+                        className={`mfbe-desc-thumb${onPageClass(docId, binary.id)}`}
                         src={url}
                         alt={binary.id}
                         data-testid={`binary-objects-preview-${binary.id}`}

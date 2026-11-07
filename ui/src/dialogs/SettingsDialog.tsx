@@ -43,6 +43,7 @@ import { ViewPage } from './settings/ViewPage';
 import { WordsPage } from './settings/WordsPage';
 
 import './settings/settings.css';
+import { tip } from '@/app/tooltips';
 
 export type SettingsPageId = 'view' | 'other' | 'hotkeys' | 'words' | 'ai';
 
@@ -326,6 +327,7 @@ export function SettingsDialog({
       <div className="mfbe-settings-tabs" role="tablist" aria-label={t('dialog.settings.caption')}>
         {PAGES.map((id) => (
           <button
+            {...tip(t(`tip.settings.tabs.${id}`))}
             key={id}
             type="button"
             role="tab"

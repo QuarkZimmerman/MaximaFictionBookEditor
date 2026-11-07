@@ -217,3 +217,50 @@
 .mfbe-body-view--fast .fb-inline-image .fb-image-placeholder {
   display: inline-block;
 }
+
+/* ---------------------------------------------------------------------- */
+/* Feature 010 (D9, D10): white behind every picture, in both themes; the   */
+/* switch of a picture with transparent areas shows the page's own instead */
+/* ---------------------------------------------------------------------- */
+
+.fb-editor .fb-image,
+.fb-editor .fb-inline-image {
+  position: relative;
+}
+
+.fb-editor .fb-image img,
+.fb-editor .fb-inline-image img {
+  background: var(--mfbe-picture-bg);
+}
+
+.fb-editor .fb-picture-on-page img {
+  background: transparent;
+}
+
+.fb-editor .fb-picture-bg-switch {
+  display: none;
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #ffffff;
+  font-size: 13px;
+  line-height: 20px;
+  text-align: center;
+  text-indent: 0;
+  cursor: pointer;
+  user-select: none;
+  z-index: 1;
+}
+
+.fb-editor .fb-picture-bg-switch::before {
+  content: '\25D0';
+}
+
+.fb-editor .fb-image:hover > .fb-picture-bg-switch:not([hidden]),
+.fb-editor .fb-inline-image:hover > .fb-picture-bg-switch:not([hidden]) {
+  display: block;
+}

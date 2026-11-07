@@ -6,6 +6,20 @@
         "label": "Save image as...",
         "tooltip": "Save image as",
         "description": "Export the selected image to a file"
+      },
+      "change": {
+        "label": "Change picture...",
+        "tooltip": "Change picture",
+        "description": "Choose another image for the picture: one of the book's pictures or a file from disk"
+      },
+      "show": {
+        "label": "Show picture",
+        "tooltip": "Show picture",
+        "description": "Show the picture enlarged in the picture view"
+      },
+      "background": {
+        "toPage": "Show on the page's background",
+        "toWhite": "Show on white"
       }
     },
     "saveAs": {
@@ -31,6 +45,21 @@
   "pictureView": {
     "close": "Close",
     "fit": "Click to fit the picture into the window",
-    "natural": "Click to see the picture at its natural size"
+    "natural": "Click to see the picture at its natural size",
+    "background": {
+      "white": "On white - click to show the picture on the view's own background",
+      "page": "On the view's background - click to show the picture on white"
+    }
+  },
+  "pictureChooser": {
+    "caption": "Choose a picture",
+    "fromFile": "From file...",
+    "fromFileTip": "Add a picture file from your disk to the book and select it. Cancel removes it again.",
+    "filter": "Filter by id",
+    "filterTip": "Type part of a picture's id to show only the pictures whose id contains it.",
+    "itemTip": "{{id}}: click to select, double-click to choose",
+    "enlarge": "Enlarge {{id}}",
+    "enlargeTip": "Show the picture enlarged",
+    "notImage": "This file is not a picture the editor can show; nothing was added."
   }
 }

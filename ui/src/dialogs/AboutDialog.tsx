@@ -34,6 +34,9 @@ import './about.css';
 
 import contributorsNotice from '../../../CONTRIBUTORS.txt?raw';
 import caBundleNotice from '../../../resources/certs/cacert.NOTICE.txt?raw';
+// Feature 010 (PD2): the Noto fonts the Markdown import draws special characters from.
+import fontsNotice from '../../public/fonts/OFL-1.1.txt?raw';
+import { tip } from '@/app/tooltips';
 
 export const REPOSITORY_URL = 'https://github.com/QuarkZimmerman/MaximaFictionBookEditor';
 export const MAXIMA_LIBRARY_URL = 'https://www.maxima-library.com';
@@ -48,6 +51,7 @@ const CONTRIBUTORS_TEXT = noticeText(contributorsNotice);
  * checkout's (the `<pre>` keeps every character) and without the final newline.
  */
 const CA_BUNDLE_TEXT = noticeText(caBundleNotice);
+const FONTS_TEXT = noticeText(fontsNotice);
 
 /** The platforms whose packages ship `resources/certs/` (resource-formats §C "Shipping rule"). */
 const CA_BUNDLE_PLATFORMS: ReadonlySet<string> = new Set(['linux']);
@@ -123,6 +127,7 @@ export function AboutDialog({ ctx, onClose }: AboutDialogProps) {
   const [opening, setOpening] = useState(false);
   const dictionariesCaptionId = useId();
   const caBundleCaptionId = useId();
+  const fontsCaptionId = useId();
 
   useEffect(() => {
     if (!rpc) return;
@@ -261,6 +266,7 @@ export function AboutDialog({ ctx, onClose }: AboutDialogProps) {
           {t('dialog.about.basedOn')}
         </p>
         <textarea
+          {...tip(t('tip.about.basedOn'))}
           className="mfbe-about-contributors"
           readOnly
           rows={7}
@@ -355,8 +361,23 @@ export function AboutDialog({ ctx, onClose }: AboutDialogProps) {
             </div>
           </>
         ) : null}
+        <p className="mfbe-about-note" id={fontsCaptionId} data-testid="about-fonts-caption">
+          {t('dialog.about.fonts.caption')}
+        </p>
+        <div
+          className="mfbe-about-notices"
+          role="region"
+          tabIndex={0}
+          aria-labelledby={fontsCaptionId}
+          data-testid="about-fonts"
+        >
+          <pre className="mfbe-about-notice-text" data-testid="about-fonts-notice">
+            {FONTS_TEXT}
+          </pre>
+        </div>
         <div className="mfbe-about-log">
           <button
+            {...tip(t('tip.about.openLogFolder'))}
             type="button"
             className="mfbe-button"
             disabled={!rpc || opening}

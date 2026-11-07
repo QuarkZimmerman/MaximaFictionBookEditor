@@ -22,6 +22,7 @@ import { getScriptsFeature } from './catalog';
 import { cancelActiveRun } from './runSession';
 
 import './scripting.css';
+import { tip } from '@/app/tooltips';
 
 const NO_SUBSCRIPTION = () => () => {};
 
@@ -69,6 +70,7 @@ export function RunBar() {
         {text}
       </span>
       <button
+        {...tip(t('tip.run.cancel'))}
         type="button"
         className="mfbe-button mfbe-runbar-cancel"
         data-testid="script-run-bar-cancel"

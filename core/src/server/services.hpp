@@ -24,6 +24,7 @@
 #include <mfbe/settings.hpp>
 #include <mfbe/spell.hpp>
 
+#include <atomic>
 #include <chrono>
 #include <filesystem>
 #include <functional>
@@ -40,6 +41,9 @@ struct Services {
     std::filesystem::path resources_dir;
     std::filesystem::path scripts_dir;
     bool test_hooks = false;
+    // Feature 010 (test.holdStartup, test hooks only): the next connection's requests are
+    // answered after this many milliseconds; taken by that connection.
+    std::atomic<int> hold_next_connection_ms{0};
 
     settings::SettingsStore settings;
     settings::RecentFiles recent;

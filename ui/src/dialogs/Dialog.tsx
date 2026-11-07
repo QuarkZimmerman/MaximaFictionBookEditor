@@ -438,6 +438,7 @@ export function Dialog({
             type="button"
             className="mfbe-dialog-close"
             aria-label={closeLabel ?? parseAccelerator(cancelButton.label).text}
+            title={closeLabel ?? parseAccelerator(cancelButton.label).text}
             data-testid={`${testId}-close`}
             tabIndex={-1}
             onClick={cancelButton.onClick}

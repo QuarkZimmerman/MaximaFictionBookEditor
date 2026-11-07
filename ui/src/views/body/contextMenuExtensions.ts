@@ -5,10 +5,11 @@
  * ancestors of the caret.
  */
 
+import type { Node as ProseMirrorNode } from 'prosemirror-model';
 import { NodeSelection, TextSelection } from 'prosemirror-state';
 
 import type { CommandContext } from '@/app/commands';
-import { fb2NameFor } from '@/editor/schema';
+import { blockKindOf, fb2NameFor } from '@/editor/schema';
 
 import type { BodyEditorController } from './bodyEditor';
 
@@ -34,6 +35,8 @@ export interface ContextMenuClick {
   x: number;
   y: number;
   pos: number | null;
+  /** Feature 010 (D16): the position of the leaf node the pointer is on (a picture), else null. */
+  inside?: number | null;
 }
 
 /** Extension points: other features add entries for the current selection. */
@@ -83,12 +86,47 @@ export function contextMenuClick(
   y: number,
 ): ContextMenuClick {
   let pos: number | null = null;
+  let inside: number | null = null;
   try {
-    pos = controller.editorView?.posAtCoords({ left: x, top: y })?.pos ?? null;
+    const found = controller.editorView?.posAtCoords({ left: x, top: y });
+    pos = found?.pos ?? null;
+    inside = found && found.inside >= 0 ? found.inside : null;
   } catch {
     // jsdom and a detached view measure nothing.
   }
-  return { x, y, pos };
+  return { x, y, pos, inside };
+}
+
+/** Feature 010 (D15): the words the *Select …* entries name elements by (`editing.element.*`). */
+const ELEMENT_KEYS: Readonly<Record<string, string>> = {
+  p: 'paragraph',
+  title: 'title',
+  section: 'section',
+  body: 'body',
+  epigraph: 'epigraph',
+  annotation: 'annotation',
+  history: 'history',
+  poem: 'poem',
+  stanza: 'stanza',
+  v: 'verse',
+  cite: 'quote',
+  'text-author': 'textAuthor',
+  subtitle: 'subtitle',
+  date: 'date',
+  table: 'table',
+  tr: 'row',
+  td: 'cell',
+  th: 'cell',
+};
+
+/** The key of an element's name: a notes body is "notes", an unknown element its FB2 name. */
+export function elementKey(node: ProseMirrorNode): string {
+  // The description's blocks in the Body view: the annotation and the History block.
+  const block = blockKindOf(node.type.name);
+  if (block) return block;
+  const name = fb2NameFor(node.type);
+  if (name === 'body' && node.attrs.name === 'notes') return 'notes';
+  return ELEMENT_KEYS[name] ?? name;
 }
 
 /** "Select <element>" entries for every ancestor of the caret, innermost first. */
@@ -103,10 +141,9 @@ export function selectEntries(
   for (let depth = $head.depth; depth >= 1; depth -= 1) {
     const node = $head.node(depth);
     const pos = $head.before(depth);
-    const name = fb2NameFor(node.type);
     entries.push({
       id: `select-${depth}`,
-      label: label(name),
+      label: label(elementKey(node)),
       run: () => {
         const current = controller.editorState;
         if (!current) return;

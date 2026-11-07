@@ -380,7 +380,7 @@ test.describe('US3 (005) - the AI assistant panel', () => {
       )
       .toBe(true);
     await page.reload();
-    await page.getByTestId('app-root').waitFor();
+    await page.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
     await expect(page.getByTestId('status-message')).toHaveText(
       await pageText(page, 'status.ready'),
     );
@@ -402,7 +402,7 @@ test.describe('US3 (005) - the AI assistant panel', () => {
       )
       .toBe(false);
     await page.reload();
-    await page.getByTestId('app-root').waitFor();
+    await page.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
     await expect(page.getByTestId('status-message')).toHaveText(
       await pageText(page, 'status.ready'),
     );
