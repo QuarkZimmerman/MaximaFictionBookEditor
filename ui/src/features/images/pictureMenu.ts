@@ -14,6 +14,11 @@ import type { EditorView } from 'prosemirror-view';
 import type { Command, CommandContext, CommandRegistry } from '@/app/commands';
 import { bodyController, bodyEditable } from '@/features/editing/common';
 import type { BinaryMeta } from '@/model/document';
+import {
+  pictureBackground,
+  togglePictureBackground,
+  transparencyConfirmed,
+} from '@/model/pictureBackground';
 import { isRunLocked, type AppStore } from '@/model/store';
 import {
   registerContextMenuExtension,
@@ -74,6 +79,23 @@ export function pictureBinary(store: AppStore, node: PMNode): BinaryMeta | null 
   if (!href.startsWith('#') || href === '#undefined') return null;
   const id = href.slice(1);
   return store.getState().document?.binaries.find((b) => b.id === id && b.decodable) ?? null;
+}
+
+/**
+ * Feature 010 (D10): the background switch as a menu entry, for a picture whose transparent areas
+ * were confirmed; null otherwise.
+ */
+export function backgroundSwitchItem(store: AppStore, node: PMNode): ContextMenuItem | null {
+  const docId = store.getState().docId;
+  const binary = pictureBinary(store, node);
+  if (!docId || !binary || transparencyConfirmed(docId, binary.id) !== true) return null;
+  const toPage = pictureBackground(docId, binary.id) === 'white';
+  return {
+    id: 'picture-background',
+    label: i18next.t(toPage ? 'images.cmd.background.toPage' : 'images.cmd.background.toWhite'),
+    enabled: true,
+    run: () => togglePictureBackground(docId, binary.id),
+  };
 }
 
 /** D5: a right-click on a picture of `view` outside its selection selects that picture. */
@@ -173,6 +195,8 @@ export function pictureContextMenuItems(
         if (ctx) void registry.execute(CHANGE_PICTURE_COMMAND, ctx);
       },
     });
+    const switchItem = backgroundSwitchItem(store, target.node);
+    if (switchItem) items.push(switchItem);
     if (pictureBinary(store, target.node)) {
       items.push({
         id: 'show-picture',

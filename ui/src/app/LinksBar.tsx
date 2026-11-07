@@ -20,6 +20,7 @@ import { registerBarFocus, type BarField } from '@/features/editing/barFocus';
 import { setHrefAtSelection } from '@/features/footnotes';
 import { canViewPicture } from '@/features/images/pictureViewModel';
 import { openPictureView } from '@/features/images/openPictureView';
+import { onPageClass, usePictureBackgrounds } from '@/app/usePictureBackground';
 import { collectImageRefs, collectJumpTargets, normalizeHref } from '@/features/linkTargets';
 import { binaryPreviewUrl } from '@/model/binaryUrls';
 import { isRunLocked, useAppState } from '@/model/store';
@@ -150,6 +151,8 @@ export function BarTextField({
 export function LinksBar() {
   const { t } = useTranslation();
   const { store, dialogs } = useAppServices();
+  // Feature 010 (D10): the picture previews follow the background switch.
+  usePictureBackgrounds();
   // Feature 009: an image entry of the Href list opens in the picture view, as the cover does.
   const enlargePicture = (href: string) => {
     const state = store.getState();
@@ -204,6 +207,9 @@ export function LinksBar() {
           context?.image ? (href) => binaryPreviewUrl(store.getState().docId, href, 64) : undefined
         }
         onEnlarge={context?.image ? (href) => enlargePicture(href) : undefined}
+        previewClass={
+          context?.image ? (href) => onPageClass(store.getState().docId, href.slice(1)) : undefined
+        }
         enlargeLabel={t('linksBar.enlargePicture')}
       />
       <BarTextField

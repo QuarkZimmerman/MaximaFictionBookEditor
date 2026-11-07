@@ -11,6 +11,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { onPageClass, usePictureBackgrounds } from '@/app/usePictureBackground';
 import { Dialog, type DialogButton } from '@/dialogs/Dialog';
 import { imageFileTypes } from '@/dialogs/fileTypes';
 import { addBinaryFromFile } from '@/features/images/binaries';
@@ -62,6 +63,8 @@ export function PictureChooser({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const shown = useMemo(() => filterPictures(items, filter), [items, filter]);
+  // Feature 010 (D10): the previews follow the pictures' background switch.
+  usePictureBackgrounds();
 
   const addFile = async () => {
     if (!rpc || !docId) return;
@@ -172,7 +175,11 @@ export function PictureChooser({
                   onDoubleClick={() => onClose(href)}
                 >
                   {url ? (
-                    <img src={url} alt={binary.id} className="mfbe-coverpicker-thumb" />
+                    <img
+                      src={url}
+                      alt={binary.id}
+                      className={`mfbe-coverpicker-thumb${onPageClass(docId, binary.id)}`}
+                    />
                   ) : null}
                   <span className="mfbe-coverpicker-caption">
                     <code>{binary.id}</code>

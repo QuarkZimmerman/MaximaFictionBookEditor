@@ -238,7 +238,11 @@
       "picture": {
         "empty": "Empty picture - double-click to choose its image",
         "missing": "Picture {{href}} not found - double-click to choose another",
-        "external": "External picture: {{href}} - double-click to choose a picture from the book or a file"
+        "external": "External picture: {{href}} - double-click to choose a picture from the book or a file",
+        "background": {
+          "white": "On white - click to show the picture on the page's own background",
+          "page": "On the page's background - click to show the picture on white"
+        }
       }
     },
     "source": {

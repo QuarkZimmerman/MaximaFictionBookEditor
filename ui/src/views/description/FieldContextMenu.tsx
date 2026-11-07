@@ -23,7 +23,7 @@ import { cutOrCopy, hasSelectedText, isWritable, pasteIntoField } from '@/app/te
 import { caretInCell } from '@/editor/commands/insert';
 import { choosePictureFor } from '@/features/images/choosePicture';
 import { openPictureView } from '@/features/images/openPictureView';
-import { pictureBinary, targetPicture } from '@/features/images/pictureMenu';
+import { backgroundSwitchItem, pictureBinary, targetPicture } from '@/features/images/pictureMenu';
 import { cutOrCopyTarget, pasteIntoTarget } from '@/features/clipboard';
 import { pastePlainInto } from '@/features/pastePlain';
 import { tableSectionItems } from '@/features/tables/contextMenu';
@@ -151,6 +151,8 @@ export function FieldContextMenu({ field, position, click, onClose }: FieldConte
       enabled: target.editable && !isRunLocked(ctx.store.getState()),
       run: () => void choosePictureFor(fieldView, picture.pos, ctx),
     });
+    const switchItem = backgroundSwitchItem(ctx.store, picture.node);
+    if (switchItem) items.push(...popupItems([switchItem]));
     const binary = pictureBinary(ctx.store, picture.node);
     const docId = ctx.store.getState().docId;
     if (binary && docId) {

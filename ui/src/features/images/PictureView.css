@@ -65,3 +65,26 @@
   outline: 2px solid var(--mfbe-color-accent, #0078d4);
   outline-offset: 1px;
 }
+
+/* Feature 010 (D10): the picture on the view's own background, and the switch beside Close. */
+.mfbe-picture-view-picture.mfbe-picture-on-page {
+  background: transparent;
+}
+
+.mfbe-picture-view-background {
+  position: absolute;
+  top: 8px;
+  right: 48px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.mfbe-picture-view-background-glyph::before {
+  content: '\25D0';
+  font-size: 16px;
+}

@@ -125,6 +125,8 @@
   --mfbe-desc-item-bg: #f8f8f8;
   --mfbe-desc-item-border: #b8b8b8;
   --mfbe-desc-thumb-bg: #ffffff;
+  /* Feature 010 (D9): what stands behind every picture, in both themes. */
+  --mfbe-picture-bg: #ffffff;
   --mfbe-desc-row-border: #d0d0d0;
   --mfbe-desc-unreferenced-bg: #fff8e6;
   --mfbe-desc-badge-bg: #dde6f5;
@@ -249,6 +251,7 @@
   --mfbe-desc-item-bg: #2a2a2a;
   --mfbe-desc-item-border: #555555;
   --mfbe-desc-thumb-bg: #1a1a1a;
+  --mfbe-picture-bg: #ffffff;
   --mfbe-desc-row-border: #3f3f3f;
   --mfbe-desc-unreferenced-bg: #3a3220;
   --mfbe-desc-badge-bg: #26354d;
@@ -1115,6 +1118,8 @@ button.mfbe-status-validity:hover {
   width: 40px;
   height: 40px;
   object-fit: contain;
+  /* Feature 010 (D9): white behind the picture, in both themes. */
+  background: var(--mfbe-picture-bg);
 }
 
 .mfbe-hrefcombo-label {

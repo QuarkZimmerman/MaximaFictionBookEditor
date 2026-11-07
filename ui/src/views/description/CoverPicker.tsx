@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { PopupMenu } from '@/app/PopupMenu';
+import { onPageClass, usePictureBackgrounds } from '@/app/usePictureBackground';
 
 import { useAppServices } from '@/app/services';
 import { binaryPreviewUrl } from '@/model/binaryUrls';
@@ -37,6 +38,8 @@ export function CoverList({ fieldKey, testPrefix }: CoverListProps) {
   const { controller, form, binaries, docId, readOnly } = useDescriptionForm();
   const covers = (getAtPath(form, fieldKey) as ImageRef[] | undefined) ?? [];
   const images = binaries.filter((b) => b.decodable);
+  // Feature 010 (D10): the thumbnails follow the pictures' background switch.
+  usePictureBackgrounds();
   // Feature 010 (D4): the cover thumbnail's context menu - Change picture…, Show picture.
   const [menu, setMenu] = useState<{ x: number; y: number; index: number } | null>(null);
 
@@ -146,7 +149,11 @@ export function CoverList({ fieldKey, testPrefix }: CoverListProps) {
                 }}
               >
                 {url && !dangling ? (
-                  <img className="mfbe-desc-thumb" src={url} alt={cover.alt ?? cover.href} />
+                  <img
+                    className={`mfbe-desc-thumb${onPageClass(docId, cover.href.slice(1))}`}
+                    src={url}
+                    alt={cover.alt ?? cover.href}
+                  />
                 ) : (
                   <span className="mfbe-desc-thumb mfbe-desc-thumb-missing">
                     {t('descriptionForm.cover.missing')}

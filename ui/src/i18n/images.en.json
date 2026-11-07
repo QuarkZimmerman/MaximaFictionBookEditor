@@ -16,6 +16,10 @@
         "label": "Show picture",
         "tooltip": "Show picture",
         "description": "Show the picture enlarged in the picture view"
+      },
+      "background": {
+        "toPage": "Show on the page's background",
+        "toWhite": "Show on white"
       }
     },
     "saveAs": {
@@ -41,7 +45,11 @@
   "pictureView": {
     "close": "Close",
     "fit": "Click to fit the picture into the window",
-    "natural": "Click to see the picture at its natural size"
+    "natural": "Click to see the picture at its natural size",
+    "background": {
+      "white": "On white - click to show the picture on the view's own background",
+      "page": "On the view's background - click to show the picture on white"
+    }
   },
   "pictureChooser": {
     "caption": "Choose a picture",

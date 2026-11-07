@@ -8,6 +8,7 @@
 
 import type { FeatureContext } from '@/app/services';
 import { setPicturePlaceholderAction } from '@/editor/nodeviews/image';
+import { forgetPictureBackgrounds } from '@/model/pictureBackground';
 
 import { choosePictureFor } from './choosePicture';
 import { installImageDragDrop } from './dragdrop';
@@ -31,6 +32,14 @@ export function registerImagesFeature(ctx: FeatureContext): void {
     installImagePaste(store);
     installImageDragDrop(store);
   }
+  // Feature 010 (D10): a closed document's background choices are forgotten (never stored).
+  let openDocId = store.getState().docId;
+  store.subscribe(() => {
+    const docId = store.getState().docId;
+    if (docId === openDocId) return;
+    if (openDocId) forgetPictureBackgrounds(openDocId);
+    openDocId = docId;
+  });
   // Feature 010 (D4): a double-click on a picture without an image opens the picture chooser.
   const getContext = ctx.getCommandContext;
   if (getContext) {

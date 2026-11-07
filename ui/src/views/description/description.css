@@ -329,6 +329,8 @@ textarea.mfbe-desc-input {
   max-width: 96px;
   max-height: 64px;
   vertical-align: middle;
+  /* Feature 010 (D9): white behind the picture, in both themes. */
+  background: var(--mfbe-picture-bg);
 }
 
 .mfbe-desc-thumb-missing {
@@ -541,7 +543,15 @@ textarea.mfbe-desc-input {
   width: 120px;
   height: 120px;
   object-fit: contain;
-  background: var(--mfbe-desc-thumb-bg);
+  background: var(--mfbe-picture-bg);
+}
+
+/* Feature 010 (D10): a picture switched to the page's own background. */
+.mfbe-desc-thumb.mfbe-picture-on-page,
+.mfbe-coverpicker-thumb.mfbe-picture-on-page,
+.mfbe-hrefcombo-thumb.mfbe-picture-on-page,
+.mfbe-picture-view-picture.mfbe-picture-on-page {
+  background: transparent;
 }
 
 .mfbe-coverpicker-caption {

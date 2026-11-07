@@ -26,6 +26,8 @@ export interface HrefComboProps {
    */
   openOnClick?: boolean;
   preview?: (href: string) => string | null;
+  /** Feature 010 (D10): an extra class for a picture entry's thumbnail (the background switch). */
+  previewClass?: (href: string) => string;
   onEnlarge?: (href: string) => void;
   enlargeLabel?: string;
 }
@@ -41,6 +43,7 @@ export function HrefCombo({
   preview,
   onEnlarge,
   enlargeLabel,
+  previewClass,
 }: HrefComboProps) {
   const [draft, setDraft] = useState(value);
   const [open, setOpen] = useState(false);
@@ -209,7 +212,12 @@ export function HrefCombo({
                   inputRef.current?.blur();
                 }}
               >
-                {preview ? <PreviewThumb url={preview(item.href)} /> : null}
+                {preview ? (
+                  <PreviewThumb
+                    url={preview(item.href)}
+                    className={previewClass?.(item.href) ?? ''}
+                  />
+                ) : null}
                 <span className="mfbe-hrefcombo-label">{item.label}</span>
                 {onEnlarge && preview?.(item.href) ? (
                   <button
@@ -239,9 +247,9 @@ export function HrefCombo({
 }
 
 /** A picture entry's thumbnail; an empty box for an entry without a picture to show. */
-function PreviewThumb({ url }: { url: string | null }) {
+function PreviewThumb({ url, className = '' }: { url: string | null; className?: string }) {
   return url ? (
-    <img className="mfbe-hrefcombo-thumb" src={url} alt="" draggable={false} />
+    <img className={`mfbe-hrefcombo-thumb${className}`} src={url} alt="" draggable={false} />
   ) : (
     <span className="mfbe-hrefcombo-thumb" aria-hidden="true" />
   );
