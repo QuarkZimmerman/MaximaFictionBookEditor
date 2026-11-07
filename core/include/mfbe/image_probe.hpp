@@ -14,6 +14,10 @@ struct Probe {
     std::optional<int> height;
     bool decodable =
         false;  // one of the formats the editor can decode (JPEG/PNG/GIF/BMP/WebP/TIFF)
+    // Feature 010 (DP-6): the headers say the picture can have transparent pixels - a PNG with an
+    // alpha channel or a tRNS chunk, a GIF with a transparent colour, a WebP with alpha. The
+    // interface confirms from the decoded picture before it offers the background switch.
+    bool transparent = false;
 };
 
 Probe probe(std::string_view bytes);

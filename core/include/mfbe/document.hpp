@@ -176,6 +176,8 @@ struct BinaryMeta {
     std::optional<int> height;
     bool decodable = false;
     bool willConvert = false;
+    // Feature 010 (DP-6): the headers say the picture can have transparent pixels.
+    bool transparent = false;
     int referenceCount = 0;
 
     bool operator==(const BinaryMeta&) const = default;

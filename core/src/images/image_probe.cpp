@@ -128,6 +128,63 @@ void probe_webp(std::string_view s, Probe& p) {
     }
 }
 
+// Feature 010 (DP-6): transparency from the headers, no decode.
+bool png_may_be_transparent(std::string_view s) {
+    if (s.size() < 33 || s.substr(12, 4) != "IHDR") {
+        return false;
+    }
+    const unsigned colour_type = u8(s, 25);
+    if (colour_type == 4 || colour_type == 6) {
+        return true;  // grey + alpha, RGBA
+    }
+    // A tRNS chunk before the image data: a transparent colour or palette entries.
+    std::size_t at = 8;
+    while (at + 8 <= s.size()) {
+        const std::uint32_t length = be32(s, at);
+        const std::string_view type = s.substr(at + 4, 4);
+        if (type == "tRNS") {
+            return true;
+        }
+        if (type == "IDAT" || type == "IEND") {
+            return false;
+        }
+        const std::size_t next = at + 12 + static_cast<std::size_t>(length);
+        if (next <= at || next > s.size()) {
+            return false;
+        }
+        at = next;
+    }
+    return false;
+}
+
+bool gif_may_be_transparent(std::string_view s) {
+    // A Graphic Control Extension with the transparent-colour flag, looked for in the first
+    // 64 KB (where a picture's first frame starts); a false hit is settled by the interface.
+    const std::size_t end = s.size() < 65536 ? s.size() : 65536;
+    for (std::size_t at = 13; at + 3 < end; ++at) {
+        if (u8(s, at) == 0x21 && u8(s, at + 1) == 0xF9 && u8(s, at + 2) == 0x04) {
+            if ((u8(s, at + 3) & 0x01) != 0) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool webp_may_be_transparent(std::string_view s) {
+    if (s.size() < 30) {
+        return false;
+    }
+    const std::string_view chunk = s.substr(12, 4);
+    if (chunk == "VP8X") {
+        return (u8(s, 20) & 0x10) != 0;  // the alpha flag
+    }
+    if (chunk == "VP8L" && u8(s, 20) == 0x2F) {
+        return ((le32(s, 21) >> 28) & 0x1) != 0;  // alpha_is_used
+    }
+    return false;
+}
+
 }  // namespace
 
 std::string sniff_content_type(std::string_view s) {
@@ -168,12 +225,14 @@ Probe probe(std::string_view s) {
             p.width = dim(be32(s, 16));
             p.height = dim(be32(s, 20));
         }
+        p.transparent = png_may_be_transparent(s);
     } else if (p.contentType == "image/gif") {
         p.decodable = true;
         if (s.size() >= 10) {
             p.width = dim(le16(s, 6));
             p.height = dim(le16(s, 8));
         }
+        p.transparent = gif_may_be_transparent(s);
     } else if (p.contentType == "image/bmp") {
         p.decodable = true;
         const std::uint32_t header_size = le32(s, 14);
@@ -188,6 +247,7 @@ Probe probe(std::string_view s) {
     } else if (p.contentType == "image/webp") {
         p.decodable = true;
         probe_webp(s, p);
+        p.transparent = webp_may_be_transparent(s);
     } else if (p.contentType == "image/tiff") {
         p.decodable = true;
         probe_tiff(s, p);
