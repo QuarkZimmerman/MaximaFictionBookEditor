@@ -369,6 +369,11 @@ export interface BinaryMeta {
    * 006, the reserved box of pictures in cells).
    */
   decodable: boolean;
+  /**
+   * Feature 010 (DP-6): the decoded image has a pixel that is not fully opaque; such pictures get
+   * the background switch. Absent from older cores: treated as false.
+   */
+  transparent?: boolean;
   willConvert: boolean; // true => re-encoded to JPEG/PNG on save
   referenceCount: number;
 }

@@ -41,7 +41,9 @@ export type { BinaryMeta, Document, ValidationIssue, ValidationReport } from '@/
 export const RPC_API_VERSION = 1;
 /**
  * Additive contract revision within RPC_API_VERSION (`app.info().apiMinor`; absent = 0). The
- * revision this UI was written for (8 since feature 009: books in ZIP archives - `doc.open` with
+ * revision this UI was written for (9 since feature 010: `import.readMarkdown`, `template.xml`,
+ * `doc.newFromXml`, `binary.add`'s `imagesOnly`, `BinaryMeta.transparent`, the models' `efforts`
+ * of `ai.models`, the service list's known models, `test.holdStartup`; 8 since feature 009: books in ZIP archives - `doc.open` with
  * `entry` and `needsChoice`, `Document.source`, `files.inspect`, the archive errors - backups and
  * ZIP saves through `doc.save`, the Save As dialog's ZIP checkbox, `binary.rename`, and the
  * settings `other.keepBackup` and `view.statusBarPanes`; 7 since feature 008: the open requests
@@ -57,7 +59,7 @@ export const RPC_API_VERSION = 1;
  * and requires >= 5 since feature 006 (`AI_REQUIRED_API_MINOR` in `ui/src/ai/index.ts`; 4
  * before).
  */
-export const RPC_API_MINOR = 8;
+export const RPC_API_MINOR = 9;
 
 /* ------------------------------------------------------------------------ */
 /* Error codes (rpc-api.md §1)                                              */
@@ -983,11 +985,20 @@ export type AiOutcome =
 export type ChatRequest = { messages: unknown[]; [member: string]: unknown };
 
 /** `ai.models`: the service's list normalised (`id` from `id` or `name`, strings as ids). */
+/** Feature 010 (US8): a Markdown file read as text (`import.readMarkdown`). */
+export interface MarkdownText {
+  text: string;
+  encoding: string;
+  encodingSource: 'bom' | 'utf8' | 'judged' | 'chosen';
+  size: number;
+}
+
 export type AiModelsResult =
   | {
       ok: true;
       status: number;
-      models: { id: string; contextLength?: number; tools?: boolean }[];
+      /** `efforts`: the model's thinking-effort values where the service's list gives them (feature 010). */
+      models: { id: string; contextLength?: number; tools?: boolean; efforts?: string[] }[];
       retryAfterSeconds?: number;
       rateLimit?: AiRateLimit;
       elapsedMs: number;
@@ -1203,8 +1214,29 @@ export interface RpcMethods {
 
   // §3.3 binary
   'binary.list': { params: { docId: string }; result: BinaryMeta[] };
+  /** Feature 010 (US8): a Markdown file as text, or a request for its encoding. Never writes it. */
+  'import.readMarkdown': {
+    params: { path: string; encoding?: string };
+    result: MarkdownText | { needsEncoding: { candidates: string[] } };
+  };
+  /** Feature 010 (US8): the effective template's FB2 text, for the import's description. */
+  'template.xml': { params: void; result: { xml: string } };
+  /** Feature 010 (US8): a new untitled, modified document from FB2 text, tied to no file. */
+  'doc.newFromXml': {
+    params: { xml: string; origin?: { kind: 'markdown'; path: string } };
+    result: MaybeJob<{ document: Document & LoadReport; warnings: ValidationIssue[] }>;
+  };
+  /** Feature 010 (US1, test hooks only): the core answers the next connection's requests after `ms`. */
+  'test.holdStartup': { params: { ms: number }; result: Empty };
   'binary.add': {
-    params: { docId: string; path: string; suggestedId?: string; convertNow?: boolean };
+    /** `imagesOnly` (feature 010): refuse a file that is not a picture the core decodes (`binary.notImage`). */
+    params: {
+      docId: string;
+      path: string;
+      suggestedId?: string;
+      convertNow?: boolean;
+      imagesOnly?: boolean;
+    };
     result: BinaryMeta;
   };
   'binary.addFromClipboard': { params: { docId: string }; result: BinaryMeta };
