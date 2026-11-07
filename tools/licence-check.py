@@ -492,6 +492,15 @@ def collect_npm(problems: list[str]) -> list[Component]:
             note=note,
             homepage=f"https://www.npmjs.com/package/{name}",
         )
+        if is_font:
+            # The notice that ships with the fonts - committed, so that it is found the same way
+            # whether ui/node_modules is installed or not (CI's lint job has none).
+            shipped = REPO / "ui" / "public" / "fonts" / "OFL-1.1.txt"
+            component.text = "ui/public/fonts/OFL-1.1.txt"
+            if shipped.is_file():
+                component.text_paths.append(shipped)
+            else:
+                component.problems.append("the shipped OFL text ui/public/fonts/OFL-1.1.txt is missing")
         if have_modules:
             package_dir = node_modules / name
             installed_json = package_dir / "package.json"
@@ -511,10 +520,10 @@ def collect_npm(problems: list[str]) -> list[Component]:
             texts = sorted(
                 p for p in package_dir.glob("*") if p.is_file() and re.match(r"(?i)^(licen[cs]e|copying)", p.name)
             ) if package_dir.is_dir() else []
-            if texts:
+            if texts and not is_font:
                 component.text = f"ui/node_modules/{name}/{texts[0].name}"
                 component.text_paths.append(texts[0])
-            elif package_dir.is_dir():
+            elif package_dir.is_dir() and not is_font:
                 component.problems.append("no LICENSE file in the installed package")
         components.append(component)
     return components

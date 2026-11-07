@@ -42,11 +42,11 @@ test.describe('US4 (010) - every control says what it does', () => {
     );
     await expect(alt).toHaveAttribute('aria-description', (await alt.getAttribute('title')) ?? '');
 
-    // A toolbar button: name and key, then the command's description.
+    // A toolbar button: name and key (Cmd on macOS), then the command's description.
     await expect(page.getByTestId('toolbar-file.open')).toHaveAttribute(
       'title',
       new RegExp(
-        `\\(Ctrl\\+O\\) \\u2014 ${escape(await pageText(page, 'cmd.file.open.description'))}$`,
+        `\\((Ctrl|Cmd)\\+O\\) \\u2014 ${escape(await pageText(page, 'cmd.file.open.description'))}$`,
       ),
     );
 

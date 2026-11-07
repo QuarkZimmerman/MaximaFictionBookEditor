@@ -382,6 +382,8 @@ export class BodyEditorController {
   private readonly getNbspChar: () => string;
   private readonly extraPlugins: Plugin[];
   private translate: (key: string) => string;
+  /** Feature 010 (US9): the kind of the user's last own edit, to keep typing and deleting apart. */
+  private lastInputKind: 'typing' | 'delete' | null = null;
   /**
    * The generator of the editor's `ui_N` node ids, shared with `nodeIdPlugin` (feature 006,
    * data-model §1.6): a function property, so it may be passed on unbound - the table plans
@@ -712,6 +714,13 @@ export class BodyEditorController {
     if (tr.docChanged && this.locked && !modelShown) return;
     const discrete = tr.docChanged && tr.getMeta(DISCRETE_STEP) === true;
     if (tr.docChanged && (this.closeNextHistory || discrete)) closeHistory(tr);
+    // Feature 010 (US9, D34): typing and deleting are steps of their own - a change from one to
+    // the other starts a new history event, so that each is named and undone apart.
+    if (tr.docChanged) {
+      const kind = this.inputKind(tr);
+      if (kind && this.lastInputKind && kind !== this.lastInputKind) closeHistory(tr);
+      this.lastInputKind = kind;
+    }
     this.closeNextHistory = discrete;
     const { state: after, transactions } = before.applyTransaction(tr);
     if (this.view) this.view.updateState(after);
@@ -750,11 +759,17 @@ export class BodyEditorController {
     if (event === 'drop') return this.translate('undoNames.dragAndDrop');
     if (event === 'paste') return parseAccelerator(this.translate('menu.edit.paste')).text;
     if (event === 'cut') return parseAccelerator(this.translate('menu.edit.cut')).text;
-    if (tr && tr.steps.length > 0 && tr.steps.every((step) => step instanceof ReplaceStep)) {
-      const inserts = tr.steps.some((step) => (step as ReplaceStep).slice.size > 0);
-      return this.translate(inserts ? 'undoNames.typing' : 'undoNames.delete');
-    }
+    const kind = tr ? this.inputKind(tr) : null;
+    if (kind) return this.translate(kind === 'typing' ? 'undoNames.typing' : 'undoNames.delete');
     return this.translate('views.body.undoLabel');
+  }
+
+  /** The user's own typing or deleting (text steps of no command or clipboard event), or null. */
+  private inputKind(tr: Transaction): 'typing' | 'delete' | null {
+    if (this.undo.commandName || tr.getMeta('uiEvent') !== undefined) return null;
+    if (tr.steps.length === 0 || !tr.steps.every((step) => step instanceof ReplaceStep))
+      return null;
+    return tr.steps.some((step) => (step as ReplaceStep).slice.size > 0) ? 'typing' : 'delete';
   }
 
   /**

@@ -326,6 +326,9 @@ function cellSelector(scope: string, id: string, row: number, col: number): stri
 
 /** The light-theme shots of the transparent pictures, with their cell colours. */
 async function transparentShots(page: Page): Promise<{ shot: string; colour: number[] }[]> {
+  // Feature 010 (D10): the pointer off the pictures - a picture under it shows its background
+  // switch, which is no part of the picture.
+  await page.mouse.move(1, 1);
   const out: { shot: string; colour: number[] }[] = [];
   for (const { table, row, col } of TRANSPARENT) {
     const cell = cellSelector(BODY, table, row, col);
@@ -344,6 +347,7 @@ async function darkPixelChecks(
   light: { shot: string; colour: number[] }[] | null,
 ): Promise<string[]> {
   const problems: string[] = [];
+  await page.mouse.move(1, 1); // no background switch shown over a picture (feature 010, D10)
   if (light) {
     for (const [index, { table, row, col }] of TRANSPARENT.entries()) {
       const cell = cellSelector(BODY, table, row, col);

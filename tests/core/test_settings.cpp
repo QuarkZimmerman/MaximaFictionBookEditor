@@ -1124,8 +1124,10 @@ TEST_CASE("settings: feature 008 keys validate their values", "[settings]") {
 }
 
 TEST_CASE(
-    "settings: the assistant's thinking effort - null or {target, model, value} (feature "
-    "010, resource-formats §2)",
+    // Plain ASCII without commas: ctest hands the name to Catch2 as a filter, and Windows
+    // mangles a non-ASCII character in it.
+    "settings: the thinking effort of the assistant is null or a record of target model value "
+    "and param (feature 010)",
     "[settings]") {
     test::TempDir tmp;
     settings::SettingsStore store(tmp / "settings.json");
