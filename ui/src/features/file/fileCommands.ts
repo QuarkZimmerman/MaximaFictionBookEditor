@@ -778,13 +778,16 @@ export class FileFeature {
     }
     const pending = this.pendingPosition;
     this.pendingPosition = null;
-    await this.closeCurrentDocument(ctx);
+    // Feature 010 (US10, D36): the new file is read before the window's book is closed, so a
+    // file that cannot be opened leaves that book - its unsaved changes and its undo history -
+    // exactly as it was, whatever the way of opening (Open, Recent files, a drop, a relayed book,
+    // the reload).
     try {
       let result = await rpc.runJob('doc.open', entry ? { path, entry } : { path }, {
         onProgress: (progress) => actions.setProgress(store, progress),
       });
       if ('needsChoice' in result) {
-        // An archive without the .zip name: asked once the window's book is closed.
+        // An archive without the .zip name: asked while the window's book is still open.
         const chosen = await showArchiveBookChooser(
           ctx.dialogs,
           result.needsChoice,
@@ -799,6 +802,7 @@ export class FileFeature {
         );
         if ('needsChoice' in result) return false;
       }
+      await this.closeCurrentDocument(ctx);
       this.loadDocument(ctx, result.document);
       if (result.warnings.length > 0) {
         actions.setStatusMessage(
@@ -893,6 +897,8 @@ export class FileFeature {
       const source = await rpc.call('doc.openSource', entry ? { path, entry } : { path });
       if ('needsChoice' in source) return false;
       const error = source.error ?? parseError;
+      // A malformed file still opens, in the Source view: only now is the window's book closed.
+      await this.closeCurrentDocument(ctx);
       resetSourceSession(store);
       ctx.undo.clear();
       const document = sourceOnlyDocument(source.docId, path, source.encoding);

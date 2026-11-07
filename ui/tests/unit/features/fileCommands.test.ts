@@ -34,6 +34,8 @@ import {
   rpcError,
   type FakeRpc,
 } from './testUtils';
+import { RpcError } from '@/rpc/client';
+import { RpcErrorCode } from '@/rpc/types';
 
 const settings = (other: Partial<Settings['other']>): Settings =>
   ({
@@ -230,11 +232,41 @@ describe('file flows (T052)', () => {
       actions.setActiveView(ctx.store, 'description');
       expect(await feature.openDocument(ctx, '/books/beta.fb2')).toBe(true);
       const methods = flowCalls(rpc).map((c) => c.method);
-      expect(methods.slice(0, 3)).toEqual(['doc.position', 'doc.watch', 'doc.close']);
+      // Feature 010 (FR-115): the new file is read first, then the book that is left is
+      // remembered and closed - remembered before it is closed, as before (004 US8).
+      const leaving = methods.indexOf('doc.position');
+      expect(methods.indexOf('doc.open')).toBeLessThan(leaving);
+      expect(methods.slice(leaving, leaving + 3)).toEqual([
+        'doc.position',
+        'doc.watch',
+        'doc.close',
+      ]);
       expect(positionCalls(rpc)[0]).toEqual(remembered);
       // ... and asks for the new document's position after the open (a get, no view switch).
       expect(positionCalls(rpc)[1]).toEqual({ docId: 'doc-1' });
       expect(ctx.store.getState().activeView).toBe('description');
+    });
+
+    it("a file that cannot be opened leaves the window's book, its changes and its undo history (feature 010, FR-116)", async () => {
+      const opened = fakeDocument();
+      const { ctx, feature, rpc } = await openWithCaret({
+        'doc.open': (params: { path: string }) => {
+          if (params.path === '/books/alpha.fb2') return { document: opened, warnings: [] };
+          throw new RpcError(RpcErrorCode.docNotFictionBook, 'not a FictionBook document', {
+            path: params.path,
+          });
+        },
+      });
+      actions.setModified(ctx.store, true);
+      expect(await feature.openDocument(ctx, '/books/notes.txt')).toBe(false);
+      const methods = flowCalls(rpc).map((c) => c.method);
+      expect(methods).toContain('doc.open');
+      expect(methods).not.toContain('doc.close');
+      expect(methods).not.toContain('doc.position');
+      const state = ctx.store.getState();
+      expect(state.docId).toBe('doc-1');
+      expect(state.path).toBe('/books/alpha.fb2');
+      expect(state.modified).toBe(true);
     });
 
     it('every save remembers under the saved path, after the write', async () => {
