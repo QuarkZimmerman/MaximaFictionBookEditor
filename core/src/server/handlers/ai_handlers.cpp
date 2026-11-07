@@ -8,7 +8,9 @@
 //        file into <Data>/ai-services.json when absent (never overwritten), then a reload with
 //        the notification; 1002 {path, reason} when the copy cannot be written
 //   ai.complete({target, body}) -> {jobId}   one chat-completion exchange: POST
-//        <address>/chat/completions with the body as given, `model` and `stream: false` forced
+//        <address>/chat/completions with the body as given, `model` and `stream: false` forced;
+//        for an address on Anthropic's host POST <address>/messages, the body and the answer
+//        translated to and from Anthropic's Messages form (feature 010, D42, FR-127)
 //   ai.models({target}) -> {jobId}           GET <address>/models, the list normalised
 //   ai.test({target}) -> {jobId}             the fixed one-word completion; `verified`,
 //        `model`, and the triple's fingerprint for a verified custom target
@@ -30,7 +32,9 @@
 
 #include <mfbe/ai_address.hpp>
 #include <mfbe/ai_services.hpp>
+#include <mfbe/anthropic_messages.hpp>
 #include <mfbe/atomic_file.hpp>
+#include <mfbe/http_client.hpp>
 #include <mfbe/log.hpp>
 #include <mfbe/recent_files.hpp>
 #include <mfbe/unicode.hpp>
@@ -214,10 +218,10 @@ ResolvedTarget resolve_target(Services& services, const json& params, Method met
 // transport's: it composes the Definitions' fixed set and sends Authorization only with a
 // non-empty key, so that the rule holds once (mfbe/ai_transport.hpp, HttpRequest::key).
 ai::HttpRequest build_request(Services& services, const ResolvedTarget& target, bool post,
-                              std::string body) {
+                              std::string body, bool anthropic) {
     ai::HttpRequest request;
     request.method = post ? "POST" : "GET";
-    request.url = target.base + (post ? "/chat/completions" : "/models");
+    request.url = target.base + (!post ? "/models" : anthropic ? "/messages" : "/chat/completions");
     request.key = target.key;
     request.body = std::move(body);
     request.connect_ms = services.ai.connect_ms();
@@ -259,10 +263,15 @@ AiRequestRecord base_record(Method method, const ResolvedTarget& target) {
 
 // Feature 010 (US11, D39): a model's thinking efforts where the service's list says them -
 // OpenRouter's `reasoning` among the supported parameters (its native `reasoning.effort`, with
-// OpenRouter's three levels). Anthropic's list names efforts too (`capabilities.effort`), but its
-// OpenAI-style interface - the only one the editor speaks - ignores both `reasoning_effort` and
-// `output_config.effort` (checked 2026-11-07 with a task that needs thinking: the same output
-// either way, while its own Messages API thinks longer at `high`), so they are not offered.
+// OpenRouter's three levels), and Anthropic's `capabilities.effort`, whose levels each say whether
+// the model supports them (List Models reference). Anthropic's efforts reach the model only
+// through its own Messages API, which the core speaks for Anthropic's host (D42), as
+// `output_config.effort`.
+bool supported(const json& node) {
+    return node.is_object() && node.contains("supported") && node["supported"].is_boolean() &&
+           node["supported"].get<bool>();
+}
+
 void add_efforts(const json& item, json& model) {
     if (item.contains("supported_parameters") && item["supported_parameters"].is_array()) {
         for (const auto& parameter : item["supported_parameters"]) {
@@ -272,6 +281,24 @@ void add_efforts(const json& item, json& model) {
                 return;
             }
         }
+    }
+    const auto capabilities = item.find("capabilities");
+    if (capabilities == item.end() || !capabilities->is_object()) {
+        return;
+    }
+    const auto effort = capabilities->find("effort");
+    if (effort == capabilities->end() || !supported(*effort)) {
+        return;
+    }
+    json levels = json::array();
+    for (const char* level : {"low", "medium", "high", "xhigh", "max"}) {
+        if (effort->contains(level) && supported((*effort)[level])) {
+            levels.push_back(level);
+        }
+    }
+    if (!levels.empty()) {
+        model["efforts"] = std::move(levels);
+        model["effortParam"] = "output_config.effort";
     }
 }
 
@@ -377,13 +404,14 @@ json test_result(const ai::HttpOutcome& outcome, const ResolvedTarget& target) {
     return result;
 }
 
-// Starts the exchange as a job and answers {jobId}.
+// Starts the exchange as a job and answers {jobId}. `anthropic`: the body is in Anthropic's
+// Messages form, and so is the answer, which goes back in the chat-completion form (D42).
 json start_exchange(Services& services, rpc::RpcContext& ctx, Method method, ResolvedTarget target,
-                    bool post, std::string body) {
-    ai::HttpRequest request = build_request(services, target, post, std::move(body));
+                    bool post, std::string body, bool anthropic = false) {
+    ai::HttpRequest request = build_request(services, target, post, std::move(body), anthropic);
     ai::Transport& transport = services.ai.transport();
     const std::string job_id =
-        ctx.jobs.start([&services, &transport, method, target = std::move(target),
+        ctx.jobs.start([&services, &transport, method, anthropic, target = std::move(target),
                         request = std::move(request)](rpc::JobControl& control) -> json {
             // Each phase once, when entered.
             std::string last_phase;
@@ -409,6 +437,9 @@ json start_exchange(Services& services, rpc::RpcContext& ctx, Method method, Res
                 record.outcome = "cancelled";
                 services.ai.record(std::move(record));
                 throw rpc::RpcError(rpc::codes::kCancelled, "", json{{"jobId", control.id()}});
+            }
+            if (anthropic && outcome.body) {
+                outcome.body = ai::anthropic::to_chat_completion(*outcome.body);
             }
             record.outcome = outcome.ok ? "ok" : outcome.kind;
             record.status = outcome.status;
@@ -482,13 +513,18 @@ json exchange(Services& services, const json& params, rpc::RpcContext& ctx, Meth
             body["model"] = target.model;
             body["stream"] = false;
         }
+        // Feature 010 (D42, FR-127): Anthropic's services in their own interface.
+        const bool anthropic = net::needs_anthropic_version(target.base);
+        if (anthropic) {
+            body = ai::anthropic::to_messages_request(body);
+        }
         std::string serialised = body.dump(-1, ' ', false, json::error_handler_t::replace);
         if (serialised.size() > ai::kMaxRequestBytes) {
             throw rpc::invalid_params("body is larger than 8 MiB",
                                       json{{"field", "body"}, {"reason", "tooLarge"}});
         }
-        return start_exchange(services, ctx, method, std::move(target), true,
-                              std::move(serialised));
+        return start_exchange(services, ctx, method, std::move(target), true, std::move(serialised),
+                              anthropic);
     } catch (const rpc::RpcError& e) {
         refused(e);
         throw;

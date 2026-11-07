@@ -909,7 +909,7 @@ TEST_CASE(
 
 TEST_CASE(
     "ai.models: thinking efforts from Anthropic's capabilities and OpenRouter's reasoning "
-    "parameter (feature 010, D39)",
+    "parameter (feature 010 D39 D42)",
     "[ai][server][jobs]") {
     test::HttpTestServer http;
     AiFixture f;
@@ -924,8 +924,11 @@ TEST_CASE(
     REQUIRE(run.result);
     const json& models = (*run.result)["models"];
     REQUIRE(models.size() == 4);
-    // Anthropic's efforts are not offered: its OpenAI-style interface ignores them.
-    CHECK(models[0] == json{{"id", "claude-x"}});
+    // Anthropic's levels the model supports, in their order, for its Messages API (D42); none
+    // when the effort as a whole is unsupported.
+    CHECK(models[0] == json{{"id", "claude-x"},
+                            {"efforts", json::array({"low", "high", "max"})},
+                            {"effortParam", "output_config.effort"}});
     CHECK(models[1] == json{{"id", "claude-none"}});
     CHECK(models[2] == json{{"id", "router-model"},
                             {"tools", true},
@@ -1330,4 +1333,83 @@ TEST_CASE(
     CHECK(fresh_seen[0].total_ms == 120000);
     CHECK(fresh_seen[0].resolve_entries.empty());
     CHECK(second.result("test.aiRequests").size() == 1);
+}
+
+TEST_CASE("ai.complete and ai.test on an Anthropic address speak its Messages API (feature 010)",
+          "[ai][server][anthropic]") {
+    // D42, FR-127: the address's host is Anthropic's - resolved to the loopback test server, as
+    // the stand-in is reached in the journeys - so the exchange goes to <address>/messages in
+    // Anthropic's form and the answer comes back as a chat completion.
+    test::HttpTestServer http;
+    AiFixture f;
+    const std::string hosted_host = "api.anthropic.com:" + std::to_string(http.port());
+    const std::string hosted = "http://" + hosted_host + "/v1";
+    const json answer{{"id", "msg_1"},
+                      {"type", "message"},
+                      {"role", "assistant"},
+                      {"model", "claude-test"},
+                      {"content", json::array({json{{"type", "text"}, {"text", "OK"}}})},
+                      {"stop_reason", "end_turn"},
+                      {"usage", {{"input_tokens", 3}, {"output_tokens", 1}}}};
+    http.route("POST", "/v1/messages", test::ScriptedResponse::json(200, answer.dump()));
+    f.result(
+        "settings.set",
+        json{{"patch",
+              {{"ai",
+                {{"mode", "custom"},
+                 {"custom", {{"address", hosted}, {"key", "sk-ant"}, {"model", "claude-test"}}},
+                 {"agreements",
+                  {json{{"service", "custom:" + hosted},
+                        {"host", hosted_host},
+                        {"at", "2026-11-07T10:00:00Z"}}}}}}}}});
+    CHECK(f.result("test.setAiResolve", json{{"entries", {hosted_host + ":127.0.0.1"}}}) ==
+          json::object());
+
+    json body = chat_body();
+    body["output_config"] = json{{"effort", "high"}};
+    JobRun run = run_job(f, "ai.complete", json{{"target", {{"kind", "custom"}}}, {"body", body}});
+    REQUIRE(run.result);
+    const json& outcome = *run.result;
+    CHECK(outcome["ok"] == true);
+    CHECK(outcome["body"]["object"] == "chat.completion");
+    CHECK(outcome["body"]["choices"][0]["message"]["content"] == "OK");
+    CHECK(outcome["body"]["choices"][0]["finish_reason"] == "stop");
+
+    REQUIRE(http.wait_for_requests(1));
+    const test::RecordedRequest request = http.requests().back();
+    CHECK(request.path == "/v1/messages");
+    CHECK(request.header("anthropic-version") == "2023-06-01");
+    CHECK(request.header("Authorization") == "Bearer sk-ant");
+    const json sent = json::parse(request.body);
+    CHECK(sent["model"] == "claude-test");
+    CHECK(sent["stream"] == false);
+    CHECK(sent["max_tokens"] == 16000);
+    CHECK(sent["system"] == json::array({json{{"type", "text"}, {"text", "You edit books."}}}));
+    CHECK(sent["messages"] ==
+          json::array({json{
+              {"role", "user"},
+              {"content", json::array({json{{"type", "text"}, {"text", "Make it bold."}}})}}}));
+    CHECK(sent["tools"] ==
+          json::array({json{{"name", "read"}, {"input_schema", {{"type", "object"}}}}}));
+    CHECK(sent["tool_choice"] == json{{"type", "auto"}});
+    CHECK(sent["output_config"] == json{{"effort", "high"}});
+    CHECK_FALSE(sent.contains("api_key"));
+
+    // Test connection: the same interface, verified by the translated answer.
+    run = run_job(f, "ai.test", json{{"target", {{"kind", "custom"}}}});
+    REQUIRE(run.result);
+    CHECK((*run.result)["verified"] == true);
+    REQUIRE(http.wait_for_requests(2));
+    CHECK(http.requests().back().path == "/v1/messages");
+    CHECK(json::parse(http.requests().back().body)["messages"][0]["role"] == "user");
+
+    // An error keeps its words where the assistant reads them (error.message).
+    http.route("POST", "/v1/messages",
+               test::ScriptedResponse::json(
+                   400, R"({"type":"error","error":{"type":"invalid_request_error",)"
+                        R"("message":"effort is not supported"}})"));
+    run = run_job(f, "ai.complete", json{{"target", {{"kind", "custom"}}}, {"body", body}});
+    REQUIRE(run.result);
+    CHECK((*run.result)["kind"] == "http");
+    CHECK((*run.result)["body"]["error"]["message"] == "effort is not supported");
 }

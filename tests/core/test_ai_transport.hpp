@@ -16,6 +16,7 @@
 #include "ws_test_client.hpp"
 
 #include <mfbe/ai_transport.hpp>
+#include <mfbe/http_client.hpp>
 #include <mfbe/version.hpp>
 
 #include <atomic>
@@ -131,7 +132,8 @@ public:
                                             elapsed());
         }
         // The Definitions' headers as the product's client composes them from the request:
-        // Content-Type on a POST, Accept, User-Agent, Authorization only with a non-empty key.
+        // Content-Type on a POST, Accept, User-Agent, Authorization only with a non-empty key,
+        // Anthropic's version header for its host.
         std::string raw = request.method + " " + url->path + " HTTP/1.1\r\nHost: " + url->host +
                           ":" + std::to_string(url->port) + "\r\nConnection: close\r\n";
         if (request.method == "POST") {
@@ -141,6 +143,10 @@ public:
         raw += std::string("User-Agent: MaximaFictionBookEditor/") + version::kVersion + "\r\n";
         if (!request.key.empty()) {
             raw += "Authorization: Bearer " + request.key + "\r\n";
+        }
+        // Anthropic's version header for its host, as the product's client adds it (0.0.7).
+        if (net::needs_anthropic_version(request.url)) {
+            raw += "anthropic-version: 2023-06-01\r\n";
         }
         if (request.method == "POST") {
             raw += "Content-Length: " + std::to_string(request.body.size()) + "\r\n";
