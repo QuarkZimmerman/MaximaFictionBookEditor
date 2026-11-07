@@ -1,14 +1,15 @@
-/**
- * Feature 010, US8 (research DP-1): converts a Markdown text in the background worker - or right
- * here where there is no worker (the unit tests).
- */
+/** Feature 010, US8 (research DP-1): converts a Markdown text in the background worker. */
 
-import { convertMarkdown, type ConvertOptions, type ConvertResult } from './convert';
+import type { ConvertOptions, ConvertResult } from './convert';
 
 type Answer = { ok: true; result: ConvertResult } | { ok: false; error: string };
 
 export function convertInWorker(text: string, options: ConvertOptions): Promise<ConvertResult> {
-  if (typeof Worker === 'undefined') return Promise.resolve(convertMarkdown(text, options));
+  // The converter, with markdown-it, lives in the worker's bundle alone, outside the main bundle
+  // (its unit tests import `convert.ts` directly).
+  if (typeof Worker === 'undefined') {
+    return Promise.reject(new Error('the Markdown converter needs a background worker'));
+  }
   return new Promise((resolve, reject) => {
     const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
     worker.onmessage = (event: MessageEvent<Answer>) => {

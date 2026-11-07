@@ -1,7 +1,7 @@
 // Feature 010, US9 (T071; D33, D34, DP-12): the names of the undo steps - the command that made a
 // step names it, and Edit > Undo / Redo, the toolbar's tooltips and the context menus show it.
 
-import i18next from 'i18next';
+import i18next, { type TFunction } from 'i18next';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { commandLabel, commandTooltip, undoNameOf, type Command } from '@/app/commands';
@@ -16,7 +16,7 @@ beforeAll(async () => {
   await initI18n({ language: 'en' });
 });
 
-const t = (key: string, params?: Record<string, unknown>) => i18next.t(key, params ?? {});
+const t = i18next.t.bind(i18next) as TFunction;
 
 describe('undo step names', () => {
   it('a running command names the steps it records, until it has finished', async () => {

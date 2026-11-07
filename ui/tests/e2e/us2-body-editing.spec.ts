@@ -686,7 +686,10 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     const contextMenu = page.getByTestId('context-menu');
     await expect(contextMenu).toBeVisible();
     const selectPoem = contextMenu.getByText(
-      await pageText(page, 'editing.contextMenu.select', { element: 'poem' }),
+      await pageText(page, 'editing.contextMenu.select', {
+        // Feature 010 (D15): the element in words.
+        element: await pageText(page, 'editing.element.poem'),
+      }),
     );
     await expect(selectPoem).toBeVisible();
     await selectPoem.click();

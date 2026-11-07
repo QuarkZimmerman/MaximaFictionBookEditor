@@ -75,6 +75,7 @@ import {
   type Settings,
 } from '@/rpc/types';
 import { cancelActiveRun } from '@/scripting/runSession';
+import { importMarkdown } from '@/features/markdown/importFlow';
 import {
   commitPendingSource,
   isSourceTextDirty,
@@ -792,7 +793,6 @@ export class FileFeature {
     // Feature 010 (US8, FR-080): a Markdown file - from Open, Recent files, a drop or a relayed
     // start - is imported into a new book; the routes asked about unsaved changes already.
     if (entry === undefined && /\.(md|markdown)$/i.test(path)) {
-      const { importMarkdown } = await import('@/features/markdown/importFlow');
       return importMarkdown(ctx, this, path, true);
     }
     // Feature 009: a ZIP archive of several books asks which one before the window's book is
