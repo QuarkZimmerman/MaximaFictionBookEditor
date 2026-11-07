@@ -38,9 +38,12 @@ const NAME_LENGTH = 30;
 
 /** A section's name in a menu entry: its title, cut, or its place among its siblings. */
 export function sectionName(index: TreeIndex, row: TreeRow, t: TFunction): string {
-  const caption = row.caption.startsWith('<') ? '' : row.caption.trim();
+  const caption = row.caption.startsWith('<') ? '' : row.caption.replace(/\s+/g, ' ').trim();
   if (caption) {
-    return caption.length > NAME_LENGTH ? `${caption.slice(0, NAME_LENGTH - 1)}\u2026` : caption;
+    const cut =
+      caption.length > NAME_LENGTH ? `${caption.slice(0, NAME_LENGTH - 1)}\u2026` : caption;
+    // A literal "&" of a title is no access letter of the entry.
+    return cut.replace(/&/g, '&&');
   }
   const parent = row.parentId ? index.rows.get(row.parentId) : null;
   const siblings = parent

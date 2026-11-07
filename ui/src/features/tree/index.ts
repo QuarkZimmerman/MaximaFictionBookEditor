@@ -222,7 +222,8 @@ export async function runTreeCommand(ctx: CommandContext, op: TreeOp): Promise<b
     // Feature 010 (FR-075, D20): the question names what it removes.
     const located = locateNode(model, nodeId);
     const type = located?.node.type ?? '';
-    const name = located && type === 'section' ? titleText(located.node) : '';
+    const name =
+      located && type === 'section' ? titleText(located.node).replace(/\s+/g, ' ').trim() : '';
     const text = name
       ? t('tree.deleteConfirmSection', { name })
       : t(`tree.deleteConfirmFor.${type}`, { defaultValue: t('tree.deleteConfirm') });

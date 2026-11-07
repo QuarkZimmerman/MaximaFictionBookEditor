@@ -356,7 +356,10 @@ test.describe('US5 - navigate and restructure with the Document Tree', () => {
     await toDelete.click();
     await page.getByTestId('tree-toolbar-delete').click();
     const confirm = page.getByTestId('tree-delete-confirm');
-    await expect(confirm).toContainText('Delete selected node?');
+    // Feature 010 (FR-075): the question names the section it removes.
+    await expect(confirm).toContainText(
+      /Delete the (section «.+»|untitled section) with everything in it\?/,
+    );
     await page.getByTestId('tree-delete-confirm-button-yes').click();
     await expect(page.getByTestId(deletedTestId!)).toHaveCount(0);
     await expect(page.getByTestId('status-message')).toHaveText('Element deleted.');
