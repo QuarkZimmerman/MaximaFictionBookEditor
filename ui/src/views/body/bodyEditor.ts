@@ -1328,6 +1328,37 @@ export class BodyEditorController {
     return false;
   }
 
+  /**
+   * Feature 010 (US6, D17, D18): puts the element's top - the label tab of the Annotation and
+   * History blocks, a section's title, a picture's top - at the top of the view with a small
+   * margin, whether or not the editor has the focus; near the end of the book it goes as far up
+   * as the book allows. False when the element is not mounted.
+   */
+  scrollNodeToTop(nodeId: string, margin = 8): boolean {
+    const view = this.view;
+    if (!view) return false;
+    const found = findNodeById(view.state.doc, nodeId);
+    if (!found) return false;
+    const dom = view.nodeDOM(found.pos);
+    if (!(dom instanceof HTMLElement)) return false;
+    let scroller: HTMLElement | null = dom.parentElement;
+    while (scroller) {
+      const overflow = getComputedStyle(scroller).overflowY;
+      if (
+        (overflow === 'auto' || overflow === 'scroll') &&
+        scroller.scrollHeight > scroller.clientHeight
+      ) {
+        break;
+      }
+      scroller = scroller.parentElement;
+    }
+    if (!scroller) return false;
+    const offset =
+      dom.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+    scroller.scrollTop = Math.max(0, offset - margin);
+    return true;
+  }
+
   moveWindowTo(nodeId: string): boolean {
     if (!this.model) return false;
     const state = this.editorState;
