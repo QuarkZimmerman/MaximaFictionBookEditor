@@ -81,7 +81,7 @@ import {
   type ModelSuggestion,
 } from './model';
 import { tip } from '@/app/tooltips';
-import { chosenEffort, effortsOf, type ModelEfforts } from '@/model/aiEffort';
+import { chosenEffort, effortsOf, offeredOrStored, type ModelEfforts } from '@/model/aiEffort';
 
 export type RequireAgreementFn = (
   target: NoticeTarget,
@@ -166,7 +166,7 @@ const ADDRESS_PRESETS: readonly { name: string; address: string }[] = [
 /** Feature 010 (US11, D38): the Thinking effort drop-down - Model's default, then the model's efforts. */
 function EffortRow({
   id,
-  offered,
+  offered: listed,
   target,
   model,
   setting,
@@ -182,6 +182,7 @@ function EffortRow({
   onPick: (effort: AiEffort | null) => void;
 }) {
   const { t } = useTranslation();
+  const offered = offeredOrStored(listed, setting, target, model);
   const none = !offered || offered.efforts.length === 0;
   const tooltip = t(none ? 'tip.settings.ai.effortNone' : 'tip.settings.ai.effort');
   return (
@@ -192,7 +193,11 @@ function EffortRow({
         value={chosenEffort(setting, target, model, offered) ?? ''}
         disabled={disabled || none}
         onChange={(event) =>
-          onPick(event.target.value ? { target, model, value: event.target.value } : null)
+          onPick(
+            event.target.value && offered
+              ? { target, model, value: event.target.value, param: offered.param }
+              : null,
+          )
         }
         data-testid={id}
       >

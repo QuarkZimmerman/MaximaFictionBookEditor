@@ -52,6 +52,21 @@ export function effortTarget(target: { kind: 'free'; id: string } | { kind: 'cus
   return target.kind === 'free' ? `free:${target.id}` : 'custom';
 }
 
+/**
+ * What the model offers, or - without its list at hand (after a restart, before *Fetch models*) -
+ * the choice stored for this very target and model, which was offered when it was made (D41).
+ */
+export function offeredOrStored(
+  offered: ModelEfforts | null,
+  setting: AiEffort | null | undefined,
+  target: string,
+  model: string,
+): ModelEfforts | null {
+  if (offered) return offered;
+  if (!setting || setting.target !== target || setting.model !== model) return null;
+  return { efforts: [setting.value], param: setting.param ?? DEFAULT_PARAM };
+}
+
 /** The effort chosen for this target and model, or null: Model's default (D40). */
 export function chosenEffort(
   setting: AiEffort | null | undefined,

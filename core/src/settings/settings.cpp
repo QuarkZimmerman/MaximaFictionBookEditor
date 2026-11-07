@@ -41,7 +41,7 @@ enum class Kind {
     verified_record,  // {fingerprint: "" | 64 lower-case hex, model <= 256 chars, at: "" | UTC}
     agreement_list,   // [{service, host, at}] - replaced whole; malformed elements dropped on load
     // Feature 010 (US11, resource-formats §2):
-    effort_record  // null, or {target: "free:<id>" | "custom", model <= 256 chars, value: text}
+    effort_record  // null, or {target: "free:<id>" | "custom", model, value, param?}
 };
 
 struct Field {
@@ -334,8 +334,20 @@ bool is_effort_record(const json& v) {
     if (v.is_null()) {
         return true;
     }
-    if (!v.is_object() || v.size() != 3) {
+    if (!v.is_object() || (v.size() != 3 && v.size() != 4)) {
         return false;
+    }
+    // The member that carries the choice, kept with it so that a restart can send it without
+    // the model list (optional; `reasoning_effort`, `reasoning.effort`).
+    if (v.size() == 4) {
+        const json* param = string_member(v, "param");
+        if (param == nullptr || param->get<std::string>().empty() ||
+            param->get<std::string>().size() > 64 ||
+            param->get<std::string>().find_first_not_of(
+                "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.") !=
+                std::string::npos) {
+            return false;
+        }
     }
     const json* target = string_member(v, "target");
     const json* model = string_member(v, "model");
@@ -484,7 +496,7 @@ std::string check_value(const Field& field, const json& value) {
         case Kind::verified_record:
             return is_verified_record(value) ? "" : "expected {fingerprint, model, at}";
         case Kind::effort_record:
-            return is_effort_record(value) ? "" : "expected null or {target, model, value}";
+            return is_effort_record(value) ? "" : "expected null or {target, model, value, param?}";
         case Kind::agreement_list: {
             if (!value.is_array()) {
                 return "expected an array of {service, host, at}";

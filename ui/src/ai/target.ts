@@ -14,7 +14,13 @@ import type { CustomModelsMemory } from '@/model/store';
 import type { RpcClient } from '@/rpc/client';
 import type { AiServiceEntry, AiTarget, Settings } from '@/rpc/types';
 
-import { chosenEffort, effortsOf, effortTarget, type ModelEfforts } from '@/model/aiEffort';
+import {
+  chosenEffort,
+  effortsOf,
+  effortTarget,
+  offeredOrStored,
+  type ModelEfforts,
+} from '@/model/aiEffort';
 
 import { hostOf, isHostedAddress, isPlainHttp, stripTrailingSlash } from './address';
 import type { NoticeTarget } from './notice';
@@ -96,8 +102,10 @@ function withEffort(
   settings: Settings['ai'],
   offered: ModelEfforts | null,
 ): ActiveTarget {
-  const value = chosenEffort(settings.effort, effortTarget(target.target), target.model, offered);
-  return value && offered ? { ...target, effort: { value, param: offered.param } } : target;
+  const key = effortTarget(target.target);
+  const offers = offeredOrStored(offered, settings.effort, key, target.model);
+  const value = chosenEffort(settings.effort, key, target.model, offers);
+  return value && offers ? { ...target, effort: { value, param: offers.param } } : target;
 }
 
 /**

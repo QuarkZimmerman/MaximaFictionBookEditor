@@ -1133,11 +1133,20 @@ TEST_CASE(
     const json chosen{{"target", "free:ovhcloud"}, {"model", "gpt-oss-120b"}, {"value", "high"}};
     store.apply_patch(json{{"ai", {{"effort", chosen}}}});
     CHECK(store.get()["ai"]["effort"] == chosen);
+    const json with_param{{"target", "custom"},
+                          {"model", "thinker"},
+                          {"value", "high"},
+                          {"param", "reasoning.effort"}};
+    store.apply_patch(json{{"ai", {{"effort", with_param}}}});
+    CHECK(store.get()["ai"]["effort"] == with_param);
     store.apply_patch(json{{"ai", {{"effort", nullptr}}}});
     CHECK(store.get()["ai"]["effort"].is_null());
-    for (const json& wrong : {json{{"target", "elsewhere"}, {"model", "m"}, {"value", "high"}},
-                              json{{"target", "custom"}, {"model", ""}, {"value", "high"}},
-                              json{{"target", "custom"}, {"model", "m"}}, json("high")}) {
+    for (const json& wrong :
+         {json{{"target", "elsewhere"}, {"model", "m"}, {"value", "high"}},
+          json{{"target", "custom"}, {"model", ""}, {"value", "high"}},
+          json{{"target", "custom"}, {"model", "m"}},
+          json{{"target", "custom"}, {"model", "m"}, {"value", "high"}, {"param", "a b"}},
+          json("high")}) {
         INFO(wrong.dump());
         try {
             store.apply_patch(json{{"ai", {{"effort", wrong}}}});

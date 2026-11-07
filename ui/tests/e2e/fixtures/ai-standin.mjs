@@ -43,7 +43,12 @@
  *                                            wrong key -> 401 invalid_api_key, the right key
  *                                            -> the queue (also guards GET /models)
  *   {models: [...] | {...}}                  mode: an array becomes an OpenAI list ([] = no
- *                                            models), an object is served verbatim
+ *                                            models), an object is served verbatim; an
+ *                                            entry may carry thinking efforts in either
+ *                                            style (feature 010): Anthropic's
+ *                                            {capabilities: {effort: {supported, low: ...}}}
+ *                                            or OpenRouter's {supported_parameters:
+ *                                            ['reasoning']}
  *   Any answer item also accepts `headers` (extra response headers, e.g. the ratelimit-*
  *   headers of ai-service-protocol §5) and `delayMs`.
  *

@@ -960,6 +960,8 @@ export interface AiEffort {
   target: string;
   model: string;
   value: string;
+  /** The member that carries it, kept so that a restart sends it without the model list. */
+  param?: string;
 }
 
 /**
