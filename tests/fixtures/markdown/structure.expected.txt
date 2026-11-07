@@ -1,0 +1,47 @@
+<body><title><p>The Fixture Book</p>
+</title>
+<section><p>Text before the first chapter.</p>
+</section>
+<section id="one"><title><p>Chapter One</p>
+</title>
+<p>A paragraph with <emphasis>emphasis</emphasis>, <strong>strong</strong>, <strikethrough>struck</strikethrough>, <code>code</code>, H<sub>2</sub>O and x<sup>2</sup>. A <a l:href="#chapter-two">link to chapter two</a> and a note<a l:href="#n_1" type="note">[1]</a>.</p>
+</section>
+<section id="chapter-two"><title><p>Chapter Two</p>
+</title>
+<p>• a bullet</p>
+<p><image l:href="#ch-2611" alt="☑"/> a done task</p>
+<table><tr><th align="left">Name</th><th align="right">Value</th></tr>
+<tr><td align="left">a</td><td align="right">1</td></tr>
+</table>
+</section>
+</body>
+<body name="notes"><title><p>Notes</p></title><section id="n_1"><title><p>1</p></title><p>The note's text.</p></section></body>
+{
+  "description": {
+    "title": "The Fixture Book",
+    "authors": [
+      {
+        "firstName": "Ann",
+        "lastName": "Writer"
+      }
+    ],
+    "lang": "en",
+    "annotation": [],
+    "genres": []
+  },
+  "pictures": [],
+  "chars": [
+    {
+      "id": "ch-2611",
+      "text": "☑",
+      "font": "symbol"
+    }
+  ],
+  "summary": [],
+  "stats": {
+    "sections": 3,
+    "pictures": 0,
+    "tables": 1,
+    "notes": 1
+  }
+}

@@ -168,3 +168,26 @@ TEST_CASE("import.readMarkdown, template.xml and doc.newFromXml over RPC (featur
     const json wrong = ws.call("doc.newFromXml", json{{"xml", "<html><body/></html>"}});
     REQUIRE(wrong.contains("error"));
 }
+
+TEST_CASE("text judge on the committed Markdown fixtures (feature 010, T052)",
+          "[import][markdown]") {
+    const auto dir = test::fixtures_dir() / "markdown";
+    const std::string utf8 = test::read_text(dir / "russian-utf8.md");
+    struct Case {
+        const char* file;
+        const char* encoding;
+        const char* source;
+    };
+    for (const Case& c : {Case{"russian-utf8.md", "utf-8", "utf8"},
+                          Case{"russian-windows-1251.md", "windows-1251", "judged"},
+                          Case{"russian-koi8-r.md", "koi8-r", "judged"},
+                          Case{"russian-cp866.md", "cp866", "judged"},
+                          Case{"russian-utf16.md", "utf-16le", "bom"}}) {
+        INFO(c.file);
+        const text::TextReading reading = text::read_text(test::read_text(dir / c.file));
+        CHECK(reading.decided);
+        CHECK(reading.encoding == c.encoding);
+        CHECK(reading.source == c.source);
+        CHECK(reading.utf8 == utf8);
+    }
+}
