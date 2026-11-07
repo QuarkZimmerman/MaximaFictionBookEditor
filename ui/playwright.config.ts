@@ -71,6 +71,8 @@ export default defineConfig<CoreOptions>({
         // each language, and the renamed scripts that keep their hotkeys, buttons and Last script.
         'us3-scripts-279.spec.ts',
         'us4-recheck.spec.ts',
+        // Feature 010 (US4, FR-046): the tooltips and the menus' descriptions in each language.
+        'us4-tooltips.spec.ts',
       ],
       use: { ...devices['Desktop Chrome'], locale: 'ru-RU', uiLang: 'ru' },
     },
@@ -94,6 +96,7 @@ export default defineConfig<CoreOptions>({
         'us8-table-marks.spec.ts',
         'us3-scripts-279.spec.ts',
         'us4-recheck.spec.ts',
+        'us4-tooltips.spec.ts',
       ],
       use: { ...devices['Desktop Chrome'], locale: 'uk-UA', uiLang: 'uk' },
     },
