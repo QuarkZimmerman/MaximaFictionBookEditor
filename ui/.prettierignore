@@ -4,3 +4,5 @@ coverage
 playwright-report
 test-results
 package-lock.json
+# Guard G5 (feature 010): compared byte for byte with the request body it records.
+tests/e2e/fixtures/ai-requests-baseline.json
