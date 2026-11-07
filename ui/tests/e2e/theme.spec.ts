@@ -382,7 +382,7 @@ test.describe('interface theme', () => {
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 
     await page.reload();
-    await page.getByTestId('app-root').waitFor();
+    await page.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
     await expect(page.getByTestId('status-message')).toHaveText('Ready');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
@@ -399,7 +399,7 @@ test.describe('interface theme', () => {
     await core.rpc('settings.set', { patch: { view: { theme: 'dark' } } });
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark'); // settings.changed
     await page.reload();
-    await page.getByTestId('app-root').waitFor();
+    await page.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
     await expect(page.getByTestId('status-message')).toHaveText('Ready');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');

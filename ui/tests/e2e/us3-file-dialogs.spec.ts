@@ -202,7 +202,7 @@ async function openApp(core: CoreHandle, page: Page, language: Language): Promis
   const url = new URL(core.baseURL);
   url.searchParams.set('lang', language);
   await page.goto(url.toString());
-  await page.getByTestId('app-root').waitFor();
+  await page.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
   await expect(page.locator('html')).toHaveAttribute('lang', language);
   await expect(page.getByTestId('status-message')).toHaveText(uiText(language, 'status.ready'));
 }

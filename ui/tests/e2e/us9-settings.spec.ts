@@ -381,7 +381,7 @@ test.describe('US9 - configure settings and hotkeys', () => {
 
     // "Restart": reload the page; the UI reads settings.get again and re-applies everything.
     await page.reload();
-    await page.getByTestId('app-root').waitFor();
+    await page.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
     await expect(page.getByTestId('status-message')).toHaveText(
       await pageText(page, 'status.ready'),
     );
@@ -468,7 +468,7 @@ test.describe('US9 - configure settings and hotkeys', () => {
     expect(settings.view.uiLanguage).toBe('ru');
     // ... and after the restart the Russian interface comes back from settings.json.
     await page.reload();
-    await page.getByTestId('app-root').waitFor();
+    await page.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
     await expect(page.getByTestId('menu-file')).toHaveText('Файл');
     await expect(page.getByTestId('status-message')).toHaveText('Готово');
 
@@ -491,7 +491,7 @@ test.describe('US9 - configure settings and hotkeys', () => {
     await expect(page.getByTestId('panel-tree-caption')).toHaveText(uiText('uk', 'tree.caption'));
     expect((await core.rpc<SettingsJson>('settings.get')).view.uiLanguage).toBe('uk');
     await page.reload();
-    await page.getByTestId('app-root').waitFor();
+    await page.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
     await expect(page.locator('html')).toHaveAttribute('lang', 'uk');
     await expect(page.getByTestId('menu-help')).toHaveText(uiText('uk', 'menu.help.caption'));
     await expect(page.getByTestId('status-message')).toHaveText(uiText('uk', 'status.ready'));

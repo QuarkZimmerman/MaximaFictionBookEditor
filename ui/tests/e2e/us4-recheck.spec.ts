@@ -205,7 +205,7 @@ async function profileCore(files: { hotkeys?: object; settings?: object }): Prom
 
 /** Waits for the editor's start and the scripts `ids` in its catalogue; its language. */
 async function ready(page: Page, ids: readonly string[]): Promise<UiLang> {
-  await page.getByTestId('app-root').waitFor();
+  await page.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
   await expect(page.getByTestId('status-message')).toHaveText(await pageText(page, 'status.ready'));
   await expect
     .poll(

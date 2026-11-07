@@ -142,7 +142,7 @@ test.describe('US11 - launch from the operating system', () => {
     try {
       const page = await context.newPage();
       await page.goto(second.url);
-      await page.getByTestId('app-root').waitFor();
+      await page.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
       await expect(page.getByTestId('body-view')).toBeVisible();
       await expect(page.getByTestId('body-editor')).toContainText('Opened from the command line');
       await expect(page).toHaveTitle(`from-command-line.fb2 - ${APP_TITLE}`);

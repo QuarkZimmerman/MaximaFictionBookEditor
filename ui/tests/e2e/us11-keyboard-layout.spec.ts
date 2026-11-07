@@ -175,7 +175,7 @@ function rewrite(file: string, title: string): void {
 async function openApp(core: CoreHandle, page: Page, lang?: UiLang): Promise<void> {
   if (lang) {
     await page.goto(withUiLang(core.baseURL, lang));
-    await page.getByTestId('app-root').waitFor();
+    await page.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
   } else {
     await core.openApp(page);
   }
@@ -462,7 +462,7 @@ test.describe('US11 (004) - the keyboard layout switches when a document is open
           .poll(() => rpc<unknown[]>('test.restartRequests'))
           .toHaveLength(restartsBefore + 1);
         await expect.poll(() => new URL(page.url()).searchParams.get('open')).toBe(second);
-        await page.getByTestId('app-root').waitFor();
+        await page.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
         await waitForBook(page, second);
         await expect(page.locator('html')).toHaveAttribute('lang', 'ru');
       },
@@ -498,7 +498,7 @@ test.describe('US11 (004) - the keyboard layout switches when a document is open
       await own.restart(['--open', book]);
       const page = await context.newPage();
       await page.goto(own.url);
-      await page.getByTestId('app-root').waitFor();
+      await page.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
       await waitForBook(page, book);
       await settled(page, (method, params) => own.rpc.call(method, params));
       await page.close();
@@ -508,7 +508,7 @@ test.describe('US11 (004) - the keyboard layout switches when a document is open
       await own.restart(['--open', missing]);
       const second = await context.newPage();
       await second.goto(own.url);
-      await second.getByTestId('app-root').waitFor();
+      await second.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
       const failed = second.getByTestId('dialog-open-failed');
       await expect(failed).toBeVisible();
       await failed.getByTestId('dialog-open-failed-button-ok').click();

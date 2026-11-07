@@ -1343,7 +1343,7 @@ test.describe('US1 (feature 006) - create a table where it is needed', () => {
     const other = await page.context().newPage();
     try {
       await other.goto(withUiLang(restarted.url, uiLang));
-      await other.getByTestId('app-root').waitFor();
+      await other.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
       await waitForStartupDocument(other);
       await expect
         .poll(() =>

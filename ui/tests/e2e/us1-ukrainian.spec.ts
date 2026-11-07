@@ -445,7 +445,7 @@ const READY_TEXTS = new RegExp(
 /** Opens the application with `?lang=` and asserts that the page is in that language. */
 async function openApp(core: CoreHandle, page: Page, lang: UiLang): Promise<void> {
   await page.goto(appUrl(core, { lang }));
-  await page.getByTestId('app-root').waitFor();
+  await page.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
   if (core.hasCore) await expect(page.getByTestId('status-message')).toHaveText(READY_TEXTS);
   await expect(
     page.locator('html'),
@@ -1134,7 +1134,7 @@ test.describe('US1 (feature 003) - first start follows a Ukrainian system langua
 
       // The browser prefers English (the default of every engine): the core's language decides.
       await page.goto(own.url);
-      await page.getByTestId('app-root').waitFor();
+      await page.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
       await expect(page.getByTestId('status-message')).toHaveText(READY_TEXTS);
       await expect(
         page.locator('html'),

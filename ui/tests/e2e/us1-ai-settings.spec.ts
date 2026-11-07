@@ -566,7 +566,7 @@ test.describe('US1 (005) - the choice survives a restart and a portable move @pl
     const context = await browser.newContext();
     const page = await context.newPage();
     await page.goto(withUiLang(started.url, uiLang));
-    await page.getByTestId('app-root').waitFor();
+    await page.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
     await expect(page.getByTestId('status-message')).toHaveText(
       await pageText(page, 'status.ready'),
     );

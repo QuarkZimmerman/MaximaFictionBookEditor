@@ -395,7 +395,7 @@ async function ownCore(): Promise<OwnCore> {
 
 async function openOwn(page: Page, core: OwnCore): Promise<void> {
   await page.goto(core.url);
-  await page.getByTestId('app-root').waitFor();
+  await page.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
 }
 
 /* ------------------------------------------------------------------------ */
@@ -565,7 +565,7 @@ test.describe('US8 - the position is remembered on every leaving route', () => {
       expect(recordOf(core.dataDir!, book)).toEqual(position);
       // ... and the page, reloaded with ?open=<book> (no shell headless), restores it.
       await expect.poll(() => new URL(page.url()).searchParams.get('open')).toBe(book);
-      await page.getByTestId('app-root').waitFor();
+      await page.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
       await waitForBook(page, book);
       await expect(page.locator('html')).toHaveAttribute('lang', 'ru');
       await expectCaret(page, position);
