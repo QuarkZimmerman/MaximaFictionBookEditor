@@ -63,6 +63,16 @@ std::optional<atomic_file::FaultPoint> fault_point_from_string(const std::string
 }  // namespace
 
 void register_test_handlers(rpc::RpcRouter& router, Services& services) {
+    // Feature 010 (US1): the next connection - the page after a reload - gets its answers after
+    // `ms`, so the journeys can look at the start-up phase.
+    router.add_method("test.holdStartup", [&services](const json& params, rpc::RpcContext&) {
+        const int ms = rpc::params::integer(params, "ms");
+        if (ms < 0 || ms > 60000) {
+            throw rpc::invalid_params("ms must be between 0 and 60000", json{{"field", "ms"}});
+        }
+        services.hold_next_connection_ms = ms;
+        return json::object();
+    });
     router.add_method("test.enqueueDialog", [&services](const json& params, rpc::RpcContext&) {
         const std::string method = rpc::params::string(params, "method");
         if (method.rfind("dialog.", 0) != 0) {
