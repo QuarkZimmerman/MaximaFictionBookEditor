@@ -72,6 +72,7 @@ import {
   type CustomTriple,
   type ModelSuggestion,
 } from './model';
+import { tip } from '@/app/tooltips';
 
 export type RequireAgreementFn = (
   target: NoticeTarget,
@@ -597,6 +598,7 @@ export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement 
         <div role="radiogroup" aria-label={t('dialog.settings.ai.modeGroup')}>
           <label className="mfbe-check-field mfbe-settings-radio" htmlFor="settings-ai-mode-free">
             <input
+              {...tip(t('tip.settings.ai.modeFree'))}
               id="settings-ai-mode-free"
               type="radio"
               name="settings-ai-mode"
@@ -609,8 +611,13 @@ export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement 
             <span>{t('dialog.settings.ai.modeFree')}</span>
           </label>
           <div className="mfbe-settings-ai-block" hidden={mode !== 'free'}>
-            <FieldRow label={t('dialog.settings.ai.service')} htmlFor="settings-ai-service">
+            <FieldRow
+              label={t('dialog.settings.ai.service')}
+              tooltip={t('tip.settings.ai.service')}
+              htmlFor="settings-ai-service"
+            >
               <select
+                {...tip(t('tip.settings.ai.service'))}
                 id="settings-ai-service"
                 value={choice.shownId}
                 disabled={!ai || choice.options.length === 0}
@@ -692,6 +699,7 @@ export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement 
           </div>
           <label className="mfbe-check-field mfbe-settings-radio" htmlFor="settings-ai-mode-custom">
             <input
+              {...tip(t('tip.settings.ai.modeCustom'))}
               id="settings-ai-mode-custom"
               type="radio"
               name="settings-ai-mode"
@@ -704,9 +712,14 @@ export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement 
             <span>{t('dialog.settings.ai.modeCustom')}</span>
           </label>
           <div className="mfbe-settings-ai-block">
-            <FieldRow label={t('dialog.settings.ai.custom.address')} htmlFor="settings-ai-address">
+            <FieldRow
+              label={t('dialog.settings.ai.custom.address')}
+              tooltip={t('tip.settings.ai.address')}
+              htmlFor="settings-ai-address"
+            >
               <span className="mfbe-settings-ai-address">
                 <input
+                  {...tip(t('tip.settings.ai.address'))}
                   id="settings-ai-address"
                   className="mfbe-inputdialog-input"
                   type="text"
@@ -766,8 +779,13 @@ export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement 
                 {t('dialog.settings.ai.custom.httpWarning')}
               </div>
             ) : null}
-            <FieldRow label={t('dialog.settings.ai.custom.key')} htmlFor="settings-ai-key">
+            <FieldRow
+              label={t('dialog.settings.ai.custom.key')}
+              tooltip={t('tip.settings.ai.key')}
+              htmlFor="settings-ai-key"
+            >
               <input
+                {...tip(t('tip.settings.ai.key'))}
                 id="settings-ai-key"
                 className="mfbe-inputdialog-input"
                 type={revealKey ? 'text' : 'password'}
@@ -782,6 +800,7 @@ export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement 
                 data-testid="settings-ai-key"
               />
               <button
+                {...tip(t('tip.settings.ai.revealKey'))}
                 type="button"
                 className="mfbe-button mfbe-settings-ai-reveal"
                 disabled={mode !== 'custom'}
@@ -797,8 +816,13 @@ export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement 
                 )}
               </button>
             </FieldRow>
-            <FieldRow label={t('dialog.settings.ai.custom.model')} htmlFor="settings-ai-model">
+            <FieldRow
+              label={t('dialog.settings.ai.custom.model')}
+              tooltip={t('tip.settings.ai.model')}
+              htmlFor="settings-ai-model"
+            >
               <input
+                {...tip(t('tip.settings.ai.model'))}
                 id="settings-ai-model"
                 className="mfbe-inputdialog-input"
                 type="text"
@@ -822,6 +846,7 @@ export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement 
               </datalist>
               {mode === 'custom' && rpc && !coreTooOld ? (
                 <button
+                  {...tip(t('tip.settings.ai.fetchModels'))}
                   type="button"
                   className="mfbe-button"
                   disabled={!canFetch}
@@ -846,6 +871,7 @@ export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement 
             htmlFor="settings-ai-mode-disabled"
           >
             <input
+              {...tip(t('tip.settings.ai.modeDisabled'))}
               id="settings-ai-mode-disabled"
               type="radio"
               name="settings-ai-mode"
@@ -869,6 +895,7 @@ export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement 
         {mode !== 'disabled' && rpc && !coreTooOld ? (
           <div className="mfbe-settings-row mfbe-settings-ai-test-row">
             <button
+              {...tip(t('tip.settings.ai.test'))}
               type="button"
               className="mfbe-button"
               disabled={!canTest}
@@ -915,6 +942,7 @@ export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement 
         ) : null}
         <div className="mfbe-settings-row">
           <button
+            {...tip(t('tip.settings.ai.editList'))}
             type="button"
             className="mfbe-button"
             disabled={!rpc || coreTooOld}
@@ -924,6 +952,7 @@ export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement 
             {t('dialog.settings.ai.editList')}
           </button>
           <button
+            {...tip(t('tip.settings.ai.reloadList'))}
             type="button"
             className="mfbe-button"
             disabled={!rpc || coreTooOld}
@@ -981,6 +1010,7 @@ export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement 
                   })}
                 </span>
                 <button
+                  {...tip(t('tip.settings.ai.revoke'))}
                   type="button"
                   className="mfbe-button"
                   disabled={!rpc}

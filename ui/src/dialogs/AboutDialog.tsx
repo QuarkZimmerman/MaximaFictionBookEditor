@@ -36,6 +36,7 @@ import contributorsNotice from '../../../CONTRIBUTORS.txt?raw';
 import caBundleNotice from '../../../resources/certs/cacert.NOTICE.txt?raw';
 // Feature 010 (PD2): the Noto fonts the Markdown import draws special characters from.
 import fontsNotice from '../../public/fonts/OFL-1.1.txt?raw';
+import { tip } from '@/app/tooltips';
 
 export const REPOSITORY_URL = 'https://github.com/QuarkZimmerman/MaximaFictionBookEditor';
 export const MAXIMA_LIBRARY_URL = 'https://www.maxima-library.com';
@@ -265,6 +266,7 @@ export function AboutDialog({ ctx, onClose }: AboutDialogProps) {
           {t('dialog.about.basedOn')}
         </p>
         <textarea
+          {...tip(t('tip.about.basedOn'))}
           className="mfbe-about-contributors"
           readOnly
           rows={7}
@@ -375,6 +377,7 @@ export function AboutDialog({ ctx, onClose }: AboutDialogProps) {
         </div>
         <div className="mfbe-about-log">
           <button
+            {...tip(t('tip.about.openLogFolder'))}
             type="button"
             className="mfbe-button"
             disabled={!rpc || opening}

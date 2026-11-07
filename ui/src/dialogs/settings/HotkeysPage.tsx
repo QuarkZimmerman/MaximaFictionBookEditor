@@ -43,6 +43,7 @@ import {
   reportedCollision,
   restoreDefaultChord,
 } from './hotkeysModel';
+import { tip } from '@/app/tooltips';
 
 /** A canonical chord as the platform shows it (`Meta+S` -> `Cmd+S` on macOS). */
 function displayChord(keys: string, hotkeys: HotkeyMap): string {
@@ -184,6 +185,7 @@ export function HotkeysPage({ commands, hotkeys, ctx }: HotkeysPageProps) {
           >
             {HOTKEY_PAGE_GROUPS.map((item) => (
               <li
+                {...tip(t('tip.settings.hotkeys.group'))}
                 key={item}
                 role="option"
                 aria-selected={item === group}
@@ -220,6 +222,7 @@ export function HotkeysPage({ commands, hotkeys, ctx }: HotkeysPageProps) {
               <li
                 key={command.id}
                 role="option"
+                {...tip(commandDescription(command, t))}
                 aria-selected={command.id === selected?.id}
                 ref={(element) => {
                   if (element && command.id === selected?.id) {
@@ -244,6 +247,7 @@ export function HotkeysPage({ commands, hotkeys, ctx }: HotkeysPageProps) {
               {t('dialog.settings.hotkeys.shortcut')}
             </label>
             <input
+              {...tip(t('tip.settings.hotkeys.capture'))}
               id="settings-hotkeys-capture"
               className={`mfbe-inputdialog-input mfbe-hotkeys-capture${
                 captured?.complete && !captured.validation.ok ? ' mfbe-settings-invalid' : ''
@@ -275,6 +279,7 @@ export function HotkeysPage({ commands, hotkeys, ctx }: HotkeysPageProps) {
         </div>
         <GroupBox title={t('dialog.settings.hotkeys.actions')} className="mfbe-hotkeys-actions">
           <button
+            {...tip(t('tip.settings.hotkeys.default'))}
             type="button"
             className="mfbe-button"
             disabled={!selected}
@@ -284,6 +289,7 @@ export function HotkeysPage({ commands, hotkeys, ctx }: HotkeysPageProps) {
             {t('dialog.settings.hotkeys.default')}
           </button>
           <button
+            {...tip(t('tip.settings.hotkeys.delete'))}
             type="button"
             className="mfbe-button"
             disabled={!selected || !currentChord}
@@ -293,6 +299,7 @@ export function HotkeysPage({ commands, hotkeys, ctx }: HotkeysPageProps) {
             {t('dialog.settings.hotkeys.delete')}
           </button>
           <button
+            {...tip(t('tip.settings.hotkeys.assign'))}
             type="button"
             className="mfbe-button"
             disabled={!canAssign}

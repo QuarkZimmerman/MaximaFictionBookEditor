@@ -94,6 +94,28 @@
         "newWord": "A word the Words dialog leaves out of its list, for example a name that appears often: letters only, with at most one hyphen inside.",
         "add": "Adds the word to the exclusion list.",
         "showExclusions": "Shows the excluded words in the Words dialog too, marked, instead of leaving them out."
+      },
+      "ai": {
+        "modeFree": "Use one of the free services of the bundled list: no registration and no key, with the limits each one states.",
+        "service": "The free service and model the assistant sends your requests to; its limits and terms are shown below.",
+        "modeCustom": "Use a service of your own choice - a hosted one with your key, or a model server on this computer.",
+        "address": "The address of the service's OpenAI-compatible interface, for example https://api.openai.com/v1, or http://127.0.0.1:11434/v1 for a server on this computer.",
+        "key": "Your key for the service; it is stored with the settings, sent only to this address and never written to a log. Leave it empty for a local server that needs none.",
+        "revealKey": "Shows or hides the key's characters.",
+        "model": "The model of your service that answers, for example gpt-4o-mini; type it or pick one after Fetch models.",
+        "fetchModels": "Asks the service for the list of models it offers, to pick one in the Model field.",
+        "modeDisabled": "Turns the assistant off: it leaves the menus, the toolbar and the shortcuts, and nothing of it is loaded.",
+        "test": "Sends a short test request to the service with these settings and reports whether it answers.",
+        "editList": "Opens your own service list file for editing; the first time, it is created as a copy of the bundled list.",
+        "reloadList": "Reads the service list files again after you edited them.",
+        "revoke": "Withdraws your agreement: before the next request to this service the editor asks again."
+      },
+      "hotkeys": {
+        "group": "Shows the commands of this group, with their shortcuts.",
+        "capture": "Click here and press the new shortcut, for example Ctrl+Shift+K; Assign then gives it to the selected command.",
+        "default": "Gives the selected command back its default shortcut.",
+        "delete": "Removes the shortcut from the selected command.",
+        "assign": "Gives the shortcut you pressed to the selected command."
       }
     },
     "dialog": {
@@ -135,6 +157,24 @@
       "up": "Searches from the caret towards the beginning of the book.",
       "down": "Searches from the caret towards the end of the book.",
       "replaceWith": "The text to put in place of each match; with Regular expression, $1 inserts the first group in brackets, $0 the whole match."
+    },
+    "tableDialog": {
+      "rows": "How many rows the table has, from {{min}} to {{max}}.",
+      "columns": "How many columns the table has, from {{min}} to {{max}}.",
+      "headerRow": "Makes the first row a header row: its cells become th, which readers show as headings.",
+      "headerColumn": "Makes the first cell of every row a header cell (th), for tables whose rows have names."
+    },
+    "saveFile": {
+      "encoding": "The encoding the book is saved in: UTF-8 suits every language, a legacy code page only the languages it covers.",
+      "zip": "Packs the saved book into a ZIP archive, which many readers and libraries accept; the book inside keeps its name."
+    },
+    "customizeToolbar": {
+      "available": "The buttons you can add: select one and press Add; Separator adds a dividing line.",
+      "current": "The toolbar's buttons in their order: select one to remove it or to move it up or down."
+    },
+    "about": {
+      "basedOn": "The licence, the copyright and the contributors of FictionBook Editor 2.7, which this editor is based on.",
+      "openLogFolder": "Opens the folder of the editor's error log in the file manager, for example to attach the log to a bug report."
     }
   }
 }
