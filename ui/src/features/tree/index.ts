@@ -19,11 +19,12 @@ import { actions, type AppStore } from '@/model/store';
 import type { RpcClient } from '@/rpc/client';
 import { selectionFor, type BodyEditorController } from '@/views/body/bodyEditor';
 import { loadSourceText, requestViewSwitch, setCaretWhenReady } from '@/views/source/sync';
+import { titleText } from '@/views/tree/treeModel';
 
 import { FIXED_BLOCK_IDS } from '@/editor/schema';
 
 import { bodyController, cmdKeys } from '../editing/common';
-import { canRunTreeOp, runTreeOp, type TreeOp } from '../treeOps';
+import { canRunTreeOp, locateNode, runTreeOp, type TreeOp } from '../treeOps';
 
 import { locateInSource } from './sourceLocate';
 
@@ -218,8 +219,15 @@ export async function runTreeCommand(ctx: CommandContext, op: TreeOp): Promise<b
   const model = store.getState().document;
   if (!nodeId || isBlockRow(nodeId) || !model || !modelEditable(ctx)) return false;
   if (op === 'delete') {
+    // Feature 010 (FR-075, D20): the question names what it removes.
+    const located = locateNode(model, nodeId);
+    const type = located?.node.type ?? '';
+    const name = located && type === 'section' ? titleText(located.node) : '';
+    const text = name
+      ? t('tree.deleteConfirmSection', { name })
+      : t(`tree.deleteConfirmFor.${type}`, { defaultValue: t('tree.deleteConfirm') });
     const answer = await ctx.dialogs.showMessage({
-      text: t('tree.deleteConfirm'),
+      text,
       caption: t('tree.caption'),
       buttons: 'yesNo',
       icon: 'warning',

@@ -200,7 +200,10 @@ describe('Document Tree panel', { timeout: 30_000 }, () => {
     await user.click(screen.getByTestId('tree-row-s1a'));
     await user.click(screen.getByTestId('tree-toolbar-delete'));
     const prompt = await screen.findByTestId('tree-delete-confirm');
-    expect(prompt).toHaveTextContent('Delete selected node?');
+    // Feature 010 (FR-075): the question names the section it removes.
+    expect(prompt).toHaveTextContent(
+      /Delete the (section «.+»|untitled section) with everything in it\?/,
+    );
     await user.click(within(prompt).getByTestId('tree-delete-confirm-button-yes'));
     await waitFor(() => expect(screen.queryByTestId('tree-row-s1a')).toBeNull());
     expect(screen.getByTestId('tree-row-s1b')).toHaveAttribute('data-selected', 'true');

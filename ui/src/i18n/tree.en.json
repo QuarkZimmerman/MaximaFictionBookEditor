@@ -94,6 +94,18 @@
       "last": "«{{name}}» is the last section here: there is no section after it",
       "topLevel": "«{{name}}» is already at the top level of its body",
       "cannotDelete": "This element cannot be deleted here: a body keeps at least one section, a book at least one body"
+    },
+    "deleteConfirmSection": "Delete the section «{{name}}» with everything in it?",
+    "deleteConfirmFor": {
+      "section": "Delete this untitled section with everything in it?",
+      "body": "Delete this body with everything in it?",
+      "title": "Delete this title?",
+      "epigraph": "Delete this epigraph?",
+      "annotation": "Delete this annotation?",
+      "image": "Delete this picture?",
+      "poem": "Delete this poem?",
+      "cite": "Delete this quote?",
+      "table": "Delete this table?"
     }
   },
   "cmd": {
