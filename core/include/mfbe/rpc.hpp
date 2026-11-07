@@ -74,6 +74,10 @@ inline constexpr int kArchiveNoBook = 1081;
 inline constexpr int kArchiveEntryUnreadable = 1082;
 inline constexpr int kArchiveEntryMissing = 1083;
 inline constexpr int kCancelled = 1090;
+// Feature 010 (import.readMarkdown): the file is not text {path} / larger than the import reads
+// {path, limit}.
+inline constexpr int kImportNotText = 1100;
+inline constexpr int kImportTooLarge = 1101;
 // Feature 005 (ai.*): the target cannot be resolved to a service the call may contact -
 // {reason: disabled | unknownService | emptyAddress | noModel | noAgreement, id?, service?}.
 inline constexpr int kAiNoService = 1200;

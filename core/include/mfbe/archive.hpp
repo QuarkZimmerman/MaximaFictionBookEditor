@@ -93,5 +93,8 @@ Decoded decode_names(const std::vector<std::string>& raw, const std::vector<int>
 std::vector<int> default_candidates();
 // One name in one code page, to UTF-8 ("" when the converter refuses it).
 std::string convert_codepage(std::string_view raw, int codepage);
+// Feature 010 (US8, DP-15): the judge's plausibility of UTF-8 names or words - higher is more
+// plausible - for the text judge of the Markdown import (mfbe/text_encoding.hpp).
+long plausibility(const std::vector<std::string>& utf8_words);
 
 }  // namespace mfbe::archive
