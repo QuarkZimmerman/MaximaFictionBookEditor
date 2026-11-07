@@ -266,7 +266,7 @@ function createStandin() {
       content.push({ type: 'text', text: message.content });
     }
     for (const call of message.tool_calls ?? []) {
-      let input = {};
+      let input;
       try {
         input = JSON.parse(call.function.arguments);
       } catch {
