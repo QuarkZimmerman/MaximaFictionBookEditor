@@ -32,5 +32,15 @@
     "close": "Close",
     "fit": "Click to fit the picture into the window",
     "natural": "Click to see the picture at its natural size"
+  },
+  "pictureChooser": {
+    "caption": "Choose a picture",
+    "fromFile": "From file...",
+    "fromFileTip": "Add a picture file from your disk to the book and select it. Cancel removes it again.",
+    "filter": "Filter by id",
+    "filterTip": "Type part of a picture's id to show only the pictures whose id contains it.",
+    "itemTip": "{{id}}: click to select, double-click to choose",
+    "enlarge": "Enlarge {{id}}",
+    "enlargeTip": "Show the picture enlarged"
   }
 }
