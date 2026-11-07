@@ -42,24 +42,16 @@ async function readText(ctx: CommandContext, path: string): Promise<MarkdownText
 }
 
 /** Runs the import; false when cancelled or refused (the window's book is then unchanged). */
-export async function importMarkdown(
-  ctx: CommandContext,
-  files: FileFeature,
-  given?: string,
-  asked = false,
-): Promise<boolean> {
+export async function importMarkdown(ctx: CommandContext, files: FileFeature): Promise<boolean> {
   const rpc = ctx.rpc;
   if (!rpc) return false;
-  if (!asked && !(await files.confirmDiscardChanges(ctx))) return false;
-  let path = given;
-  if (!path) {
-    const { paths } = await rpc.call('dialog.openFile', {
-      title: ctx.t('markdown.openTitle'),
-      filters: markdownFileTypes(ctx.t),
-      selectedFilter: 0,
-    });
-    path = paths[0];
-  }
+  if (!(await files.confirmDiscardChanges(ctx))) return false;
+  const { paths } = await rpc.call('dialog.openFile', {
+    title: ctx.t('markdown.openTitle'),
+    filters: markdownFileTypes(ctx.t),
+    selectedFilter: 0,
+  });
+  const path = paths[0];
   if (!path) return false;
   try {
     const text = await readText(ctx, path);

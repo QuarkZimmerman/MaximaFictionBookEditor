@@ -1,9 +1,10 @@
 /**
- * Feature 010, US8 (T054): Markdown files become books. File > Import > Markdown File... and the
- * Open dialog's Markdown filter; the unsaved-changes question, whose Cancel changes nothing; the
- * status report, or the summary of what could not come over; Save As proposes `<name>.fb2` in the
- * Markdown file's folder; the Markdown file is never written; a file that is not text leaves the
- * window's book as it was; nothing leaves the computer.
+ * Feature 010, US8 (T054): Markdown files become books through File > Import > Markdown File...
+ * only - File > Open refuses one as any file that is no book (D24, revised 2026-11-07). The
+ * unsaved-changes question, whose Cancel changes nothing; the status report, or the summary of what
+ * could not come over; Save As proposes `<name>.fb2` in the Markdown file's folder; the Markdown
+ * file is never written; a file that is not text leaves the window's book as it was; nothing leaves
+ * the computer.
  */
 
 import { copyFileSync, cpSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -85,15 +86,22 @@ test.describe('US8 (010) - Markdown files become books', () => {
     expect(outside).toEqual([]);
   });
 
-  test('2. the Open dialog takes a Markdown file and imports it; its special characters become pictures', async ({
+  test('2. File > Open refuses a Markdown file as no book; Import takes it, its special characters as pictures', async ({
     core,
     page,
   }) => {
     test.skip(!core.hasCore, 'needs mfbe-core (MFBE_CORE_BIN)');
     await core.openApp(page);
-    await core.enqueueDialog('dialog.openFile', { paths: [path.join(dir, 'special-chars.md')] });
+    // D24 (revised): Markdown is imported, never opened - Open treats it as any file that is no book.
+    const file = path.join(dir, 'special-chars.md');
+    await core.enqueueDialog('dialog.openFile', { paths: [file] });
     await page.getByTestId('menu-file').click();
     await page.getByTestId('menu-file-open').click();
+    await expect(page.getByTestId('dialog-not-fictionbook')).toBeVisible();
+    await page.getByTestId('dialog-not-fictionbook-button-ok').click();
+    await expect(page.getByTestId('body-editor')).toBeVisible();
+
+    await importViaMenu(core, page, file);
     await expect(bodyTitle(page)).toHaveText('Special characters');
     const docId = await shownDocId(page);
     await expect

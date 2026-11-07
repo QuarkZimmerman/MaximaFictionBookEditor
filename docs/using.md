@@ -165,8 +165,9 @@ are also on the tree's toolbar. The tree's scripts act on the clicked row.
 
 ## Markdown files
 
-*File > Import > Markdown File…*, *File > Open* and a drop onto the window make a new book from a
-`.md` or `.markdown` file; the Markdown file itself is never changed. The book is new and
+*File > Import > Markdown File…* makes a new book from a `.md` or `.markdown` file; the Markdown file
+itself is never changed. Markdown is imported, not opened: *File > Open*, a drop onto the window and
+the command line refuse a Markdown file like any file that is not a book. The book is new and
 unsaved; *Save As* proposes the Markdown file's name with `.fb2` in its folder. The open book
 closes only once the new one is ready, after the usual question about unsaved changes.
 

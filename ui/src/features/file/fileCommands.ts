@@ -75,7 +75,6 @@ import {
   type Settings,
 } from '@/rpc/types';
 import { cancelActiveRun } from '@/scripting/runSession';
-import { importMarkdown } from '@/features/markdown/importFlow';
 import {
   commitPendingSource,
   isSourceTextDirty,
@@ -790,11 +789,6 @@ export class FileFeature {
   async openDocument(ctx: CommandContext, path: string, entry?: string): Promise<boolean> {
     const { store, rpc } = ctx;
     if (!rpc) return false;
-    // Feature 010 (US8, FR-080): a Markdown file - from Open, Recent files, a drop or a relayed
-    // start - is imported into a new book; the routes asked about unsaved changes already.
-    if (entry === undefined && /\.(md|markdown)$/i.test(path)) {
-      return importMarkdown(ctx, this, path, true);
-    }
     // Feature 009: a ZIP archive of several books asks which one before the window's book is
     // closed, so Cancel leaves it as it was (D7); one of a single book is opened by its entry,
     // so the one-window rule sees the book itself (D11, FR-015).

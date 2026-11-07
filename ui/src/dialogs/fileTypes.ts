@@ -34,8 +34,6 @@ export function openFileTypes(t: TFunction): FileFilter[] {
     fileType(t('fileDialogs.types.fictionBook'), ['fb2']),
     fileType(t('fileDialogs.types.fictionBookDescriptors'), ['fbd']),
     fileType(t('fileDialogs.types.zipArchives'), ['zip']),
-    // Feature 010 (US8, FR-080): a Markdown file chosen here is imported into a new book.
-    fileType(t('markdown.filter'), ['md', 'markdown']),
     fileType(t('fileDialogs.types.all'), ['*']),
   ];
 }

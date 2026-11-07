@@ -998,8 +998,6 @@ test.describe('US1 (feature 003) - the interface in Ukrainian (?lang=uk)', () =>
       `${uiText(UK, 'fileDialogs.types.fictionBook')} (*.fb2)`,
       `${uiText(UK, 'fileDialogs.types.fictionBookDescriptors')} (*.fbd)`,
       `${uiText(UK, 'fileDialogs.types.zipArchives')} (*.zip)`,
-      // Feature 010 (US8, FR-080): a Markdown file chosen here is imported.
-      `${uiText(UK, 'markdown.filter')} (*.md;*.markdown)`,
       `${uiText(UK, 'fileDialogs.types.all')} (*.*)`,
     ]);
     const problems = [request.title, ...names]

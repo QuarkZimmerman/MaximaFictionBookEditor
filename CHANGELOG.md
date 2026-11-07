@@ -18,8 +18,9 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 
 ### Added
 
-- File > Import > Markdown File... makes a new book from a Markdown file; Open and a drop onto
-  the window do the same for `.md` and `.markdown` files. Headings become sections - a single
+- File > Import > Markdown File... makes a new book from a Markdown file - Markdown is imported,
+  not opened, so File > Open and a drop refuse it like any file that is no book. Headings become
+  sections - a single
   level-1 heading that opens the file becomes the book's title -, the front matter fills the
   description (title, authors, date, language, annotation, keywords, series, cover, genres),
   footnotes become notes as Style > Footnote... makes them, lists become marked paragraphs,
