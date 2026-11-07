@@ -8,7 +8,14 @@
 
 import { readFileSync, writeFileSync } from 'node:fs';
 
-import { ensureAssistantOn, expect, fixtureBook, test, waitForBook } from './fixtures/core';
+import {
+  builtUiVersion,
+  ensureAssistantOn,
+  expect,
+  fixtureBook,
+  test,
+  waitForBook,
+} from './fixtures/core';
 import { pageText } from './fixtures/i18n';
 
 const BOOK = fixtureBook('ai-selection.fb2');
@@ -18,13 +25,6 @@ function normalised(body: unknown): string {
   const text = JSON.stringify(body, null, 2);
   return `${text
     .replace(/"call_[A-Za-z0-9_-]+"/g, '"call_<id>"')
-    // The version label the prompt names: 0.0.8-rc on the branch, 0.0.8-rc.2 on a tagged build...
-    .replace(
-      /Maxima Fiction Book Editor \d+\.\d+\.\d+(-[0-9A-Za-z.]+)?/g,
-      'Maxima Fiction Book Editor <version>',
-    )
-    // ... and the version of the editor in the context block the prompt carries (escaped JSON).
-    .replace(/(\\"version\\": \\")\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?(\\")/g, '$1<version>$3')
     .replace(/\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z\b/g, '<time>')}\n`;
 }
 
@@ -64,8 +64,13 @@ test.describe('guard G5: the assistant request body', () => {
     expect(body).not.toHaveProperty('reasoning_effort');
     // MFBE_G5_WRITE=1 refreshes the baseline - only when a requirement changes the body, and
     // recorded in specs/010-sixth-feedback-batch/test-changes.md with that requirement.
+    // The baseline names the editor's version as <version>: the test puts in the version of the
+    // build it runs against, read from that build, and compares the rest exactly.
+    const version = builtUiVersion();
     const baseline = new URL('./fixtures/ai-requests-baseline.json', import.meta.url);
-    if (process.env.MFBE_G5_WRITE === '1') writeFileSync(baseline, normalised(body));
-    expect(normalised(body)).toBe(readFileSync(baseline, 'utf8'));
+    if (process.env.MFBE_G5_WRITE === '1') {
+      writeFileSync(baseline, normalised(body).split(version).join('<version>'));
+    }
+    expect(normalised(body)).toBe(readFileSync(baseline, 'utf8').split('<version>').join(version));
   });
 });
