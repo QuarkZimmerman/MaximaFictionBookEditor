@@ -122,7 +122,9 @@ bool isDocumentPath(const std::string& path) {
     std::transform(ext.begin(), ext.end(), ext.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     // Feature 009 (DP-20): ZIP archives too, `.fb2.zip` included; the core reads their books.
-    return ext == ".fb2" || ext == ".fbd" || ext == ".xml" || ext == ".zip";
+    // Feature 010 (US8, FR-080): a dropped Markdown file is imported into a new book.
+    return ext == ".fb2" || ext == ".fbd" || ext == ".xml" || ext == ".zip" || ext == ".md" ||
+           ext == ".markdown";
 }
 
 // --- clipboard ----------------------------------------------------------------------------
