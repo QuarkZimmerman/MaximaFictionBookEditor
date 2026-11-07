@@ -490,11 +490,19 @@ export const TREE_MENU: readonly (TreeMenuEntry | 'separator')[] = [
 
 /** `IDR_DOCUMENT_TREE TOOLBAR` buttons (Right, Right smart, Left, Merge, Delete). */
 export const TREE_TOOLBAR: readonly {
-  op: 'moveRight' | 'moveWithChildren' | 'moveLeft' | 'merge' | 'delete';
+  op: 'moveUp' | 'moveDown' | 'moveRight' | 'moveWithChildren' | 'moveLeft' | 'merge' | 'delete';
   testId: string;
   icon: string;
   labelKey: string;
 }[] = [
+  // Feature 010 (D21): Move Up and Move Down first.
+  { op: 'moveUp', testId: 'tree-toolbar-up', icon: 'id_dt_up', labelKey: 'tree.toolbar.up' },
+  {
+    op: 'moveDown',
+    testId: 'tree-toolbar-down',
+    icon: 'id_dt_down',
+    labelKey: 'tree.toolbar.down',
+  },
   {
     op: 'moveRight',
     testId: 'tree-toolbar-right',

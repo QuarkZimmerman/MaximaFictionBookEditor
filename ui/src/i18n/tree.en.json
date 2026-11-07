@@ -16,7 +16,9 @@
       "rightSmart": "Move one node to the right with smart mode",
       "left": "Move to the left",
       "merge": "Merge containers",
-      "delete": "Delete selected node"
+      "delete": "Delete selected node",
+      "up": "Move the section up: it swaps places with the section before it",
+      "down": "Move the section down: it swaps places with the section after it"
     },
     "node": {
       "annotation": "Annotation",
