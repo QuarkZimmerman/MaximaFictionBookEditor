@@ -78,7 +78,12 @@ export function ContextMenu({ controller, click, onClose }: ContextMenuProps) {
     command('edit.paste', 'editing.contextMenu.paste'),
     command('edit.pastePlain', 'editing.contextMenu.pastePlain'),
     { separator: true, id: 'sep-2' },
-    ...selectEntries(controller, (element) => t('editing.contextMenu.select', { element })),
+    // Feature 010 (D15): the element in words.
+    ...selectEntries(controller, (element) =>
+      t('editing.contextMenu.select', {
+        element: t(`editing.element.${element}`, { defaultValue: element }),
+      }),
+    ),
   ];
   // The command entries' labels carry their `&` letters; every other label is shown as it is.
   const accelerated = new Set([

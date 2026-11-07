@@ -282,6 +282,26 @@
     },
     "msg": {
       "binaryAddUnavailable": "The image file could not be added as a binary object yet; the image refers to #{{name}}."
+    },
+    "element": {
+      "paragraph": "paragraph",
+      "title": "title",
+      "section": "section",
+      "body": "body",
+      "notes": "notes",
+      "epigraph": "epigraph",
+      "annotation": "annotation",
+      "history": "history",
+      "poem": "poem",
+      "stanza": "stanza",
+      "verse": "verse",
+      "quote": "quote",
+      "textAuthor": "text author",
+      "subtitle": "subtitle",
+      "date": "date",
+      "table": "table",
+      "row": "row",
+      "cell": "cell"
     }
   },
   "cmd": {
