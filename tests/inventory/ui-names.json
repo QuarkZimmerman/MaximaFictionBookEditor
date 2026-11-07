@@ -120,6 +120,11 @@
       "tooltip": "Import description",
       "description": "Import the description of another FictionBook file into this document"
     },
+    "file.importMarkdown": {
+      "label": "&Markdown File...",
+      "tooltip": "Import Markdown",
+      "description": "Make a new book from a Markdown file: its headings become sections, its pictures and notes come along"
+    },
     "file.new": {
       "label": "&New",
       "tooltip": "New",
@@ -782,6 +787,11 @@
       "tooltip": "Импорт описания",
       "description": "Импортировать описание из другого файла FictionBook в этот документ"
     },
+    "file.importMarkdown": {
+      "label": "Файл &Markdown...",
+      "tooltip": "Импорт Markdown",
+      "description": "Создать новую книгу из файла Markdown: заголовки становятся секциями, картинки и сноски переносятся"
+    },
     "file.new": {
       "label": "&Создать",
       "tooltip": "Новый",
@@ -1443,6 +1453,11 @@
       "label": "Оп&ис із файлу FictionBook...",
       "tooltip": "Імпорт опису",
       "description": "Імпортувати опис з іншого файлу FictionBook у цей документ"
+    },
+    "file.importMarkdown": {
+      "label": "Файл &Markdown...",
+      "tooltip": "Імпорт Markdown",
+      "description": "Створити нову книгу з файлу Markdown: заголовки стають секціями, малюнки й виноски переносяться"
     },
     "file.new": {
       "label": "&Створити",

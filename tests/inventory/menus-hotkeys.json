@@ -12,7 +12,8 @@
         {
           "submenu": "import",
           "items": [
-            "file.importDescription"
+            "file.importDescription",
+            "file.importMarkdown"
           ]
         },
         {
