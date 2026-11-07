@@ -440,6 +440,7 @@ function TreeRowView({
           className="mfbe-tree-toggle"
           tabIndex={-1}
           aria-label={expanded ? collapseLabel : expandLabel}
+          title={expanded ? collapseLabel : expandLabel}
           data-testid={`tree-toggle-${row.id}`}
           onClick={(event) => {
             event.stopPropagation();

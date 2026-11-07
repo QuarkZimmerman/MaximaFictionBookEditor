@@ -72,6 +72,8 @@ export function InputDialog({ options, onClose }: InputDialogProps) {
         {options.prompt ?? t('dialog.input.prompt')}
       </label>
       <input
+        // The prompt above says what to type; the dialog is mostly a script's own (D14).
+        data-no-tooltip
         id={inputId}
         className="mfbe-inputdialog-input"
         type="text"

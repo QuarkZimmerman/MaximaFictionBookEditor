@@ -24,6 +24,7 @@ import { formatElapsed, formatRunProgress } from './host';
 import { cancelActiveRun } from './runSession';
 
 import './scripting.css';
+import { tip } from '@/app/tooltips';
 
 const NO_SUBSCRIPTION = () => () => {};
 
@@ -110,6 +111,7 @@ export function ScriptRunBanner() {
         {formatElapsed(elapsedMs)}
       </span>
       <button
+        {...tip(t('tip.run.cancel'))}
         type="button"
         className="mfbe-button mfbe-script-banner-cancel"
         data-testid="script-run-cancel"

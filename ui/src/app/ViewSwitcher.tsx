@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import type { ViewId } from '@/rpc/types';
 
 import { useAppRevision, useAppServices, useCommandContext } from './services';
+import { tip } from './tooltips';
 
 const VIEWS: readonly ViewId[] = ['description', 'body', 'source'];
 
@@ -16,6 +17,7 @@ export function ViewSwitcher() {
   const { t } = useTranslation();
   const services = useAppServices();
   const ctx = useCommandContext();
+  const viewTip = (view: ViewId) => t(`tip.views.${view}`);
   useAppRevision();
 
   // Keyboard (T153, ARIA tabs): Left/Right/Home/End move to the neighbouring enabled tab and
@@ -51,6 +53,7 @@ export function ViewSwitcher() {
       data-testid="view-switcher"
     >
       {VIEWS.map((view) => {
+        // Feature 010 (FR-040): a view tab says what the view shows.
         const id = `view.${view}`;
         const active = services.commands.isChecked(id, ctx);
         const enabled = services.commands.isEnabled(id, ctx);
@@ -59,6 +62,7 @@ export function ViewSwitcher() {
             key={view}
             type="button"
             role="tab"
+            {...tip(viewTip(view))}
             aria-selected={active}
             aria-controls={`panel-${view}`}
             className={`mfbe-view-tab${active ? ' mfbe-view-tab-active' : ''}`}

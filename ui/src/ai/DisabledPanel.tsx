@@ -23,6 +23,7 @@ import { openSettingsDialog } from '@/features/settings/index';
 import { actions } from '@/model/store';
 
 import { getAiFeature } from './index';
+import { tip } from '@/app/tooltips';
 
 export function DisabledPanel() {
   const { t } = useTranslation();
@@ -55,6 +56,7 @@ export function DisabledPanel() {
         <p className="mfbe-ai-inert-notice" data-testid="ai-panel-disabled-notice">
           <span>{t('ai.panel.disabledNotice')}</span>
           <button
+            {...tip(t('tip.ai.enableLink'))}
             type="button"
             className="mfbe-ai-inert-link"
             data-testid="ai-panel-disabled-settings"
@@ -66,6 +68,7 @@ export function DisabledPanel() {
       </div>
       <div className="mfbe-ai-inert-composer">
         <textarea
+          {...tip(t('tip.ai.disabledInput'))}
           className="mfbe-ai-inert-input"
           data-testid="ai-input"
           rows={3}
@@ -76,13 +79,31 @@ export function DisabledPanel() {
           placeholder={t('ai.panel.placeholder')}
         />
         <div className="mfbe-ai-inert-buttons">
-          <button type="button" className="mfbe-button" data-testid="ai-send" disabled>
+          <button
+            {...tip(t('tip.ai.disabledSend'))}
+            type="button"
+            className="mfbe-button"
+            data-testid="ai-send"
+            disabled
+          >
             {t('ai.panel.send')}
           </button>
-          <button type="button" className="mfbe-button" data-testid="ai-clear" disabled>
+          <button
+            {...tip(t('tip.ai.disabledClear'))}
+            type="button"
+            className="mfbe-button"
+            data-testid="ai-clear"
+            disabled
+          >
             {t('ai.panel.clear')}
           </button>
-          <button type="button" className="mfbe-button" data-testid="ai-undo" disabled>
+          <button
+            {...tip(t('tip.ai.disabledUndo'))}
+            type="button"
+            className="mfbe-button"
+            data-testid="ai-undo"
+            disabled
+          >
             {t('ai.panel.undo')}
           </button>
         </div>

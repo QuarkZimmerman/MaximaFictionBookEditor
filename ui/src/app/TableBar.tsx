@@ -94,13 +94,13 @@ function BarSelect({
   whenAvailable,
   onChange,
 }: BarSelectProps) {
-  const help = tip(disabled && whenAvailable ? `${tooltip} ${whenAvailable}` : tooltip);
+  const helpText = disabled && whenAvailable ? `${tooltip} ${whenAvailable}` : tooltip;
   return (
-    <label className="mfbe-bar-field" htmlFor={`${id}-input`} {...help}>
+    <label className="mfbe-bar-field" htmlFor={`${id}-input`} {...tip(helpText)}>
       <span className="mfbe-bar-label">{label}</span>
       <select
         id={`${id}-input`}
-        {...help}
+        {...tip(helpText)}
         className="mfbe-bar-input mfbe-bar-select"
         value={disabled ? '' : value}
         disabled={disabled}

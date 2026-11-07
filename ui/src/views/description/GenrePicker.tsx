@@ -26,6 +26,7 @@ import {
   type GenreCatalog,
   type ResourceCatalogs,
 } from './resources';
+import { tip } from '@/app/tooltips';
 
 /* ------------------------------------------------------------------------ */
 /* Rows                                                                     */
@@ -150,6 +151,7 @@ export function GenreList({ fieldKey, testPrefix, testId, required }: GenreListP
               <label className="mfbe-desc-field">
                 <span className="mfbe-desc-label">{t('descriptionForm.genres.match')}</span>
                 <input
+                  {...tip(t('tip.description.genres.match'))}
                   type="text"
                   inputMode="numeric"
                   className="mfbe-desc-input mfbe-desc-input-short"
@@ -249,6 +251,7 @@ export function GenrePickerDialog({
       <label className="mfbe-field-row" htmlFor="genre-picker-filter">
         <span>{t('descriptionForm.genres.filter')}</span>
         <input
+          {...tip(t('tip.description.genreFilter'))}
           id="genre-picker-filter"
           className="mfbe-inputdialog-input"
           type="text"
@@ -258,6 +261,7 @@ export function GenrePickerDialog({
         />
       </label>
       <select
+        {...tip(t('tip.description.genreList'))}
         className="mfbe-genrepicker-list"
         size={14}
         value={selected}

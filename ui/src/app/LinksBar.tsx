@@ -82,7 +82,7 @@ export function BarTextField({
   onCommit,
 }: BarTextFieldProps) {
   // Feature 010 (US4): on the field and on its label, greyed included (D12).
-  const help = tip(title ?? (disabled && whenAvailable ? `${tooltip} ${whenAvailable}` : tooltip));
+  const helpText = title ?? (disabled && whenAvailable ? `${tooltip} ${whenAvailable}` : tooltip);
   const [draft, setDraft] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
   const editing = useRef(false);
@@ -123,7 +123,7 @@ export function BarTextField({
   };
 
   return (
-    <label className="mfbe-bar-field" htmlFor={`${id}-input`} {...help}>
+    <label className="mfbe-bar-field" htmlFor={`${id}-input`} {...tip(helpText)}>
       <span className="mfbe-bar-label">{label}</span>
       <input
         ref={inputRef}
@@ -135,7 +135,7 @@ export function BarTextField({
         disabled={disabled}
         spellCheck={false}
         list={list}
-        {...help}
+        {...tip(helpText)}
         data-testid={id}
         data-mixed={mixed && !disabled ? 'true' : undefined}
         onFocus={() => {

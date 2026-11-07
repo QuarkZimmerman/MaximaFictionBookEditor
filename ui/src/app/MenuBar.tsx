@@ -590,6 +590,8 @@ export function MenuBar({ menus = MAIN_MENU, dynamicItems = {} }: MenuBarProps) 
             <button
               type="button"
               role="menuitem"
+              // Feature 010 (D13): the menus get no tooltips of their own.
+              data-no-tooltip
               aria-haspopup="menu"
               aria-expanded={isOpen}
               className={`mfbe-menubar-button${isOpen ? ' mfbe-menubar-button-open' : ''}`}

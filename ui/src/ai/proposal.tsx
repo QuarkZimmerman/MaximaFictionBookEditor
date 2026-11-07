@@ -33,6 +33,7 @@ import type { RestoreRequest } from './catalogue';
 import { fileChanges, withAuthorLine, type FileChange, type ScriptProposal } from './proposal';
 
 import './ai.css';
+import { tip } from '@/app/tooltips';
 
 /** What the user chose (data-model §10.1 `decision`). */
 export type ProposalDecisionKind = 'write' | 'writeAndRun' | 'decline';
@@ -148,6 +149,7 @@ export function ScriptProposalDialog({
       <label className="mfbe-ai-proposal-author">
         <span>{t('ai.proposal.author')}</span>
         <input
+          {...tip(t('tip.ai.proposalAuthor'))}
           type="text"
           value={authorLine}
           onChange={(event) => setAuthorLine(event.target.value)}

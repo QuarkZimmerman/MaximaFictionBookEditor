@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Dialog, type DialogButton } from './Dialog';
+import { tip } from '@/app/tooltips';
 
 export type OpenElsewhereChoice = 'thisWindow' | 'newWindow' | 'cancel';
 
@@ -63,6 +64,7 @@ export function OpenElsewhereDialog({ name, onClose }: OpenElsewhereDialogProps)
       </div>
       <label className="mfbe-checkbox-row">
         <input
+          {...tip(t('tip.openElsewhere.remember'))}
           type="checkbox"
           data-testid="open-elsewhere-remember"
           checked={remember}

@@ -105,16 +105,16 @@ export function HrefCombo({
     if (next !== value) onCommit(next);
   };
 
-  const help = tip(disabled && whenAvailable ? `${tooltip} ${whenAvailable}` : tooltip);
+  const helpText = disabled && whenAvailable ? `${tooltip} ${whenAvailable}` : tooltip;
   return (
-    <label className="mfbe-bar-field" htmlFor="links-bar-href-input" {...help}>
+    <label className="mfbe-bar-field" htmlFor="links-bar-href-input" {...tip(helpText)}>
       <span className="mfbe-bar-label">{label}</span>
       <span className="mfbe-hrefcombo" style={{ width }}>
         <input
           ref={inputRef}
           id="links-bar-href-input"
           className="mfbe-bar-input mfbe-hrefcombo-input"
-          {...help}
+          {...tip(helpText)}
           type="text"
           role="combobox"
           aria-expanded={listOpen}

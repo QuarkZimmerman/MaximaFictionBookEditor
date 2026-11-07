@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import type { ArchiveChoice } from '@/rpc/types';
 
 import { Dialog, type DialogButton } from './Dialog';
+import { tip } from '@/app/tooltips';
 
 export interface ArchiveBookChooserProps {
   choice: ArchiveChoice;
@@ -67,6 +68,7 @@ export function ArchiveBookChooser({ choice, archiveName, onClose }: ArchiveBook
       <label className="mfbe-archive-chooser-filter">
         {t('archive.chooser.filter')}{' '}
         <input
+          {...tip(t('tip.archive.filter'))}
           type="search"
           value={filter}
           autoFocus

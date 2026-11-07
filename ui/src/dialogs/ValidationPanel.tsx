@@ -93,6 +93,7 @@ export function ValidationPanel({ report, title, onNavigate, onClose }: Validati
           {summary}
         </span>
         <button
+          title={t('dialog.buttons.close')}
           type="button"
           className="mfbe-validation-close"
           aria-label={t('dialog.buttons.close')}

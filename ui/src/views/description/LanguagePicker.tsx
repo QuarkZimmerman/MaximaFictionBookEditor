@@ -12,6 +12,9 @@ import { readOnlySelectProps, useDescriptionForm } from './formContext';
 import { getAtPath, type FieldKey } from './model';
 import { localName } from './resources';
 import { RequiredMark, TextField } from './fields';
+import { tip } from '@/app/tooltips';
+
+import { descriptionFieldTip } from './fieldTips';
 
 export interface LanguagePickerProps {
   /** Form path of the code, e.g. `titleInfo.lang`. */
@@ -38,6 +41,7 @@ export function LanguagePicker({ fieldKey, testId, label, required }: LanguagePi
         {required ? <RequiredMark missing={!!missing} /> : null}
       </span>
       <select
+        {...tip(descriptionFieldTip(t, fieldKey))}
         className={`mfbe-desc-select${missing ? ' mfbe-desc-input-invalid' : ''}`}
         data-testid={testId}
         value={code}

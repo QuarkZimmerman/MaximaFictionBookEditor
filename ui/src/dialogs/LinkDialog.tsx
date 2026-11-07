@@ -13,6 +13,7 @@ import { normalizeHref } from '@/features/linkTargets';
 import { Dialog, type DialogButton } from './Dialog';
 
 import './editing.css';
+import { tip } from '@/app/tooltips';
 
 export interface LinkDialogProps {
   initialHref?: string;
@@ -49,6 +50,7 @@ export function LinkDialog({ initialHref = '', targets = [], onClose }: LinkDial
         {t('editing.link.prompt')}
       </label>
       <input
+        {...tip(t('tip.link.href'))}
         id="dialog-link-href"
         className="mfbe-inputdialog-input"
         type="text"

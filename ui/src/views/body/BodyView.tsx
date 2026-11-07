@@ -25,6 +25,7 @@ import {
 } from './contextMenuExtensions';
 
 import '@/editor/styles.css';
+import { tip } from '@/app/tooltips';
 
 export interface BodyViewProps {
   /** Read-only mode (the view is editable by default since US2). */
@@ -143,6 +144,7 @@ export function BodyView({ editable = true }: BodyViewProps) {
           <div className="mfbe-body-selector" role="tablist" data-testid="body-selector">
             {snapshot.bodyNames.map((name, index) => (
               <button
+                {...tip(t('tip.body.tab'))}
                 key={index}
                 type="button"
                 role="tab"
@@ -158,6 +160,7 @@ export function BodyView({ editable = true }: BodyViewProps) {
         ) : null}
         {snapshot.before > 0 ? (
           <button
+            {...tip(t('tip.body.moreBefore'))}
             type="button"
             className="mfbe-body-more"
             data-testid="body-window-before"
@@ -176,6 +179,7 @@ export function BodyView({ editable = true }: BodyViewProps) {
         />
         {snapshot.after > 0 ? (
           <button
+            {...tip(t('tip.body.moreAfter'))}
             type="button"
             className="mfbe-body-more"
             data-testid="body-window-after"

@@ -116,6 +116,13 @@
         "default": "Gives the selected command back its default shortcut.",
         "delete": "Removes the shortcut from the selected command.",
         "assign": "Gives the shortcut you pressed to the selected command."
+      },
+      "tabs": {
+        "view": "How the editor looks: language, theme, fonts and colours, the Source view and spelling.",
+        "other": "Saving and opening books, pictures, non-breaking spaces, folders and the version check.",
+        "hotkeys": "The keyboard shortcuts of every command.",
+        "words": "The words the Words dialog leaves out of its list.",
+        "ai": "The AI assistant: which service answers, or none at all."
       }
     },
     "dialog": {
@@ -175,6 +182,103 @@
     "about": {
       "basedOn": "The licence, the copyright and the contributors of FictionBook Editor 2.7, which this editor is based on.",
       "openLogFolder": "Opens the folder of the editor's error log in the file manager, for example to attach the log to a bug report."
+    },
+    "views": {
+      "description": "The book's description: its title, authors, genres, annotation, cover and the other data a library shows.",
+      "body": "The book's text as it reads, with its sections, titles, poems and pictures, to edit it.",
+      "source": "The book's XML, to edit it directly; the other views follow when you leave it."
+    },
+    "archive": {
+      "filter": "Shows only the books of the archive whose name contains this text."
+    },
+    "link": {
+      "href": "Where the link points: #id of a place in this book, for example #note1, or a web address such as https://example.com."
+    },
+    "openElsewhere": {
+      "remember": "Answer like this for every book opened from outside; Settings > Other can change it."
+    },
+    "importDescription": {
+      "entry": "Takes this part of the other book's description into this book; untick it to keep this book's own."
+    },
+    "run": {
+      "cancel": "Stops the running script or the assistant's request."
+    },
+    "ai": {
+      "settingsLink": "Opens Settings → AI assistant, to choose the service that answers.",
+      "input": "Your instruction or question for the assistant, about the selected text or the book; Enter sends it, Shift+Enter starts a new line.",
+      "stop": "Stops the request: the assistant stops answering.",
+      "clear": "Clears the conversation, so that the next request starts afresh.",
+      "popupInput": "What the assistant should do with the selected text, or your question; Enter sends it, Shift+Enter starts a new line.",
+      "continue": "Moves this request and its answer to the assistant's panel, to go on there.",
+      "enableLink": "Opens Settings → AI assistant, to turn the assistant on.",
+      "disabledInput": "The assistant is turned off: turn it on in Settings → AI assistant to give it an instruction.",
+      "disabledSend": "Sends the instruction to the assistant. Available when the assistant is turned on in Settings → AI assistant.",
+      "disabledClear": "Clears the conversation. Available when the assistant is turned on in Settings → AI assistant.",
+      "disabledUndo": "Undoes the assistant's last change to the book. Available when the assistant is turned on in Settings → AI assistant.",
+      "proposalAuthor": "The author line, written as the first comment of the script the assistant proposes; clear it to write none."
+    },
+    "description": {
+      "titleInfo": {
+        "bookTitle": "The book's title, as readers and libraries show it.",
+        "date": {
+          "text": "When the book was written, as it should read, for example 2026 or spring 2026."
+        }
+      },
+      "srcTitleInfo": {
+        "bookTitle": "For a translation: the title of the original book.",
+        "lang": "The language of the original book."
+      },
+      "keywords": "Words a library can find the book by, separated by commas.",
+      "lang": "The language of the book's text, for example en, ru or uk; the spelling check uses its dictionaries.",
+      "srcLang": "For a translation: the language the book was translated from.",
+      "documentInfo": {
+        "date": {
+          "text": "When this FB2 file was made, as it should read, for example 15 March 2026."
+        },
+        "programUsed": "The programs this FB2 file was made with.",
+        "srcUrls": "A web address the book's text was taken from.",
+        "srcOcr": "Who scanned and recognised the printed book, if it was.",
+        "id": "The unique id of this FB2 file; libraries tell the versions of one book apart by it. Keep it when you make a new version.",
+        "version": "The version of this FB2 file, for example 1.0; raise it with every new release of the file."
+      },
+      "date": {
+        "text": "The date as it should read, for example 2026 or March 2026.",
+        "value": "The same date for programs, as YYYY-MM-DD, for example 2026-03-15."
+      },
+      "name": "The name of the series the book belongs to, for example The Lord of the Rings.",
+      "number": "The book's number in the series, for example 2.",
+      "genres": {
+        "match": "How well the genre fits the book, in percent; empty means 100."
+      },
+      "firstName": "The person's first name.",
+      "middleName": "The person's middle name or patronymic.",
+      "lastName": "The person's last name.",
+      "nickname": "The person's nickname or pen name; a person without a first and a last name needs one.",
+      "homePages": "A web page of the person, for example https://example.com.",
+      "emails": "An e-mail address of the person.",
+      "id": "The person's id in a library catalogue, if there is one.",
+      "publishInfo": {
+        "bookName": "The title of the printed book this text comes from.",
+        "publisher": "The publisher of the printed book.",
+        "city": "The city where the printed book was published.",
+        "year": "The year the printed book was published.",
+        "isbn": "The ISBN of the printed book, for example 978-3-16-148410-0."
+      },
+      "customInfo": {
+        "infoType": "The kind of the extra information, as a short name of your own.",
+        "text": "The extra information itself."
+      },
+      "role": "The person's part in the book, for example illustrator or editor; it is written as a custom-info entry.",
+      "genreFilter": "Shows only the genres whose name or code contains this text.",
+      "genreList": "The genres of the list: pick one and press OK, or double-click it."
+    },
+    "body": {
+      "tab": "Shows this body of the book - the main text or, for example, the notes.",
+      "moreBefore": "Shows the sections before the ones on screen; the view holds a window of sections, so that large books stay quick.",
+      "moreAfter": "Shows the sections after the ones on screen; the view holds a window of sections, so that large books stay quick."
+    },
+    "source": {
+      "foldLevel": "The nesting level the Collapse and Expand buttons beside it act on: 1 folds the outermost elements, higher levels deeper ones."
     }
   }
 }

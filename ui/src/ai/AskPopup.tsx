@@ -49,6 +49,7 @@ import { countContainerTags, editorSelectionRange, refusedRange } from './source
 import { resolveActiveTarget } from './target';
 
 import './ai.css';
+import { tip } from '@/app/tooltips';
 
 /** The popup's display state (`dialog-ai-ask-status[data-state]`, quickstart §0.5). */
 export type PopupState = 'idle' | 'running' | 'done' | 'answered' | 'failed' | 'refused';
@@ -297,6 +298,7 @@ export function AskPopup({
     >
       <div ref={rootRef} className="mfbe-ai-ask-body">
         <textarea
+          {...tip(t('tip.ai.popupInput'))}
           ref={inputRef}
           className="mfbe-ai-ask-input"
           data-testid="dialog-ai-ask-input"
@@ -341,6 +343,7 @@ export function AskPopup({
               </button>
             ) : null}
             <button
+              {...tip(t('tip.ai.continue'))}
               type="button"
               className="mfbe-button"
               data-testid="dialog-ai-ask-continue"
@@ -353,6 +356,7 @@ export function AskPopup({
         {settingsLink ? (
           <div className="mfbe-ai-ask-actions">
             <button
+              {...tip(t('tip.ai.settingsLink'))}
               type="button"
               className="mfbe-link-button"
               data-testid="dialog-ai-ask-settings-link"

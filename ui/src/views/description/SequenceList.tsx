@@ -11,6 +11,9 @@ import type { Sequence } from '@/model/document';
 import { AddButton, EmptyHint, RemoveButton, SmallButton, SubSection, TextField } from './fields';
 import { useDescriptionForm } from './formContext';
 import { emptySequence, getAtPath, setAtPath, type FieldKey } from './model';
+import { tip } from '@/app/tooltips';
+
+import { descriptionFieldTip } from './fieldTips';
 
 export interface SequenceListProps {
   /** Form path of the list, e.g. `titleInfo.sequences`. */
@@ -135,6 +138,7 @@ function NumberField({ fieldKey, testId }: { fieldKey: FieldKey; testId: string 
     <label className="mfbe-desc-field">
       <span className="mfbe-desc-label">{t('descriptionForm.sequence.number')}</span>
       <input
+        {...tip(descriptionFieldTip(t, fieldKey))}
         type="text"
         inputMode="numeric"
         className="mfbe-desc-input mfbe-desc-input-short"
