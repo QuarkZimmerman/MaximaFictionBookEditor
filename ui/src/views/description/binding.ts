@@ -238,7 +238,7 @@ export class DescriptionController {
         this.history.push(entry);
         this.future = [];
         this.open = key === null ? null : { entry, key, time };
-        this.undo.record(DESCRIPTION_UNDO_VIEW, this.translate('descriptionForm.undoLabel'));
+        this.undo.record(DESCRIPTION_UNDO_VIEW, this.stepName(key));
       }
     }
     this.commitModel(next);
@@ -330,6 +330,21 @@ export class DescriptionController {
   /* --------------------------------------------------------------- inputs */
 
   /** Registers the DOM input of a text field (search selection, caret); returns the unregister. */
+  /**
+   * Feature 010 (US9, D34): the name of a change in the Description view - the command that made
+   * it, else its field as the form labels it ("Description: Book title").
+   */
+  private stepName(key: FieldKey | null): string {
+    const command = this.undo.commandName;
+    if (command) return command;
+    const input = key === null ? undefined : this.inputs.get(key);
+    const label = input?.closest('label')?.querySelector('.mfbe-desc-label')?.textContent ?? '';
+    const field = label.replace(/[\s*:]+$/u, '').trim();
+    return field
+      ? `${this.translate('undoNames.fieldPrefix')} ${field}`
+      : this.translate('descriptionForm.undoLabel');
+  }
+
   registerInput(key: FieldKey, input: FormInput): () => void {
     this.inputs.set(key, input);
     return () => {

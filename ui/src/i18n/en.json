@@ -1135,5 +1135,15 @@
     "msg": {
       "clipboardNoText": "The Clipboard holds no text."
     }
+  },
+  "undoNames": {
+    "undo": "&Undo {{name}}",
+    "redo": "&Redo {{name}}",
+    "undoTooltip": "Undo {{name}}",
+    "redoTooltip": "Redo {{name}}",
+    "typing": "Typing",
+    "delete": "Delete",
+    "dragAndDrop": "Drag and Drop",
+    "fieldPrefix": "Description:"
   }
 }

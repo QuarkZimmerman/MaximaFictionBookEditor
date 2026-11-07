@@ -56,8 +56,21 @@ export interface UndoCoordinatorOptions {
   limit?: number;
 }
 
+/**
+ * Feature 010 (US9, D33): the coordinator whose top steps *Edit → Undo* and *Redo* name - the
+ * application's (`createAppServices` sets it).
+ */
+export let namingUndo: Pick<UndoCoordinator, 'peekUndo' | 'peekRedo'> | null = null;
+
+/** Makes `undo` the coordinator whose steps the Undo and Redo entries name. */
+export function nameStepsFrom(undo: Pick<UndoCoordinator, 'peekUndo' | 'peekRedo'>): void {
+  namingUndo = undo;
+}
+
 export class UndoCoordinator {
   private readonly adapters = new Map<UndoView, ViewHistoryAdapter>();
+  /** Feature 010 (US9, DP-12): the names of the commands running now, innermost last. */
+  private readonly commandNames: string[] = [];
   private readonly undoStack: UndoEntry[] = [];
   private readonly redoStack: UndoEntry[] = [];
   private readonly listeners = new Set<() => void>();
@@ -120,6 +133,33 @@ export class UndoCoordinator {
 
   get isGrouping(): boolean {
     return this.openGroup !== null;
+  }
+
+  /**
+   * Feature 010 (US9, D34): runs `fn` as the command `name` - the steps the views record meanwhile
+   * are named after it; an asynchronous command keeps its name until it has finished.
+   */
+  runNamed<T>(name: string, fn: () => T): T {
+    this.commandNames.push(name);
+    const done = () => {
+      const at = this.commandNames.lastIndexOf(name);
+      if (at >= 0) this.commandNames.splice(at, 1);
+    };
+    let result: T;
+    try {
+      result = fn();
+    } catch (error) {
+      done();
+      throw error;
+    }
+    if (result instanceof Promise) return result.finally(done) as T;
+    done();
+    return result;
+  }
+
+  /** The name of the command running now, if any. */
+  get commandName(): string | undefined {
+    return this.commandNames[this.commandNames.length - 1];
   }
 
   peekUndo(): UndoEntry | undefined {

@@ -1163,5 +1163,15 @@
     "msg": {
       "clipboardNoText": "В буфере обмена нет текста."
     }
+  },
+  "undoNames": {
+    "undo": "&Отменить «{{name}}»",
+    "redo": "&Вернуть «{{name}}»",
+    "undoTooltip": "Отменить «{{name}}»",
+    "redoTooltip": "Вернуть «{{name}}»",
+    "typing": "Набор текста",
+    "delete": "Удаление",
+    "dragAndDrop": "Перетаскивание",
+    "fieldPrefix": "Описание:"
   }
 }

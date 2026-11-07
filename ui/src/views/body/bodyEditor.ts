@@ -38,6 +38,7 @@ import {
   type Transaction,
 } from 'prosemirror-state';
 import { EditorView, type NodeViewConstructor } from 'prosemirror-view';
+import { ReplaceStep } from 'prosemirror-transform';
 
 import { DISCRETE_STEP } from '@/editor/commands/util';
 import { nodeFromModel, type ModelNodeJson } from '@/editor/fromModel';
@@ -82,6 +83,7 @@ import { collectBookIds } from '@/model/ids';
 import { actions, type AppStore } from '@/model/store';
 import type { UndoCoordinator } from '@/model/undo';
 import type { Caret, ModelPoint } from '@/rpc/types';
+import { parseAccelerator } from '@/i18n';
 
 export { selectionNodeId, selectionPath } from '@/editor/plugins/selectionPath';
 
@@ -728,12 +730,31 @@ export class BodyEditorController {
         this.publish();
       }
       if (!this.replaying && undoDepth(after) > undoDepth(before)) {
-        this.undo.record('body', this.translate('views.body.undoLabel'));
+        this.undo.record('body', this.stepName(transactions));
       }
     }
     if (docChanged || transactions.some((t) => t.selectionSet)) this.publishSelection();
     // Leaving the target of the last jump forgets where it started (FR-036).
     if (this.jumpOrigin && !this.caretInside(this.jumpOrigin.targetNodeId)) this.jumpOrigin = null;
+  }
+
+  /**
+   * Feature 010 (US9, D34): the name of the history step a transaction starts - the command that
+   * made it, else what the user did: dropped, pasted or cut text, typing, deleting.
+   */
+  private stepName(transactions: readonly Transaction[]): string {
+    const command = this.undo.commandName;
+    if (command) return command;
+    const tr = transactions.find((transaction) => transaction.docChanged);
+    const event: unknown = tr?.getMeta('uiEvent');
+    if (event === 'drop') return this.translate('undoNames.dragAndDrop');
+    if (event === 'paste') return parseAccelerator(this.translate('menu.edit.paste')).text;
+    if (event === 'cut') return parseAccelerator(this.translate('menu.edit.cut')).text;
+    if (tr && tr.steps.length > 0 && tr.steps.every((step) => step instanceof ReplaceStep)) {
+      const inserts = tr.steps.some((step) => (step as ReplaceStep).slice.size > 0);
+      return this.translate(inserts ? 'undoNames.typing' : 'undoNames.delete');
+    }
+    return this.translate('views.body.undoLabel');
   }
 
   /**
@@ -950,7 +971,10 @@ export class BodyEditorController {
     if (!this.replaying) {
       this.modelUndo.push(step);
       this.modelRedo = [];
-      this.undo.record(BODY_MODEL_UNDO_VIEW, label ?? this.translate('views.body.undoLabel'));
+      this.undo.record(
+        BODY_MODEL_UNDO_VIEW,
+        label ?? this.undo.commandName ?? this.translate('views.body.undoLabel'),
+      );
     }
     return next;
   }

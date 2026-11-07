@@ -1163,5 +1163,15 @@
     "msg": {
       "clipboardNoText": "У буфері обміну немає тексту."
     }
+  },
+  "undoNames": {
+    "undo": "&Скасувати «{{name}}»",
+    "redo": "&Повторити «{{name}}»",
+    "undoTooltip": "Скасувати «{{name}}»",
+    "redoTooltip": "Повторити «{{name}}»",
+    "typing": "Набір тексту",
+    "delete": "Видалення",
+    "dragAndDrop": "Перетягування",
+    "fieldPrefix": "Опис:"
   }
 }

@@ -13,7 +13,7 @@ import { FileFeature, registerFileCommands } from '@/features/file/fileCommands'
 import i18next from '@/i18n';
 import { CaretRegistry } from '@/model/caret';
 import { appStore, type AppStore } from '@/model/store';
-import { UndoCoordinator } from '@/model/undo';
+import { nameStepsFrom, UndoCoordinator } from '@/model/undo';
 import type { RpcClient } from '@/rpc/client';
 import type { Platform, ViewId } from '@/rpc/types';
 import { featureRegistrars } from '@/features/registry';
@@ -83,6 +83,8 @@ export function createAppServices(options: CreateAppServicesOptions = {}): AppSe
   const commands = options.commands ?? createCommandRegistry();
   const hotkeys = options.hotkeys ?? new HotkeyMap(platform);
   const undo = options.undo ?? new UndoCoordinator();
+  // Feature 010 (US9): Edit > Undo and Redo name this coordinator's steps.
+  nameStepsFrom(undo);
   const dialogs = createDialogs(options.dialogService ?? new DialogService());
   // Feature 009 (US6): the Source view completes genre and language codes from the lists the
   // Description view loads; the first request starts their loading.
