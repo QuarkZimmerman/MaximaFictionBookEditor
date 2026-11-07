@@ -39,7 +39,9 @@ enum class Kind {
     text,             // a string without control characters, min..max characters (max < 0: any)
     address,          // "" or a service address (mfbe/ai_address.hpp: absolute http(s) URL ...)
     verified_record,  // {fingerprint: "" | 64 lower-case hex, model <= 256 chars, at: "" | UTC}
-    agreement_list    // [{service, host, at}] - replaced whole; malformed elements dropped on load
+    agreement_list,   // [{service, host, at}] - replaced whole; malformed elements dropped on load
+    // Feature 010 (US11, resource-formats §2):
+    effort_record  // null, or {target: "free:<id>" | "custom", model <= 256 chars, value: text}
 };
 
 struct Field {
@@ -166,6 +168,7 @@ const std::vector<Field>& schema() {
         text("ai.custom.model", 0, kMaxModelLength),
         field("ai.customVerified", Kind::verified_record),
         field("ai.agreements", Kind::agreement_list),
+        field("ai.effort", Kind::effort_record),
     };
     return fields;
 }
@@ -327,6 +330,25 @@ const json* string_member(const json& object, const char* key) {
 
 // {fingerprint: "" | 64 lower-case hex, model: <= 256 chars without control characters,
 // at: "" | ISO 8601 UTC} - exactly these three members.
+bool is_effort_record(const json& v) {
+    if (v.is_null()) {
+        return true;
+    }
+    if (!v.is_object() || v.size() != 3) {
+        return false;
+    }
+    const json* target = string_member(v, "target");
+    const json* model = string_member(v, "model");
+    const json* value = string_member(v, "value");
+    if (target == nullptr || model == nullptr || value == nullptr) {
+        return false;
+    }
+    const std::string t = target->get<std::string>();
+    return (t == "custom" || (t.rfind("free:", 0) == 0 && t.size() > 5)) &&
+           check_text(*target, 1, 300).empty() && check_text(*model, 1, kMaxModelLength).empty() &&
+           check_text(*value, 1, 64).empty();
+}
+
 bool is_verified_record(const json& v) {
     if (!v.is_object() || v.size() != 3) {
         return false;
@@ -461,6 +483,8 @@ std::string check_value(const Field& field, const json& value) {
         }
         case Kind::verified_record:
             return is_verified_record(value) ? "" : "expected {fingerprint, model, at}";
+        case Kind::effort_record:
+            return is_effort_record(value) ? "" : "expected null or {target, model, value}";
         case Kind::agreement_list: {
             if (!value.is_array()) {
                 return "expected an array of {service, host, at}";
@@ -600,7 +624,8 @@ json defaults() {
           {"freeServiceId", "ovhcloud"},
           {"custom", {{"address", "https://api.openai.com/v1"}, {"key", ""}, {"model", ""}}},
           {"customVerified", {{"fingerprint", ""}, {"model", ""}, {"at", ""}}},
-          {"agreements", json::array()}}},
+          {"agreements", json::array()},
+          {"effort", nullptr}}},
     };
 }
 

@@ -34,9 +34,8 @@ TEST_CASE("settings: defaults are exactly resource-formats.md section 6", "[sett
     CHECK(d["view"]["fastMode"] == false);
     CHECK(d["view"]["spellExtraDictionaries"] == json::array({"en_US", "ru_RU"}));  // feature 008
     // Feature 009 (FR-056): every pane shown.
-    CHECK(d["view"]["statusBarPanes"] ==
-          json::array(
-              {"path", "position", "selection", "character", "encoding", "validity", "insmode"}));
+    CHECK(d["view"]["statusBarPanes"] == json::array({"path", "position", "selection", "character",
+                                                      "encoding", "validity", "insmode"}));
     CHECK(d["view"].size() == 20);
     CHECK(d["view"]["theme"] == "system");
     CHECK(d["other"]["defaultEncoding"] == "utf-8");
@@ -87,7 +86,9 @@ TEST_CASE("settings: defaults are exactly resource-formats.md section 6", "[sett
           json{{"address", "https://api.openai.com/v1"}, {"key", ""}, {"model", ""}});
     CHECK(d["ai"]["customVerified"] == json{{"fingerprint", ""}, {"model", ""}, {"at", ""}});
     CHECK(d["ai"]["agreements"] == json::array());
-    CHECK(d["ai"].size() == 5);
+    // Feature 010 (resource-formats §2): the thinking effort, Model's default.
+    CHECK(d["ai"]["effort"].is_null());
+    CHECK(d["ai"].size() == 6);
     CHECK(d.size() == 6);
 }
 
@@ -529,7 +530,7 @@ TEST_CASE("settings: a 0.0.2 settings file keeps every value; the new keys take 
     CHECK(s["ai"] == settings::defaults()["ai"]);
     CHECK(s["session"]["tableDialog"] == settings::defaults()["session"]["tableDialog"]);
     CHECK(s["view"]["statusBarPanes"] == settings::defaults()["view"]["statusBarPanes"]);  // 009
-    CHECK(s["other"]["keepBackup"] == true);                                                // 009
+    CHECK(s["other"]["keepBackup"] == true);                                               // 009
     CHECK(s["view"].size() == 20);
     CHECK(s["other"].size() == 18);
     CHECK(s["session"].size() == 11);
@@ -1120,4 +1121,29 @@ TEST_CASE("settings: feature 008 keys validate their values", "[settings]") {
     store.apply_patch(json{{"view", {{"spellExtraDictionaries", json::array({"uk_UA"})}}}});
     CHECK(store.get()["view"]["spellExtraDictionaries"] == json::array({"uk_UA"}));
     CHECK_THROWS(store.apply_patch(json{{"view", {{"spellExtraDictionaries", "en_US"}}}}));
+}
+
+TEST_CASE(
+    "settings: the assistant's thinking effort - null or {target, model, value} (feature "
+    "010, resource-formats §2)",
+    "[settings]") {
+    test::TempDir tmp;
+    settings::SettingsStore store(tmp / "settings.json");
+    store.load();
+    const json chosen{{"target", "free:ovhcloud"}, {"model", "gpt-oss-120b"}, {"value", "high"}};
+    store.apply_patch(json{{"ai", {{"effort", chosen}}}});
+    CHECK(store.get()["ai"]["effort"] == chosen);
+    store.apply_patch(json{{"ai", {{"effort", nullptr}}}});
+    CHECK(store.get()["ai"]["effort"].is_null());
+    for (const json& wrong : {json{{"target", "elsewhere"}, {"model", "m"}, {"value", "high"}},
+                              json{{"target", "custom"}, {"model", ""}, {"value", "high"}},
+                              json{{"target", "custom"}, {"model", "m"}}, json("high")}) {
+        INFO(wrong.dump());
+        try {
+            store.apply_patch(json{{"ai", {{"effort", wrong}}}});
+            FAIL("expected SettingsError");
+        } catch (const settings::SettingsError& e) {
+            CHECK(e.field == "ai.effort");
+        }
+    }
 }
