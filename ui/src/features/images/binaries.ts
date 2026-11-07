@@ -109,6 +109,8 @@ export interface AddFileOptions {
   selectedFilter: number;
   multiple?: boolean;
   convertNow?: boolean;
+  /** Feature 010: refuse files that are not pictures the core decodes (`binary.notImage`). */
+  imagesOnly?: boolean;
 }
 
 /** Lets the user pick image files and embeds them; empty when cancelled. */
@@ -146,6 +148,7 @@ export async function addBinariesFromFiles(
           path,
           suggestedId: fileName(path),
           convertNow: options.convertNow,
+          ...(options.imagesOnly ? { imagesOnly: true } : {}),
         }),
       );
     } catch (error) {

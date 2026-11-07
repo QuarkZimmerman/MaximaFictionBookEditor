@@ -338,6 +338,13 @@ void register_binary_handlers(rpc::RpcRouter& router, Services& services) {
             throw rpc::RpcError(rpc::codes::kDocIoError, "",
                                 json{{"path", path}, {"reason", "file exceeds 256 MB"}});
         }
+        // Feature 010 (US2, US8): the picture chooser's *From file...* and the Markdown import add
+        // pictures only - a file the editor cannot decode as a picture is refused, whatever its
+        // name says.
+        if (rpc::params::boolean_or(params, "imagesOnly", false) &&
+            !images::probe(bytes).decodable) {
+            throw rpc::RpcError(rpc::codes::kBinaryNotImage, "", json{{"path", path}});
+        }
         std::string suggested = rpc::params::string_or(params, "suggestedId", "");
         if (suggested.empty()) {
             suggested = platform::utf8_from_path(platform::path_from_utf8(path).filename());

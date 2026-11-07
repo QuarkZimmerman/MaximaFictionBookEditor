@@ -55,6 +55,8 @@ inline constexpr int kBinaryNotFound = 1010;
 // {newId}.
 inline constexpr int kBinaryIdInvalid = 1011;
 inline constexpr int kBinaryIdTaken = 1012;
+// Feature 010 (binary.add with imagesOnly): the file is not a picture the editor decodes {path}.
+inline constexpr int kBinaryNotImage = 1013;
 inline constexpr int kSpellDictionaryUnavailable = 1020;
 inline constexpr int kScriptNotFound = 1030;
 inline constexpr int kScriptInvalidManifest = 1031;

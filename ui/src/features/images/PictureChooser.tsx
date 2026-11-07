@@ -16,7 +16,8 @@ import { imageFileTypes } from '@/dialogs/fileTypes';
 import { addBinaryFromFile } from '@/features/images/binaries';
 import { binaryPreviewUrl } from '@/model/binaryUrls';
 import type { BinaryMeta } from '@/model/document';
-import type { RpcClient } from '@/rpc/client';
+import { isRpcError, type RpcClient } from '@/rpc/client';
+import { RpcErrorCode } from '@/rpc/types';
 
 import { filterPictures } from './pictureChooserModel';
 
@@ -71,6 +72,7 @@ export function PictureChooser({
         title: t('descriptionForm.cover.addFile'),
         filters: imageFileTypes(t),
         selectedFilter: 0,
+        imagesOnly: true,
       });
       if (!meta) return;
       onBinaryAdded(meta);
@@ -78,7 +80,12 @@ export function PictureChooser({
       setItems((current) => current.filter((b) => b.id !== meta.id).concat(meta));
       setSelected(`#${meta.id}`);
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : String(failure));
+      // A file that is not a picture: said plainly, nothing added, the dialog stays open.
+      if (isRpcError(failure) && failure.code === RpcErrorCode.binaryNotImage) {
+        setError(t('pictureChooser.notImage'));
+      } else {
+        setError(failure instanceof Error ? failure.message : String(failure));
+      }
     } finally {
       setBusy(false);
     }

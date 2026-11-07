@@ -41,6 +41,7 @@
     "filterTip": "Type part of a picture's id to show only the pictures whose id contains it.",
     "itemTip": "{{id}}: click to select, double-click to choose",
     "enlarge": "Enlarge {{id}}",
-    "enlargeTip": "Show the picture enlarged"
+    "enlargeTip": "Show the picture enlarged",
+    "notImage": "This file is not a picture the editor can show; nothing was added."
   }
 }

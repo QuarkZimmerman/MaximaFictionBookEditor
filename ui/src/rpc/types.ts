@@ -87,6 +87,8 @@ export const RpcErrorCode = {
   binaryIdInvalid: 1011,
   /** `binary.rename`: another binary has the new id; `data` {newId} (feature 009). */
   binaryIdTaken: 1012,
+  /** Feature 010: `binary.add` with `imagesOnly` - the file is not a picture the core decodes {path}. */
+  binaryNotImage: 1013,
   spellDictionaryUnavailable: 1020,
   scriptNotFound: 1030,
   scriptInvalidManifest: 1031,

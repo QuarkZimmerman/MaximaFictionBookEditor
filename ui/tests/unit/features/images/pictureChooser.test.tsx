@@ -6,11 +6,12 @@ import { createInstance } from 'i18next';
 import { I18nextProvider } from 'react-i18next';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { addBinaryFromFile } from '@/features/images/binaries';
 import { PictureChooser } from '@/features/images/PictureChooser';
 import { filterPictures } from '@/features/images/pictureChooserModel';
 import { initI18n } from '@/i18n';
 import type { BinaryMeta } from '@/model/document';
-import type { RpcClient } from '@/rpc/client';
+import { RpcError, type RpcClient } from '@/rpc/client';
 
 vi.mock('@/features/images/binaries', () => ({
   addBinaryFromFile: vi.fn(async () => picture('added.png')),
@@ -114,5 +115,19 @@ describe('PictureChooser', () => {
     });
     expect(onBinaryRemoved).toHaveBeenCalledWith('added.png');
     expect(onClose).toHaveBeenCalledWith(null);
+  });
+
+  it('says so when From file... is given a file that is not a picture, and adds nothing', async () => {
+    vi.mocked(addBinaryFromFile).mockRejectedValueOnce(
+      new RpcError(1013, '', { path: '/tmp/notes.png' }),
+    );
+    const { onBinaryAdded } = renderChooser();
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('picture-chooser-add-file'));
+    });
+    expect(onBinaryAdded).not.toHaveBeenCalled();
+    expect(screen.getByTestId('picture-chooser-error').textContent).toBe(
+      'This file is not a picture the editor can show; nothing was added.',
+    );
   });
 });
