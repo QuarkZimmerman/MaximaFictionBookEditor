@@ -181,6 +181,8 @@ export class CommandRegistry {
   isEnabled(id: string, ctx: CommandContext): boolean {
     const command = this.commands.get(id);
     if (!command || command.stub) return false;
+    // Feature 010 (US1, D1): nothing runs before the start-up document is shown.
+    if (ctx.store.getState().startup === 'starting') return false;
     if (isRunLocked(ctx.store.getState()) && command.duringScriptRun !== 'allowed') return false;
     return command.enabled ? command.enabled(ctx) : true;
   }

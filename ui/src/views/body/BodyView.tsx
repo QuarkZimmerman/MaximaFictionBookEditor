@@ -39,6 +39,7 @@ export function BodyView({ editable = true }: BodyViewProps) {
   const sourceOnly = useAppState((s) => s.sourceOnly, store);
   const fastMode = useAppState((s) => s.fastMode, store);
   const connection = useAppState((s) => s.connection, store);
+  const startup = useAppState((s) => s.startup, store);
   const nbspChar = useAppState(
     (s) => s.settings?.other.nbspDisplayChar ?? DEFAULT_NBSP_DISPLAY_CHAR,
     store,
@@ -92,7 +93,7 @@ export function BodyView({ editable = true }: BodyViewProps) {
         data-testid="panel-body"
       >
         <div className="mfbe-view-placeholder" data-testid="panel-body-empty">
-          {t('views.body.empty')}
+          {startup === 'starting' ? t('app.starting') : t('views.body.empty')}
         </div>
       </div>
     );

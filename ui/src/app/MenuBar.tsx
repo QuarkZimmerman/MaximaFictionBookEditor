@@ -37,6 +37,7 @@ import {
 } from './menus';
 import { fitPopupInViewport, refitSubmenus, revealItem } from './popupFit';
 import { useAppRevision, useAppServices, useCommandContext, type AppServices } from './services';
+import { useAppState } from '@/model/store';
 
 export interface MenuBarProps {
   menus?: readonly MenuSpec[];
@@ -233,7 +234,15 @@ export function MenuBar({ menus = MAIN_MENU, dynamicItems = {} }: MenuBarProps) 
     setSubmenuByHover(false);
   }, []);
 
+  // Feature 010 (US1, D1): before the start-up document is shown, the menus open nothing.
+  const starting = useAppState((state) => state.startup, services.store) === 'starting';
+  const startingRef = useRef(starting);
+  useEffect(() => {
+    startingRef.current = starting;
+  }, [starting]);
+
   const open = useCallback((menuId: string, viaKeyboard: boolean) => {
+    if (startingRef.current) return;
     setOpenMenuId(menuId);
     setOpenSubmenu(-1);
     setSubHighlight(-1);

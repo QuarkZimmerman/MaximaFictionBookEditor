@@ -710,6 +710,8 @@ export const test = base.extend<
       openApp: async (page) => {
         await page.goto(baseURL);
         await page.getByTestId('app-root').waitFor();
+        // Feature 010 (US1, FR-001): the window works once the start-up document is shown.
+        await page.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
       },
       aiRequests: () => requireCore().call<AiRequestRecord[]>('test.aiRequests'),
       resetAiRequests: async () => {

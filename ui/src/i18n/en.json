@@ -4,7 +4,8 @@
     "shortName": "MFBE",
     "untitled": "Untitled",
     "windowTitle": "{{document}} - {{app}}",
-    "modifiedMarker": "*"
+    "modifiedMarker": "*",
+    "starting": "Starting..."
   },
   "status": {
     "ready": "Ready",

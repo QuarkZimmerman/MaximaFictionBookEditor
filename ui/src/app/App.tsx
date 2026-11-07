@@ -168,7 +168,16 @@ function Shell({
   // RPC lifecycle: connection status, settings, job progress.
   useEffect(() => {
     if (!rpc) return;
-    const offStatus = rpc.onStatus((status) => actions.setConnection(store, status));
+    // Feature 010 (US1, D2): a connection attempt that fails ends the start-up phase - the
+    // window shows the connection error and works without a document (File, Exit).
+    let previousStatus: string | null = null;
+    const offStatus = rpc.onStatus((status) => {
+      actions.setConnection(store, status);
+      if (status === 'disconnected' && previousStatus === 'connecting') {
+        actions.setStartupReady(store);
+      }
+      previousStatus = status;
+    });
     const offSettings = rpc.on('settings.changed', ({ settings }) => {
       actions.setSettings(store, settings);
     });
@@ -198,6 +207,18 @@ function Shell({
       offRepairs();
     };
   }, [rpc, store, files]);
+
+  // Feature 010 (US1): without a core there is nothing to wait for; with one, the start-up phase
+  // never outlasts a minute, whatever the core does.
+  useEffect(() => {
+    if (!rpc) {
+      actions.setStartupReady(store);
+      return;
+    }
+    const timer = setTimeout(() => actions.setStartupReady(store), 60_000);
+    return () => clearTimeout(timer);
+  }, [rpc, store]);
+  const startupPhase = useAppState((s) => s.startup, store);
 
   // Once connected: settings (toolbars, language, fonts), the Recent Files list, `?new=1`.
   const connection = useAppState((s) => s.connection, store);
@@ -239,9 +260,14 @@ function Shell({
       startupHandled.current = true;
       // `?open=<path>` (feature 003 US3): the browser-mode restart reopens its document first.
       const openPath = openPathAtStartup(search);
-      const startup = files.handleStartup(ctxRef.current, openPath).catch(() => {
-        // a failing doc.new at start-up leaves the editor empty; File > New reports errors
-      });
+      const startup = files
+        .handleStartup(ctxRef.current, openPath)
+        .catch(() => {
+          // a failing doc.new at start-up leaves the editor empty; File > New reports errors
+        })
+        // Feature 010 (US1, D1): the start-up document is shown (or start-up failed): the
+        // window works from now on.
+        .finally(() => actions.setStartupReady(store));
       // The scheduled check for a new version (feature 003 US5, FR-042): once the window is
       // usable - the settings read, the first document shown - and never on the restart path,
       // whose start the user has just been through.
@@ -456,6 +482,7 @@ function Shell({
       className="mfbe-app"
       data-testid="app-root"
       data-active-view={activeView}
+      data-startup={startupPhase}
       spellCheck={false}
     >
       <MenuBar dynamicItems={menuItems} />

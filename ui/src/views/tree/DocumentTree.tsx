@@ -86,6 +86,7 @@ export function DocumentTree() {
   const ctx = useCommandContext();
   useAppRevision();
   const document = useAppState((s) => s.document, store);
+  const startup = useAppState((s) => s.startup, store);
   const selectionNodeId = useAppState((s) => s.selectionNodeId, store);
   const selectionPath = useAppState((s) => s.selectionPath, store);
   const sourceDirty = useAppState((s) => s.sourceDirty || s.sourceOnly, store);
@@ -266,7 +267,7 @@ export function DocumentTree() {
         </div>
         <div className="mfbe-tree-content" role="tree" aria-label={t('tree.caption')}>
           <div className="mfbe-view-placeholder" data-testid="panel-tree-empty">
-            {t('tree.empty')}
+            {startup === 'starting' ? t('app.starting') : t('tree.empty')}
           </div>
         </div>
       </div>
