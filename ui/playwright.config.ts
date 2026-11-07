@@ -72,9 +72,10 @@ export default defineConfig<CoreOptions>({
         'us3-scripts-279.spec.ts',
         'us4-recheck.spec.ts',
         // Feature 010 (US4, FR-046): the tooltips and the menus' descriptions in each language;
-        // (US5, D15) the context menu's element names.
+        // (US5, D15) the context menu's element names; (US9, FR-114) the undo steps' names.
         'us4-tooltips.spec.ts',
         'us5-context-names.spec.ts',
+        'us9-undo-names.spec.ts',
       ],
       use: { ...devices['Desktop Chrome'], locale: 'ru-RU', uiLang: 'ru' },
     },
@@ -100,6 +101,7 @@ export default defineConfig<CoreOptions>({
         'us4-recheck.spec.ts',
         'us4-tooltips.spec.ts',
         'us5-context-names.spec.ts',
+        'us9-undo-names.spec.ts',
       ],
       use: { ...devices['Desktop Chrome'], locale: 'uk-UA', uiLang: 'uk' },
     },
