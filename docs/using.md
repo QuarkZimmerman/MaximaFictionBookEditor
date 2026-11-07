@@ -222,5 +222,8 @@ returns it to *Model's default*.
 For a service on Anthropic's address the editor speaks Anthropic's own interface (its Messages
 API) instead of the OpenAI-compatible one, which ignores the effort: Claude models offer the levels
 their list names - *Low*, *Medium*, *High*, and *Extra high* and *Max* where the model has them -
-and the assistant, its tools and *Test connection* work as with any other service.
+and the assistant, its tools and *Test connection* work as with any other service. Its requests ask
+for Anthropic's automatic prompt caching, so the next request of a conversation reads the repeated
+instructions and earlier turns from Anthropic's cache at a fraction of the price; the other services
+cache repeated prompts on their own.
 

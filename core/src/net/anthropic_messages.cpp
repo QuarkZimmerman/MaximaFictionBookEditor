@@ -255,6 +255,10 @@ json to_messages_request(const json& chat) {
         if (const auto it = chat.find(key); it != chat.end())
             request[key] = *it;
     }
+    // Feature 010 (D43, research DP-18): Anthropic's automatic prompt caching - one top-level
+    // marker, which the API applies to the last cacheable block, so a conversation's next request
+    // reads the repeated system text, tools and earlier turns from the cache ("Prompt caching").
+    request["cache_control"] = json{{"type", "ephemeral"}};
     return request;
 }
 
@@ -302,6 +306,9 @@ json to_chat_completion(const json& message) {
         completion["usage"] = json{{"prompt_tokens", prompt},
                                    {"completion_tokens", generated},
                                    {"total_tokens", prompt + generated}};
+        // The part read from the prompt cache (D43), where OpenAI reports it.
+        completion["usage"]["prompt_tokens_details"] =
+            json{{"cached_tokens", number_of(*usage, "cache_read_input_tokens")}};
     }
     return completion;
 }

@@ -1393,6 +1393,7 @@ TEST_CASE("ai.complete and ai.test on an Anthropic address speak its Messages AP
           json::array({json{{"name", "read"}, {"input_schema", {{"type", "object"}}}}}));
     CHECK(sent["tool_choice"] == json{{"type", "auto"}});
     CHECK(sent["output_config"] == json{{"effort", "high"}});
+    CHECK(sent["cache_control"] == json{{"type", "ephemeral"}});
     CHECK_FALSE(sent.contains("api_key"));
 
     // Test connection: the same interface, verified by the translated answer.

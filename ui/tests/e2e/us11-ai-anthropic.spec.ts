@@ -161,6 +161,8 @@ test.describe("US11 (010) - Anthropic's services in their own interface", () => 
     const body = request!.body!;
     expect(body.model).toBe('claude-test');
     expect(body.output_config).toEqual({ effort: 'high' });
+    // D43: Anthropic's automatic prompt caching, one top-level marker.
+    expect(body.cache_control).toEqual({ type: 'ephemeral' });
     expect(body.max_tokens).toBe(16000);
     expect(Array.isArray(body.system)).toBe(true);
     expect((body.messages as { role: string }[])[0]!.role).toBe('user');

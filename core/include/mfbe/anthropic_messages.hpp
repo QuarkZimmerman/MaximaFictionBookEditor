@@ -21,7 +21,8 @@ inline constexpr long long kDefaultMaxTokens = 16000;
 /// become `tool_use` blocks and `tool` messages `tool_result` blocks of the next user turn, first
 /// in it; `tools`, `tool_choice`, `parallel_tool_calls`, `stop`, the token limit, `temperature`,
 /// `top_p`, `output_config` and `stream` are carried under Anthropic's names; everything else is
-/// left out (the Messages API refuses members it does not know).
+/// left out (the Messages API refuses members it does not know). The request asks for
+/// Anthropic's automatic prompt caching (a top-level `cache_control`, D43).
 nlohmann::json to_messages_request(const nlohmann::json& chat);
 
 /// The chat-completion form of a Messages answer: the text blocks joined as the message's

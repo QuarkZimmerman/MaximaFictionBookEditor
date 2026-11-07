@@ -60,7 +60,8 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 - The Body view's context menu names elements in words (Select paragraph, Select verse, Select
   history), and a right-click outside the selection first moves the caret to the clicked point.
 - For a service on Anthropic's address the AI assistant speaks Anthropic's own interface, its
-  Messages API, instead of the OpenAI-compatible one, which ignores the thinking effort.
+  Messages API, instead of the OpenAI-compatible one, which ignores the thinking effort; its requests
+  use Anthropic's automatic prompt caching.
 - The tree-command sample script Example 1 is called after what it does: Paragraphs Without a
   Full Stop...; its id stays, so its hotkey and toolbar button still find it.
 

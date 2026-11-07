@@ -53,6 +53,8 @@ TEST_CASE("anthropic messages: a chat with system text and tools becomes a Messa
     CHECK(request["tools"][1] == json{{"name", "count"}, {"input_schema", {{"type", "object"}}}});
     CHECK(request["tool_choice"] == json{{"type", "auto"}});
     CHECK(request["output_config"] == json{{"effort", "high"}});
+    // D43: Anthropic's automatic prompt caching, one top-level marker.
+    CHECK(request["cache_control"] == json{{"type", "ephemeral"}});
     // Members the Messages API does not know are left out.
     CHECK_FALSE(request.contains("api_key"));
     CHECK_FALSE(request.contains("reasoning_effort"));
@@ -197,8 +199,10 @@ TEST_CASE("anthropic messages: an answer becomes a chat completion", "[ai][anthr
           json{{"id", "toolu_1"},
                {"type", "function"},
                {"function", {{"name", "count"}, {"arguments", R"({"what":"notes"})"}}}});
-    CHECK(completion["usage"] ==
-          json{{"prompt_tokens", 12}, {"completion_tokens", 5}, {"total_tokens", 17}});
+    CHECK(completion["usage"] == json{{"prompt_tokens", 12},
+                                      {"completion_tokens", 5},
+                                      {"total_tokens", 17},
+                                      {"prompt_tokens_details", {{"cached_tokens", 2}}}});
 
     // Every stop reason of the reference has its finish reason.
     for (const auto& [stop, finish] :
