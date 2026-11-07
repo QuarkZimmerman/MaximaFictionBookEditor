@@ -95,6 +95,16 @@ In the Description view a click on the cover's thumbnail shows the cover at its 
 the same way. *Add > Image* asks whether to insert a picture from a file - the default - or an
 empty picture to fill in later.
 
+An empty picture, and one whose file is missing or on the web, shows what it is and how to fill
+it: a double-click opens the picture chooser - the book's pictures with a filter, *From file…*
+for a new one, and a larger view of the chosen picture. *Change Picture…* and *Show Picture* do
+the same from the context menus of the Body view, the Description fields and the cover. Only
+pictures the editor can read are added from a file, whatever their names.
+
+Pictures are shown on a white background in both themes, as most readers show them. A picture
+with transparent areas has a small switch in its corner that shows it on the page's own background
+instead; the choice lasts until the book is closed and is never stored.
+
 ## The AI assistant's address
 
 In *Settings > AI assistant*, the button beside your own service's address lists well-known
@@ -117,3 +127,95 @@ While the assistant works on a request, the pointer over the document shows a sm
 turning electrons, and the banner above the text and the status bar show the same atom: the
 book cannot be edited until the answer arrives, but reading, scrolling, selecting, copying and
 Find still work. The atom stands still when the system asks for reduced motion.
+
+## Starting
+
+While the editor starts, the status bar says *Starting…* and the menus, toolbars and shortcuts
+wait: they work once the start-up book - the file given on the command line, or a new book - is
+shown. A message the start-up brings, a file that could not be opened for instance, comes first.
+
+## Tooltips
+
+Every button, field, list and checkbox says what it is for when the pointer rests on it, and a
+greyed one also says when it becomes available ("Available when the caret is in a section").
+Toolbar buttons show the command's name, its shortcut and what it does. In a menu, the status bar
+describes the highlighted entry; it shows its usual text again when the menu closes. Screen
+readers read the same texts.
+
+## The Body view's context menu
+
+The *Select …* entries name the elements around the caret in words - paragraph, verse, stanza,
+poem, quote, cell, section, notes, history. A right-click outside the selection first moves the
+caret to the clicked point, so the menu acts on what was clicked; a right-click on a picture
+selects it; a right-click inside the selection keeps it.
+
+## The Document tree
+
+A click on a row - or the arrow keys, Enter, a double-click, *Go To* - brings its element to the
+top of the Body view with its heading in full; near the end of the book it goes as far up as the
+book allows. The tree keeps the focus.
+
+The tree's context menu has the entries of the clicked row's kind: for a section *Move Up* and
+*Move Down*, which swap it, with its subsections, with the section before or after it, *Move
+Into*, *Move Out of*, *Merge With*, *Add ▸*, *Delete Section…* and *Scripts ▸*; for a picture
+*Change Picture…*, *Show Picture*, *Save Image As…* and *Delete Picture*; for a table *Table
+Properties…* and *Delete Table*; for a body *Delete Body…*. Each operation names the section it
+involves - *Move Into «Chapter 1»* - and its tooltip says the result. *Move Up* and *Move Down*
+are also on the tree's toolbar. The tree's scripts act on the clicked row.
+
+## Markdown files
+
+*File > Import > Markdown File…*, *File > Open* and a drop onto the window make a new book from a
+`.md` or `.markdown` file; the Markdown file itself is never changed. The book is new and
+unsaved; *Save As* proposes the Markdown file's name with `.fb2` in its folder. The open book
+closes only once the new one is ready, after the usual question about unsaved changes.
+
+- Headings become sections, nested by their levels; a single level-1 heading that opens the file
+  becomes the book's title. Text before the first heading, or between a heading and its first
+  subheading, goes into an untitled section, as FB2 requires. A heading's `{#id}` becomes its
+  section's id; links to headings lead to their sections.
+- Emphasis, strong, strikethrough, inline code, `~sub~` and `^sup^` keep their styles; links stay
+  links; footnotes become notes in a notes body, as *Style > Footnote…* makes them.
+- Lists become paragraphs that begin with a bullet, their number or a check box; quotes become
+  quotes, code blocks code paragraphs line by line, a horizontal rule a subtitle "* * *", tables
+  tables with their header cells and alignment.
+- The front matter (a YAML block at the top) fills the description: `title`, `author` or
+  `authors`, `date`, `lang`, `description` or `summary`, `keywords` or `tags`, `series` with
+  `series_index`, `cover`, `genres` (FB2 genre codes). The rest comes from the template, as
+  *File > New* makes it.
+- Pictures named by a path or a `file:` address, and `data:` pictures, are added to the book; a
+  picture on the web is never downloaded and stays a picture naming its address, like a missing
+  file - double-click it to choose one.
+- Emoji, check boxes, stars and the other symbols readers' fonts may lack become small pictures
+  drawn from the bundled Noto fonts, one per distinct character, with the character as their
+  alternative text; GitHub's emoji codes such as `:white_check_mark:` too. Letters of every script
+  stay text. Private-use characters (icon fonts) are left out.
+- A file in UTF-8 or UTF-16 is read directly, one in an older encoding (windows-1251, KOI8-R,
+  CP866 and others) is recognised from its text; the editor asks only when it cannot tell.
+
+What could not come over as written - pictures not added, links to headings that do not exist,
+HTML tags left out, characters left out - is listed after the import; otherwise the status bar
+says what came in.
+
+## Undo names
+
+*Edit > Undo* and *Redo*, the toolbar's Undo and Redo tooltips and the context menus name the step
+they undo or redo: "Undo Merge Sections", "Redo Typing", "Undo Description: Book title". Typing,
+deleting and dragging text are steps of their own; a command's step carries the command's name.
+
+## A file that cannot be opened
+
+When a file turns out not to be a book - not FictionBook, broken, an archive without a book -, the
+book open in the window stays as it was, with its unsaved changes and its Undo history, and a
+message says why the file was refused.
+
+## The AI assistant's thinking effort
+
+*Settings > AI assistant* has a *Thinking effort* list beside the model: *Model's default*, or the
+efforts the model offers, for instance *Low*, *Medium* and *High*. The editor learns them from the
+service's model list (*Fetch models*) or from its own list of known models; for a model without
+any the list is greyed. The chosen effort goes with every request of the assistant - not with *Test
+connection* or *Fetch models* - and shows in the banner beside the model; choosing another model
+returns it to *Model's default*. Anthropic's models are listed without efforts: the
+OpenAI-compatible interface the editor uses ignores them.
+
