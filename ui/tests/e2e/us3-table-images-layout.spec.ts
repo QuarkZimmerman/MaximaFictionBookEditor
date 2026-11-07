@@ -685,7 +685,13 @@ test.describe('US3 - the layout of pictures in table cells (SC-006)', () => {
   }, testInfo) => {
     test.setTimeout(120_000);
     await openBook(core, page, 'first start');
-    const missing = uiText(await pageLang(page), 'views.body.imageMissing');
+    // Feature 010 (FR-018): a placeholder names its kind - empty, missing or external - in the
+    // interface language; the part of each text before the reference is what every one starts with.
+    const lang = await pageLang(page);
+    const starts = (['empty', 'missing', 'external'] as const).map(
+      (kind) => uiText(lang, `views.body.picture.${kind}`).split('{{href}}')[0]!,
+    );
+    const missing = starts.join('" | "');
     const results: EnvResult[] = [];
     const wrongText: string[] = [];
     for (const env of [
@@ -712,7 +718,8 @@ test.describe('US3 - the layout of pictures in table cells (SC-006)', () => {
           `.filter((ph) => getComputedStyle(ph).display !== 'none').map((ph) => ph.textContent)`,
       );
       for (const text of texts)
-        if (!text.startsWith(missing)) wrongText.push(`${label('first start', env)}: "${text}"`);
+        if (!starts.some((start) => text.startsWith(start)))
+          wrongText.push(`${label('first start', env)}: "${text}"`);
     }
     expect(wrongText, `every placeholder starts with "${missing}"`).toEqual([]);
     await report(testInfo, results);
