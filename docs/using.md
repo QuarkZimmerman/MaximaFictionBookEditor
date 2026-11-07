@@ -217,6 +217,10 @@ efforts the model offers, for instance *Low*, *Medium* and *High*. The editor le
 service's model list (*Fetch models*) or from its own list of known models; for a model without
 any the list is greyed. The chosen effort goes with every request of the assistant - not with *Test
 connection* or *Fetch models* - and shows in the banner beside the model; choosing another model
-returns it to *Model's default*. Anthropic's models are listed without efforts: the
-OpenAI-compatible interface the editor uses ignores them.
+returns it to *Model's default*.
+
+For a service on Anthropic's address the editor speaks Anthropic's own interface (its Messages
+API) instead of the OpenAI-compatible one, which ignores the effort: Claude models offer the levels
+their list names - *Low*, *Medium*, *High*, and *Extra high* and *Max* where the model has them -
+and the assistant, its tools and *Test connection* work as with any other service.
 

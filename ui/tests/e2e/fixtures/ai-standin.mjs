@@ -13,6 +13,9 @@
  * Service endpoints (under any base path, so `/v1/...` and `/openai/...` both work):
  *   POST <base>/chat/completions - answers with the next queued scenario item; an empty queue
  *                                  is HTTP 500 {"error":{"message":"stand-in: no scenario queued"}}
+ *   POST <base>/messages         - feature 010 (D42): the same queue in Anthropic's Messages form
+ *                                  (text and tool_use blocks, stop_reason, usage; an error as
+ *                                  {type: "error", error: {type, message}})
  *   GET  <base>/models           - the `models` mode's list, or the default list of
  *                                  `standin-chat` (context_length 131072) and `standin-mini`
  * Control endpoints:
@@ -251,6 +254,61 @@ function createStandin() {
     };
   };
 
+  /**
+   * Feature 010 (D42): a chat completion in Anthropic's Messages form ("Create a Message"): text
+   * and tool_use blocks, the stop reason, the usage - what the core translates back.
+   */
+  const anthropicMessage = (completion) => {
+    const choice = completion.choices[0] ?? {};
+    const message = choice.message ?? {};
+    const content = [];
+    if (typeof message.content === 'string' && message.content !== '') {
+      content.push({ type: 'text', text: message.content });
+    }
+    for (const call of message.tool_calls ?? []) {
+      let input = {};
+      try {
+        input = JSON.parse(call.function.arguments);
+      } catch {
+        input = {};
+      }
+      content.push({ type: 'tool_use', id: call.id, name: call.function.name, input });
+    }
+    const stopReasons = { stop: 'end_turn', length: 'max_tokens', tool_calls: 'tool_use' };
+    return {
+      id: completion.id.replace('chatcmpl-standin', 'msg_standin'),
+      type: 'message',
+      role: 'assistant',
+      model: completion.model,
+      content,
+      stop_reason: stopReasons[choice.finish_reason] ?? 'end_turn',
+      stop_sequence: null,
+      usage: {
+        input_tokens: completion.usage.prompt_tokens,
+        output_tokens: completion.usage.completion_tokens,
+      },
+    };
+  };
+
+  /** An answer in Anthropic's form: a completion as a message, an error as its error body. */
+  const inAnthropicForm = (answer) => {
+    if (answer.json === undefined || !isPlainObject(answer.json)) return answer;
+    if (answer.status === 200 && Array.isArray(answer.json.choices)) {
+      return { ...answer, json: anthropicMessage(answer.json) };
+    }
+    if (isPlainObject(answer.json.error)) {
+      const { error } = answer.json;
+      return {
+        ...answer,
+        json: {
+          type: 'error',
+          error: { type: error.type ?? 'api_error', message: error.message ?? '' },
+        },
+      };
+    }
+    return answer;
+  };
+
   /** The answer of one queue item as {status, body | bytes, headers}. */
   const answerFor = (item, kind, requestBody, bodyBytes) => {
     const headers = extraHeaders(item);
@@ -335,7 +393,7 @@ function createStandin() {
     return null;
   };
 
-  const serveChat = async (req, res, requestBody, bodyBytes) => {
+  const serveChat = async (req, res, requestBody, bodyBytes, anthropic = false) => {
     const refused = keyVerdict(req);
     if (refused) {
       sendJson(res, 401, refused);
@@ -355,7 +413,8 @@ function createStandin() {
         continue;
       }
       delay += item.delayMs ?? 0;
-      const answer = answerFor(item, kind, requestBody, bodyBytes);
+      const plain = answerFor(item, kind, requestBody, bodyBytes);
+      const answer = anthropic ? inAnthropicForm(plain) : plain;
       if (delay > 0) await sleep(delay);
       if (answer.json !== undefined) sendJson(res, answer.status, answer.json, answer.headers);
       else sendBytes(res, answer.status, answer.bytes, answer.headers);
@@ -497,7 +556,8 @@ function createStandin() {
       parsed = undefined;
     }
     record(req, bytes, parsed);
-    if (url.pathname.endsWith('/chat/completions')) {
+    const messages = url.pathname.endsWith('/messages');
+    if (url.pathname.endsWith('/chat/completions') || messages) {
       if (req.method !== 'POST') {
         sendJson(
           res,
@@ -507,7 +567,7 @@ function createStandin() {
         );
         return;
       }
-      await serveChat(req, res, parsed, bytes.length);
+      await serveChat(req, res, parsed, bytes.length, messages);
       return;
     }
     if (url.pathname.endsWith('/models')) {

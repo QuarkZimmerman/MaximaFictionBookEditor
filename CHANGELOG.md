@@ -44,7 +44,8 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   Edit menu, the toolbar's tooltips and the context menus.
 - Settings > AI assistant: Thinking effort, beside the model - Model's default or the efforts the
   model offers; the chosen one goes with every request of the assistant and shows in its banner.
-  The bundled free service's model offers Low, Medium and High.
+  The bundled free service's model offers Low, Medium and High; Claude models offer the levels
+  Anthropic's list names.
 
 ### Changed
 
@@ -58,6 +59,8 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   Children and Merge; Delete asks about the element by its name.
 - The Body view's context menu names elements in words (Select paragraph, Select verse, Select
   history), and a right-click outside the selection first moves the caret to the clicked point.
+- For a service on Anthropic's address the AI assistant speaks Anthropic's own interface, its
+  Messages API, instead of the OpenAI-compatible one, which ignores the thinking effort.
 - The tree-command sample script Example 1 is called after what it does: Paragraphs Without a
   Full Stop...; its id stays, so its hotkey and toolbar button still find it.
 
