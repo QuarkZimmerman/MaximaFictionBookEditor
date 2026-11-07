@@ -37,7 +37,11 @@ test.describe('smoke', () => {
 
     await expect(page.getByTestId('toolbar-commands')).toBeVisible();
     await expect(page.getByTestId('toolbar-file.new')).toBeVisible();
-    await expect(page.getByTestId('toolbar-file.new')).toHaveAttribute('title', 'New');
+    // Feature 010 (FR-042): the name, then what the command does.
+    await expect(page.getByTestId('toolbar-file.new')).toHaveAttribute(
+      'title',
+      'New \u2014 Create a new document',
+    );
     await expect(page.getByTestId('toolbar-file.new').locator('img')).toHaveJSProperty(
       'naturalWidth',
       24,

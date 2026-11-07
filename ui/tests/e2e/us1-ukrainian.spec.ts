@@ -152,7 +152,9 @@ function isAllowed(text: string): boolean {
  * template of the target language passes; the title of an unavailable command - "A: B",
  * `commands.unavailable.title` (feature 006, FR-043) - passes when A is a command's tooltip of
  * the target language and B passes; a verbatim value of another interface language fails; the
- * allowlist passes; "A (B)" passes when both parts pass (tooltips with their hotkey, file types
+ * allowlist passes; "A. B" (a greyed control's tooltip and when it works), "A — B" (a toolbar
+ * title with its description; both feature 010) and "A (B)" pass
+ * when both parts pass (tooltips with their hotkey, file types
  * with their patterns, names with their code); then, strictly, anything else fails -
  * leniently (data the resources bring, not the catalogues) only texts in Latin letters.
  */
@@ -166,6 +168,26 @@ function problemOf(text: string, target: LanguageTexts, strict: boolean): string
     const reason = problemOf(unavailable[2]!, target, strict);
     if (!reason) return null;
     if (reason.includes(' text of ')) return reason;
+  }
+  // Feature 010 (D11): a greyed control's tooltip is what it is, then when it becomes available -
+  // a sentence of the language, a space and a second text that passes too.
+  for (let at = value.indexOf('. '); at > 0; at = value.indexOf('. ', at + 1)) {
+    if (
+      target.values.has(normalise(value.slice(0, at + 1))) &&
+      !problemOf(value.slice(at + 2), target, strict)
+    ) {
+      return null;
+    }
+  }
+  // Feature 010 (FR-042): a toolbar button's title "Name (Key) \u2014 description" passes when
+  // both parts pass.
+  const described = /^(.+?) \u2014 (.+)$/su.exec(value);
+  if (described) {
+    const head = problemOf(described[1]!, target, strict);
+    const tail = problemOf(described[2]!, target, strict);
+    if (!head && !tail) return null;
+    if (head?.includes(' text of ')) return head;
+    if (tail?.includes(' text of ')) return tail;
   }
   for (const lang of UI_LANGS) {
     if (lang === target.lang) continue;

@@ -508,11 +508,14 @@ test.describe('US11 (004) - the keyboard layout switches when a document is open
       await own.restart(['--open', missing]);
       const second = await context.newPage();
       await second.goto(own.url);
-      await second.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
+      // Feature 010 (US1): the message comes while the window is still starting; the start-up
+      // ends with the document shown after it.
+      await second.getByTestId('app-root').waitFor();
       const failed = second.getByTestId('dialog-open-failed');
       await expect(failed).toBeVisible();
       await failed.getByTestId('dialog-open-failed-button-ok').click();
       await waitForStartupDocument(second);
+      await second.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
       await settled(second, (method, params) => own.rpc.call(method, params));
     } finally {
       await context.close();

@@ -689,7 +689,8 @@ test.describe('US3 - the layout of pictures in table cells (SC-006)', () => {
     // interface language; the part of each text before the reference is what every one starts with.
     const lang = await pageLang(page);
     const starts = (['empty', 'missing', 'external'] as const).map(
-      (kind) => uiText(lang, `views.body.picture.${kind}`).split('{{href}}')[0]!,
+      // An inline picture shows only its kind, the text before " - " (feature 010, D8).
+      (kind) => uiText(lang, `views.body.picture.${kind}`).split('{{href}}')[0]!.split(' - ')[0]!,
     );
     const missing = starts.join('" | "');
     const results: EnvResult[] = [];
