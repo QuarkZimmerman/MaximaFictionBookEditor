@@ -270,8 +270,29 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
+# A free port below every system's range of ephemeral ports (Linux 32768-60999, macOS and
+# Windows 49152-65535): one taken from that range and released could be handed to the next socket
+# bound to port 0 - the shell's in-process core among them - before the browser engine binds it
+# (CI saw "bind() failed: Address already in use" and no CDP endpoint, 2026-11-07).
 pick_free_port() {
-  python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()'
+  python3 - <<'PY'
+import random
+import socket
+
+for _ in range(500):
+    port = random.randint(20000, 32000)
+    probe = socket.socket()
+    try:
+        probe.bind(("127.0.0.1", port))
+    except OSError:
+        continue
+    finally:
+        probe.close()
+    print(port)
+    break
+else:
+    raise SystemExit("shell-smoke: no free port between 20000 and 32000")
+PY
 }
 
 # --- smoke page -------------------------------------------------------------------------------
