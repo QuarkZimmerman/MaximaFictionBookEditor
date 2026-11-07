@@ -20,6 +20,7 @@ import { registerBarFocus, type BarField } from '@/features/editing/barFocus';
 import { setHrefAtSelection } from '@/features/footnotes';
 import { canViewPicture } from '@/features/images/pictureViewModel';
 import { openPictureView } from '@/features/images/openPictureView';
+import { tip } from '@/app/tooltips';
 import { onPageClass, usePictureBackgrounds } from '@/app/usePictureBackground';
 import { collectImageRefs, collectJumpTargets, normalizeHref } from '@/features/linkTargets';
 import { binaryPreviewUrl } from '@/model/binaryUrls';
@@ -44,8 +45,15 @@ export interface BarTextFieldProps {
   mixed?: boolean;
   /** The id of a `<datalist>` of suggestions: the input's `list`. */
   list?: string;
-  /** The input's `title` (feature 006 US8 sets it on the disabled span fields). */
+  /**
+   * The input's `title` (feature 006 US8 sets it on the disabled span fields); when set it
+   * replaces the tooltip.
+   */
   title?: string;
+  /** Feature 010 (US4, D11): what the field is and what it sets. */
+  tooltip?: string;
+  /** Feature 010 (US4, D11): added to the tooltip while the field is greyed. */
+  whenAvailable?: string;
   /**
    * Applies the value; `false` when nothing was applied, after which the field shows `value`.
    * A promise answers later (a question first, feature 006 US8's span fields): when it resolves
@@ -69,8 +77,12 @@ export function BarTextField({
   mixed = false,
   list,
   title,
+  tooltip,
+  whenAvailable,
   onCommit,
 }: BarTextFieldProps) {
+  // Feature 010 (US4): on the field and on its label, greyed included (D12).
+  const help = tip(title ?? (disabled && whenAvailable ? `${tooltip} ${whenAvailable}` : tooltip));
   const [draft, setDraft] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
   const editing = useRef(false);
@@ -111,7 +123,7 @@ export function BarTextField({
   };
 
   return (
-    <label className="mfbe-bar-field" htmlFor={`${id}-input`}>
+    <label className="mfbe-bar-field" htmlFor={`${id}-input`} {...help}>
       <span className="mfbe-bar-label">{label}</span>
       <input
         ref={inputRef}
@@ -123,7 +135,7 @@ export function BarTextField({
         disabled={disabled}
         spellCheck={false}
         list={list}
-        title={title}
+        {...help}
         data-testid={id}
         data-mixed={mixed && !disabled ? 'true' : undefined}
         onFocus={() => {
@@ -184,6 +196,8 @@ export function LinksBar() {
       <BarTextField
         id="links-bar-id"
         label={t('linksBar.id')}
+        tooltip={t('tip.links.id')}
+        whenAvailable={t('tip.links.idWhen')}
         value={attr(context?.idElement?.node, 'id')}
         disabled={!bodyActive || !context?.idElement}
         focusKey="id"
@@ -191,6 +205,9 @@ export function LinksBar() {
       />
       <HrefCombo
         label={t('linksBar.href')}
+        tooltip={t('tip.links.href')}
+        whenAvailable={t('tip.links.hrefWhen')}
+        listTooltip={t('tip.links.hrefList')}
         value={context?.link?.href ?? ''}
         disabled={!bodyActive || !context?.link}
         width={200}
@@ -215,6 +232,8 @@ export function LinksBar() {
       <BarTextField
         id="links-bar-section-id"
         label={t('linksBar.sectionId')}
+        tooltip={t('tip.links.sectionId')}
+        whenAvailable={t('tip.links.sectionIdWhen')}
         value={attr(context?.section?.node, 'id')}
         disabled={!bodyActive || !context?.section}
         onCommit={(value) => setAttr(context?.section?.pos, 'id', value)}
@@ -222,6 +241,8 @@ export function LinksBar() {
       <BarTextField
         id="links-bar-image-title"
         label={t('linksBar.imageTitle')}
+        tooltip={t('tip.links.imageTitle')}
+        whenAvailable={t('tip.links.imageTitleWhen')}
         value={attr(context?.image?.node, 'title')}
         disabled={!bodyActive || !context?.image || context.image.node.type.name !== 'image'}
         width={200}
@@ -230,6 +251,8 @@ export function LinksBar() {
       <BarTextField
         id="links-bar-alt"
         label={t('linksBar.alt')}
+        tooltip={t('tip.links.alt')}
+        whenAvailable={t('tip.links.altWhen')}
         value={attr(context?.image?.node, 'alt')}
         disabled={!bodyActive || !context?.image}
         width={200}

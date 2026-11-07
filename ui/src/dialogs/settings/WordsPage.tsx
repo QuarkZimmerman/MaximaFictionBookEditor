@@ -17,6 +17,7 @@ import { RpcErrorCode, type Settings } from '@/rpc/types';
 
 import { CheckField, GroupBox } from './controls';
 import { isValidExclusionWord } from './model';
+import { tip } from '@/app/tooltips';
 
 export interface WordsPageProps {
   draft: Settings;
@@ -157,6 +158,7 @@ export function WordsPage({ draft, onChange, ctx }: WordsPageProps) {
                       <input
                         type="checkbox"
                         checked={selected.has(word)}
+                        {...tip(t('tip.settings.words.rowCheck'))}
                         onChange={() => toggle(word)}
                         onClick={(event) => event.stopPropagation()}
                         aria-label={word}
@@ -175,12 +177,14 @@ export function WordsPage({ draft, onChange, ctx }: WordsPageProps) {
         <div className="mfbe-exclusions-toolbar">
           <CheckField
             label={t('dialog.settings.words.selectAll')}
+            tooltip={t('tip.settings.words.selectAll')}
             checked={allSelected}
             disabled={!words || words.length === 0}
             onChange={(checked) => setSelected(checked && words ? new Set(words) : new Set())}
             testId="settings-words-select-all"
           />
           <button
+            {...tip(t('tip.settings.words.removeSelected'))}
             type="button"
             className="mfbe-button"
             disabled={!rpc || selected.size === 0 || busy}
@@ -192,6 +196,7 @@ export function WordsPage({ draft, onChange, ctx }: WordsPageProps) {
         </div>
         <div className="mfbe-settings-row">
           <input
+            {...tip(t('tip.settings.words.newWord'))}
             className="mfbe-inputdialog-input"
             type="text"
             value={newWord}
@@ -210,6 +215,7 @@ export function WordsPage({ draft, onChange, ctx }: WordsPageProps) {
             data-testid="settings-words-new"
           />
           <button
+            {...tip(t('tip.settings.words.add'))}
             type="button"
             className="mfbe-button"
             disabled={!rpc || newWord.trim() === '' || busy}
@@ -222,6 +228,7 @@ export function WordsPage({ draft, onChange, ctx }: WordsPageProps) {
       </GroupBox>
       <CheckField
         label={t('dialog.settings.words.showExclusions')}
+        tooltip={t('tip.settings.words.showExclusions')}
         checked={draft.words.showExclusionsInWordsDialog}
         onChange={(checked) => onChange({ showExclusionsInWordsDialog: checked })}
         testId="settings-words-show-exclusions"

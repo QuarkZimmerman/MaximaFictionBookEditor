@@ -5,6 +5,7 @@
 
 import { useId, type ReactNode } from 'react';
 
+import { tip } from '@/app/tooltips';
 import { parseAccelerator } from '@/i18n';
 
 export function GroupBox({
@@ -34,15 +35,18 @@ export function FieldRow({
   htmlFor,
   children,
   className,
+  tooltip,
 }: {
   label: string;
   htmlFor?: string;
   children: ReactNode;
   className?: string;
+  /** Feature 010 (US4, D12): the label shows its control's tooltip too. */
+  tooltip?: string;
 }) {
   return (
     <div className={`mfbe-settings-row${className ? ` ${className}` : ''}`}>
-      <label className="mfbe-settings-label" htmlFor={htmlFor}>
+      <label className="mfbe-settings-label" htmlFor={htmlFor} {...tip(tooltip)}>
         {parseAccelerator(label).text}
       </label>
       {children}
@@ -56,18 +60,22 @@ export function CheckField({
   onChange,
   disabled,
   testId,
+  tooltip,
 }: {
   label: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
   disabled?: boolean;
   testId?: string;
+  /** Feature 010 (US4, D11): what the setting does. */
+  tooltip: string;
 }) {
   const id = useId();
   return (
-    <label className="mfbe-check-field mfbe-settings-check" htmlFor={id}>
+    <label className="mfbe-check-field mfbe-settings-check" htmlFor={id} {...tip(tooltip)}>
       <input
         id={id}
+        {...tip(tooltip)}
         type="checkbox"
         checked={checked}
         disabled={disabled}
@@ -88,8 +96,11 @@ export function NumberField({
   testId,
   disabled,
   allowEmpty,
+  tooltip,
 }: {
   id?: string;
+  /** Feature 010 (US4, D11): what the number sets, with its range. */
+  tooltip: string;
   /** Current text of the field (kept as typed so an invalid value can be reported). */
   value: string;
   min: number;
@@ -108,6 +119,7 @@ export function NumberField({
   return (
     <input
       id={id}
+      {...tip(tooltip)}
       className={`mfbe-inputdialog-input mfbe-number-input${invalid ? ' mfbe-settings-invalid' : ''}`}
       type="number"
       inputMode="numeric"
@@ -132,8 +144,11 @@ export function SuggestInput({
   onChange,
   testId,
   listId,
+  tooltip,
 }: {
   id?: string;
+  /** Feature 010 (US4, D11): what the field sets. */
+  tooltip: string;
   value: string;
   suggestions: readonly string[];
   placeholder?: string;
@@ -145,6 +160,7 @@ export function SuggestInput({
     <>
       <input
         id={id}
+        {...tip(tooltip)}
         className="mfbe-inputdialog-input"
         type="text"
         value={value}
@@ -170,16 +186,20 @@ export function ColorField({
   value,
   onChange,
   testId,
+  tooltip,
 }: {
   id?: string;
   value: string;
   onChange: (value: string) => void;
   testId?: string;
+  /** Feature 010 (US4, D11): what the colour sets, on the picker and on its text. */
+  tooltip: string;
 }) {
   const valid = /^#[0-9a-f]{6}$/i.test(value);
   return (
     <span className="mfbe-settings-color">
       <input
+        {...tip(tooltip)}
         type="color"
         value={valid ? value.toLowerCase() : '#000000'}
         onChange={(event) => onChange(event.target.value)}
@@ -188,6 +208,7 @@ export function ColorField({
       />
       <input
         id={id}
+        {...tip(tooltip)}
         className={`mfbe-inputdialog-input mfbe-settings-color-text${valid ? '' : ' mfbe-settings-invalid'}`}
         type="text"
         value={value}

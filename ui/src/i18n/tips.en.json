@@ -1,0 +1,100 @@
+{
+  "tip": {
+    "links": {
+      "id": "The id of the element the caret is in - a paragraph, a title, a poem. Give it an id so that a link can jump to it as #id.",
+      "idWhen": "Available when the caret is in an element that can have an id.",
+      "href": "Where the link or the picture points: #id of a place in this book, #id of one of the book's pictures, or a web address. Pick it from the list or type it.",
+      "hrefWhen": "Available when the caret is in a link or on a picture.",
+      "sectionId": "The id of the section the caret is in. Give a section an id so that links - a footnote's, a table of contents' - can jump to it as #id.",
+      "sectionIdWhen": "Available when the caret is in a section.",
+      "imageTitle": "The picture's title, shown under it in the text; FB2 writes it as the title attribute of the image.",
+      "imageTitleWhen": "Available on a picture that stands on its own line; an inline picture has no title.",
+      "alt": "The picture's alternative text, for readers that show no pictures; FB2 writes it as the alt attribute of the image.",
+      "altWhen": "Available on a picture.",
+      "hrefList": "Open the list of the places and pictures the field can point to."
+    },
+    "table": {
+      "tableId": "The id of the table the caret is in, so that a link can jump to it as #id.",
+      "tableStyle": "The table's style: CSS declarations that readers may apply, for example border: 1px solid; FB2 writes it as the table's style attribute.",
+      "cellId": "The id of the cell the caret is in, so that a link can jump to it as #id.",
+      "style": "The style of the selected cells: CSS declarations, for example color: red; FB2 writes it as the cells' style attribute.",
+      "lang": "The language of the selected cells' text, for example en or ru; FB2 writes it as xml:lang. Leave it empty to use the book's language.",
+      "colspan": "How many columns the cell spans, 1 or more; FB2 writes it as colspan.",
+      "rowspan": "How many rows the cell spans, 1 or more; FB2 writes it as rowspan.",
+      "trAlign": "The horizontal alignment of the selected rows: left, center or right; FB2 writes it as the row's align.",
+      "tdAlign": "The horizontal alignment of the text in the selected cells: left, center or right; FB2 writes it as align.",
+      "tdValign": "The vertical alignment of the text in the selected cells: top, middle or bottom; FB2 writes it as valign.",
+      "whenTable": "Available when the caret is in a table.",
+      "whenCell": "Available when the caret is in a table cell."
+    },
+    "settings": {
+      "view": {
+        "language": "The language of the editor's menus, dialogs and messages; System default follows the operating system. A change takes effect after a restart.",
+        "theme": "Light, dark, or as the system is set. Colours of your own for the book's text, set below, stay as they are.",
+        "bodyFont": "The font of the book's text in the Body view; Default font is the editor's own. It changes how the text looks on screen, never the book.",
+        "bodyFontSize": "The size of the book's text in the Body view, in points, from 6 to 96.",
+        "textColor": "The colour of the book's text in the Body view, as #rrggbb. Black on white follows the theme; any other colour replaces the theme's.",
+        "background": "The colour behind the book's text in the Body view, as #rrggbb. White behind black text follows the theme; any other colour replaces the theme's.",
+        "fastMode": "Shows the book without frames, backgrounds, colours and picture previews, so that very large books scroll faster; the book itself does not change. Also View > Fast Mode (F5).",
+        "sourceFont": "The font of the Source view, where the book's XML is edited; Default font is the editor's own.",
+        "sourceFontSize": "The size of the Source view's text, in points, from 6 to 96.",
+        "wrap": "Long lines of the Source view continue on the next screen line instead of running off to the right.",
+        "showWhitespace": "Shows the spaces and tabs of the Source view as faint marks.",
+        "syntaxHighlight": "Colours the tags, attributes and text of the XML in the Source view.",
+        "lineNumbers": "Numbers the lines of the Source view in its left margin.",
+        "showEol": "Marks the end of every line of the Source view.",
+        "matchTags": "With the caret on a tag of the Source view, highlights the tag that opens or closes it.",
+        "tagCompletion": "While you type in the Source view, offers the tags, attributes and values the FB2 schema allows at that place.",
+        "useSpellchecker": "Checks the spelling of the book's text with the dictionaries of the book's language.",
+        "highlightMisspelled": "Underlines the words the dictionaries do not know with a wavy line.",
+        "baseDictionary": "The dictionary of the book's language: always used.",
+        "extraDictionary": "Also check the text with this dictionary, for books that mix languages.",
+        "customDictionary": "The file of your own words: Add to dictionary writes there, and its words are never marked as misspelled.",
+        "dictionariesDefault": "Look for dictionaries in the editor's own dictionaries folder.",
+        "dictionariesCustom": "Look for dictionaries in a folder you choose, for example one shared with another program.",
+        "dictionariesPath": "The folder with the dictionaries (.dic and .aff files) to use.",
+        "openDictionariesFolder": "Opens the dictionaries folder in the file manager, to add or remove dictionaries."
+      },
+      "other": {
+        "encoding": "The encoding a new book is saved in, and an opened one too unless Keep Encoding is on. UTF-8 suits every language.",
+        "keepEncoding": "Saves an opened book in the encoding it was read in, instead of the default encoding.",
+        "keepBackup": "Before a save replaces a file, keeps its previous version beside it as a .bak file.",
+        "restorePosition": "Reopening a book puts the caret back where it was when you left the book.",
+        "switchKeyboardLayout": "When a book opens, switches the keyboard to the layout chosen below, for example the language you type the book in.",
+        "keyboardLayout": "The keyboard layout to switch to when a book opens.",
+        "askNonClearImage": "Before Add > Image inserts a picture, asks whether to take it from a file or to insert an empty picture to fill in later.",
+        "insertClearImages": "Without the question, Add > Image inserts an empty picture to fill in later instead of asking for a file.",
+        "imageFormat": "The format a picture pasted from the clipboard is stored in: JPEG for photographs, PNG for drawings and pictures with transparent areas.",
+        "jpegQuality": "The quality of pictures stored as JPEG, from 1 to 100: higher looks better, lower makes the book smaller.",
+        "nbsp": "How a non-breaking space shows in the Body view; the book always keeps it as a non-breaking space.",
+        "openFromOutside": "What happens when you open a book from outside the editor - from the file manager or another program - while a book is open in it.",
+        "versionCheck": "How often the editor checks on the internet whether a newer version exists; Never keeps it fully offline.",
+        "folder": {
+          "scripts": {
+            "default": "Read your own scripts from the editor's own scripts folder.",
+            "path": "The folder your own scripts are read from, besides the scripts that come with the editor.",
+            "open": "Opens the scripts folder in the file manager."
+          },
+          "genres": {
+            "default": "Read your own genre lists from the editor's own genres folder.",
+            "path": "The folder with your own genre lists, which add to or replace the standard one.",
+            "open": "Opens the genres folder in the file manager."
+          },
+          "template": {
+            "default": "Read the template of new books from the editor's own template folder.",
+            "path": "The folder with blank.fb2, the template every new book starts from.",
+            "open": "Opens the template folder in the file manager."
+          }
+        }
+      },
+      "words": {
+        "rowCheck": "Select the word, to remove it with Remove selected.",
+        "selectAll": "Selects every word of the list, or none.",
+        "removeSelected": "Removes the selected words from the exclusion list; the Words dialog counts them again.",
+        "newWord": "A word the Words dialog leaves out of its list, for example a name that appears often: letters only, with at most one hyphen inside.",
+        "add": "Adds the word to the exclusion list.",
+        "showExclusions": "Shows the excluded words in the Words dialog too, marked, instead of leaving them out."
+      }
+    }
+  }
+}

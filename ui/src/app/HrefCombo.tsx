@@ -11,9 +11,15 @@ import { useEffect, useRef, useState } from 'react';
 
 import { registerBarFocus } from '@/features/editing/barFocus';
 import type { ListTarget } from '@/features/linkTargets';
+import { tip } from './tooltips';
 
 export interface HrefComboProps {
   label: string;
+  /** Feature 010 (US4, D11): what the field is, and when a greyed one becomes available. */
+  tooltip?: string;
+  whenAvailable?: string;
+  /** Feature 010 (US4): the tooltip of the button that opens the list. */
+  listTooltip?: string;
   value: string;
   disabled: boolean;
   width?: number;
@@ -34,6 +40,9 @@ export interface HrefComboProps {
 
 export function HrefCombo({
   label,
+  tooltip,
+  whenAvailable,
+  listTooltip,
   value,
   disabled,
   width = 200,
@@ -96,14 +105,16 @@ export function HrefCombo({
     if (next !== value) onCommit(next);
   };
 
+  const help = tip(disabled && whenAvailable ? `${tooltip} ${whenAvailable}` : tooltip);
   return (
-    <label className="mfbe-bar-field" htmlFor="links-bar-href-input">
+    <label className="mfbe-bar-field" htmlFor="links-bar-href-input" {...help}>
       <span className="mfbe-bar-label">{label}</span>
       <span className="mfbe-hrefcombo" style={{ width }}>
         <input
           ref={inputRef}
           id="links-bar-href-input"
           className="mfbe-bar-input mfbe-hrefcombo-input"
+          {...help}
           type="text"
           role="combobox"
           aria-expanded={listOpen}
@@ -175,6 +186,7 @@ export function HrefCombo({
           tabIndex={-1}
           disabled={disabled}
           aria-label={label}
+          {...tip(listTooltip)}
           data-testid="links-bar-href-toggle"
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => {
@@ -201,6 +213,7 @@ export function HrefCombo({
               <li
                 key={item.href}
                 role="option"
+                title={item.href}
                 aria-selected={index === active}
                 data-index={index}
                 data-testid={`links-bar-href-option-${index}`}

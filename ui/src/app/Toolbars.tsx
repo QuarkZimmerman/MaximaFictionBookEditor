@@ -82,8 +82,12 @@ export function ToolbarButton({ commandId, size = 24 }: ToolbarButtonProps) {
   const hotkey = services.hotkeys.displayAll(commandId);
   const reason = enabled ? null : services.commands.unavailableReason(commandId, ctx);
   const unavailable = reason ? unavailableTitle(command, reason, t) : null;
-  const title = unavailable ?? (hotkey ? `${tooltip} (${hotkey})` : tooltip);
   const description = commandDescription(command, t);
+  // Feature 010 (FR-042, D12): name and key, then what the command does.
+  const named = hotkey ? `${tooltip} (${hotkey})` : tooltip;
+  const title =
+    unavailable ??
+    (description && description !== tooltip ? `${named} \u2014 ${description}` : named);
   return (
     <button
       type="button"

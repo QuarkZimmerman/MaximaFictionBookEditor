@@ -179,6 +179,11 @@ export interface AppState {
    * "Starting…". Never returns to `starting`.
    */
   startup: 'starting' | 'ready';
+  /**
+   * Feature 010 (US4, D13): the description of the highlighted menu entry, shown by the status
+   * bar while a menu is open; null otherwise (the status bar then shows what it showed before).
+   */
+  menuHint: string | null;
   /** Current document model, or null before New/Open. */
   document: Document | null;
   /** Feature 009 (US5): the status bar's caret and selection panes. */
@@ -288,6 +293,7 @@ export function createInitialState(overrides: Partial<AppState> = {}): AppState 
     // Stores made for tests and tools are ready at once; the application's own store starts
     // `starting` (feature 010, US1).
     startup: 'ready',
+    menuHint: null,
     document: null,
     docId: null,
     path: null,
@@ -416,6 +422,11 @@ function keepArchiveOrigin(previous: Document | null, next: Document): Document 
 export const actions = {
   setConnection(store: AppStore, connection: ConnectionStatus): void {
     store.setState({ connection });
+  },
+
+  /** Feature 010 (US4, D13): the highlighted menu entry's description, or null. */
+  setMenuHint(store: AppStore, menuHint: string | null): void {
+    if (store.getState().menuHint !== menuHint) store.setState({ menuHint });
   },
 
   /** Feature 010 (US1): the start-up document is shown, or start-up failed - the window works. */

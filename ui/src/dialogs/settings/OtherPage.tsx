@@ -40,6 +40,7 @@ import {
   parseIntegerField,
   type GenresInfo,
 } from './model';
+import { tip } from '@/app/tooltips';
 
 /** `system.keyboardLayouts` of a core without the method or without a shell: no switch. */
 const NO_SHELL_LAYOUTS: KeyboardLayoutList = { supported: false, reason: 'noShell', layouts: [] };
@@ -212,6 +213,7 @@ export function OtherPage({ draft, onChange, ctx }: OtherPageProps) {
             htmlFor="settings-other-encoding"
           >
             <select
+              {...tip(t('tip.settings.other.encoding'))}
               id="settings-other-encoding"
               value={other.defaultEncoding}
               onChange={(event) => onChange({ defaultEncoding: event.target.value })}
@@ -226,12 +228,14 @@ export function OtherPage({ draft, onChange, ctx }: OtherPageProps) {
           </FieldRow>
           <CheckField
             label={t('dialog.settings.other.keepEncoding')}
+            tooltip={t('tip.settings.other.keepEncoding')}
             checked={other.keepEncoding}
             onChange={(checked) => onChange({ keepEncoding: checked })}
             testId="settings-other-keep-encoding"
           />
           <CheckField
             label={t('dialog.settings.other.keepBackup')}
+            tooltip={t('tip.settings.other.keepBackup')}
             checked={other.keepBackup !== false}
             onChange={(checked) => onChange({ keepBackup: checked })}
             testId="settings-other-keep-backup"
@@ -240,12 +244,14 @@ export function OtherPage({ draft, onChange, ctx }: OtherPageProps) {
         <GroupBox title={t('dialog.settings.other.openFile')} testId="settings-other-open-file">
           <CheckField
             label={t('dialog.settings.other.restorePosition')}
+            tooltip={t('tip.settings.other.restorePosition')}
             checked={other.restorePosition}
             onChange={(checked) => onChange({ restorePosition: checked })}
             testId="settings-other-restore-position"
           />
           <CheckField
             label={t('dialog.settings.other.switchKeyboardLayout')}
+            tooltip={t('tip.settings.other.switchKeyboardLayout')}
             checked={other.switchKeyboardLayout}
             disabled={!layoutChoice.ready}
             onChange={switchLayout}
@@ -256,6 +262,7 @@ export function OtherPage({ draft, onChange, ctx }: OtherPageProps) {
             htmlFor="settings-other-layout"
           >
             <select
+              {...tip(t('tip.settings.other.keyboardLayout'))}
               id="settings-other-layout"
               value={layoutChoice.shownId}
               disabled={!layoutChoice.ready}
@@ -341,6 +348,7 @@ export function OtherPage({ draft, onChange, ctx }: OtherPageProps) {
         <GroupBox title={t('dialog.settings.other.dialogs')}>
           <CheckField
             label={t('dialog.settings.other.askNonClearImage')}
+            tooltip={t('tip.settings.other.askNonClearImage')}
             checked={other.askOnNonClearImage}
             onChange={(checked) => onChange({ askOnNonClearImage: checked })}
             testId="settings-other-ask-non-clear"
@@ -349,6 +357,7 @@ export function OtherPage({ draft, onChange, ctx }: OtherPageProps) {
         <GroupBox title={t('dialog.settings.other.images')}>
           <CheckField
             label={t('dialog.settings.other.insertClearImages')}
+            tooltip={t('tip.settings.other.insertClearImages')}
             checked={other.insertClearImages}
             onChange={(checked) => onChange({ insertClearImages: checked })}
             testId="settings-other-insert-clear"
@@ -362,6 +371,7 @@ export function OtherPage({ draft, onChange, ctx }: OtherPageProps) {
             {t('dialog.settings.other.imageFormat')}
           </label>
           <select
+            {...tip(t('tip.settings.other.imageFormat'))}
             id="settings-other-image-format"
             value={other.pasteImageFormat}
             onChange={(event) => onChange({ pasteImageFormat: event.target.value as ImageFormat })}
@@ -377,6 +387,7 @@ export function OtherPage({ draft, onChange, ctx }: OtherPageProps) {
             {t('dialog.settings.other.jpegQuality')}
           </label>
           <NumberField
+            tooltip={t('tip.settings.other.jpegQuality')}
             id="settings-other-jpeg-quality"
             value={qualityText}
             min={JPEG_QUALITY_RANGE.min}
@@ -393,6 +404,7 @@ export function OtherPage({ draft, onChange, ctx }: OtherPageProps) {
       <GroupBox title={t('dialog.settings.other.nbsp')}>
         <FieldRow label={t('dialog.settings.other.displayChar')} htmlFor="settings-other-nbsp">
           <select
+            {...tip(t('tip.settings.other.nbsp'))}
             id="settings-other-nbsp"
             value={nbspValue}
             onChange={(event) => onChange({ nbspDisplayChar: event.target.value })}
@@ -416,6 +428,7 @@ export function OtherPage({ draft, onChange, ctx }: OtherPageProps) {
           htmlFor="settings-other-open-from-outside"
         >
           <select
+            {...tip(t('tip.settings.other.openFromOutside'))}
             id="settings-other-open-from-outside"
             value={other.openFromOutside}
             onChange={(event) =>
@@ -438,6 +451,7 @@ export function OtherPage({ draft, onChange, ctx }: OtherPageProps) {
           htmlFor="settings-other-version-check"
         >
           <select
+            {...tip(t('tip.settings.other.versionCheck'))}
             id="settings-other-version-check"
             value={other.versionCheck}
             onChange={(event) =>
@@ -491,6 +505,7 @@ function FolderGroup({
     <GroupBox title={title} testId={`settings-other-${kind}-folder`}>
       <CheckField
         label={t('dialog.settings.other.defaultFolder')}
+        tooltip={t(`tip.settings.other.folder.${kind}.default`)}
         checked={useDefault}
         onChange={(checked) => {
           setCustom(!checked);
@@ -500,10 +515,12 @@ function FolderGroup({
       />
       <FieldRow
         label={t('dialog.settings.other.customFolder')}
+        tooltip={t(`tip.settings.other.folder.${kind}.path`)}
         htmlFor={`settings-other-${kind}-path`}
       >
         <input
           id={`settings-other-${kind}-path`}
+          {...tip(t(`tip.settings.other.folder.${kind}.path`))}
           className="mfbe-inputdialog-input"
           type="text"
           value={value}
@@ -532,6 +549,7 @@ function FolderGroup({
           className="mfbe-button"
           disabled={!connected}
           onClick={onOpen}
+          {...tip(t(`tip.settings.other.folder.${kind}.open`))}
           data-testid={`settings-other-${kind}-open`}
         >
           {openLabel}
