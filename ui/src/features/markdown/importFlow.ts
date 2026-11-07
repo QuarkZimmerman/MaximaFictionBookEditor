@@ -45,10 +45,11 @@ export async function importMarkdown(
   ctx: CommandContext,
   files: FileFeature,
   given?: string,
+  asked = false,
 ): Promise<boolean> {
   const rpc = ctx.rpc;
   if (!rpc) return false;
-  if (!(await files.confirmDiscardChanges(ctx))) return false;
+  if (!asked && !(await files.confirmDiscardChanges(ctx))) return false;
   let path = given;
   if (!path) {
     const { paths } = await rpc.call('dialog.openFile', {
