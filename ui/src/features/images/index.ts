@@ -7,7 +7,9 @@
  */
 
 import type { FeatureContext } from '@/app/services';
+import { setPicturePlaceholderAction } from '@/editor/nodeviews/image';
 
+import { choosePictureFor } from './choosePicture';
 import { installImageDragDrop } from './dragdrop';
 import { registerImageCommands } from './insert';
 import { installImagePaste } from './paste';
@@ -25,5 +27,12 @@ export function registerImagesFeature(ctx: FeatureContext): void {
   if (typeof document !== 'undefined') {
     installImagePaste(store);
     installImageDragDrop(store);
+  }
+  // Feature 010 (D4): a double-click on a picture without an image opens the picture chooser.
+  const getContext = ctx.getCommandContext;
+  if (getContext) {
+    setPicturePlaceholderAction((view, pos) => {
+      void choosePictureFor(view, pos, getContext());
+    });
   }
 }

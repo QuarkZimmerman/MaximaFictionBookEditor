@@ -638,6 +638,9 @@ export class BodyEditorController {
       ...createImageNodeViews({
         getDocId: () => this.store.getState().docId,
         getMissingText: () => this.translate('views.body.imageMissing'),
+        // Feature 010 (D8): the placeholder says which kind of picture it is and how to fix it.
+        getPlaceholderText: (kind, href) =>
+          this.translate(`views.body.picture.${kind}`).replace('{{href}}', href),
         // The pictures' boxes are reserved from the binary list (feature 006, R9.2).
         getBinary: binaryLookup(() => this.store.getState().document?.binaries),
         onBinariesChange: (listener) => {

@@ -233,7 +233,12 @@
       "moreSections_one": "... {{count}} more section",
       "moreSections_other": "... {{count}} more sections",
       "conversionProblems_one": "{{count}} element does not match the FB2 structure and is shown as is.",
-      "conversionProblems_other": "{{count}} elements do not match the FB2 structure and are shown as is."
+      "conversionProblems_other": "{{count}} elements do not match the FB2 structure and are shown as is.",
+      "picture": {
+        "empty": "Empty picture - double-click to choose its image",
+        "missing": "Picture {{href}} not found - double-click to choose another",
+        "external": "External picture: {{href}} - double-click to choose a picture from the book or a file"
+      }
     },
     "source": {
       "title": "Source",

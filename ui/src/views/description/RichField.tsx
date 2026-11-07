@@ -153,6 +153,7 @@ export function RichField({ fieldKey, testId, label, required }: RichFieldProps)
         ...createImageNodeViews({
           getDocId: () => docIdRef.current,
           getMissingText: () => t('views.body.imageMissing'),
+          getPlaceholderText: (kind, href) => t(`views.body.picture.${kind}`, { href }),
           // A picture's box is reserved until its preview loads, as in the Body view (R9.2).
           getBinary: binaryLookup(() => store.getState().document?.binaries),
         }),
