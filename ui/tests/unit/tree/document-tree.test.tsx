@@ -210,8 +210,12 @@ describe('Document Tree panel', { timeout: 30_000 }, () => {
     const { user } = await renderApp(largeBook());
     fireEvent.contextMenu(screen.getByTestId('tree-row-s1'), { clientX: 10, clientY: 10 });
     const menu = await screen.findByTestId('tree-menu');
-    expect(within(menu).getByTestId('tree-menu-view')).toHaveTextContent('View');
-    expect(within(menu).getByTestId('tree-menu-viewSource')).toHaveTextContent('View Source');
+    // Feature 010 (FR-070, D19, D22): Go To / Go To Source, and the section's own operations -
+    // the first section cannot move up, and says why.
+    expect(within(menu).getByTestId('tree-menu-view')).toHaveTextContent('Go To');
+    expect(within(menu).getByTestId('tree-menu-viewSource')).toHaveTextContent('Go To Source');
+    expect(within(menu).getByTestId('tree-menu-moveUp')).toHaveAttribute('aria-disabled', 'true');
+    expect(within(menu).getByTestId('tree-menu-moveUp').getAttribute('title')).toMatch(/first/);
     expect(within(menu).getByTestId('tree-menu-moveRight')).toHaveAttribute(
       'aria-disabled',
       'true',

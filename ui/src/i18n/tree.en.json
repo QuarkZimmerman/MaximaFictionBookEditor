@@ -55,6 +55,43 @@
       "contextMenu": "Document tree menu",
       "collapse": "Collapse",
       "expand": "Expand"
+    },
+    "menuFor": {
+      "goTo": "Go To",
+      "goToSource": "Go To Source",
+      "moveUp": "Move Up, Before «{{name}}»",
+      "moveUpPlain": "Move Up",
+      "moveDown": "Move Down, After «{{name}}»",
+      "moveDownPlain": "Move Down",
+      "moveInto": "Move Into «{{name}}»",
+      "moveIntoPlain": "Move Into the Section Before",
+      "moveIntoOnly": "Move Into «{{name}}» (Section Only)",
+      "moveIntoOnlyPlain": "Move Into the Section Before (Section Only)",
+      "moveOut": "Move Out of «{{name}}»",
+      "moveOutPlain": "Move Out of the Parent Section",
+      "merge": "Merge With «{{name}}»",
+      "mergePlain": "Merge With the Next Section",
+      "changePicture": "Change Picture...",
+      "showPicture": "Show Picture",
+      "saveImage": "Save Image As...",
+      "untitled": "section {{number}}",
+      "delete": {
+        "section": "Delete Section...",
+        "body": "Delete Body...",
+        "title": "Delete Title",
+        "epigraph": "Delete Epigraph",
+        "annotation": "Delete Annotation",
+        "image": "Delete Picture",
+        "poem": "Delete Poem",
+        "cite": "Delete Quote",
+        "table": "Delete Table"
+      }
+    },
+    "reason": {
+      "first": "«{{name}}» is the first section here: there is no section before it",
+      "last": "«{{name}}» is the last section here: there is no section after it",
+      "topLevel": "«{{name}}» is already at the top level of its body",
+      "cannotDelete": "This element cannot be deleted here: a body keeps at least one section, a book at least one body"
     }
   },
   "cmd": {
