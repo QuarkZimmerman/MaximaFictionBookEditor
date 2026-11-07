@@ -3,7 +3,7 @@
 All notable changes to Maxima Fiction Book Editor. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## 0.0.8 - unreleased
+## 0.0.8 - 2026-11-07
 
 ### In short
 
@@ -13,7 +13,7 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 - The Document tree: a menu for each kind of row, Move Up and Move Down, clearer names
 - Undo and Redo name the step; the Body view's menu acts on what was clicked
 - A file that cannot be opened leaves the open book as it was, unsaved changes included
-- The AI assistant's thinking effort can be chosen in Settings
+- The AI assistant: thinking effort in Settings; Claude in Anthropic's own interface, with caching
 - The menus wait until the editor has started; a tree click brings the element to the top
 
 ### Added
