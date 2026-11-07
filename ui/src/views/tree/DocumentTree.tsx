@@ -363,6 +363,7 @@ export function DocumentTree() {
               }}
               expandLabel={t('tree.a11y.expand')}
               collapseLabel={t('tree.a11y.collapse')}
+              emptyPictureLabel={t('tree.emptyPicture')}
             />
           ))}
         </div>
@@ -386,6 +387,8 @@ interface TreeRowViewProps {
   onContextMenu: (x: number, y: number) => void;
   expandLabel: string;
   collapseLabel: string;
+  /** Feature 010 (D8): the caption of a picture without an image. */
+  emptyPictureLabel: string;
 }
 
 function TreeRowView({
@@ -400,6 +403,7 @@ function TreeRowView({
   onContextMenu,
   expandLabel,
   collapseLabel,
+  emptyPictureLabel,
 }: TreeRowViewProps) {
   return (
     <div
@@ -452,8 +456,11 @@ function TreeRowView({
         alt=""
         draggable={false}
       />
-      <span className="mfbe-tree-row-caption" title={row.caption}>
-        {row.caption}
+      <span
+        className="mfbe-tree-row-caption"
+        title={row.emptyPicture ? emptyPictureLabel : row.caption}
+      >
+        {row.emptyPicture ? emptyPictureLabel : row.caption}
       </span>
       {mark ? (
         <span

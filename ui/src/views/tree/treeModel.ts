@@ -95,6 +95,8 @@ export interface TreeRow {
    * tables below the element, which have no rows of their own, in document order (decision 8).
    */
   containedTables?: TableSummary[];
+  /** Feature 010 (D8): a picture without an image (`#undefined`); the tree says "Empty picture". */
+  emptyPicture?: boolean;
 }
 
 export interface TreeIndex {
@@ -241,6 +243,18 @@ function collectRows(
   const id = nodeIdOf(node)!;
   const kind = node.type as TreeRowKind;
   const row: TreeRow = { id, kind, caption: captionFor(node, kind), depth, parentId, childIds: [] };
+  if (kind === 'image') {
+    const href = node.attrs?.href;
+    if (
+      href === undefined ||
+      href === null ||
+      href === '' ||
+      href === '#' ||
+      href === '#undefined'
+    ) {
+      row.emptyPicture = true;
+    }
+  }
   if (kind === 'table') {
     const summary = irregularSummary(node);
     if (summary) row.tableProblems = summary;

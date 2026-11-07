@@ -216,7 +216,8 @@
   "tree": {
     "caption": "Document structure",
     "clean": "Clean",
-    "empty": "No document is open."
+    "empty": "No document is open.",
+    "emptyPicture": "Empty picture"
   },
   "views": {
     "description": {
