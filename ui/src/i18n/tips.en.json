@@ -95,6 +95,46 @@
         "add": "Adds the word to the exclusion list.",
         "showExclusions": "Shows the excluded words in the Words dialog too, marked, instead of leaving them out."
       }
+    },
+    "dialog": {
+      "dontAskAgain": "Answer like this from now on, without asking again; the question can be turned back on in the Settings."
+    },
+    "words": {
+      "highlight": "Mark the word: the buttons under Process highlighted act on the marked words.",
+      "replaced": "Replace this word with its replacement when you press OK.",
+      "showExclusions": "Shows the words of the exclusion list too, marked, or hides them.",
+      "highlightAll": "Marks every word of the list.",
+      "setReplacedAll": "Sets every word that has a replacement to be replaced when you press OK.",
+      "toExclusions": "Moves the marked words to the exclusion list, so that this dialog leaves them out from now on.",
+      "setReplaced": "Sets the marked words to be replaced with their replacements when you press OK.",
+      "invert": "Marks the words that are not marked, and unmarks the others.",
+      "resetReplaced": "The marked words will not be replaced.",
+      "currentWord": "The word chosen in the list; Find shows it in the text.",
+      "replacement": "The word to put in its place: Replace changes the occurrence found, OK every word set to be replaced.",
+      "find": "Finds the word in the book's text, and the next occurrence on each further click.",
+      "replace": "Replaces the occurrence found with the replacement.",
+      "editReplacement": "The replacement of this word; Enter keeps it, Escape leaves it as it was."
+    },
+    "spelling": {
+      "notInDictionary": "The word the dictionaries do not know; it is highlighted in the text.",
+      "changeTo": "The spelling to put instead: pick a suggestion from the list or type it.",
+      "ignore": "Leaves this occurrence as it is and goes on to the next unknown word.",
+      "ignoreAll": "Leaves every occurrence of the word as it is until the editor closes.",
+      "change": "Changes this occurrence to the spelling in Change To.",
+      "changeAll": "Changes every occurrence of the word in the book to the spelling in Change To.",
+      "add": "Adds the word to your own dictionary, so that it is never marked again.",
+      "undo": "Takes back the last change made in this dialog.",
+      "dictionary": "Check the text with this dictionary too: a word counts as known when any ticked dictionary knows it.",
+      "suggestion": "A spelling the dictionaries know: a click puts it in Change To, a double-click changes the word to it."
+    },
+    "find": {
+      "findWhat": "The text to look for; with Regular expression it is a pattern, for example colou?r.",
+      "wholeWords": "Finds the text only as a whole word, not inside longer words.",
+      "matchCase": "Finds the text only with the same capital and small letters.",
+      "regex": "Reads the text to look for as a regular expression: . any character, \\d a digit, * repeats what stands before it.",
+      "up": "Searches from the caret towards the beginning of the book.",
+      "down": "Searches from the caret towards the end of the book.",
+      "replaceWith": "The text to put in place of each match; with Regular expression, $1 inserts the first group in brackets, $0 the whole match."
     }
   }
 }

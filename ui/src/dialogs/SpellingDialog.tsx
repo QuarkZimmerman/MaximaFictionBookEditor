@@ -18,6 +18,7 @@ import { parseAccelerator } from '@/i18n';
 import { Dialog } from './Dialog';
 
 import './spelling.css';
+import { tip } from '@/app/tooltips';
 
 export interface SpellingDialogProps {
   ctx: CommandContext;
@@ -108,6 +109,7 @@ export function SpellingDialog({ ctx, feature, onClose }: SpellingDialogProps) {
         <label className="mfbe-spelling-row" htmlFor="mfbe-spelling-word">
           <span className="mfbe-spelling-label">{label('dialog.spelling.notInDictionary')}</span>
           <input
+            {...tip(t('tip.spelling.notInDictionary'))}
             id="mfbe-spelling-word"
             className="mfbe-inputdialog-input mfbe-spelling-word"
             type="text"
@@ -119,6 +121,7 @@ export function SpellingDialog({ ctx, feature, onClose }: SpellingDialogProps) {
         <label className="mfbe-spelling-row" htmlFor="mfbe-spelling-replacement">
           <span className="mfbe-spelling-label">{label('dialog.spelling.changeTo')}</span>
           <input
+            {...tip(t('tip.spelling.changeTo'))}
             id="mfbe-spelling-replacement"
             ref={replacementRef}
             className="mfbe-inputdialog-input"
@@ -162,6 +165,7 @@ export function SpellingDialog({ ctx, feature, onClose }: SpellingDialogProps) {
                 <li
                   key={`${index}-${suggestion}`}
                   role="option"
+                  {...tip(t('tip.spelling.suggestion'))}
                   aria-selected={suggestion === replacement}
                   className={`mfbe-spelling-suggestion${suggestion === replacement ? ' mfbe-spelling-suggestion-selected' : ''}`}
                   data-testid={`spelling-suggestion-${index}`}
@@ -175,6 +179,7 @@ export function SpellingDialog({ ctx, feature, onClose }: SpellingDialogProps) {
           </div>
           <div className="mfbe-spelling-actions">
             <button
+              {...tip(t('tip.spelling.ignore'))}
               type="button"
               className="mfbe-button"
               disabled={!atWord}
@@ -184,6 +189,7 @@ export function SpellingDialog({ ctx, feature, onClose }: SpellingDialogProps) {
               {label('dialog.spelling.ignore')}
             </button>
             <button
+              {...tip(t('tip.spelling.ignoreAll'))}
               type="button"
               className="mfbe-button"
               disabled={!atWord}
@@ -193,6 +199,7 @@ export function SpellingDialog({ ctx, feature, onClose }: SpellingDialogProps) {
               {label('dialog.spelling.ignoreAll')}
             </button>
             <button
+              {...tip(t('tip.spelling.change'))}
               type="button"
               className="mfbe-button mfbe-button-default"
               disabled={!atWord || !replacement}
@@ -202,6 +209,7 @@ export function SpellingDialog({ ctx, feature, onClose }: SpellingDialogProps) {
               {label('dialog.spelling.change')}
             </button>
             <button
+              {...tip(t('tip.spelling.changeAll'))}
               type="button"
               className="mfbe-button"
               disabled={!atWord || !replacement}
@@ -211,6 +219,7 @@ export function SpellingDialog({ ctx, feature, onClose }: SpellingDialogProps) {
               {label('dialog.spelling.changeAll')}
             </button>
             <button
+              {...tip(t('tip.spelling.add'))}
               type="button"
               className="mfbe-button"
               disabled={!atWord}
@@ -220,6 +229,7 @@ export function SpellingDialog({ ctx, feature, onClose }: SpellingDialogProps) {
               {label('dialog.spelling.add')}
             </button>
             <button
+              {...tip(t('tip.spelling.undo'))}
               type="button"
               className="mfbe-button"
               disabled={!state.canUndo || busy}
@@ -238,6 +248,7 @@ export function SpellingDialog({ ctx, feature, onClose }: SpellingDialogProps) {
             state.dictionaries.map((dictionary) => (
               <label key={dictionary.tag} className="mfbe-check-field">
                 <input
+                  {...tip(t('tip.spelling.dictionary'))}
                   type="checkbox"
                   checked={state.activeLangs.includes(dictionary.tag)}
                   disabled={busy}
