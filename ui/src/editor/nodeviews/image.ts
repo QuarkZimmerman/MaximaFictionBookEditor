@@ -231,9 +231,15 @@ export class ImageView implements NodeView {
     else this.dom.removeAttribute('data-id');
     this.dom.title = [title, alt, href].filter(Boolean).join('\n');
     this.img.alt = alt;
-    this.missing.textContent = this.options.getPlaceholderText
-      ? this.options.getPlaceholderText(pictureKind(href), href)
-      : `${this.options.getMissingText()} ${href}`.trim();
+    if (this.options.getPlaceholderText) {
+      // Feature 010 (D8): a block picture says its kind and how to fix it; an inline picture,
+      // inside a line of text, only its kind - the whole sentence is its tooltip.
+      const text = this.options.getPlaceholderText(pictureKind(href), href);
+      this.missing.textContent = this.inline ? (text.split(' - ')[0] ?? text) : text;
+      this.missing.title = text;
+    } else {
+      this.missing.textContent = `${this.options.getMissingText()} ${href}`.trim();
+    }
     const url = binaryPreviewUrl(this.options.getDocId(), href, this.options.previewWidth);
     this.reserveBox(url, href);
     if (url) {
