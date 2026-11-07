@@ -155,10 +155,20 @@
       "tooltip": "Check for new version",
       "description": "Look for a newer release of the editor on its release page"
     },
+    "image.change": {
+      "label": "Change picture...",
+      "tooltip": "Change picture",
+      "description": "Choose another image for the picture: one of the book's pictures or a file from disk"
+    },
     "image.saveAs": {
       "label": "Save image as...",
       "tooltip": "Save image as",
       "description": "Export the selected image to a file"
+    },
+    "image.show": {
+      "label": "Show picture",
+      "tooltip": "Show picture",
+      "description": "Show the picture enlarged in the picture view"
     },
     "insert.annotation": {
       "label": "A&nnotation",
@@ -797,10 +807,20 @@
       "tooltip": "Проверить новую версию",
       "description": "Найти более новый выпуск редактора на его странице выпусков"
     },
+    "image.change": {
+      "label": "Сменить картинку...",
+      "tooltip": "Сменить картинку",
+      "description": "Выбрать для картинки другое изображение: одну из картинок книги или файл с диска"
+    },
     "image.saveAs": {
       "label": "Сохранить картинку как...",
       "tooltip": "Сохранить картинку как",
       "description": "Сохранить выбранное изображение в файл"
+    },
+    "image.show": {
+      "label": "Показать картинку",
+      "tooltip": "Показать картинку",
+      "description": "Показать картинку увеличенной в окне просмотра"
     },
     "insert.annotation": {
       "label": "&Аннотация",
@@ -1439,10 +1459,20 @@
       "tooltip": "Перевірити нову версію",
       "description": "Знайти новіший випуск редактора на його сторінці випусків"
     },
+    "image.change": {
+      "label": "Змінити малюнок...",
+      "tooltip": "Змінити малюнок",
+      "description": "Вибрати для малюнка інше зображення: один із малюнків книги або файл із диска"
+    },
     "image.saveAs": {
       "label": "Зберегти малюнок як...",
       "tooltip": "Зберегти малюнок як",
       "description": "Зберегти вибране зображення у файл"
+    },
+    "image.show": {
+      "label": "Показати малюнок",
+      "tooltip": "Показати малюнок",
+      "description": "Показати малюнок збільшеним у вікні перегляду"
     },
     "insert.annotation": {
       "label": "&Анотація",

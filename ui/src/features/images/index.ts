@@ -13,6 +13,7 @@ import { choosePictureFor } from './choosePicture';
 import { installImageDragDrop } from './dragdrop';
 import { registerImageCommands } from './insert';
 import { installImagePaste } from './paste';
+import { registerPictureMenu } from './pictureMenu';
 import { registerSaveImageAs } from './saveAs';
 
 export { addBinaryToModel, referenceCounts, uploadBinary } from './binaries';
@@ -24,6 +25,8 @@ export function registerImagesFeature(ctx: FeatureContext): void {
   const { commands, store } = ctx;
   registerImageCommands(commands);
   registerSaveImageAs(store, commands);
+  // Feature 010 (D4, D5): Change picture… and Show picture; replaces the image slot's provider.
+  registerPictureMenu(store, commands);
   if (typeof document !== 'undefined') {
     installImagePaste(store);
     installImageDragDrop(store);

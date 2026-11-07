@@ -8,7 +8,10 @@
  * button and the drop-down are unavailable, the reference text stays selectable.
  */
 
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+
+import { PopupMenu } from '@/app/PopupMenu';
 
 import { useAppServices } from '@/app/services';
 import { binaryPreviewUrl } from '@/model/binaryUrls';
@@ -34,6 +37,8 @@ export function CoverList({ fieldKey, testPrefix }: CoverListProps) {
   const { controller, form, binaries, docId, readOnly } = useDescriptionForm();
   const covers = (getAtPath(form, fieldKey) as ImageRef[] | undefined) ?? [];
   const images = binaries.filter((b) => b.decodable);
+  // Feature 010 (D4): the cover thumbnail's context menu - Change picture…, Show picture.
+  const [menu, setMenu] = useState<{ x: number; y: number; index: number } | null>(null);
 
   const pick = async (current?: string): Promise<string | null> =>
     dialogs.openCustom<string | null>((close) => (
@@ -128,6 +133,10 @@ export function CoverList({ fieldKey, testPrefix }: CoverListProps) {
                 title={t('descriptionForm.cover.view')}
                 data-testid={`${testPrefix}-${index}-thumb`}
                 disabled={!coverBinary}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  setMenu({ x: event.clientX, y: event.clientY, index });
+                }}
                 onClick={() => {
                   // Feature 008 (D9, FR-051): the thumbnail shows the cover, as a thumbnail of the
                   // Binary objects list does (feature 007); Choose... opens the picker.
@@ -192,6 +201,30 @@ export function CoverList({ fieldKey, testPrefix }: CoverListProps) {
           );
         })
       )}
+      {menu ? (
+        <PopupMenu
+          testId="cover-context-menu"
+          position={{ x: menu.x, y: menu.y }}
+          onClose={() => setMenu(null)}
+          items={[
+            {
+              id: 'image.change',
+              label: t('images.cmd.change.label'),
+              enabled: !readOnly,
+              run: () => void change(menu.index),
+            },
+            {
+              id: 'image.show',
+              label: t('images.cmd.show.label'),
+              enabled: true,
+              run: () => {
+                const binary = images.find((b) => `#${b.id}` === covers[menu.index]?.href);
+                if (binary && docId) void openPictureView(dialogs, { docId, binary, store });
+              },
+            },
+          ]}
+        />
+      ) : null}
     </SubSection>
   );
 }

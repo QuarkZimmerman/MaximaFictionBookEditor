@@ -6,6 +6,16 @@
         "label": "Save image as...",
         "tooltip": "Save image as",
         "description": "Export the selected image to a file"
+      },
+      "change": {
+        "label": "Change picture...",
+        "tooltip": "Change picture",
+        "description": "Choose another image for the picture: one of the book's pictures or a file from disk"
+      },
+      "show": {
+        "label": "Show picture",
+        "tooltip": "Show picture",
+        "description": "Show the picture enlarged in the picture view"
       }
     },
     "saveAs": {
