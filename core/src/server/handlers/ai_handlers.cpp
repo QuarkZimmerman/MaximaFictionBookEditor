@@ -35,6 +35,7 @@
 #include <mfbe/recent_files.hpp>
 #include <mfbe/unicode.hpp>
 
+#include <algorithm>
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -256,6 +257,24 @@ AiRequestRecord base_record(Method method, const ResolvedTarget& target) {
     return record;
 }
 
+// Feature 010 (US11, D39): a model's thinking efforts where the service's list says them -
+// OpenRouter's `reasoning` among the supported parameters (its native `reasoning.effort`, with
+// OpenRouter's three levels). Anthropic's list names efforts too (`capabilities.effort`), but its
+// OpenAI-style interface - the only one the editor speaks - ignores both `reasoning_effort` and
+// `output_config.effort` (checked 2026-11-07 with a task that needs thinking: the same output
+// either way, while its own Messages API thinks longer at `high`), so they are not offered.
+void add_efforts(const json& item, json& model) {
+    if (item.contains("supported_parameters") && item["supported_parameters"].is_array()) {
+        for (const auto& parameter : item["supported_parameters"]) {
+            if (parameter.is_string() && parameter.get<std::string>() == "reasoning") {
+                model["efforts"] = json::array({"low", "medium", "high"});
+                model["effortParam"] = "reasoning.effort";
+                return;
+            }
+        }
+    }
+}
+
 // ai.models: a tolerant normalisation of the service's list (rpc-api §3.12, R3 §6.9).
 json normalise_models(const ai::HttpOutcome& outcome) {
     json result = outcome.to_json();
@@ -325,6 +344,7 @@ json normalise_models(const ai::HttpOutcome& outcome) {
                     }
                 }
             }
+            add_efforts(item, model);
         } else {
             continue;
         }

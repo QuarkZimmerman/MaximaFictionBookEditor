@@ -49,6 +49,8 @@ struct ServiceEntry {
     std::optional<std::string> terms_url;
     ServiceLimits limits;
     std::optional<std::int64_t> context_length;
+    // Feature 010 (US11, D39): the thinking efforts of the free service's model, if it has any.
+    std::vector<std::string> efforts;
     bool hidden = false;  // a user entry hiding the bundled id (the entry then needs nothing
                           // but its id); never set for a bundled entry
     Layer source = Layer::bundled;
@@ -61,6 +63,17 @@ struct ServiceEntry {
 
     bool has_key() const { return !key.empty(); }
     nlohmann::json to_json() const;  // the AiServiceEntry view: `hasKey`, never `key`
+};
+
+// Feature 010 (US11, D39, resource-formats §1): a known model name pattern (`*` wildcard,
+// case-insensitive) with its thinking efforts and the request member that carries the choice
+// (`reasoning_effort`, or a nested `reasoning.effort`).
+struct KnownModel {
+    std::string match;
+    std::vector<std::string> efforts;
+    std::string param = "reasoning_effort";
+
+    nlohmann::json to_json() const;
 };
 
 struct ServiceIssue {
@@ -96,6 +109,7 @@ struct UserLayer {
 struct ServiceList {
     std::vector<ServiceEntry> services;  // bundled order, user-only entries after
     std::vector<std::string> hidden;     // bundled ids removed by a user entry's hidden: true
+    std::vector<KnownModel> models;      // feature 010: the user file's first, then the bundled
     ServiceFiles files;
     std::vector<ServiceIssue> issues;
 
@@ -113,6 +127,7 @@ struct ServiceList {
 // whether `key` and `hidden` are honoured (user layers) or reported as badField (bundled).
 struct ParsedFile {
     std::vector<ServiceEntry> entries;
+    std::vector<KnownModel> models;
     std::vector<ServiceIssue> issues;
 };
 ParsedFile parse_services_file(const std::filesystem::path& file, std::string_view bytes,

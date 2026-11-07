@@ -908,6 +908,33 @@ TEST_CASE(
 }
 
 TEST_CASE(
+    "ai.models: thinking efforts from Anthropic's capabilities and OpenRouter's reasoning "
+    "parameter (feature 010, D39)",
+    "[ai][server][jobs]") {
+    test::HttpTestServer http;
+    AiFixture f;
+    use_custom(f, http, "", "");
+    http.route("GET", "/v1/models", test::ScriptedResponse::json(200, R"({"data":[
+        {"id":"claude-x","capabilities":{"effort":{"supported":true,"max":{"supported":true},
+          "low":{"supported":true},"high":{"supported":true},"medium":{"supported":false}}}},
+        {"id":"claude-none","capabilities":{"effort":{"supported":false,"low":{"supported":true}}}},
+        {"id":"router-model","supported_parameters":["tools","reasoning"]},
+        {"id":"plain"}]})"));
+    JobRun run = run_job(f, "ai.models", json{{"target", {{"kind", "custom"}}}});
+    REQUIRE(run.result);
+    const json& models = (*run.result)["models"];
+    REQUIRE(models.size() == 4);
+    // Anthropic's efforts are not offered: its OpenAI-style interface ignores them.
+    CHECK(models[0] == json{{"id", "claude-x"}});
+    CHECK(models[1] == json{{"id", "claude-none"}});
+    CHECK(models[2] == json{{"id", "router-model"},
+                            {"tools", true},
+                            {"efforts", json::array({"low", "medium", "high"})},
+                            {"effortParam", "reasoning.effort"}});
+    CHECK(models[3] == json{{"id", "plain"}});
+}
+
+TEST_CASE(
     "ai.models: OpenAI list and bare arrays (objects or strings) are accepted with "
     "contextLength and tools; other bodies are a format outcome",
     "[ai][server][jobs]") {
