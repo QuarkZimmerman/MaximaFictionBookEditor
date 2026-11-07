@@ -18,11 +18,13 @@ function normalised(body: unknown): string {
   const text = JSON.stringify(body, null, 2);
   return `${text
     .replace(/"call_[A-Za-z0-9_-]+"/g, '"call_<id>"')
-    // The version label the prompt names: 0.0.8-rc on the branch, 0.0.8-rc.1 on a tagged build.
+    // The version label the prompt names: 0.0.8-rc on the branch, 0.0.8-rc.2 on a tagged build...
     .replace(
       /Maxima Fiction Book Editor \d+\.\d+\.\d+(-[0-9A-Za-z.]+)?/g,
       'Maxima Fiction Book Editor <version>',
     )
+    // ... and the version of the editor in the context block the prompt carries (escaped JSON).
+    .replace(/(\\"version\\": \\")\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?(\\")/g, '$1<version>$3')
     .replace(/\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z\b/g, '<time>')}\n`;
 }
 
