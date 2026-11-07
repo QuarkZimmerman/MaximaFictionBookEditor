@@ -575,6 +575,11 @@
       "tooltip": "Tree: merge",
       "description": "Merge the selected section with the following section"
     },
+    "tree.moveDown": {
+      "label": "Tree: move down",
+      "tooltip": "Tree: move down",
+      "description": "Swap the selected section with the section after it"
+    },
     "tree.moveLeft": {
       "label": "Tree: move left",
       "tooltip": "Tree: move left",
@@ -584,6 +589,11 @@
       "label": "Tree: move right",
       "tooltip": "Tree: move right",
       "description": "Make the selected section a child of the previous section"
+    },
+    "tree.moveUp": {
+      "label": "Tree: move up",
+      "tooltip": "Tree: move up",
+      "description": "Swap the selected section with the section before it"
     },
     "tree.moveWithChildren": {
       "label": "Tree: move with children",
@@ -1227,6 +1237,11 @@
       "tooltip": "Структура: слить",
       "description": "Слить выбранную секцию со следующей"
     },
+    "tree.moveDown": {
+      "label": "Дерево: вниз",
+      "tooltip": "Дерево: вниз",
+      "description": "Поменять выбранную секцию местами со следующей"
+    },
     "tree.moveLeft": {
       "label": "Структура: сдвинуть влево",
       "tooltip": "Структура: сдвинуть влево",
@@ -1236,6 +1251,11 @@
       "label": "Структура: сдвинуть вправо",
       "tooltip": "Структура: сдвинуть вправо",
       "description": "Сделать выбранную секцию дочерней для предыдущей секции"
+    },
+    "tree.moveUp": {
+      "label": "Дерево: вверх",
+      "tooltip": "Дерево: вверх",
+      "description": "Поменять выбранную секцию местами с предыдущей"
     },
     "tree.moveWithChildren": {
       "label": "Структура: перенести с дочерними",
@@ -1879,6 +1899,11 @@
       "tooltip": "Структура: об'єднати",
       "description": "Об'єднати вибрану секцію з наступною"
     },
+    "tree.moveDown": {
+      "label": "Дерево: вниз",
+      "tooltip": "Дерево: вниз",
+      "description": "Поміняти вибрану секцію місцями з наступною"
+    },
     "tree.moveLeft": {
       "label": "Структура: перемістити ліворуч",
       "tooltip": "Структура: перемістити ліворуч",
@@ -1888,6 +1913,11 @@
       "label": "Структура: перемістити праворуч",
       "tooltip": "Структура: перемістити праворуч",
       "description": "Зробити вибрану секцію дочірньою для попередньої секції"
+    },
+    "tree.moveUp": {
+      "label": "Дерево: вгору",
+      "tooltip": "Дерево: вгору",
+      "description": "Поміняти вибрану секцію місцями з попередньою"
     },
     "tree.moveWithChildren": {
       "label": "Структура: перенести з дочірніми",

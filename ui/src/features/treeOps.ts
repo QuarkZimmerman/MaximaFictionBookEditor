@@ -38,9 +38,12 @@ import { createNodeIdGenerator } from '@/editor/schema';
 import type { BodyNode, Document } from '@/model/document';
 import type { ModelStep } from '@/views/body/bodyEditor';
 
-export type TreeOp = 'moveRight' | 'moveWithChildren' | 'moveLeft' | 'merge' | 'delete';
+export type TreeOp =
+  'moveUp' | 'moveDown' | 'moveRight' | 'moveWithChildren' | 'moveLeft' | 'merge' | 'delete';
 
 export const TREE_OPS: readonly TreeOp[] = [
+  'moveUp',
+  'moveDown',
   'moveRight',
   'moveWithChildren',
   'moveLeft',
@@ -362,6 +365,46 @@ export function moveWithChildren(
   return moveRightImpl(model, nodeId, true, options);
 }
 
+/**
+ * Feature 010 (D21): Move Up / Move Down - the section, with its subsections, swaps places with
+ * the sibling section before (-1) or after (+1) it; sections of one parent are contiguous, so the
+ * result stays valid FB2.
+ */
+function swapImpl(model: Document, nodeId: string, direction: -1 | 1): TreeOpResult {
+  const located = locateNode(model, nodeId);
+  if (!located) return { ok: false, reason: 'notFound' };
+  const { node, ancestors, index } = located;
+  if (!isSectionJson(node)) return { ok: false, reason: 'notASection' };
+  const parent = ancestors[ancestors.length - 1];
+  if (!parent) return { ok: false, reason: 'notASection' };
+  const other =
+    direction < 0
+      ? previousSectionIndex(parent, index)
+      : isSectionJson(parent.content?.[index + 1])
+        ? index + 1
+        : -1;
+  if (other < 0)
+    return { ok: false, reason: direction < 0 ? 'noPreviousSibling' : 'noNextSibling' };
+  const content = [...(parent.content ?? [])];
+  const moved = content[index]!;
+  content[index] = content[other]!;
+  content[other] = moved;
+  const after = withContent(parent, content);
+  const containerId = nodeIdOf(parent);
+  if (!containerId) return { ok: false, reason: 'notFound' };
+  return success(model, containerId, parent, after, nodeId);
+}
+
+/** Move Up: the section swaps places with the section before it (feature 010, D21). */
+export function moveUp(model: Document, nodeId: string): TreeOpResult {
+  return swapImpl(model, nodeId, -1);
+}
+
+/** Move Down: the section swaps places with the section after it (feature 010, D21). */
+export function moveDown(model: Document, nodeId: string): TreeOpResult {
+  return swapImpl(model, nodeId, 1);
+}
+
 /** Move Left: lift the section after its parent; the following siblings become its children. */
 export function moveLeft(
   model: Document,
@@ -559,6 +602,10 @@ export function runTreeOp(
   options: TreeOpOptions = {},
 ): TreeOpResult {
   switch (op) {
+    case 'moveUp':
+      return moveUp(model, nodeId);
+    case 'moveDown':
+      return moveDown(model, nodeId);
     case 'moveRight':
       return moveRight(model, nodeId, options);
     case 'moveWithChildren':
@@ -584,6 +631,10 @@ export function canRunTreeOp(op: TreeOp, model: Pick<Document, 'bodies'>, nodeId
   const { node, ancestors, index } = located;
   const parent = ancestors[ancestors.length - 1];
   switch (op) {
+    case 'moveUp':
+      return isSectionJson(node) && !!parent && previousSectionIndex(parent, index) >= 0;
+    case 'moveDown':
+      return isSectionJson(node) && !!parent && isSectionJson(parent.content?.[index + 1]);
     case 'moveRight':
     case 'moveWithChildren':
       return isSectionJson(node) && !!parent && previousSectionIndex(parent, index) >= 0;

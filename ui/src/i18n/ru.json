@@ -188,7 +188,9 @@
     "moveLeft": "Сдвинуть влево",
     "delete": "Удалить",
     "elements": "Элементы",
-    "scripts": "Скрипты"
+    "scripts": "Скрипты",
+    "moveUp": "Переместить вверх",
+    "moveDown": "Переместить вниз"
   },
   "toolbarMenu": {
     "customize": "Настройка панели..."

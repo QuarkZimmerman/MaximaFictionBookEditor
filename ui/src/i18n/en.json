@@ -186,7 +186,9 @@
     "moveLeft": "Move Left",
     "delete": "Delete",
     "elements": "Elements",
-    "scripts": "Scripts"
+    "scripts": "Scripts",
+    "moveUp": "Move Up",
+    "moveDown": "Move Down"
   },
   "toolbarMenu": {
     "customize": "Customize toolbar..."
