@@ -325,10 +325,26 @@ function cellSelector(scope: string, id: string, row: number, col: number): stri
 }
 
 /** The light-theme shots of the transparent pictures, with their cell colours. */
-async function transparentShots(page: Page): Promise<{ shot: string; colour: number[] }[]> {
-  // Feature 010 (D10): the pointer off the pictures - a picture under it shows its background
-  // switch, which is no part of the picture.
+/**
+ * Feature 010 (D9, D10): a picture has white behind it, in both themes; the cell colour shows
+ * through its transparent areas once its switch shows it on the page's own background - what these
+ * pixel checks are about. Afterwards the pointer leaves the pictures, so no switch is in the shots.
+ */
+async function showTransparentOnPage(page: Page): Promise<void> {
+  for (const { table, row, col } of TRANSPARENT) {
+    const picture = page.locator(`${cellSelector(BODY, table, row, col)} .fb-inline-image`);
+    if ((await picture.getAttribute('class'))?.includes('fb-picture-on-page')) continue;
+    await picture.hover();
+    const toggle = picture.getByTestId('picture-bg-switch');
+    await expect(toggle).toBeVisible();
+    await toggle.click();
+    await expect(picture).toHaveClass(/fb-picture-on-page/);
+  }
   await page.mouse.move(1, 1);
+}
+
+async function transparentShots(page: Page): Promise<{ shot: string; colour: number[] }[]> {
+  await showTransparentOnPage(page);
   const out: { shot: string; colour: number[] }[] = [];
   for (const { table, row, col } of TRANSPARENT) {
     const cell = cellSelector(BODY, table, row, col);
@@ -347,7 +363,7 @@ async function darkPixelChecks(
   light: { shot: string; colour: number[] }[] | null,
 ): Promise<string[]> {
   const problems: string[] = [];
-  await page.mouse.move(1, 1); // no background switch shown over a picture (feature 010, D10)
+  if (light) await showTransparentOnPage(page);
   if (light) {
     for (const [index, { table, row, col }] of TRANSPARENT.entries()) {
       const cell = cellSelector(BODY, table, row, col);

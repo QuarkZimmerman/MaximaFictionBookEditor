@@ -67,6 +67,9 @@ async function caretIn(page: Page, text: string, where: 'start' | 'end' | number
     return true;
   })()`);
   expect(placed, text).toBe(true);
+  // The editor takes the DOM's caret over asynchronously: the status bar shows the paragraph once
+  // it has (a menu opened before then greyed Add > Image on a slow macOS runner).
+  await expect(page.getByTestId('status-path')).toHaveText(/\/p\[\d+\]$/);
   await page.waitForTimeout(50);
 }
 
