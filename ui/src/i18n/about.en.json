@@ -29,6 +29,9 @@
       "dictionaryNoNotice": "This dictionary has no notice file.",
       "caBundle": {
         "caption": "Root certificate bundle of the Linux packages (used by the AI assistant's secure connections when the system provides none) and its notice:"
+      },
+      "fonts": {
+        "caption": "Noto Color Emoji, Noto Sans Symbols, Noto Sans Symbols 2 and Noto Sans Math (pictures of special characters in imported Markdown), SIL Open Font License 1.1:"
       }
     }
   }

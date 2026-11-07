@@ -80,14 +80,25 @@ never linked.
 | @modelcontextprotocol/client | 2.3.1 | Apache-2.0 | `ui/node_modules/@modelcontextprotocol/client/LICENSE` |
 | @modelcontextprotocol/core | 2.3.1 | Apache-2.0 | `ui/node_modules/@modelcontextprotocol/core/LICENSE` |
 | @modelcontextprotocol/server | 2.3.1 | Apache-2.0 | `ui/node_modules/@modelcontextprotocol/server/LICENSE` |
+| argparse | 3.0.4 | PSF-2.0 | `ui/node_modules/argparse/LICENSE` |
 | crelt | 1.0.7 | MIT | `ui/node_modules/crelt/LICENSE` |
 | cross-spawn | 7.0.6 | MIT | `ui/node_modules/cross-spawn/LICENSE` |
+| entities | 8.1.0 | BSD-2-Clause | `ui/node_modules/entities/LICENSE` |
 | eventsource | 3.0.7 | MIT | `ui/node_modules/eventsource/LICENSE` |
 | eventsource-parser | 3.1.1 | MIT | `ui/node_modules/eventsource-parser/LICENSE` |
 | html-parse-stringify | 4.0.1 | MIT | `ui/node_modules/html-parse-stringify/LICENSE` |
 | i18next | 26.4.4 | MIT | `ui/node_modules/i18next/LICENSE` |
 | isexe | 2.0.0 | ISC | `ui/node_modules/isexe/LICENSE` |
 | jose | 6.2.13 | MIT | `ui/node_modules/jose/LICENSE.md` |
+| linkify-it | 6.1.0 | MIT | `ui/node_modules/linkify-it/LICENSE` |
+| markdown-it | 15.0.3 | MIT | `ui/node_modules/markdown-it/LICENSE` |
+| markdown-it-attrs | 5.0.1 | MIT | `ui/node_modules/markdown-it-attrs/LICENSE` |
+| markdown-it-deflist | 4.0.0 | MIT | `ui/node_modules/markdown-it-deflist/LICENSE` |
+| markdown-it-footnote | 4.0.0 | MIT | `ui/node_modules/markdown-it-footnote/LICENSE` |
+| markdown-it-sub | 2.0.0 | MIT | `ui/node_modules/markdown-it-sub/LICENSE` |
+| markdown-it-sup | 2.0.0 | MIT | `ui/node_modules/markdown-it-sup/LICENSE` |
+| markdown-it-task-lists | 2.1.1 | ISC | `ui/node_modules/markdown-it-task-lists/LICENSE` |
+| mdurl | 2.1.0 | MIT | `ui/node_modules/mdurl/LICENSE` |
 | orderedmap | 2.1.1 | MIT | `ui/node_modules/orderedmap/LICENSE` |
 | path-key | 3.1.1 | MIT | `ui/node_modules/path-key/license` |
 | pkce-challenge | 5.0.1 | MIT | `ui/node_modules/pkce-challenge/LICENSE` |
@@ -99,6 +110,7 @@ never linked.
 | prosemirror-state | 1.4.4 | MIT | `ui/node_modules/prosemirror-state/LICENSE` |
 | prosemirror-transform | 1.12.2 | MIT | `ui/node_modules/prosemirror-transform/LICENSE` |
 | prosemirror-view | 1.42.6 | MIT | `ui/node_modules/prosemirror-view/LICENSE` |
+| punycode.js | 2.3.1 | MIT | `ui/node_modules/punycode.js/LICENSE-MIT.txt` |
 | react | 19.3.0 | MIT | `ui/node_modules/react/LICENSE` |
 | react-dom | 19.3.0 | MIT | `ui/node_modules/react-dom/LICENSE` |
 | react-i18next | 17.0.16 | MIT | `ui/node_modules/react-i18next/LICENSE` |
@@ -107,6 +119,7 @@ never linked.
 | shebang-command | 2.0.0 | MIT | `ui/node_modules/shebang-command/license` |
 | shebang-regex | 3.0.0 | MIT | `ui/node_modules/shebang-regex/license` |
 | style-mod | 4.1.4 | MIT | `ui/node_modules/style-mod/LICENSE` |
+| uc.micro | 3.0.0 | MIT | `ui/node_modules/uc.micro/LICENSE.txt` |
 | use-sync-external-store | 1.7.0 | MIT | `ui/node_modules/use-sync-external-store/LICENSE` |
 | w3c-keyname | 2.2.8 | MIT | `ui/node_modules/w3c-keyname/LICENSE` |
 | which | 2.0.2 | ISC | `ui/node_modules/which/LICENSE` |
@@ -128,6 +141,10 @@ distributed and are therefore not listed.
 
 | Component | Version | Licence | Full text | Notes |
 |---|---|---|---|---|
+| @fontsource/noto-color-emoji | 5.3.2 | OFL-1.1 | `ui/node_modules/@fontsource/noto-color-emoji/LICENSE` | font files shipped as separate files of the interface and read at run time by the Markdown import to draw pictures of special characters; not combined into the program (aggregate, GPLv3 section 5; feature 010, PD2); the OFL text ships as ui/public/fonts/OFL-1.1.txt |
+| @fontsource/noto-sans-math | 5.3.0 | OFL-1.1 | `ui/node_modules/@fontsource/noto-sans-math/LICENSE` | font files shipped as separate files of the interface and read at run time by the Markdown import to draw pictures of special characters; not combined into the program (aggregate, GPLv3 section 5; feature 010, PD2); the OFL text ships as ui/public/fonts/OFL-1.1.txt |
+| @fontsource/noto-sans-symbols | 5.3.0 | OFL-1.1 | `ui/node_modules/@fontsource/noto-sans-symbols/LICENSE` | font files shipped as separate files of the interface and read at run time by the Markdown import to draw pictures of special characters; not combined into the program (aggregate, GPLv3 section 5; feature 010, PD2); the OFL text ships as ui/public/fonts/OFL-1.1.txt |
+| @fontsource/noto-sans-symbols-2 | 5.3.0 | OFL-1.1 | `ui/node_modules/@fontsource/noto-sans-symbols-2/LICENSE` | font files shipped as separate files of the interface and read at run time by the Markdown import to draw pictures of special characters; not combined into the program (aggregate, GPLv3 section 5; feature 010, PD2); the OFL text ships as ui/public/fonts/OFL-1.1.txt |
 | Hunspell dictionary uk_UA (dict_uk) | dict_uk release v6.8.6 | MPL-1.1 | `resources/dictionaries/uk_UA.txt` | uk_UA.aff and uk_UA.dic are read at run time by Hunspell and not combined into the program (aggregate, GPLv3 section 5; decision D16); the upstream generator notice also names GPL-3.0-or-later and LGPL-2.1-or-later; notice installed as share/mfbe/resources/dictionaries/uk_UA.txt and shown in About |
 | Mozilla CA certificate bundle (cacert.pem, as published by the curl project) | Mozilla root store as of 2026-10-20; SHA-256 796f1389bfea | MPL-2.0 | `resources/certs/cacert.NOTICE.txt` | cacert.pem is read at run time by libcurl, on Linux only and only when neither the environment nor the distribution provides a CA bundle, and is not combined into the program (aggregate, GPLv3 section 5; decision D16); the Linux packages ship it with its notice as share/mfbe/resources/certs/, Windows and macOS use the system stores and carry nothing of it; the notice is shown in About on Linux; the MPL-2.0 text is resources/certs/MPL-2.0.txt, exported next to the notice |
 
@@ -154,11 +171,12 @@ ship with the Linux packages only (resources/certs/, refreshed by tools/refresh-
 
 | Licence | Components |
 |---|---|
-| MIT | 51 |
+| MIT | 61 |
 | Apache-2.0 | 5 |
 | BSD-3-Clause | 5 |
-| BSD-2-Clause | 2 |
-| ISC | 2 |
+| OFL-1.1 | 4 |
+| BSD-2-Clause | 3 |
+| ISC | 3 |
 | LGPL-2.1-or-later | 2 |
 | Apache-2.0 AND MIT | 1 |
 | BSD-3-Clause AND IJG | 1 |
@@ -167,6 +185,7 @@ ship with the Linux packages only (resources/certs/, refreshed by tools/refresh-
 | GPL-3.0-only | 1 |
 | MPL-1.1 | 1 |
 | MPL-2.0 | 1 |
+| PSF-2.0 | 1 |
 | SCOWL AND BSD-style AND public-domain | 1 |
 | Zlib | 1 |
 | bzip2-1.0.6 | 1 |
