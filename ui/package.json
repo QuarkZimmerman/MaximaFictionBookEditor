@@ -23,6 +23,7 @@
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",
     "@codemirror/commands": "^6.11.1",
+    "@codemirror/lang-css": "6.3.1",
     "@codemirror/lang-xml": "^6.1.0",
     "@codemirror/language": "^6.13.1",
     "@codemirror/search": "^6.7.2",
@@ -35,6 +36,7 @@
     "@lezer/highlight": "^1.2.5",
     "@modelcontextprotocol/client": "2.3.1",
     "@modelcontextprotocol/server": "2.3.1",
+    "css-tree": "3.2.1",
     "i18next": "^26.4.4",
     "markdown-it": "15.0.3",
     "markdown-it-attrs": "5.0.1",

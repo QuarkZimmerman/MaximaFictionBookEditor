@@ -66,6 +66,7 @@ never linked.
 | @babel/runtime | 7.29.10 | MIT | `ui/node_modules/@babel/runtime/LICENSE` |
 | @codemirror/autocomplete | 6.20.3 | MIT | `ui/node_modules/@codemirror/autocomplete/LICENSE` |
 | @codemirror/commands | 6.11.1 | MIT | `ui/node_modules/@codemirror/commands/LICENSE` |
+| @codemirror/lang-css | 6.3.1 | MIT | `ui/node_modules/@codemirror/lang-css/LICENSE` |
 | @codemirror/lang-xml | 6.1.0 | MIT | `ui/node_modules/@codemirror/lang-xml/LICENSE` |
 | @codemirror/language | 6.13.1 | MIT | `ui/node_modules/@codemirror/language/LICENSE` |
 | @codemirror/search | 6.7.2 | MIT | `ui/node_modules/@codemirror/search/LICENSE` |
@@ -73,6 +74,7 @@ never linked.
 | @codemirror/streamparser | 6.0.0 | MIT | `ui/node_modules/@codemirror/streamparser/LICENSE` |
 | @codemirror/view | 6.43.14 | MIT | `ui/node_modules/@codemirror/view/LICENSE` |
 | @lezer/common | 1.5.3 | MIT | `ui/node_modules/@lezer/common/LICENSE` |
+| @lezer/css | 1.3.9 | MIT | `ui/node_modules/@lezer/css/LICENSE` |
 | @lezer/highlight | 1.2.5 | MIT | `ui/node_modules/@lezer/highlight/LICENSE` |
 | @lezer/lr | 1.4.11 | MIT | `ui/node_modules/@lezer/lr/LICENSE` |
 | @lezer/xml | 1.0.6 | MIT | `ui/node_modules/@lezer/xml/LICENSE` |
@@ -83,6 +85,7 @@ never linked.
 | argparse | 3.0.4 | PSF-2.0 | `ui/node_modules/argparse/LICENSE` |
 | crelt | 1.0.7 | MIT | `ui/node_modules/crelt/LICENSE` |
 | cross-spawn | 7.0.6 | MIT | `ui/node_modules/cross-spawn/LICENSE` |
+| css-tree | 3.2.1 | MIT | `ui/node_modules/css-tree/LICENSE` |
 | entities | 8.1.0 | BSD-2-Clause | `ui/node_modules/entities/LICENSE` |
 | eventsource | 3.0.7 | MIT | `ui/node_modules/eventsource/LICENSE` |
 | eventsource-parser | 3.1.1 | MIT | `ui/node_modules/eventsource-parser/LICENSE` |
@@ -98,6 +101,7 @@ never linked.
 | markdown-it-sub | 2.0.0 | MIT | `ui/node_modules/markdown-it-sub/LICENSE` |
 | markdown-it-sup | 2.0.0 | MIT | `ui/node_modules/markdown-it-sup/LICENSE` |
 | markdown-it-task-lists | 2.1.1 | ISC | `ui/node_modules/markdown-it-task-lists/LICENSE` |
+| mdn-data | 2.27.1 | CC0-1.0 | `ui/node_modules/mdn-data/LICENSE` |
 | mdurl | 2.1.0 | MIT | `ui/node_modules/mdurl/LICENSE` |
 | orderedmap | 2.1.1 | MIT | `ui/node_modules/orderedmap/LICENSE` |
 | path-key | 3.1.1 | MIT | `ui/node_modules/path-key/license` |
@@ -118,6 +122,7 @@ never linked.
 | scheduler | 0.28.0 | MIT | `ui/node_modules/scheduler/LICENSE` |
 | shebang-command | 2.0.0 | MIT | `ui/node_modules/shebang-command/license` |
 | shebang-regex | 3.0.0 | MIT | `ui/node_modules/shebang-regex/license` |
+| source-map-js | 1.2.2 | BSD-3-Clause | `ui/node_modules/source-map-js/LICENSE` |
 | style-mod | 4.1.4 | MIT | `ui/node_modules/style-mod/LICENSE` |
 | uc.micro | 3.0.0 | MIT | `ui/node_modules/uc.micro/LICENSE.txt` |
 | use-sync-external-store | 1.7.0 | MIT | `ui/node_modules/use-sync-external-store/LICENSE` |
@@ -171,9 +176,9 @@ ship with the Linux packages only (resources/certs/, refreshed by tools/refresh-
 
 | Licence | Components |
 |---|---|
-| MIT | 61 |
+| MIT | 64 |
+| BSD-3-Clause | 6 |
 | Apache-2.0 | 5 |
-| BSD-3-Clause | 5 |
 | OFL-1.1 | 4 |
 | BSD-2-Clause | 3 |
 | ISC | 3 |
@@ -182,6 +187,7 @@ ship with the Linux packages only (resources/certs/, refreshed by tools/refresh-
 | BSD-3-Clause AND IJG | 1 |
 | BSD-3-Clause AND ISC AND curl | 1 |
 | BSD-style | 1 |
+| CC0-1.0 | 1 |
 | GPL-3.0-only | 1 |
 | MPL-1.1 | 1 |
 | MPL-2.0 | 1 |
