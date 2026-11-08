@@ -18,6 +18,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  # Feature 011 (D48): a Node deprecation warning fails the step that prints it.
+  NODE_OPTIONS: --throw-deprecation
   VCPKG_BINARY_SOURCES: "clear;files,${{ github.workspace }}/.vcpkg-cache,readwrite"
 
 jobs:
@@ -196,6 +198,9 @@ jobs:
         if: failure()
         shell: bash
         run: tools/ci/annotate-failure.sh "$RUNNER_TEMP/build.log" "Build"
+      - name: Recorded warnings (feature 011, D48)
+        shell: bash
+        run: tools/ci/warning-scan.sh "$RUNNER_TEMP/build.log"
       - name: macOS deployment target of the core build (feature 011)
         if: runner.os == 'macOS'
         shell: bash
@@ -550,6 +555,9 @@ jobs:
         if: failure()
         shell: bash
         run: tools/ci/annotate-failure.sh "$RUNNER_TEMP/build.log" "Build"
+      - name: Recorded warnings (feature 011, D48)
+        shell: bash
+        run: tools/ci/warning-scan.sh "$RUNNER_TEMP/build.log"
 
       # The shipped configuration is built without the test-only RPC hooks, so the core test
       # suite (which drives them) runs in the `core` job; here the application is exercised.

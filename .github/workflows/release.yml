@@ -36,6 +36,8 @@ permissions:
   contents: write
 
 env:
+  # Feature 011 (D48): a Node deprecation warning fails the step that prints it.
+  NODE_OPTIONS: --throw-deprecation
   VCPKG_BINARY_SOURCES: "clear;files,${{ github.workspace }}/.vcpkg-cache,readwrite"
 
 jobs:
@@ -201,6 +203,9 @@ jobs:
         if: failure()
         shell: bash
         run: tools/ci/annotate-failure.sh "$RUNNER_TEMP/build.log" "Build"
+      - name: Recorded warnings (feature 011, D48)
+        shell: bash
+        run: tools/ci/warning-scan.sh "$RUNNER_TEMP/build.log"
       # Feature 011 (D47, FR-086): no object built for a newer macOS than the editor targets, and
       # no Mach-O of the application bundle requiring more than macOS 13.0.
       - name: macOS deployment target (feature 011)
