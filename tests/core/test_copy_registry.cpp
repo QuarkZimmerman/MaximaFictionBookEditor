@@ -46,7 +46,7 @@ TEST_CASE("copies: another copy reads the record with its book, window and state
     mfbe::test::TempDir tmp;
     CopyRegistry a(tmp.path());
     REQUIRE(a.acquire());
-    a.set_book(BookRef{"/books/Книга один.fb2", "dev:1/ino:2"});
+    a.set_book(BookRef{.path = "/books/Книга один.fb2", .file_id = "dev:1/ino:2", .entry = {}});
     a.set_window(WindowRect{100, 80, 1200, 800, false});
     a.set_state("busy");
     a.set_untouched(false);

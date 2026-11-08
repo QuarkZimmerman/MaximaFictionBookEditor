@@ -63,7 +63,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/.vcpkg-cache
-          key: docs-vcpkg-${{ matrix.target }}-${{ hashFiles('vcpkg.json', 'CMakePresets.json') }}
+          key: docs-vcpkg-${{ matrix.target }}-${{ hashFiles('vcpkg.json', 'CMakePresets.json', 'triplets/*.cmake') }}
           restore-keys: docs-vcpkg-${{ matrix.target }}-
 
       # Windows prerequisites are manual installer steps in the guide (section 1): the runner

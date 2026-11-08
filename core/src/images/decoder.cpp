@@ -38,6 +38,8 @@
 #pragma GCC diagnostic ignored "-Wsign-compare"
 #endif
 #include <stb_image.h>
+
+#include "setjmp_frame.hpp"
 #if defined(__GNUC__)
 #pragma GCC diagnostic pop
 #endif
@@ -154,6 +156,18 @@ void jpeg_decode_body(JpegState& st, std::string_view bytes) {
     st.bitmap.has_alpha = false;
 }
 
+// The only frame between libjpeg's setjmp and its longjmp. It holds no object with a destructor
+// (MSVC's C4611), so a libjpeg error skips nothing; C++ exceptions of jpeg_decode_body pass through.
+// False after a libjpeg error (the message in st->err).
+static MFBE_SETJMP_FRAME bool jpeg_run(JpegState* st, std::string_view bytes) {
+    if (setjmp(st->err.jump)) {
+        return false;
+    }
+    jpeg_create_decompress(&st->cinfo);
+    jpeg_decode_body(*st, bytes);
+    return true;
+}
+
 Bitmap decode_jpeg(std::string_view bytes, int min_width, int min_height) {
     auto st = std::make_unique<JpegState>();
     st->min_width = min_width;
@@ -161,27 +175,17 @@ Bitmap decode_jpeg(std::string_view bytes, int min_width, int min_height) {
     st->cinfo.err = jpeg_std_error(&st->err.pub);
     st->err.pub.error_exit = jpeg_error_exit;
     st->err.pub.output_message = jpeg_output_message;
-    // C4611 (setjmp next to C++ objects): the longjmp lands in this frame, whose only object is
-    // the unique_ptr, and jpeg_decode_body holds nothing with a destructor while libjpeg runs.
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 4611)
-#endif
-    if (setjmp(st->err.jump)) {
-        jpeg_destroy_decompress(&st->cinfo);
-        throw DecodeError("corrupt", std::string("JPEG: ") + st->err.message);
-    }
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
-    jpeg_create_decompress(&st->cinfo);
+    bool ok = false;
     try {
-        jpeg_decode_body(*st, bytes);
+        ok = jpeg_run(st.get(), bytes);
     } catch (...) {
         jpeg_destroy_decompress(&st->cinfo);
         throw;
     }
     jpeg_destroy_decompress(&st->cinfo);
+    if (!ok) {
+        throw DecodeError("corrupt", std::string("JPEG: ") + st->err.message);
+    }
     return std::move(st->bitmap);
 }
 
@@ -256,6 +260,15 @@ void png_decode_body(PngState& st, png_structp png, png_infop info) {
     st.bitmap.update_alpha_flag();
 }
 
+// As jpeg_run, for libpng: false after a libpng error (the message in st->error).
+static MFBE_SETJMP_FRAME bool png_run(PngState* st, png_structp png, png_infop info) {
+    if (setjmp(png_jmpbuf(png))) {
+        return false;
+    }
+    png_decode_body(*st, png, info);
+    return true;
+}
+
 Bitmap decode_png(std::string_view bytes) {
     auto st = std::make_unique<PngState>();
     st->data = bytes;
@@ -269,17 +282,17 @@ Bitmap decode_png(std::string_view bytes) {
         png_destroy_read_struct(&png, nullptr, nullptr);
         throw DecodeError("corrupt", "PNG: cannot create info");
     }
-    if (setjmp(png_jmpbuf(png))) {
-        png_destroy_read_struct(&png, &info, nullptr);
-        throw DecodeError("corrupt", "PNG: " + st->error);
-    }
+    bool ok = false;
     try {
-        png_decode_body(*st, png, info);
+        ok = png_run(st.get(), png, info);
     } catch (...) {
         png_destroy_read_struct(&png, &info, nullptr);
         throw;
     }
     png_destroy_read_struct(&png, &info, nullptr);
+    if (!ok) {
+        throw DecodeError("corrupt", "PNG: " + st->error);
+    }
     return std::move(st->bitmap);
 }
 
@@ -587,3 +600,4 @@ std::optional<Bitmap> try_decode(std::string_view bytes, std::string* error) {
 }
 
 }  // namespace mfbe::images
+

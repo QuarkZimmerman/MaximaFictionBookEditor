@@ -98,6 +98,31 @@ TEST_CASE("images: every fixture format decodes to an 8x6 RGBA bitmap", "[images
     CHECK_FALSE(images::decode(fixture("opaque-rgb.png")).has_alpha);
 }
 
+TEST_CASE("images: a codec error in the middle of decoding is refused and leaks nothing (feature 011)",
+          "[images]") {
+    // D48: libjpeg's and libpng's error jumps land in frames without C++ objects with destructors;
+    // the repetitions let the sanitizer job see any leak of the codecs' state.
+    std::string jpeg = fixture("tiny.jpg");
+    std::size_t sof = jpeg.find(std::string("\xFF\xC0", 2));
+    if (sof == std::string::npos) {
+        sof = jpeg.find(std::string("\xFF\xC2", 2));
+    }
+    REQUIRE(sof != std::string::npos);
+    jpeg[sof + 7] = 0;  // a frame header claiming zero width: fatal inside jpeg_read_header
+    jpeg[sof + 8] = 0;
+    std::string png = fixture("tiny.png");
+    const std::size_t idat = png.find("IDAT");
+    REQUIRE(idat != std::string::npos);
+    png[idat + 6] = static_cast<char>(png[idat + 6] ^ 0x5A);  // a broken IDAT CRC: fatal mid-read
+    for (int i = 0; i < 50; ++i) {
+        std::string error;
+        CHECK_FALSE(images::try_decode(jpeg, &error));
+        CHECK(error.find("corrupt") == 0);
+        CHECK_FALSE(images::try_decode(png, &error));
+        CHECK(error.find("corrupt") == 0);
+    }
+}
+
 TEST_CASE("images: undecodable or oversized data is refused with a clear error", "[images]") {
     std::string error;
     CHECK_FALSE(images::try_decode("not an image at all", &error));
