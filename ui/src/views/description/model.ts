@@ -158,6 +158,71 @@ export function emptyPerson(): Person {
   return { homePages: [], emails: [] };
 }
 
+/**
+ * Feature 011 (D1, D2; FR-001, FR-002): the person in one of the schema's forms - a nickname alone,
+ * or a first and a last name, each empty ('') when not filled in. Everything else is kept.
+ */
+export function schemaPerson(person: Person): Person {
+  const nicknameOnly =
+    !!cleanText(person.nickname) &&
+    !cleanText(person.firstName) &&
+    !cleanText(person.middleName) &&
+    !cleanText(person.lastName);
+  if (nicknameOnly) return person;
+  return { ...person, firstName: person.firstName ?? '', lastName: person.lastName ?? '' };
+}
+
+/** The author a required list holds when nobody is filled in: empty first and last names (D1). */
+export function emptyAuthor(): Person {
+  return { firstName: '', lastName: '', homePages: [], emails: [] };
+}
+
+/**
+ * A list the schema requires (the book's, the source book's and the document's authors): its
+ * persons cleaned and in the schema's forms, and one empty author when none is left (FR-001).
+ */
+export function requiredPersons(list: readonly Person[] | undefined): Person[] {
+  const persons = cleanPersons(list).map(schemaPerson);
+  return persons.length > 0 ? persons : [emptyAuthor()];
+}
+
+/** An optional list (translators, publishers): empty persons dropped, the others in form (FR-002). */
+export function optionalPersons(list: readonly Person[] | undefined): Person[] {
+  return cleanPersons(list).map(schemaPerson);
+}
+
+/**
+ * Feature 011 (FR-003): a description an edit wrote - a script's or the assistant's, the import's -
+ * with its persons in the schema's forms, as the Description view's own commits are. Values are
+ * kept as given (no trimming), so nothing but the persons' forms changes.
+ */
+export function withSchemaPersons(description: Description): Description {
+  const fixInfo = (info: TitleInfo): TitleInfo => ({
+    ...info,
+    authors: requiredFormsOf(info.authors),
+    translators: optionalFormsOf(info.translators),
+  });
+  return {
+    ...description,
+    titleInfo: fixInfo(description.titleInfo),
+    ...(description.srcTitleInfo ? { srcTitleInfo: fixInfo(description.srcTitleInfo) } : {}),
+    documentInfo: {
+      ...description.documentInfo,
+      authors: requiredFormsOf(description.documentInfo.authors),
+      publishers: optionalFormsOf(description.documentInfo.publishers),
+    },
+  };
+}
+
+function requiredFormsOf(list: readonly Person[] | undefined): Person[] {
+  const persons = (list ?? []).filter((person) => !personEmpty(person)).map(schemaPerson);
+  return persons.length > 0 ? persons : [emptyAuthor()];
+}
+
+function optionalFormsOf(list: readonly Person[] | undefined): Person[] {
+  return (list ?? []).filter((person) => !personEmpty(person)).map(schemaPerson);
+}
+
 /* ------------------------------------------------------------------------ */
 /* Sequences, genres, dates, custom info                                    */
 /* ------------------------------------------------------------------------ */
@@ -317,7 +382,7 @@ function foldCustomInfo(form: FormLike): CustomInfo[] {
 export function cleanTitleInfo(info: TitleInfo): TitleInfo {
   const out: TitleInfo = {
     genres: cleanGenres(info.genres),
-    authors: cleanPersons(info.authors),
+    authors: requiredPersons(info.authors),
     bookTitle: (info.bookTitle ?? '').trim(),
     coverpage: (info.coverpage ?? [])
       .filter((ref) => (ref.href ?? '').trim().length > 0)
@@ -332,7 +397,7 @@ export function cleanTitleInfo(info: TitleInfo): TitleInfo {
         return image;
       }),
     lang: (info.lang ?? '').trim(),
-    translators: cleanPersons(info.translators),
+    translators: optionalPersons(info.translators),
     sequences: cleanSequences(info.sequences),
   };
   // A present node passes through whatever its content (feature 004, FR-010/FR-015): the file's
@@ -353,7 +418,7 @@ export function titleInfoEmpty(info: TitleInfo): boolean {
   const cleaned = cleanTitleInfo(info);
   return (
     cleaned.genres.length === 0 &&
-    cleaned.authors.length === 0 &&
+    cleanPersons(info.authors).length === 0 &&
     !cleaned.bookTitle &&
     !cleaned.annotation &&
     !cleaned.keywords &&
@@ -368,12 +433,12 @@ export function titleInfoEmpty(info: TitleInfo): boolean {
 
 export function cleanDocumentInfo(info: DocumentInfo): DocumentInfo {
   const out: DocumentInfo = {
-    authors: cleanPersons(info.authors),
+    authors: requiredPersons(info.authors),
     date: cleanDate(info.date) ?? { text: '' },
     srcUrls: cleanList(info.srcUrls),
     id: (info.id ?? '').trim(),
     version: (info.version ?? '').trim(),
-    publishers: cleanPersons(info.publishers),
+    publishers: optionalPersons(info.publishers),
   };
   const programUsed = cleanText(info.programUsed);
   if (programUsed) out.programUsed = programUsed;

@@ -22,6 +22,7 @@
  * Source-only fallback here), 1002 unreadable or missing - one message, the document untouched.
  */
 
+import { withSchemaPersons } from '@/views/description/model';
 import i18next from 'i18next';
 import { createElement } from 'react';
 
@@ -206,11 +207,14 @@ export async function importDescription(ctx: CommandContext): Promise<boolean> {
     const { map, added } = await copyBinaries(ctx, docId, read.importId, chosen);
     const after: Document = {
       ...before,
-      description: applyEntries(
-        before.description,
-        read,
-        chosen.map((entry) => entry.key),
-        map,
+      // Feature 011 (FR-003): the persons of an imported description take the schema's forms.
+      description: withSchemaPersons(
+        applyEntries(
+          before.description,
+          read,
+          chosen.map((entry) => entry.key),
+          map,
+        ),
       ),
       binaries: [...before.binaries, ...added],
     };

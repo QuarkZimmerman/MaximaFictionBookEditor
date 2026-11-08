@@ -23,7 +23,7 @@
       "id": "Author ID:",
       "homePage": "Website:",
       "email": "E-mail:",
-      "incomplete": "Enter a first and last name, or a nickname alone; otherwise the entry is not valid."
+      "incomplete": "Enter a first and a last name, or a nickname alone."
     },
     "sequence": {
       "name": "Name:",

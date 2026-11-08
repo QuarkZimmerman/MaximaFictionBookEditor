@@ -18,6 +18,7 @@
 
 import type { ModelNodeJson } from '@/editor/fromModel';
 import type { Description, Document } from '@/model/document';
+import { withSchemaPersons } from '@/views/description/model';
 
 /** Where a node lies: its parent (null for a body), the children list holding it and its index. */
 export interface NodePlace {
@@ -162,8 +163,9 @@ export class WorkingCopy {
     this.touch();
   }
 
+  /** Feature 011 (FR-003): a script's or the assistant's description, its persons in the schema's forms. */
   setDescription(description: Description): void {
-    this.ownDocument().description = description;
+    this.ownDocument().description = withSchemaPersons(description);
     this.touch();
   }
 

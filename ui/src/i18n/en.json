@@ -905,7 +905,8 @@
       "externalHref": "Image \"{{href}}\" refers to an external file"
     },
     "description": {
-      "emptyRequired": "Required element \"{{element}}\" is missing or empty"
+      "emptyRequired": "Required element \"{{element}}\" is missing or empty",
+      "emptyAuthor": "Required element \"author\" has neither a name nor a nickname"
     }
   },
   "error": {

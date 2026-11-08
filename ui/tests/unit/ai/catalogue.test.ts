@@ -1777,7 +1777,8 @@ describe('set_description', () => {
     expect(copy.documentInfo.history!.attrs.nodeId).toMatch(/^sc_/);
     expect(copy.srcTitleInfo).toEqual({
       genres: [],
-      authors: [],
+      // Feature 011 (FR-001, FR-003): the source book's required authors keep the empty author.
+      authors: [{ firstName: '', lastName: '', homePages: [], emails: [] }],
       bookTitle: 'Original',
       coverpage: [],
       lang: 'fr',

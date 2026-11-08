@@ -28,7 +28,7 @@
  */
 
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -658,6 +658,22 @@ function fileFailsValidation(path: string): boolean {
   }
 }
 
+/**
+ * Whether the effective template - what a new book starts from - fails validation (the bundled
+ * one has an empty genre): a journey on a new book then did not start from a valid book.
+ */
+async function templateFailsValidation(core: CoreHandle): Promise<boolean> {
+  const { xml } = await core.rpc<{ xml: string }>('template.xml');
+  const dir = await mkdtemp(path.join(tmpdir(), 'mfbe-template-'));
+  try {
+    const file = path.join(dir, 'template.fb2');
+    writeFileSync(file, xml, 'utf8');
+    return fileFailsValidation(file);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
 export const test = base.extend<
   { core: CoreHandle; testCore: CoreServer; bookValidity: void } & CoreOptions,
   { coreServer: CoreServer; standin: StandinHandle }
@@ -758,15 +774,16 @@ export const test = base.extend<
       if (testInfo.tags.includes('@enters-invalid')) return;
       const result = await page
         .evaluate(async () => {
-          const hooks = (
-            globalThis as { __mfbeTest?: { book?: { validate(): Promise<unknown> } } }
-          ).__mfbeTest;
+          const hooks = (globalThis as { __mfbeTest?: { book?: { validate(): Promise<unknown> } } })
+            .__mfbeTest;
           return (await hooks?.book?.validate()) ?? null;
         })
         .catch(() => null);
       const report = result as { errorCount: number; path: string | null; codes: string[] } | null;
       if (!report || report.errorCount === 0) return;
-      if (report.path && fileFailsValidation(report.path)) return;
+      if (report.path ? fileFailsValidation(report.path) : await templateFailsValidation(core)) {
+        return;
+      }
       throw new Error(
         `SC-013: the journey ended with an invalid book (${report.errorCount} errors: ` +
           `${report.codes.join(', ')}); tag it @enters-invalid if it means to leave the book invalid`,

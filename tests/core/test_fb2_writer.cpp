@@ -1220,3 +1220,80 @@ TEST_CASE(
         }
     }
 }
+
+// Feature 011 (US1; D1-D3, FR-001-FR-003): persons in the schema's forms.
+namespace {
+
+std::string written_text(const Loaded& l, const model::Document& document) {
+    fb2::WriteOptions options;
+    options.xlink_prefix = l.result.xlink_prefix;
+    return fb2::write_document(document, &l.store, options).text;
+}
+
+std::size_t error_count(const Loaded& l, const model::Document& document) {
+    return validation::validate_document(document, &l.store, l.result.xlink_prefix).errorCount;
+}
+
+model::Person person(std::optional<std::string> first, std::optional<std::string> last,
+                     std::optional<std::string> nick = std::nullopt) {
+    model::Person p;
+    p.firstName = std::move(first);
+    p.lastName = std::move(last);
+    p.nickname = std::move(nick);
+    return p;
+}
+
+}  // namespace
+
+TEST_CASE("writer: a required list without persons is written as read (feature 011, FR-003)",
+          "[writer][persons]") {
+    // A book without the element round-trips; the editor's edits never send an empty list - the
+    // interface puts the schema's empty author in (ui/src/views/description/model.ts).
+    auto l = load("modern-utf8.fb2");
+    model::Document doc = l->result.document;
+    doc.description.titleInfo.authors.clear();
+    CHECK_THAT(written_text(*l, doc), ContainsSubstring("<author/>"));
+}
+
+TEST_CASE("writer: persons the interface put in the schema's forms validate (feature 011)",
+          "[writer][persons]") {
+    auto l = load("modern-utf8.fb2");
+    model::Document doc = l->result.document;
+    SECTION("the empty author: present, empty first and last names") {
+        doc.description.titleInfo.authors = {person("", "")};
+        CHECK_THAT(written_text(*l, doc), ContainsSubstring("<first-name/>"));
+        CHECK(error_count(*l, doc) == 0);
+    }
+    SECTION("a first name with an empty last name") {
+        doc.description.titleInfo.authors = {person("Anna", "")};
+        const std::string t = written_text(*l, doc);
+        CHECK_THAT(t, ContainsSubstring("<first-name>Anna</first-name>"));
+        CHECK_THAT(t, ContainsSubstring("<last-name/>"));
+        CHECK(error_count(*l, doc) == 0);
+    }
+    SECTION("a nickname alone stays a nickname") {
+        doc.description.titleInfo.authors = {person(std::nullopt, std::nullopt, "Nick")};
+        const std::string t = written_text(*l, doc);
+        CHECK_THAT(t, ContainsSubstring("<nickname>Nick</nickname>"));
+        CHECK(error_count(*l, doc) == 0);
+    }
+    SECTION("translators and publishers with nothing filled in are left out") {
+        doc.description.titleInfo.translators = {model::Person{}};
+        doc.description.documentInfo.publishers = {model::Person{}};
+        const std::string t = written_text(*l, doc);
+        CHECK(t.find("<translator") == std::string::npos);
+        const auto from = t.find("<document-info>");
+        const auto to = t.find("</document-info>");
+        REQUIRE(from != std::string::npos);
+        CHECK(t.substr(from, to - from).find("<publisher") == std::string::npos);
+        CHECK(error_count(*l, doc) == 0);
+    }
+}
+
+TEST_CASE("writer: a person read as <author/> is written as read (feature 011, FR-003)",
+          "[writer][persons]") {
+    auto l = load("modern-utf8.fb2");
+    model::Document doc = l->result.document;
+    doc.description.titleInfo.authors = {model::Person{}};  // what the reader makes of <author/>
+    CHECK_THAT(written_text(*l, doc), ContainsSubstring("<author/>"));
+}
