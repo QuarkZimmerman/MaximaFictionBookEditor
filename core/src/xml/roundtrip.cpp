@@ -437,7 +437,8 @@ std::int64_t ms_since(std::chrono::steady_clock::time_point t0) {
 }  // namespace
 
 Report run(const std::filesystem::path& input, const std::filesystem::path& out_dir,
-           const std::string& encoding, const images::ConversionPolicy& policy) {
+           const std::string& encoding, const images::ConversionPolicy& policy,
+           const model::DetailsContext* details) {
     const auto started = std::chrono::steady_clock::now();
     Report report;
     report.path = platform::utf8_from_path(input);
@@ -485,7 +486,7 @@ Report run(const std::filesystem::path& input, const std::filesystem::path& out_
     options.xlink_prefix = first.xlink_prefix;
     // Open and save as the editor does: the document details filled in on load are written.
     model::Document edited = first.document;
-    model::fill_in_document_details(edited, model::details_context_now(false));
+    model::fill_in_document_details(edited, details ? *details : model::details_context_now(false));
     const fb2::WriteResult written = fb2::write_document(edited, &store_a, options);
     const std::string bytes = fb2::encode_document(written.text, options.encoding);
     std::filesystem::create_directories(out_dir, ec);

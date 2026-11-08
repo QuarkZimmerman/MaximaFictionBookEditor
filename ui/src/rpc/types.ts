@@ -41,7 +41,9 @@ export type { BinaryMeta, Document, ValidationIssue, ValidationReport } from '@/
 export const RPC_API_VERSION = 1;
 /**
  * Additive contract revision within RPC_API_VERSION (`app.info().apiMinor`; absent = 0). The
- * revision this UI was written for (9 since feature 010: `import.readMarkdown`, `template.xml`,
+ * revision this UI was written for (10 since feature 011: `export.markdown`, `styles.check`,
+ * `doc.setStylesheets`, the dialogs' `role`, the issue codes `description.emptyAuthor`,
+ * `style.conflict` and `style.unreadable`, `test.slowJobs`; 9 since feature 010: `import.readMarkdown`, `template.xml`,
  * `doc.newFromXml`, `binary.add`'s `imagesOnly`, `BinaryMeta.transparent`, the models' `efforts`
  * of `ai.models`, the service list's known models, `test.holdStartup`; 8 since feature 009: books in ZIP archives - `doc.open` with
  * `entry` and `needsChoice`, `Document.source`, `files.inspect`, the archive errors - backups and
@@ -59,7 +61,7 @@ export const RPC_API_VERSION = 1;
  * and requires >= 5 since feature 006 (`AI_REQUIRED_API_MINOR` in `ui/src/ai/index.ts`; 4
  * before).
  */
-export const RPC_API_MINOR = 9;
+export const RPC_API_MINOR = 10;
 
 /* ------------------------------------------------------------------------ */
 /* Error codes (rpc-api.md §1)                                              */
@@ -615,6 +617,18 @@ export function isJobStart(value: unknown): value is JobStart {
     'jobId' in value &&
     typeof (value as { jobId: unknown }).jobId === 'string'
   );
+}
+
+/** Feature 011 (contracts/rpc-api.md `export.markdown`): what an export wrote and left out. */
+export interface MarkdownExportResult {
+  written: { sections: number; pictures: number; tables: number; notes: number };
+  leftOut: { kind: string; id?: string; reason: string }[];
+}
+
+/** Feature 011: a stylesheet as the Styles view and `doc.setStylesheets` carry it. */
+export interface StylesheetText {
+  type: string;
+  text: string;
 }
 
 export interface JobProgress {
@@ -1248,6 +1262,31 @@ export interface RpcMethods {
   };
   /** Cancels a running long operation; it then reports `job.failed` 1090 (rpc-api.md §1). */
   'job.cancel': { params: { jobId: string }; result: Empty };
+  /**
+   * Feature 011 (US5, US6): writes a Markdown export as a job; never changes the document, its
+   * file, the settings or Recent files. Pictures are named by binary id and read by the core.
+   */
+  'export.markdown': {
+    params: {
+      docId: string;
+      path: string;
+      form: 'md' | 'zip';
+      text: string;
+      pictures: { binaryId: string; name: string }[];
+      includePictures: boolean;
+    };
+    result: MaybeJob<MarkdownExportResult>;
+  };
+  /** Feature 011 (US8): the style issues of the document's stylesheets, or of the given ones. */
+  'styles.check': {
+    params: { docId: string; stylesheets?: StylesheetText[] };
+    result: { issues: ValidationIssue[] };
+  };
+  /** Feature 011 (US8): replaces the document's stylesheets as one undoable step. */
+  'doc.setStylesheets': {
+    params: { docId: string; stylesheets: StylesheetText[] };
+    result: { revision: number };
+  };
 
   // §3.3 binary
   'binary.list': { params: { docId: string }; result: BinaryMeta[] };
@@ -1384,6 +1423,8 @@ export interface RpcMethods {
       folder?: string;
       /** The file proposed: the dialog opens on its folder with its name filled in. */
       defaultPath?: string;
+      /** Feature 011 (D32): only `document` (Open) keeps the chosen folder for the next dialog. */
+      role?: 'document';
     };
     result: { paths: string[] };
   };
@@ -1403,6 +1444,8 @@ export interface RpcMethods {
       selectedFilter?: number;
       /** Feature 009 (DP-8): the "save as ZIP archive" checkbox beside the encoding choice. */
       zipChoice?: { label: string; checked: boolean };
+      /** Feature 011 (D32): only `document` (Save As) keeps the chosen folder. */
+      role?: 'document';
     };
     /** `zip` is absent when the dialog could not carry the checkbox (feature 009). */
     result: { path?: string; encoding?: string; zip?: boolean };
@@ -1437,6 +1480,8 @@ export interface RpcMethods {
 
   // §5 development/test-only
   'test.enqueueDialog': { params: { method: string; result: unknown }; result: Empty };
+  /** Feature 011: slows every job's progress steps (journeys of the modal export). */
+  'test.slowJobs': { params: { millisecondsPerStep: number }; result: Empty };
   'test.corpusSample': { params: { count: number; seed: number }; result: { paths: string[] } };
   'test.metrics': {
     params: void;

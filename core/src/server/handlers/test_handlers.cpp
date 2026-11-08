@@ -4,7 +4,7 @@
 // test.enqueueRelease; feature 003: test.requests, test.restartRequests, test.requestClose;
 // feature 004: test.setKeyboardLayouts, test.keyboardLayoutRequests; feature 005:
 // test.aiRequests, test.resetAiRequests, test.setAiResolve, test.setAiTimeouts; feature 007:
-// test.openedUrls.
+// test.openedUrls; feature 011: test.slowJobs.
 #ifdef MFBE_TEST_HOOKS
 
 #include "server/services.hpp"
@@ -73,6 +73,13 @@ void register_test_handlers(rpc::RpcRouter& router, Services& services) {
         services.hold_next_connection_ms = ms;
         return json::object();
     });
+    // Feature 011: every job's progress steps are slowed by this many milliseconds (0 = off).
+    router.add_method("test.slowJobs", [](const json& params, rpc::RpcContext&) {
+        rpc::set_job_step_delay_ms(
+            static_cast<int>(rpc::params::integer(params, "millisecondsPerStep")));
+        return json::object();
+    });
+
     router.add_method("test.enqueueDialog", [&services](const json& params, rpc::RpcContext&) {
         const std::string method = rpc::params::string(params, "method");
         if (method.rfind("dialog.", 0) != 0) {

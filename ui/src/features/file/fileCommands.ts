@@ -38,6 +38,7 @@
  *    are unavailable (the registry's default `duringScriptRun` policy); only Exit is allowed.
  */
 
+import { isModalJobRunning } from '@/app/modalJob';
 import {
   currentDocumentName,
   switchView,
@@ -1202,12 +1203,14 @@ export class FileFeature {
    * request at a time: a second one while the prompts are up is ignored, and a request that
    * arrives while another dialog is open (a prompt of New/Open, Settings, a native file
    * dialog) is ignored too, as a native window refuses to close behind its modal dialog - the
-   * user finishes that dialog and closes again.
+   * user finishes that dialog and closes again. A running modal job (feature 011) is treated the
+   * same way: the window stays until the job ends or is cancelled.
    */
   async handleCloseRequested(ctx: CommandContext): Promise<void> {
     if (this.closeRequestPending) return;
     const dialogs = ctx.dialogs as Dialogs & { service?: { isModalOpen: boolean } };
-    if (dialogs.service?.isModalOpen || ctx.rpc?.fileDialogOpen) return;
+    // Feature 011 (DP-11): a modal job (the Markdown export, Preview preparing) refuses the close.
+    if (dialogs.service?.isModalOpen || ctx.rpc?.fileDialogOpen || isModalJobRunning()) return;
     this.closeRequestPending = true;
     try {
       await this.exitApplication(ctx, { force: true });

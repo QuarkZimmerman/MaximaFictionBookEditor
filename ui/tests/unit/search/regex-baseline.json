@@ -1,0 +1,114 @@
+{
+  "FictionBook case=0 word=0": {
+    "body": "3:c35aae90463106ed66816d5875a34102d7d9f62bf5ee83bc9b612f1332190354",
+    "source": "3:c35aae90463106ed66816d5875a34102d7d9f62bf5ee83bc9b612f1332190354"
+  },
+  "fictionbook case=0 word=0": {
+    "body": "3:c35aae90463106ed66816d5875a34102d7d9f62bf5ee83bc9b612f1332190354",
+    "source": "3:c35aae90463106ed66816d5875a34102d7d9f62bf5ee83bc9b612f1332190354"
+  },
+  "fictionbook case=1 word=0": {
+    "body": "1:75fd437d9ceacd393b3f02b6b00b2285d89ed1de1d97a9d38b8bed27f788de63",
+    "source": "1:75fd437d9ceacd393b3f02b6b00b2285d89ed1de1d97a9d38b8bed27f788de63"
+  },
+  "создание case=0 word=0": {
+    "body": "1:8687cb7f187acfe25f69ae07d3f5e57a9b137c3b7690b8a52e1c1b4cf338b21a",
+    "source": "1:8687cb7f187acfe25f69ae07d3f5e57a9b137c3b7690b8a52e1c1b4cf338b21a"
+  },
+  "[А-Яа-яЁё]+ case=0 word=0": {
+    "body": "122:ef361d8739c2e48c36c33a01413f8001ea22ecad7bb7153bfe180ebb1ba87709",
+    "source": "122:ef361d8739c2e48c36c33a01413f8001ea22ecad7bb7153bfe180ebb1ba87709"
+  },
+  "[0-9]{2,} case=0 word=0": {
+    "body": "24:052e728dcc985bbe20d0b6d414160432afd1b68d8381baf4c3bcb8a7a1cb9c00",
+    "source": "24:052e728dcc985bbe20d0b6d414160432afd1b68d8381baf4c3bcb8a7a1cb9c00"
+  },
+  "\\s+ case=0 word=0": {
+    "body": "351:c2327344653b85cc7c80254ffa927acf5e866e604b9022b5ef4cac81ac9ea4e2",
+    "source": "351:c2327344653b85cc7c80254ffa927acf5e866e604b9022b5ef4cac81ac9ea4e2"
+  },
+  "\\d+ case=0 word=0": {
+    "body": "91:57cce89080ea5056056b90379ffbf099a1618919f0d0f58006781a3a063907f3",
+    "source": "91:57cce89080ea5056056b90379ffbf099a1618919f0d0f58006781a3a063907f3"
+  },
+  "\\w+ case=0 word=0": {
+    "body": "624:e436cf14311bef9ad4666c32f19a7b87b957ca96d05a668d5c4bb9b8c19a37e4",
+    "source": "624:e436cf14311bef9ad4666c32f19a7b87b957ca96d05a668d5c4bb9b8c19a37e4"
+  },
+  "\\btitle\\b case=0 word=0": {
+    "body": "26:e099d54ce2dbc9a91d34608f3375d27cadb7291afce3aa0881727305ade41975",
+    "source": "26:e099d54ce2dbc9a91d34608f3375d27cadb7291afce3aa0881727305ade41975"
+  },
+  "title case=0 word=1": {
+    "body": "26:e099d54ce2dbc9a91d34608f3375d27cadb7291afce3aa0881727305ade41975",
+    "source": "0:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "\\p{Lu}\\p{Ll}+ case=0 word=0": {
+    "body": "599:3a7528cb23e7a7431b5a22a085eb509718beb204f1c880ad003d529bec3207a8",
+    "source": "599:3a7528cb23e7a7431b5a22a085eb509718beb204f1c880ad003d529bec3207a8"
+  },
+  "(body|section) case=0 word=0": {
+    "body": "16:e235823ab2b2d2c045debeba629f4dadb2fdee67d40e07a5357d67cfe32bbf7e",
+    "source": "16:e235823ab2b2d2c045debeba629f4dadb2fdee67d40e07a5357d67cfe32bbf7e"
+  },
+  "(?:first|last)-name case=0 word=0": {
+    "body": "12:0b706f033458ef54efd4fb79fbe207cddec20b7791312fa35f690101404854de",
+    "source": "12:0b706f033458ef54efd4fb79fbe207cddec20b7791312fa35f690101404854de"
+  },
+  "(\\w)\\1 case=0 word=0": {
+    "body": "66:f5e45b3261e3960ab4bdefae265f678154fff5b2dbf10ac790b9378e57764731",
+    "source": "66:f5e45b3261e3960ab4bdefae265f678154fff5b2dbf10ac790b9378e57764731"
+  },
+  "e{2} case=0 word=0": {
+    "body": "2:0c0c97114acae838f0c0eccd5b3aa9bc192bfe3802f5d19db4bcace6d384207a",
+    "source": "2:0c0c97114acae838f0c0eccd5b3aa9bc192bfe3802f5d19db4bcace6d384207a"
+  },
+  "l+o? case=0 word=0": {
+    "body": "124:125332d57ef78a0b93808e8a1900badfd1cfb528b86ef6e437a3131697f2eb59",
+    "source": "124:125332d57ef78a0b93808e8a1900badfd1cfb528b86ef6e437a3131697f2eb59"
+  },
+  "<[a-z-]+> case=0 word=0": {
+    "body": "123:b826bdaf53f5918773d3e4f09043c9b5323b14117fac4a6fffd7e2bc0435fb90",
+    "source": "123:b826bdaf53f5918773d3e4f09043c9b5323b14117fac4a6fffd7e2bc0435fb90"
+  },
+  "[^<>\\s]+ case=0 word=0": {
+    "body": "565:06a77b10b2edec6fd0bfdd3856a28df6c964281b317ddce5a045299b089037af",
+    "source": "565:06a77b10b2edec6fd0bfdd3856a28df6c964281b317ddce5a045299b089037af"
+  },
+  "\\. case=0 word=0": {
+    "body": "39:ade63011b3dbee6263882f45d018935cee21a6b8dbe71c9a047db0a77ecec65b",
+    "source": "39:ade63011b3dbee6263882f45d018935cee21a6b8dbe71c9a047db0a77ecec65b"
+  },
+  "\\( case=0 word=0": {
+    "body": "1:0ae04bd4654f57be5e61346d5ab2299c4800146368db21cbae79dcf15c558919",
+    "source": "1:0ae04bd4654f57be5e61346d5ab2299c4800146368db21cbae79dcf15c558919"
+  },
+  "\\[ case=0 word=0": {
+    "body": "1:5fb24122c02f3b79033baa1758a3c8d8d10bbbf3e8057dba5d7ac93ea9187727",
+    "source": "1:5fb24122c02f3b79033baa1758a3c8d8d10bbbf3e8057dba5d7ac93ea9187727"
+  },
+  "^\\s*<p> case=0 word=0": {
+    "body": "0:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "source": "24:cf5f31e528c90ef6bd73279cfbc93a92f325ee28280c2c37ddc82b62d19bbb30"
+  },
+  "[.,;:!?] case=0 word=0": {
+    "body": "71:3ccac8521935c303068ac67bbe093d3a6fa98f517c5d568775bedf964c32427b",
+    "source": "71:3ccac8521935c303068ac67bbe093d3a6fa98f517c5d568775bedf964c32427b"
+  },
+  "[\\-–—] case=0 word=0": {
+    "body": "83:4d7f2a5453acaecb2a2a4a517c17cb735b3db4b9137977bcbed6f995dc7224db",
+    "source": "83:4d7f2a5453acaecb2a2a4a517c17cb735b3db4b9137977bcbed6f995dc7224db"
+  },
+  "ё|е case=0 word=0": {
+    "body": "48:480271f2ce8f7bdf3403d4317d3c5d9306922e4666bd4d3e27431a6d6c7e526b",
+    "source": "48:480271f2ce8f7bdf3403d4317d3c5d9306922e4666bd4d3e27431a6d6c7e526b"
+  },
+  "(?<=<p>)\\S+ case=0 word=0": {
+    "body": "24:3dbf80d470a9bfe0e7ad12bcd1174a3f77cd83d4d2da1daf4d0fa992959cb5a6",
+    "source": "24:3dbf80d470a9bfe0e7ad12bcd1174a3f77cd83d4d2da1daf4d0fa992959cb5a6"
+  },
+  "\\S+(?=</p>) case=0 word=0": {
+    "body": "25:860e9c20f7d4c3606ba88373048c94f48fb6cb61436ab69a009847b92d147829",
+    "source": "25:860e9c20f7d4c3606ba88373048c94f48fb6cb61436ab69a009847b92d147829"
+  }
+}

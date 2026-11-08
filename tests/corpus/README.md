@@ -85,3 +85,17 @@ that the 0.0.5 writer saves as invalid, 16659 to 608549 above and 12218, 15506,
 returns written as `&#13;` (FR-065), 22657 to 212492 above, the census's nine
 table books whose `title-info` annotations release 0.0.5 changed on save and
 which the table stratum, drawn in another order, does not hold.
+
+## Guard G10: saves without a Description edit (feature 011)
+
+`baselines/sample-1-50.sha256` holds the SHA-256 of every book of `sample-1-50.txt` saved without
+any edit, recorded with the 0.0.8 writer (hashes only; the books stay local). A save fills in the
+document details, so both runs use `roundtrip --fixed-details` (set by the two options below):
+
+```bash
+tests/corpus/run.sh tests/corpus/sample-1-50.txt --check-hashes tests/corpus/baselines/sample-1-50.sha256
+```
+
+The report's line "saves as recorded (G10)" must read all of them; any book saved differently fails
+the run. `--save-hashes FILE` records such a file; a baseline is recorded again only when a feature
+means to change how untouched books are written, never to make the check pass.

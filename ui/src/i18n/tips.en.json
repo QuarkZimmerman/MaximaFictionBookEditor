@@ -282,6 +282,9 @@
     },
     "source": {
       "foldLevel": "The nesting level the Collapse and Expand buttons beside it act on: 1 folds the outermost elements, higher levels deeper ones."
+    },
+    "modalJob": {
+      "cancel": "Stops the operation; nothing of it is kept."
     }
   }
 }

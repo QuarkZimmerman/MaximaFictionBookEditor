@@ -27,7 +27,7 @@
  * host.
  */
 
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -638,8 +638,28 @@ export function withUiLang(url: string, lang: UiLang | undefined): string {
   return forced.toString();
 }
 
+/**
+ * Feature 011 (SC-013, FR-006): whether the book file at `path` fails FB2 validation - a journey
+ * that starts from such a book is not held to end with a valid one.
+ */
+function fileFailsValidation(path: string): boolean {
+  const binary = process.env.MFBE_CORE_BIN;
+  if (!binary || !existsSync(path)) return true;
+  const run = spawnSync(binary, ['validate', '--json', path], { encoding: 'utf8' });
+  try {
+    // `mfbe-core validate --json`: one entry per file, `{ path, wellFormed, report: { errorCount } }`.
+    const files = JSON.parse(run.stdout) as Array<{
+      wellFormed?: boolean;
+      report?: { errorCount?: number };
+    }>;
+    return files.some((file) => file.wellFormed === false || (file.report?.errorCount ?? 0) > 0);
+  } catch {
+    return run.status !== 0;
+  }
+}
+
 export const test = base.extend<
-  { core: CoreHandle; testCore: CoreServer } & CoreOptions,
+  { core: CoreHandle; testCore: CoreServer; bookValidity: void } & CoreOptions,
   { coreServer: CoreServer; standin: StandinHandle }
 >({
   uiLang: [undefined, { option: true }],
@@ -726,6 +746,34 @@ export const test = base.extend<
     };
     await use(handle);
   },
+
+  // Feature 011 (SC-013, FR-006): a journey that starts from a valid book and enters nothing
+  // invalid ends with a valid book. After a passed test, the shown book is validated as the
+  // Validate command does; a journey that means to leave the book invalid carries the tag
+  // `@enters-invalid`, and a book whose file fails validation did not start valid.
+  bookValidity: [
+    async ({ page, core }, use, testInfo) => {
+      await use();
+      if (testInfo.status !== 'passed' || !core.hasCore || page.isClosed()) return;
+      if (testInfo.tags.includes('@enters-invalid')) return;
+      const result = await page
+        .evaluate(async () => {
+          const hooks = (
+            globalThis as { __mfbeTest?: { book?: { validate(): Promise<unknown> } } }
+          ).__mfbeTest;
+          return (await hooks?.book?.validate()) ?? null;
+        })
+        .catch(() => null);
+      const report = result as { errorCount: number; path: string | null; codes: string[] } | null;
+      if (!report || report.errorCount === 0) return;
+      if (report.path && fileFailsValidation(report.path)) return;
+      throw new Error(
+        `SC-013: the journey ended with an invalid book (${report.errorCount} errors: ` +
+          `${report.codes.join(', ')}); tag it @enters-invalid if it means to leave the book invalid`,
+      );
+    },
+    { auto: true },
+  ],
 });
 
 /** The UI bundle the core serves to the journeys. */

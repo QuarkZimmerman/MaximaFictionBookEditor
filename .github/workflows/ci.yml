@@ -258,6 +258,11 @@ jobs:
         # Feature 010 (FR-046): every interactive control carries a tooltip - a control without one
         # fails the run. Guards G7 and G9 run with the unit tests.
         run: node ../tools/tooltip-check.mjs --strict
+      - name: Table term (guard G14)
+        if: runner.os == 'Linux'
+        # Feature 011 (FR-020a, D40): no catalogue text calls a table that needs repair "irregular"
+        # (report only until the repair badge's texts change; then --strict).
+        run: node ../tools/term-check.mjs
       - name: Upload UI bundle
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v6
