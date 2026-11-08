@@ -41,7 +41,8 @@
       "invalidResult": "The operation would break the document structure.",
       "moved": "Section moved.",
       "merged": "Sections merged.",
-      "deleted": "Element deleted."
+      "deleted": "Element deleted.",
+      "onlyStanza": "A poem must keep at least one stanza."
     },
     "undo": {
       "moveRight": "Move section right",
@@ -86,14 +87,18 @@
         "image": "&Delete Picture",
         "poem": "&Delete Poem",
         "cite": "&Delete Quote",
-        "table": "&Delete Table"
+        "table": "&Delete Table",
+        "subtitle": "&Delete Subtitle",
+        "stanza": "&Delete Stanza",
+        "inline-image": "&Delete Picture"
       }
     },
     "reason": {
       "first": "«{{name}}» is the first section here: there is no section before it",
       "last": "«{{name}}» is the last section here: there is no section after it",
       "topLevel": "«{{name}}» is already at the top level of its body",
-      "cannotDelete": "This element cannot be deleted here: a body keeps at least one section, a book at least one body"
+      "cannotDelete": "This element cannot be deleted here: a body keeps at least one section, a book at least one body",
+      "onlyStanza": "A poem keeps at least one stanza: this is its only one."
     },
     "deleteConfirmSection": "Delete the section «{{name}}» with everything in it?",
     "deleteConfirmFor": {
@@ -106,6 +111,31 @@
       "poem": "Delete this poem?",
       "cite": "Delete this quote?",
       "table": "Delete this table?"
+    },
+    "menubar": {
+      "label": "Document structure menus",
+      "elements": "Elements",
+      "scripts": "Scripts"
+    },
+    "elements": {
+      "section": "Section",
+      "body": "Body",
+      "picture": "Picture",
+      "annotation": "Annotation",
+      "history": "History",
+      "poem": "Poem",
+      "stanza": "Stanza",
+      "title": "Title",
+      "epigraph": "Epigraph",
+      "quote": "Quote",
+      "subtitle": "Subtitle",
+      "table": "Table",
+      "headerCell": "Header cell",
+      "cell": "Cell",
+      "tooltip": "Shows or hides the rows of the FB2 element {{element}}"
+    },
+    "scripts": {
+      "none": "No tree scripts"
     }
   },
   "cmd": {

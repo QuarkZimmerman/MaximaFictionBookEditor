@@ -15,6 +15,7 @@ import { locateInSource, nthTagOffset, tagOrdinal } from '@/features/tree/source
 import type { BodyNode, Document } from '@/model/document';
 import { FIXED_BLOCK_IDS } from '@/editor/schema';
 import type { AnnotationNode } from '@/model/document';
+import { shownEntries } from '@/views/tree/elementKinds';
 import {
   buildTreeIndex,
   captionFor,
@@ -116,22 +117,21 @@ const BLOCK_ROWS = [FIXED_BLOCK_IDS.annotation, FIXED_BLOCK_IDS.history];
 
 describe('tree model', () => {
   it('builds rows for bodies, sections and the leaf kinds with FBE captions', () => {
+    // Feature 011 (FR-010, FR-011, FR-014): the original's starting choices - no title, epigraph
+    // or cite rows; stanzas under their poems, cells under their tables.
     const index = buildTreeIndex(book(), CAPTIONS);
     expect(index.roots).toEqual([...BLOCK_ROWS, 'body1', 'body2']);
     expect(index.order).toEqual([
       ...BLOCK_ROWS,
       'body1',
-      'tBook',
       'A',
-      'tA',
-      'eA',
       'imgA',
       'anA',
       'A1',
-      'tA1',
       'poem1',
-      'cite1',
+      'st1',
       'tbl1',
+      'td1',
       'A2',
       'body2',
       'N1',
@@ -142,17 +142,29 @@ describe('tree model', () => {
     expect(row('body2').caption).toBe('notes');
     expect(row('A').caption).toBe('Chapter A');
     expect(row('A').depth).toBe(1);
-    expect(row('A').childIds).toEqual(['tA', 'eA', 'imgA', 'anA', 'A1', 'A2']);
-    expect(row('tA').caption).toBe('Chapter A');
-    expect(row('eA').caption).toBe('Wise words Someone');
+    expect(row('A').childIds).toEqual(['imgA', 'anA', 'A1', 'A2']);
     expect(row('imgA').caption).toBe('cover.jpg');
     expect(row('anA').caption).toBe('About A');
     expect(row('poem1').caption).toBe('Ode');
-    expect(row('cite1').caption).toBe('Quoted text');
+    expect(row('st1').caption).toBe('<stanza>');
+    expect(row('st1').parentId).toBe('poem1');
     expect(row('tbl1').caption).toBe('cell');
+    expect(row('tbl1').childIds).toEqual(['td1']);
+    expect(row('td1').caption).toBe('cell');
     expect(row('A2').caption).toBe('<section>');
     expect(row('A1').depth).toBe(2);
     expect(row('poem1').parentId).toBe('A1');
+    // Every kind ticked: the title, epigraph and cite rows come back in their places.
+    const all = buildTreeIndex(
+      book(),
+      CAPTIONS,
+      shownEntries({ title: true, epigraph: true, quote: true }),
+    );
+    expect(all.rows.get('A')!.childIds).toEqual(['tA', 'eA', 'imgA', 'anA', 'A1', 'A2']);
+    expect(all.rows.get('tA')!.caption).toBe('Chapter A');
+    expect(all.rows.get('eA')!.caption).toBe('Wise words Someone');
+    expect(all.rows.get('cite1')!.caption).toBe('Quoted text');
+    expect(all.rows.get('poem1')!.childIds).toEqual(['tPoem', 'st1']);
   });
 
   it('normalises and truncates captions', () => {
@@ -197,7 +209,6 @@ describe('tree model', () => {
     expect(visibleRows(index, new Set(['A'])).map((r) => r.id)).toEqual([
       ...BLOCK_ROWS,
       'body1',
-      'tBook',
       'A',
       'body2',
       'N1',
@@ -252,9 +263,9 @@ describe('tree model', () => {
     const doc = book();
     const index = buildTreeIndex(doc, CAPTIONS);
     expect(rowForNode(index, doc, 'pA1')).toBe('A1'); // paragraph -> its section
-    expect(rowForNode(index, doc, 'v1')).toBe('poem1'); // verse -> its poem
-    expect(rowForNode(index, doc, 'td1')).toBe('tbl1');
-    expect(rowForNode(index, doc, 'pA')).toBe('tA'); // title paragraph -> the title row
+    expect(rowForNode(index, doc, 'v1')).toBe('st1'); // verse -> its stanza (feature 011)
+    expect(rowForNode(index, doc, 'td1')).toBe('td1'); // a cell has its own row (feature 011)
+    expect(rowForNode(index, doc, 'pA')).toBe('A'); // title paragraph -> its section (no title rows)
     expect(rowForNode(index, doc, 'A')).toBe('A');
     expect(rowForNode(index, doc, 'missing')).toBeNull();
     expect(rowForNode(index, doc, null)).toBeNull();
@@ -460,20 +471,17 @@ describe('irregular tables in the tree (feature 006, US8)', () => {
     return found;
   }
 
-  it('tableProblems only on the rows of irregular tables; containedTables on a cite’s, a section annotation’s and an epigraph’s row and on the two block rows, in document order; nothing for the source book’s annotation', () => {
+  it('tableProblems on the rows of irregular tables, wherever they stand; containedTables on the rows above the tables that have no row of their own (hidden kinds) and on the two block rows; nothing for the source book’s annotation', () => {
     const doc = tablesBook();
+    // Feature 011 (FR-011, FR-014): tables have rows inside cites, epigraphs and annotations.
     const index = buildTreeIndex(doc, CAPTIONS);
     const row = (id: string) => index.rows.get(id)!;
     expect(row('T1').tableProblems).toEqual(summaryOf(tableOf(doc, 'T1')));
     expect(row('T2').tableProblems).toBeUndefined();
-    expect(row('S2').containedTables).toBeUndefined();
-    expect(row('C1').containedTables).toEqual([
-      summaryOf(tableOf(doc, 'T3')),
-      summaryOf(tableOf(doc, 'T4')),
-    ]);
-    expect(row('C1').containedTables![1]!.id).toBe('named');
-    expect(row('AN1').containedTables).toEqual([summaryOf(tableOf(doc, 'T5'))]);
-    expect(row('E1').containedTables).toEqual([summaryOf(tableOf(doc, 'T6'))]);
+    expect(row('T3').tableProblems).toEqual(summaryOf(tableOf(doc, 'T3')));
+    expect(row('T4').tableProblems!.id).toBe('named');
+    expect(row('T5').parentId).toBe('AN1');
+    expect(row('T6').parentId).toBe('S1'); // its epigraph and cite are hidden: the row moves up
     expect(row(FIXED_BLOCK_IDS.annotation).containedTables).toEqual([
       summaryOf(tableOf(doc, 'T8')),
     ]);
@@ -481,17 +489,28 @@ describe('irregular tables in the tree (feature 006, US8)', () => {
       summaryOf(tableOf(doc, 'T9')),
       summaryOf(tableOf(doc, 'T9b')),
     ]);
-    // No row of the tree stands for the source book's annotation (decision 8; C58): only the
-    // rows above carry summaries, and T1 is the only table row with one.
-    for (const one of index.rows.values()) {
-      expect(one.tableProblems === undefined || one.id === 'T1', one.id).toBe(true);
-    }
     expect(
       [...index.rows.values()]
         .filter((one) => one.containedTables)
         .map((one) => one.id)
         .sort(),
-    ).toEqual(['AN1', 'C1', 'E1', FIXED_BLOCK_IDS.annotation, FIXED_BLOCK_IDS.history].sort());
+    ).toEqual([FIXED_BLOCK_IDS.annotation, FIXED_BLOCK_IDS.history].sort());
+    // Tables unticked, cites and epigraphs ticked: the rows above stand for their tables, in
+    // document order, as feature 006 marked them.
+    const hidden = buildTreeIndex(
+      doc,
+      CAPTIONS,
+      shownEntries({ table: false, quote: true, epigraph: true }),
+    );
+    const at = (id: string) => hidden.rows.get(id)!;
+    expect(at('C1').containedTables).toEqual([
+      summaryOf(tableOf(doc, 'T3')),
+      summaryOf(tableOf(doc, 'T4')),
+    ]);
+    expect(at('AN1').containedTables).toEqual([summaryOf(tableOf(doc, 'T5'))]);
+    expect(at('EC').containedTables).toEqual([summaryOf(tableOf(doc, 'T6'))]);
+    expect(at('S1').containedTables).toEqual([summaryOf(tableOf(doc, 'T1'))]);
+    expect(at('S2').containedTables).toBeUndefined();
     // A document without a description: the block rows have nothing.
     const bare = buildTreeIndex({ bodies: doc.bodies }, CAPTIONS);
     expect(bare.rows.get(FIXED_BLOCK_IDS.annotation)!.containedTables).toBeUndefined();
@@ -515,12 +534,115 @@ describe('irregular tables in the tree (feature 006, US8)', () => {
       ],
     };
     const second = buildTreeIndex(edited, CAPTIONS);
-    for (const id of ['S1', 'T1', 'C1', 'AN1', 'E1']) {
+    for (const id of ['S1', 'T1', 'T3', 'AN1', 'T6']) {
       expect(second.rows.get(id), id).toBe(first.rows.get(id));
     }
     expect(second.rows.get('T7')!.tableProblems).toEqual(summaryOf(shortRow('T7')));
     expect(second.rows.get(FIXED_BLOCK_IDS.annotation)!.containedTables).toBe(
       first.rows.get(FIXED_BLOCK_IDS.annotation)!.containedTables,
     );
+  });
+});
+
+// Feature 011 (US2; D33-D39, FR-010-FR-016; contracts/tree.md §1-§3): the original's rows.
+describe('the rows of the original’s tree (feature 011)', () => {
+  const subtitle = (nodeId: string, value: string): ModelNodeJson => ({
+    type: 'subtitle',
+    attrs: { nodeId },
+    content: [text(value)],
+  });
+  const cell = (type: 'th' | 'td', nodeId: string, value?: string): ModelNodeJson => ({
+    type,
+    attrs: { nodeId },
+    content: value ? [text(value)] : [],
+  });
+  const inlinePicture = (nodeId: string, href: string): ModelNodeJson => ({
+    type: 'inline-image',
+    attrs: { nodeId, href },
+  });
+
+  function kindsBook(): Document {
+    const body: ModelNodeJson = {
+      type: 'body',
+      attrs: { nodeId: 'b' },
+      content: [
+        {
+          type: 'section',
+          attrs: { nodeId: 'S' },
+          content: [
+            { type: 'title', attrs: { nodeId: 'tS' }, content: [p('pS', 'The Gate')] },
+            subtitle('sub1', 'At the door'),
+            {
+              type: 'p',
+              attrs: { nodeId: 'pPic' },
+              content: [
+                text('A key '),
+                inlinePicture('pic1', '#key.png'),
+                text(' and a '),
+                inlinePicture('ch1', '#ch-2605'),
+              ],
+            },
+            {
+              type: 'cite',
+              attrs: { nodeId: 'C' },
+              content: [p('pC', 'Quoted'), subtitle('sub2', 'Inside the quote')],
+            },
+            {
+              type: 'table',
+              attrs: { nodeId: 'T' },
+              content: [
+                {
+                  type: 'tr',
+                  attrs: { nodeId: 'r0' },
+                  content: [cell('th', 'h1', ' Name '), cell('th', 'h2')],
+                },
+                {
+                  type: 'tr',
+                  attrs: { nodeId: 'r1' },
+                  content: [cell('td', 'c1', 'x'.repeat(100)), cell('td', 'c2')],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    return fakeDocument({ bodies: [body as unknown as BodyNode] });
+  }
+
+  it('subtitles and inline pictures have rows; the pictures of special characters have none', () => {
+    const index = buildTreeIndex(kindsBook(), CAPTIONS);
+    expect(index.rows.get('sub1')).toMatchObject({ kind: 'subtitle', caption: 'At the door' });
+    expect(index.rows.get('pic1')).toMatchObject({ kind: 'inline-image', caption: 'key.png' });
+    expect(index.rows.has('ch1')).toBe(false);
+    // The cite is hidden: the subtitle inside it stands under the section, in its place.
+    expect(index.rows.get('sub2')!.parentId).toBe('S');
+    expect(index.rows.get('S')!.childIds).toEqual(['sub1', 'pic1', 'sub2', 'T']);
+  });
+
+  it('table cells stand flat under their table with their own text; empty ones say <th> / <td>', () => {
+    const index = buildTreeIndex(kindsBook(), CAPTIONS);
+    expect(index.rows.get('T')!.childIds).toEqual(['h1', 'h2', 'c1', 'c2']);
+    expect(index.rows.get('h1')).toMatchObject({ kind: 'th', caption: 'Name' });
+    expect(index.rows.get('h2')!.caption).toBe('<th>');
+    expect(index.rows.get('c2')!.caption).toBe('<td>');
+    const long = index.rows.get('c1')!.caption;
+    expect(long).toHaveLength(80);
+    expect(long.endsWith('\u2026')).toBe(true);
+  });
+
+  it('a hidden kind passes its contents’ rows up; ticking it brings its row back', () => {
+    const noTables = buildTreeIndex(kindsBook(), CAPTIONS, shownEntries({ table: false }));
+    expect(noTables.rows.has('T')).toBe(false);
+    expect(noTables.rows.get('h1')!.parentId).toBe('S');
+    const quotes = buildTreeIndex(
+      kindsBook(),
+      CAPTIONS,
+      shownEntries({ quote: true, title: true }),
+    );
+    expect(quotes.rows.get('C')!.childIds).toEqual(['sub2']);
+    expect(quotes.rows.get('S')!.childIds).toEqual(['tS', 'sub1', 'pic1', 'C', 'T']);
+    const noSections = buildTreeIndex(kindsBook(), CAPTIONS, shownEntries({ section: false }));
+    expect(noSections.rows.get('b')!.childIds).toEqual(['sub1', 'pic1', 'sub2', 'T']);
   });
 });

@@ -44,6 +44,11 @@ export interface PopupMenuEntry {
    */
   title?: string;
   /**
+   * Feature 011 (D34): shown as `title` while the entry is enabled - what it does (the tree bar's
+   * *Elements* entries name their FB2 element).
+   */
+  tooltip?: string;
+  /**
    * The entries of the submenu this entry opens instead of running (one level: the entries of
    * a submenu open nothing further).
    */
@@ -277,7 +282,7 @@ export function PopupMenu({ items, position, onClose, testId, ariaLabel }: Popup
     const enabled = entry.enabled !== false;
     const submenu = !inSubmenu && !!entry.items;
     const open = submenu && openSubmenu === entry.id;
-    const title = enabled ? undefined : entry.title;
+    const title = enabled ? entry.tooltip : entry.title;
     return (
       <div
         key={entry.id}

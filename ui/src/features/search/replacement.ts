@@ -1,3 +1,4 @@
+import { regexCompat } from './regexCompat';
 /**
  * Replacement string expansion for regular-expression replaces, compatible with the original
  * editor (`GetReplStr` in FBEview.cpp): `$0` / `\0` the whole match, `$1`-`$9` / `\1`-`\9`
@@ -123,7 +124,8 @@ export function buildSearchRegExp(options: {
   regex: boolean;
 }): RegExp | null {
   if (!options.query) return null;
-  let source = options.regex ? options.query : escapeRegExp(options.query);
+  // Feature 011 (D7): the usual syntax's escapes in the engine's Unicode mode (regexCompat.ts).
+  let source = options.regex ? regexCompat(options.query) : escapeRegExp(options.query);
   if (options.wholeWord) source = `(?<![\\p{L}\\p{N}_])(?:${source})(?![\\p{L}\\p{N}_])`;
   const flags = `gu${options.matchCase ? '' : 'i'}`;
   try {

@@ -290,6 +290,12 @@ export interface Settings {
     fastMode: boolean;
     /** The status bar panes shown (feature 009, FR-056); the message pane always shows. */
     statusBarPanes: StatusBarPane[];
+    /**
+     * Feature 011 (D34): the Document tree's Elements choices, entry id -> shown; an entry not in
+     * the object takes the original's default (views/tree/elementKinds.ts). Absent from cores
+     * older than apiMinor 10.
+     */
+    treeElements?: Record<string, boolean>;
   };
   other: {
     defaultEncoding: string;

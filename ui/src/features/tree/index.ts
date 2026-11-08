@@ -119,6 +119,14 @@ export class TreeFeature {
     this.update({ collapsed: next });
   }
 
+  /** Feature 011 (FR-013a): collapses the given rows (no-op when every one is collapsed already). */
+  collapseRows(rowIds: readonly string[]): void {
+    if (rowIds.every((id) => this.state.collapsed.has(id))) return;
+    const next = new Set(this.state.collapsed);
+    for (const id of rowIds) next.add(id);
+    this.update({ collapsed: next });
+  }
+
   expandAll(): void {
     if (this.state.collapsed.size > 0) this.update({ collapsed: new Set() });
   }

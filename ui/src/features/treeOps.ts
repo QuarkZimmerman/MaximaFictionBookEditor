@@ -60,6 +60,8 @@ export type TreeOpFailure =
   | 'lastSection'
   | 'lastBody'
   | 'cannotDelete'
+  // Feature 011 (US2, contracts/tree.md §4): a poem keeps at least one stanza.
+  | 'onlyStanza'
   | 'invalidResult';
 
 export interface TreeOpSuccess {
@@ -100,6 +102,9 @@ export const DELETABLE_LEAF_TYPES: ReadonlySet<string> = new Set([
   'empty-line',
   'p',
   'raw-xml',
+  // Feature 011 (US2): stanza and inline picture rows.
+  'stanza',
+  'inline-image',
 ]);
 
 const defaultIds = createNodeIdGenerator('tree_');
@@ -578,6 +583,12 @@ export function deleteNode(
   }
   if (isSectionJson(node) && parent.type === 'body' && childSections(parent).length <= 1) {
     return { ok: false, reason: 'lastSection' };
+  }
+  if (
+    node.type === 'stanza' &&
+    (parent.content ?? []).filter((child) => child.type === 'stanza').length <= 1
+  ) {
+    return { ok: false, reason: 'onlyStanza' };
   }
   const content = [...(parent.content ?? [])];
   content.splice(index, 1);

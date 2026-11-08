@@ -199,6 +199,50 @@ test.describe('performance - 10 MB text book', () => {
     await expect(page.getByTestId('body-window-before')).toBeVisible();
   });
 
+  test(
+    'the Document tree with every kind ticked keeps typing under 100 ms (feature 011, SC-002)',
+    { tag: '@perf' },
+    async ({ core, page }) => {
+      test.skip(!core.hasCore, 'needs mfbe-core (MFBE_CORE_BIN)');
+      test.skip(!book || !existsSync(book), 'python3 / the generator are not available');
+      // Every kind of the Elements menu ticked: the most rows the tree can hold (contracts/tree.md).
+      const every = { title: true, epigraph: true, quote: true };
+      await core.rpc('settings.set', { patch: { view: { treeElements: every } } });
+      try {
+        await core.openApp(page);
+        await core.enqueueDialog('dialog.openFile', { paths: [book] });
+        await page.getByTestId('menu-file').click();
+        await page.getByTestId('menu-file-open').click();
+        await waitForBook(page, book, EDITABLE_BUDGET_MS * 4);
+        const editor = page.getByTestId('body-editor');
+        await expect(editor).toHaveAttribute('contenteditable', 'true', {
+          timeout: EDITABLE_BUDGET_MS * 4,
+        });
+        const rows = Number(await page.getByTestId('tree-content').getAttribute('data-row-count'));
+        expect(rows).toBeGreaterThan(100);
+        const paragraph = editor.locator('.fb-section p.fb-p').nth(3);
+        await paragraph.click({ position: { x: 8, y: 8 } });
+        await expect(page.getByTestId('status-path')).toContainText('/p[');
+        await page.evaluate(TYPE_AND_MEASURE);
+        const samples: number[] = [];
+        for (let i = 0; i < 10; i += 1) samples.push(await page.evaluate<number>(TYPE_AND_MEASURE));
+        const typical = median(samples);
+        test.info().annotations.push({
+          type: 'perf',
+          description: `${rows} tree rows; keystroke latency median ${typical.toFixed(1)} ms`,
+        });
+        expect(
+          typical,
+          `keystroke latencies ${samples.map((one) => one.toFixed(0)).join(', ')} ms`,
+        ).toBeLessThan(KEYSTROKE_BUDGET_MS);
+      } finally {
+        await core.rpc('settings.set', {
+          patch: { view: { treeElements: { title: false, epigraph: false, quote: false } } },
+        });
+      }
+    },
+  );
+
   test('Source view: the completion list appears within 300 ms and typing stays under 100 ms', async ({
     core,
     page,

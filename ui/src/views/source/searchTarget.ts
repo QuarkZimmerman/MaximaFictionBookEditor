@@ -9,6 +9,8 @@
  */
 
 import { RegExpCursor, SearchCursor } from '@codemirror/search';
+
+import { regexCompat } from '@/features/search/regexCompat';
 import {
   EditorSelection,
   type EditorState,
@@ -88,7 +90,14 @@ export function findMatches(
   if (options.regex) {
     let cursor: RegExpCursor;
     try {
-      cursor = new RegExpCursor(doc, query, { ignoreCase: !options.matchCase }, from, to);
+      // Feature 011 (D7): the usual syntax's escapes, as in the Body view (regexCompat.ts).
+      cursor = new RegExpCursor(
+        doc,
+        regexCompat(query),
+        { ignoreCase: !options.matchCase },
+        from,
+        to,
+      );
     } catch {
       return []; // invalid pattern
     }

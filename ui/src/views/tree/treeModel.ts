@@ -20,6 +20,12 @@
  * irregular tables below them, in document order (`containedTables`), so the tree marks the
  * repair candidates of a long book. The source book's annotation has no row: its tables are
  * marked in the Description view only. The summaries are cached with the section's rows.
+ *
+ * Feature 011 (US2; D33-D39, FR-010-FR-016; contracts/tree.md): the rows follow the original's
+ * table of element kinds (`elementKinds.ts`): every element of a shown kind has a row under the row
+ * of the nearest element above it that has one, a hidden kind passes its contents' rows (and the
+ * summaries of its irregular tables) up; tables hold their cells' rows, poems their stanzas; titles,
+ * epigraphs and cites start hidden; the pictures of special characters (`#ch-…`) have no rows.
  */
 
 import type { ModelNodeJson } from '@/editor/fromModel';
@@ -28,18 +34,17 @@ import { gridOfModel, type TableSummary } from '@/editor/table/grid';
 import { descriptionBlockOf, locateNode } from '@/features/treeOps';
 import type { Document, TableNode } from '@/model/document';
 
-export type TreeRowKind =
-  | 'annotationBlock'
-  | 'historyBlock'
-  | 'body'
-  | 'section'
-  | 'title'
-  | 'epigraph'
-  | 'annotation'
-  | 'image'
-  | 'poem'
-  | 'cite'
-  | 'table';
+import {
+  DEFAULT_SHOWN_ENTRIES,
+  ELEMENT_ROW_KINDS,
+  kindShown,
+  ROW_KIND_INFO,
+  shownSignature,
+  type ElementEntryId,
+  type TreeRowKind,
+} from './elementKinds';
+
+export type { TreeRowKind } from './elementKinds';
 
 /** The row kinds of the two description blocks (never sections: no Move / Merge / Delete). */
 export const BLOCK_ROW_KINDS: ReadonlySet<TreeRowKind> = new Set<TreeRowKind>([
@@ -53,32 +58,13 @@ export interface BlockCaptions {
   history: string;
 }
 
-export const ROW_KINDS: ReadonlySet<string> = new Set<TreeRowKind>([
-  'body',
-  'section',
-  'title',
-  'epigraph',
-  'annotation',
-  'image',
-  'poem',
-  'cite',
-  'table',
-]);
+/** The model element types that can make rows (`elementKinds.ts`). */
+export const ROW_KINDS: ReadonlySet<string> = ELEMENT_ROW_KINDS;
 
 /** Image file of the original `struct.bmp` image list for each row kind (`ElementDescMnr.cpp`). */
-export const ROW_ICONS: Readonly<Record<TreeRowKind, string>> = {
-  annotationBlock: 'struct-12',
-  historyBlock: 'struct-15',
-  body: 'struct-00',
-  section: 'struct-00',
-  poem: 'struct-03',
-  cite: 'struct-09',
-  annotation: 'struct-12',
-  epigraph: 'struct-18',
-  image: 'struct-21',
-  title: 'struct-27',
-  table: 'struct-30',
-};
+export const ROW_ICONS: Readonly<Record<TreeRowKind, string>> = Object.fromEntries(
+  Object.entries(ROW_KIND_INFO).map(([kind, info]) => [kind, info.icon]),
+) as Record<TreeRowKind, string>;
 
 export interface TreeRow {
   /** nodeId of the element. */
@@ -166,10 +152,13 @@ function rawCaption(node: ModelNodeJson, kind: TreeRowKind): string {
       return (typeof name === 'string' && name) || titleText(node);
     }
     case 'section':
+    case 'stanza':
+      // Feature 011 (D36): a stanza without a title says <stanza>, as a section says <section>.
       return titleText(node);
     case 'poem':
       return titleText(node) || firstText(node);
-    case 'image': {
+    case 'image':
+    case 'inline-image': {
       const href = node.attrs?.href;
       if (typeof href === 'string' && href) return href.replace(/^#/, '');
       const alt = node.attrs?.alt ?? node.attrs?.title;
@@ -191,23 +180,31 @@ export function captionFor(node: ModelNodeJson, kind: TreeRowKind): string {
 interface SubtreeRows {
   depth: number;
   parentId: string | null;
+  signature: string;
+  /** The rows of the element and of everything below it, in document order. */
   rows: TreeRow[];
+  /** The ids of the rows directly under the parent (the element's own row, or its contents'). */
+  topIds: string[];
+  /** Summaries of irregular tables without rows of their own, passed up to the parent's row. */
+  passedTables: TableSummary[];
   sectionCount: number;
 }
 
-/** Rows of a top-level section (and of a whole body), keyed by the immutable node object. */
+/** Rows of a body's top-level element, keyed by the immutable node object. */
 const subtreeCache = new WeakMap<object, SubtreeRows>();
 
-function isRowNode(node: ModelNodeJson): node is ModelNodeJson & { type: TreeRowKind } {
-  return ROW_KINDS.has(node.type) && nodeIdOf(node) !== null;
+/** A picture the Markdown import made of a special character (feature 010, D37): no row (D38). */
+function isCharacterPicture(node: ModelNodeJson): boolean {
+  const href = node.attrs?.href;
+  return typeof href === 'string' && href.startsWith('#ch-');
 }
 
-/** The kinds of row whose children have no rows: they stand for the tables inside them. */
-const CONTAINER_KINDS: ReadonlySet<TreeRowKind> = new Set<TreeRowKind>([
-  'cite',
-  'annotation',
-  'epigraph',
-]);
+/** The row kind of a model element, or null for elements that never make a row. */
+function rowKindOf(node: ModelNodeJson): TreeRowKind | null {
+  if (!ELEMENT_ROW_KINDS.has(node.type) || nodeIdOf(node) === null) return null;
+  if (node.type === 'inline-image' && isCharacterPicture(node)) return null;
+  return node.type as TreeRowKind;
+}
 
 /** The summary of an irregular table, null for a regular one (the Body view's, I21). */
 function irregularSummary(table: ModelNodeJson): TableSummary | null {
@@ -232,18 +229,15 @@ function irregularTablesIn(node: ModelNodeJson): TableSummary[] {
   return found;
 }
 
-function collectRows(
+function newRow(
   node: ModelNodeJson,
+  kind: TreeRowKind,
+  id: string,
   depth: number,
   parentId: string | null,
-  out: TreeRow[],
-  counter: { sections: number },
-): TreeRow | null {
-  if (!isRowNode(node)) return null;
-  const id = nodeIdOf(node)!;
-  const kind = node.type as TreeRowKind;
+): TreeRow {
   const row: TreeRow = { id, kind, caption: captionFor(node, kind), depth, parentId, childIds: [] };
-  if (kind === 'image') {
+  if (kind === 'image' || kind === 'inline-image') {
     const href = node.attrs?.href;
     if (
       href === undefined ||
@@ -258,28 +252,93 @@ function collectRows(
   if (kind === 'table') {
     const summary = irregularSummary(node);
     if (summary) row.tableProblems = summary;
-  } else if (CONTAINER_KINDS.has(kind)) {
-    const contained = irregularTablesIn(node);
-    if (contained.length > 0) row.containedTables = contained;
-  }
-  out.push(row);
-  if (kind === 'section') counter.sections += 1;
-  if (kind === 'body' || kind === 'section') {
-    for (const child of node.content ?? []) {
-      const childRow = collectRows(child, depth + 1, id, out, counter);
-      if (childRow) row.childIds.push(childRow.id);
-    }
   }
   return row;
 }
 
-function subtreeRows(node: ModelNodeJson, depth: number, parentId: string | null): SubtreeRows {
+interface Walk {
+  shown: ReadonlySet<ElementEntryId>;
+  rows: TreeRow[];
+  sections: number;
+}
+
+/**
+ * Rows of `node` and below: its own row when its kind is shown (then its contents' rows below it
+ * when the kind holds rows), otherwise its contents' rows in its place. Returns the ids of the rows
+ * that stand directly under `parentId`, and the irregular tables that have no row of their own.
+ */
+function collectRows(
+  node: ModelNodeJson,
+  depth: number,
+  parentId: string | null,
+  walk: Walk,
+): { topIds: string[]; passedTables: TableSummary[] } {
+  if (node.type === 'text' || node.type === 'raw-xml' || node.type === 'raw-xml-inline') {
+    return { topIds: [], passedTables: [] };
+  }
+  const kind = rowKindOf(node);
+  if (kind && kindShown(kind, walk.shown)) {
+    const id = nodeIdOf(node)!;
+    const row = newRow(node, kind, id, depth, parentId);
+    walk.rows.push(row);
+    if (kind === 'section') walk.sections += 1;
+    if (ROW_KIND_INFO[kind].holdsRows) {
+      const contained: TableSummary[] = [];
+      for (const child of node.content ?? []) {
+        const inner = collectRows(child, depth + 1, id, walk);
+        row.childIds.push(...inner.topIds);
+        contained.push(...inner.passedTables);
+      }
+      if (contained.length > 0) row.containedTables = contained;
+    } else if (kind !== 'table') {
+      // A leaf row (title, subtitle, picture, cell) stands for what it holds.
+      const contained = irregularTablesIn(node);
+      if (contained.length > 0) row.containedTables = contained;
+    }
+    return { topIds: [id], passedTables: [] };
+  }
+  // A hidden kind, or an element without a row: its contents' rows stand in its place.
+  const topIds: string[] = [];
+  const passedTables: TableSummary[] = [];
+  if (node.type === 'table') {
+    const summary = irregularSummary(node);
+    if (summary) passedTables.push(summary);
+  }
+  for (const child of node.content ?? []) {
+    const inner = collectRows(child, depth, parentId, walk);
+    topIds.push(...inner.topIds);
+    passedTables.push(...inner.passedTables);
+  }
+  return { topIds, passedTables };
+}
+
+function subtreeRows(
+  node: ModelNodeJson,
+  depth: number,
+  parentId: string | null,
+  shown: ReadonlySet<ElementEntryId>,
+  signature: string,
+): SubtreeRows {
   const cached = subtreeCache.get(node);
-  if (cached && cached.depth === depth && cached.parentId === parentId) return cached;
-  const rows: TreeRow[] = [];
-  const counter = { sections: 0 };
-  collectRows(node, depth, parentId, rows, counter);
-  const built: SubtreeRows = { depth, parentId, rows, sectionCount: counter.sections };
+  if (
+    cached &&
+    cached.depth === depth &&
+    cached.parentId === parentId &&
+    cached.signature === signature
+  ) {
+    return cached;
+  }
+  const walk: Walk = { shown, rows: [], sections: 0 };
+  const { topIds, passedTables } = collectRows(node, depth, parentId, walk);
+  const built: SubtreeRows = {
+    depth,
+    parentId,
+    signature,
+    rows: walk.rows,
+    topIds,
+    passedTables,
+    sectionCount: walk.sections,
+  };
   subtreeCache.set(node, built);
   return built;
 }
@@ -298,7 +357,7 @@ function blockTables(annotation: object | undefined): TableSummary[] | undefined
   return cached ?? undefined;
 }
 
-/** The block row of `kind` (always present; the caption is the tree node's text). */
+/** The block row of `kind` (the caption is the tree node's text). */
 function blockRow(
   kind: BlockKind,
   captions: BlockCaptions,
@@ -320,14 +379,17 @@ function blockRow(
 }
 
 /**
- * Builds the tree index of a document: the Annotation and History rows, then the bodies ->
- * sections -> ... `captions` are the texts of the two block rows in the interface language.
+ * Builds the tree index of a document: the Annotation and History rows, then the bodies and
+ * what they hold, as the *Elements* choices `shown` say (the original's defaults when omitted).
+ * `captions` are the texts of the two block rows in the interface language.
  */
 export function buildTreeIndex(
   document: (Pick<Document, 'bodies'> & Partial<Pick<Document, 'description'>>) | null,
   captions: BlockCaptions,
+  shown: ReadonlySet<ElementEntryId> = DEFAULT_SHOWN_ENTRIES,
 ): TreeIndex {
   if (!document) return EMPTY_TREE_INDEX;
+  const signature = shownSignature(shown);
   const rows = new Map<string, TreeRow>();
   const roots: string[] = [];
   const order: string[] = [];
@@ -337,6 +399,7 @@ export function buildTreeIndex(
     order.push(row.id);
   };
   for (const kind of ['annotation', 'history'] as const) {
+    if (!kindShown(kind === 'annotation' ? 'annotationBlock' : 'historyBlock', shown)) continue;
     const row = blockRow(kind, captions, document.description);
     roots.push(row.id);
     add(row);
@@ -345,26 +408,30 @@ export function buildTreeIndex(
     const json = body as unknown as ModelNodeJson;
     const bodyId = nodeIdOf(json);
     if (!bodyId) continue;
-    const bodyRow: TreeRow = {
-      id: bodyId,
-      kind: 'body',
-      caption: captionFor(json, 'body'),
-      depth: 0,
-      parentId: null,
-      childIds: [],
-    };
-    roots.push(bodyId);
-    add(bodyRow);
+    const bodyShown = kindShown('body', shown);
+    let bodyRow: TreeRow | null = null;
+    if (bodyShown) {
+      bodyRow = newRow(json, 'body', bodyId, 0, null);
+      roots.push(bodyId);
+      add(bodyRow);
+    }
+    const contained: TableSummary[] = [];
     for (const child of json.content ?? []) {
-      if (!isRowNode(child)) continue;
-      // Top-level sections are cached per object; header rows of the body are cheap.
-      const subtree = subtreeRows(child, 1, bodyId);
-      const first = subtree.rows[0];
-      if (!first) continue;
-      bodyRow.childIds.push(first.id);
+      // The body's top-level elements are cached per object: an edit rebuilds one of them.
+      const subtree = subtreeRows(
+        child,
+        bodyRow ? 1 : 0,
+        bodyRow ? bodyId : null,
+        shown,
+        signature,
+      );
+      if (bodyRow) bodyRow.childIds.push(...subtree.topIds);
+      else roots.push(...subtree.topIds);
       for (const row of subtree.rows) add(row);
+      contained.push(...subtree.passedTables);
       sectionCount += subtree.sectionCount;
     }
+    if (bodyRow && contained.length > 0) bodyRow.containedTables = contained;
   }
   return { rows, roots, order, sectionCount };
 }

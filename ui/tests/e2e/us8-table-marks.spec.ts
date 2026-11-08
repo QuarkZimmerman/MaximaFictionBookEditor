@@ -652,15 +652,13 @@ test.describe('US8 (feature 006) - irregular tables are marked, in the Body view
     for (const one of SHOWN) {
       const { table, parent } = locateAfter(doc, `Case ${one.name} (`);
       const ref = table.attrs!.nodeId!;
-      if (parent.type === 'section') {
+      // Feature 011 (FR-011): a table of the bodies has its own row wherever it stands - in a
+      // section, a cite or a section annotation; the description's blocks still contain theirs.
+      if (!blocks.has(parent)) {
         expected.set(`tree-row-${ref}`, {
           title: markTooltip(lang, one.expect.params),
           label: markName(lang, one.expect.params),
         });
-      } else if (!blocks.has(parent)) {
-        // A cite's or a section annotation's table: its entry contains it.
-        expect(['cite', 'annotation'], one.name).toContain(parent.type);
-        expected.set(`tree-row-${parent.attrs!.nodeId!}`, contains(one.expect.params));
       }
     }
     expected.set('tree-row-desc:annotation', contains(params('overlap-from-two-rows-above')));

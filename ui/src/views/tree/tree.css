@@ -7,7 +7,8 @@
   align-items: center;
   gap: 2px;
   padding: 2px 4px;
-  border-bottom: 1px solid var(--mfbe-color-border);
+  /* Feature 011 (D35): the toolbar stands below the tree, as in the original. */
+  border-top: 1px solid var(--mfbe-color-border);
   background: var(--mfbe-color-toolbar-bg);
   user-select: none;
 }
@@ -121,4 +122,10 @@
 .mfbe-menu-popup.mfbe-tree-menu {
   position: fixed;
   z-index: 600;
+}
+
+/* Feature 011 (D35): the tree's menu bar (Elements, Scripts), drawn like the main menu bar. */
+.mfbe-tree-menubar {
+  flex: none;
+  border-bottom: 1px solid var(--mfbe-color-border);
 }

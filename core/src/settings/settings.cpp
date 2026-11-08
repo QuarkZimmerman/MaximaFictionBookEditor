@@ -100,6 +100,9 @@ const std::vector<Field>& schema() {
         // The status bar panes shown (feature 009, FR-056); the message pane always shows.
         string_set("view.statusBarPanes", {"path", "position", "selection", "character", "encoding",
                                            "validity", "insmode"}),
+        // The Document tree's Elements choices (feature 011, D34): kind -> shown; a kind not in
+        // the object takes the original's default (ui/src/views/tree/elementKinds.ts).
+        field("view.treeElements", Kind::bool_map),
         enumeration("other.defaultEncoding", supported_encodings()),
         field("other.keepEncoding", Kind::boolean),
         // A backup of the previous version beside the saved file (feature 009, FR-006).
@@ -592,7 +595,8 @@ json defaults() {
           {"customDictionaryPath", ""},
           {"fastMode", false},
           {"statusBarPanes", json::array({"path", "position", "selection", "character", "encoding",
-                                          "validity", "insmode"})}}},
+                                          "validity", "insmode"})},
+          {"treeElements", json::object()}}},
         {"other",
          {{"defaultEncoding", "utf-8"},
           {"keepEncoding", false},

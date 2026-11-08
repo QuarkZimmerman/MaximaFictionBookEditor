@@ -16,6 +16,11 @@
  * irregular tables without rows of their own (a cite, an annotation, an epigraph, the Annotation
  * and History blocks) one "Contains an irregular table: …" line per table. The mark is not
  * interactive: a click selects the row and reveals the table, whose own mark offers the popover.
+ *
+ * Feature 011 (US2; D33-D39, FR-010-FR-016; contracts/tree.md §5): the pane is the original's -
+ * the caption, the menu bar (*Elements*, *Scripts*), the tree, the toolbar at the bottom; the rows
+ * follow the *Elements* choices (`view.treeElements`); rows that hold stanzas, cells or what an
+ * annotation, a quote or an epigraph contains start closed (FR-013a), `*` opens every row.
  */
 
 import type { TFunction } from 'i18next';
@@ -31,12 +36,15 @@ import { describeTableMark } from '@/features/tables/marks';
 import { getTreeFeature, revealInBody, treeOpCommandId } from '@/features/tree';
 import { useAppState } from '@/model/store';
 
+import { ROW_KIND_INFO, shownEntries } from './elementKinds';
 import { TreeContextMenu } from './TreeContextMenu';
+import { TreeMenuBar } from './TreeMenuBar';
 import {
   ancestorRows,
   buildTreeIndex,
   isRowWithin,
   ROW_ICONS,
+  rowForNode,
   rowForSelection,
   TREE_ROW_HEIGHT,
   TREE_TOOLBAR,
@@ -90,6 +98,9 @@ export function DocumentTree() {
   const selectionNodeId = useAppState((s) => s.selectionNodeId, store);
   const selectionPath = useAppState((s) => s.selectionPath, store);
   const sourceDirty = useAppState((s) => s.sourceDirty || s.sourceOnly, store);
+  const docId = useAppState((s) => s.docId, store);
+  const treeElements = useAppState((s) => s.settings?.view.treeElements, store);
+  const shown = useMemo(() => shownEntries(treeElements), [treeElements]);
   const feature = getTreeFeature(store);
   const panel = useSyncExternalStore(feature.subscribe, feature.getState);
   const { selection, collapsed } = panel;
@@ -99,7 +110,10 @@ export function DocumentTree() {
     () => ({ annotation: t('tree.node.annotation'), history: t('tree.node.history') }),
     [t],
   );
-  const index = useMemo(() => buildTreeIndex(document, captions), [document, captions]);
+  const index = useMemo(
+    () => buildTreeIndex(document, captions, shown),
+    [document, captions, shown],
+  );
   const rows = useMemo(() => visibleRows(index, collapsed), [index, collapsed]);
   const selectedId = selection.id && index.rows.has(selection.id) ? selection.id : null;
 
@@ -133,6 +147,39 @@ export function DocumentTree() {
     observer.observe(container);
     return () => observer.disconnect();
   }, []);
+
+  /* ---------------------------------------------------- rows that start closed */
+
+  // Feature 011 (FR-013a): a row of a kind that starts closed is collapsed when it first appears
+  // in the document's tree; what the user opens or closes afterwards stays as he left it.
+  const seenRows = useRef<{ docId: string | null; ids: Set<string> }>({
+    docId: null,
+    ids: new Set(),
+  });
+  useEffect(() => {
+    const seen = seenRows.current;
+    if (seen.docId !== docId) {
+      seen.docId = docId;
+      seen.ids = new Set();
+    }
+    const closing: string[] = [];
+    for (const id of index.order) {
+      if (seen.ids.has(id)) continue;
+      seen.ids.add(id);
+      const row = index.rows.get(id);
+      if (row && row.childIds.length > 0 && ROW_KIND_INFO[row.kind].startsClosed) closing.push(id);
+    }
+    if (closing.length > 0) feature.collapseRows(closing);
+  }, [index, docId, feature]);
+
+  // Feature 011 (US2 scenario 5): when the selected row's kind is unticked, the selection moves
+  // to the row that now stands for its element (the nearest shown one above it).
+  useEffect(() => {
+    const id = feature.getState().selection.id;
+    if (!id || index.rows.has(id) || !document) return;
+    const up = rowForNode(index, document, id);
+    if (up) feature.select(up, 'tree');
+  }, [index, document, feature]);
 
   /* --------------------------------------------------------- Body -> tree */
 
@@ -286,35 +333,7 @@ export function DocumentTree() {
       <div className="mfbe-tree-caption" data-testid="panel-tree-caption">
         {t('tree.caption')}
       </div>
-      <div
-        className="mfbe-tree-toolbar"
-        role="toolbar"
-        aria-label={t('tree.a11y.toolbar')}
-        data-testid="tree-toolbar"
-      >
-        {TREE_TOOLBAR.map((button) => {
-          const commandId = treeOpCommandId(button.op);
-          const command = services.commands.get(commandId);
-          const enabled = services.commands.isEnabled(commandId, ctx);
-          const tooltip = command ? commandTooltip(command, t) : t(button.labelKey);
-          return (
-            <button
-              key={button.op}
-              type="button"
-              className="mfbe-toolbar-button mfbe-tree-toolbar-button"
-              data-testid={button.testId}
-              data-command={commandId}
-              title={t(button.labelKey)}
-              aria-label={tooltip}
-              aria-description={command ? commandDescription(command, t) : undefined}
-              disabled={!enabled}
-              onClick={() => runCommand(commandId)}
-            >
-              <img src={treeIconUrl(button.icon)} width={24} height={24} alt="" draggable={false} />
-            </button>
-          );
-        })}
-      </div>
+      <TreeMenuBar shown={shown} />
       <div
         ref={containerRef}
         className="mfbe-tree-content"
@@ -368,6 +387,35 @@ export function DocumentTree() {
             />
           ))}
         </div>
+      </div>
+      <div
+        className="mfbe-tree-toolbar"
+        role="toolbar"
+        aria-label={t('tree.a11y.toolbar')}
+        data-testid="tree-toolbar"
+      >
+        {TREE_TOOLBAR.map((button) => {
+          const commandId = treeOpCommandId(button.op);
+          const command = services.commands.get(commandId);
+          const enabled = services.commands.isEnabled(commandId, ctx);
+          const tooltip = command ? commandTooltip(command, t) : t(button.labelKey);
+          return (
+            <button
+              key={button.op}
+              type="button"
+              className="mfbe-toolbar-button mfbe-tree-toolbar-button"
+              data-testid={button.testId}
+              data-command={commandId}
+              title={t(button.labelKey)}
+              aria-label={tooltip}
+              aria-description={command ? commandDescription(command, t) : undefined}
+              disabled={!enabled}
+              onClick={() => runCommand(commandId)}
+            >
+              <img src={treeIconUrl(button.icon)} width={24} height={24} alt="" draggable={false} />
+            </button>
+          );
+        })}
       </div>
       {menu ? <TreeContextMenu position={menu} onClose={closeMenu} /> : null}
     </div>

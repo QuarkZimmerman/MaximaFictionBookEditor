@@ -36,7 +36,9 @@ TEST_CASE("settings: defaults are exactly resource-formats.md section 6", "[sett
     // Feature 009 (FR-056): every pane shown.
     CHECK(d["view"]["statusBarPanes"] == json::array({"path", "position", "selection", "character",
                                                       "encoding", "validity", "insmode"}));
-    CHECK(d["view"].size() == 20);
+    // Feature 011 (D34): the Elements choices, every kind at its default.
+    CHECK(d["view"]["treeElements"] == json::object());
+    CHECK(d["view"].size() == 21);
     CHECK(d["view"]["theme"] == "system");
     CHECK(d["other"]["defaultEncoding"] == "utf-8");
     CHECK(d["other"]["keepEncoding"] == false);
