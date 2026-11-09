@@ -262,8 +262,48 @@ function newRow(
 
 interface Walk {
   shown: ReadonlySet<ElementEntryId>;
+  signature: string;
   rows: TreeRow[];
   sections: number;
+}
+
+/**
+ * `collectRows` of one element, reused while the element's object, its place and the *Elements*
+ * choices stay (feature 011: the tree has a row per cell, stanza and subtitle, so an edit rebuilds
+ * only the rows on the path to what changed - the model's unchanged nodes keep their objects).
+ */
+function childRows(
+  node: ModelNodeJson,
+  depth: number,
+  parentId: string | null,
+  walk: Walk,
+): { topIds: string[]; passedTables: TableSummary[] } {
+  if (node.type === 'text' || node.type === 'raw-xml' || node.type === 'raw-xml-inline') {
+    return { topIds: [], passedTables: [] };
+  }
+  let built = subtreeCache.get(node);
+  if (
+    !built ||
+    built.depth !== depth ||
+    built.parentId !== parentId ||
+    built.signature !== walk.signature
+  ) {
+    const inner: Walk = { shown: walk.shown, signature: walk.signature, rows: [], sections: 0 };
+    const { topIds, passedTables } = collectRows(node, depth, parentId, inner);
+    built = {
+      depth,
+      parentId,
+      signature: walk.signature,
+      rows: inner.rows,
+      topIds,
+      passedTables,
+      sectionCount: inner.sections,
+    };
+    subtreeCache.set(node, built);
+  }
+  for (const row of built.rows) walk.rows.push(row);
+  walk.sections += built.sectionCount;
+  return { topIds: built.topIds, passedTables: built.passedTables };
 }
 
 /**
@@ -289,7 +329,7 @@ function collectRows(
     if (ROW_KIND_INFO[kind].holdsRows) {
       const contained: TableSummary[] = [];
       for (const child of node.content ?? []) {
-        const inner = collectRows(child, depth + 1, id, walk);
+        const inner = childRows(child, depth + 1, id, walk);
         row.childIds.push(...inner.topIds);
         contained.push(...inner.passedTables);
       }
@@ -309,7 +349,7 @@ function collectRows(
     if (summary) passedTables.push(summary);
   }
   for (const child of node.content ?? []) {
-    const inner = collectRows(child, depth, parentId, walk);
+    const inner = childRows(child, depth, parentId, walk);
     topIds.push(...inner.topIds);
     passedTables.push(...inner.passedTables);
   }
@@ -332,7 +372,7 @@ function subtreeRows(
   ) {
     return cached;
   }
-  const walk: Walk = { shown, rows: [], sections: 0 };
+  const walk: Walk = { shown, signature, rows: [], sections: 0 };
   const { topIds, passedTables } = collectRows(node, depth, parentId, walk);
   const built: SubtreeRows = {
     depth,

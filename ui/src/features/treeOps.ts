@@ -148,7 +148,27 @@ export interface Located {
 }
 
 /** Depth-first search of `nodeId` in the bodies of the model. */
+/**
+ * Feature 011: the places already found in a model, per model object - the tree's toolbar asks for
+ * the selected row's place once per button and render, and a walk crosses the whole book; the
+ * model is never changed in place (an edit makes a new one), so a place stays right for its object.
+ */
+const locatedCache = new WeakMap<object, Map<string, Located | null>>();
+
 export function locateNode(model: Pick<Document, 'bodies'>, nodeId: string): Located | null {
+  let places = locatedCache.get(model);
+  if (!places) {
+    places = new Map();
+    locatedCache.set(model, places);
+  }
+  const known = places.get(nodeId);
+  if (known !== undefined) return known;
+  const located = locateNodeUncached(model, nodeId);
+  places.set(nodeId, located);
+  return located;
+}
+
+function locateNodeUncached(model: Pick<Document, 'bodies'>, nodeId: string): Located | null {
   const visit = (node: Json, ancestors: Json[]): Located | null => {
     const content = node.content ?? [];
     for (let i = 0; i < content.length; i += 1) {

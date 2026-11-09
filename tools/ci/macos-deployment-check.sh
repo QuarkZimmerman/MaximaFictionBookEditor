@@ -8,6 +8,8 @@
 #
 # Usage: tools/ci/macos-deployment-check.sh <build-log> [<folder> ...]
 set -euo pipefail
+# An unexpected failure names its line instead of ending the step without a word.
+trap 'echo "macos-deployment-check: failed at line ${LINENO}: ${BASH_COMMAND}" >&2' ERR
 
 expected="${MFBE_MACOS_MIN:-13.0}"
 log="${1:?usage: macos-deployment-check.sh <build-log> [<folder> ...]}"
@@ -30,9 +32,15 @@ newer_than_expected() {
 checked=0
 for root in "$@"; do
   while IFS= read -r -d '' file; do
-    file -b "$file" | grep -q 'Mach-O' || continue
+    # Not `file | grep -q`: under pipefail grep's early exit can fail the pipeline and skip the file.
+    [[ "$(file -b "$file")" == *Mach-O* ]] || continue
     checked=$((checked + 1))
-    versions=$(otool -l "$file" 2>/dev/null |
+    if ! commands=$(otool -l "$file" 2>&1); then
+      echo "macos-deployment-check: otool cannot read ${file}: ${commands%%$'\n'*}" >&2
+      status=1
+      continue
+    fi
+    versions=$(printf '%s\n' "$commands" |
       awk '/LC_BUILD_VERSION/ {b=1} b && /minos/ {print $2; b=0}
            /LC_VERSION_MIN_MACOSX/ {v=1} v && /version/ {print $2; v=0}' | sort -u)
     for version in $versions; do

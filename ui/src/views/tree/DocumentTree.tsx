@@ -28,7 +28,15 @@
  */
 
 import type { TFunction } from 'i18next';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -123,16 +131,20 @@ export function DocumentTree() {
     () => ({ annotation: t('tree.node.annotation'), history: t('tree.node.history') }),
     [t],
   );
+  // Feature 011: the tree has a row for every cell, stanza and subtitle, so its rows follow an
+  // edit in a render of their own, after the edit has shown - a large book's edit never waits
+  // for the tree (React's deferred value: the urgent render first, this one interruptible).
+  const treeDocument = useDeferredValue(document);
   const baseIndex = useMemo(
-    () => buildTreeIndex(document, captions, shown),
-    [document, captions, shown],
+    () => buildTreeIndex(treeDocument, captions, shown),
+    [treeDocument, captions, shown],
   );
   // Feature 011 (US11): the rows tree scripts show, in their places.
   const scriptRows = getScriptRows(store);
   const scriptSets = useSyncExternalStore(scriptRows.subscribe, scriptRows.getState);
   const index = useMemo(
-    () => addScriptRows(baseIndex, document, scriptSets.values(), scriptRowId),
-    [baseIndex, document, scriptSets],
+    () => addScriptRows(baseIndex, treeDocument, scriptSets.values(), scriptRowId),
+    [baseIndex, treeDocument, scriptSets],
   );
   const scriptsFeature = getScriptsFeature(store);
   useSyncExternalStore(
