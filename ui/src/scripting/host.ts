@@ -46,6 +46,7 @@ import type { UndoCoordinator } from '@/model/undo';
 import type { RpcClient } from '@/rpc/client';
 import type { JobProgress } from '@/rpc/types';
 import type { BodyEditorController } from '@/views/body/bodyEditor';
+import { getScriptRows } from '@/views/tree/scriptRows';
 
 import {
   createScriptApi,
@@ -55,7 +56,9 @@ import {
   type ClipboardLike,
   type ReportSpec,
   type ScriptApi,
+  type ScriptApiDeps,
 } from './api-impl';
+import { scriptIconUrl } from './icons';
 import { resolveScriptRef } from './scriptRefs';
 import { DEFAULT_TICK_MS, startRunSession, type RunSession } from './runSession';
 import type {
@@ -464,6 +467,7 @@ export class ScriptHost {
           clipboard: this.deps.clipboard,
           openReport: this.deps.openReport,
           runScript: (ref, args) => this.runCallee(active, script.id, 0, ref, args),
+          treeRows: this.treeRowsOf(script, options.uiLanguage),
           ...(nested
             ? {
                 publish: false,
@@ -610,6 +614,7 @@ export class ScriptHost {
           clipboard: this.deps.clipboard,
           openReport: this.deps.openReport,
           runScript: (next, nextArgs) => this.runCallee(root, target.id, depth, next, nextArgs),
+          treeRows: this.treeRowsOf(target, root.options.uiLanguage),
           ...(root.nested
             ? {
                 publish: false,
@@ -707,6 +712,22 @@ export class ScriptHost {
   }
 
   /** Whether the Body view holds a non-empty selection (a callee's `needsSelection`). */
+  /**
+   * Feature 011 (US11; constitution 3.3.0 power (e)): the Document tree rows of a `treeRows`
+   * script's run, under its name and icon; nothing for a script of another kind.
+   */
+  private treeRowsOf(script: ScriptInfo, language: string): ScriptApiDeps['treeRows'] {
+    if (script.kind !== 'treeRows') return undefined;
+    const rows = getScriptRows(this.deps.store);
+    const name = scriptName(script, language);
+    const iconUrl = scriptIconUrl(script);
+    return {
+      show: (entries) =>
+        rows.show({ scriptId: script.id, name, ...(iconUrl ? { iconUrl } : {}), entries }),
+      clear: () => rows.clear(script.id),
+    };
+  }
+
   private hasSelection(): boolean {
     const state = this.deps.getController()?.editorState;
     return !!state && !state.selection.empty;

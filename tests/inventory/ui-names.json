@@ -590,6 +590,11 @@
       "tooltip": "Words",
       "description": "Word frequency list with replacements"
     },
+    "tree.cleanRow": {
+      "label": "Tree: clean the script row",
+      "tooltip": "Tree: clean the script row",
+      "description": "Remove this row the tree script showed; the book is unchanged"
+    },
     "tree.delete": {
       "label": "Tree: delete",
       "tooltip": "Tree: delete",
@@ -1287,6 +1292,11 @@
       "tooltip": "Слова",
       "description": "Частотный список слов книги с заменами"
     },
+    "tree.cleanRow": {
+      "label": "Дерево: убрать строку скрипта",
+      "tooltip": "Дерево: убрать строку скрипта",
+      "description": "Убрать эту строку, показанную скриптом дерева; книга не меняется"
+    },
     "tree.delete": {
       "label": "Структура: удалить",
       "tooltip": "Структура: удалить",
@@ -1983,6 +1993,11 @@
       "label": "&Слова...",
       "tooltip": "Слова",
       "description": "Частотний список слів книги із замінами"
+    },
+    "tree.cleanRow": {
+      "label": "Дерево: прибрати рядок скрипту",
+      "tooltip": "Дерево: прибрати рядок скрипту",
+      "description": "Прибрати цей рядок, показаний скриптом дерева; книга не змінюється"
     },
     "tree.delete": {
       "label": "Структура: видалити",

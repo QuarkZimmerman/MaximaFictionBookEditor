@@ -463,12 +463,8 @@ const EXPLICIT = [
   ["20/show-whole-code.xml", C16, ["--select", "n26"]],
   ["21/text-error-search.xml", C21, ["--select", "n7:0:0"]],
   ["21/regexp-set-search-template.xml", C21, ["--select", "n7:3:3"]],
-  // tree command
-  [
-    "tree/example-1.xml",
-    C16,
-    ["--tree-node", "n14", "--answer", '{"target":"n23"}'],
-  ],
+  // tree script (feature 011: kind treeRows - rows of the Document tree, the book unchanged)
+  ["tree/example-1.xml", C16, []],
 ];
 
 function fromExplicit() {

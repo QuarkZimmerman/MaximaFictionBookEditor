@@ -23,7 +23,9 @@ export type TreeRowKind =
   | 'subtitle'
   | 'table'
   | 'th'
-  | 'td';
+  | 'td'
+  // Feature 011 (US11, D41): a row a tree script shows (contracts/script-api.md); never an element.
+  | 'script';
 
 /** An entry of the *Elements* menu (its id is the key of the `view.treeElements` setting). */
 export type ElementEntryId =
@@ -69,8 +71,8 @@ export const ELEMENT_ENTRIES: readonly ElementEntry[] = [
 ];
 
 export interface RowKindInfo {
-  /** The *Elements* entry that shows or hides the kind. */
-  entry: ElementEntryId;
+  /** The *Elements* entry that shows or hides the kind; null for script rows, always shown. */
+  entry: ElementEntryId | null;
   /** Image of the original's `struct.bmp` list (ui/public/icons/tree/<icon>.png). */
   icon: string;
   /** Whether rows of the kind hold rows of what they contain. */
@@ -98,6 +100,8 @@ export const ROW_KIND_INFO: Readonly<Record<TreeRowKind, RowKindInfo>> = {
   // D37: a picture inside a cell has its row under its cell's.
   th: { entry: 'headerCell', icon: 'struct-27', holdsRows: true, startsClosed: false },
   td: { entry: 'cell', icon: 'struct-27', holdsRows: true, startsClosed: false },
+  // The script's own icon when it has one (`TreeRow.iconUrl`), else the subtitle's stars.
+  script: { entry: null, icon: 'struct-06', holdsRows: false, startsClosed: false },
 };
 
 /** The model element types that make rows (the two blocks are added by the index itself). */
@@ -135,7 +139,8 @@ export const DEFAULT_SHOWN_ENTRIES: ReadonlySet<ElementEntryId> = shownEntries(u
 
 /** Whether rows of `kind` are shown under `shown`. */
 export function kindShown(kind: TreeRowKind, shown: ReadonlySet<ElementEntryId>): boolean {
-  return shown.has(ROW_KIND_INFO[kind].entry);
+  const entry = ROW_KIND_INFO[kind].entry;
+  return entry === null || shown.has(entry);
 }
 
 /** A stable key of a shown set (part of the row cache's key). */

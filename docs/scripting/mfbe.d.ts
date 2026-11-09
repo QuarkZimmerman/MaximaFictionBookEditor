@@ -1,12 +1,13 @@
-// Maxima Fiction Book Editor - public typings of the user script API (`mfbe`), version 2.
+// Maxima Fiction Book Editor - public typings of the user script API (`mfbe`), version 3.
 // Copy of specs/001-maxima-fb2-editor/contracts/script-api.d.ts (the complete allow-list), as
 // amended by specs/007-fourth-feedback-batch/contracts/script-api.md (version 1 -> 2, additive:
-// a version-1 script runs unchanged), with this header; the contracts are the source of truth -
-// update them first, then this file.
+// a version-1 script runs unchanged) and specs/011-seventh-feedback-batch/contracts/script-api.md
+// (version 2 -> 3, additive: the Document tree's rows of a treeRows script), with this header;
+// the contracts are the source of truth - update them first, then this file.
 // Usage in a script project: /// <reference path="./mfbe.d.ts" /> (or add it to tsconfig "files").
 
 /**
- * Maxima Fiction Book Editor — User Script API (`mfbe`), version 2.
+ * Maxima Fiction Book Editor — User Script API (`mfbe`), version 3.
  *
  * THIS FILE IS THE COMPLETE ALLOW-LIST. A script running in the editor can use
  * the JavaScript language, the standard built-ins (String, RegExp, Array, Map,
@@ -34,7 +35,11 @@ declare namespace mfbe {
 
   interface Context {
     /** Script metadata from script.json. */
-    readonly script: { id: string; name: string; group: string; kind: 'menu' | 'tree' };
+    /**
+     * Version 3: kind 'treeRows' - a script of the Document tree bar's Scripts menu, which lists
+     * places in the tree through mfbe.tree.showRows.
+     */
+    readonly script: { id: string; name: string; group: string; kind: 'menu' | 'tree' | 'treeRows' };
     /** Interface language of the editor ('en' | 'ru' | …). */
     readonly uiLanguage: string;
     /** For kind === 'tree': the node the user right-clicked in the Document Tree. */
@@ -270,6 +275,22 @@ declare namespace mfbe {
     run(ref: string, args?: unknown): Promise<unknown>;
   }
 
+  /** Version 3: the rows a treeRows script shows in the Document tree (display only). */
+  interface Tree {
+    /**
+     * Shows `entries` as rows of the Document tree under this script's name and icon, in their
+     * places (under the nearest row above each node), replacing this script's earlier rows.
+     * Nothing in the book changes. A `caption` shows at most 80 characters; without one, the
+     * script's name. Unknown or stale nodes are skipped; resolves with the number of rows shown.
+     * The rows stay until the tree bar's Clean, the row's Clean, the script's next run or their
+     * node's deletion, and are never saved. Only in a run of a treeRows script; elsewhere it
+     * rejects with a ScriptApiError of code 'notAllowed'.
+     */
+    showRows(entries: ReadonlyArray<{ node: NodeRef | string; caption?: string }>): Promise<number>;
+    /** Removes this script's rows ('notAllowed' outside a treeRows run). */
+    clearRows(): Promise<void>;
+  }
+
   /**
    * Errors of the API reach a script as Error objects whose `name` is 'ScriptApiError' and whose
    * `code` says why: 'apiError', 'invalidNode', 'notAllowed', 'unknownNode', and in version 2
@@ -311,7 +332,8 @@ declare namespace mfbe {
   const clipboard: Clipboard;
   const files: Files;
   const scripts: Scripts;
-  const version: 2;
+  const tree: Tree;
+  const version: 3;
 }
 
 export = mfbe;

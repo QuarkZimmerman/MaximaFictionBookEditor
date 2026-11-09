@@ -83,6 +83,10 @@ export interface TreeRow {
   containedTables?: TableSummary[];
   /** Feature 010 (D8): a picture without an image (`#undefined`); the tree says "Empty picture". */
   emptyPicture?: boolean;
+  /** Feature 011 (US11, D41): a script row - the script that shows it and the node it lists. */
+  script?: { scriptId: string; nodeId: string };
+  /** A script row's icon: the script's own. */
+  iconUrl?: string;
 }
 
 export interface TreeIndex {
@@ -425,6 +429,110 @@ export function buildTreeIndex(
     if (bodyRow && contained.length > 0) bodyRow.containedTables = contained;
   }
   return { rows, roots, order, sectionCount };
+}
+
+/* ------------------------------------------------------------------------ */
+/* Script rows (feature 011, US11)                                          */
+/* ------------------------------------------------------------------------ */
+
+/** The rows tree scripts show (`views/tree/scriptRows.ts`): per script, its entries. */
+export interface ScriptRowsInput {
+  scriptId: string;
+  name: string;
+  iconUrl?: string;
+  entries: readonly { nodeId: string; caption?: string }[];
+}
+
+/** The pre-order place of every element of the book (the description's blocks first). */
+function documentOrder(
+  document: Pick<Document, 'bodies'> & Partial<Pick<Document, 'description'>>,
+): Map<string, number> {
+  const order = new Map<string, number>();
+  const visit = (node: ModelNodeJson | undefined) => {
+    if (!node || node.type === 'text') return;
+    const id = nodeIdOf(node);
+    if (id) order.set(id, order.size);
+    for (const child of node.content ?? []) visit(child);
+  };
+  visit(document.description?.titleInfo.annotation as unknown as ModelNodeJson | undefined);
+  visit(document.description?.documentInfo.history as unknown as ModelNodeJson | undefined);
+  for (const body of document.bodies) visit(body as unknown as ModelNodeJson);
+  return order;
+}
+
+/**
+ * The index with the script rows in their places (contracts/tree.md §1): each under the row of the
+ * nearest element above its node that has one, among that row's rows in document order - a node
+ * with a row of its own gets the script row just before it. Entries whose node is not in the book
+ * have no row. The rows of the index itself are not changed (they are cached per section).
+ */
+export function addScriptRows(
+  index: TreeIndex,
+  document: (Pick<Document, 'bodies'> & Partial<Pick<Document, 'description'>>) | null,
+  sets: Iterable<ScriptRowsInput>,
+  rowIdOf: (scriptId: string, nodeId: string) => string,
+): TreeIndex {
+  const all = [...sets];
+  if (!document || all.every((set) => set.entries.length === 0)) return index;
+  const order = documentOrder(document);
+  const rows = new Map(index.rows);
+  const roots = [...index.roots];
+  const copied = new Set<string>();
+  const childrenOf = (parentId: string | null): string[] => {
+    if (parentId === null) return roots;
+    if (!copied.has(parentId)) {
+      const parent = rows.get(parentId)!;
+      rows.set(parentId, { ...parent, childIds: [...parent.childIds] });
+      copied.add(parentId);
+    }
+    return rows.get(parentId)!.childIds;
+  };
+  const placeOf = (id: string): number => {
+    const script = rows.get(id)?.script;
+    return order.get(script ? script.nodeId : id) ?? -1;
+  };
+  for (const set of all) {
+    for (const entry of set.entries) {
+      const place = order.get(entry.nodeId);
+      if (place === undefined) continue;
+      let parentId = rowForNode(index, document, entry.nodeId);
+      if (parentId === entry.nodeId) parentId = index.rows.get(entry.nodeId)?.parentId ?? null;
+      const parent = parentId === null ? null : rows.get(parentId);
+      if (parentId !== null && !parent) continue;
+      const id = rowIdOf(set.scriptId, entry.nodeId);
+      if (rows.has(id)) continue;
+      const caption = normalizeCaption(entry.caption ?? '') || set.name;
+      rows.set(id, {
+        id,
+        kind: 'script',
+        caption,
+        depth: parent ? parent.depth + 1 : 0,
+        parentId,
+        childIds: [],
+        script: { scriptId: set.scriptId, nodeId: entry.nodeId },
+        ...(set.iconUrl ? { iconUrl: set.iconUrl } : {}),
+      });
+      const siblings = childrenOf(parentId);
+      // After every sibling that starts at or before the node, so a node's own row follows it.
+      let at = siblings.length;
+      for (let i = 0; i < siblings.length; i += 1) {
+        const sibling = siblings[i]!;
+        const before = placeOf(sibling);
+        if (before > place || (before === place && !rows.get(sibling)?.script)) {
+          at = i;
+          break;
+        }
+      }
+      siblings.splice(at, 0, id);
+    }
+  }
+  const preorder: string[] = [];
+  const walk = (id: string) => {
+    preorder.push(id);
+    for (const child of rows.get(id)?.childIds ?? []) walk(child);
+  };
+  for (const root of roots) walk(root);
+  return { rows, roots, order: preorder, sectionCount: index.sectionCount };
 }
 
 /* ------------------------------------------------------------------------ */

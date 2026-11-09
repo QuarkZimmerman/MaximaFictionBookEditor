@@ -37,6 +37,7 @@ import type { Description, Document } from '@/model/document';
 import { actions, type AppStore } from '@/model/store';
 import type { RpcClient } from '@/rpc/client';
 import type { BodyEditorController } from '@/views/body/bodyEditor';
+import { documentNodeIds } from '@/views/tree/scriptRows';
 
 import { showScriptForm, showScriptMessage, showScriptPrompt } from './dialogs';
 import { openReportWindow } from './openReport';
@@ -171,6 +172,15 @@ export interface ScriptApiDeps {
   runScript?: (ref: string, args: unknown) => Promise<unknown>;
   /** The root run's working copy and node ids, which the scripts it runs share (scripts.run). */
   shared?: SharedRunState;
+  /**
+   * Feature 011 (script API 3, constitution 3.3.0 power (e)): the Document tree rows of this run's
+   * script - given only to a run of a `treeRows` script; `tree.*` is `notAllowed` in any other.
+   */
+  treeRows?: {
+    /** Shows the entries in place of the script's earlier rows; the number shown. */
+    show(entries: { nodeId: string; caption?: string }[]): number;
+    clear(): void;
+  };
 }
 
 export interface ClipboardLike {
@@ -1058,6 +1068,45 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
     },
   };
 
+  /* ------------------------------------------------------ tree (version 3) */
+
+  const requireTreeRows = (what: string) => {
+    if (!deps.treeRows) {
+      throw new ScriptApiError(`${what}: only in a run of a treeRows script`, 'notAllowed');
+    }
+    return deps.treeRows;
+  };
+
+  const tree = {
+    showRows: async (value: unknown): Promise<number> => {
+      const rows = requireTreeRows('tree.showRows');
+      if (!Array.isArray(value)) {
+        throw new ScriptApiError('tree.showRows: expected an array of {node, caption?}');
+      }
+      // Unknown and stale nodes are skipped (contracts/script-api.md).
+      const ids = copy ? documentNodeIds(copy.document) : new Set<string>();
+      const entries: { nodeId: string; caption?: string }[] = [];
+      for (const item of value as unknown[]) {
+        if (!item || typeof item !== 'object') continue;
+        const { node, caption } = item as { node?: unknown; caption?: unknown };
+        const nodeId =
+          typeof node === 'string'
+            ? node
+            : node && typeof node === 'object' && typeof (node as NodeRef).nodeId === 'string'
+              ? (node as NodeRef).nodeId
+              : null;
+        if (!nodeId || !ids.has(nodeId)) continue;
+        entries.push(
+          typeof caption === 'string' && caption.trim() ? { nodeId, caption } : { nodeId },
+        );
+      }
+      return rows.show(entries);
+    },
+    clearRows: async (): Promise<void> => {
+      requireTreeRows('tree.clearRows').clear();
+    },
+  };
+
   /* ------------------------------------------------------- edit / env */
 
   const edit = {
@@ -1125,6 +1174,8 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
     'files.saveText': files.saveText,
     'files.saveBinaries': files.saveBinaries,
     'scripts.run': scripts.run,
+    'tree.showRows': tree.showRows,
+    'tree.clearRows': tree.clearRows,
   };
 
   return {

@@ -20,6 +20,12 @@ import type { RpcClient } from '@/rpc/client';
 import { selectionFor, type BodyEditorController } from '@/views/body/bodyEditor';
 import { getSourceEditor } from '@/views/source/sourceEditor';
 import { loadSourceText, requestViewSwitch, setCaretWhenReady } from '@/views/source/sync';
+import {
+  getScriptRows,
+  isScriptRowId,
+  nodeIdOfRow,
+  parseScriptRowId,
+} from '@/views/tree/scriptRows';
 import { titleText } from '@/views/tree/treeModel';
 
 import { FIXED_BLOCK_IDS } from '@/editor/schema';
@@ -210,6 +216,8 @@ export function canRunTreeCommand(ctx: Pick<CommandContext, 'store'>, op: TreeOp
   return (
     !!selected &&
     !isBlockRow(selected) &&
+    // Feature 011 (US11): a script row only lists a place; Go To, Go To Source and Clean it.
+    !isScriptRowId(selected) &&
     modelEditable(ctx) &&
     !!state.document &&
     canRunTreeOp(op, state.document, selected)
@@ -226,7 +234,9 @@ export async function runTreeCommand(ctx: CommandContext, op: TreeOp): Promise<b
   const feature = getTreeFeature(store);
   const nodeId = feature.selectedId;
   const model = store.getState().document;
-  if (!nodeId || isBlockRow(nodeId) || !model || !modelEditable(ctx)) return false;
+  if (!nodeId || isBlockRow(nodeId) || isScriptRowId(nodeId) || !model || !modelEditable(ctx)) {
+    return false;
+  }
   if (op === 'delete') {
     // Feature 010 (FR-075, D20): the question names what it removes.
     const located = locateNode(model, nodeId);
@@ -277,10 +287,12 @@ export async function runTreeCommand(ctx: CommandContext, op: TreeOp): Promise<b
 /** View: shows the selected element in the Body view (switching to it when needed). */
 export async function viewSelected(ctx: CommandContext, nodeId?: string | null): Promise<boolean> {
   const feature = getTreeFeature(ctx.store);
-  const target = nodeId ?? feature.selectedId;
-  if (!target) return false;
-  feature.markNavigation(target);
-  feature.select(target, 'tree');
+  const rowId = nodeId ?? feature.selectedId;
+  if (!rowId) return false;
+  // A script row goes to the element it lists (feature 011, US11).
+  const target = nodeIdOfRow(rowId);
+  feature.markNavigation(rowId);
+  feature.select(rowId, 'tree');
   if (!(await requestViewSwitch(ctx, 'body'))) return false;
   const controller = bodyController(ctx.store);
   if (controller && controller.setCaret({ view: 'body', nodeId: target })) {
@@ -301,7 +313,7 @@ export function goToRowInSource(store: AppStore, rowId: string, focusSource: boo
   const editor = getSourceEditor(store);
   const model = store.getState().document;
   if (!editor || !model) return false;
-  const position = locateInSource(editor.text, model, rowId);
+  const position = locateInSource(editor.text, model, nodeIdOfRow(rowId));
   if (!position) return false;
   return editor.goTo(position.line, position.column, { highlight: true, focus: focusSource });
 }
@@ -312,12 +324,12 @@ export async function viewSelectedSource(
   nodeId?: string | null,
 ): Promise<boolean> {
   const feature = getTreeFeature(ctx.store);
-  const target = nodeId ?? feature.selectedId;
+  const rowId = nodeId ?? feature.selectedId;
   const model = ctx.store.getState().document;
-  if (!target || !model) return false;
-  feature.select(target, 'tree');
+  if (!rowId || !model) return false;
+  feature.select(rowId, 'tree');
   const text = await loadSourceText(ctx);
-  const position = locateInSource(text, model, target);
+  const position = locateInSource(text, model, nodeIdOfRow(rowId));
   if (!position) return requestViewSwitch(ctx, 'source');
   return navigateToSourcePosition(ctx, position.line, position.column);
 }
@@ -357,6 +369,17 @@ export function registerTreeFeature(ctx: FeatureContext): void {
     enabled: hasSelection,
     run: async (c) => {
       await viewSelected(c);
+    },
+  });
+  // Feature 011 (US11; contracts/tree.md §4): a script row's *Clean* removes that row.
+  commands.replace({
+    id: 'tree.cleanRow',
+    group: 'edit',
+    ...cmdKeys('tree.cleanRow'),
+    enabled: (c) => isScriptRowId(getTreeFeature(c.store).selectedId),
+    run: (c) => {
+      const row = parseScriptRowId(getTreeFeature(c.store).selectedId);
+      if (row) getScriptRows(c.store).cleanRow(row.scriptId, row.nodeId);
     },
   });
   commands.replace({

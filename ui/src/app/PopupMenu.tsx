@@ -53,8 +53,12 @@ export interface PopupMenuEntry {
    * a submenu open nothing further).
    */
   items?: readonly PopupMenuItem[];
-  /** Runs the entry; not called for an entry that opens a submenu. */
-  run: () => void;
+  /**
+   * Runs the entry; not called for an entry that opens a submenu. `how.ctrl`: chosen with Ctrl (or
+   * the Command key) held - the tree bar's *Scripts* clears the other scripts' rows first (feature
+   * 011, D41).
+   */
+  run: (how?: { ctrl: boolean }) => void;
   /** A ticked or unticked entry (feature 009: the status bar's panes); absent for others. */
   checked?: boolean;
 }
@@ -127,7 +131,7 @@ export function PopupMenu({ items, position, onClose, testId, ariaLabel }: Popup
   }, []);
 
   /** Runs an entry of the open level, or opens the submenu of a top-level entry. */
-  const activate = (entry: PopupMenuEntry, inSubmenu: boolean) => {
+  const activate = (entry: PopupMenuEntry, inSubmenu: boolean, ctrl = false) => {
     if (entry.enabled === false) return;
     if (!inSubmenu && entry.items) {
       const index = entries.indexOf(entry);
@@ -136,7 +140,7 @@ export function PopupMenu({ items, position, onClose, testId, ariaLabel }: Popup
       return;
     }
     close();
-    entry.run();
+    entry.run({ ctrl });
   };
 
   // Kept inside the window, measured once rendered - again whenever the entries change, since a
@@ -258,7 +262,7 @@ export function PopupMenu({ items, position, onClose, testId, ariaLabel }: Popup
       case ' ': {
         event.preventDefault();
         const entry = inSubmenu ? subEntries[subHighlighted] : entries[highlighted];
-        if (entry) activate(entry, inSubmenu);
+        if (entry) activate(entry, inSubmenu, event.ctrlKey || event.metaKey);
         break;
       }
       default: {
@@ -298,7 +302,7 @@ export function PopupMenu({ items, position, onClose, testId, ariaLabel }: Popup
         // On a move only: an entry that appears under a pointer at rest gets `mouseover` /
         // `mouseenter` from Chromium without a move, and opens nothing (feature 007).
         onMouseMove={onHover}
-        onClick={() => activate(entry, inSubmenu)}
+        onClick={(event) => activate(entry, inSubmenu, event.ctrlKey || event.metaKey)}
       >
         <MenuItemSlot
           checked={entry.checked === true}

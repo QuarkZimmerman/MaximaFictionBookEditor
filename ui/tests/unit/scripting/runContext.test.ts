@@ -2,7 +2,7 @@
  * Feature 007 (T016, contracts/script-api.md §1, data-model §8): the run context of script API
  * version 2. `ctx.startedBy` says who started the run - a menu, toolbar, hotkey or tree command
  * ('user'), the AI assistant's `run_script` ('assistant'), another script through
- * `mfbe.scripts.run` ('script', with `ctx.caller`) - and `mfbe.version` is 2. A run the user or
+ * `mfbe.scripts.run` ('script', with `ctx.caller`) - and `mfbe.version` is 3 (feature 011). A run the user or
  * the assistant starts has no caller.
  */
 
@@ -158,7 +158,8 @@ describe('the run context of script API version 2', () => {
 
   it('is version 2 of the API', () => {
     const port = new MessageChannel().port1;
-    expect(createMfbe(createBridge(port)).version).toBe(2);
+    // Script API version 3 (feature 011): the Document tree's rows (power (e)).
+    expect(createMfbe(createBridge(port)).version).toBe(3);
     port.close();
   });
 });

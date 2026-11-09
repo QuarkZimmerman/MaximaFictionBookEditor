@@ -306,7 +306,10 @@ export type ApiMethod =
   | 'clipboard.writeText'
   | 'files.saveText'
   | 'files.saveBinaries'
-  | 'scripts.run';
+  | 'scripts.run'
+  // Script API version 3 (feature 011, contracts/script-api.md): power (e), rows of the tree.
+  | 'tree.showRows'
+  | 'tree.clearRows';
 
 export const API_METHODS: readonly ApiMethod[] = [
   'doc.get',
@@ -346,6 +349,8 @@ export const API_METHODS: readonly ApiMethod[] = [
   'files.saveText',
   'files.saveBinaries',
   'scripts.run',
+  'tree.showRows',
+  'tree.clearRows',
 ];
 
 /** Messages from the host to the worker (over the private MessagePort). */

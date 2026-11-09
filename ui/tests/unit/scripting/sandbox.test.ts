@@ -162,13 +162,15 @@ describe('bridge and mfbe object', () => {
         'clipboard',
         'files',
         'scripts',
+        // Script API version 3 (feature 011): the Document tree's rows.
+        'tree',
         'MsgBox',
         'InputBox',
         'BeginUndoUnit',
         'EndUndoUnit',
       ].sort(),
     );
-    expect(mfbe.version).toBe(2); // script API version 2 (feature 007)
+    expect(mfbe.version).toBe(3); // script API version 3 (feature 011)
     expect(Object.keys(mfbe.doc).sort()).toEqual(
       [
         'get',

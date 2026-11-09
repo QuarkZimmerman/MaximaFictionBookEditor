@@ -91,7 +91,8 @@
         "subtitle": "&Delete Subtitle",
         "stanza": "&Delete Stanza",
         "inline-image": "&Delete Picture"
-      }
+      },
+      "cleanRow": "&Clean"
     },
     "reason": {
       "first": "«{{name}}» is the first section here: there is no section before it",
@@ -135,7 +136,11 @@
       "tooltip": "Shows or hides the rows of the FB2 element {{element}}"
     },
     "scripts": {
-      "none": "No tree scripts"
+      "none": "No tree scripts",
+      "clean": "&Clean",
+      "cleanTip": "Remove the rows every tree script showed",
+      "nothingToClean": "No tree script has shown rows",
+      "cannotRun": "Available with a book open in the Body or Source view, while no script runs"
     }
   },
   "cmd": {
@@ -175,6 +180,10 @@
       "moveDown": {
         "tooltip": "Tree: move down",
         "description": "Swap the selected section with the section after it"
+      },
+      "cleanRow": {
+        "tooltip": "Tree: clean the script row",
+        "description": "Remove this row the tree script showed; the book is unchanged"
       }
     }
   }

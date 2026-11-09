@@ -8,6 +8,7 @@
 
 import type { TFunction } from 'i18next';
 
+import { isScriptRowId } from './scriptRows';
 import { BLOCK_ROW_KINDS, type TreeIndex, type TreeRow } from './treeModel';
 
 export interface TreeMenuItem {
@@ -67,6 +68,14 @@ export function treeMenuFor(index: TreeIndex, rowId: string | null, t: TFunction
     { id: 'view', commandId: 'tree.view', label: t('tree.menuFor.goTo') },
     { id: 'viewSource', commandId: 'tree.viewSource', label: t('tree.menuFor.goToSource') },
   ];
+  // Feature 011 (US11; contracts/tree.md §4): a script row - Go To, Go To Source, Clean.
+  if (isScriptRowId(rowId)) {
+    return [
+      ...navigation,
+      'separator',
+      { id: 'cleanRow', commandId: 'tree.cleanRow', label: t('tree.menuFor.cleanRow') },
+    ];
+  }
   const row = rowId ? index.rows.get(rowId) : undefined;
   if (!row || BLOCK_ROW_KINDS.has(row.kind)) return navigation;
   const lines: TreeMenuLine[] = [...navigation];

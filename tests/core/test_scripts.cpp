@@ -121,6 +121,16 @@ TEST_CASE("scripts: manifest validation per script-manifest.md section 2", "[scr
         json{{"manifestVersion", 1}, {"name", {{"en", "N"}}}, {"kind", "popup"}}, "a", "menu");
     CHECK_FALSE(bad_kind.manifest.has_value());
     CHECK(bad_kind.errors[0].rfind("kind:", 0) == 0);
+    CHECK(bad_kind.errors[0].find("treeRows") != std::string::npos);
+    // Feature 011 (US11, D41; formats 1.10): a script of the tree bar's Scripts menu, which lists
+    // places as rows of the Document tree.
+    auto tree_rows = scripts::parse_manifest(
+        json{{"manifestVersion", 1}, {"name", {{"en", "N"}}}, {"kind", "treeRows"}}, "tree/x",
+        "tree");
+    REQUIRE(tree_rows.manifest.has_value());
+    CHECK(tree_rows.errors.empty());
+    CHECK(tree_rows.warnings.empty());
+    CHECK(tree_rows.manifest->kind == "treeRows");
     for (const char* entry : {"../x.js", "/etc/passwd", "lib/../../x.js", "C:/x.js", "a\\b.js"}) {
         auto bad_entry = scripts::parse_manifest(json{{"manifestVersion", 1},
                                                       {"name", {{"en", "N"}}},
