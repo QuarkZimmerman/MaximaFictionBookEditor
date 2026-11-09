@@ -12,6 +12,8 @@ export const COMMANDS_TOOLBAR: readonly (string | null)[] = [
   'file.save',
   null,
   'file.validate',
+  // Feature 011 (US10): Preview beside Validate - both look at the whole book.
+  'view.preview',
   null,
   'view.description',
   'view.body',

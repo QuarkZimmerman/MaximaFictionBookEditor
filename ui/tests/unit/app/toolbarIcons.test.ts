@@ -66,7 +66,8 @@ let services: ReturnType<typeof createAppServices> | undefined;
 describe('toolbar icons (feature 006)', () => {
   it("every button of availableButtons('commands') has its 24 px icon: 24 x 24, 8-bit RGBA", () => {
     const buttons = availableButtons('commands');
-    expect(buttons).toHaveLength(57);
+    // Feature 011 (US10): Preview beside Validate.
+    expect(buttons).toHaveLength(58);
     for (const id of buttons) {
       const icon = iconOf(id);
       const file = path.join(ICONS, 'toolbar24', `${icon}.png`);

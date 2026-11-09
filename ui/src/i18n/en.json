@@ -135,7 +135,8 @@
       "body": "&Body",
       "source": "So&urce",
       "fastMode": "Fast Mode",
-      "styles": "St&yles"
+      "styles": "St&yles",
+      "preview": "Pre&view"
     },
     "add": {
       "caption": "&Add",
@@ -456,6 +457,10 @@
       "styles": {
         "tooltip": "Styles",
         "description": "Show and edit the book's stylesheets"
+      },
+      "preview": {
+        "tooltip": "Preview",
+        "description": "Show the book as a reader shows it"
       }
     },
     "insert": {

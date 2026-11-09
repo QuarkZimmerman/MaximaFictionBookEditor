@@ -135,6 +135,8 @@ export const FBE_DEFAULT_HOTKEYS: readonly FbeDefaultHotkey[] = [
   { group: 'view', fbeName: 'Description', commandId: 'view.description', keys: 'Alt+F1' },
   { group: 'view', fbeName: 'Source', commandId: 'view.source', keys: 'Alt+F3' },
   { group: 'view', fbeName: 'Fast mode', commandId: 'view.fastMode', keys: 'F5' },
+  // Feature 011 (US10, PD1): Preview, an addition of this editor; F5 stays Fast mode.
+  { group: 'view', fbeName: '', commandId: 'view.preview', keys: 'Shift+F5' },
   { group: 'view', fbeName: 'Toggle Tree View', commandId: 'view.tree', keys: 'Mod+F5' },
   // The AI assistant panel (feature 005 US3; research R8.5): an addition of this editor.
   { group: 'view', fbeName: '', commandId: 'ai.toggle', keys: 'Mod+Shift+A' },

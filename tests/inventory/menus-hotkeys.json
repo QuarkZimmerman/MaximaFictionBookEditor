@@ -114,6 +114,7 @@
         "view.body",
         "view.source",
         "view.styles",
+        "view.preview",
         "---",
         "view.fastMode"
       ]
@@ -238,6 +239,7 @@
     "{\"commandId\":\"view.body\",\"keys\":\"Alt+F2\"}",
     "{\"commandId\":\"view.description\",\"keys\":\"Alt+F1\"}",
     "{\"commandId\":\"view.fastMode\",\"keys\":\"F5\"}",
+    "{\"commandId\":\"view.preview\",\"keys\":\"Shift+F5\"}",
     "{\"commandId\":\"view.source\",\"keys\":\"Alt+F3\"}",
     "{\"commandId\":\"view.tree\",\"keys\":\"Mod+F5\"}"
   ]

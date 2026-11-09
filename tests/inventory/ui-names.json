@@ -655,6 +655,11 @@
       "tooltip": "Toggle LinksBar",
       "description": "Show or hide the links bar"
     },
+    "view.preview": {
+      "label": "Pre&view",
+      "tooltip": "Preview",
+      "description": "Show the book as a reader shows it"
+    },
     "view.source": {
       "label": "So&urce",
       "tooltip": "Source",
@@ -1347,6 +1352,11 @@
       "tooltip": "Панель ссылок",
       "description": "Показать или скрыть панель ссылок"
     },
+    "view.preview": {
+      "label": "Прос&мотр",
+      "tooltip": "Просмотр",
+      "description": "Показать книгу так, как её показывает читалка"
+    },
     "view.source": {
       "label": "&Код",
       "tooltip": "Перейти к коду",
@@ -2038,6 +2048,11 @@
       "label": "Па&нель посилань",
       "tooltip": "Панель посилань",
       "description": "Показати чи сховати панель посилань"
+    },
+    "view.preview": {
+      "label": "Пере&гляд",
+      "tooltip": "Перегляд",
+      "description": "Показати книгу так, як її показує читалка"
     },
     "view.source": {
       "label": "&Код",

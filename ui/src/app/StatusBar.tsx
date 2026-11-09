@@ -206,6 +206,24 @@ export function StatusBar() {
               {insertMode === 'insert' ? t('status.ins') : t('status.ovr')}
             </span>
           ) : null}
+          {/* Feature 011 (US10, FR-020i): a small button that opens Preview. */}
+          <button
+            type="button"
+            className="mfbe-status-pane mfbe-status-preview"
+            data-testid="status-preview"
+            title={t('preview.statusTip')}
+            aria-label={t('preview.statusTip')}
+            disabled={!services.commands.isEnabled('view.preview', ctx)}
+            onClick={() => void services.commands.execute('view.preview', ctx)}
+          >
+            <img
+              src={`${import.meta.env.BASE_URL}icons/toolbar16/preview.png`}
+              width={16}
+              height={16}
+              alt=""
+              draggable={false}
+            />
+          </button>
         </>
       ) : null}
       {menu ? (

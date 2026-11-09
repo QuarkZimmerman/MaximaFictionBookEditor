@@ -31,6 +31,8 @@ import { actions, documentFileName, useAppState } from '@/model/store';
 import { isAiBusy, useAiBusyPointer } from './aiBusy';
 import { BodyView } from '@/views/body/BodyView';
 import { DescriptionView } from '@/views/description/DescriptionView';
+import { PreviewOverlay } from '@/features/preview/PreviewOverlay';
+import { closePreview, usePreview } from '@/features/preview/previewState';
 import { namedStyleMenuItems } from '@/features/styles/namedStyles';
 import { SourceView } from '@/views/source/SourceView';
 
@@ -443,6 +445,7 @@ function Shell({
   const scriptsMenu = useScriptsMenu();
   const scriptToolbarButtons = useScriptToolbarButtons();
   const stylesheets = useAppState((s) => s.document?.stylesheets, store);
+  const previewRequest = usePreview();
   const menuItems = useMemo<DynamicMenuItems>(
     () => ({
       ...dynamicMenuItems,
@@ -562,6 +565,8 @@ function Shell({
       </div>
       <StatusBar />
       <DialogHost service={dialogs.service} />
+      {/* Feature 011 (US10): Preview over the whole window. */}
+      {previewRequest ? <PreviewOverlay request={previewRequest} onClose={closePreview} /> : null}
     </div>
   );
 }

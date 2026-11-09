@@ -174,6 +174,8 @@ export const MAIN_MENU: readonly MenuSpec[] = [
       cmd('view.body'),
       cmd('view.source'),
       cmd('view.styles'),
+      // Feature 011 (US10): the book as a reader shows it.
+      cmd('view.preview'),
       sep,
       cmd('view.fastMode'),
     ],

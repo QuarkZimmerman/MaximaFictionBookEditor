@@ -786,6 +786,8 @@ export function createBuiltinCommands(): Command[] {
     viewCommand('source', 'id_view_source'),
     // Feature 011 (US8): the Styles view.
     viewCommand('styles', 'id_style_normal'),
+    // Feature 011 (US10): Preview - a stub until features/preview takes it over.
+    stub('view.preview', 'view', cmdKeys('view.preview', 'menu.view.preview'), 'preview'),
     {
       id: 'view.fastMode',
       group: 'view',
