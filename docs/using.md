@@ -316,7 +316,8 @@ the status bar show the book as an e-book reader does - its stylesheets on top o
 look - over the whole window, opened at the caret's element (in the Source view at the selected one).
 It scrolls through the whole book; links jump and *Back* (Alt+Left) returns, a note reference opens
 the note in a small window. Nothing can be typed, pasted or dropped, and nothing is fetched from the
-web. Esc or *Close* returns to the editor exactly as it was. A long book shows "Rendering…" with
+web. Esc, *Close* or the window's own close button returns to the editor exactly as it was - the
+window itself closes only once Preview is closed. A long book shows "Rendering…" with
 *Cancel* while Preview builds.
 
 ## Persons in the description

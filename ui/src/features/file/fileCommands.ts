@@ -39,6 +39,7 @@
  */
 
 import { isModalJobRunning } from '@/app/modalJob';
+import { closePreview, currentPreview } from '@/features/preview/previewState';
 import {
   currentDocumentName,
   switchView,
@@ -1214,6 +1215,12 @@ export class FileFeature {
     const dialogs = ctx.dialogs as Dialogs & { service?: { isModalOpen: boolean } };
     // Feature 011 (DP-11): a modal job (the Markdown export, Preview preparing) refuses the close.
     if (dialogs.service?.isModalOpen || ctx.rpc?.fileDialogOpen || isModalJobRunning()) return;
+    // Feature 011 (rc.3 smoke test): the window's close button closes an open Preview, as Esc does;
+    // the window itself stays (its prompts would open behind Preview).
+    if (currentPreview() !== null) {
+      closePreview();
+      return;
+    }
     this.closeRequestPending = true;
     try {
       await this.exitApplication(ctx, { force: true });

@@ -36,6 +36,7 @@ import {
 } from './testUtils';
 import { RpcError } from '@/rpc/client';
 import { RpcErrorCode } from '@/rpc/types';
+import { currentPreview, openPreview } from '@/features/preview/previewState';
 
 const settings = (other: Partial<Settings['other']>): Settings =>
   ({
@@ -305,6 +306,18 @@ describe('file flows (T052)', () => {
       await feature.handleCloseRequested(ctx);
       methods = flowCalls(rpc).map((c) => c.method);
       expect(methods.indexOf('doc.position')).toBeLessThan(methods.indexOf('app.quit'));
+      expect(rpc.calls.find((c) => c.method === 'app.quit')?.params).toEqual({ force: true });
+    });
+
+    it('the window-close request while Preview is open closes Preview and keeps the window (feature 011)', async () => {
+      const { ctx, feature, rpc } = await openWithCaret();
+      openPreview({ nodeId: null });
+      rpc.calls.length = 0;
+      await feature.handleCloseRequested(ctx);
+      expect(currentPreview()).toBeNull();
+      expect(rpc.calls.find((c) => c.method === 'app.quit')).toBeUndefined();
+      // Closed again without Preview, the window closes as before.
+      await feature.handleCloseRequested(ctx);
       expect(rpc.calls.find((c) => c.method === 'app.quit')?.params).toEqual({ force: true });
     });
 
