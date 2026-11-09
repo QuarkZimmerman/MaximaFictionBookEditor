@@ -52,7 +52,7 @@ void register_export_handlers(rpc::RpcRouter& router, Services& services) {
         }
         const std::shared_ptr<BinaryStore> store = session.binaries;
         const std::string job_id = ctx.jobs.start([job, store](rpc::JobControl& control) {
-            exporting::write_markdown_export(
+            const std::vector<std::string> skipped = exporting::write_markdown_export(
                 *job, *store,
                 [&control](const std::string& phase, std::size_t done, std::size_t total) {
                     control.check_cancelled();
@@ -60,7 +60,8 @@ void register_export_handlers(rpc::RpcRouter& router, Services& services) {
                                      static_cast<std::int64_t>(total));
                 });
             return json{{"path", platform::utf8_from_path(job->path)},
-                        {"pictures", job->pictures.size()}};
+                        {"pictures", job->pictures.size() - skipped.size()},
+                        {"skipped", skipped}};
         });
         return json{{"jobId", job_id}};
     });

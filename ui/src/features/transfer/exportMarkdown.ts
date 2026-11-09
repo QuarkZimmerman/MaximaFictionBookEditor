@@ -64,8 +64,9 @@ export async function exportMarkdown(ctx: CommandContext, form: MarkdownForm): P
     cancelled = true;
     if (jobId) void rpc.call('job.cancel', { jobId }).catch(() => undefined);
   });
+  let result: { pictures: number; skipped: string[] };
   try {
-    await rpc.runJob(
+    result = await rpc.runJob(
       'export.markdown',
       {
         docId,
@@ -92,17 +93,19 @@ export async function exportMarkdown(ctx: CommandContext, form: MarkdownForm): P
     throw error;
   }
   modal.end();
-  const { written, leftOut } = serialized;
+  const { written } = serialized;
+  // The pictures the core could not read are left out too (SC-011).
+  const leftOut = serialized.leftOut.length + (result.skipped?.length ?? 0);
   const tooLarge = one && serialized.text.length > 128 * 1024 * 1024;
   actions.setStatusMessage(
     store,
-    ctx.t(leftOut.length > 0 ? 'transfer.markdown.doneWithLeftOut' : 'transfer.markdown.done', {
+    ctx.t(leftOut > 0 ? 'transfer.markdown.doneWithLeftOut' : 'transfer.markdown.done', {
       path,
       sections: written.sections,
-      pictures: written.pictures,
+      pictures: result.pictures ?? written.pictures,
       tables: written.tables,
       notes: written.notes,
-      count: leftOut.length,
+      count: leftOut,
     }) + (tooLarge ? ` ${ctx.t('transfer.markdown.tooLargeToImport')}` : ''),
   );
   return true;

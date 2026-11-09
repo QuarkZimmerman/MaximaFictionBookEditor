@@ -58,7 +58,10 @@ std::string embeddable_jpeg(std::string_view bytes, const std::string& content_t
     if (jpeg && bytes.size() <= kMaxEmbeddedPicture) {
         return std::string(bytes);
     }
-    images::Bitmap bitmap = images::decode(bytes);
+    // A very large picture is decoded at a reduced size where the codec can (JPEG DCT scaling,
+    // never below 4096 pixels on either side), so that a 100-megapixel picture never needs its
+    // full bitmap (SC-011); smaller pictures decode as they are.
+    images::Bitmap bitmap = images::decode_for_preview(bytes, 4096, 4096);
     flatten_on_white(bitmap);
     std::string out = images::encode_jpeg(bitmap, quality);
     double scale = 1.0;
@@ -75,7 +78,7 @@ std::string embeddable_jpeg(std::string_view bytes, const std::string& content_t
 }
 
 std::string markdown_export_bytes(const MarkdownExport& job, const BinaryStore& store,
-                                  const Progress& progress) {
+                                  const Progress& progress, std::vector<std::string>* skipped) {
     const std::size_t total = job.pictures.size();
     if (!job.zip) {
         std::string out = job.text;
@@ -93,7 +96,15 @@ std::string markdown_export_bytes(const MarkdownExport& job, const BinaryStore& 
             if (!meta || !bytes) {
                 continue;
             }
-            const std::string jpeg = embeddable_jpeg(*bytes, meta->contentType, job.jpeg_quality);
+            std::string jpeg;
+            try {
+                jpeg = embeddable_jpeg(*bytes, meta->contentType, job.jpeg_quality);
+            } catch (const images::DecodeError&) {
+                if (skipped != nullptr) {
+                    skipped->push_back(picture.name);
+                }
+                continue;
+            }
             out += "[" + picture.name + "]: data:image/jpeg;base64," + base64::encode(jpeg) + "\n";
         }
         progress("write", total, total);
@@ -120,10 +131,13 @@ std::string markdown_export_bytes(const MarkdownExport& job, const BinaryStore& 
     return archive::zip_entries(entries);
 }
 
-void write_markdown_export(const MarkdownExport& job, const BinaryStore& store,
-                           const Progress& progress) {
-    const std::string bytes = markdown_export_bytes(job, store, progress);
+std::vector<std::string> write_markdown_export(const MarkdownExport& job,
+                                               const BinaryStore& store,
+                                               const Progress& progress) {
+    std::vector<std::string> skipped;
+    const std::string bytes = markdown_export_bytes(job, store, progress, &skipped);
     atomic_file::write_atomic(job.path, bytes);
+    return skipped;
 }
 
 }  // namespace mfbe::exporting

@@ -625,10 +625,15 @@ export function isJobStart(value: unknown): value is JobStart {
   );
 }
 
-/** Feature 011 (contracts/rpc-api.md `export.markdown`): what an export wrote and left out. */
+/**
+ * Feature 011 (contracts/rpc-api.md `export.markdown`): the file written, the pictures it holds and
+ * the names of those that could not be read and were left out (the text's own summary - sections,
+ * tables, notes, what Markdown cannot carry - comes from the interface's serializer).
+ */
 export interface MarkdownExportResult {
-  written: { sections: number; pictures: number; tables: number; notes: number };
-  leftOut: { kind: string; id?: string; reason: string }[];
+  path: string;
+  pictures: number;
+  skipped: string[];
 }
 
 /** Feature 011: a stylesheet as the Styles view and `doc.setStylesheets` carry it. */

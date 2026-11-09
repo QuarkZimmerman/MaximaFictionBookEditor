@@ -103,3 +103,34 @@ TEST_CASE("markdown export: the one file and the ZIP (D21-D23)", "[export][markd
         CHECK_FALSE(fs::exists(job.path));
     }
 }
+
+// SC-011: hostile books end in a file, never in a crash, a hang or a failed export.
+TEST_CASE("markdown export: an unreadable picture is left out, a 100-megapixel one embedded",
+          "[export][markdown][hostile]") {
+    test::TempDir dir;
+    MemoryBinaryStore store;
+    store.put("broken.png", "image/png", std::string("\x89PNG\r\n\x1a\nnot a picture", 21));
+    images::Bitmap huge;
+    huge.width = 10000;
+    huge.height = 10000;
+    huge.rgba.assign(huge.pixel_count() * 4, 200);
+    store.put("huge.jpg", "image/jpeg", images::encode_jpeg(huge, 90));
+    huge.rgba.clear();
+    huge.rgba.shrink_to_fit();
+    exporting::MarkdownExport job;
+    job.path = dir.path() / "hostile.md";
+    job.text = "# Hostile\n";
+    job.pictures = {{"broken.png", "broken.jpg"}, {"huge.jpg", "huge.jpg"}};
+    const std::vector<std::string> skipped =
+        exporting::write_markdown_export(job, store, kNoProgress);
+    CHECK(skipped == std::vector<std::string>{"broken.jpg"});
+    const std::string written = test::read_text(job.path);
+    CHECK(written.find("[broken.jpg]:") == std::string::npos);
+    const std::size_t at = written.find("[huge.jpg]: data:image/jpeg;base64,");
+    REQUIRE(at != std::string::npos);
+    const std::size_t end = written.find('\n', at);
+    const std::string encoded = written.substr(at + 35, end - at - 35);
+    const auto embedded = base64::decode(encoded);
+    REQUIRE(embedded);
+    CHECK(embedded->size() <= exporting::kMaxEmbeddedPicture);
+}

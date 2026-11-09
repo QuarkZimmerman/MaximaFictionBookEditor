@@ -42,12 +42,16 @@ using Progress = std::function<void(const std::string& phase, std::size_t done, 
 std::string embeddable_jpeg(std::string_view bytes, const std::string& content_type, int quality);
 
 // The bytes of the export: the one file (the text, then a reference definition with a base64
-// data URL per picture) or the ZIP (`<name>.md` and `images/<picture>`).
+// data URL per picture) or the ZIP (`<name>.md` and `images/<picture>`). A picture that cannot be
+// read is left out and its name added to `skipped` (SC-011: a file, never a failed export).
 std::string markdown_export_bytes(const MarkdownExport& job, const BinaryStore& store,
-                                  const Progress& progress);
+                                  const Progress& progress,
+                                  std::vector<std::string>* skipped = nullptr);
 
-// Writes markdown_export_bytes() to job.path atomically.
-void write_markdown_export(const MarkdownExport& job, const BinaryStore& store,
-                           const Progress& progress);
+// Writes markdown_export_bytes() to job.path atomically; returns the names of the pictures left
+// out.
+std::vector<std::string> write_markdown_export(const MarkdownExport& job,
+                                               const BinaryStore& store,
+                                               const Progress& progress);
 
 }  // namespace mfbe::exporting
