@@ -76,18 +76,18 @@ describe('describeTableMark (data-model §3.2; C61)', () => {
 
   it('US8 sc.9’s table: the name, the tooltip with a capital first letter and the hint, the parts', () => {
     expect(describeTableMark(TOOLTIP_EXAMPLE, t.en)).toEqual({
-      name: 'Irregular table: row 2 covers 2 of 3 columns; 1 overlapping span',
+      name: 'Table needs repair: row 2 covers 2 of 3 columns; 1 overlapping span',
       tooltip:
-        'Row 2 covers 2 of 3 columns; 1 overlapping span. Repair table makes the table regular.',
+        "Row 2 covers 2 of 3 columns; 1 overlapping span. Repair table makes every row cover the table's columns.",
       parts: ['row 2 covers 2 of 3 columns', '1 overlapping span'],
     });
   });
 
   it('a table with an id: the named variant as the name, and the name in the tooltip', () => {
     const texts = describeTableMark(NAMED, t.en);
-    expect(texts.name).toBe('Irregular table "t2": row 2 covers 2 of 3 columns');
+    expect(texts.name).toBe('Table "t2" needs repair: row 2 covers 2 of 3 columns');
     expect(texts.tooltip).toBe(
-      'Irregular table "t2": row 2 covers 2 of 3 columns. Repair table makes the table regular.',
+      'Table "t2" needs repair: row 2 covers 2 of 3 columns. Repair table makes every row cover the table\'s columns.',
     );
     expect(texts.parts).toEqual(['row 2 covers 2 of 3 columns']);
   });
@@ -203,19 +203,19 @@ function open(
 const popover = () => screen.queryByTestId('dialog-table-mark');
 
 describe('the mark popover (data-model §3.5; I16, I17)', () => {
-  it('lists the parts with the hint, Repair table and Close; titles an unnamed table “Irregular table” and a named one with the mark’s name', async () => {
+  it('lists the parts with the hint, Repair table and Close; titles an unnamed table “Table needs repair” and a named one with the mark’s name', async () => {
     const harness = await popoverHarness(markBook());
     act(() => caretIn(harness, 't1-1-1', 1));
     const first = open(harness, 'm3');
     expect(await screen.findByTestId('dialog-table-mark')).toHaveAttribute('aria-modal', 'false');
-    expect(screen.getByTestId('dialog-table-mark-title')).toHaveTextContent('Irregular table');
+    expect(screen.getByTestId('dialog-table-mark-title')).toHaveTextContent('Table needs repair');
     const items = screen.getByTestId('dialog-table-mark-problems').querySelectorAll('li');
     expect([...items].map((item) => item.textContent)).toEqual([
       'row 2 covers 2 of 3 columns',
       '1 overlapping span',
     ]);
     expect(popover()).toHaveTextContent(
-      'Repair table makes the table regular. No cell content is deleted, and Undo brings the table back.',
+      "Repair table makes every row cover the table's columns. No cell content is deleted, and Undo brings the table back.",
     );
     const repair = screen.getByTestId('dialog-table-mark-button-repair');
     expect(repair).toHaveTextContent('Repair table');
@@ -227,7 +227,7 @@ describe('the mark popover (data-model §3.5; I16, I17)', () => {
     // A named table: Validate's named variant as the title (C61).
     const second = open(harness, 'm2');
     expect(await screen.findByTestId('dialog-table-mark-title')).toHaveTextContent(
-      'Irregular table "named": row 2 covers 2 of 3 columns',
+      'Table "named" needs repair: row 2 covers 2 of 3 columns',
     );
     fireEvent.click(screen.getByTestId('dialog-table-mark-button-close'));
     await second.closed;

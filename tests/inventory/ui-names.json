@@ -543,7 +543,7 @@
     "table.repair": {
       "label": "Re&pair table",
       "tooltip": "Repair table",
-      "description": "Make an irregular table regular without deleting any content"
+      "description": "Make every row of the table cover its columns, without deleting any content"
     },
     "table.select": {
       "label": "S&elect table",
@@ -1245,7 +1245,7 @@
     "table.repair": {
       "label": "&Исправить таблицу",
       "tooltip": "Исправить таблицу",
-      "description": "Сделать неправильную таблицу правильной, не удаляя содержимого"
+      "description": "Сделать так, чтобы каждая строка таблицы покрывала все её столбцы, не удаляя содержимого"
     },
     "table.select": {
       "label": "Выд&елить таблицу",
@@ -1947,7 +1947,7 @@
     "table.repair": {
       "label": "В&иправити таблицю",
       "tooltip": "Виправити таблицю",
-      "description": "Зробити неправильну таблицю правильною, не видаляючи вмісту"
+      "description": "Зробити так, щоб кожен рядок таблиці покривав усі її стовпці, не видаляючи вмісту"
     },
     "table.select": {
       "label": "Ви&ділити таблицю",

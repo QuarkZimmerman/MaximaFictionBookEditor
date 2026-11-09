@@ -324,10 +324,10 @@ describe('Document Tree marks (feature 006, US8)', { timeout: 30_000 }, () => {
     expect(mark).toHaveClass('mfbe-table-mark-badge');
     expect(mark).toHaveClass('mfbe-tree-mark');
     expect(mark).toHaveTextContent('!');
-    expect(mark).toHaveAttribute('aria-label', 'Irregular table: row 2 covers 1 of 2 columns');
+    expect(mark).toHaveAttribute('aria-label', 'Table needs repair: row 2 covers 1 of 2 columns');
     expect(mark).toHaveAttribute(
       'title',
-      'Row 2 covers 1 of 2 columns. Repair table makes the table regular.',
+      "Row 2 covers 1 of 2 columns. Repair table makes every row cover the table's columns.",
     );
     // The cite holds two irregular tables: at the original's starting choices the cite has no
     // row and each table its own, with its own mark (feature 011, FR-011, FR-014).
@@ -335,7 +335,7 @@ describe('Document Tree marks (feature 006, US8)', { timeout: 30_000 }, () => {
     expect(screen.getByTestId('tree-row-T3')).toHaveAttribute('data-irregular', 'true');
     expect(screen.getByTestId('tree-row-T4-mark')).toHaveAttribute(
       'aria-label',
-      'Irregular table "named": row 2 covers 1 of 2 columns',
+      'Table "named" needs repair: row 2 covers 1 of 2 columns',
     );
     // Every other row: no mark.
     for (const id of ['T2', 'S1', 'body1', 'desc:annotation', 'desc:history']) {

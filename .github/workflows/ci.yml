@@ -261,8 +261,8 @@ jobs:
       - name: Table term (guard G14)
         if: runner.os == 'Linux'
         # Feature 011 (FR-020a, D40): no catalogue text calls a table that needs repair "irregular"
-        # (report only until the repair badge's texts change; then --strict).
-        run: node ../tools/term-check.mjs
+        # or names a category of tables - a text that does fails the run.
+        run: node ../tools/term-check.mjs --strict
       - name: Upload UI bundle
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v6

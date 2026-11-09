@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Guard G14 (feature 011, FR-020a, D40): the interface never calls a table that needs repair
-// "irregular". Scans every catalogue text of ui/src/i18n/*.json for the term in English and for
-// the words the Russian and Ukrainian catalogues used for it ("Неправильная таблица",
-// "Неправильна таблиця" and their forms).
+// "irregular" or names a category of tables at all. Scans every catalogue text of
+// ui/src/i18n/*.json for the term in English ("irregular", "the table regular") and for the words
+// the Russian and Ukrainian catalogues used for it ("Неправильная таблица", "таблицу правильной",
+// "нерегулярной" and their forms).
 // Usage: node tools/term-check.mjs [--strict]   (report only without --strict)
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -11,7 +12,13 @@ import { fileURLToPath } from "node:url";
 const root = join(fileURLToPath(new URL(".", import.meta.url)), "..");
 const dir = join(root, "ui", "src", "i18n");
 const strict = process.argv.includes("--strict");
-const TERMS = [/irregular/i, /неправильн\p{L}*\s+таблиц/iu];
+const TERMS = [
+  /irregular/i,
+  /table\s+regular/i,
+  /неправильн\p{L}*\s+таблиц/iu,
+  /таблиц\p{L}*\s+правильн/iu,
+  /нерегулярн/iu,
+];
 
 const found = [];
 function walk(value, path, file) {

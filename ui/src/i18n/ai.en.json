@@ -264,8 +264,8 @@
           },
           "repair": "repaired the table"
         },
-        "tablesLeftIrregular_one": "{{summary}} — {{count}} table left irregular",
-        "tablesLeftIrregular_other": "{{summary}} — {{count}} tables left irregular"
+        "tablesLeftIrregular_one": "{{summary}} — {{count}} table still needs repair",
+        "tablesLeftIrregular_other": "{{summary}} — {{count}} tables still need repair"
       },
       "element": {
         "$comment": "Element names as the summaries say them; an element not listed keeps its FB2 name.",

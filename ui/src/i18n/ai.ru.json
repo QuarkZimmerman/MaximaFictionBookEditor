@@ -308,10 +308,10 @@
           },
           "repair": "таблица исправлена"
         },
-        "tablesLeftIrregular_one": "{{summary}} — {{count}} таблица осталась нерегулярной",
-        "tablesLeftIrregular_few": "{{summary}} — {{count}} таблицы остались нерегулярными",
-        "tablesLeftIrregular_many": "{{summary}} — {{count}} таблиц остались нерегулярными",
-        "tablesLeftIrregular_other": "{{summary}} — {{count}} таблицы остались нерегулярными"
+        "tablesLeftIrregular_one": "{{summary}} — {{count}} таблицу ещё нужно исправить",
+        "tablesLeftIrregular_few": "{{summary}} — {{count}} таблицы ещё нужно исправить",
+        "tablesLeftIrregular_many": "{{summary}} — {{count}} таблиц ещё нужно исправить",
+        "tablesLeftIrregular_other": "{{summary}} — {{count}} таблицы ещё нужно исправить"
       },
       "element": {
         "$comment": "Названия элементов в описаниях; элемент, которого нет в списке, называется своим именем FB2.",

@@ -308,10 +308,10 @@
           },
           "repair": "таблицю виправлено"
         },
-        "tablesLeftIrregular_one": "{{summary}} — {{count}} таблиця залишилася нерегулярною",
-        "tablesLeftIrregular_few": "{{summary}} — {{count}} таблиці залишилися нерегулярними",
-        "tablesLeftIrregular_many": "{{summary}} — {{count}} таблиць залишилися нерегулярними",
-        "tablesLeftIrregular_other": "{{summary}} — {{count}} таблиці залишилися нерегулярними"
+        "tablesLeftIrregular_one": "{{summary}} — {{count}} таблицю ще треба виправити",
+        "tablesLeftIrregular_few": "{{summary}} — {{count}} таблиці ще треба виправити",
+        "tablesLeftIrregular_many": "{{summary}} — {{count}} таблиць ще треба виправити",
+        "tablesLeftIrregular_other": "{{summary}} — {{count}} таблиці ще треба виправити"
       },
       "element": {
         "$comment": "Назви елементів в описах; елемент, якого немає в списку, називається своїм іменем FB2.",
