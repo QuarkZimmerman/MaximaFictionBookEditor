@@ -209,6 +209,17 @@ export const MAIN_MENU: readonly MenuSpec[] = [
       cmd('style.link'),
       cmd('style.footnote'),
       cmd('style.removeLink'),
+      sep,
+      // Feature 011 (US9): the book's named styles, filled at run time (namedStyles.ts).
+      {
+        kind: 'submenu',
+        id: 'namedStyle',
+        labelKey: 'menu.style.namedStyle',
+        dynamic: 'namedStyles',
+        // Greyed while none of its entries can run, with the first one's reason (FR-020f).
+        enabledByItems: true,
+        items: [cmd('style.namedNone'), sep, cmd('style.removeNamed')],
+      },
     ],
   },
   {

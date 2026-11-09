@@ -159,7 +159,10 @@
       "subtitle": "&Subtitle",
       "link": "&Link...",
       "footnote": "&Footnote...",
-      "removeLink": "&Remove link"
+      "removeLink": "&Remove link",
+      "namedStyle": "Na&med Style",
+      "noNamedStyles": "No named styles",
+      "removeNamed": "Remove Named St&yle"
     },
     "tools": {
       "caption": "&Tools",
@@ -553,6 +556,10 @@
       "code": {
         "tooltip": "Code",
         "description": "Marks the selection \"code\" (toggle)"
+      },
+      "removeNamed": {
+        "tooltip": "Remove Named Style",
+        "description": "Remove the named style from the selected text, or from the element at the caret"
       }
     },
     "tools": {

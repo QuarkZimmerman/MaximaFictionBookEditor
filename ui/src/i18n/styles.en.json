@@ -45,6 +45,15 @@
       "remove": "Remove style {{selector}}",
       "newStylesheet": "New stylesheet"
     },
-    "loading": "Opening the Styles view…"
+    "loading": "Opening the Styles view…",
+    "named": {
+      "applyTip": "Apply the named style .{{name}} to the selected text, or to the element at the caret",
+      "reason": {
+        "none": "No named style is defined: add a class selector in the Styles view",
+        "bodyView": "Named styles are applied in the Body view",
+        "noTarget": "Select text, or put the caret in a paragraph, verse, subtitle, text author, table or cell",
+        "nothingToRemove": "There is no named style here"
+      }
+    }
   }
 }

@@ -9,6 +9,7 @@ import { registerScriptsFeature } from './scripts';
 import { registerSettingsFeature } from './settings';
 import { registerSourceFeature } from './source';
 import { registerSpellFeature } from './spell';
+import { registerNamedStylesFeature } from './styles/namedStyles';
 import { registerTablesFeature } from './tables';
 import { registerTransferFeature } from './transfer';
 import { registerTreeFeature } from './tree';
@@ -33,6 +34,8 @@ export const featureRegistrars: Array<(ctx: FeatureContext) => void> = [
   registerTablesFeature,
   registerWordsFeature,
   registerTransferFeature,
+  // Feature 011 (US9): the named styles of the book's stylesheets.
+  registerNamedStylesFeature,
   registerSettingsFeature,
   registerScriptsFeature,
   registerHelpFeature,

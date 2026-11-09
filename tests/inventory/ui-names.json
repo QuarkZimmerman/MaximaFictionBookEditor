@@ -400,6 +400,11 @@
       "tooltip": "Hyperlink",
       "description": "Add a hyperlink"
     },
+    "style.namedNone": {
+      "label": "No named styles",
+      "tooltip": "No named styles",
+      "description": "No named style is defined: add a class selector in the Styles view"
+    },
     "style.normal": {
       "label": "&Normal",
       "tooltip": "Normal",
@@ -409,6 +414,11 @@
       "label": "&Remove link",
       "tooltip": "Remove links",
       "description": "Remove links from selected text"
+    },
+    "style.removeNamed": {
+      "label": "Remove Named St&yle",
+      "tooltip": "Remove Named Style",
+      "description": "Remove the named style from the selected text, or from the element at the caret"
     },
     "style.strikethrough": {
       "label": "Strikethrough",
@@ -1082,6 +1092,11 @@
       "tooltip": "Гиперссылка",
       "description": "Добавить гиперссылку"
     },
+    "style.namedNone": {
+      "label": "Нет именованных стилей",
+      "tooltip": "Нет именованных стилей",
+      "description": "Именованных стилей нет: добавьте селектор класса в виде стилей"
+    },
     "style.normal": {
       "label": "&Обычный",
       "tooltip": "Обычный текст",
@@ -1091,6 +1106,11 @@
       "label": "&Удалить ссылку",
       "tooltip": "Удалить ссылки",
       "description": "Удалить ссылки из выделенного текста"
+    },
+    "style.removeNamed": {
+      "label": "Удалить имено&ванный стиль",
+      "tooltip": "Удалить именованный стиль",
+      "description": "Убрать именованный стиль с выделенного текста или с элемента под курсором"
     },
     "style.strikethrough": {
       "label": "Зачеркнутый текст",
@@ -1764,6 +1784,11 @@
       "tooltip": "Гіперпосилання",
       "description": "Додати гіперпосилання"
     },
+    "style.namedNone": {
+      "label": "Немає іменованих стилів",
+      "tooltip": "Немає іменованих стилів",
+      "description": "Іменованих стилів немає: додайте селектор класу у вигляді стилів"
+    },
     "style.normal": {
       "label": "&Звичайний",
       "tooltip": "Звичайний текст",
@@ -1773,6 +1798,11 @@
       "label": "&Видалити посилання",
       "tooltip": "Видалити посилання",
       "description": "Видалити посилання з виділеного тексту"
+    },
+    "style.removeNamed": {
+      "label": "Видалити іменова&ний стиль",
+      "tooltip": "Видалити іменований стиль",
+      "description": "Прибрати іменований стиль з виділеного тексту або з елемента під курсором"
     },
     "style.strikethrough": {
       "label": "Закреслений текст",

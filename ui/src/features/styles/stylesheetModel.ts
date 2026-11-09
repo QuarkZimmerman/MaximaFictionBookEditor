@@ -10,6 +10,7 @@ import { generate, parse, walk, type CssNode } from 'css-tree';
 
 import type { Stylesheet } from '@/model/document';
 
+import { classNamesOf } from './classNames';
 import { canonicalDeclarations, checkDeclarations } from './declarations';
 
 export interface StyleRule {
@@ -117,16 +118,5 @@ export function defaultGroup(groups: readonly StyleGroup[]): StyleGroup | null {
 
 /** The class names of every CSS stylesheet's selectors, each once, in stylesheet order (D43). */
 export function namedStyles(sheets: readonly Stylesheet[]): string[] {
-  const names: string[] = [];
-  for (const sheet of sheets) {
-    if (!isCss(sheet.type)) continue;
-    try {
-      walk(parse(sheet.content, { context: 'stylesheet' }), (node) => {
-        if (node.type === 'ClassSelector' && !names.includes(node.name)) names.push(node.name);
-      });
-    } catch {
-      // a stylesheet css-tree cannot read names nothing
-    }
-  }
-  return names;
+  return classNamesOf(sheets);
 }

@@ -146,7 +146,16 @@
         "---",
         "style.link",
         "style.footnote",
-        "style.removeLink"
+        "style.removeLink",
+        "---",
+        {
+          "submenu": "namedStyle",
+          "items": [
+            "style.namedNone",
+            "---",
+            "style.removeNamed"
+          ]
+        }
       ]
     },
     {

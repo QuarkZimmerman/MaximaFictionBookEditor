@@ -31,6 +31,7 @@ import { actions, documentFileName, useAppState } from '@/model/store';
 import { isAiBusy, useAiBusyPointer } from './aiBusy';
 import { BodyView } from '@/views/body/BodyView';
 import { DescriptionView } from '@/views/description/DescriptionView';
+import { namedStyleMenuItems } from '@/features/styles/namedStyles';
 import { SourceView } from '@/views/source/SourceView';
 
 // Feature 011 (US8, PD2): the Styles view loads css-tree and its CSS editor only when it opens.
@@ -441,13 +442,16 @@ function Shell({
   );
   const scriptsMenu = useScriptsMenu();
   const scriptToolbarButtons = useScriptToolbarButtons();
+  const stylesheets = useAppState((s) => s.document?.stylesheets, store);
   const menuItems = useMemo<DynamicMenuItems>(
     () => ({
       ...dynamicMenuItems,
       recent: recentFiles.length > 0 ? files.recent.menuItems() : [],
       scripts: scriptsMenu,
+      // Feature 011 (US9): Style > Named Style lists the book's named styles.
+      namedStyles: namedStyleMenuItems(stylesheets),
     }),
-    [dynamicMenuItems, files, recentFiles, scriptsMenu],
+    [dynamicMenuItems, files, recentFiles, scriptsMenu, stylesheets],
   );
 
   const navigateToIssue = useMemo(() => createIssueNavigator(ctx), [ctx]);

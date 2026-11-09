@@ -99,6 +99,8 @@ export function ContextMenu({ controller, click, onClose }: ContextMenuProps) {
   if (image.length > 0) items.push({ separator: true, id: 'sep-image' }, ...image);
   const ai = contextMenuExtensions.ai?.(controller) ?? [];
   if (ai.length > 0) items.push({ separator: true, id: 'sep-ai' }, ...ai);
+  const named = contextMenuExtensions.namedStyles?.(controller, ctx) ?? [];
+  if (named.length > 0) items.push({ separator: true, id: 'sep-named' }, ...named);
   const table = contextMenuExtensions.table?.(controller, click, ctx) ?? [];
   if (table.length > 0) items.push({ separator: true, id: 'sep-table' }, ...table);
 
