@@ -73,6 +73,9 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 
 ### Fixed
 
+- On Windows, saving a book or the settings failed when another program - an antivirus scan, a
+  sync or backup tool - held the file open at that moment ("being used by another process"); the
+  editor now retries the save for up to two seconds.
 - After a Description edit, an author without a name was written as an empty `<author/>`, which
   the FB2 schema refuses; it is written as FictionBook Editor wrote it (issue #11).
 - In regular expressions, an escaped punctuation mark such as `\—`, `\«` or `\-` found nothing in

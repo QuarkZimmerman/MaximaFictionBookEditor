@@ -8,6 +8,12 @@
 #include <catch2/catch_test_macros.hpp>
 #include <vector>
 
+#ifdef _WIN32
+#include <chrono>
+#include <thread>
+#include <windows.h>
+#endif
+
 using namespace mfbe;
 
 namespace {
@@ -102,5 +108,26 @@ TEST_CASE("atomic_file: existing permissions are preserved", "[atomic]") {
     const auto perms = std::filesystem::status(target).permissions();
     CHECK((perms & std::filesystem::perms::group_read) != std::filesystem::perms::none);
     CHECK((perms & std::filesystem::perms::others_read) == std::filesystem::perms::none);
+}
+#endif
+
+#ifdef _WIN32
+// Feature 011: a process holding the target open for a moment without FILE_SHARE_DELETE - an
+// antivirus scan, a sync tool, a program reading it - no longer fails the replace: it is retried.
+TEST_CASE("atomic_file: a replace waits out a short-lived lock on the target", "[atomic]") {
+    test::TempDir tmp;
+    const auto target = tmp / "settings.json";
+    atomic_file::write_atomic(target, "old");
+    HANDLE held = CreateFileW(target.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                              nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    REQUIRE(held != INVALID_HANDLE_VALUE);
+    std::thread release([held] {
+        std::this_thread::sleep_for(std::chrono::milliseconds(300));
+        CloseHandle(held);
+    });
+    atomic_file::write_atomic(target, "new");
+    release.join();
+    CHECK(test::read_text(target) == "new");
+    CHECK(list_names(tmp.path()) == std::vector<std::string>{"settings.json"});
 }
 #endif
