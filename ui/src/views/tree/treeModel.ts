@@ -343,27 +343,9 @@ function subtreeRows(
   return built;
 }
 
-/** The irregular tables of a description annotation (or the history), per annotation object. */
-const blockTablesCache = new WeakMap<object, TableSummary[] | null>();
-
-function blockTables(annotation: object | undefined): TableSummary[] | undefined {
-  if (!annotation) return undefined;
-  let cached = blockTablesCache.get(annotation);
-  if (cached === undefined) {
-    const found = irregularTablesIn(annotation as ModelNodeJson);
-    cached = found.length > 0 ? found : null;
-    blockTablesCache.set(annotation, cached);
-  }
-  return cached ?? undefined;
-}
-
 /** The block row of `kind` (the caption is the tree node's text). */
-function blockRow(
-  kind: BlockKind,
-  captions: BlockCaptions,
-  description: Document['description'] | undefined,
-): TreeRow {
-  const row: TreeRow = {
+function blockRow(kind: BlockKind, captions: BlockCaptions): TreeRow {
+  return {
     id: FIXED_BLOCK_IDS[kind],
     kind: kind === 'annotation' ? 'annotationBlock' : 'historyBlock',
     caption: captions[kind],
@@ -371,11 +353,6 @@ function blockRow(
     parentId: null,
     childIds: [],
   };
-  const contained = blockTables(
-    kind === 'annotation' ? description?.titleInfo.annotation : description?.documentInfo.history,
-  );
-  if (contained) row.containedTables = contained;
-  return row;
 }
 
 /**
@@ -400,9 +377,23 @@ export function buildTreeIndex(
   };
   for (const kind of ['annotation', 'history'] as const) {
     if (!kindShown(kind === 'annotation' ? 'annotationBlock' : 'historyBlock', shown)) continue;
-    const row = blockRow(kind, captions, document.description);
+    const row = blockRow(kind, captions);
     roots.push(row.id);
     add(row);
+    // The block holds the rows of what the book's annotation (or the history) contains; the
+    // tables without rows of their own (the Table kind unticked) are marked on it (feature 006).
+    const holder =
+      kind === 'annotation'
+        ? document.description?.titleInfo.annotation
+        : document.description?.documentInfo.history;
+    const contained: TableSummary[] = [];
+    for (const child of (holder as unknown as ModelNodeJson | undefined)?.content ?? []) {
+      const subtree = subtreeRows(child, 1, row.id, shown, signature);
+      row.childIds.push(...subtree.topIds);
+      for (const inner of subtree.rows) add(inner);
+      contained.push(...subtree.passedTables);
+    }
+    if (contained.length > 0) row.containedTables = contained;
   }
   for (const body of document.bodies) {
     const json = body as unknown as ModelNodeJson;

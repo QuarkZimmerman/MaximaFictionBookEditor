@@ -80,13 +80,9 @@ export interface RowKindInfo {
 }
 
 export const ROW_KIND_INFO: Readonly<Record<TreeRowKind, RowKindInfo>> = {
-  annotationBlock: {
-    entry: 'annotation',
-    icon: 'struct-12',
-    holdsRows: false,
-    startsClosed: false,
-  },
-  historyBlock: { entry: 'history', icon: 'struct-15', holdsRows: false, startsClosed: false },
+  // The book's annotation and history hold the rows of what they contain, closed at first.
+  annotationBlock: { entry: 'annotation', icon: 'struct-12', holdsRows: true, startsClosed: true },
+  historyBlock: { entry: 'history', icon: 'struct-15', holdsRows: true, startsClosed: true },
   body: { entry: 'body', icon: 'struct-00', holdsRows: true, startsClosed: false },
   section: { entry: 'section', icon: 'struct-00', holdsRows: true, startsClosed: false },
   title: { entry: 'title', icon: 'struct-27', holdsRows: false, startsClosed: false },
@@ -99,8 +95,9 @@ export const ROW_KIND_INFO: Readonly<Record<TreeRowKind, RowKindInfo>> = {
   cite: { entry: 'quote', icon: 'struct-09', holdsRows: true, startsClosed: true },
   subtitle: { entry: 'subtitle', icon: 'struct-06', holdsRows: false, startsClosed: false },
   table: { entry: 'table', icon: 'struct-30', holdsRows: true, startsClosed: true },
-  th: { entry: 'headerCell', icon: 'struct-27', holdsRows: false, startsClosed: false },
-  td: { entry: 'cell', icon: 'struct-27', holdsRows: false, startsClosed: false },
+  // D37: a picture inside a cell has its row under its cell's.
+  th: { entry: 'headerCell', icon: 'struct-27', holdsRows: true, startsClosed: false },
+  td: { entry: 'cell', icon: 'struct-27', holdsRows: true, startsClosed: false },
 };
 
 /** The model element types that make rows (the two blocks are added by the index itself). */

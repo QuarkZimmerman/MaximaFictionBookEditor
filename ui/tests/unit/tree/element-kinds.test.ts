@@ -72,11 +72,21 @@ describe('the kinds of the Document tree (contracts/tree.md §2)', () => {
       .filter(([, info]) => info.startsClosed)
       .map(([kind]) => kind)
       .sort();
-    expect(closed).toEqual(['annotation', 'cite', 'epigraph', 'poem', 'stanza', 'table']);
-    for (const kind of ['body', 'section'] as const) {
+    expect(closed).toEqual([
+      'annotation',
+      'annotationBlock',
+      'cite',
+      'epigraph',
+      'historyBlock',
+      'poem',
+      'stanza',
+      'table',
+    ]);
+    // Cells hold the rows of their pictures (D37), and open with their table.
+    for (const kind of ['body', 'section', 'th', 'td'] as const) {
       expect(ROW_KIND_INFO[kind]).toMatchObject({ holdsRows: true, startsClosed: false });
     }
-    for (const kind of ['title', 'subtitle', 'image', 'inline-image', 'th', 'td'] as const) {
+    for (const kind of ['title', 'subtitle', 'image', 'inline-image'] as const) {
       expect(ROW_KIND_INFO[kind].holdsRows, kind).toBe(false);
     }
   });

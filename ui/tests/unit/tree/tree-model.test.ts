@@ -471,7 +471,7 @@ describe('irregular tables in the tree (feature 006, US8)', () => {
     return found;
   }
 
-  it('tableProblems on the rows of irregular tables, wherever they stand; containedTables on the rows above the tables that have no row of their own (hidden kinds) and on the two block rows; nothing for the source book’s annotation', () => {
+  it('tableProblems on the rows of irregular tables, wherever they stand; containedTables on the rows above the tables that have no row of their own (hidden kinds), the two block rows included; nothing for the source book’s annotation', () => {
     const doc = tablesBook();
     // Feature 011 (FR-011, FR-014): tables have rows inside cites, epigraphs and annotations.
     const index = buildTreeIndex(doc, CAPTIONS);
@@ -482,19 +482,12 @@ describe('irregular tables in the tree (feature 006, US8)', () => {
     expect(row('T4').tableProblems!.id).toBe('named');
     expect(row('T5').parentId).toBe('AN1');
     expect(row('T6').parentId).toBe('S1'); // its epigraph and cite are hidden: the row moves up
-    expect(row(FIXED_BLOCK_IDS.annotation).containedTables).toEqual([
-      summaryOf(tableOf(doc, 'T8')),
-    ]);
-    expect(row(FIXED_BLOCK_IDS.history).containedTables).toEqual([
-      summaryOf(tableOf(doc, 'T9')),
-      summaryOf(tableOf(doc, 'T9b')),
-    ]);
-    expect(
-      [...index.rows.values()]
-        .filter((one) => one.containedTables)
-        .map((one) => one.id)
-        .sort(),
-    ).toEqual([FIXED_BLOCK_IDS.annotation, FIXED_BLOCK_IDS.history].sort());
+    // The book's annotation and history hold their tables' rows, with their own marks.
+    expect(row('T8').parentId).toBe(FIXED_BLOCK_IDS.annotation);
+    expect(row('T8').tableProblems).toEqual(summaryOf(tableOf(doc, 'T8')));
+    expect(row(FIXED_BLOCK_IDS.history).childIds).toEqual(['T9', 'T9b']);
+    expect(row('T9b').tableProblems!.id).toBe('h9');
+    expect([...index.rows.values()].filter((one) => one.containedTables)).toEqual([]);
     // Tables unticked, cites and epigraphs ticked: the rows above stand for their tables, in
     // document order, as feature 006 marked them.
     const hidden = buildTreeIndex(
@@ -511,6 +504,11 @@ describe('irregular tables in the tree (feature 006, US8)', () => {
     expect(at('EC').containedTables).toEqual([summaryOf(tableOf(doc, 'T6'))]);
     expect(at('S1').containedTables).toEqual([summaryOf(tableOf(doc, 'T1'))]);
     expect(at('S2').containedTables).toBeUndefined();
+    expect(at(FIXED_BLOCK_IDS.annotation).containedTables).toEqual([summaryOf(tableOf(doc, 'T8'))]);
+    expect(at(FIXED_BLOCK_IDS.history).containedTables).toEqual([
+      summaryOf(tableOf(doc, 'T9')),
+      summaryOf(tableOf(doc, 'T9b')),
+    ]);
     // A document without a description: the block rows have nothing.
     const bare = buildTreeIndex({ bodies: doc.bodies }, CAPTIONS);
     expect(bare.rows.get(FIXED_BLOCK_IDS.annotation)!.containedTables).toBeUndefined();
@@ -644,5 +642,67 @@ describe('the rows of the original’s tree (feature 011)', () => {
     expect(quotes.rows.get('S')!.childIds).toEqual(['tS', 'sub1', 'pic1', 'C', 'T']);
     const noSections = buildTreeIndex(kindsBook(), CAPTIONS, shownEntries({ section: false }));
     expect(noSections.rows.get('b')!.childIds).toEqual(['sub1', 'pic1', 'sub2', 'T']);
+  });
+});
+
+// Feature 011 (D37, contracts/tree.md §2): pictures in cells; the book's annotation and history.
+describe('rows inside cells and inside the description blocks (feature 011)', () => {
+  it('a picture inside a cell has its row under its cell’s', () => {
+    const body: ModelNodeJson = {
+      type: 'body',
+      attrs: { nodeId: 'b' },
+      content: [
+        {
+          type: 'section',
+          attrs: { nodeId: 'S' },
+          content: [
+            {
+              type: 'table',
+              attrs: { nodeId: 'T' },
+              content: [
+                {
+                  type: 'tr',
+                  attrs: { nodeId: 'r' },
+                  content: [
+                    {
+                      type: 'td',
+                      attrs: { nodeId: 'c' },
+                      content: [
+                        text('see '),
+                        { type: 'inline-image', attrs: { nodeId: 'pic', href: '#p.png' } },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const index = buildTreeIndex(fakeDocument({ bodies: [body as unknown as BodyNode] }), CAPTIONS);
+    expect(index.rows.get('c')!.childIds).toEqual(['pic']);
+    expect(index.rows.get('pic')!.parentId).toBe('c');
+  });
+
+  it('the Annotation and History rows hold the rows of what the book’s annotation and history contain', () => {
+    const doc = book();
+    doc.description.titleInfo.annotation = {
+      type: 'annotation',
+      attrs: { nodeId: 'descAnn' },
+      content: [
+        p('pAnn', 'About the book'),
+        { type: 'image', attrs: { nodeId: 'annPic', href: '#cover.jpg' } },
+        { type: 'subtitle', attrs: { nodeId: 'annSub' }, content: [text('Praise')] },
+      ],
+    } as unknown as AnnotationNode;
+    const index = buildTreeIndex(doc, CAPTIONS);
+    expect(index.rows.get(FIXED_BLOCK_IDS.annotation)!.childIds).toEqual(['annPic', 'annSub']);
+    expect(index.rows.get('annSub')).toMatchObject({
+      depth: 1,
+      parentId: FIXED_BLOCK_IDS.annotation,
+    });
+    expect(rowForNode(index, doc, 'annSub')).toBe('annSub');
+    expect(rowForNode(index, doc, 'pAnn')).toBe(FIXED_BLOCK_IDS.annotation);
   });
 });
