@@ -42,7 +42,7 @@ export const RPC_API_VERSION = 1;
 /**
  * Additive contract revision within RPC_API_VERSION (`app.info().apiMinor`; absent = 0). The
  * revision this UI was written for (10 since feature 011: `export.markdown`, `styles.check`,
- * `doc.setStylesheets`, the dialogs' `role`, the issue codes `description.emptyAuthor`,
+ * the dialogs' `role`, the issue codes `description.emptyAuthor`,
  * `style.conflict` and `style.unreadable`, `test.slowJobs`; 9 since feature 010: `import.readMarkdown`, `template.xml`,
  * `doc.newFromXml`, `binary.add`'s `imagesOnly`, `BinaryMeta.transparent`, the models' `efforts`
  * of `ai.models`, the service list's known models, `test.holdStartup`; 8 since feature 009: books in ZIP archives - `doc.open` with
@@ -637,7 +637,7 @@ export interface MarkdownExportResult {
   skipped: string[];
 }
 
-/** Feature 011: a stylesheet as the Styles view and `doc.setStylesheets` carry it. */
+/** Feature 011: a stylesheet as `styles.check` takes it (the model's `Stylesheet` as text). */
 export interface StylesheetText {
   type: string;
   text: string;
@@ -1293,11 +1293,6 @@ export interface RpcMethods {
   'styles.check': {
     params: { docId: string; stylesheets?: StylesheetText[] };
     result: { issues: ValidationIssue[] };
-  };
-  /** Feature 011 (US8): replaces the document's stylesheets as one undoable step. */
-  'doc.setStylesheets': {
-    params: { docId: string; stylesheets: StylesheetText[] };
-    result: { revision: number };
   };
 
   // §3.3 binary
