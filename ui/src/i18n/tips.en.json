@@ -188,7 +188,8 @@
     "views": {
       "description": "The book's description: its title, authors, genres, annotation, cover and the other data a library shows.",
       "body": "The book's text as it reads, with its sections, titles, poems and pictures, to edit it.",
-      "source": "The book's XML, to edit it directly; the other views follow when you leave it."
+      "source": "The book's XML, to edit it directly; the other views follow when you leave it.",
+      "styles": "The book's stylesheets: its selectors and their styling, to edit them."
     },
     "archive": {
       "filter": "Shows only the books of the archive whose name contains this text."

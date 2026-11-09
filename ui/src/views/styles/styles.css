@@ -1,0 +1,113 @@
+/* Feature 011 (US8): the Styles view - a toolbar, the stylesheets' groups beside the rule's editor. */
+.mfbe-styles-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.mfbe-styles-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--mfbe-color-border);
+  background: var(--mfbe-color-toolbar-bg);
+}
+
+.mfbe-styles-main {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.mfbe-styles-groups {
+  flex: 0 0 34%;
+  min-width: 180px;
+  overflow: auto;
+  border-right: 1px solid var(--mfbe-color-border);
+  padding: 4px 0;
+}
+
+.mfbe-styles-group + .mfbe-styles-group {
+  margin-top: 6px;
+}
+
+.mfbe-styles-group-header {
+  padding: 2px 8px;
+  font-weight: 600;
+  cursor: default;
+}
+
+.mfbe-styles-default {
+  margin-left: 6px;
+  font-weight: normal;
+  font-style: italic;
+  opacity: 0.75;
+}
+
+.mfbe-styles-rule {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px 2px 22px;
+  cursor: default;
+}
+
+.mfbe-styles-selected {
+  background: var(--mfbe-color-selection-bg, #cce0ff);
+}
+
+.mfbe-styles-readonly {
+  padding: 2px 8px 2px 22px;
+}
+
+.mfbe-styles-readonly pre {
+  margin: 4px 0;
+  white-space: pre-wrap;
+  font-size: 0.9em;
+  opacity: 0.85;
+}
+
+.mfbe-styles-empty,
+.mfbe-styles-hint {
+  padding: 8px;
+  opacity: 0.8;
+}
+
+.mfbe-styles-editor-pane {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.mfbe-styles-editor-caption {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--mfbe-color-border);
+}
+
+.mfbe-styles-editor {
+  flex: 1;
+  min-height: 80px;
+  overflow: auto;
+}
+
+.mfbe-styles-editor .cm-editor {
+  height: 100%;
+}
+
+.mfbe-styles-issues {
+  margin: 0;
+  padding: 4px 8px 4px 24px;
+  color: var(--mfbe-color-error, #b00020);
+  border-top: 1px solid var(--mfbe-color-border);
+}
+
+.mfbe-styles-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px 8px;
+  border-top: 1px solid var(--mfbe-color-border);
+}

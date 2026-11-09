@@ -134,7 +134,8 @@
       "description": "D&escription",
       "body": "&Body",
       "source": "So&urce",
-      "fastMode": "Fast Mode"
+      "fastMode": "Fast Mode",
+      "styles": "St&yles"
     },
     "add": {
       "caption": "&Add",
@@ -255,7 +256,10 @@
       "sourceOnly": "The file is not well-formed XML and was opened in Source mode only. Correct the errors to use the other views.",
       "loadFailed": "The document source could not be loaded.\n{{reason}}"
     },
-    "switcher": "Views"
+    "switcher": "Views",
+    "styles": {
+      "title": "Styles"
+    }
   },
   "editing": {
     "unknownElement": "Unknown element - edit it in the Source view",
@@ -445,6 +449,10 @@
       "fastMode": {
         "tooltip": "Toggle fast mode",
         "description": "Toggle fast mode"
+      },
+      "styles": {
+        "tooltip": "Styles",
+        "description": "Show and edit the book's stylesheets"
       }
     },
     "insert": {
@@ -907,6 +915,10 @@
     "description": {
       "emptyRequired": "Required element \"{{element}}\" is missing or empty",
       "emptyAuthor": "Required element \"author\" has neither a name nor a nickname"
+    },
+    "style": {
+      "conflict": "Stylesheets {{sheets}} give \"{{selector}}\" different values of {{property}}: {{values}}",
+      "unreadable": "Stylesheet {{sheet}} cannot be read from line {{line}} on; it is kept as it is"
     }
   },
   "error": {

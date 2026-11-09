@@ -173,6 +173,7 @@ export const MAIN_MENU: readonly MenuSpec[] = [
       cmd('view.description'),
       cmd('view.body'),
       cmd('view.source'),
+      cmd('view.styles'),
       sep,
       cmd('view.fastMode'),
     ],

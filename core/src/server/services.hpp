@@ -141,6 +141,8 @@ void register_dialog_handlers(rpc::RpcRouter& router, Services& services);
 void register_doc_handlers(rpc::RpcRouter& router, Services& services);
 // Feature 011 (US5, US6): export.markdown.
 void register_export_handlers(rpc::RpcRouter& router, Services& services);
+// Feature 011 (US8): styles.check.
+void register_styles_handlers(rpc::RpcRouter& router, Services& services);
 // doc.fragmentToXml / doc.fragmentFromXml (feature 005); called by register_doc_handlers.
 void register_fragment_handlers(rpc::RpcRouter& router, Services& services);
 void register_binary_handlers(rpc::RpcRouter& router, Services& services);

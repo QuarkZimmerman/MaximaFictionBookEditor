@@ -115,6 +115,16 @@
       "tooltip": "Export as FBD",
       "description": "Write the description of this document, with its cover, as an FBD file"
     },
+    "file.exportMarkdown": {
+      "label": "Export as Mar&kdown...",
+      "tooltip": "Export as Markdown",
+      "description": "Write the book as one Markdown file, its pictures embedded"
+    },
+    "file.exportMarkdownZip": {
+      "label": "Export as Markdown &ZIP...",
+      "tooltip": "Export as Markdown ZIP",
+      "description": "Write the book as a ZIP archive holding a Markdown file and its pictures"
+    },
     "file.importDescription": {
       "label": "&Description from FictionBook file...",
       "tooltip": "Import description",
@@ -645,6 +655,11 @@
       "tooltip": "Toggle StatusBar",
       "description": "Show or hide the status bar"
     },
+    "view.styles": {
+      "label": "St&yles",
+      "tooltip": "Styles",
+      "description": "Show and edit the book's stylesheets"
+    },
     "view.tableBar": {
       "label": "Table Bar",
       "tooltip": "Toggle TableBar",
@@ -781,6 +796,16 @@
       "label": "Экспорт в &FBD...",
       "tooltip": "Экспорт в FBD",
       "description": "Записать описание этого документа вместе с обложкой в файл FBD"
+    },
+    "file.exportMarkdown": {
+      "label": "Экспорт в Mar&kdown...",
+      "tooltip": "Экспорт в Markdown",
+      "description": "Записать книгу одним файлом Markdown со встроенными картинками"
+    },
+    "file.exportMarkdownZip": {
+      "label": "Экспорт в Markdown &ZIP...",
+      "tooltip": "Экспорт в Markdown ZIP",
+      "description": "Записать книгу ZIP-архивом с файлом Markdown и его картинками"
     },
     "file.importDescription": {
       "label": "Опис&ание из файла FictionBook...",
@@ -1312,6 +1337,11 @@
       "tooltip": "Строка состояния",
       "description": "Показать или скрыть строку состояния"
     },
+    "view.styles": {
+      "label": "Сти&ли",
+      "tooltip": "Стили",
+      "description": "Показать и изменить таблицы стилей книги"
+    },
     "view.tableBar": {
       "label": "П&анель таблиц",
       "tooltip": "Панель таблиц",
@@ -1448,6 +1478,16 @@
       "label": "Експорт у &FBD...",
       "tooltip": "Експорт у FBD",
       "description": "Записати опис цього документа разом з обкладинкою у файл FBD"
+    },
+    "file.exportMarkdown": {
+      "label": "Експорт у Mar&kdown...",
+      "tooltip": "Експорт у Markdown",
+      "description": "Записати книгу одним файлом Markdown із вбудованими зображеннями"
+    },
+    "file.exportMarkdownZip": {
+      "label": "Експорт у Markdown &ZIP...",
+      "tooltip": "Експорт у Markdown ZIP",
+      "description": "Записати книгу ZIP-архівом із файлом Markdown і його зображеннями"
     },
     "file.importDescription": {
       "label": "Оп&ис із файлу FictionBook...",
@@ -1978,6 +2018,11 @@
       "label": "&Смуга стану",
       "tooltip": "Смуга стану",
       "description": "Показати чи сховати смугу стану"
+    },
+    "view.styles": {
+      "label": "Сти&лі",
+      "tooltip": "Стилі",
+      "description": "Показати й змінити таблиці стилів книги"
     },
     "view.tableBar": {
       "label": "П&анель таблиць",

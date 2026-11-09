@@ -1,4 +1,5 @@
 // FB2 validation: XSD + consistency checks (T044). See mfbe/validator.hpp.
+#include "xml/css_rules.hpp"
 #include "xml/validator_internal.hpp"
 #include "xml/xml_security.hpp"
 
@@ -639,6 +640,10 @@ std::vector<ValidationIssue> consistency_issues(const model::Document& document,
     required(d.documentInfo.date.text.empty() &&
                  !(d.documentInfo.date.value && !d.documentInfo.date.value->empty()),
              "date");
+    // Feature 011 (US8, contracts/styles.md §3): conflicting and unreadable stylesheets.
+    auto styles = css::style_issues(document.stylesheets);
+    out.insert(out.end(), std::make_move_iterator(styles.begin()),
+               std::make_move_iterator(styles.end()));
     return out;
 }
 

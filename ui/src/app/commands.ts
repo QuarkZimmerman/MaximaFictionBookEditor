@@ -784,6 +784,8 @@ export function createBuiltinCommands(): Command[] {
     viewCommand('description', 'id_view_desc'),
     viewCommand('body', 'id_view_body'),
     viewCommand('source', 'id_view_source'),
+    // Feature 011 (US8): the Styles view.
+    viewCommand('styles', 'id_style_normal'),
     {
       id: 'view.fastMode',
       group: 'view',

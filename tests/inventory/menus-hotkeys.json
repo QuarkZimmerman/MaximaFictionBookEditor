@@ -19,7 +19,9 @@
         {
           "submenu": "export",
           "items": [
-            "file.exportFbd"
+            "file.exportFbd",
+            "file.exportMarkdown",
+            "file.exportMarkdownZip"
           ]
         },
         "---",
@@ -111,6 +113,7 @@
         "view.description",
         "view.body",
         "view.source",
+        "view.styles",
         "---",
         "view.fastMode"
       ]

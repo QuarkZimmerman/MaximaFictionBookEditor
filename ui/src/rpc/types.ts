@@ -171,7 +171,8 @@ export interface ReleaseUnavailableData {
 /* Shared value types                                                       */
 /* ------------------------------------------------------------------------ */
 
-export type ViewId = 'description' | 'body' | 'source';
+/** The views; feature 011 (US8) adds the Styles view (`styles`), which carries no caret or position. */
+export type ViewId = 'description' | 'body' | 'source' | 'styles';
 export type UiLanguage = 'en' | 'ru' | 'uk';
 export type ThemeSetting = 'system' | 'light' | 'dark';
 export type UiLanguageSetting = UiLanguage | 'system';

@@ -1,0 +1,50 @@
+{
+  "styles": {
+    "list": "Stylesheets",
+    "empty": "The book has no stylesheet. Add a selector to create one.",
+    "group": "Stylesheet {{number}} ({{type}})",
+    "groupTip": "A stylesheet of the book; a new selector goes into the selected stylesheet, else into the default one",
+    "defaultMark": "default",
+    "ruleTip": "A rule: select it to edit its declarations",
+    "faulty": "This stylesheet holds CSS the editor cannot read; it is kept exactly as read.",
+    "otherType": "This stylesheet is not CSS; it is kept exactly as read.",
+    "toolbar": "Styles",
+    "add": "Add selector…",
+    "addTip": "Add a rule for a selector to the selected stylesheet, or to the default one",
+    "rename": "Rename…",
+    "renameTip": "Change the selected rule's selector",
+    "remove": "Remove",
+    "removeTip": "Remove the selected rule",
+    "newStylesheet": "New stylesheet",
+    "newTip": "Add an empty CSS stylesheet to the book",
+    "needsRule": "Select a rule first",
+    "addCaption": "Add selector",
+    "renameCaption": "Rename selector",
+    "selectorPrompt": "Selector:",
+    "reason": {
+      "matchesNothing": "Matches nothing in an FB2 book: {{detail}}",
+      "syntax": "Not a valid selector"
+    },
+    "issue": {
+      "notStandard": "{{property}}: not a standard CSS property",
+      "invalidValue": "{{property}}: not a valid value for {{property}}: {{detail}}",
+      "syntax": "Not valid CSS: {{detail}}"
+    },
+    "renameUses": "{{count}} places use .{{name}} — rename them too?",
+    "renameUsesOk": "&Rename",
+    "declarations": "Declarations of {{selector}}",
+    "apply": "Apply",
+    "applyTip": "Write these declarations into the rule (Ctrl+Enter)",
+    "applyRefused": "Correct the declarations listed below first",
+    "hint": "Select a rule to edit its declarations, or add a selector.",
+    "noDocument": "Styles view - no document is open.",
+    "undo": {
+      "edit": "Edit style {{selector}}",
+      "add": "Add style {{selector}}",
+      "rename": "Rename style {{selector}}",
+      "remove": "Remove style {{selector}}",
+      "newStylesheet": "New stylesheet"
+    },
+    "loading": "Opening the Styles view…"
+  }
+}

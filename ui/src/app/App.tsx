@@ -9,6 +9,8 @@
  */
 
 import {
+  lazy,
+  Suspense,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -30,6 +32,9 @@ import { isAiBusy, useAiBusyPointer } from './aiBusy';
 import { BodyView } from '@/views/body/BodyView';
 import { DescriptionView } from '@/views/description/DescriptionView';
 import { SourceView } from '@/views/source/SourceView';
+
+// Feature 011 (US8, PD2): the Styles view loads css-tree and its CSS editor only when it opens.
+const StylesView = lazy(() => import('@/views/styles/StylesView'));
 import { DocumentTree } from '@/views/tree/DocumentTree';
 import { runScheduledCheck } from '@/features/help';
 import { getSettingsFeature } from '@/features/settings';
@@ -513,6 +518,13 @@ function Shell({
             {activeView === 'description' ? <DescriptionView /> : null}
             {activeView === 'body' ? <BodyView /> : null}
             {activeView === 'source' ? <SourceView /> : null}
+            {activeView === 'styles' ? (
+              <Suspense
+                fallback={<div className="mfbe-view-placeholder">{t('styles.loading')}</div>}
+              >
+                <StylesView />
+              </Suspense>
+            ) : null}
           </div>
           <TransientNotice />
           {validation ? (
