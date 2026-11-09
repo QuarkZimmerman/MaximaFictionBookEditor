@@ -14,6 +14,13 @@ import { commitPendingSource } from '@/views/source/sourceSession';
 
 export type MarkdownForm = 'md' | 'zip';
 
+/** The folder part of a path, with its separator ('' for a book never saved). */
+function folderOf(path: string | null | undefined): string {
+  if (!path) return '';
+  const at = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+  return at >= 0 ? path.slice(0, at + 1) : '';
+}
+
 /** The whole flow of an export; resolves true once the file is written. */
 export async function exportMarkdown(ctx: CommandContext, form: MarkdownForm): Promise<boolean> {
   const { store, rpc } = ctx;
@@ -33,7 +40,8 @@ export async function exportMarkdown(ctx: CommandContext, form: MarkdownForm): P
       },
     ],
     selectedFilter: 0,
-    defaultPath: `${stem}.${one ? 'md' : 'md.zip'}`,
+    // The book's name in the book's folder (D14); the dialog keeps no folder of its own (D32).
+    defaultPath: `${folderOf(state.path)}${stem}.${one ? 'md' : 'md.zip'}`,
     // The Save dialog's checkbox of feature 009 carries *Include pictures*, ticked every time (D14).
     ...(one
       ? { zipChoice: { label: ctx.t('transfer.markdown.includePictures'), checked: true } }

@@ -134,3 +134,26 @@ TEST_CASE("markdown export: an unreadable picture is left out, a 100-megapixel o
     REQUIRE(embedded);
     CHECK(embedded->size() <= exporting::kMaxEmbeddedPicture);
 }
+
+TEST_CASE("markdown export: the ZIP holds the text and the listed pictures only, UTF-8 names (D23, D24)",
+          "[export][markdown]") {
+    test::TempDir dir;
+    MemoryBinaryStore store;
+    store.put("карта 1", "image/png", fixture("tiny.png"));
+    store.put("Cover", "image/jpeg", fixture("tiny.jpg"));
+    store.put("unused.png", "image/png", fixture("tiny.png"));
+    exporting::MarkdownExport job;
+    job.zip = true;
+    job.path = dir.path() / "book.md.zip";
+    job.text = "![](images/карта%201.png)\n";
+    job.pictures = {{"карта 1", "карта 1.png"}, {"Cover", "Cover.jpg"}};
+    exporting::write_markdown_export(job, store, kNoProgress);
+    const archive::Listing listing = archive::list(job.path);
+    std::vector<std::string> names;
+    for (const archive::Entry& entry : listing.entries) {
+        names.push_back(entry.name);
+    }
+    CHECK(names == std::vector<std::string>{"book.md", "images/карта 1.png", "images/Cover.jpg"});
+    CHECK(archive::read_entry(job.path, "images/карта 1.png") == fixture("tiny.png"));
+    CHECK(archive::read_entry(job.path, "images/Cover.jpg") == fixture("tiny.jpg"));
+}
