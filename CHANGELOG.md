@@ -35,6 +35,8 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   diagram that cannot be drawn stays code and is listed after the import.
 - Formulas of an imported Markdown file ($…$, $$…$$, math blocks) become small pictures drawn
   offline, in their lines or on their own; the export writes them back as written.
+- Elements that have an id show it: a small #id tab in the Body view and a # badge on the
+  tree's sections; View > Show Ids switches the marks off.
 - View > Styles shows the book's stylesheets as groups of rules, one per selector, with a CSS
   editor completing standard properties and their keywords; Add selector..., Rename..., Remove and
   New stylesheet; selectors that match nothing in an FB2 book and properties that are not standard

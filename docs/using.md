@@ -320,6 +320,15 @@ web. Esc, *Close* or the window's own close button returns to the editor exactly
 window itself closes only once Preview is closed. A long book shows "Rendering…" with
 *Cancel* while Preview builds.
 
+## Ids
+
+An element that has an id - the target of a link such as `#chapter-2` - shows it in the Body view as a
+small `#id` tab at its top right: a paragraph, verse, subtitle or text author is also faintly tinted,
+a quote, epigraph, poem or annotation faintly outlined, a section shows the tab beside its title, a
+table cell a small `#` in its corner (the id in its tooltip). The tabs are not part of the text: they
+take no clicks and are never typed into or saved. In the Document tree a section that has an id has a
+`#` badge at the right of its row. *View > Show Ids* switches the marks off and on.
+
 ## Persons in the description
 
 An author, translator or document author whose fields are all empty is written as FictionBook Editor

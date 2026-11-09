@@ -134,6 +134,7 @@
       "description": "D&escription",
       "body": "&Body",
       "source": "So&urce",
+      "showIds": "Show &Ids",
       "fastMode": "Fast Mode",
       "styles": "St&yles",
       "preview": "Pre&view"
@@ -225,7 +226,8 @@
     "caption": "Document structure",
     "clean": "Clean",
     "empty": "No document is open.",
-    "emptyPicture": "Empty picture"
+    "emptyPicture": "Empty picture",
+    "idBadge": "Id: #{{id}} - links point here as #{{id}}"
   },
   "views": {
     "description": {
@@ -449,6 +451,10 @@
       "source": {
         "tooltip": "Source",
         "description": "Show document source code"
+      },
+      "showIds": {
+        "tooltip": "Show or hide the marks of the elements that have an id",
+        "description": "Shows a small #id tab on the elements of the Body view that have an id (links can point to them) and a # badge on the tree's sections that have one; the marks are never part of the text"
       },
       "fastMode": {
         "tooltip": "Toggle fast mode",

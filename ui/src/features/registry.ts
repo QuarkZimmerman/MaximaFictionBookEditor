@@ -4,6 +4,7 @@ import type { FeatureContext } from '@/app/services';
 import { registerDescriptionFeature } from './description';
 import { registerEditingFeature } from './editing';
 import { registerHelpFeature } from './help';
+import { registerIdsFeature } from './ids';
 import { registerImagesFeature } from './images';
 import { registerScriptsFeature } from './scripts';
 import { registerSettingsFeature } from './settings';
@@ -37,6 +38,7 @@ export const featureRegistrars: Array<(ctx: FeatureContext) => void> = [
   registerTransferFeature,
   // Feature 011 (US9): the named styles of the book's stylesheets.
   registerNamedStylesFeature,
+  registerIdsFeature,
   // Feature 011 (US10): View > Preview.
   registerPreviewFeature,
   registerSettingsFeature,

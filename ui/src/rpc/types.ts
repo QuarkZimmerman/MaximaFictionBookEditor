@@ -297,6 +297,8 @@ export interface Settings {
      * older than apiMinor 10.
      */
     treeElements?: Record<string, boolean>;
+    /** Feature 011 (D51): mark the elements that have an id (the Body view's tabs, the tree's badge). */
+    showIds?: boolean;
   };
   other: {
     defaultEncoding: string;

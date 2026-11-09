@@ -87,6 +87,8 @@ export interface TreeRow {
   script?: { scriptId: string; nodeId: string };
   /** A script row's icon: the script's own. */
   iconUrl?: string;
+  /** Feature 011 (D51): a section's id - the row's `#` badge. */
+  elementId?: string;
 }
 
 export interface TreeIndex {
@@ -241,6 +243,7 @@ function newRow(
   parentId: string | null,
 ): TreeRow {
   const row: TreeRow = { id, kind, caption: captionFor(node, kind), depth, parentId, childIds: [] };
+  if (kind === 'section' && node.attrs?.id) row.elementId = String(node.attrs.id);
   if (kind === 'image' || kind === 'inline-image') {
     const href = node.attrs?.href;
     if (

@@ -116,6 +116,7 @@
         "view.styles",
         "view.preview",
         "---",
+        "view.showIds",
         "view.fastMode"
       ]
     },

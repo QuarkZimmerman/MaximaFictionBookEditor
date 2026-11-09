@@ -788,6 +788,18 @@ export function createBuiltinCommands(): Command[] {
     viewCommand('styles', 'id_style_normal'),
     // Feature 011 (US10): Preview - a stub until features/preview takes it over.
     stub('view.preview', 'view', cmdKeys('view.preview', 'menu.view.preview'), 'preview'),
+    // Feature 011 (D51): the marks of the elements that have an id - the Body view's tabs, the
+    // tree's badge - shown or not (`view.showIds`, on by default).
+    {
+      id: 'view.showIds',
+      group: 'view',
+      ...cmdKeys('view.showIds', 'menu.view.showIds'),
+      checked: (ctx) => ctx.store.getState().settings?.view?.showIds !== false,
+      run(ctx) {
+        const showIds = ctx.store.getState().settings?.view?.showIds === false;
+        void ctx.rpc?.call('settings.set', { patch: { view: { showIds } } }).catch(() => undefined);
+      },
+    },
     {
       id: 'view.fastMode',
       group: 'view',

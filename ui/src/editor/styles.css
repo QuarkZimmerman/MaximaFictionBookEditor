@@ -613,3 +613,71 @@ a.fb-note {
 .mfbe-mod-held a.fb-link * {
   cursor: pointer;
 }
+
+/* Feature 011 (D51): an element that has an id carries a small "#id" tab at its top right, drawn
+   outside the text - it takes no clicks and cannot be typed into or selected. A paragraph, verse,
+   subtitle or text author is also very faintly tinted; a quote, epigraph, poem or annotation has a
+   faint outline instead; a section has only the tab beside its title; a cell only a "#" in its
+   corner (its id in the tooltip). The accent colour at low strength over the Body view's own
+   background reads the same in the light and the dark theme; View > Show Ids switches it off. */
+.mfbe-show-ids .fb-editor [data-id]:not(.fb-td, .fb-th, .fb-tr, .fb-body, .fb-desc-block) {
+  position: relative;
+  margin-top: 1.5em;
+}
+
+.mfbe-show-ids .fb-editor :is(.fb-p, .fb-v, .fb-subtitle, .fb-text-author)[data-id] {
+  border-radius: 3px 0 3px 3px;
+  background: color-mix(in srgb, var(--mfbe-color-accent) 9%, transparent);
+}
+
+.mfbe-show-ids
+  .fb-editor
+  :is(.fb-cite, .fb-epigraph, .fb-poem, .fb-annotation:not(.fb-desc-block))[data-id] {
+  border-radius: 3px 0 3px 3px;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--mfbe-color-accent) 40%, transparent);
+}
+
+.mfbe-show-ids .fb-editor [data-id]:not(.fb-td, .fb-th, .fb-tr, .fb-body, .fb-desc-block)::before {
+  content: '#' attr(data-id);
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  z-index: 1;
+  max-width: 70%;
+  overflow: hidden;
+  padding: 0 6px;
+  border-radius: 4px 4px 0 0;
+  background: color-mix(in srgb, var(--mfbe-color-accent) 22%, transparent);
+  color: var(--mfbe-color-accent);
+  font:
+    600 10px/1.6 system-ui,
+    sans-serif;
+  font-style: normal;
+  letter-spacing: 0;
+  text-align: right;
+  text-decoration: none;
+  text-indent: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+
+.mfbe-show-ids .fb-editor :is(.fb-td, .fb-th)[data-id] {
+  position: relative;
+  /* room for the corner mark, so it never covers the cell's text */
+  padding-right: 12px;
+}
+
+.mfbe-show-ids .fb-editor :is(.fb-td, .fb-th)[data-id]::after {
+  content: '#';
+  position: absolute;
+  top: 1px;
+  right: 3px;
+  color: var(--mfbe-color-accent);
+  font:
+    700 9px/1 system-ui,
+    sans-serif;
+  pointer-events: none;
+  user-select: none;
+}

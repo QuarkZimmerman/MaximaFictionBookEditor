@@ -38,7 +38,8 @@ TEST_CASE("settings: defaults are exactly resource-formats.md section 6", "[sett
                                                       "encoding", "validity", "insmode"}));
     // Feature 011 (D34): the Elements choices, every kind at its default.
     CHECK(d["view"]["treeElements"] == json::object());
-    CHECK(d["view"].size() == 21);
+    CHECK(d["view"].size() == 22);
+    CHECK(d["view"]["showIds"] == true);
     CHECK(d["view"]["theme"] == "system");
     CHECK(d["other"]["defaultEncoding"] == "utf-8");
     CHECK(d["other"]["keepEncoding"] == false);
@@ -534,7 +535,7 @@ TEST_CASE("settings: a 0.0.2 settings file keeps every value; the new keys take 
     CHECK(s["view"]["statusBarPanes"] == settings::defaults()["view"]["statusBarPanes"]);  // 009
     CHECK(s["other"]["keepBackup"] == true);                                               // 009
     CHECK(s["view"]["treeElements"] == json::object());                                    // 011
-    CHECK(s["view"].size() == 21);
+    CHECK(s["view"].size() == 22);
     CHECK(s["other"].size() == 18);
     CHECK(s["session"].size() == 11);
 

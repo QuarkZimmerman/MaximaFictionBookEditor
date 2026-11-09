@@ -109,6 +109,7 @@ function rowMark(row: TreeRow, t: TFunction): RowMark | null {
 
 export function DocumentTree() {
   const { t } = useTranslation();
+  const idTitle = useCallback((id: string) => t('tree.idBadge', { id }), [t]);
   const services = useAppServices();
   const { store } = services;
   const ctx = useCommandContext();
@@ -487,6 +488,7 @@ export function DocumentTree() {
               expandLabel={t('tree.a11y.expand')}
               collapseLabel={t('tree.a11y.collapse')}
               emptyPictureLabel={t('tree.emptyPicture')}
+              idTitle={idTitle}
             />
           ))}
         </div>
@@ -541,6 +543,8 @@ interface TreeRowViewProps {
   collapseLabel: string;
   /** Feature 010 (D8): the caption of a picture without an image. */
   emptyPictureLabel: string;
+  /** Feature 011 (D51): the tooltip of a section's id badge. */
+  idTitle: (id: string) => string;
 }
 
 function TreeRowView({
@@ -556,6 +560,7 @@ function TreeRowView({
   expandLabel,
   collapseLabel,
   emptyPictureLabel,
+  idTitle,
 }: TreeRowViewProps) {
   return (
     <div
@@ -615,6 +620,15 @@ function TreeRowView({
       >
         {row.emptyPicture ? emptyPictureLabel : row.caption}
       </span>
+      {row.elementId ? (
+        <span
+          className="mfbe-tree-id-badge"
+          data-testid={`tree-row-${row.id}-id`}
+          title={idTitle(row.elementId)}
+        >
+          #
+        </span>
+      ) : null}
       {mark ? (
         <span
           className="mfbe-table-mark-badge mfbe-tree-mark"

@@ -177,6 +177,7 @@ export const MAIN_MENU: readonly MenuSpec[] = [
       // Feature 011 (US10): the book as a reader shows it.
       cmd('view.preview'),
       sep,
+      cmd('view.showIds'),
       cmd('view.fastMode'),
     ],
   },

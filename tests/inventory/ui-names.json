@@ -665,6 +665,11 @@
       "tooltip": "Preview",
       "description": "Show the book as a reader shows it"
     },
+    "view.showIds": {
+      "label": "Show &Ids",
+      "tooltip": "Show or hide the marks of the elements that have an id",
+      "description": "Shows a small #id tab on the elements of the Body view that have an id (links can point to them) and a # badge on the tree's sections that have one; the marks are never part of the text"
+    },
     "view.source": {
       "label": "So&urce",
       "tooltip": "Source",
@@ -1367,6 +1372,11 @@
       "tooltip": "Просмотр",
       "description": "Показать книгу так, как её показывает читалка"
     },
+    "view.showIds": {
+      "label": "Показывать иденти&фикаторы",
+      "tooltip": "Показать или скрыть отметки элементов с идентификатором",
+      "description": "Показывает маленькую вкладку #id на элементах вида «Текст», у которых есть идентификатор (на них могут указывать ссылки), и значок # у таких разделов в дереве; отметки никогда не входят в текст"
+    },
     "view.source": {
       "label": "&Код",
       "tooltip": "Перейти к коду",
@@ -2068,6 +2078,11 @@
       "label": "Пере&гляд",
       "tooltip": "Перегляд",
       "description": "Показати книгу так, як її показує читалка"
+    },
+    "view.showIds": {
+      "label": "Показувати &ідентифікатори",
+      "tooltip": "Показати або сховати позначки елементів з ідентифікатором",
+      "description": "Показує маленьку вкладку #id на елементах вигляду «Текст», що мають ідентифікатор (на них можуть вказувати посилання), і значок # біля таких розділів у дереві; позначки ніколи не входять до тексту"
     },
     "view.source": {
       "label": "&Код",
