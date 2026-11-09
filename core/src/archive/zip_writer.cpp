@@ -28,20 +28,6 @@ bool is_ascii(const std::string& s) {
                        [](char c) { return static_cast<unsigned char>(c) < 0x80; });
 }
 
-// Sets the "name is UTF-8" flag (bit 11) in the entry's local header and central record.
-void flag_utf8_name(std::string& zip) {
-    auto set_flag = [&](std::size_t at) {
-        zip[at + 1] = static_cast<char>(static_cast<unsigned char>(zip[at + 1]) | 0x08);
-    };
-    if (zip.size() >= 30 && zip.compare(0, 4, "PK\x03\x04") == 0) {
-        set_flag(6);
-    }
-    const std::size_t central = zip.rfind(std::string("PK\x01\x02", 4));
-    if (central != std::string::npos && central + 10 <= zip.size()) {
-        set_flag(central + 8);
-    }
-}
-
 [[noreturn]] void fail(struct archive* a) {
     const char* message = archive_error_string(a);
     throw std::runtime_error(message != nullptr ? message : "the archive cannot be written");
@@ -49,10 +35,44 @@ void flag_utf8_name(std::string& zip) {
 
 }  // namespace
 
-std::string zip_one(const std::string& entry_name, std::string_view bytes) {
+// Sets the "name is UTF-8" flag (bit 11) of every entry whose name is not ASCII, in its central
+// record and in its local header, walking the central directory from the end record.
+void flag_utf8_names(std::string& zip) {
+    const std::size_t end = zip.rfind(std::string("PK\x05\x06", 4));
+    if (end == std::string::npos || end + 22 > zip.size()) {
+        return;
+    }
+    const auto u16 = [&](std::size_t at) {
+        return static_cast<std::size_t>(static_cast<unsigned char>(zip[at])) |
+               static_cast<std::size_t>(static_cast<unsigned char>(zip[at + 1])) << 8;
+    };
+    const auto u32 = [&](std::size_t at) { return u16(at) | u16(at + 2) << 16; };
+    const auto set_flag = [&](std::size_t at) {
+        zip[at + 1] = static_cast<char>(static_cast<unsigned char>(zip[at + 1]) | 0x08);
+    };
+    const std::size_t count = u16(end + 10);
+    std::size_t record = u32(end + 16);
+    for (std::size_t i = 0; i < count && record + 46 <= zip.size(); ++i) {
+        if (zip.compare(record, 4, "PK\x01\x02") != 0) {
+            return;
+        }
+        const std::size_t name_length = u16(record + 28);
+        const std::string name = zip.substr(record + 46, name_length);
+        if (!is_ascii(name)) {
+            set_flag(record + 8);
+            const std::size_t local = u32(record + 42);
+            if (local + 30 <= zip.size() && zip.compare(local, 4, "PK\x03\x04") == 0) {
+                set_flag(local + 6);
+            }
+        }
+        record += 46 + name_length + u16(record + 30) + u16(record + 32);
+    }
+}
+
+std::string zip_entries(const std::vector<ZipEntry>& entries) {
     std::string out;
     std::unique_ptr<struct archive, WriterDeleter> a(archive_write_new());
-    // The name goes in as UTF-8 bytes without any of libarchive's locale conversions (built
+    // The names go in as UTF-8 bytes without any of libarchive's locale conversions (built
     // without iconv, it cannot convert names in the C locale): raw on Linux and macOS, as wide
     // characters turned into UTF-8 on Windows, where its default would be the OEM code page.
     // The UTF-8 flag is then set in the headers (resource-formats §5).
@@ -65,35 +85,40 @@ std::string zip_one(const std::string& entry_name, std::string_view bytes) {
         archive_write_open2(a.get(), &out, nullptr, append, nullptr, nullptr) != ARCHIVE_OK) {
         fail(a.get());
     }
-    std::unique_ptr<archive_entry, EntryDeleter> e(archive_entry_new());
+    const std::time_t now = std::time(nullptr);
+    for (const ZipEntry& entry : entries) {
+        std::unique_ptr<archive_entry, EntryDeleter> e(archive_entry_new());
 #ifdef _WIN32
-    archive_entry_copy_pathname_w(e.get(), platform::path_from_utf8(entry_name).c_str());
+        archive_entry_copy_pathname_w(e.get(), platform::path_from_utf8(entry.name).c_str());
 #else
-    archive_entry_set_pathname(e.get(), entry_name.c_str());
+        archive_entry_set_pathname(e.get(), entry.name.c_str());
 #endif
-    archive_entry_set_size(e.get(), static_cast<la_int64_t>(bytes.size()));
-    archive_entry_set_filetype(e.get(), AE_IFREG);
-    archive_entry_set_perm(e.get(), 0644);
-    archive_entry_set_mtime(e.get(), std::time(nullptr), 0);
-    if (archive_write_header(a.get(), e.get()) < ARCHIVE_WARN) {
-        fail(a.get());
-    }
-    std::size_t done = 0;
-    while (done < bytes.size()) {
-        const std::size_t chunk = std::min<std::size_t>(bytes.size() - done, 1u << 20);
-        const la_ssize_t n = archive_write_data(a.get(), bytes.data() + done, chunk);
-        if (n <= 0) {
+        archive_entry_set_size(e.get(), static_cast<la_int64_t>(entry.bytes.size()));
+        archive_entry_set_filetype(e.get(), AE_IFREG);
+        archive_entry_set_perm(e.get(), 0644);
+        archive_entry_set_mtime(e.get(), now, 0);
+        if (archive_write_header(a.get(), e.get()) < ARCHIVE_WARN) {
             fail(a.get());
         }
-        done += static_cast<std::size_t>(n);
+        std::size_t done = 0;
+        while (done < entry.bytes.size()) {
+            const std::size_t chunk = std::min<std::size_t>(entry.bytes.size() - done, 1u << 20);
+            const la_ssize_t n = archive_write_data(a.get(), entry.bytes.data() + done, chunk);
+            if (n <= 0) {
+                fail(a.get());
+            }
+            done += static_cast<std::size_t>(n);
+        }
     }
     if (archive_write_close(a.get()) != ARCHIVE_OK) {
         fail(a.get());
     }
-    if (!is_ascii(entry_name)) {
-        flag_utf8_name(out);
-    }
+    flag_utf8_names(out);
     return out;
+}
+
+std::string zip_one(const std::string& entry_name, std::string_view bytes) {
+    return zip_entries({ZipEntry{entry_name, bytes}});
 }
 
 }  // namespace mfbe::archive
