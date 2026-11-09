@@ -45,9 +45,15 @@ async function open(core: CoreHandle, page: Page, file: string): Promise<void> {
   await expect(page.getByTestId('styles-view')).toBeVisible();
 }
 
+/** Add style… with a selector: a class as a named style (typed without its dot), else an element's. */
 async function addSelector(page: Page, selector: string): Promise<void> {
   await page.getByTestId('styles-add').click();
-  await page.getByTestId('dialog-styles-add-input').fill(selector);
+  if (selector.startsWith('.')) {
+    await page.getByTestId('dialog-styles-add-kind-named').check();
+    await page.getByTestId('dialog-styles-add-name').fill(selector.slice(1));
+  } else {
+    await page.getByTestId('dialog-styles-add-element').fill(selector);
+  }
 }
 
 const xml = (page: Page) => page.evaluate(() => window.__mfbeTest!.scripts!.toXml());
@@ -82,11 +88,14 @@ test.describe('US8 (feature 011) - the Styles view', () => {
     await expect(page.getByTestId('styles-empty')).toBeVisible();
     // A selector that matches nothing in an FB2 book is refused with its reason.
     await addSelector(page, 'div > span');
-    await page.getByTestId('dialog-styles-add-button-ok').click();
+    await expect(page.getByTestId('dialog-styles-add-button-ok')).toBeDisabled();
     await expect(page.getByTestId('dialog-styles-add-error')).toContainText(
       'Matches nothing in an FB2 book',
     );
-    await page.getByTestId('dialog-styles-add-input').fill('.letter');
+    // A named style is typed by its name alone; the dot is added (rc.2 review).
+    await page.getByTestId('dialog-styles-add-kind-named').check();
+    await page.getByTestId('dialog-styles-add-name').fill('letter');
+    await expect(page.getByTestId('dialog-styles-add-result')).toContainText('.letter');
     await page.getByTestId('dialog-styles-add-button-ok').click();
     await expect(page.getByTestId('styles-selected-selector')).toHaveText('.letter');
     // Declarations: a standard one is accepted, the others refused with their reasons.

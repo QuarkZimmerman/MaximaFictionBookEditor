@@ -285,8 +285,8 @@ named styles. A stylesheet on the web is never fetched; what the import could no
 first CSS one marked as the default - and their rules, one per selector. Selecting a rule shows its
 declarations in a framed CSS box on the right - empty for a new rule, with a hint of what to type -
 that completes the standard property names and, after a colon, the property's keywords; *Apply*
-(Ctrl+Enter, Cmd+Enter on macOS) writes them into the rule. After *Add selector…* the caret is
-already in the new rule's box. *Add selector…* adds a rule to
+(Ctrl+Enter, Cmd+Enter on macOS) writes them into the rule. After *Add style…* the caret is
+already in the new rule's box. *Add style…* opens a dialog with two choices: *Style of an element*, picked from a list of the FB2 elements that typing narrows (a selector such as `epigraph p` may be typed whole), or *Named style*, typed by its name alone - the class's dot is added; every control explains itself in its tooltip. The new rule goes to
 the selected stylesheet, else to the default one - a book without a stylesheet gets one for its first
 selector -; *Rename…*, *Remove* and *New stylesheet* do what they say. Renaming a class that the text
 uses asks whether to rename its uses too.

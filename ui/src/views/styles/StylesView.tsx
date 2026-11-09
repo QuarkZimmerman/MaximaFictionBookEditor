@@ -7,7 +7,15 @@
  * both (the core's `styles.check`, as in Validate). Each change is one undo step of the view and is
  * written by Save. Loaded lazily with css-tree and the CSS editor (PD2, PD3).
  */
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  createElement,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { formatChordForDisplay, parseChord } from '@/app/hotkeys';
@@ -40,6 +48,8 @@ import { createDeclarationEditor, type DeclarationEditor } from './DeclarationEd
 import { StylesheetGroups, type StyleSelection } from './StylesheetGroups';
 
 import './styles.css';
+
+import { AddStyleDialog } from './AddStyleDialog';
 
 const collapse = (text: string) => text.replace(/\s+/g, ' ').trim();
 
@@ -208,15 +218,12 @@ export default function StylesView() {
 
   const addSelector = async () => {
     if (!document) return;
-    const result = await ctx.dialogs.showInput({
-      caption: t('styles.addCaption'),
-      prompt: t('styles.selectorPrompt'),
-      validate: selectorReason,
-      buttons: 'okCancel',
-      testId: 'dialog-styles-add',
-    });
-    if (result.button !== 'ok') return;
-    const selector = collapse(result.value);
+    // Feature 011 (rc.2 review): a style of an element, or a named style typed by its name alone.
+    const chosenSelector = await ctx.dialogs.openCustom<string | null>((close) =>
+      createElement(AddStyleDialog, { reasonOf: selectorReason, onClose: close }),
+    );
+    if (!chosenSelector) return;
+    const selector = collapse(chosenSelector);
     const chosen = selectedGroup?.editable ? selectedGroup : fallback;
     let sheets = [...document.stylesheets];
     let index: number;

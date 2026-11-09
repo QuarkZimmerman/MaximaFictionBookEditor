@@ -128,3 +128,59 @@
   padding: 4px 8px;
   border-top: 1px solid var(--mfbe-color-border);
 }
+
+/* Feature 011 (rc.2 review): the Add style dialog - two choices, one below the other, each with its
+   field to the right; the element field's list opens under it. */
+.mfbe-addstyle-grid {
+  display: grid;
+  grid-template-columns: auto minmax(16em, 1fr);
+  gap: 8px 12px;
+  align-items: center;
+}
+
+.mfbe-addstyle-choice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.mfbe-addstyle-combo {
+  position: relative;
+}
+
+.mfbe-addstyle-combo input,
+.mfbe-addstyle-grid > input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.mfbe-addstyle-list {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  right: 0;
+  max-height: 14em;
+  overflow: auto;
+  margin: 2px 0 0;
+  padding: 2px 0;
+  list-style: none;
+  background: var(--mfbe-color-bg);
+  border: 1px solid var(--mfbe-color-border);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 25%);
+}
+
+.mfbe-addstyle-list li {
+  padding: 2px 8px;
+  cursor: default;
+}
+
+.mfbe-addstyle-list li:hover,
+.mfbe-addstyle-list li[aria-selected='true'] {
+  background: var(--mfbe-color-accent);
+  color: var(--mfbe-color-accent-text, #fff);
+}
+
+.mfbe-addstyle-result {
+  margin: 10px 0 0;
+}
