@@ -97,7 +97,7 @@ jobs:
           python3 tools/changelog-check.py
           version=$(sed -n 's/^.*"version": *"\([0-9.]*\).*$/\1/p' ui/package.json | head -1)
           python3 tools/changelog-in-short.py "$version"
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
       - name: Parity matrix (SC-003, T157)
@@ -234,7 +234,7 @@ jobs:
         working-directory: ui
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -297,7 +297,7 @@ jobs:
             core_bin: mfbe-core
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -511,7 +511,7 @@ jobs:
         shell: pwsh
         run: tools/ci/annotate-failure.ps1 -Log "$env:RUNNER_TEMP/wix.log" -Title "WiX install"
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm

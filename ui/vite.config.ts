@@ -113,6 +113,10 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    // The editor's own core serves the bundle from the local disk, so a chunk's size is no download
+    // cost (the main bundle of about 2.3 MB starts in about 200 ms, feature 011's measurement); the
+    // warning is kept for a chunk that grows past that.
+    chunkSizeWarningLimit: 2600,
     rolldownOptions: {
       output: {
         codeSplitting: {

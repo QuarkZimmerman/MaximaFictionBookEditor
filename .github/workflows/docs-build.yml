@@ -70,7 +70,7 @@ jobs:
       # image provides Visual Studio 2022, CMake, Git and Ninja; Node.js 24 is added here.
       - name: Windows prerequisites (Node.js 24)
         if: runner.os == 'Windows'
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: 24
       - name: Windows prerequisites (Ninja)

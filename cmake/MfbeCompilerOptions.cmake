@@ -20,6 +20,14 @@ else()
     -Wcast-align -Wunused -Woverloaded-virtual -Wnull-dereference
     -Wdouble-promotion -Wformat=2 -Wimplicit-fallthrough
     -Wno-unused-parameter)
+  # GCC's -Wnull-dereference and -Warray-bounds judge what the optimiser has inlined; at -O2, GCC 14
+  # reports paths inside libstdc++'s std::streambuf and nlohmann::json's std::map that cannot occur
+  # (50 warnings in the Release core, none in our own code; feature 011's gate). The optimised GCC
+  # builds leave the two out; Clang keeps -Wnull-dereference.
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(mfbe_options INTERFACE
+      $<$<NOT:$<CONFIG:Debug>>:-Wno-null-dereference -Wno-array-bounds>)
+  endif()
   if(MFBE_WARNINGS_AS_ERRORS)
     target_compile_options(mfbe_options INTERFACE -Werror)
   endif()
