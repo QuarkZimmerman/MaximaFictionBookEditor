@@ -132,6 +132,12 @@ void png_encode_body(PngEncodeState& st, png_structp png, png_infop info, const 
 
 // The only frame between libjpeg's setjmp and its longjmp; see the decoder's jpeg_run. False after
 // a libjpeg error (the message in st->err).
+#if defined(_MSC_VER)
+// MSVC reports C4611 at every setjmp of C++ code, whatever the frame holds; this frame holds no
+// object with a destructor (feature 011, D48), so the warning is known not to apply here.
+#pragma warning(push)
+#pragma warning(disable : 4611)
+#endif
 static MFBE_SETJMP_FRAME bool jpeg_encode_run(JpegEncodeState* st, const Bitmap* bitmap,
                                               int quality) {
     if (setjmp(st->err.jump)) {
@@ -141,6 +147,9 @@ static MFBE_SETJMP_FRAME bool jpeg_encode_run(JpegEncodeState* st, const Bitmap*
     jpeg_encode_body(*st, *bitmap, quality);
     return true;
 }
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 
 std::string encode_jpeg(const Bitmap& bitmap, int quality) {
     if (bitmap.width <= 0 || bitmap.height <= 0 || bitmap.rgba.size() < bitmap.pixel_count() * 4) {
@@ -169,6 +178,12 @@ std::string encode_jpeg(const Bitmap& bitmap, int quality) {
 }
 
 // As jpeg_encode_run, for libpng: false after a libpng error (the message in st->error).
+#if defined(_MSC_VER)
+// MSVC reports C4611 at every setjmp of C++ code, whatever the frame holds; this frame holds no
+// object with a destructor (feature 011, D48), so the warning is known not to apply here.
+#pragma warning(push)
+#pragma warning(disable : 4611)
+#endif
 static MFBE_SETJMP_FRAME bool png_encode_run(PngEncodeState* st, png_structp png, png_infop info,
                                              const Bitmap* bitmap) {
     if (setjmp(png_jmpbuf(png))) {
@@ -177,6 +192,9 @@ static MFBE_SETJMP_FRAME bool png_encode_run(PngEncodeState* st, png_structp png
     png_encode_body(*st, png, info, *bitmap);
     return true;
 }
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 
 std::string encode_png(const Bitmap& bitmap) {
     if (bitmap.width <= 0 || bitmap.height <= 0 || bitmap.rgba.size() < bitmap.pixel_count() * 4) {

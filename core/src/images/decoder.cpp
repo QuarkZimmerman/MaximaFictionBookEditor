@@ -159,6 +159,12 @@ void jpeg_decode_body(JpegState& st, std::string_view bytes) {
 // The only frame between libjpeg's setjmp and its longjmp. It holds no object with a destructor
 // (MSVC's C4611), so a libjpeg error skips nothing; C++ exceptions of jpeg_decode_body pass
 // through. False after a libjpeg error (the message in st->err).
+#if defined(_MSC_VER)
+// MSVC reports C4611 at every setjmp of C++ code, whatever the frame holds; this frame holds no
+// object with a destructor (feature 011, D48), so the warning is known not to apply here.
+#pragma warning(push)
+#pragma warning(disable : 4611)
+#endif
 static MFBE_SETJMP_FRAME bool jpeg_run(JpegState* st, std::string_view bytes) {
     if (setjmp(st->err.jump)) {
         return false;
@@ -167,6 +173,9 @@ static MFBE_SETJMP_FRAME bool jpeg_run(JpegState* st, std::string_view bytes) {
     jpeg_decode_body(*st, bytes);
     return true;
 }
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 
 Bitmap decode_jpeg(std::string_view bytes, int min_width, int min_height) {
     auto st = std::make_unique<JpegState>();
@@ -261,6 +270,12 @@ void png_decode_body(PngState& st, png_structp png, png_infop info) {
 }
 
 // As jpeg_run, for libpng: false after a libpng error (the message in st->error).
+#if defined(_MSC_VER)
+// MSVC reports C4611 at every setjmp of C++ code, whatever the frame holds; this frame holds no
+// object with a destructor (feature 011, D48), so the warning is known not to apply here.
+#pragma warning(push)
+#pragma warning(disable : 4611)
+#endif
 static MFBE_SETJMP_FRAME bool png_run(PngState* st, png_structp png, png_infop info) {
     if (setjmp(png_jmpbuf(png))) {
         return false;
@@ -268,6 +283,9 @@ static MFBE_SETJMP_FRAME bool png_run(PngState* st, png_structp png, png_infop i
     png_decode_body(*st, png, info);
     return true;
 }
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 
 Bitmap decode_png(std::string_view bytes) {
     auto st = std::make_unique<PngState>();

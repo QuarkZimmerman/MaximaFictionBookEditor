@@ -78,7 +78,8 @@ function sourceMatches(text: string, e: (typeof EXPRESSIONS)[number]): Array<[nu
 }
 
 describe('guard G11: regular expressions valid in 0.0.8 find the same', () => {
-  const text = readFileSync(BOOK, 'utf8');
+  // The baseline was recorded on LF text; a Windows checkout may give the fixture CRLF endings.
+  const text = readFileSync(BOOK, 'utf8').replace(/\r\n/g, '\n');
   const digest = (ranges: Array<[number, number]>) =>
     `${ranges.length}:${createHash('sha256').update(JSON.stringify(ranges)).digest('hex')}`;
   const current: Record<Key, { body: string; source: string }> = {};
