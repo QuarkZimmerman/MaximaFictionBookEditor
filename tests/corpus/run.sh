@@ -256,8 +256,10 @@ PY
 status=$?
 # Feature 011 (FR-081): the sample exported as Markdown and imported again (ui/tests/corpus/).
 if [ "$MARKDOWN" = 1 ]; then
-    (cd "$(dirname "$0")/../../ui" && MFBE_CORPUS_LIST="$(realpath "$SAMPLE")" \
-        MFBE_CORE_BIN="$(realpath "${CORE:-build/linux-core-release/bin/mfbe-core}")" \
+    # The paths are resolved where the script was called, before the subshell enters ui/.
+    md_list="$(realpath "$SAMPLE")"
+    md_core="$(realpath "${CORE:-build/linux-core-release/bin/mfbe-core}")"
+    (cd "$(dirname "$0")/../../ui" && MFBE_CORPUS_LIST="$md_list" MFBE_CORE_BIN="$md_core" \
         npx vitest run --config vitest.corpus.config.ts) || status=1
 fi
 exit $status
