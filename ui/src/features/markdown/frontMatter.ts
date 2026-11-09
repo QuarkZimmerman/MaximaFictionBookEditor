@@ -2,15 +2,23 @@
  * Feature 010, US8 (spec D30, research DP-2): the front matter of a Markdown file - a YAML block
  * between `---` lines at the very top. The reader is small and strict on purpose: it knows the
  * forms the description's keys take (`key: value`, quoted values, `[a, b]` and `- item` lists,
- * `|` and `>` blocks) and nothing else - no anchors, no tags, no nested maps. Keys are lower-cased;
+ * `|` and `>` blocks) and nothing else - no anchors, no tags, no nested block maps. Keys are lower-cased;
  * a line it does not understand is skipped; values are text.
  */
 
 export type FrontMatterValue = string | string[];
 
+/** A value of YAML's flow form: text, a number, a list or a map (feature 011, D29). */
+export type FlowValue = string | number | FlowValue[] | { [key: string]: FlowValue };
+
 export interface FrontMatter {
   /** The block's keys, lower-case, with their values (empty when there is no block). */
   values: Map<string, FrontMatterValue>;
+  /**
+   * Feature 011 (US7, D29): the keys written in YAML's flow form (`{ a: "x" }`, `[{ … }]`), read
+   * whole - the nested maps and lists of the editor's own export (contracts/markdown-export.md §1).
+   */
+  structured: Map<string, FlowValue>;
   /** The Markdown after the block (the whole text when there is none). */
   body: string;
 }
@@ -54,11 +62,119 @@ function inlineList(value: string): string[] {
   return items.filter((item) => item !== '');
 }
 
+/**
+ * A value written in YAML's flow form - maps, lists, double- and single-quoted strings, numbers and
+ * plain words - or undefined when the text is not one (feature 011, D29).
+ */
+export function parseFlow(text: string): FlowValue | undefined {
+  let i = 0;
+  const skip = () => {
+    while (i < text.length && /\s/.test(text[i]!)) i += 1;
+  };
+  const scalar = (key: boolean): FlowValue => {
+    skip();
+    const quote = text[i];
+    if (quote === '"') {
+      i += 1;
+      let out = '';
+      while (i < text.length && text[i] !== '"') {
+        if (text[i] === '\\') {
+          const next = text[i + 1] ?? '';
+          out += next === 'n' ? '\n' : next === 't' ? '\t' : next;
+          i += 2;
+        } else {
+          out += text[i];
+          i += 1;
+        }
+      }
+      if (text[i] !== '"') throw new Error('unterminated string');
+      i += 1;
+      return out;
+    }
+    if (quote === "'") {
+      i += 1;
+      let out = '';
+      while (i < text.length) {
+        if (text[i] === "'") {
+          if (text[i + 1] === "'") {
+            out += "'";
+            i += 2;
+            continue;
+          }
+          break;
+        }
+        out += text[i];
+        i += 1;
+      }
+      if (text[i] !== "'") throw new Error('unterminated string');
+      i += 1;
+      return out;
+    }
+    const start = i;
+    const stop = key ? /[:,}\]]/ : /[,}\]]/;
+    while (i < text.length && !stop.test(text[i]!)) i += 1;
+    const raw = text.slice(start, i).trim();
+    return !key && /^-?\d+(\.\d+)?$/.test(raw) ? Number(raw) : raw;
+  };
+  const value = (): FlowValue => {
+    skip();
+    if (text[i] === '{') {
+      i += 1;
+      const out: { [key: string]: FlowValue } = {};
+      skip();
+      if (text[i] === '}') {
+        i += 1;
+        return out;
+      }
+      for (;;) {
+        const key = String(scalar(true));
+        skip();
+        if (text[i] !== ':') throw new Error('a key without its value');
+        i += 1;
+        out[key] = value();
+        skip();
+        if (text[i] === ',') i += 1;
+        else if (text[i] === '}') {
+          i += 1;
+          return out;
+        } else throw new Error('an unterminated map');
+      }
+    }
+    if (text[i] === '[') {
+      i += 1;
+      const out: FlowValue[] = [];
+      skip();
+      if (text[i] === ']') {
+        i += 1;
+        return out;
+      }
+      for (;;) {
+        out.push(value());
+        skip();
+        if (text[i] === ',') i += 1;
+        else if (text[i] === ']') {
+          i += 1;
+          return out;
+        } else throw new Error('an unterminated list');
+      }
+    }
+    return scalar(false);
+  };
+  try {
+    const result = value();
+    skip();
+    return i === text.length ? result : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function readFrontMatter(text: string): FrontMatter {
   const source = text.replace(/^\uFEFF/, '');
   const lines = source.split(/\r\n|\n|\r/);
   const values = new Map<string, FrontMatterValue>();
-  if (lines.length === 0 || !OPENING.test(lines[0]!)) return { values, body: source };
+  const structured = new Map<string, FlowValue>();
+  if (lines.length === 0 || !OPENING.test(lines[0]!)) return { values, structured, body: source };
   let end = -1;
   for (let i = 1; i < lines.length; i += 1) {
     if (CLOSING.test(lines[i]!)) {
@@ -66,7 +182,7 @@ export function readFrontMatter(text: string): FrontMatter {
       break;
     }
   }
-  if (end < 0) return { values, body: source };
+  if (end < 0) return { values, structured, body: source };
   let i = 1;
   while (i < end) {
     const line = lines[i]!;
@@ -106,9 +222,13 @@ export function readFrontMatter(text: string): FrontMatter {
         );
       continue;
     }
+    if (rest.startsWith('{') || rest.startsWith('[')) {
+      const flow = parseFlow(rest);
+      if (flow !== undefined) structured.set(key, flow);
+    }
     values.set(key, rest.startsWith('[') && rest.endsWith(']') ? inlineList(rest) : unquote(rest));
   }
-  return { values, body: lines.slice(end + 1).join('\n') };
+  return { values, structured, body: lines.slice(end + 1).join('\n') };
 }
 
 /** The first value of the first key present, as text ('' when none). */

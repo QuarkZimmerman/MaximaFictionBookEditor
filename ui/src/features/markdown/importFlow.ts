@@ -15,7 +15,7 @@ import { actions } from '@/model/store';
 import { isRpcError } from '@/rpc/client';
 import { RpcErrorCode, type MarkdownText } from '@/rpc/types';
 
-import type { SummaryItem } from './convert';
+import type { ConvertResult, MarkdownStylesheet, SummaryItem } from './convert';
 import { buildBook } from './describe';
 import { addPictures } from './pictures';
 import { convertInWorker } from './run';
@@ -39,6 +39,49 @@ async function readText(ctx: CommandContext, path: string): Promise<MarkdownText
   if (!answer) return null;
   const chosen = await rpc.call('import.readMarkdown', { path, encoding: answer });
   return 'needsEncoding' in chosen ? null : chosen;
+}
+
+/**
+ * Feature 011 (US7; D46; FR-074): the book's stylesheets - the export's own exactly, the CSS written
+ * for HTML translated to FB2, the local files the header's `css:` names read beside the Markdown
+ * file (never a web address); what cannot be read or used is listed in the summary.
+ */
+async function bookStylesheets(
+  ctx: CommandContext,
+  result: ConvertResult,
+  folder: string,
+  summary: SummaryItem[],
+): Promise<MarkdownStylesheet[]> {
+  const sheets: MarkdownStylesheet[] = [];
+  const foreign: string[] = result.stylesheets
+    .filter((sheet) => sheet.foreign)
+    .map((sheet) => sheet.text);
+  for (const sheet of result.stylesheets) if (!sheet.foreign) sheets.push(sheet);
+  for (const entry of result.cssFiles) {
+    const absolute = /^([a-zA-Z]:[\\/]|[\\/])/.test(entry) ? entry : `${folder}/${entry}`;
+    try {
+      const read = await ctx.rpc!.call('import.readMarkdown', {
+        path: absolute,
+        encoding: 'utf-8',
+      });
+      if ('needsEncoding' in read) summary.push({ kind: 'cssFile', detail: entry });
+      else foreign.push(read.text);
+    } catch {
+      // A missing file or one that is not text: listed, the import goes on (U2).
+      summary.push({ kind: 'cssFile', detail: entry });
+    }
+  }
+  if (foreign.length > 0) {
+    const { translateCss } = await import('./cssTranslate');
+    for (const text of foreign) {
+      const translated = translateCss(text);
+      if (translated.css) sheets.push({ type: 'text/css', text: translated.css, foreign: false });
+      if (translated.dropped.length > 0) {
+        summary.push({ kind: 'cssDropped', detail: translated.dropped.join(', ') });
+      }
+    }
+  }
+  return sheets;
 }
 
 /** Runs the import; false when cancelled or refused (the window's book is then unchanged). */
@@ -68,14 +111,15 @@ export async function importMarkdown(ctx: CommandContext, files: FileFeature): P
       notesTitle: ctx.t('editing.footnote.notesTitle'),
       genres,
     });
+    const summary: SummaryItem[] = [...result.summary];
+    const stylesheets = await bookStylesheets(ctx, result, folder, summary);
     const opened = await rpc.runJob('doc.newFromXml', {
-      xml: buildBook(templateXml, result),
+      xml: buildBook(templateXml, { ...result, stylesheets }),
       origin: { kind: 'markdown', path },
     });
     await files.loadImported(ctx, opened.document, path);
     const outcome = await addPictures(rpc, opened.document.docId, result.pictures, result.chars);
     addBinariesToModel(ctx.store, outcome.added);
-    const summary: SummaryItem[] = [...result.summary];
     for (const failed of outcome.failed) {
       summary.push({
         kind: 'webPicture',

@@ -1,5 +1,4 @@
 <body><section><p>alert(1)</p>
-<p>p{}</p>
 <cite><p>deep quote</p>
 </cite>
 <p>• level 0</p>
@@ -43,7 +42,10 @@
     "title": "hostile",
     "authors": [],
     "annotation": [],
-    "genres": []
+    "sequences": [],
+    "genres": [],
+    "translators": [],
+    "custom": []
   },
   "pictures": [],
   "chars": [],
@@ -51,10 +53,6 @@
     {
       "kind": "htmlTag",
       "detail": "script"
-    },
-    {
-      "kind": "htmlTag",
-      "detail": "style"
     },
     {
       "kind": "missingTarget",

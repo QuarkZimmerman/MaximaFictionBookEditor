@@ -13,7 +13,10 @@
     "title": "Глава первая",
     "authors": [],
     "annotation": [],
-    "genres": []
+    "sequences": [],
+    "genres": [],
+    "translators": [],
+    "custom": []
   },
   "pictures": [],
   "chars": [],

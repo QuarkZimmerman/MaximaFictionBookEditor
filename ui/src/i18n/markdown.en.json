@@ -14,7 +14,12 @@
       "webPicture": "Picture not added: {{detail}}",
       "missingTarget": "Link to a heading that does not exist: {{detail}}",
       "htmlTag": "HTML tag left out, its text kept: <{{detail}}>",
-      "droppedChar": "Character no bundled font draws, left out: {{detail}}"
+      "droppedChar": "Character no bundled font draws, left out: {{detail}}",
+      "headerKey": "Header key without an FB2 field: {{detail}}",
+      "webCss": "Stylesheet on the web, not fetched: {{detail}}",
+      "cssFile": "CSS file that could not be read: {{detail}}",
+      "extraClass": "Further classes not kept: {{detail}}",
+      "cssDropped": "CSS that matches nothing in an FB2 book, dropped: {{detail}}"
     },
     "notText": "The file is not text.",
     "tooLarge": "The file is larger than the import reads.",

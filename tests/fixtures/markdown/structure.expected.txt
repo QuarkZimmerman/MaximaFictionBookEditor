@@ -27,7 +27,10 @@
     ],
     "lang": "en",
     "annotation": [],
-    "genres": []
+    "sequences": [],
+    "genres": [],
+    "translators": [],
+    "custom": []
   },
   "pictures": [],
   "chars": [
