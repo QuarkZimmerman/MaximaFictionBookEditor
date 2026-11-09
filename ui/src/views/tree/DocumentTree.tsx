@@ -33,7 +33,7 @@ import { useAppRevision, useAppServices, useCommandContext } from '@/app/service
 import { tableProblemsText } from '@/editor/table/problems';
 import { bodyController } from '@/features/editing/common';
 import { describeTableMark } from '@/features/tables/marks';
-import { getTreeFeature, revealInBody, treeOpCommandId } from '@/features/tree';
+import { getTreeFeature, goToRowInSource, revealInBody, treeOpCommandId } from '@/features/tree';
 import { useAppState } from '@/model/store';
 
 import { ROW_KIND_INFO, shownEntries } from './elementKinds';
@@ -99,6 +99,7 @@ export function DocumentTree() {
   const selectionPath = useAppState((s) => s.selectionPath, store);
   const sourceDirty = useAppState((s) => s.sourceDirty || s.sourceOnly, store);
   const docId = useAppState((s) => s.docId, store);
+  const activeView = useAppState((s) => s.activeView, store);
   const treeElements = useAppState((s) => s.settings?.view.treeElements, store);
   const shown = useMemo(() => shownEntries(treeElements), [treeElements]);
   const feature = getTreeFeature(store);
@@ -219,12 +220,25 @@ export function DocumentTree() {
       feature.markNavigation(rowId);
       feature.select(rowId, 'tree');
       if (scroll) scrollToSelected.current = true;
+      // Feature 011 (US4, D9): in the Source view the row goes to its element there.
+      if (activeView === 'source') {
+        goToRowInSource(store, rowId, false);
+        return;
+      }
       if (sourceDirty) return;
       const controller = bodyController(store);
       if (controller) revealInBody(controller, rowId);
     },
-    [feature, sourceDirty, store],
+    [feature, sourceDirty, store, activeView],
   );
+
+  // Double-click and Enter: the Body view's View, or - in the Source view - the element there with
+  // the focus in the Source view (feature 011, D10).
+  const activate = useCallback(() => {
+    const id = feature.getState().selection.id;
+    if (activeView === 'source' && id) goToRowInSource(store, id, true);
+    else void services.commands.execute('tree.view', ctx);
+  }, [activeView, feature, store, services.commands, ctx]);
 
   const runCommand = useCallback(
     (id: string) => {
@@ -282,7 +296,7 @@ export function DocumentTree() {
       }
       case 'Enter':
         event.preventDefault();
-        if (selectedId) runCommand('tree.view');
+        if (selectedId) activate();
         break;
       case '*':
         event.preventDefault();
@@ -371,7 +385,7 @@ export function DocumentTree() {
               expanded={row.childIds.length > 0 ? !collapsed.has(row.id) : undefined}
               onSelect={selectRow}
               onToggle={feature.toggleCollapsed.bind(feature)}
-              onActivate={() => runCommand('tree.view')}
+              onActivate={activate}
               onContextMenu={(x, y) => {
                 // Right-click selects the row without moving the Body (the Body would scroll
                 // and close the menu); View / the operations reveal the element afterwards.

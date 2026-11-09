@@ -18,6 +18,7 @@ import { navigateToSourcePosition } from '@/dialogs/validation';
 import { actions, type AppStore } from '@/model/store';
 import type { RpcClient } from '@/rpc/client';
 import { selectionFor, type BodyEditorController } from '@/views/body/bodyEditor';
+import { getSourceEditor } from '@/views/source/sourceEditor';
 import { loadSourceText, requestViewSwitch, setCaretWhenReady } from '@/views/source/sync';
 import { titleText } from '@/views/tree/treeModel';
 
@@ -289,6 +290,20 @@ export async function viewSelected(ctx: CommandContext, nodeId?: string | null):
     return true;
   }
   return setCaretWhenReady(ctx, { view: 'body', nodeId: target });
+}
+
+/**
+ * Feature 011 (US4; D9, D10, D12): in the Source view a row goes to its element there, in the text
+ * as it stands - unapplied edits included and left as they are -, the focus staying in the tree
+ * for a click and the arrow keys, going into the Source view for a double-click and Enter.
+ */
+export function goToRowInSource(store: AppStore, rowId: string, focusSource: boolean): boolean {
+  const editor = getSourceEditor(store);
+  const model = store.getState().document;
+  if (!editor || !model) return false;
+  const position = locateInSource(editor.text, model, rowId);
+  if (!position) return false;
+  return editor.goTo(position.line, position.column, { highlight: true, focus: focusSource });
 }
 
 /** View Source: opens the Source view positioned on the element's opening tag. */

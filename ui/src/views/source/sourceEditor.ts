@@ -915,7 +915,11 @@ export class SourceEditorController {
    * the next mount) and optionally highlights the line for a moment. Without a column (schema
    * errors only carry a line) the cursor lands on the first non-blank character of the line.
    */
-  goTo(line: number, column?: number, options: { highlight?: boolean } = {}): boolean {
+  goTo(
+    line: number,
+    column?: number,
+    options: { highlight?: boolean; focus?: boolean } = {},
+  ): boolean {
     // Before the text is loaded (or while a load is in flight) the target would be lost with
     // the state the load replaces: remember it for the end of the load.
     if (this.snapshot.status !== 'ready') {
@@ -927,7 +931,8 @@ export class SourceEditorController {
       column ?? firstNonBlankColumn(this.state, line),
     );
     this.target.dispatch({ selection: { anchor: pos } });
-    this.revealSelection();
+    // Feature 011 (US4, D9): a tree row's click shows the element and leaves the focus in the tree.
+    this.revealSelection(options.focus ?? true);
     if (options.highlight) this.highlightLine(this.state.doc.lineAt(pos).number);
     return true;
   }
@@ -938,7 +943,7 @@ export class SourceEditorController {
     return this.goTo(line, column, options);
   }
 
-  private revealSelection(): void {
+  private revealSelection(focus = true): void {
     const view = this.view;
     if (!view) {
       this.revealPending = true;
@@ -947,7 +952,7 @@ export class SourceEditorController {
     this.revealPending = false;
     const head = view.state.selection.main.head;
     view.dispatch({ effects: EditorView.scrollIntoView(head, { y: 'center' }) });
-    view.focus();
+    if (focus) view.focus();
   }
 
   /** Highlights a line for a moment (navigation target); editing or moving the cursor ends it. */
