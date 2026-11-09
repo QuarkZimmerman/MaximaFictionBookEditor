@@ -300,8 +300,10 @@
 [data-style]:not(table) {
   text-decoration-line: underline;
   text-decoration-style: dotted;
-  text-decoration-thickness: 1px;
-  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  text-decoration-thickness: 1.5px;
+  /* The accent colour, not the text's: a third of a light text colour vanished on the dark theme's
+     background (rc.3 smoke test). */
+  text-decoration-color: color-mix(in srgb, var(--mfbe-color-accent) 65%, transparent);
   text-underline-offset: 3px;
 }
 
