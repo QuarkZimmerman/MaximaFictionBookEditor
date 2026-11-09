@@ -29,13 +29,22 @@ newer_than_expected() {
   [ "$1" != "$expected" ] && [ "$(printf '%s\n%s\n' "$expected" "$1" | sort -V | tail -n 1)" = "$1" ]
 }
 
+# Xcode's otool wrapper splits a file name at a parenthesis (CEF's helpers are named
+# "mfbe Helper (GPU)" and the like), so otool reads each file through a link with a plain name.
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
 checked=0
 for root in "$@"; do
   while IFS= read -r -d '' file; do
     # Not `file | grep -q`: under pipefail grep's early exit can fail the pipeline and skip the file.
     [[ "$(file -b "$file")" == *Mach-O* ]] || continue
     checked=$((checked + 1))
-    if ! commands=$(otool -l "$file" 2>&1); then
+    case "$file" in
+      /*) target="$file" ;;
+      *) target="$PWD/$file" ;;
+    esac
+    ln -sf "$target" "$work/macho"
+    if ! commands=$(otool -l "$work/macho" 2>&1); then
       echo "macos-deployment-check: otool cannot read ${file}: ${commands%%$'\n'*}" >&2
       status=1
       continue
