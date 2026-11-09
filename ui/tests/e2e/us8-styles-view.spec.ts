@@ -153,6 +153,11 @@ test.describe('US8 (feature 011) - the Styles view', () => {
     expect(caret).not.toBe('rgb(0, 0, 0)');
     // Nothing typed yet: Apply is greyed (rc.3 smoke test).
     await expect(page.getByTestId('styles-apply')).toBeDisabled();
+    const pane = page.getByTestId('styles-editor-pane');
+    await test.info().attach('apply-greyed-dark', {
+      body: await pane.screenshot({ path: test.info().outputPath('apply-greyed-dark.png') }),
+      contentType: 'image/png',
+    });
     // Typing a property's colon opens the list of its values at once.
     await page.keyboard.type('text-align:');
     await expect(page.locator('.mfbe-styles-editor .cm-tooltip-autocomplete')).toContainText(
@@ -165,6 +170,19 @@ test.describe('US8 (feature 011) - the Styles view', () => {
     // Written: the box holds the rule's declarations again, so Apply is greyed.
     await expect(page.getByTestId('styles-apply')).toBeDisabled();
     await core.rpc('settings.set', { patch: { view: { theme: 'light' } } });
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    await test.info().attach('apply-greyed-light', {
+      body: await pane.screenshot({ path: test.info().outputPath('apply-greyed-light.png') }),
+      contentType: 'image/png',
+    });
+    // The button's label is not text to select.
+    expect(
+      await page
+        .getByTestId('styles-apply')
+        .evaluate(
+          (element) => element.ownerDocument.defaultView!.getComputedStyle(element).userSelect,
+        ),
+    ).toBe('none');
   });
 
   test('two stylesheets, another type kept as read, a conflict marked and in Validate, rename carries uses', async ({

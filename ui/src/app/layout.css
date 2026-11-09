@@ -953,6 +953,19 @@ textarea {
   user-select: text;
 }
 
+/* Feature 011 (rc.3 smoke test): a view's buttons are controls, not text - their labels are never
+   selected, though the view's text is - and a greyed one looks greyed in both themes (buttons take
+   the text colour, which hides the engine's own disabled look). Low specificity: a view's own
+   button styles still win. */
+:where(.mfbe-view-content) button {
+  user-select: none;
+}
+
+:where(.mfbe-view-content) button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 /* A script is computing (feature 003, FR-011): the pointer over the document pane shows the
    busy state; the editors' own text cursor gives way to it. Not while the script waits in a
    dialog of its own (App.tsx drops the class). */
