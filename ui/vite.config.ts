@@ -103,6 +103,13 @@ export default defineConfig({
           new URL('./src/features/markdown/diagrams/elkUnavailable.ts', import.meta.url),
         ),
       },
+      // Feature 011 (D50): MathJax's interactive menu is not used and not shipped.
+      {
+        find: /^mj-context-menu(\/.*)?$/,
+        replacement: fileURLToPath(
+          new URL('./src/features/markdown/diagrams/menuUnavailable.ts', import.meta.url),
+        ),
+      },
       { find: '@', replacement: fileURLToPath(new URL('./src', import.meta.url)) },
     ],
   },

@@ -232,6 +232,11 @@ closes only once the new one is ready, after the usual question about unsaved ch
   whichever file is smaller. The diagram's text travels inside the picture file, so *Export as
   Markdown* writes the block back. A block that cannot be drawn stays code and is listed after the
   import; in a quote or a note, where FB2 has no pictures of their own, it stays code too.
+- Formulas - `$…$` in a line, `$$…$$` and ```` ```math ```` as a block, as GitHub writes them -
+  become pictures drawn by the editor without the internet: one in a line a small picture in that
+  line, a block one a picture of its own. A price such as "$5 or $10" and an escaped `\$` stay text.
+  The formula's TeX travels inside the picture (and is its alternative text), so *Export as Markdown*
+  writes it back; one that cannot be drawn stays as written and is listed after the import.
 - A file in UTF-8 or UTF-16 is read directly, one in an older encoding (windows-1251, KOI8-R,
   CP866 and others) is recognised from its text; the editor asks only when it cannot tell.
 

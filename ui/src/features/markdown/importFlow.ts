@@ -117,6 +117,49 @@ async function drawDiagrams(
   return { bodyXml, drawn };
 }
 
+/**
+ * Feature 011 (D50, FR-075b): the formulas drawn as pictures - in the body and in the notes -, each
+ * marker replaced by its picture or, when it cannot be drawn, by the formula as written (listed).
+ * MathJax is loaded only when the file has a formula.
+ */
+async function drawFormulas(
+  result: ConvertResult,
+  xml: { bodyXml: string; notesXml: string | null },
+  summary: SummaryItem[],
+): Promise<{
+  bodyXml: string;
+  notesXml: string | null;
+  drawn: { id: string; picture: DrawnDiagram }[];
+}> {
+  if (result.formulas.length === 0) return { ...xml, drawn: [] };
+  const { drawFormula } = await import('./diagrams/formula');
+  const drawn: { id: string; picture: DrawnDiagram }[] = [];
+  const forms = new Map<number, string>();
+  for (const formula of result.formulas) {
+    try {
+      drawn.push({ id: formula.id, picture: await drawFormula(formula.source, formula.display) });
+      forms.set(formula.index, formula.imageXml);
+    } catch (error) {
+      forms.set(formula.index, formula.textXml);
+      const reason = error instanceof Error ? error.message.split('\n')[0] : '';
+      summary.push({
+        kind: 'formula',
+        detail: reason ? `${formula.source} (${reason})` : formula.source,
+      });
+    }
+  }
+  const put = (text: string) =>
+    text.replace(
+      /<!--mfbe-formula:(\d+)-->/g,
+      (_, index: string) => forms.get(Number(index)) ?? '',
+    );
+  return {
+    bodyXml: put(xml.bodyXml),
+    notesXml: xml.notesXml === null ? null : put(xml.notesXml),
+    drawn,
+  };
+}
+
 /** Runs the import; false when cancelled or refused (the window's book is then unchanged). */
 export async function importMarkdown(ctx: CommandContext, files: FileFeature): Promise<boolean> {
   const rpc = ctx.rpc;
@@ -147,9 +190,19 @@ export async function importMarkdown(ctx: CommandContext, files: FileFeature): P
     });
     const summary: SummaryItem[] = [...result.summary];
     const stylesheets = await bookStylesheets(ctx, result, folder, summary);
-    const { bodyXml, drawn } = await drawDiagrams(result, summary);
+    const diagrams = await drawDiagrams(result, summary);
+    const {
+      bodyXml,
+      notesXml,
+      drawn: formulas,
+    } = await drawFormulas(
+      result,
+      { bodyXml: diagrams.bodyXml, notesXml: result.notesXml },
+      summary,
+    );
+    const drawn = [...diagrams.drawn, ...formulas];
     const opened = await rpc.runJob('doc.newFromXml', {
-      xml: buildBook(templateXml, { ...result, bodyXml, stylesheets }),
+      xml: buildBook(templateXml, { ...result, bodyXml, notesXml, stylesheets }),
       origin: { kind: 'markdown', path },
     });
     await files.loadImported(ctx, opened.document, path);

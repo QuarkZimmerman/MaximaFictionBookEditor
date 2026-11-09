@@ -26,6 +26,7 @@ import {
   treatmentOf,
   type SpecialChar,
 } from './specialChars';
+import { mathRule } from './mathRule';
 
 export interface MarkdownPerson {
   firstName?: string;
@@ -114,7 +115,24 @@ export type SummaryKind =
   | 'extraClass'
   | 'cssDropped'
   // Feature 011 (D49, FR-075a): a Mermaid block that could not be drawn, kept as code.
-  | 'diagram';
+  | 'diagram'
+  // Feature 011 (D50, FR-075b): a formula that could not be drawn, kept as written.
+  | 'formula';
+
+/**
+ * Feature 011 (D50): a TeX formula. The converter leaves `<!--mfbe-formula:<index>-->` where it
+ * stands; the import flow puts `imageXml` there - a picture in the line, a block one on its own -
+ * or, when it cannot be drawn, `textXml`, the formula as written.
+ */
+export interface MarkdownFormula {
+  index: number;
+  /** The picture's binary id; the export recognises a formula by it. */
+  id: string;
+  source: string;
+  display: boolean;
+  imageXml: string;
+  textXml: string;
+}
 
 /**
  * Feature 011 (D49): a ```mermaid block outside quotes and notes. The converter leaves the marker
@@ -142,6 +160,7 @@ export interface ConvertResult {
   pictures: MarkdownPicture[];
   chars: SpecialChar[];
   diagrams: MarkdownDiagram[];
+  formulas: MarkdownFormula[];
   summary: SummaryItem[];
   stats: { sections: number; pictures: number; tables: number; notes: number };
   /** Feature 011 (US7, D46): the stylesheets of the header and of the text, in order. */
@@ -339,6 +358,7 @@ class Converter {
   private readonly pictureIds = new Map<string, string>();
   private readonly chars = new Map<string, SpecialChar>();
   private readonly diagrams: MarkdownDiagram[] = [];
+  private readonly formulas: MarkdownFormula[] = [];
   private readonly summary: SummaryItem[] = [];
   private readonly summaryKeys = new Set<string>();
   private readonly notes: string[] = [];
@@ -366,7 +386,26 @@ class Converter {
       .use(footnote)
       .use(sub)
       .use(sup)
-      .use(taskLists, { enabled: false });
+      .use(taskLists, { enabled: false })
+      // Feature 011 (D50): $…$ and $$…$$ formulas by GitHub's rules.
+      .use(mathRule);
+  }
+
+  /** The marker of a formula (D50); a block one outside quotes and notes is a picture of its own. */
+  private formula(source: string, display: boolean, ctx: BlockContext | null): string {
+    const index = this.formulas.length;
+    const id = `formula-${index + 1}`;
+    const picture = `<image l:href="#${id}" alt="${attr(source)}"/>`;
+    const own = display && ctx !== null && !ctx.inCite;
+    this.formulas.push({
+      index,
+      id,
+      source,
+      display,
+      imageXml: own ? picture : display ? `<p>${picture}</p>` : picture,
+      textXml: display ? `<p>${esc(`$$${source}$$`)}</p>` : esc(`$${source}$`),
+    });
+    return `<!--mfbe-formula:${index}-->`;
   }
 
   private unique(base: string): string {
@@ -448,6 +487,7 @@ class Converter {
       pictures: this.pictures,
       chars: [...this.chars.values()],
       diagrams: this.diagrams,
+      formulas: this.formulas,
       summary: this.summary,
       stats: this.stats,
       stylesheets: [...this.headerStylesheets(values, structured), ...this.textStyles],
@@ -811,6 +851,11 @@ class Converter {
         // Feature 011 (D49): a Mermaid diagram becomes a picture - not in a quote or a note, where
         // FB2 has no block pictures.
         const language = token.type === 'fence' ? (token.info.trim().split(/\s+/)[0] ?? '') : '';
+        // Feature 011 (D50): GitHub's ```math block is a formula.
+        if (language.toLowerCase() === 'math' && token.content.trim()) {
+          out(this.formula(token.content.trim(), true, ctx));
+          return index;
+        }
         if (language.toLowerCase() === 'mermaid' && !ctx.inCite && token.content.trim()) {
           const diagram = this.diagrams.length;
           const id = `mermaid-${diagram + 1}`;
@@ -829,6 +874,9 @@ class Converter {
       }
       case 'hr':
         out('<subtitle>* * *</subtitle>');
+        return index;
+      case 'math_block':
+        out(this.formula(token.content, true, ctx));
         return index;
       case 'table_open':
         return this.table(tokens, index, out);
@@ -987,6 +1035,9 @@ class Converter {
           break;
         case 'code_inline':
           push(`<code>${esc(token.content)}</code>`);
+          break;
+        case 'math_inline':
+          push(this.formula(token.content, false, null));
           break;
         case 'softbreak':
           push(' ');

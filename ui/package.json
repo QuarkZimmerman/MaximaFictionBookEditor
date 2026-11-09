@@ -45,6 +45,7 @@
     "markdown-it-sub": "2.0.0",
     "markdown-it-sup": "2.0.0",
     "markdown-it-task-lists": "2.1.1",
+    "mathjax-full": "3.2.2",
     "mermaid": "12.2.0",
     "prosemirror-commands": "^1.7.2",
     "prosemirror-history": "^1.5.1",

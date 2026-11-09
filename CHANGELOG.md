@@ -33,6 +33,8 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 - Mermaid diagrams of an imported Markdown file become pictures, drawn offline and kept small (a
   JPEG or a PNG, whichever is smaller); the export writes them back as Mermaid blocks, and a
   diagram that cannot be drawn stays code and is listed after the import.
+- Formulas of an imported Markdown file ($…$, $$…$$, math blocks) become small pictures drawn
+  offline, in their lines or on their own; the export writes them back as written.
 - View > Styles shows the book's stylesheets as groups of rules, one per selector, with a CSS
   editor completing standard properties and their keywords; Add selector..., Rename..., Remove and
   New stylesheet; selectors that match nothing in an FB2 book and properties that are not standard

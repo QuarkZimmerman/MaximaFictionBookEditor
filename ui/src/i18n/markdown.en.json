@@ -20,7 +20,8 @@
       "cssFile": "CSS file that could not be read: {{detail}}",
       "extraClass": "Further classes not kept: {{detail}}",
       "cssDropped": "CSS that matches nothing in an FB2 book, dropped: {{detail}}",
-      "diagram": "Diagram kept as code, it could not be drawn: {{detail}}"
+      "diagram": "Diagram kept as code, it could not be drawn: {{detail}}",
+      "formula": "Formula kept as written, it could not be drawn: {{detail}}"
     },
     "notText": "The file is not text.",
     "tooLarge": "The file is larger than the import reads.",

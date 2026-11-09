@@ -430,6 +430,8 @@ def collect_vcpkg(installed: Path | None, triplet_name: str | None,
 NOT_SHIPPED = {
     "elkjs": ("elkUnavailable.ts", "Mermaid's optional ELK layout (EPL-2.0), aliased to "
               "ui/src/features/markdown/diagrams/elkUnavailable.ts in ui/vite.config.ts"),
+    "mj-context-menu": ("menuUnavailable.ts", "MathJax's interactive menu, which the formula drawing "
+                        "never uses, aliased to ui/src/features/markdown/diagrams/menuUnavailable.ts"),
 }
 
 # Packages whose package.json names no licence; the licence of their LICENSE file instead.

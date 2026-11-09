@@ -17,8 +17,9 @@ export interface ExportOptions {
   /** The one-file form's *Include pictures* (the ZIP form always carries them). */
   includePictures: boolean;
   /**
-   * Feature 011 (D49): the Mermaid source each diagram picture carries, by binary id; such a
-   * picture is written back as a ```mermaid block.
+   * Feature 011 (D49, D50): the source each diagram or formula picture carries, by binary id; a
+   * `mermaid-<n>` picture is written back as a ```mermaid block, a `formula-<n>` one as `$…$` in a
+   * line or `$$…$$` as a block.
    */
   diagramSources?: ReadonlyMap<string, string>;
 }
@@ -276,7 +277,12 @@ class Writer {
         }
       } else if (node.type === 'inline-image') {
         flush();
-        out += this.picture(node);
+        // Feature 011 (D50): a formula picture is written back as the formula.
+        const href = String(node.attrs?.href ?? '');
+        const formula = href.startsWith('#formula-')
+          ? this.options.diagramSources?.get(href.slice(1))
+          : undefined;
+        out += formula !== undefined ? `$${formula}$` : this.picture(node);
       } else if (node.type === 'raw-xml-inline' || node.type === 'raw-xml') {
         flush();
         this.leftOut.push({ kind: 'raw-xml', reason: 'unknown inline element' });
@@ -368,7 +374,8 @@ class Writer {
             String(node.attrs?.href ?? '').replace(/^#/, ''),
           );
           if (source !== undefined) {
-            out.push(mermaidBlock(source));
+            const formula = String(node.attrs?.href ?? '').startsWith('#formula-');
+            out.push(formula ? `$$\n${source}\n$$` : mermaidBlock(source));
             break;
           }
           const picture = this.picture(node);

@@ -8,7 +8,7 @@
 import type { CommandContext } from '@/app/commands';
 import { startModalJob } from '@/app/modalJob';
 import { proposedStem } from '@/features/file/proposedName';
-import { diagramSource } from '@/features/markdown/diagrams/files';
+import { diagramSource, FORMULA_KEYWORD, SOURCE_KEYWORD } from '@/features/markdown/diagrams/files';
 import { serializeMarkdown } from '@/features/markdown/export/serialize';
 import type { Document } from '@/model/document';
 import { binaryOriginalUrl } from '@/model/binaryUrls';
@@ -32,13 +32,18 @@ function folderOf(path: string | null | undefined): string {
 async function diagramSourcesOf(document: Document, docId: string): Promise<Map<string, string>> {
   const sources = new Map<string, string>();
   for (const binary of document.binaries) {
-    if (!/^mermaid-\d+$/.test(binary.id)) continue;
+    const keyword = /^mermaid-\d+$/.test(binary.id)
+      ? SOURCE_KEYWORD
+      : /^formula-\d+$/.test(binary.id)
+        ? FORMULA_KEYWORD
+        : null;
+    if (!keyword) continue;
     const url = binaryOriginalUrl(docId, `#${binary.id}`);
     if (!url) continue;
     try {
       const response = await fetch(url);
       if (!response.ok) continue;
-      const source = diagramSource(new Uint8Array(await response.arrayBuffer()));
+      const source = diagramSource(new Uint8Array(await response.arrayBuffer()), keyword);
       if (source !== null) sources.set(binary.id, source);
     } catch {
       // unreadable: the picture is exported as a picture

@@ -7,6 +7,8 @@
 
 /** The keyword of the source chunk (PNG) and the prefix of the source comment (JPEG). */
 export const SOURCE_KEYWORD = 'mermaid';
+/** Feature 011 (D50): the keyword of a formula's TeX source. */
+export const FORMULA_KEYWORD = 'tex';
 
 const PNG_SIGNATURE = Uint8Array.of(137, 80, 78, 71, 13, 10, 26, 10);
 /** A JPEG comment holds at most 65,533 bytes (its length field counts itself). */
@@ -105,7 +107,11 @@ export async function indexedPng(
 }
 
 /** The PNG with an iTXt chunk `mermaid` holding `source` (UTF-8, uncompressed) before IEND. */
-export function pngWithSource(png: Uint8Array, source: string): Uint8Array {
+export function pngWithSource(
+  png: Uint8Array,
+  source: string,
+  keyword: string = SOURCE_KEYWORD,
+): Uint8Array {
   if (!isPng(png)) return png;
   let at = 8;
   while (at + 12 <= png.length) {
@@ -114,7 +120,7 @@ export function pngWithSource(png: Uint8Array, source: string): Uint8Array {
     if (type === 'IEND') {
       // keyword NUL, compression flag 0, method 0, language "" NUL, translated keyword "" NUL, text
       const data = concat([
-        utf8.encode(SOURCE_KEYWORD),
+        utf8.encode(keyword),
         Uint8Array.of(0, 0, 0, 0, 0),
         utf8.encode(source),
       ]);
@@ -126,9 +132,13 @@ export function pngWithSource(png: Uint8Array, source: string): Uint8Array {
 }
 
 /** The JPEG with a comment `mermaid\0<source>` after its start marker (a longer source: none). */
-export function jpegWithSource(jpeg: Uint8Array, source: string): Uint8Array {
+export function jpegWithSource(
+  jpeg: Uint8Array,
+  source: string,
+  keyword: string = SOURCE_KEYWORD,
+): Uint8Array {
   if (!isJpeg(jpeg)) return jpeg;
-  const data = concat([utf8.encode(`${SOURCE_KEYWORD}\0`), utf8.encode(source)]);
+  const data = concat([utf8.encode(`${keyword}\0`), utf8.encode(source)]);
   if (data.length > MAX_COMMENT) return jpeg;
   const segment = new Uint8Array(4 + data.length);
   segment[0] = 0xff;
@@ -140,7 +150,7 @@ export function jpegWithSource(jpeg: Uint8Array, source: string): Uint8Array {
 }
 
 /** The Mermaid source a picture file carries (see pngWithSource, jpegWithSource), or null. */
-export function diagramSource(bytes: Uint8Array): string | null {
+export function diagramSource(bytes: Uint8Array, keyword: string = SOURCE_KEYWORD): string | null {
   if (isPng(bytes)) {
     let at = 8;
     while (at + 12 <= bytes.length) {
@@ -150,11 +160,7 @@ export function diagramSource(bytes: Uint8Array): string | null {
       if (type === 'iTXt') {
         const data = bytes.subarray(at + 8, at + 8 + length);
         const nul = data.indexOf(0);
-        if (
-          nul > 0 &&
-          decoder.decode(data.subarray(0, nul)) === SOURCE_KEYWORD &&
-          data[nul + 1] === 0
-        ) {
+        if (nul > 0 && decoder.decode(data.subarray(0, nul)) === keyword && data[nul + 1] === 0) {
           const language = data.indexOf(0, nul + 3);
           const translated = language >= 0 ? data.indexOf(0, language + 1) : -1;
           if (translated >= 0) return decoder.decode(data.subarray(translated + 1));
@@ -165,7 +171,7 @@ export function diagramSource(bytes: Uint8Array): string | null {
     return null;
   }
   if (isJpeg(bytes)) {
-    const prefix = utf8.encode(`${SOURCE_KEYWORD}\0`);
+    const prefix = utf8.encode(`${keyword}\0`);
     let at = 2;
     while (at + 4 <= bytes.length && bytes[at] === 0xff) {
       const marker = bytes[at + 1]!;

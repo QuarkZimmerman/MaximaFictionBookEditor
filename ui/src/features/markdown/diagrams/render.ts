@@ -8,7 +8,7 @@
  */
 import mermaid from 'mermaid';
 
-import { indexedPng, jpegWithSource, pngWithSource } from './files';
+import { indexedPng, jpegWithSource, pngWithSource, SOURCE_KEYWORD } from './files';
 
 export const MAX_WIDTH = 1600;
 export const MAX_HEIGHT = 4000;
@@ -88,6 +88,54 @@ function encoded(canvas: HTMLCanvasElement, type: string, quality?: number): Pro
   });
 }
 
+/**
+ * The picture file of an SVG drawing at `width` x `height` pixels, on white: the smallest of
+ * Chromium's PNG, a JPEG and - at 256 colours or fewer - an indexed PNG, `source` inside it.
+ */
+export async function rasterise(
+  svg: string,
+  width: number,
+  height: number,
+  source: string,
+  keyword: string,
+): Promise<DrawnDiagram> {
+  const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');
+  const root = doc.documentElement;
+  root.setAttribute('width', String(width));
+  root.setAttribute('height', String(height));
+  root.removeAttribute('style');
+  const image = await loadImage(new XMLSerializer().serializeToString(root));
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('no canvas');
+  context.fillStyle = '#ffffff';
+  context.fillRect(0, 0, width, height);
+  context.drawImage(image, 0, 0, width, height);
+  const pixels = context.getImageData(0, 0, width, height).data;
+  const candidates: { bytes: Uint8Array; type: DrawnDiagram['contentType'] }[] = [
+    {
+      bytes: pngWithSource(await encoded(canvas, 'image/png'), source, keyword),
+      type: 'image/png',
+    },
+    {
+      bytes: jpegWithSource(await encoded(canvas, 'image/jpeg', JPEG_QUALITY), source, keyword),
+      type: 'image/jpeg',
+    },
+  ];
+  const palette = await indexedPng(pixels, width, height);
+  if (palette)
+    candidates.push({ bytes: pngWithSource(palette, source, keyword), type: 'image/png' });
+  const best = candidates.reduce((a, b) => (b.bytes.length < a.bytes.length ? b : a));
+  return {
+    blob: new Blob([best.bytes as BlobPart], { type: best.type }),
+    contentType: best.type,
+    width,
+    height,
+  };
+}
+
 /** Draws `source`; rejects with Mermaid's reason when it cannot be drawn. */
 export async function drawDiagram(source: string, index: number): Promise<DrawnDiagram> {
   initialise();
@@ -95,30 +143,5 @@ export async function drawDiagram(source: string, index: number): Promise<DrawnD
   const drawing = sized(svg, (width, height) =>
     Math.min(2, MAX_WIDTH / width, MAX_HEIGHT / height),
   );
-  const image = await loadImage(drawing.text);
-  const canvas = document.createElement('canvas');
-  canvas.width = drawing.width;
-  canvas.height = drawing.height;
-  const context = canvas.getContext('2d');
-  if (!context) throw new Error('no canvas');
-  context.fillStyle = '#ffffff';
-  context.fillRect(0, 0, drawing.width, drawing.height);
-  context.drawImage(image, 0, 0, drawing.width, drawing.height);
-  const pixels = context.getImageData(0, 0, drawing.width, drawing.height).data;
-  const candidates: { bytes: Uint8Array; type: DrawnDiagram['contentType'] }[] = [
-    { bytes: pngWithSource(await encoded(canvas, 'image/png'), source), type: 'image/png' },
-    {
-      bytes: jpegWithSource(await encoded(canvas, 'image/jpeg', JPEG_QUALITY), source),
-      type: 'image/jpeg',
-    },
-  ];
-  const palette = await indexedPng(pixels, drawing.width, drawing.height);
-  if (palette) candidates.push({ bytes: pngWithSource(palette, source), type: 'image/png' });
-  const best = candidates.reduce((a, b) => (b.bytes.length < a.bytes.length ? b : a));
-  return {
-    blob: new Blob([best.bytes as BlobPart], { type: best.type }),
-    contentType: best.type,
-    width: drawing.width,
-    height: drawing.height,
-  };
+  return rasterise(drawing.text, drawing.width, drawing.height, source, SOURCE_KEYWORD);
 }
