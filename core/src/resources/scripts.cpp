@@ -514,8 +514,9 @@ ParsedManifest parse_manifest(const json& manifest, const std::string& default_i
         m.kind = default_kind;
         warning("kind", "missing; assumed \"" + default_kind + "\"");
     } else if (!kind->is_string() ||
-               (kind->get<std::string>() != "menu" && kind->get<std::string>() != "tree")) {
-        error("kind", "expected \"menu\" or \"tree\"");
+               (kind->get<std::string>() != "menu" && kind->get<std::string>() != "tree" &&
+                kind->get<std::string>() != "treeRows")) {
+        error("kind", "expected \"menu\", \"tree\" or \"treeRows\"");
     } else {
         m.kind = kind->get<std::string>();
     }

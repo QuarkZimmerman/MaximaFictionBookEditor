@@ -539,7 +539,7 @@ export interface CatalogueScript {
   description?: string;
   /** Feature 007: the descriptions by language, as the manifest gives them. */
   descriptions?: Record<string, string>;
-  kind: 'menu' | 'tree';
+  kind: 'menu' | 'tree' | 'treeRows';
   needsSelection: boolean;
   /** The group id (the folder's name) the script shows in. */
   group: string;

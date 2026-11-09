@@ -522,7 +522,7 @@ export interface ScriptManifest {
   id: string;
   name: Record<string, string>;
   description?: Record<string, string>;
-  kind: 'menu' | 'tree';
+  kind: 'menu' | 'tree' | 'treeRows';
   entry?: string;
   icon?: string;
   defaultHotkey?: string;

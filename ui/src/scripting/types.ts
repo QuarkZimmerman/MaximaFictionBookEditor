@@ -11,7 +11,8 @@ import type { BinaryMeta, Description, Document } from '@/model/document';
 /* Catalogue (scripts.list)                                                  */
 /* ------------------------------------------------------------------------ */
 
-export type ScriptKind = 'menu' | 'tree';
+// Feature 011 (US11, D41): 'treeRows' scripts list places in the tree (the tree bar's Scripts menu).
+export type ScriptKind = 'menu' | 'tree' | 'treeRows';
 
 export interface ScriptInfo {
   manifestVersion: 1;
