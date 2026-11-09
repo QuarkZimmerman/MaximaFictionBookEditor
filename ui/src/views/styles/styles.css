@@ -84,14 +84,31 @@
 }
 
 .mfbe-styles-editor-caption {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
   padding: 4px 8px;
   border-bottom: 1px solid var(--mfbe-color-border);
 }
 
+/* Feature 011: a field even when empty - framed, its hint in grey, the focus ring when typing. */
 .mfbe-styles-editor {
   flex: 1;
   min-height: 80px;
   overflow: auto;
+  margin: 6px 8px;
+  border: 1px solid var(--mfbe-color-border);
+  border-radius: 3px;
+  background: var(--mfbe-color-bg);
+}
+
+.mfbe-styles-editor:focus-within {
+  outline: 2px solid var(--mfbe-color-accent);
+  outline-offset: -1px;
+}
+
+.mfbe-styles-editor .cm-placeholder {
+  color: var(--mfbe-color-disabled);
 }
 
 .mfbe-styles-editor .cm-editor {

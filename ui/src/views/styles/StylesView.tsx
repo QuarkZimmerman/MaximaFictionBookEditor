@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { formatChordForDisplay, parseChord } from '@/app/hotkeys';
 import { useAppServices, useCommandContext } from '@/app/services';
 import { tip } from '@/app/tooltips';
 import {
@@ -64,6 +65,13 @@ export default function StylesView() {
   const [conflictIssues, setConflictIssues] = useState<ValidationIssue[]>([]);
   const editorParent = useRef<HTMLDivElement>(null);
   const editor = useRef<DeclarationEditor | null>(null);
+  const focusEditorNext = useRef(false);
+  // Apply's keys as this platform names them (Ctrl+Enter, Cmd+Enter on macOS).
+  const applyKeys = useMemo(() => {
+    const platform = ctx.hotkeys.platform;
+    const chord = parseChord('Mod+Enter', platform);
+    return chord ? formatChordForDisplay(chord, platform) : 'Ctrl+Enter';
+  }, [ctx.hotkeys]);
 
   // The selection stays on its rule while the stylesheets change (an edit, an undo); a rule that
   // is gone leaves its group selected.
@@ -170,13 +178,19 @@ export default function StylesView() {
       onChange: (text) => setEdited({ rule, text }),
       onApply: () => void applyRef.current(),
       label: t('styles.declarations', { selector: selectedRule.selector }),
+      hint: t('styles.editorHint', { selector: selectedRule.selector, keys: applyKeys }),
     });
     editor.current = created;
+    // A rule just added (or chosen again) by *Add selector…* takes the caret at once.
+    if (focusEditorNext.current) {
+      focusEditorNext.current = false;
+      created.focus();
+    }
     return () => {
       created.destroy();
       editor.current = null;
     };
-  }, [selectedRule, t]);
+  }, [selectedRule, t, applyKeys]);
 
   const selectorReason = (value: string): string | null => {
     const check = checkSelector(value);
@@ -218,9 +232,12 @@ export default function StylesView() {
       (rule) => normalizeSelector(rule.selector) === normalizeSelector(selector),
     );
     if (existing >= 0) {
+      if (selection?.group === index && selection.rule === existing) editor.current?.focus();
+      else focusEditorNext.current = true;
       setSelection({ group: index, rule: existing });
       return;
     }
+    focusEditorNext.current = true;
     rules = [...rules, { selector, declarations: '' }];
     if (
       setStylesheets(
@@ -374,6 +391,7 @@ export default function StylesView() {
           {ruleSelected ? (
             <>
               <div className="mfbe-styles-editor-caption">
+                <span>{t('styles.declarationsLabel')}</span>
                 <code data-testid="styles-selected-selector">{selectedRule!.selector}</code>
               </div>
               <div ref={editorParent} className="mfbe-styles-editor" data-testid="styles-editor" />
@@ -390,7 +408,11 @@ export default function StylesView() {
                   data-testid="styles-apply"
                   disabled={issues.length > 0}
                   onClick={() => void apply()}
-                  {...tip(issues.length > 0 ? t('styles.applyRefused') : t('styles.applyTip'))}
+                  {...tip(
+                    issues.length > 0
+                      ? t('styles.applyRefused')
+                      : t('styles.applyTip', { keys: applyKeys }),
+                  )}
                 >
                   {t('styles.apply')}
                 </button>

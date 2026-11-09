@@ -34,7 +34,7 @@
     "renameUsesOk": "&Rename",
     "declarations": "Declarations of {{selector}}",
     "apply": "Apply",
-    "applyTip": "Write these declarations into the rule (Ctrl+Enter)",
+    "applyTip": "Write these declarations into the rule ({{keys}})",
     "applyRefused": "Correct the declarations listed below first",
     "hint": "Select a rule to edit its declarations, or add a selector.",
     "noDocument": "Styles view - no document is open.",
@@ -54,6 +54,8 @@
         "noTarget": "Select text, or put the caret in a paragraph, verse, subtitle, text author, table or cell",
         "nothingToRemove": "There is no named style here"
       }
-    }
+    },
+    "editorHint": "Type the declarations of {{selector}}, for example text-indent: 1.5em; — {{keys}} writes them into the rule",
+    "declarationsLabel": "Declarations of"
   }
 }

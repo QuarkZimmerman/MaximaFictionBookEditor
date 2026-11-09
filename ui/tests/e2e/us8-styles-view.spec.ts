@@ -91,7 +91,11 @@ test.describe('US8 (feature 011) - the Styles view', () => {
     await expect(page.getByTestId('styles-selected-selector')).toHaveText('.letter');
     // Declarations: a standard one is accepted, the others refused with their reasons.
     const editor = page.getByTestId('styles-editor').locator('.cm-content');
-    await editor.click();
+    // The new rule's empty box says what to type, and the caret is already in it (rc.1 review).
+    await expect(page.getByTestId('styles-editor').locator('.cm-placeholder')).toContainText(
+      'Type the declarations of .letter',
+    );
+    await expect(editor).toBeFocused();
     await page.keyboard.type('-webkit-hyphens: auto; colr: red;');
     await expect(page.getByTestId('styles-issues')).toContainText(
       '-webkit-hyphens: not a standard CSS property',

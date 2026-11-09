@@ -13,7 +13,7 @@ import {
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { css } from '@codemirror/lang-css';
 import { EditorState } from '@codemirror/state';
-import { EditorView, keymap } from '@codemirror/view';
+import { EditorView, keymap, placeholder } from '@codemirror/view';
 import { lexer } from 'css-tree';
 
 import { standardProperties } from '@/features/styles/declarations';
@@ -86,6 +86,8 @@ export interface DeclarationEditor {
   readonly view: EditorView;
   text(): string;
   setText(text: string): void;
+  /** Puts the caret into the editor (feature 011: after *Add selector…*). */
+  focus(): void;
   destroy(): void;
 }
 
@@ -93,7 +95,13 @@ export interface DeclarationEditor {
 export function createDeclarationEditor(
   parent: HTMLElement,
   text: string,
-  options: { onChange: (text: string) => void; onApply: () => void; label: string },
+  options: {
+    onChange: (text: string) => void;
+    onApply: () => void;
+    label: string;
+    /** What the empty editor shows: what to type and how to apply it. */
+    hint?: string;
+  },
 ): DeclarationEditor {
   const view = new EditorView({
     parent,
@@ -115,6 +123,7 @@ export function createDeclarationEditor(
           ...historyKeymap,
         ]),
         EditorView.lineWrapping,
+        ...(options.hint ? [placeholder(options.hint)] : []),
         EditorView.contentAttributes.of({ 'aria-label': options.label }),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) options.onChange(update.state.doc.toString());
@@ -129,6 +138,7 @@ export function createDeclarationEditor(
       if (next === view.state.doc.toString()) return;
       view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: next } });
     },
+    focus: () => view.focus(),
     destroy: () => view.destroy(),
   };
 }

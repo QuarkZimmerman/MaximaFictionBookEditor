@@ -272,8 +272,10 @@ named styles. A stylesheet on the web is never fetched; what the import could no
 
 *View > Styles*, after the Source view, shows the book's stylesheets - each a group with its type, the
 first CSS one marked as the default - and their rules, one per selector. Selecting a rule shows its
-declarations in a CSS editor that completes the standard property names and, after a colon, the
-property's keywords; *Apply* (Ctrl+Enter) writes them into the rule. *Add selector…* adds a rule to
+declarations in a framed CSS box on the right - empty for a new rule, with a hint of what to type -
+that completes the standard property names and, after a colon, the property's keywords; *Apply*
+(Ctrl+Enter, Cmd+Enter on macOS) writes them into the rule. After *Add selector…* the caret is
+already in the new rule's box. *Add selector…* adds a rule to
 the selected stylesheet, else to the default one - a book without a stylesheet gets one for its first
 selector -; *Rename…*, *Remove* and *New stylesheet* do what they say. Renaming a class that the text
 uses asks whether to rename its uses too.
