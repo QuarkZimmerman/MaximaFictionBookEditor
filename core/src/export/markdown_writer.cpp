@@ -24,7 +24,8 @@ void flatten_on_white(images::Bitmap& bitmap) {
         std::uint8_t* px = bitmap.rgba.data() + i * 4;
         const unsigned alpha = px[3];
         for (int c = 0; c < 3; ++c) {
-            px[c] = static_cast<std::uint8_t>((px[c] * alpha + 255u * (255u - alpha) + 127u) / 255u);
+            px[c] =
+                static_cast<std::uint8_t>((px[c] * alpha + 255u * (255u - alpha) + 127u) / 255u);
         }
         px[3] = 255;
     }
@@ -52,8 +53,7 @@ std::string stem_md_name(const std::filesystem::path& path) {
 
 }  // namespace
 
-std::string embeddable_jpeg(std::string_view bytes, const std::string& content_type,
-                            int quality) {
+std::string embeddable_jpeg(std::string_view bytes, const std::string& content_type, int quality) {
     const bool jpeg = content_type == "image/jpeg" || content_type == "image/jpg";
     if (jpeg && bytes.size() <= kMaxEmbeddedPicture) {
         return std::string(bytes);
@@ -131,8 +131,7 @@ std::string markdown_export_bytes(const MarkdownExport& job, const BinaryStore& 
     return archive::zip_entries(entries);
 }
 
-std::vector<std::string> write_markdown_export(const MarkdownExport& job,
-                                               const BinaryStore& store,
+std::vector<std::string> write_markdown_export(const MarkdownExport& job, const BinaryStore& store,
                                                const Progress& progress) {
     std::vector<std::string> skipped;
     const std::string bytes = markdown_export_bytes(job, store, progress, &skipped);

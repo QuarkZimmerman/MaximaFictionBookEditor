@@ -1,6 +1,6 @@
-// Feature 011 (US8; D42 clarify; contracts/styles.md §3; research DP-14): the core's reader of a CSS
-// stylesheet's rules, the one source of the style issues of Validate and of styles.check. It reads
-// selectors and declarations and skips comments and at-rules; it does not judge properties or
+// Feature 011 (US8; D42 clarify; contracts/styles.md §3; research DP-14): the core's reader of a
+// CSS stylesheet's rules, the one source of the style issues of Validate and of styles.check. It
+// reads selectors and declarations and skips comments and at-rules; it does not judge properties or
 // values (the Styles view does, with the CSS grammar). Two issues come from it:
 //   style.conflict   (error)   the same selector in two stylesheets sets one property to different
 //                              values;

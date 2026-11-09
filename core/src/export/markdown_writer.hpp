@@ -1,8 +1,8 @@
-// Feature 011 (US5, US6; D21-D27; contracts/rpc-api.md `export.markdown`): writing a Markdown export.
-// The interface writes the text, naming each picture; the core reads the pictures from the book's
-// binary store - binaries never travel through JSON -, embeds them in the one-file form as JPEGs
-// within kMaxEmbeddedPicture bytes or stores them byte for byte in the ZIP's images/ folder, and
-// writes the file atomically.
+// Feature 011 (US5, US6; D21-D27; contracts/rpc-api.md `export.markdown`): writing a Markdown
+// export. The interface writes the text, naming each picture; the core reads the pictures from the
+// book's binary store - binaries never travel through JSON -, embeds them in the one-file form as
+// JPEGs within kMaxEmbeddedPicture bytes or stores them byte for byte in the ZIP's images/ folder,
+// and writes the file atomically.
 #pragma once
 
 #include <mfbe/binary_store.hpp>
@@ -50,8 +50,7 @@ std::string markdown_export_bytes(const MarkdownExport& job, const BinaryStore& 
 
 // Writes markdown_export_bytes() to job.path atomically; returns the names of the pictures left
 // out.
-std::vector<std::string> write_markdown_export(const MarkdownExport& job,
-                                               const BinaryStore& store,
+std::vector<std::string> write_markdown_export(const MarkdownExport& job, const BinaryStore& store,
                                                const Progress& progress);
 
 }  // namespace mfbe::exporting

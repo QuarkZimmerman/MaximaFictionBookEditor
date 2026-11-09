@@ -21,7 +21,8 @@ void register_export_handlers(rpc::RpcRouter& router, Services& services) {
     router.add_method("export.markdown", [&services](const json& params, rpc::RpcContext& ctx) {
         const std::string doc_id = rpc::params::string(params, "docId");
         auto& session = services.documents.require(doc_id);
-        const fs::path target = fs::absolute(platform::path_from_utf8(rpc::params::string(params, "path")));
+        const fs::path target =
+            fs::absolute(platform::path_from_utf8(rpc::params::string(params, "path")));
         const std::string form = rpc::params::string_or(params, "form", "md");
         if (form != "md" && form != "zip") {
             throw rpc::invalid_params("form must be \"md\" or \"zip\"", json{{"form", form}});
@@ -40,8 +41,8 @@ void register_export_handlers(rpc::RpcRouter& router, Services& services) {
         job->text = rpc::params::string(params, "text");
         job->jpeg_quality = services.conversion_policy().jpeg_quality;
         const bool include = params.value("includePictures", true);
-        if (const auto it = params.find("pictures"); (job->zip || include) && it != params.end() &&
-                                                       it->is_array()) {
+        if (const auto it = params.find("pictures");
+            (job->zip || include) && it != params.end() && it->is_array()) {
             for (const json& picture : *it) {
                 if (!picture.is_object()) {
                     continue;

@@ -10,9 +10,9 @@
 // empty persons/annotations dropped).
 #pragma once
 
-#include <mfbe/document_details.hpp>
 #include <mfbe/binary_store.hpp>
 #include <mfbe/document.hpp>
+#include <mfbe/document_details.hpp>
 #include <mfbe/images.hpp>
 
 #include <nlohmann/json.hpp>

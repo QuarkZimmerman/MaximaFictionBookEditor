@@ -1,4 +1,6 @@
 // JPEG/PNG encoding (T091). See mfbe/images.hpp.
+#include "setjmp_frame.hpp"
+
 #include <mfbe/images.hpp>
 
 #include <algorithm>
@@ -9,8 +11,6 @@
 #include <jpeglib.h>
 #include <memory>
 #include <png.h>
-
-#include "setjmp_frame.hpp"
 
 namespace mfbe::images {
 namespace {
@@ -130,9 +130,10 @@ void png_encode_body(PngEncodeState& st, png_structp png, png_infop info, const 
 
 }  // namespace
 
-// The only frame between libjpeg's setjmp and its longjmp; see the decoder's jpeg_run. False after a
-// libjpeg error (the message in st->err).
-static MFBE_SETJMP_FRAME bool jpeg_encode_run(JpegEncodeState* st, const Bitmap* bitmap, int quality) {
+// The only frame between libjpeg's setjmp and its longjmp; see the decoder's jpeg_run. False after
+// a libjpeg error (the message in st->err).
+static MFBE_SETJMP_FRAME bool jpeg_encode_run(JpegEncodeState* st, const Bitmap* bitmap,
+                                              int quality) {
     if (setjmp(st->err.jump)) {
         return false;
     }
@@ -169,7 +170,7 @@ std::string encode_jpeg(const Bitmap& bitmap, int quality) {
 
 // As jpeg_encode_run, for libpng: false after a libpng error (the message in st->error).
 static MFBE_SETJMP_FRAME bool png_encode_run(PngEncodeState* st, png_structp png, png_infop info,
-                                      const Bitmap* bitmap) {
+                                             const Bitmap* bitmap) {
     if (setjmp(png_jmpbuf(png))) {
         return false;
     }
@@ -207,4 +208,3 @@ std::string encode_png(const Bitmap& bitmap) {
 }
 
 }  // namespace mfbe::images
-

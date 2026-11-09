@@ -63,7 +63,7 @@ struct SaveFileRequest {
     std::optional<std::string> encodingLabel;     // its label (default: the shell's own text)
     int selectedFilter = 0;                       // index of the type selected when it opens
     std::optional<std::string> folder;            // where it opens when defaultPath names no folder
-    bool documentDialog = false;  // `role: "document"`: Save As (feature 011, D32)
+    bool documentDialog = false;                  // `role: "document"`: Save As (feature 011, D32)
     // Feature 009 (DP-8): the "save as ZIP archive" checkbox beside the encoding choice - its
     // label (none = no checkbox) and whether it starts ticked.
     std::optional<std::string> zipLabel;

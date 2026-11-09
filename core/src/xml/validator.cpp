@@ -628,11 +628,11 @@ std::vector<ValidationIssue> consistency_issues(const model::Document& document,
     const auto filled = [](const std::optional<std::string>& value) {
         return value && value->find_first_not_of(" \t\r\n") != std::string::npos;
     };
-    const bool named_author = std::any_of(
-        d.titleInfo.authors.begin(), d.titleInfo.authors.end(), [&](const model::Person& p) {
-            return filled(p.firstName) || filled(p.middleName) || filled(p.lastName) ||
-                   filled(p.nickname);
-        });
+    const bool named_author = std::any_of(d.titleInfo.authors.begin(), d.titleInfo.authors.end(),
+                                          [&](const model::Person& p) {
+                                              return filled(p.firstName) || filled(p.middleName) ||
+                                                     filled(p.lastName) || filled(p.nickname);
+                                          });
     if (!named_author) {
         out.push_back(make_issue(Severity::warning, "description.emptyAuthor", {}));
     }

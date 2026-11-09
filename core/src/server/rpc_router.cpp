@@ -489,7 +489,9 @@ namespace {
 std::atomic<int> g_job_step_delay_ms{0};
 }  // namespace
 
-void set_job_step_delay_ms(int ms) { g_job_step_delay_ms.store(ms < 0 ? 0 : ms); }
+void set_job_step_delay_ms(int ms) {
+    g_job_step_delay_ms.store(ms < 0 ? 0 : ms);
+}
 
 struct JobManager::Job : JobControl {
     std::string job_id;

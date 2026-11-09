@@ -37,9 +37,9 @@
 #pragma GCC diagnostic ignored "-Wnull-dereference"
 #pragma GCC diagnostic ignored "-Wsign-compare"
 #endif
-#include <stb_image.h>
-
 #include "setjmp_frame.hpp"
+
+#include <stb_image.h>
 #if defined(__GNUC__)
 #pragma GCC diagnostic pop
 #endif
@@ -157,8 +157,8 @@ void jpeg_decode_body(JpegState& st, std::string_view bytes) {
 }
 
 // The only frame between libjpeg's setjmp and its longjmp. It holds no object with a destructor
-// (MSVC's C4611), so a libjpeg error skips nothing; C++ exceptions of jpeg_decode_body pass through.
-// False after a libjpeg error (the message in st->err).
+// (MSVC's C4611), so a libjpeg error skips nothing; C++ exceptions of jpeg_decode_body pass
+// through. False after a libjpeg error (the message in st->err).
 static MFBE_SETJMP_FRAME bool jpeg_run(JpegState* st, std::string_view bytes) {
     if (setjmp(st->err.jump)) {
         return false;
@@ -600,4 +600,3 @@ std::optional<Bitmap> try_decode(std::string_view bytes, std::string* error) {
 }
 
 }  // namespace mfbe::images
-

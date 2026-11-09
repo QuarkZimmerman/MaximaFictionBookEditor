@@ -266,10 +266,11 @@ std::vector<model::ValidationIssue> style_issues(const std::vector<model::Styles
                     model::ValidationIssue issue;
                     issue.severity = model::Severity::error;
                     issue.code = "style.conflict";
-                    issue.params = {{"selector", selector},
-                                    {"property", property},
-                                    {"values", nlohmann::json::array({it->second.value, now.value})},
-                                    {"sheets", nlohmann::json::array({it->second.sheet + 1, now.sheet + 1})}};
+                    issue.params = {
+                        {"selector", selector},
+                        {"property", property},
+                        {"values", nlohmann::json::array({it->second.value, now.value})},
+                        {"sheets", nlohmann::json::array({it->second.sheet + 1, now.sheet + 1})}};
                     out.push_back(std::move(issue));
                 }
             }
