@@ -10,6 +10,7 @@
 import type { Locator, Page } from '@playwright/test';
 
 import { expect, fixtureBook, test, waitForBook, type CoreHandle } from './fixtures/core';
+import { DOC_START } from './fixtures/keys';
 
 const BOOK = fixtureBook('nested-sections.fb2');
 
@@ -127,7 +128,7 @@ test.describe('US4 (feature 011) - the tree in the Source view', () => {
     await toSource(page);
     const editor = page.locator('.cm-content');
     await editor.click();
-    await page.keyboard.press('Control+Home');
+    await page.keyboard.press(DOC_START);
     await page.keyboard.type('<!-- pending -->');
     const before = await page.evaluate(() => window.__mfbeTest?.sourceMapping?.sourceText() ?? '');
     expect(before.startsWith('<!-- pending -->')).toBe(true);

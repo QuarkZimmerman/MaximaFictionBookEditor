@@ -12,7 +12,7 @@ import path from 'node:path';
 import type { Page } from '@playwright/test';
 
 import { expect, test, waitForBook, type CoreHandle } from './fixtures/core';
-import { MOD } from './fixtures/keys';
+import { MOD, REPLACE } from './fixtures/keys';
 
 interface SourceHooks {
   sourceSelection(): { anchor: number; head: number } | null;
@@ -147,7 +147,7 @@ test.describe('US3 (feature 011) - escapes in regular expressions', () => {
     page,
   }) => {
     await page.getByTestId('body-editor').getByText('Версия').click();
-    await page.keyboard.press(`${MOD}+h`);
+    await page.keyboard.press(REPLACE);
     await expect(page.getByTestId('dialog-replace')).toBeVisible();
     await page.getByTestId('dialog-replace-query').fill('a\\-b');
     await page.getByTestId('dialog-replace-regex').check();
