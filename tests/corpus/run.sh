@@ -21,7 +21,7 @@
 set -u
 
 usage() {
-    echo "usage: $0 SAMPLE_FILE [-j N] [--out DIR] [--core PATH] [--encoding ENC] [--save-hashes FILE] [--check-hashes FILE]" >&2
+    echo "usage: $0 SAMPLE_FILE [-j N] [--out DIR] [--core PATH] [--encoding ENC] [--save-hashes FILE] [--check-hashes FILE] [--markdown]" >&2
     exit 2
 }
 
@@ -38,11 +38,14 @@ CORE=""
 ENCODING="utf-8"
 SAVE_HASHES=""
 CHECK_HASHES=""
+# Feature 011 (FR-081): --markdown also exports every book as Markdown and imports it again.
+MARKDOWN=0
 while [ $# -gt 0 ]; do
     case "$1" in
         -j) JOBS="$2"; shift 2 ;;
         --out) OUT="$2"; shift 2 ;;
         --core) CORE="$2"; shift 2 ;;
+        --markdown) MARKDOWN=1; shift ;;
         --encoding) ENCODING="$2"; shift 2 ;;
         --save-hashes) SAVE_HASHES="$2"; shift 2 ;;
         --check-hashes) CHECK_HASHES="$2"; shift 2 ;;
@@ -250,3 +253,11 @@ json.dump({"sample": sample, "total": total, "opened": len(opened), "notOpened":
 print(report)
 sys.exit(0 if not crashed and not different and not not_reopened and not hash_failures else 1)
 PY
+status=$?
+# Feature 011 (FR-081): the sample exported as Markdown and imported again (ui/tests/corpus/).
+if [ "$MARKDOWN" = 1 ]; then
+    (cd "$(dirname "$0")/../../ui" && MFBE_CORPUS_LIST="$(realpath "$SAMPLE")" \
+        MFBE_CORE_BIN="$(realpath "${CORE:-build/linux-core-release/bin/mfbe-core}")" \
+        npx vitest run --config vitest.corpus.config.ts) || status=1
+fi
+exit $status

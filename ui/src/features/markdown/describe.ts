@@ -84,11 +84,7 @@ function applyDescription(doc: Document, titleInfo: Element, data: MarkdownDescr
   }
   if (data.keywords)
     replaceChildren(titleInfo, 'keywords', [element(doc, 'keywords', data.keywords)]);
-  if (data.date) {
-    const date = element(doc, 'date', data.date);
-    if (/^\d{4}(-\d{2}(-\d{2})?)?$/.test(data.date)) date.setAttribute('value', data.date);
-    replaceChildren(titleInfo, 'date', [date]);
-  }
+  if (data.date) replaceChildren(titleInfo, 'date', [dateElement(doc, data.date)]);
   if (data.cover) {
     const coverpage = element(doc, 'coverpage');
     const image = element(doc, 'image');
@@ -123,9 +119,14 @@ function sequenceElement(doc: Document, one: MarkdownSequence): Element {
   return sequence;
 }
 
+/**
+ * A date with its `value` only when the text is a whole date: the schema's `xs:date` takes
+ * YYYY-MM-DD, so "2012" stays text alone (feature 011, FR-081: such a value made the corpus's
+ * re-imported books invalid).
+ */
 function dateElement(doc: Document, text: string): Element {
   const date = element(doc, 'date', text);
-  if (/^\d{4}(-\d{2}(-\d{2})?)?$/.test(text)) date.setAttribute('value', text);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) date.setAttribute('value', text);
   return date;
 }
 
