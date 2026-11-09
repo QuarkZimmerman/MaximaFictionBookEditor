@@ -19,7 +19,7 @@
  *  3. three rejections of one key - a 1001, a 1201 and a schema-invalid fragment - end the
  *     request as `rejected` with nothing applied, the earlier valid change of another key
  *     and a rejection of another key in between notwithstanding (FR-063)
- *  4. the SC-002 table: 26 invalid answers through the change tools, 0 applied
+ *  4. the SC-002 table: 25 invalid answers through the change tools, 0 applied
  *  5. `set_description`: an invalid description change rejected, a new title applied; FR-055:
  *     no image data in any request; the §9.1 refusals as results while the request goes on
  *
@@ -635,7 +635,7 @@ test.describe('US4 (005) - nothing invalid reaches the book', () => {
     await expect(input(page)).toBeEnabled();
   });
 
-  test('4. the SC-002 table: 26 invalid answers through the change tools, 0 applied, each with its envelope, the XML byte-identical after every request', async ({
+  test('4. the SC-002 table: 25 invalid answers through the change tools, 0 applied, each with its envelope, the XML byte-identical after every request', async ({
     core,
     page,
     standin,
@@ -721,7 +721,8 @@ test.describe('US4 (005) - nothing invalid reaches the book', () => {
       [
         // description (the hook; scenario 5)
         ['unknown genre', describe({ titleInfo: { genres: ['no_such_genre'] } })],
-        ['required author removed', describe({ titleInfo: { authors: [] } })],
+        // Feature 011 (US1, FR-001): an answer that removes every author is no longer invalid -
+        // the book gets the empty author FictionBook Editor wrote, and Validate warns.
       ],
       [
         [

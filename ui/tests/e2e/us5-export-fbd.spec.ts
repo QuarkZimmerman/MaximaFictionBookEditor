@@ -13,7 +13,7 @@
  *     paragraph beyond the annotation and the history; the file passes the FB2 2.1 validation;
  *     title bar, modified state and Recent Files are unchanged;
  *  2. a never-saved document: the bare proposed name with `.fbd` in the remembered folder, the
- *     chosen folder remembered afterwards (FR-053); an incomplete description gets Save's own
+ *     folder Open remembers kept as it was (FR-053; feature 011, D32); an incomplete description gets Save's own
  *     prompt - No writes nothing, Yes writes;
  *  3. the exported role entries equal the library's expected fixture (FR-044, SC-003);
  *  4. the open document's own file is refused with a message, before any validation prompt;
@@ -357,7 +357,7 @@ test.describe('US5 (004) - export the description as an FBD file', () => {
     expect(descriptionOf(text)).toBe(descriptionOf(saved));
   });
 
-  test('2. a never-saved document: the proposed name with .fbd in the remembered folder, the chosen folder remembered; an incomplete description asks - No writes nothing, Yes writes', async ({
+  test('2. a never-saved document: the proposed name with .fbd in the remembered folder, which stays remembered (feature 011, D32); an incomplete description asks - No writes nothing, Yes writes', async ({
     core,
     page,
   }) => {
@@ -401,7 +401,7 @@ test.describe('US5 (004) - export the description as an FBD file', () => {
       await pageAnyPattern(page, 'transfer.export.done', 'transfer.export.doneWithErrors'),
     );
 
-    // Yes: written, the errors counted in the status bar; the chosen folder is remembered.
+    // Yes: written, the errors counted in the status bar; the remembered folder stays (D32).
     await core.enqueueDialog('dialog.saveFile', { path: target });
     await clickExport(page);
     await expect(prompt).toBeVisible();
@@ -416,7 +416,10 @@ test.describe('US5 (004) - export the description as an FBD file', () => {
     expect(text).toContain('<book-title>Война и мир</book-title>');
     expect(text).toMatch(/\t<body>\n\t\t<section\/>\n\t<\/body>\n/);
     const settings = await core.rpc<{ session: { lastFileDialogFolder: string } }>('settings.get');
-    if (process.platform !== 'win32') expect(settings.session.lastFileDialogFolder).toBe(chosen);
+    // Feature 011 (D32): an export leaves no trace - the folder Open starts in stays as it was.
+    if (process.platform !== 'win32') {
+      expect(settings.session.lastFileDialogFolder).toBe(remembered);
+    }
     // Still the never-saved, modified document: the export is a copy.
     expect(await page.title()).toBe(titleBefore);
     expect(await recentPaths(core)).not.toContain(target);

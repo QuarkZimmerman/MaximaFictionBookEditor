@@ -84,6 +84,13 @@ function rowsPackage(folder: string, id: string, label: string, index: number): 
 }
 
 const scriptsFolder = (dataDir: string) => path.join(dataDir, 'scripts');
+/**
+ * A group folder of this journey's own in the shared core's personal scripts folder: other
+ * journeys copy their fixture groups (`tree` among them) only when absent and count the `test.`
+ * ids, so this journey neither takes their folder names nor uses that prefix, and removes its
+ * folder afterwards.
+ */
+const GROUP = 'us11_tree-scripts';
 const treeRows = (page: Page) => page.evaluate(() => window.__mfbeTest!.scripts!.treeRows());
 const xml = (page: Page) => page.evaluate(() => window.__mfbeTest!.scripts!.toXml());
 const scriptIds = (page: Page) =>
@@ -116,14 +123,17 @@ test.describe('US11 (feature 011) - tree scripts', () => {
     if (!coreServer.hasCore || !coreServer.dataDir) return;
     // The sample in the personal layer (its bundled copy, when the core has one, is replaced) and
     // two more tree scripts.
-    const tree = path.join(scriptsFolder(coreServer.dataDir), 'tree');
-    cpSync(EXAMPLE, path.join(tree, 'example-1'), { recursive: true });
-    rowsPackage(path.join(tree, 'rows-a'), 'test.tree.rows-a', 'Row A', 1);
-    rowsPackage(path.join(tree, 'rows-b'), 'test.tree.rows-b', 'Row B', 2);
+    const group = path.join(scriptsFolder(coreServer.dataDir), GROUP);
+    cpSync(EXAMPLE, path.join(group, 'example-1'), { recursive: true });
+    rowsPackage(path.join(group, 'rows-a'), 'us11.rows-a', 'Row A', 1);
+    rowsPackage(path.join(group, 'rows-b'), 'us11.rows-b', 'Row B', 2);
   });
 
-  test.afterAll(() => {
+  test.afterAll(({ coreServer }) => {
     rmSync(dir, { recursive: true, force: true });
+    if (coreServer.dataDir) {
+      rmSync(path.join(scriptsFolder(coreServer.dataDir), GROUP), { recursive: true, force: true });
+    }
   });
 
   test.beforeEach(({ core }) => {
@@ -143,7 +153,7 @@ test.describe('US11 (feature 011) - tree scripts', () => {
       'src',
       /icon\.png/,
     );
-    await expect(entry(page, 'script-test.tree.rows-a')).toBeVisible();
+    await expect(entry(page, 'script-us11.rows-a')).toBeVisible();
     await expect(entry(page, 'clean')).toHaveAttribute('aria-disabled', 'true');
     await page.keyboard.press('Escape');
     // ... and neither the main Scripts menu nor a row's right-click menu lists them.
@@ -176,13 +186,13 @@ test.describe('US11 (feature 011) - tree scripts', () => {
 
     // 3. Rows of two scripts; Ctrl+choosing a third leaves its rows alone; Clean removes all.
     await openScriptsMenu(page);
-    await entry(page, 'script-test.tree.rows-a').click();
+    await entry(page, 'script-us11.rows-a').click();
     await expect.poll(async () => (await treeRows(page)).length).toBe(7);
     await openScriptsMenu(page);
-    await entry(page, 'script-test.tree.rows-b').click({ modifiers: ['ControlOrMeta'] });
+    await entry(page, 'script-us11.rows-b').click({ modifiers: ['ControlOrMeta'] });
     await expect
       .poll(async () => (await treeRows(page)).map((row) => row.scriptId))
-      .toEqual(['test.tree.rows-b']);
+      .toEqual(['us11.rows-b']);
     await expect(page.locator('[data-row-kind="script"]')).toHaveCount(1);
     await openScriptsMenu(page);
     await entry(page, 'clean').click();
@@ -197,22 +207,22 @@ test.describe('US11 (feature 011) - tree scripts', () => {
   }) => {
     await openBook(core, page, file);
     rowsPackage(
-      path.join(scriptsFolder(core.dataDir!), 'tree', 'rows-c'),
-      'test.tree.rows-c',
+      path.join(scriptsFolder(core.dataDir!), GROUP, 'rows-c'),
+      'us11.rows-c',
       'Row C',
       3,
     );
     try {
       await page.getByTestId('menu-scripts').click();
       await page.getByTestId('menu-scripts-reload').click();
-      await expect.poll(() => scriptIds(page), { timeout: 15_000 }).toContain('test.tree.rows-c');
+      await expect.poll(() => scriptIds(page), { timeout: 15_000 }).toContain('us11.rows-c');
       await openScriptsMenu(page);
-      await entry(page, 'script-test.tree.rows-c').click();
+      await entry(page, 'script-us11.rows-c').click();
       await expect
         .poll(async () => (await treeRows(page)).map((row) => row.caption))
         .toEqual(['Row C']);
     } finally {
-      rmSync(path.join(scriptsFolder(core.dataDir!), 'tree', 'rows-c'), {
+      rmSync(path.join(scriptsFolder(core.dataDir!), GROUP, 'rows-c'), {
         recursive: true,
         force: true,
       });

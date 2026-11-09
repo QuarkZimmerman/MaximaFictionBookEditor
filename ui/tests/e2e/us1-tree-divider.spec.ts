@@ -415,7 +415,8 @@ test.describe('US1 - the Document Tree pane has a divider', () => {
     await openBook(page, core, book);
     const start = await layout(page);
     const tabsAtDefault = await tabHeights(page);
-    expect(tabsAtDefault.length).toBe(3);
+    // Feature 011 (US8): Description, Body, Source and Styles.
+    expect(tabsAtDefault.length).toBe(4);
 
     // Far to the left: the pane keeps 160 px with its caption, toolbar and scrolling list
     // inside; the rows are reachable (the list's scrollbar is within the pane).

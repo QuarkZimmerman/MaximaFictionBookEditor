@@ -683,7 +683,12 @@ test.describe('dialogs from the keyboard', () => {
     await page.keyboard.press('Home');
     await expect(page.getByTestId('view-description')).toHaveAttribute('aria-selected', 'true');
     await page.getByTestId('view-description').focus();
+    // Feature 011 (US8): the Styles view is the last tab, after Source.
     await page.keyboard.press('End');
+    await expect(page.getByTestId('view-styles')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByTestId('styles-view')).toBeVisible();
+    await page.getByTestId('view-styles').focus();
+    await page.keyboard.press('ArrowLeft');
     await expect(page.getByTestId('view-source')).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByTestId('source-editor')).toBeFocused();
     await page.getByTestId('view-source').focus();

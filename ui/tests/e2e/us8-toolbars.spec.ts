@@ -50,6 +50,8 @@ const ORIGINAL_COMMANDS = [
   'file.save',
   '-',
   'file.validate',
+  // Feature 011 (US10): Preview beside Validate.
+  'view.preview',
   '-',
   'view.description',
   'view.body',

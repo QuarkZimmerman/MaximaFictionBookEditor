@@ -56,6 +56,7 @@ import { fileURLToPath } from 'node:url';
 import type { Browser, Locator, Page } from '@playwright/test';
 
 import {
+  builtUiDir,
   expect,
   fixtureBook,
   NodeRpcClient,
@@ -204,13 +205,26 @@ function recordErrors(page: Page): string[] {
   return errors;
 }
 
-/** Only the main bundle's files were loaded - never the `ai-assistant` chunk (SC-013). */
+/**
+ * The main bundle's files: what the built `index.html` loads at start - the entry script, the
+ * modules it imports statically (`modulepreload`, such as the bundler's shared runtime since
+ * feature 011) and its stylesheets. The build itself is the one source of the list.
+ */
+function mainBundleFiles(): string[] {
+  const html = readFileSync(path.join(builtUiDir(), 'index.html'), 'utf8');
+  return [...html.matchAll(/(?:src|href)="\.?\/?(assets\/[^"]+)"/g)].map((match) => `/${match[1]}`);
+}
+
+/** Only the main bundle's files were loaded - never a lazy chunk such as `ai-assistant` (SC-013). */
 function expectMainBundleOnly(assets: string[]): void {
   expect(assets.length).toBeGreaterThan(0);
+  const main = mainBundleFiles();
+  expect(main.some((file) => /\/assets\/index-[^/]+\.js$/.test(file))).toBe(true);
   for (const asset of assets) {
-    expect(asset, `an asset outside the main bundle was requested: ${asset}`).toMatch(
-      /\/assets\/index-[^/]+\.(js|css)$/,
-    );
+    expect(
+      main.some((file) => asset.endsWith(file)),
+      `an asset outside the main bundle was requested: ${asset}`,
+    ).toBe(true);
     expect(asset).not.toMatch(/ai-assistant-.*\.js$/);
   }
 }
