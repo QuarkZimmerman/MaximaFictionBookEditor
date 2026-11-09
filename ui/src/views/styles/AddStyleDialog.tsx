@@ -99,7 +99,9 @@ export function AddStyleDialog({ reasonOf, onClose }: AddStyleDialogProps) {
               setElement(event.target.value);
               setOpen(true);
             }}
-            onFocus={() => setOpen(true)}
+            // The list opens on a click, on typing or on the Down arrow - not when the dialog puts
+            // the caret here as it opens (rc.3 smoke test).
+            onClick={() => setOpen(true)}
             onBlur={() => setOpen(false)}
             onKeyDown={(event) => {
               // Enter takes the first entry left in the list when nothing is picked yet.
@@ -112,6 +114,10 @@ export function AddStyleDialog({ reasonOf, onClose }: AddStyleDialogProps) {
                 event.preventDefault();
                 event.stopPropagation();
                 pick(shown[0]!.text);
+              }
+              if (event.key === 'ArrowDown' && !open) {
+                event.preventDefault();
+                setOpen(true);
               }
               if (event.key === 'Escape' && open) {
                 event.stopPropagation();

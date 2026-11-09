@@ -48,6 +48,9 @@ async function open(core: CoreHandle, page: Page, file: string): Promise<void> {
 /** Add style… with a selector: a class as a named style (typed without its dot), else an element's. */
 async function addSelector(page: Page, selector: string): Promise<void> {
   await page.getByTestId('styles-add').click();
+  // The element list stays closed until it is clicked or typed into (rc.3 smoke test).
+  await expect(page.getByTestId('dialog-styles-add-element')).toBeFocused();
+  await expect(page.getByTestId('dialog-styles-add-list')).toHaveCount(0);
   if (selector.startsWith('.')) {
     await page.getByTestId('dialog-styles-add-kind-named').check();
     await page.getByTestId('dialog-styles-add-name').fill(selector.slice(1));
