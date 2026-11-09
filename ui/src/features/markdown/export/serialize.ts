@@ -16,6 +16,18 @@ export interface ExportOptions {
   form: 'md' | 'zip';
   /** The one-file form's *Include pictures* (the ZIP form always carries them). */
   includePictures: boolean;
+  /**
+   * Feature 011 (D49): the Mermaid source each diagram picture carries, by binary id; such a
+   * picture is written back as a ```mermaid block.
+   */
+  diagramSources?: ReadonlyMap<string, string>;
+}
+
+/** A fenced ```mermaid block of `source`, its fence longer than any run of backticks in it. */
+export function mermaidBlock(source: string): string {
+  const longest = Math.max(0, ...[...source.matchAll(/`+/g)].map((run) => run[0].length));
+  const fence = '`'.repeat(Math.max(3, longest + 1));
+  return `${fence}mermaid\n${source.replace(/\n+$/, '')}\n${fence}`;
 }
 
 export interface LeftOut {
@@ -352,6 +364,13 @@ class Writer {
           break;
         }
         case 'image': {
+          const source = this.options.diagramSources?.get(
+            String(node.attrs?.href ?? '').replace(/^#/, ''),
+          );
+          if (source !== undefined) {
+            out.push(mermaidBlock(source));
+            break;
+          }
           const picture = this.picture(node);
           if (picture) out.push(picture);
           break;

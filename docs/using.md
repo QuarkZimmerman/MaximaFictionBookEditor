@@ -226,6 +226,12 @@ closes only once the new one is ready, after the usual question about unsaved ch
   drawn from the bundled Noto fonts, one per distinct character, with the character as their
   alternative text; GitHub's emoji codes such as `:white_check_mark:` too. Letters of every script
   stay text. Private-use characters (icon fonts) are left out.
+- A ```` ```mermaid ```` block - a flowchart, a sequence or class diagram and the other Mermaid
+  diagrams - becomes a picture where the block stood, drawn by the editor itself without the
+  internet: on white, at most twice its own size and at most 1600 px wide, kept as a JPEG or a PNG,
+  whichever file is smaller. The diagram's text travels inside the picture file, so *Export as
+  Markdown* writes the block back. A block that cannot be drawn stays code and is listed after the
+  import; in a quote or a note, where FB2 has no pictures of their own, it stays code too.
 - A file in UTF-8 or UTF-16 is read directly, one in an older encoding (windows-1251, KOI8-R,
   CP866 and others) is recognised from its text; the editor asks only when it cannot tell.
 

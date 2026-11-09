@@ -9,13 +9,14 @@
 import type { CommandContext } from '@/app/commands';
 import { markdownFileTypes } from '@/dialogs/fileTypes';
 import { showEncodingDialog } from '@/dialogs/show';
-import { addBinariesToModel } from '@/features/images/binaries';
+import { addBinariesToModel, uploadBinary } from '@/features/images/binaries';
 import type { FileFeature } from '@/features/file/fileCommands';
 import { actions } from '@/model/store';
 import { isRpcError } from '@/rpc/client';
 import { RpcErrorCode, type MarkdownText } from '@/rpc/types';
 
 import type { ConvertResult, MarkdownStylesheet, SummaryItem } from './convert';
+import type { DrawnDiagram } from './diagrams/render';
 import { buildBook } from './describe';
 import { addPictures } from './pictures';
 import { convertInWorker } from './run';
@@ -84,6 +85,38 @@ async function bookStylesheets(
   return sheets;
 }
 
+/**
+ * Feature 011 (D49, FR-075a): the Mermaid blocks drawn as pictures - Mermaid needs the page, so the
+ * worker left a marker per block -, the body with each marker replaced by the picture or, for a
+ * diagram that cannot be drawn, by the block as code (listed in the summary). Mermaid is loaded only
+ * when the file has a diagram.
+ */
+async function drawDiagrams(
+  result: ConvertResult,
+  summary: SummaryItem[],
+): Promise<{ bodyXml: string; drawn: { id: string; picture: DrawnDiagram }[] }> {
+  if (result.diagrams.length === 0) return { bodyXml: result.bodyXml, drawn: [] };
+  const { drawDiagram } = await import('./diagrams/render');
+  const drawn: { id: string; picture: DrawnDiagram }[] = [];
+  const forms = new Map<number, string>();
+  for (const diagram of result.diagrams) {
+    try {
+      drawn.push({ id: diagram.id, picture: await drawDiagram(diagram.source, diagram.index) });
+      forms.set(diagram.index, diagram.imageXml);
+    } catch (error) {
+      forms.set(diagram.index, diagram.codeXml);
+      const first = diagram.source.trim().split('\n')[0] ?? '';
+      const reason = error instanceof Error ? error.message.split('\n')[0] : '';
+      summary.push({ kind: 'diagram', detail: reason ? `${first} (${reason})` : first });
+    }
+  }
+  const bodyXml = result.bodyXml.replace(
+    /<!--mfbe-diagram:(\d+)-->/g,
+    (_, index: string) => forms.get(Number(index)) ?? '',
+  );
+  return { bodyXml, drawn };
+}
+
 /** Runs the import; false when cancelled or refused (the window's book is then unchanged). */
 export async function importMarkdown(ctx: CommandContext, files: FileFeature): Promise<boolean> {
   const rpc = ctx.rpc;
@@ -110,15 +143,29 @@ export async function importMarkdown(ctx: CommandContext, files: FileFeature): P
       baseDir: folder,
       notesTitle: ctx.t('editing.footnote.notesTitle'),
       genres,
+      diagramAlt: ctx.t('markdown.diagramAlt'),
     });
     const summary: SummaryItem[] = [...result.summary];
     const stylesheets = await bookStylesheets(ctx, result, folder, summary);
+    const { bodyXml, drawn } = await drawDiagrams(result, summary);
     const opened = await rpc.runJob('doc.newFromXml', {
-      xml: buildBook(templateXml, { ...result, stylesheets }),
+      xml: buildBook(templateXml, { ...result, bodyXml, stylesheets }),
       origin: { kind: 'markdown', path },
     });
     await files.loadImported(ctx, opened.document, path);
     const outcome = await addPictures(rpc, opened.document.docId, result.pictures, result.chars);
+    for (const { id, picture } of drawn) {
+      try {
+        outcome.added.push(
+          await uploadBinary(opened.document.docId, picture.blob, {
+            contentType: picture.contentType,
+            suggestedId: id,
+          }),
+        );
+      } catch {
+        summary.push({ kind: 'diagram', detail: id });
+      }
+    }
     addBinariesToModel(ctx.store, outcome.added);
     for (const failed of outcome.failed) {
       summary.push({
@@ -129,7 +176,7 @@ export async function importMarkdown(ctx: CommandContext, files: FileFeature): P
     const counts = ctx.t('markdown.done', {
       encoding: text.encoding,
       sections: result.stats.sections,
-      pictures: result.stats.pictures,
+      pictures: result.stats.pictures + drawn.length,
       tables: result.stats.tables,
       notes: result.stats.notes,
     });

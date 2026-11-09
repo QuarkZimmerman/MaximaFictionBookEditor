@@ -8,7 +8,10 @@
 import type { CommandContext } from '@/app/commands';
 import { startModalJob } from '@/app/modalJob';
 import { proposedStem } from '@/features/file/proposedName';
+import { diagramSource } from '@/features/markdown/diagrams/files';
 import { serializeMarkdown } from '@/features/markdown/export/serialize';
+import type { Document } from '@/model/document';
+import { binaryOriginalUrl } from '@/model/binaryUrls';
 import { actions } from '@/model/store';
 import { commitPendingSource } from '@/views/source/sourceSession';
 
@@ -19,6 +22,29 @@ function folderOf(path: string | null | undefined): string {
   if (!path) return '';
   const at = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
   return at >= 0 ? path.slice(0, at + 1) : '';
+}
+
+/**
+ * Feature 011 (D49): the Mermaid sources of the book's diagram pictures - the binaries the Markdown
+ * import named `mermaid-<n>`, read back from inside their files. A picture without one (replaced, or
+ * not a diagram) stays a picture.
+ */
+async function diagramSourcesOf(document: Document, docId: string): Promise<Map<string, string>> {
+  const sources = new Map<string, string>();
+  for (const binary of document.binaries) {
+    if (!/^mermaid-\d+$/.test(binary.id)) continue;
+    const url = binaryOriginalUrl(docId, `#${binary.id}`);
+    if (!url) continue;
+    try {
+      const response = await fetch(url);
+      if (!response.ok) continue;
+      const source = diagramSource(new Uint8Array(await response.arrayBuffer()));
+      if (source !== null) sources.set(binary.id, source);
+    } catch {
+      // unreadable: the picture is exported as a picture
+    }
+  }
+  return sources;
 }
 
 /** The whole flow of an export; resolves true once the file is written. */
@@ -65,7 +91,8 @@ export async function exportMarkdown(ctx: CommandContext, form: MarkdownForm): P
   }
   const current = store.getState();
   if (!current.document || current.docId !== docId) return false;
-  const serialized = serializeMarkdown(current.document, { form, includePictures });
+  const diagramSources = await diagramSourcesOf(current.document, docId);
+  const serialized = serializeMarkdown(current.document, { form, includePictures, diagramSources });
   let jobId: string | null = null;
   let cancelled = false;
   const modal = startModalJob(ctx.t('transfer.markdown.exporting'), () => {

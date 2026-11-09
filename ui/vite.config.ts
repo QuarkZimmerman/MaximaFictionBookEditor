@@ -95,9 +95,16 @@ export default defineConfig({
   // The core serves the bundle from a sub-path, so every asset URL must be relative.
   base: './',
   resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
-    },
+    alias: [
+      // Feature 011 (D49): Mermaid's optional ELK layout (elkjs, EPL-2.0) is not shipped.
+      {
+        find: /^elkjs\/lib\/elk\.bundled\.js$/,
+        replacement: fileURLToPath(
+          new URL('./src/features/markdown/diagrams/elkUnavailable.ts', import.meta.url),
+        ),
+      },
+      { find: '@', replacement: fileURLToPath(new URL('./src', import.meta.url)) },
+    ],
   },
   define: {
     __MFBE_TOKEN__: JSON.stringify(process.env.MFBE_TOKEN ?? ''),

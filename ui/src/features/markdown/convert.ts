@@ -112,7 +112,23 @@ export type SummaryKind =
   | 'webCss'
   | 'cssFile'
   | 'extraClass'
-  | 'cssDropped';
+  | 'cssDropped'
+  // Feature 011 (D49, FR-075a): a Mermaid block that could not be drawn, kept as code.
+  | 'diagram';
+
+/**
+ * Feature 011 (D49): a ```mermaid block outside quotes and notes. The converter leaves the marker
+ * `<!--mfbe-diagram:<index>-->` in the body; the import flow draws the diagram (Mermaid needs the
+ * page) and puts `imageXml` there, or `codeXml` - the block as code - when it cannot be drawn.
+ */
+export interface MarkdownDiagram {
+  index: number;
+  /** The picture's binary id; the export recognises a diagram by it. */
+  id: string;
+  source: string;
+  imageXml: string;
+  codeXml: string;
+}
 
 export interface SummaryItem {
   kind: SummaryKind;
@@ -125,6 +141,7 @@ export interface ConvertResult {
   description: MarkdownDescription;
   pictures: MarkdownPicture[];
   chars: SpecialChar[];
+  diagrams: MarkdownDiagram[];
   summary: SummaryItem[];
   stats: { sections: number; pictures: number; tables: number; notes: number };
   /** Feature 011 (US7, D46): the stylesheets of the header and of the text, in order. */
@@ -142,6 +159,8 @@ export interface ConvertOptions {
   notesTitle: string;
   /** The FB2 genre codes the editor knows; front-matter genres outside them are left out. */
   genres?: ReadonlySet<string>;
+  /** Feature 011 (D49): the alternative text of a diagram's picture, in the interface language. */
+  diagramAlt?: string;
 }
 
 const NBSP = '\u00a0';
@@ -319,6 +338,7 @@ class Converter {
   private readonly pictures: MarkdownPicture[] = [];
   private readonly pictureIds = new Map<string, string>();
   private readonly chars = new Map<string, SpecialChar>();
+  private readonly diagrams: MarkdownDiagram[] = [];
   private readonly summary: SummaryItem[] = [];
   private readonly summaryKeys = new Set<string>();
   private readonly notes: string[] = [];
@@ -427,6 +447,7 @@ class Converter {
       description: this.describe(values, structured, titlePlain),
       pictures: this.pictures,
       chars: [...this.chars.values()],
+      diagrams: this.diagrams,
       summary: this.summary,
       stats: this.stats,
       stylesheets: [...this.headerStylesheets(values, structured), ...this.textStyles],
@@ -775,15 +796,35 @@ class Converter {
       case 'fence':
       case 'code_block': {
         const indent = ctx.depth > 1 ? LIST_INDENT.repeat(ctx.depth - 1) : '';
+        const code: string[] = [];
         for (const line of token.content.replace(/\n$/, '').split('\n')) {
           const expanded = line.replace(/\t/g, '    ');
           if (!expanded.trim()) {
-            out('<empty-line/>');
+            code.push('<empty-line/>');
             continue;
           }
           const lead = /^ */.exec(expanded)![0].length;
-          out(`<p>${indent}<code>${NBSP.repeat(lead)}${esc(expanded.slice(lead))}</code></p>`);
+          code.push(
+            `<p>${indent}<code>${NBSP.repeat(lead)}${esc(expanded.slice(lead))}</code></p>`,
+          );
         }
+        // Feature 011 (D49): a Mermaid diagram becomes a picture - not in a quote or a note, where
+        // FB2 has no block pictures.
+        const language = token.type === 'fence' ? (token.info.trim().split(/\s+/)[0] ?? '') : '';
+        if (language.toLowerCase() === 'mermaid' && !ctx.inCite && token.content.trim()) {
+          const diagram = this.diagrams.length;
+          const id = `mermaid-${diagram + 1}`;
+          this.diagrams.push({
+            index: diagram,
+            id,
+            source: token.content.replace(/\n$/, ''),
+            imageXml: `<image l:href="#${id}" alt="${attr(this.options.diagramAlt ?? '')}"/>`,
+            codeXml: code.join(''),
+          });
+          out(`<!--mfbe-diagram:${diagram}-->`);
+          return index;
+        }
+        code.forEach(out);
         return index;
       }
       case 'hr':
