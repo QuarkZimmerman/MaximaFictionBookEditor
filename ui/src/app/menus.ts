@@ -106,7 +106,7 @@ export const MAIN_MENU: readonly MenuSpec[] = [
         kind: 'submenu',
         id: 'export',
         labelKey: 'menu.file.export',
-        items: [cmd('file.exportFbd')],
+        items: [cmd('file.exportFbd'), cmd('file.exportMarkdown'), cmd('file.exportMarkdownZip')],
       },
       sep,
       {
