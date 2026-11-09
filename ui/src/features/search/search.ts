@@ -13,6 +13,7 @@
  * nothing matched).
  */
 
+import { regexError } from './regexCompat';
 import { createElement, type ReactNode } from 'react';
 
 import type { Command, CommandContext, CommandRegistry } from '@/app/commands';
@@ -289,10 +290,14 @@ export class SearchSession {
   }
 
   async reportNotFound(ctx: CommandContext, kind: 'find' | 'replace'): Promise<void> {
+    // Feature 011 (D8, FR-022): an expression that is not valid says why, not "Cannot find".
+    const invalid = this.options.regex ? regexError(this.options.query) : null;
     await ctx.dialogs.showMessage({
-      text: ctx.t(kind === 'find' ? 'msg.searchFailed' : 'msg.searchFinished', {
-        text: this.options.query,
-      }),
+      text: invalid
+        ? ctx.t('msg.regexInvalid', { reason: invalid })
+        : ctx.t(kind === 'find' ? 'msg.searchFailed' : 'msg.searchFinished', {
+            text: this.options.query,
+          }),
       caption: ctx.t('app.name'),
       icon: 'warning',
       testId: 'dialog-search-message',

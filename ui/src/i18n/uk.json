@@ -1057,7 +1057,8 @@
     "errorsFound_one": "Знайдено {{count}} помилку.",
     "errorsFound_few": "Знайдено {{count}} помилки.",
     "errorsFound_many": "Знайдено {{count}} помилок.",
-    "errorsFound_other": "Знайдено {{count}} помилки."
+    "errorsFound_other": "Знайдено {{count}} помилки.",
+    "regexInvalid": "Неприпустимий регулярний вираз: {{reason}}."
   },
   "description": {
     "titleInfo": "Інформація про твір",

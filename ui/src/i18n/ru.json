@@ -1057,7 +1057,8 @@
     "errorsFound_one": "Найдена {{count}} ошибка.",
     "errorsFound_few": "Найдено {{count}} ошибки.",
     "errorsFound_many": "Найдено {{count}} ошибок.",
-    "errorsFound_other": "Найдено {{count}} ошибки."
+    "errorsFound_other": "Найдено {{count}} ошибки.",
+    "regexInvalid": "Недопустимое регулярное выражение: {{reason}}."
   },
   "description": {
     "titleInfo": "Информация о произведении",

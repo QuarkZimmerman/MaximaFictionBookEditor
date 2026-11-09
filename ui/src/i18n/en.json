@@ -1031,7 +1031,8 @@
     "docIssues_one": "{{count}} issue",
     "docIssues_other": "{{count}} issues",
     "errorsFound_one": "{{count}} error found.",
-    "errorsFound_other": "{{count}} errors found."
+    "errorsFound_other": "{{count}} errors found.",
+    "regexInvalid": "Not a valid regular expression: {{reason}}."
   },
   "description": {
     "titleInfo": "Title info",
