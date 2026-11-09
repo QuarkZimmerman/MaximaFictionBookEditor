@@ -1,7 +1,8 @@
-// Feature 011 (US5, US6; D21-D27; contracts/rpc-api.md `export.markdown`): writing a Markdown export.
-#include "test_support.hpp"
-
+// Feature 011 (US5, US6; D21-D27; contracts/rpc-api.md `export.markdown`): writing a Markdown
+// export.
 #include "export/markdown_writer.hpp"
+#include "mfbe/utf8_paths.hpp"
+#include "test_support.hpp"
 
 #include <mfbe/archive.hpp>
 #include <mfbe/base64.hpp>
@@ -78,15 +79,17 @@ TEST_CASE("markdown export: the one file and the ZIP (D21-D23)", "[export][markd
         exporting::write_markdown_export(job, store, kNoProgress);
         const std::string written = test::read_text(job.path);
         REQUIRE(written.rfind(job.text, 0) == 0);
-        const std::string definition = "[cover.jpg]: data:image/jpeg;base64," +
-                                       base64::encode(fixture("tiny.jpg")) + "\n";
+        const std::string definition =
+            "[cover.jpg]: data:image/jpeg;base64," + base64::encode(fixture("tiny.jpg")) + "\n";
         CHECK(written.find(definition) != std::string::npos);
         CHECK(written.find("[pic.jpg]: data:image/jpeg;base64,") != std::string::npos);
     }
     SECTION("ZIP: <name>.md and the pictures byte for byte in images/") {
         job.zip = true;
         job.pictures = {{"cover.jpg", "cover.jpg"}, {"pic.png", "pic.png"}};
-        job.path = dir.path() / "Книга.md.zip";
+        // A Cyrillic name through the UTF-8 conversion (a narrow literal is the code page on
+        // Windows).
+        job.path = dir.path() / platform::path_from_utf8("Книга.md.zip");
         exporting::write_markdown_export(job, store, kNoProgress);
         CHECK(archive::read_entry(job.path, "Книга.md") == job.text);
         CHECK(archive::read_entry(job.path, "images/cover.jpg") == fixture("tiny.jpg"));
@@ -135,8 +138,9 @@ TEST_CASE("markdown export: an unreadable picture is left out, a 100-megapixel o
     CHECK(embedded->size() <= exporting::kMaxEmbeddedPicture);
 }
 
-TEST_CASE("markdown export: the ZIP holds the text and the listed pictures only, UTF-8 names (D23, D24)",
-          "[export][markdown]") {
+TEST_CASE(
+    "markdown export: the ZIP holds the text and the listed pictures only, UTF-8 names (D23, D24)",
+    "[export][markdown]") {
     test::TempDir dir;
     MemoryBinaryStore store;
     store.put("карта 1", "image/png", fixture("tiny.png"));
