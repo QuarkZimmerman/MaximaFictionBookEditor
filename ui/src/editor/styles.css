@@ -293,8 +293,16 @@
   background: var(--mfbe-fb-code-bg);
 }
 
-.fb-style {
-  border-bottom: 1px dotted currentColor;
+/* Feature 011 (rc.2 review): text carrying a named style - a span or a whole element - has a very
+   faint dotted underline in the text's own colour, so it reads the same in the light and the dark
+   theme; the book's CSS itself is shown by Preview. */
+.fb-style,
+[data-style]:not(table) {
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-thickness: 1px;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  text-underline-offset: 3px;
 }
 
 a.fb-link {

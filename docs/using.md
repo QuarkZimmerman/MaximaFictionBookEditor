@@ -301,7 +301,8 @@ chosen style is put on the selected part of each paragraph; without a selection 
 of the paragraph, verse, subtitle, text author, table or cell at the caret. *Remove Named Style* takes
 it away. The Body view's context menu offers the same submenu. The entries are greyed with the reason
 when the book defines no class or nothing at the caret can carry a style. In the Body view styled text
-looks like any text; Preview shows the styles.
+carries a very faint dotted underline, and the style's name shows when the pointer rests on it;
+Preview shows the styles themselves.
 
 ## Preview
 
