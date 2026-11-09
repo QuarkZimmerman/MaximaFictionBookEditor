@@ -9,6 +9,7 @@ import {
   type Completion,
   type CompletionContext,
   type CompletionResult,
+  startCompletion,
 } from '@codemirror/autocomplete';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { css } from '@codemirror/lang-css';
@@ -91,6 +92,36 @@ export interface DeclarationEditor {
   destroy(): void;
 }
 
+/**
+ * Feature 011 (rc.3 smoke test): the editor in the window's colours - its caret, selection, hint and
+ * completion list follow the theme (CodeMirror's own caret is black, invisible in the dark theme).
+ */
+const declarationTheme = EditorView.theme({
+  '&': { color: 'var(--mfbe-color-fg)', backgroundColor: 'transparent' },
+  '&.cm-focused': { outline: 'none' },
+  '.cm-content': { caretColor: 'var(--mfbe-color-fg)' },
+  '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--mfbe-color-fg)', borderLeftWidth: '2px' },
+  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection': {
+    backgroundColor: 'var(--mfbe-color-selection-bg)',
+  },
+  '.cm-placeholder': { color: 'var(--mfbe-color-fg-muted)' },
+  '.cm-tooltip': {
+    color: 'var(--mfbe-color-menu-fg)',
+    backgroundColor: 'var(--mfbe-color-menu-bg)',
+    border: '1px solid var(--mfbe-color-border)',
+  },
+  '.cm-tooltip-autocomplete ul li[aria-selected]': {
+    color: 'var(--mfbe-color-on-accent)',
+    backgroundColor: 'var(--mfbe-color-accent)',
+  },
+});
+
+/** Opens the list of the property's values as soon as its colon is typed (rc.3 smoke test). */
+const valuesAfterColon = EditorView.inputHandler.of((view, _from, _to, text) => {
+  if (text === ':') setTimeout(() => startCompletion(view), 0);
+  return false;
+});
+
 /** Mounts the editor in `parent` with `text`; `onChange` gets every new text. */
 export function createDeclarationEditor(
   parent: HTMLElement,
@@ -123,6 +154,8 @@ export function createDeclarationEditor(
           ...historyKeymap,
         ]),
         EditorView.lineWrapping,
+        declarationTheme,
+        valuesAfterColon,
         ...(options.hint ? [placeholder(options.hint)] : []),
         EditorView.contentAttributes.of({ 'aria-label': options.label }),
         EditorView.updateListener.of((update) => {

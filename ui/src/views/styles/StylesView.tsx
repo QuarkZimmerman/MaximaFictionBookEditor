@@ -101,6 +101,8 @@ export default function StylesView() {
       : null;
   // What the editor holds: the user's text for this rule, else the rule's own declarations.
   const draft = edited && edited.rule === selectedRule ? edited.text : editorText(selectedRule);
+  // Whether the box holds anything but the rule's own declarations.
+  const changed = selectedRule !== null && draft !== editorText(selectedRule);
   const issues: DeclarationIssue[] = useMemo(
     () => (selectedRule ? checkDeclarations(draft).issues : []),
     [draft, selectedRule],
@@ -413,12 +415,16 @@ export default function StylesView() {
                 <button
                   type="button"
                   data-testid="styles-apply"
-                  disabled={issues.length > 0}
+                  // Greyed while the box holds the rule's own declarations (rc.3 smoke test) or
+                  // something invalid.
+                  disabled={issues.length > 0 || !changed}
                   onClick={() => void apply()}
                   {...tip(
                     issues.length > 0
                       ? t('styles.applyRefused')
-                      : t('styles.applyTip', { keys: applyKeys }),
+                      : !changed
+                        ? t('styles.applyNothing')
+                        : t('styles.applyTip', { keys: applyKeys }),
                   )}
                 >
                   {t('styles.apply')}

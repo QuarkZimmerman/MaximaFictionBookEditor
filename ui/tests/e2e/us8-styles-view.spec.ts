@@ -135,6 +135,38 @@ test.describe('US8 (feature 011) - the Styles view', () => {
     await expect.poll(() => xml(page)).not.toContain('<stylesheet');
   });
 
+  test('the declarations box: a visible caret in the dark theme, the values open after a colon', async ({
+    core,
+    page,
+  }) => {
+    await core.rpc('settings.set', { patch: { view: { theme: 'dark' } } });
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await open(core, page, plain);
+    await addSelector(page, 'p');
+    await page.getByTestId('dialog-styles-add-button-ok').click();
+    const editor = page.getByTestId('styles-editor').locator('.cm-content');
+    await expect(editor).toBeFocused();
+    // The caret is drawn in the window's text colour, not CodeMirror's black (rc.3 smoke test).
+    const caret = await editor.evaluate(
+      (element) => element.ownerDocument.defaultView!.getComputedStyle(element).caretColor,
+    );
+    expect(caret).not.toBe('rgb(0, 0, 0)');
+    // Nothing typed yet: Apply is greyed (rc.3 smoke test).
+    await expect(page.getByTestId('styles-apply')).toBeDisabled();
+    // Typing a property's colon opens the list of its values at once.
+    await page.keyboard.type('text-align:');
+    await expect(page.locator('.mfbe-styles-editor .cm-tooltip-autocomplete')).toContainText(
+      'center',
+    );
+    await page.keyboard.press('Escape');
+    await page.keyboard.type(' center;');
+    await expect(page.getByTestId('styles-apply')).toBeEnabled();
+    await page.getByTestId('styles-apply').click();
+    // Written: the box holds the rule's declarations again, so Apply is greyed.
+    await expect(page.getByTestId('styles-apply')).toBeDisabled();
+    await core.rpc('settings.set', { patch: { view: { theme: 'light' } } });
+  });
+
   test('two stylesheets, another type kept as read, a conflict marked and in Validate, rename carries uses', async ({
     core,
     page,

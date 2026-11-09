@@ -101,6 +101,7 @@
       "resultNone": "Choose an element or type a name",
       "badName": "A name uses letters, digits, hyphens and underscores and does not start with a digit",
       "okTip": "Create the rule; its declarations are typed next, in the box on the right"
-    }
+    },
+    "applyNothing": "Nothing to write: the box holds the rule's declarations as they are"
   }
 }
