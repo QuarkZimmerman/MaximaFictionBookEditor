@@ -579,6 +579,8 @@ export class FileFeature {
         title: ctx.t('cmd.file.open.tooltip'),
         filters: openFileTypes(ctx.t),
         selectedFilter: 0,
+        // Feature 011 (D32): only Open and Save As keep the folder they were left in.
+        role: 'document',
       }));
     } finally {
       this.nativeDialogOpen -= 1;
@@ -1024,6 +1026,7 @@ export class FileFeature {
           : current;
       const choice = await rpc.call('dialog.saveFile', {
         title: ctx.t('cmd.file.saveAs.tooltip'),
+        role: 'document',
         filters: documentFilters(ctx),
         selectedFilter,
         defaultPath,

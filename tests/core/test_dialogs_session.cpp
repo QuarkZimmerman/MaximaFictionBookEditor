@@ -116,9 +116,16 @@ TEST_CASE("dialogs: Open and Save As are the dialogs that offer FictionBook file
         json::array({{{"name", "FictionBook files (*.fb2)"}, {"extensions", {"fb2"}}},
                      {{"name", "FictionBook descriptors (*.fbd)"}, {"extensions", {"fbd"}}},
                      {{"name", "All files (*.*)"}, {"extensions", {"*"}}}});
-    CHECK(open_file_request_from_json(json{{"filters", document_filters}}).documentDialog);
-    CHECK(save_file_request_from_json(json{{"filters", document_filters}}).documentDialog);
+    // Feature 011 (D32): the role says it, not the filters - an export or an import offering
+    // FictionBook files (Export as FBD, Import description) keeps no folder.
+    CHECK_FALSE(open_file_request_from_json(json{{"filters", document_filters}}).documentDialog);
+    CHECK_FALSE(save_file_request_from_json(json{{"filters", document_filters}}).documentDialog);
+    CHECK(open_file_request_from_json(json{{"filters", document_filters}, {"role", "document"}})
+              .documentDialog);
+    CHECK(save_file_request_from_json(json{{"filters", document_filters}, {"role", "document"}})
+              .documentDialog);
     CHECK_FALSE(open_file_request_from_json(json{{"title", "Image"}}).documentDialog);
+    CHECK_FALSE(save_file_request_from_json(json{{"role", "export"}}).documentDialog);
 
     // The folder of a save dialog is the core's own (never read from the wire) and is recorded.
     SaveFileRequest save = save_file_request_from_json(json{{"folder", "/ignored"}});

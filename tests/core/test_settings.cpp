@@ -533,7 +533,8 @@ TEST_CASE("settings: a 0.0.2 settings file keeps every value; the new keys take 
     CHECK(s["session"]["tableDialog"] == settings::defaults()["session"]["tableDialog"]);
     CHECK(s["view"]["statusBarPanes"] == settings::defaults()["view"]["statusBarPanes"]);  // 009
     CHECK(s["other"]["keepBackup"] == true);                                               // 009
-    CHECK(s["view"].size() == 20);
+    CHECK(s["view"]["treeElements"] == json::object());                                    // 011
+    CHECK(s["view"].size() == 21);
     CHECK(s["other"].size() == 18);
     CHECK(s["session"].size() == 11);
 

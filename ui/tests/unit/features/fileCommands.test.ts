@@ -174,6 +174,8 @@ describe('file flows (T052)', () => {
         { name: 'All files (*.*)', extensions: ['*'] },
       ],
       selectedFilter: 0,
+      // Feature 011 (D32): Open keeps the folder it was left in.
+      role: 'document',
     });
     // The view a file opens in follows the rule of 0.0.3 (the active view is kept unless it is
     // the Source view); the remembered caret is placed in the Body controller without a view

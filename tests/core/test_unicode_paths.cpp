@@ -310,9 +310,9 @@ TEST_CASE(
                      {{"name", "All files (*.*)"}, {"extensions", {"*"}}}});
     f.result("test.enqueueDialog",
              json{{"method", "dialog.openFile"}, {"result", {{"paths", json::array()}}}});
-    f.result("dialog.openFile", json{{"title", "Open"}, {"filters", documents_types}});
+    f.result("dialog.openFile", json{{"title", "Open"}, {"filters", documents_types}, {"role", "document"}});
     f.result("test.enqueueDialog", json{{"method", "dialog.saveFile"}, {"result", json::object()}});
-    f.result("dialog.saveFile", json{{"title", "Save As"}, {"filters", documents_types}});
+    f.result("dialog.saveFile", json{{"title", "Save As"}, {"filters", documents_types}, {"role", "document"}});
     f.result("test.enqueueDialog",
              json{{"method", "dialog.openFile"}, {"result", {{"paths", json::array()}}}});
     f.result("dialog.openFile",
@@ -345,14 +345,14 @@ TEST_CASE(
     };
 
     answer("dialog.openFile", json{{"paths", {utf8(below(books, "книга.fb2"))}}});
-    f.result("dialog.openFile", json{{"title", "Open"}, {"filters", documents}});
+    f.result("dialog.openFile", json{{"title", "Open"}, {"filters", documents}, {"role", "document"}});
     // An image chosen elsewhere does not move the remembered folder.
     answer("dialog.openFile", json{{"paths", {utf8(below(f.base, "картинка.png"))}}});
     f.result("dialog.openFile", json{{"title", "Image"}, {"filters", images}});
     answer("dialog.openFile", json{{"paths", json::array()}});
-    f.result("dialog.openFile", json{{"title", "Open"}, {"filters", documents}});
+    f.result("dialog.openFile", json{{"title", "Open"}, {"filters", documents}, {"role", "document"}});
     answer("dialog.saveFile", json::object());  // Save As of a document never saved
-    f.result("dialog.saveFile", json{{"title", "Save As"}, {"filters", documents}});
+    f.result("dialog.saveFile", json{{"title", "Save As"}, {"filters", documents}, {"role", "document"}});
     answer("dialog.saveFile", json::object());  // Save image as: a name without a folder
     f.result("dialog.saveFile", json{{"title", "Save image"}, {"defaultPath", "обложка.jpg"}});
     // Save As of a saved document: its own folder; the chosen file's folder is remembered.
@@ -360,9 +360,10 @@ TEST_CASE(
     answer("dialog.saveFile", json{{"path", utf8(below(elsewhere, "копия.fb2"))}});
     f.result("dialog.saveFile", json{{"title", "Save As"},
                                      {"filters", documents},
+                                     {"role", "document"},
                                      {"defaultPath", utf8(below(books, "книга.fb2"))}});
     answer("dialog.openFile", json{{"paths", json::array()}});
-    f.result("dialog.openFile", json{{"title", "Open"}, {"filters", documents}});
+    f.result("dialog.openFile", json{{"title", "Open"}, {"filters", documents}, {"role", "document"}});
 
     const json requests = f.result("test.dialogRequests");
     REQUIRE(requests.size() == 7);

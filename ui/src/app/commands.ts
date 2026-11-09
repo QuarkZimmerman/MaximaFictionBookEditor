@@ -491,6 +491,8 @@ export async function saveDocument(
   if (options.saveAs || !path) {
     const choice = await rpc.call('dialog.saveFile', {
       title: ctx.t('cmd.file.saveAs.tooltip'),
+      // Feature 011 (D32): only Open and Save As keep the folder they were left in.
+      role: 'document',
       filters: fileFilters(ctx),
       // The document's own file, or the bare name composed from its description (feature 004
       // FR-050), as the full flow passes it.
@@ -620,6 +622,7 @@ export function createBuiltinCommands(): Command[] {
         const { paths } = await ctx.rpc!.call('dialog.openFile', {
           title: ctx.t('cmd.file.open.tooltip'),
           filters: fileFilters(ctx),
+          role: 'document',
         });
         if (paths.length > 0) await openDocument(ctx, paths[0]!);
       },
