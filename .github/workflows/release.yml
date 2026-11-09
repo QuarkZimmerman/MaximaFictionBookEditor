@@ -36,8 +36,6 @@ permissions:
   contents: write
 
 env:
-  # Feature 011 (D48): a Node deprecation warning fails the step that prints it.
-  NODE_OPTIONS: --throw-deprecation
   VCPKG_BINARY_SOURCES: "clear;files,${{ github.workspace }}/.vcpkg-cache,readwrite"
 
 jobs:

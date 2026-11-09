@@ -2,8 +2,9 @@
 # Feature 011 (D48, FR-087, SC-020): the warnings recorded at release 0.0.8 must not come back.
 #
 # Fails when a build log holds MSVC's C4611 (setjmp next to C++ objects with destructors) or GCC's
-# -Wmissing-field-initializers. Node's deprecation warnings are made fatal by the workflows'
-# NODE_OPTIONS=--throw-deprecation instead, so every Node step fails on its own.
+# -Wmissing-field-initializers. Node's deprecation warnings are not made fatal job-wide: a
+# job-level NODE_OPTIONS=--throw-deprecation also reached third-party actions (actions/setup-node
+# itself loads the deprecated punycode module) and stopped every job before it ran.
 #
 # Usage: tools/ci/warning-scan.sh <log> [<log> ...]
 set -euo pipefail
