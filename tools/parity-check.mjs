@@ -171,9 +171,18 @@ function walk(dir, out = []) {
  * Command ids defined in the UI. `stubOnly` are ids registered only through `stub(...)` in
  * `commands.ts` (disabled placeholders): a matrix row marked implemented must not rely on them.
  */
+/** The views of the `ViewId` type (`ui/src/rpc/types.ts`): the one list the `view.${view}` commands follow. */
+function viewIds() {
+  const types = readFileSync(path.join(UI_SRC, 'rpc', 'types.ts'), 'utf8');
+  const union = /export type ViewId =([^;]+);/.exec(types);
+  if (!union) throw new Error('parity-check: ViewId not found in ui/src/rpc/types.ts');
+  return [...union[1].matchAll(/'([a-z]+)'/g)].map((m) => m[1]);
+}
+
 export function scanCommands() {
   const defined = new Map(); // id -> Set(file:how)
   const stubs = new Set();
+  const views = viewIds();
   const definitionRe =
     /(?:\b(id|commandId)\s*:\s*|\b(stub|imageCommand|navCommand|toggleToolbar|opCommand)\(\s*)['"]([a-z]+\.[A-Za-z0-9]+)['"]/g;
   for (const file of walk(UI_SRC)) {
@@ -191,10 +200,10 @@ export function scanCommands() {
       if (!defined.has(id)) defined.set(id, new Set());
       defined.get(id).add(`${rel}:${m[1] ?? m[2]}`);
     }
-    // Template ids: `view.${view}` (description/body/source), `source.collapse${level}`,
+    // Template ids: `view.${view}` (every ViewId), `source.collapse${level}`,
     // `style.${name}` (inline marks) and the constants of the scripting catalogue.
     if (/`view\.\$\{view\}`/.test(text)) {
-      for (const view of ['description', 'body', 'source']) {
+      for (const view of views) {
         if (!defined.has(`view.${view}`)) defined.set(`view.${view}`, new Set());
         defined.get(`view.${view}`).add(`${rel}:template`);
       }

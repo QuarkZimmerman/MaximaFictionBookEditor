@@ -151,9 +151,30 @@ selects it; a right-click inside the selection keeps it.
 
 ## The Document tree
 
+The tree shows the book as FictionBook Editor did: rows for the bodies and sections, the book's
+Annotation and History, a section's annotation, pictures (in the text too), poems and their stanzas,
+subtitles (three blue stars) and tables with their header cells and cells. Titles, epigraphs and
+quotes have no rows at first; a row stands under the row of the nearest element above it that has
+one. A section's row is captioned with its title, a subtitle's and a cell's with their own text, a
+poem's, a quote's or an annotation's with their first words - one line, cut with "…" when long, the
+whole caption in the tooltip.
+
+The tree's own menu bar, above the rows, has *Elements* and *Scripts*. *Elements* ticks the kinds of
+rows to show - section, body, picture, annotation, history, poem, stanza, title, epigraph, quote,
+subtitle, table, header cell, cell -, each entry naming its FB2 element in its tooltip; a change shows
+at once, the Body view is untouched, and the choices are kept for the next start. The toolbar - Move
+Up, Move Down, Move Right, Move With Children, Move Left, Merge, Delete - is below the tree.
+
+Rows that hold stanzas, cells or what an annotation, a quote or an epigraph contains start closed;
+bodies and sections start open. `*` opens every row; when the caret moves into a closed row's element,
+its row opens.
+
 A click on a row - or the arrow keys, Enter, a double-click, *Go To* - brings its element to the
 top of the Body view with its heading in full; near the end of the book it goes as far up as the
-book allows. The tree keeps the focus.
+book allows. The tree keeps the focus. In the Source view a click or an arrow key shows the
+element's opening tag there and the focus stays in the tree; a double-click or Enter does the same
+and puts the focus into the Source view. Edits not yet applied stay as they are, and the Body view
+does not move.
 
 The tree's context menu has the entries of the clicked row's kind: for a section *Move Up* and
 *Move Down*, which swap it, with its subsections, with the section before or after it, *Move
@@ -161,7 +182,21 @@ Into*, *Move Out of*, *Merge With*, *Add ▸*, *Delete Section…* and *Scripts 
 *Change Picture…*, *Show Picture*, *Save Image As…* and *Delete Picture*; for a table *Table
 Properties…* and *Delete Table*; for a body *Delete Body…*. Each operation names the section it
 involves - *Move Into «Chapter 1»* - and its tooltip says the result. *Move Up* and *Move Down*
-are also on the tree's toolbar. The tree's scripts act on the clicked row.
+are also on the tree's toolbar. The tree's scripts act on the clicked row. A subtitle's and a stanza's
+menu have *Go To*, *Go To Source* and *Delete Subtitle* or *Delete Stanza* - greyed, with the reason,
+on a poem's only stanza -, a cell's *Go To* and *Go To Source*.
+
+### Tree scripts
+
+The tree bar's *Scripts* menu lists the tree scripts with their icons, then *Clean*. Choosing one runs
+it: the places it finds appear as rows of the tree, each in its place under the nearest row above it,
+with the script's icon and its caption; a click on such a row goes to its place. The book does not
+change, and the rows are never saved. They stay until *Clean*, the row's own *Clean* (its right-click
+menu also has *Go To* and *Go To Source*), the script's next run, or until their element is deleted;
+another book clears them. Choosing a script with Ctrl held first removes the other scripts' rows. The
+sample *Paragraphs Without a Full Stop* lists the paragraphs that contain no full stop. Tree scripts
+are script packages like the Scripts menu's, in the same folders (*Scripts > Open scripts folder*);
+the scripting guide (`docs/scripting/en.md`) says how to add or write one.
 
 ## Markdown files
 
@@ -197,6 +232,93 @@ closes only once the new one is ready, after the usual question about unsaved ch
 What could not come over as written - pictures not added, links to headings that do not exist,
 HTML tags left out, characters left out - is listed after the import; otherwise the status bar
 says what came in.
+
+### Exporting as Markdown
+
+*File > Export > Export as Markdown…* writes the book as one Markdown file; *Export as Markdown ZIP…*
+writes a ZIP archive holding the Markdown file and an `images` folder with the pictures as they are.
+For the one file, the save dialog asks whether to include the pictures (the box is ticked every
+time): they are embedded as JPEG pictures of at most 0.7 MB - a JPEG within that size as it is,
+others converted on white, their resolution reduced while too big. An export is a copy made once:
+it is no save, nothing remembers it (recent files, folders), and the book stays as it was.
+
+- A YAML header carries the description: `title`, `author`, `translator`, `genres`, `description`
+  (the annotation), `keywords`, `date`, `lang`, `src_lang`, `series` with `series_index`, `cover`,
+  the source book's, the document's and the publisher's information (`source`, `document`,
+  `publish`), the custom information (`custom`) and the stylesheets (`stylesheets`, and Pandoc's
+  `header-includes` for other tools). A title page follows: the cover, the book's title, its series
+  under it, the authors, a rule.
+- Sections become headings by their depth (at most six levels), notes footnotes, quotes, epigraphs
+  and annotations quotes, poems their lines with line breaks, subtitles bold lines, a subtitle of
+  stars a rule, an empty line a paragraph of a no-break space; strikethrough is `~~`, subscript and
+  superscript HTML. Tables are Markdown tables, or HTML tables when cells are merged.
+- Named styles stay as `<span class="…">`, with the look the stylesheet gives them imitated in
+  Markdown (italic, bold, strikethrough, code) for viewers that ignore the stylesheet.
+
+The export shows a progress bar with *Cancel*; a cancelled export writes no file, and the window
+waits for the export before it closes. What could not come over is listed. A one-file export larger
+than the 128 MB the import reads is noted: export it as a ZIP to import it again.
+
+Imported again, an exported file gives the book back: the description comes from the header, not
+from the title page, which is skipped with the cover; the stylesheets and named styles come back, the
+spans losing their imitated look. Markdown other tools wrote comes in too: Pandoc's `abstract`,
+`subject`, `publisher`, `identifier`, `cover-image` and `rights` fill their FB2 fields; CSS from
+`header-includes`, from local files the header's `css:` names and from `<style>` blocks is translated
+to the book's elements (`blockquote` becomes `cite`, `em` `emphasis`, headings `title`; classes and ids
+stay); spans and blocks with a class - `<span class>`, `<div class>`, `[text]{.x}`, `::: {.x}` - become
+named styles. A stylesheet on the web is never fetched; what the import could not use is listed.
+
+## The Styles view
+
+*View > Styles*, after the Source view, shows the book's stylesheets - each a group with its type, the
+first CSS one marked as the default - and their rules, one per selector. Selecting a rule shows its
+declarations in a CSS editor that completes the standard property names and, after a colon, the
+property's keywords; *Apply* (Ctrl+Enter) writes them into the rule. *Add selector…* adds a rule to
+the selected stylesheet, else to the default one - a book without a stylesheet gets one for its first
+selector -; *Rename…*, *Remove* and *New stylesheet* do what they say. Renaming a class that the text
+uses asks whether to rename its uses too.
+
+Only what works in an FB2 book is accepted: selectors made of FB2 elements and classes (`p`,
+`section > title`, `p.letter`, `.sign`) - "div > span" is refused because it matches nothing in an FB2
+book - and standard CSS properties with valid values - `-webkit-hyphens` and misspelt names are refused
+with the reason. A stylesheet of another type, or CSS the editor cannot read, is shown as read and kept
+exactly as it was. A property set differently by two stylesheets for the same selector is marked on
+both and reported by Validate. Each change is one Undo step; *Save* writes the stylesheets with the
+book.
+
+## Named styles
+
+*Style > Named Style ▸* lists the classes of the book's stylesheets by name. With text selected, the
+chosen style is put on the selected part of each paragraph; without a selection it becomes the style
+of the paragraph, verse, subtitle, text author, table or cell at the caret. *Remove Named Style* takes
+it away. The Body view's context menu offers the same submenu. The entries are greyed with the reason
+when the book defines no class or nothing at the caret can carry a style. In the Body view styled text
+looks like any text; Preview shows the styles.
+
+## Preview
+
+*View > Preview* (Shift+F5), its toolbar button beside Validate and the small button at the right of
+the status bar show the book as an e-book reader does - its stylesheets on top of a reader's usual
+look - over the whole window, opened at the caret's element (in the Source view at the selected one).
+It scrolls through the whole book; links jump and *Back* (Alt+Left) returns, a note reference opens
+the note in a small window. Nothing can be typed, pasted or dropped, and nothing is fetched from the
+web. Esc or *Close* returns to the editor exactly as it was. A long book shows "Rendering…" with
+*Cancel* while Preview builds.
+
+## Persons in the description
+
+An author, translator or document author whose fields are all empty is written as FictionBook Editor
+wrote it - an author with an empty first and last name -, so the book stays valid. Validate warns when
+no author of the book has a name or a nickname, and the Description view's message says what to fill
+in.
+
+## Regular expressions in Find and Replace
+
+With *Regular expression* ticked - in the Body view, the Source view and the description's fields -, a
+backslash before a character that is not a letter or a digit stands for that character itself, as in
+FictionBook Editor: `\—`, `\«` and `\-` find the dash, the quote and the hyphen. An expression that
+is not valid says why instead of "Cannot find the string". Every expression that worked before finds
+the same matches.
 
 ## Undo names
 
