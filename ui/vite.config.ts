@@ -73,6 +73,29 @@ export function isAiAssistantModule(id: string): boolean {
   return false;
 }
 
+// The EPUB import and export (feature 012, D32) are two lazy chunks, `epub-import` and
+// `epub-export`, each loaded by `import()` on its first use and never at start-up or with the
+// other. Folder rules again: everything under `src/features/epub/import/` and
+// `src/features/epub/export/`; the static entry (`src/features/epub/index.ts`) and the small shared
+// tables (`src/features/epub/shared/`) stay in the main bundle. `tests/unit/epub/chunk.test.ts`
+// checks the built output (guard G16).
+const epubImportFolder = fileURLToPath(
+  new URL('./src/features/epub/import/', import.meta.url),
+).replace(/\\/g, '/');
+const epubExportFolder = fileURLToPath(
+  new URL('./src/features/epub/export/', import.meta.url),
+).replace(/\\/g, '/');
+
+/** True for a module of the `epub-import` chunk (exported for the unit test of the rule). */
+export function isEpubImportModule(id: string): boolean {
+  return id.split('?')[0].replace(/\\/g, '/').startsWith(epubImportFolder);
+}
+
+/** True for a module of the `epub-export` chunk (exported for the unit test of the rule). */
+export function isEpubExportModule(id: string): boolean {
+  return id.split('?')[0].replace(/\\/g, '/').startsWith(epubExportFolder);
+}
+
 // Kept as a plain object (not a callback) so vitest.config.ts can merge it.
 export default defineConfig({
   plugins: [
@@ -133,6 +156,16 @@ export default defineConfig({
               test: isAiAssistantModule,
               // The matched modules only: their shared dependencies stay in the main bundle,
               // which the chunk imports (not the other way round).
+              includeDependenciesRecursively: false,
+            },
+            {
+              name: 'epub-import',
+              test: isEpubImportModule,
+              includeDependenciesRecursively: false,
+            },
+            {
+              name: 'epub-export',
+              test: isEpubExportModule,
               includeDependenciesRecursively: false,
             },
           ],
