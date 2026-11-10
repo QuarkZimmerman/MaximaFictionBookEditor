@@ -64,6 +64,7 @@
 #include <mfbe/atomic_file.hpp>
 #include <mfbe/document_details.hpp>
 #include <mfbe/encodings.hpp>
+#include <mfbe/epub.hpp>
 #include <mfbe/fb2_reader.hpp>
 #include <mfbe/fb2_writer.hpp>
 #include <mfbe/images.hpp>
@@ -371,11 +372,16 @@ ArchiveChoice choose_entry(const std::string& path, const std::optional<std::str
 }
 
 // Feature 009: the archive kinds the editor does not read are refused before any parsing.
+// Feature 012 (D14): so is an EPUB - a ZIP archive, but a book format Open does not take - before
+// it is searched for FB2 books; it comes in only through File > Import > EPUB File.
 void refuse_other_archives(const fs::path& file) {
     const archive::Kind kind = archive::detect_kind(file);
     if (archive::is_other_archive(kind)) {
         throw rpc::RpcError(rpc::codes::kArchiveUnsupported, "only ZIP archives are supported",
                             json{{"kind", archive::kind_name(kind)}});
+    }
+    if (kind == archive::Kind::zip && epub::is_epub(file)) {
+        throw not_fictionbook(platform::utf8_from_path(file), "epub");
     }
 }
 

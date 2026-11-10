@@ -78,6 +78,12 @@ inline constexpr int kCancelled = 1090;
 // {path, limit}.
 inline constexpr int kImportNotText = 1100;
 inline constexpr int kImportTooLarge = 1101;
+// Feature 012 (epub.*, contracts/rpc-api.md): an EPUB refused before anything of it is read -
+// {reason: epub.notZip | epub.noPackage | epub.protected | epub.tooLarge | epub.zipBomb |
+// epub.tooManyEntries | epub.encryptedZip, path}; an export's EPUB that cannot be written -
+// {reason: epub.badName | epub.targetIsSource | epub.unknownToken | epub.ioError, name?, path?}.
+inline constexpr int kEpubRefused = 1110;
+inline constexpr int kEpubWriteFailed = 1111;
 // Feature 005 (ai.*): the target cannot be resolved to a service the call may contact -
 // {reason: disabled | unknownService | emptyAddress | noModel | noAgreement, id?, service?}.
 inline constexpr int kAiNoService = 1200;

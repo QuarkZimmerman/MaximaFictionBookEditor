@@ -41,7 +41,9 @@ export type { BinaryMeta, Document, ValidationIssue, ValidationReport } from '@/
 export const RPC_API_VERSION = 1;
 /**
  * Additive contract revision within RPC_API_VERSION (`app.info().apiMinor`; absent = 0). The
- * revision this UI was written for (10 since feature 011: `export.markdown`, `styles.check`,
+ * revision this UI was written for (11 since feature 012: `epub.open`, `epub.close`, the
+ * `epub.write.*` methods, the binary routes `/epub/{token}/{entry}` and `/epub-write/{token}/{name}`,
+ * the errors `epubRefused` and `epubWriteFailed`; 10 since feature 011: `export.markdown`, `styles.check`,
  * the dialogs' `role`, the issue codes `description.emptyAuthor`,
  * `style.conflict` and `style.unreadable`, `test.slowJobs`; 9 since feature 010: `import.readMarkdown`, `template.xml`,
  * `doc.newFromXml`, `binary.add`'s `imagesOnly`, `BinaryMeta.transparent`, the models' `efforts`
@@ -61,7 +63,7 @@ export const RPC_API_VERSION = 1;
  * and requires >= 5 since feature 006 (`AI_REQUIRED_API_MINOR` in `ui/src/ai/index.ts`; 4
  * before).
  */
-export const RPC_API_MINOR = 10;
+export const RPC_API_MINOR = 11;
 
 /* ------------------------------------------------------------------------ */
 /* Error codes (rpc-api.md §1)                                              */
@@ -94,6 +96,14 @@ export const RpcErrorCode = {
   /** Feature 010: `import.readMarkdown` - the file is not text {path} / larger than it reads {path, limit}. */
   importNotText: 1100,
   importTooLarge: 1101,
+  /**
+   * Feature 012: `epub.open` refused the file {reason: `epub.notZip` | `epub.noPackage` |
+   * `epub.protected` | `epub.tooLarge` | `epub.zipBomb` | `epub.tooManyEntries` |
+   * `epub.encryptedZip`, path}; an export's EPUB could not be written {reason: `epub.badName` |
+   * `epub.targetIsSource` | `epub.unknownToken` | `epub.ioError`, name?, path?}.
+   */
+  epubRefused: 1110,
+  epubWriteFailed: 1111,
   spellDictionaryUnavailable: 1020,
   scriptNotFound: 1030,
   scriptInvalidManifest: 1031,
@@ -1043,6 +1053,19 @@ export type AiOutcome =
 export type ChatRequest = { messages: unknown[]; [member: string]: unknown };
 
 /** `ai.models`: the service's list normalised (`id` from `id` or `name`, strings as ids). */
+/** Feature 012: an EPUB opened for the import (`epub.open`, contracts/rpc-api.md §1). */
+export interface EpubSource {
+  token: string;
+  /** The package's version attribute: '2.0', '3.0', '3.1', ... ('' when absent). */
+  version: string;
+  packagePath: string;
+  protection: 'none' | 'fontObfuscation' | 'drm';
+  mimetypeFirst: boolean;
+  entries: { name: string; size: number; packed: number; method: number }[];
+  /** Names leading outside the container: never read, listed by the import. */
+  outside: string[];
+}
+
 /** Feature 010 (US8): a Markdown file read as text (`import.readMarkdown`). */
 export interface MarkdownText {
   text: string;
@@ -1306,6 +1329,18 @@ export interface RpcMethods {
   };
   /** Feature 010 (US8): the effective template's FB2 text, for the import's description. */
   'template.xml': { params: void; result: { xml: string } };
+  /** Feature 012 (contracts/rpc-api.md §1): opens an EPUB for the import; entries over `/epub/{token}/{entry}`. */
+  'epub.open': { params: { path: string }; result: EpubSource };
+  'epub.close': { params: { token: string }; result: Record<string, never> };
+  /** Feature 012 (§3): an EPUB being written; files over `PUT /epub-write/{token}/{name}`. */
+  'epub.write.begin': { params: { path: string; docId?: string }; result: { token: string } };
+  /** Feature 012 (§3): copies a book binary into the EPUB inside the core, byte for byte. */
+  'epub.write.binary': {
+    params: { token: string; name: string; docId: string; binaryId: string };
+    result: Record<string, never>;
+  };
+  'epub.write.commit': { params: { token: string }; result: { bytes: number } };
+  'epub.write.abort': { params: { token: string }; result: Record<string, never> };
   /** Feature 010 (US8): a new untitled, modified document from FB2 text, tied to no file. */
   'doc.newFromXml': {
     params: { xml: string; origin?: { kind: 'markdown'; path: string } };
