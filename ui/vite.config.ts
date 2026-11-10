@@ -76,15 +76,25 @@ export function isAiAssistantModule(id: string): boolean {
 // The EPUB import and export (feature 012, D32) are two lazy chunks, `epub-import` and
 // `epub-export`, each loaded by `import()` on its first use and never at start-up or with the
 // other. Folder rules again: everything under `src/features/epub/import/` and
-// `src/features/epub/export/`; the static entry (`src/features/epub/index.ts`) and the small shared
-// tables (`src/features/epub/shared/`) stay in the main bundle. `tests/unit/epub/chunk.test.ts`
-// checks the built output (guard G16).
+// `src/features/epub/export/`. The tables both parts read (`src/features/epub/shared/`) form a third
+// small chunk, `epub-shared`, loaded with whichever part needs it and never at start-up; without
+// it, rolldown names the export's dynamic import after a facade chunk (`job-*.js`) instead of the
+// part. The static entry (`src/features/epub/index.ts`) stays in the main bundle.
+// `tests/unit/epub/chunk.test.ts` checks the built output (guard G16).
 const epubImportFolder = fileURLToPath(
   new URL('./src/features/epub/import/', import.meta.url),
 ).replace(/\\/g, '/');
 const epubExportFolder = fileURLToPath(
   new URL('./src/features/epub/export/', import.meta.url),
 ).replace(/\\/g, '/');
+const epubSharedFolder = fileURLToPath(
+  new URL('./src/features/epub/shared/', import.meta.url),
+).replace(/\\/g, '/');
+
+/** True for a module of the `epub-shared` chunk (exported for the unit test of the rule). */
+export function isEpubSharedModule(id: string): boolean {
+  return id.split('?')[0].replace(/\\/g, '/').startsWith(epubSharedFolder);
+}
 
 /** True for a module of the `epub-import` chunk (exported for the unit test of the rule). */
 export function isEpubImportModule(id: string): boolean {
@@ -166,6 +176,11 @@ export default defineConfig({
             {
               name: 'epub-export',
               test: isEpubExportModule,
+              includeDependenciesRecursively: false,
+            },
+            {
+              name: 'epub-shared',
+              test: isEpubSharedModule,
               includeDependenciesRecursively: false,
             },
           ],

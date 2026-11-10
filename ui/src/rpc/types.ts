@@ -1336,8 +1336,9 @@ export interface RpcMethods {
   'epub.write.begin': { params: { path: string; docId?: string }; result: { token: string } };
   /** Feature 012 (§3): copies a book binary into the EPUB inside the core, byte for byte. */
   'epub.write.binary': {
-    params: { token: string; name: string; docId: string; binaryId: string };
-    result: Record<string, never>;
+    params: { token: string; stem: string; docId: string; binaryId: string };
+    /** The name is the stem with `.jpg` or `.png`; `converted` when the picture was not JPEG or PNG. */
+    result: { name: string; mediaType: 'image/jpeg' | 'image/png'; converted: boolean };
   };
   'epub.write.commit': { params: { token: string }; result: { bytes: number } };
   'epub.write.abort': { params: { token: string }; result: Record<string, never> };

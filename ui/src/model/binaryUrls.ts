@@ -153,3 +153,32 @@ export function binaryUploadUrl(
 export function displayableInEngine(contentType: string): boolean {
   return ENGINE_FORMATS.has(contentType.split(';')[0].trim().toLowerCase());
 }
+
+/** Feature 012: a path inside an EPUB, each segment percent-encoded and the "/" kept. */
+function entryPath(name: string): string {
+  return name.split('/').map(encodeURIComponent).join('/');
+}
+
+/**
+ * Feature 012 (contracts/rpc-api.md §2): the bytes of the entry `name` of the EPUB the import opened
+ * under `token` (`GET /epub/{token}/{entry}`).
+ */
+export function epubEntryUrl(
+  token: string,
+  name: string,
+  baseUrl: string = import.meta.env.BASE_URL ?? '/',
+): string {
+  return withToken(`${baseUrl}epub/${encodeURIComponent(token)}/${entryPath(name)}`, '?');
+}
+
+/**
+ * Feature 012 (contracts/rpc-api.md §3): the file `name` of the EPUB the export writes under `token`
+ * (`PUT /epub-write/{token}/{name}`, the bytes as the body).
+ */
+export function epubWriteUrl(
+  token: string,
+  name: string,
+  baseUrl: string = import.meta.env.BASE_URL ?? '/',
+): string {
+  return withToken(`${baseUrl}epub-write/${encodeURIComponent(token)}/${entryPath(name)}`, '?');
+}

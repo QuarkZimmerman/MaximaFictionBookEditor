@@ -347,9 +347,9 @@ jobs:
         run: |
           shopt -s nullglob
           books=(build/epub-export/*.epub)
-          if [ "${#books[@]}" -eq 0 ]; then
-            echo "no exported EPUB yet - the export journeys are not written"
-            exit 0
+          if [ "${#books[@]}" -lt 6 ]; then
+            echo "::error::the export journeys (us1-epub-export) wrote ${#books[@]} EPUBs, expected at least 6"
+            exit 1
           fi
           tools/ci/epubcheck.sh "${books[@]}"
       - name: Platform journeys (feature 004, SC-006 / SC-009; Windows and macOS)

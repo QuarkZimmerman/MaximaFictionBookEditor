@@ -22,6 +22,32 @@
     "openRefused": "{{path}} — книга EPUB. Команда Файл > Открыть открывает книги FictionBook (FB2), файлы FBD и архивы ZIP с книгами FB2; книга EPUB импортируется командой Файл > Импорт > Файл EPUB....",
     "importCaption": "Импорт EPUB",
     "exportCaption": "Экспорт в EPUB",
-    "notReady": "Эта часть поддержки EPUB ещё не готова."
+    "notReady": "Эта часть поддержки EPUB ещё не готова.",
+    "filter": "Книги EPUB (*.epub)",
+    "exporting": "Экспорт в EPUB…",
+    "exportDone": "Экспортировано в {{path}}: страниц {{pages}}, иллюстраций {{pictures}}, таблиц {{tables}}, примечаний {{notes}}.",
+    "exportCancelled": "Экспорт отменён; файл не записан.",
+    "exportFailed": "Файл EPUB {{path}} не записан:\n{{detail}}",
+    "exportSummaryIntro": "Не всё удалось перенести без изменений:",
+    "summaryMore": "… и ещё {{count}}",
+    "summary": {
+      "pictureLeftOut": "Иллюстрация не перенесена: {{detail}}",
+      "linkAsText": "Ссылка записана как текст: {{detail}}",
+      "cssDropped": "Часть таблицы стилей не перенесена: {{detail}}",
+      "stylesheetDropped": "Таблица стилей не на CSS не перенесена: {{detail}}",
+      "gapFilled": "Заполнено только в файле: {{detail}}",
+      "idMadeUnique": "Идентификатор встречается не один раз, в файле сделан уникальным: {{detail}}"
+    },
+    "gap": {
+      "title": "название книги",
+      "language": "язык книги (und)",
+      "identifier": "идентификатор книги"
+    },
+    "writeFailed": {
+      "badName": "Имя файла внутри EPUB недопустимо.",
+      "targetIsSource": "{{path}} — собственный файл книги; выберите другое имя.",
+      "unknownToken": "Экспорт потерял свой файл; повторите попытку.",
+      "ioError": "Не удалось записать файл."
+    }
   }
 }

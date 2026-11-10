@@ -22,6 +22,32 @@
     "openRefused": "{{path}} is an EPUB book. File > Open takes FictionBook (FB2) books, FBD files and ZIP archives holding FB2 books; an EPUB book is imported with File > Import > EPUB File....",
     "importCaption": "EPUB import",
     "exportCaption": "EPUB export",
-    "notReady": "This part of the EPUB support is still being built."
+    "notReady": "This part of the EPUB support is still being built.",
+    "filter": "EPUB books (*.epub)",
+    "exporting": "Exporting as EPUB…",
+    "exportDone": "Exported to {{path}}: {{pages}} pages, {{pictures}} pictures, {{tables}} tables, {{notes}} notes.",
+    "exportCancelled": "The export was cancelled; no file was written.",
+    "exportFailed": "The EPUB {{path}} was not written:\n{{detail}}",
+    "exportSummaryIntro": "Not everything was carried over as written:",
+    "summaryMore": "… and {{count}} more",
+    "summary": {
+      "pictureLeftOut": "Picture left out: {{detail}}",
+      "linkAsText": "Link written as text: {{detail}}",
+      "cssDropped": "Stylesheet part left out: {{detail}}",
+      "stylesheetDropped": "Stylesheet that is not CSS left out: {{detail}}",
+      "gapFilled": "Filled in the file only: {{detail}}",
+      "idMadeUnique": "Id used more than once, made unique in the file: {{detail}}"
+    },
+    "gap": {
+      "title": "the book's title",
+      "language": "the book's language (und)",
+      "identifier": "the book's identifier"
+    },
+    "writeFailed": {
+      "badName": "A file name inside the EPUB is not valid.",
+      "targetIsSource": "{{path}} is the book's own file; choose another name.",
+      "unknownToken": "The export lost its file; try again.",
+      "ioError": "The file could not be written."
+    }
   }
 }

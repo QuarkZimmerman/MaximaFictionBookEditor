@@ -11,7 +11,9 @@
 //   GET  /epub/{token}/{entry}         the entry's bytes (404 when not offered)
 //   epub.write.begin {path, docId?} -> {token}; 1111 {reason: epub.targetIsSource, path}
 //   PUT  /epub-write/{token}/{name}    adds a file (400 for a bad or duplicate name)
-//   epub.write.binary {token, name, docId, binaryId} -> {}; 1111 {reason: epub.badName, name}
+//   epub.write.binary {token, stem, docId, binaryId} -> {name, mediaType, converted}: JPEG and PNG
+//        byte for byte, other pictures converted as a save converts them (D12); the name is
+//        the stem with .jpg or .png; 1013 binaryNotImage {id}; 1111 {reason: epub.badName, name}
 //   epub.write.commit {token} -> {bytes}; 1111 {reason: epub.ioError, path}
 //   epub.write.abort {token} -> {}
 #include "server/loopback_server.hpp"
@@ -20,6 +22,7 @@
 #include <mfbe/archive.hpp>
 #include <mfbe/atomic_file.hpp>
 #include <mfbe/epub.hpp>
+#include <mfbe/images.hpp>
 #include <mfbe/rpc.hpp>
 #include <mfbe/utf8_paths.hpp>
 
@@ -221,7 +224,7 @@ void register_epub_handlers(rpc::RpcRouter& router, Services& services) {
 
     router.add_method("epub.write.binary", [&services](const json& params, rpc::RpcContext&) {
         const std::string token = rpc::params::string(params, "token");
-        const std::string name = rpc::params::string(params, "name");
+        const std::string stem = rpc::params::string(params, "stem");
         session::DocumentSession& s =
             services.documents.require(rpc::params::string(params, "docId"));
         const std::string id = rpc::params::string(params, "binaryId");
@@ -229,17 +232,27 @@ void register_epub_handlers(rpc::RpcRouter& router, Services& services) {
         if (!bytes) {
             throw rpc::RpcError(rpc::codes::kBinaryNotFound, "", json{{"id", id}});
         }
+        // D12: JPEG and PNG pass through byte for byte; any other picture is converted as the
+        // book's next save would convert it; data that is no decodable picture is left out.
+        std::string error;
+        auto picture = images::convert(*bytes, services.conversion_policy(), &error, false);
+        if (!picture) {
+            throw rpc::RpcError(rpc::codes::kBinaryNotImage, error, json{{"id", id}});
+        }
+        const bool png = picture->content_type == "image/png";
+        const std::string name = stem + (png ? ".png" : ".jpg");
+        const bool converted = picture->changed;
         std::lock_guard lock(services.epub.mutex);
         const auto it = services.epub.writers.find(token);
         if (it == services.epub.writers.end()) {
             throw write_failed("epub.unknownToken");
         }
         try {
-            it->second->add(name, std::string(*bytes));
+            it->second->add(name, converted ? std::move(picture->bytes) : std::string(*bytes));
         } catch (const std::invalid_argument&) {
             throw write_failed("epub.badName", json{{"name", name}});
         }
-        return json::object();
+        return json{{"name", name}, {"mediaType", picture->content_type}, {"converted", converted}};
     });
 
     router.add_method("epub.write.commit", [&services](const json& params, rpc::RpcContext&) {

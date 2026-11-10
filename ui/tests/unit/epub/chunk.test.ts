@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 
 import { build } from 'vite';
 
-import { isEpubExportModule, isEpubImportModule } from '../../../vite.config';
+import { isEpubExportModule, isEpubImportModule, isEpubSharedModule } from '../../../vite.config';
 
 const UI_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const EPUB = path.join(UI_ROOT, 'src', 'features', 'epub');
@@ -29,6 +29,9 @@ describe('the epub chunk rules', () => {
       expect(isEpubImportModule(path.join(EPUB, file)), file).toBe(false);
       expect(isEpubExportModule(path.join(EPUB, file)), file).toBe(false);
     }
+    // The tables both parts read form their own small chunk; the static entry stays in the main bundle.
+    expect(isEpubSharedModule(path.join(EPUB, 'shared', 'words.ts'))).toBe(true);
+    expect(isEpubSharedModule(path.join(EPUB, 'index.ts'))).toBe(false);
     // A query suffix and Windows separators do not change the answer.
     expect(isEpubImportModule(`${path.join(EPUB, 'import', 'job.ts')}?v=1`)).toBe(true);
     expect(isEpubExportModule(path.join(EPUB, 'export', 'job.ts').replace(/\//g, '\\'))).toBe(true);
@@ -73,6 +76,10 @@ describe('the production build', () => {
       // The page loads the main bundle only: no script tag and no modulepreload for the chunk.
       expect(html).not.toContain(`${part}-`);
     }
+    // The shared tables are never loaded at start-up either.
+    expect(indexSource).not.toMatch(/from\s*["'`]\.\/epub-shared-/);
+    expect(indexSource).not.toMatch(/import\s*["'`]\.\/epub-shared-/);
+    expect(html).not.toContain('epub-shared-');
     // Neither part loads the other (D32).
     expect(sources['epub-import']).not.toContain('epub-export-');
     expect(sources['epub-export']).not.toContain('epub-import-');
