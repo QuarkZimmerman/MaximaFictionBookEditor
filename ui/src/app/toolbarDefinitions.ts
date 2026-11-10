@@ -14,6 +14,9 @@ export const COMMANDS_TOOLBAR: readonly (string | null)[] = [
   'file.validate',
   // Feature 011 (US10): Preview beside Validate - both look at the whole book.
   'view.preview',
+  // Feature 012 (D35): Show Book Styles beside Preview; a customised layout gains it only through
+  // Customize or Reset.
+  'view.showBookStyles',
   null,
   'view.description',
   'view.body',

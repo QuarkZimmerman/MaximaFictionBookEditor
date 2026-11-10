@@ -309,6 +309,11 @@ export interface Settings {
     treeElements?: Record<string, boolean>;
     /** Feature 011 (D51): mark the elements that have an id (the Body view's tabs, the tree's badge). */
     showIds?: boolean;
+    /**
+     * Feature 012 (D36): the Body view draws the book's own stylesheets (View > Show Book Styles);
+     * default false. Absent from cores older than apiMinor 11.
+     */
+    showBookStyles?: boolean;
   };
   other: {
     defaultEncoding: string;

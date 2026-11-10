@@ -675,6 +675,11 @@
       "tooltip": "Preview",
       "description": "Show the book as a reader shows it"
     },
+    "view.showBookStyles": {
+      "label": "Show Boo&k Styles",
+      "tooltip": "Show book styles",
+      "description": "Draw the book's own stylesheets in the Body view while you edit; the editing marks stay on top"
+    },
     "view.showIds": {
       "label": "Show &Ids",
       "tooltip": "Show or hide the marks of the elements that have an id",
@@ -1392,6 +1397,11 @@
       "tooltip": "Просмотр",
       "description": "Показать книгу так, как её показывает читалка"
     },
+    "view.showBookStyles": {
+      "label": "Пока&зывать стили книги",
+      "tooltip": "Показывать стили книги",
+      "description": "Отображать собственные таблицы стилей книги в режиме «Дизайн» во время правки; отметки редактора остаются поверх"
+    },
     "view.showIds": {
       "label": "Показывать иденти&фикаторы",
       "tooltip": "Показать или скрыть отметки элементов с идентификатором",
@@ -2108,6 +2118,11 @@
       "label": "Пере&гляд",
       "tooltip": "Перегляд",
       "description": "Показати книгу так, як її показує читалка"
+    },
+    "view.showBookStyles": {
+      "label": "Пока&зувати стилі книги",
+      "tooltip": "Показувати стилі книги",
+      "description": "Відображати власні таблиці стилів книги в режимі «Тіло документа» під час редагування; позначки редактора лишаються поверх"
     },
     "view.showIds": {
       "label": "Показувати &ідентифікатори",

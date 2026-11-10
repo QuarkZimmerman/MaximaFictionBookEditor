@@ -1,0 +1,19 @@
+{
+  "$comment": "Show Book Styles (feature 012, US4): the View menu entry, its toolbar button and the reason it is unavailable. Feature catalogue merged into en.json by i18n/index.ts.",
+  "menu": {
+    "view": {
+      "showBookStyles": "Show Boo&k Styles"
+    }
+  },
+  "cmd": {
+    "view": {
+      "showBookStyles": {
+        "tooltip": "Show book styles",
+        "description": "Draw the book's own stylesheets in the Body view while you edit; the editing marks stay on top"
+      }
+    }
+  },
+  "bookStyles": {
+    "fastMode": "Fast mode is on"
+  }
+}

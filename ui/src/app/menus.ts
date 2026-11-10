@@ -183,6 +183,7 @@ export const MAIN_MENU: readonly MenuSpec[] = [
       cmd('view.preview'),
       sep,
       cmd('view.showIds'),
+      cmd('view.showBookStyles'),
       cmd('view.fastMode'),
     ],
   },

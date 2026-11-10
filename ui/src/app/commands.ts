@@ -800,6 +800,25 @@ export function createBuiltinCommands(): Command[] {
         void ctx.rpc?.call('settings.set', { patch: { view: { showIds } } }).catch(() => undefined);
       },
     },
+    // Feature 012 (D36, D39): the book's own stylesheets drawn in the Body view
+    // (`view.showBookStyles`, off by default). Fast mode wins: while it is on, the command is
+    // disabled with its reason and keeps its check mark, and the styles are not drawn.
+    {
+      id: 'view.showBookStyles',
+      group: 'view',
+      icon: 'book-styles',
+      ...cmdKeys('view.showBookStyles', 'menu.view.showBookStyles'),
+      checked: (ctx) => ctx.store.getState().settings?.view?.showBookStyles === true,
+      enabled: (ctx) => !ctx.store.getState().fastMode,
+      unavailableReason: (ctx) =>
+        ctx.store.getState().fastMode ? ctx.t('bookStyles.fastMode') : null,
+      run(ctx) {
+        const showBookStyles = ctx.store.getState().settings?.view?.showBookStyles !== true;
+        void ctx.rpc
+          ?.call('settings.set', { patch: { view: { showBookStyles } } })
+          .catch(() => undefined);
+      },
+    },
     {
       id: 'view.fastMode',
       group: 'view',

@@ -105,6 +105,8 @@ const std::vector<Field>& schema() {
         field("view.treeElements", Kind::bool_map),
         // Whether the Body view and the tree mark elements that have an id (feature 011, D51).
         field("view.showIds", Kind::boolean),
+        // Feature 012 (D36, DP-17): whether the Body view draws the book's own stylesheets.
+        field("view.showBookStyles", Kind::boolean),
         enumeration("other.defaultEncoding", supported_encodings()),
         field("other.keepEncoding", Kind::boolean),
         // A backup of the previous version beside the saved file (feature 009, FR-006).
@@ -599,7 +601,8 @@ json defaults() {
           {"statusBarPanes", json::array({"path", "position", "selection", "character", "encoding",
                                           "validity", "insmode"})},
           {"treeElements", json::object()},
-          {"showIds", true}}},
+          {"showIds", true},
+          {"showBookStyles", false}}},
         {"other",
          {{"defaultEncoding", "utf-8"},
           {"keepEncoding", false},

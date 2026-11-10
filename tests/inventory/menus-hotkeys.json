@@ -119,6 +119,7 @@
         "view.preview",
         "---",
         "view.showIds",
+        "view.showBookStyles",
         "view.fastMode"
       ]
     },
