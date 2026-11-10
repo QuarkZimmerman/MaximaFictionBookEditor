@@ -1332,6 +1332,16 @@ export interface RpcMethods {
   /** Feature 012 (contracts/rpc-api.md §1): opens an EPUB for the import; entries over `/epub/{token}/{entry}`. */
   'epub.open': { params: { path: string }; result: EpubSource };
   'epub.close': { params: { token: string }; result: Record<string, never> };
+  /**
+   * Feature 012 (§1, D23): a picture of the opened EPUB put into the document's binaries inside the
+   * core - JPEG and PNG as they are, GIF/WebP/BMP/TIFF converted (PNG when transparent or of 256
+   * colours or fewer, else JPEG). 1110 `epub.pictureTooLarge` past 100 megapixels; 1013
+   * `binaryNotImage` for what the core does not decode (AVIF, JPEG XL, SVG).
+   */
+  'epub.picture': {
+    params: { token: string; entry: string; docId: string; suggestedId: string };
+    result: { binary: BinaryMeta; from: string; converted: boolean };
+  };
   /** Feature 012 (§3): an EPUB being written; files over `PUT /epub-write/{token}/{name}`. */
   'epub.write.begin': { params: { path: string; docId?: string }; result: { token: string } };
   /** Feature 012 (§3): copies a book binary into the EPUB inside the core, byte for byte. */

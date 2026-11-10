@@ -78,9 +78,8 @@ bool leads_outside(const std::string& name) {
 }
 
 const Entry* find_entry(const Source& source, const std::string& name) {
-    const auto it = std::find_if(source.entries.begin(), source.entries.end(),
-                                 [&](const Entry& e) { return e.name == name; });
-    return it == source.entries.end() ? nullptr : &*it;
+    const auto it = source.index.find(name);
+    return it == source.index.end() ? nullptr : &source.entries[it->second];
 }
 
 std::string lower_ascii(std::string text) {
@@ -161,7 +160,9 @@ Source open(const fs::path& path, const Limits& limits) {
             source.outside.push_back(e.name);
             continue;
         }
+        source.index.emplace(e.name, source.entries.size());
         source.entries.push_back({e.name, e.size, e.compressed, e.method});
+        source.records.push_back(e);
     }
     if (unpacked > limits.max_unpacked_bytes) {
         throw Refused(Refusal::zip_bomb, "the archive unpacks beyond the size limit");
@@ -221,15 +222,20 @@ Source open(const fs::path& path, const Limits& limits) {
 
 std::string read(const Source& source, const std::string& entry, const Limits& limits) {
     (void)limits;
-    const Entry* found = find_entry(source, entry);
-    if (found == nullptr) {
+    const auto it = source.index.find(entry);
+    if (it == source.index.end()) {
         throw std::out_of_range("the EPUB offers no entry " + entry);
     }
-    std::string bytes = archive::read_entry(source.path, entry);
-    if (bytes.size() > found->size) {
-        throw Refused(Refusal::zip_bomb, "an entry unpacks beyond its declared size: " + entry);
+    try {
+        // Read at its own offset: an import reads every page, and a read by name walks the
+        // archive each time (a 10,000-page book took minutes).
+        return archive::read_entry_at(source.path, source.records[it->second]);
+    } catch (const archive::ArchiveError& e) {
+        if (e.reason == archive::Reason::too_large) {
+            throw Refused(Refusal::zip_bomb, "an entry unpacks beyond its declared size: " + entry);
+        }
+        throw;
     }
-    return bytes;
 }
 
 bool is_epub(const fs::path& path) {

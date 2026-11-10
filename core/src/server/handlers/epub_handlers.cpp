@@ -8,6 +8,11 @@
 //                        entries: [{name, size, packed, method}], outside: [name]}
 //        1110 epub refused {reason, path}
 //   epub.close {token} -> {}
+//   epub.picture {token, entry, docId, suggestedId} -> {binary, from, converted}: a picture of the
+//        EPUB put into the document's binaries (JPEG and PNG byte for byte, GIF/WebP/BMP/TIFF to
+//        PNG when transparent or of 256 colours or fewer, else JPEG; D23); 1110
+//        epub.pictureTooLarge past 100 megapixels (D29); 1013 binaryNotImage {entry, contentType}
+//        for the rest
 //   GET  /epub/{token}/{entry}         the entry's bytes (404 when not offered)
 //   epub.write.begin {path, docId?} -> {token}; 1111 {reason: epub.targetIsSource, path}
 //   PUT  /epub-write/{token}/{name}    adds a file (400 for a bad or duplicate name)
@@ -21,11 +26,15 @@
 
 #include <mfbe/archive.hpp>
 #include <mfbe/atomic_file.hpp>
+#include <mfbe/binary_store.hpp>
 #include <mfbe/epub.hpp>
+#include <mfbe/image_probe.hpp>
 #include <mfbe/images.hpp>
+#include <mfbe/json_codec.hpp>
 #include <mfbe/rpc.hpp>
 #include <mfbe/utf8_paths.hpp>
 
+#include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <random>
@@ -47,6 +56,14 @@ std::string new_token() {
         token.push_back(kHex[rd() & 0x0F]);
     }
     return token;
+}
+
+// D29: a picture of more pixels than this is not read (a 100-megapixel RGBA bitmap is 400 MB).
+constexpr std::uint64_t kMaxPicturePixels = 100'000'000;
+
+rpc::RpcError refused(const std::string& reason, json data = json::object()) {
+    data["reason"] = reason;
+    return rpc::RpcError(rpc::codes::kEpubRefused, "", std::move(data));
 }
 
 rpc::RpcError write_failed(const std::string& reason, json data = json::object()) {
@@ -205,6 +222,63 @@ void register_epub_handlers(rpc::RpcRouter& router, Services& services) {
         std::lock_guard lock(services.epub.mutex);
         services.epub.sources.erase(rpc::params::string(params, "token"));
         return json::object();
+    });
+
+    router.add_method("epub.picture", [&services](const json& params, rpc::RpcContext&) {
+        const std::string token = rpc::params::string(params, "token");
+        const std::string entry = rpc::params::string(params, "entry");
+        const std::string suggested = rpc::params::opt_string(params, "suggestedId").value_or("");
+        session::DocumentSession& s =
+            services.documents.require(rpc::params::string(params, "docId"));
+        std::string bytes;
+        {
+            std::lock_guard lock(services.epub.mutex);
+            const auto it = services.epub.sources.find(token);
+            if (it == services.epub.sources.end()) {
+                throw refused("epub.unknownToken", json{{"entry", entry}});
+            }
+            try {
+                bytes = epub::read(it->second, entry);
+            } catch (const std::out_of_range&) {
+                throw refused("epub.noEntry", json{{"entry", entry}});
+            } catch (const epub::Refused& e) {
+                throw refused(epub::refusal_name(e.reason), json{{"entry", entry}});
+            } catch (const archive::ArchiveError& e) {
+                throw refused(archive::reason_name(e.reason), json{{"entry", entry}});
+            }
+        }
+        // D29: the pixels are counted from the headers, before anything is decoded.
+        const images::Probe probe = images::probe(bytes);
+        const std::uint64_t pixels = static_cast<std::uint64_t>(probe.width.value_or(0)) *
+                                     static_cast<std::uint64_t>(probe.height.value_or(0));
+        if (pixels > kMaxPicturePixels) {
+            throw refused("epub.pictureTooLarge", json{{"entry", entry}, {"pixels", pixels}});
+        }
+        if (!probe.decodable) {
+            throw rpc::RpcError(rpc::codes::kBinaryNotImage, "",
+                                json{{"entry", entry}, {"contentType", probe.contentType}});
+        }
+        // D23: JPEG and PNG byte for byte; the rest PNG when transparent or of few colours, else
+        // JPEG at the quality from settings - whatever the paste format setting says.
+        images::ConversionPolicy policy = services.conversion_policy();
+        policy.preferred = images::Format::jpeg;
+        policy.png_when_alpha = true;
+        policy.png_when_few_colours = true;
+        std::string error;
+        auto picture = images::convert(bytes, policy, &error, false);
+        if (!picture) {
+            throw rpc::RpcError(rpc::codes::kBinaryNotImage, error,
+                                json{{"entry", entry}, {"contentType", probe.contentType}});
+        }
+        const std::string id = s.binaries->unique_id(suggested.empty() ? "picture" : suggested);
+        const model::BinaryMeta meta =
+            s.binaries->put(id, picture->content_type, std::move(picture->bytes));
+        if (s.snapshot) {
+            sync_binaries(*s.snapshot, *s.binaries);
+        }
+        return json{{"binary", model::to_json(meta)},
+                    {"from", probe.contentType},
+                    {"converted", picture->changed}};
     });
 
     router.add_method("epub.write.begin", [&services](const json& params, rpc::RpcContext&) {

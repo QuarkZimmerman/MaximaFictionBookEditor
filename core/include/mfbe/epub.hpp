@@ -8,11 +8,14 @@
 // R3).
 #pragma once
 
+#include <mfbe/archive.hpp>
+
 #include <cstdint>
 #include <filesystem>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -66,6 +69,10 @@ struct Source {
     bool mimetype_first = false;
     std::vector<Entry> entries;        // the readable entries, in the archive's order
     std::vector<std::string> outside;  // names leading outside the container: never read
+    // The central directory's record of each entry of `entries`, in the same order, and the first
+    // entry of each name: an entry is read at its own offset, without walking the archive.
+    std::vector<archive::Entry> records;
+    std::unordered_map<std::string, std::size_t> index;
 };
 
 // Opens an EPUB for reading. Throws Refused.
