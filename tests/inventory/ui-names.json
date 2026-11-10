@@ -110,6 +110,11 @@
       "tooltip": "Exit",
       "description": "Quit the application; prompts to save documents"
     },
+    "file.exportEpub": {
+      "label": "Export as EP&UB...",
+      "tooltip": "Export as EPUB",
+      "description": "Write the book as a valid EPUB 3.3 file that older reading devices can open too"
+    },
     "file.exportFbd": {
       "label": "Export as &FBD...",
       "tooltip": "Export as FBD",
@@ -129,6 +134,11 @@
       "label": "&Description from FictionBook file...",
       "tooltip": "Import description",
       "description": "Import the description of another FictionBook file into this document"
+    },
+    "file.importEpub": {
+      "label": "E&PUB File...",
+      "tooltip": "Import EPUB",
+      "description": "Make a new book from an EPUB book of any version up to 3.3: its chapters, notes and pictures come along, best effort"
     },
     "file.importMarkdown": {
       "label": "&Markdown File...",
@@ -817,6 +827,11 @@
       "tooltip": "Выход",
       "description": "Закрыть программу; будет предложено сохранить документ перед закрытием"
     },
+    "file.exportEpub": {
+      "label": "Экспорт в EP&UB...",
+      "tooltip": "Экспорт в EPUB",
+      "description": "Записать книгу корректным файлом EPUB 3.3, который откроют и старые устройства чтения"
+    },
     "file.exportFbd": {
       "label": "Экспорт в &FBD...",
       "tooltip": "Экспорт в FBD",
@@ -836,6 +851,11 @@
       "label": "Опис&ание из файла FictionBook...",
       "tooltip": "Импорт описания",
       "description": "Импортировать описание из другого файла FictionBook в этот документ"
+    },
+    "file.importEpub": {
+      "label": "Файл E&PUB...",
+      "tooltip": "Импорт EPUB",
+      "description": "Создать новую книгу из книги EPUB любой версии до 3.3: главы, примечания и иллюстрации переносятся, насколько это возможно"
     },
     "file.importMarkdown": {
       "label": "Файл &Markdown...",
@@ -1524,6 +1544,11 @@
       "tooltip": "Вийти",
       "description": "Закрити програму; перед закриттям буде запропоновано зберегти документ"
     },
+    "file.exportEpub": {
+      "label": "Експорт у EP&UB...",
+      "tooltip": "Експорт у EPUB",
+      "description": "Записати книгу коректним файлом EPUB 3.3, який відкриють і старі пристрої для читання"
+    },
     "file.exportFbd": {
       "label": "Експорт у &FBD...",
       "tooltip": "Експорт у FBD",
@@ -1543,6 +1568,11 @@
       "label": "Оп&ис із файлу FictionBook...",
       "tooltip": "Імпорт опису",
       "description": "Імпортувати опис з іншого файлу FictionBook у цей документ"
+    },
+    "file.importEpub": {
+      "label": "Файл E&PUB...",
+      "tooltip": "Імпорт EPUB",
+      "description": "Створити нову книгу з книги EPUB будь-якої версії до 3.3: розділи, примітки та ілюстрації переносяться, наскільки це можливо"
     },
     "file.importMarkdown": {
       "label": "Файл &Markdown...",

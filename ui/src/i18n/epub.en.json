@@ -1,0 +1,27 @@
+{
+  "$comment": "EPUB import and export (feature 012): the File > Import and File > Export entries, File > Open's refusal of an EPUB, the import's and the export's messages, progress and summaries. Feature catalogue merged into en.json by i18n/index.ts.",
+  "menu": {
+    "file": {
+      "importEpub": "E&PUB File...",
+      "exportEpub": "Export as EP&UB..."
+    }
+  },
+  "cmd": {
+    "file": {
+      "importEpub": {
+        "tooltip": "Import EPUB",
+        "description": "Make a new book from an EPUB book of any version up to 3.3: its chapters, notes and pictures come along, best effort"
+      },
+      "exportEpub": {
+        "tooltip": "Export as EPUB",
+        "description": "Write the book as a valid EPUB 3.3 file that older reading devices can open too"
+      }
+    }
+  },
+  "epub": {
+    "openRefused": "{{path}} is an EPUB book. File > Open takes FictionBook (FB2) books, FBD files and ZIP archives holding FB2 books; an EPUB book is imported with File > Import > EPUB File....",
+    "importCaption": "EPUB import",
+    "exportCaption": "EPUB export",
+    "notReady": "This part of the EPUB support is still being built."
+  }
+}
