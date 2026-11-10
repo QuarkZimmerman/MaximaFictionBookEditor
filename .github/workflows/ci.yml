@@ -333,6 +333,25 @@ jobs:
           # Test 7 of the layout journey of pictures in table cells attaches its four contact
           # sheets to the report (feature 006, research R9.6; evidence, never compared).
           MFBE_E2E_TABLE_SHOTS: "1"
+      # Feature 012 (D4, FR-081, SC-001): every EPUB the export journeys wrote passes EPUBCheck
+      # 5.4.0 with no fatal error, no error and no warning (tools/ci/epubcheck.sh pins the release
+      # and its SHA-256). setup-java is pinned to a release older than seven days.
+      - if: runner.os == 'Linux'
+        uses: actions/setup-java@v6.1.0
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: EPUBCheck over the exported reference books (feature 012)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          shopt -s nullglob
+          books=(build/epub-export/*.epub)
+          if [ "${#books[@]}" -eq 0 ]; then
+            echo "no exported EPUB yet - the export journeys are not written"
+            exit 0
+          fi
+          tools/ci/epubcheck.sh "${books[@]}"
       - name: Platform journeys (feature 004, SC-006 / SC-009; Windows and macOS)
         # Only the journeys tagged `@platform`; `--pass-with-no-tests` keeps the leg green on
         # a branch that has not written one yet. The hooks core of this system comes from the
