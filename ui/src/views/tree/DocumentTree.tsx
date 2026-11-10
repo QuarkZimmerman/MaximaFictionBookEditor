@@ -16,27 +16,54 @@
  * irregular tables without rows of their own (a cite, an annotation, an epigraph, the Annotation
  * and History blocks) one "Contains an irregular table: …" line per table. The mark is not
  * interactive: a click selects the row and reveals the table, whose own mark offers the popover.
+ *
+ * Feature 011 (US2; D33-D39, FR-010-FR-016; contracts/tree.md §5): the pane is the original's -
+ * the caption, the menu bar (*Elements*, *Scripts*), the tree, the toolbar at the bottom; the rows
+ * follow the *Elements* choices (`view.treeElements`); rows that hold stanzas, cells or what an
+ * annotation, a quote or an epigraph contains start closed (FR-013a), `*` opens every row.
+ *
+ * Feature 011 (US11, D41): the tree bar's *Scripts* runs the `treeRows` scripts - Ctrl+choosing one
+ * clears the other scripts' rows first - and *Clean* removes every script row; the rows they show
+ * stand in their places with the script's icon (`scriptRows.ts`), a click goes to their element.
  */
 
 import type { TFunction } from 'i18next';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { commandDescription, commandTooltip } from '@/app/commands';
+import type { PopupMenuItem } from '@/app/PopupMenu';
 import { useAppRevision, useAppServices, useCommandContext } from '@/app/services';
 import { tableProblemsText } from '@/editor/table/problems';
 import { bodyController } from '@/features/editing/common';
 import { describeTableMark } from '@/features/tables/marks';
-import { getTreeFeature, revealInBody, treeOpCommandId } from '@/features/tree';
+import { getTreeFeature, goToRowInSource, revealInBody, treeOpCommandId } from '@/features/tree';
 import { useAppState } from '@/model/store';
+import { getScriptsFeature } from '@/scripting/catalog';
+import { scriptName } from '@/scripting/host';
+import { scriptIconUrl } from '@/scripting/icons';
+import type { ScriptInfo } from '@/scripting/types';
 
+import { ROW_KIND_INFO, shownEntries } from './elementKinds';
+import { getScriptRows, isScriptRowId, nodeIdOfRow, scriptRowId } from './scriptRows';
 import { TreeContextMenu } from './TreeContextMenu';
+import { TreeMenuBar } from './TreeMenuBar';
 import {
+  addScriptRows,
   ancestorRows,
   buildTreeIndex,
   isRowWithin,
   ROW_ICONS,
+  rowForNode,
   rowForSelection,
   TREE_ROW_HEIGHT,
   TREE_TOOLBAR,
@@ -48,6 +75,7 @@ import {
 import './tree.css';
 
 const OVERSCAN = 8;
+const NO_SUBSCRIPTION = () => () => undefined;
 const DEFAULT_VIEWPORT = 600;
 
 /** The texts of a row's mark: its accessible name and its tooltip. */
@@ -81,6 +109,7 @@ function rowMark(row: TreeRow, t: TFunction): RowMark | null {
 
 export function DocumentTree() {
   const { t } = useTranslation();
+  const idTitle = useCallback((id: string) => t('tree.idBadge', { id }), [t]);
   const services = useAppServices();
   const { store } = services;
   const ctx = useCommandContext();
@@ -90,6 +119,10 @@ export function DocumentTree() {
   const selectionNodeId = useAppState((s) => s.selectionNodeId, store);
   const selectionPath = useAppState((s) => s.selectionPath, store);
   const sourceDirty = useAppState((s) => s.sourceDirty || s.sourceOnly, store);
+  const docId = useAppState((s) => s.docId, store);
+  const activeView = useAppState((s) => s.activeView, store);
+  const treeElements = useAppState((s) => s.settings?.view.treeElements, store);
+  const shown = useMemo(() => shownEntries(treeElements), [treeElements]);
   const feature = getTreeFeature(store);
   const panel = useSyncExternalStore(feature.subscribe, feature.getState);
   const { selection, collapsed } = panel;
@@ -99,7 +132,27 @@ export function DocumentTree() {
     () => ({ annotation: t('tree.node.annotation'), history: t('tree.node.history') }),
     [t],
   );
-  const index = useMemo(() => buildTreeIndex(document, captions), [document, captions]);
+  // Feature 011: the tree has a row for every cell, stanza and subtitle, so its rows follow an
+  // edit in a render of their own, after the edit has shown - a large book's edit never waits
+  // for the tree (React's deferred value: the urgent render first, this one interruptible).
+  const treeDocument = useDeferredValue(document);
+  const baseIndex = useMemo(
+    () => buildTreeIndex(treeDocument, captions, shown),
+    [treeDocument, captions, shown],
+  );
+  // Feature 011 (US11): the rows tree scripts show, in their places.
+  const scriptRows = getScriptRows(store);
+  const scriptSets = useSyncExternalStore(scriptRows.subscribe, scriptRows.getState);
+  const index = useMemo(
+    () => addScriptRows(baseIndex, treeDocument, scriptSets.values(), scriptRowId),
+    [baseIndex, treeDocument, scriptSets],
+  );
+  const scriptsFeature = getScriptsFeature(store);
+  useSyncExternalStore(
+    scriptsFeature?.subscribe ?? NO_SUBSCRIPTION,
+    () => scriptsFeature?.groups ?? null,
+  );
+  const language = useAppState((s) => s.uiLanguage, store);
   const rows = useMemo(() => visibleRows(index, collapsed), [index, collapsed]);
   const selectedId = selection.id && index.rows.has(selection.id) ? selection.id : null;
 
@@ -134,6 +187,40 @@ export function DocumentTree() {
     return () => observer.disconnect();
   }, []);
 
+  /* ---------------------------------------------------- rows that start closed */
+
+  // Feature 011 (FR-013a): a row of a kind that starts closed is collapsed when it first appears
+  // in the document's tree; what the user opens or closes afterwards stays as he left it.
+  const seenRows = useRef<{ docId: string | null; ids: Set<string> }>({
+    docId: null,
+    ids: new Set(),
+  });
+  useEffect(() => {
+    const seen = seenRows.current;
+    if (seen.docId !== docId) {
+      seen.docId = docId;
+      seen.ids = new Set();
+    }
+    const closing: string[] = [];
+    for (const id of index.order) {
+      if (seen.ids.has(id)) continue;
+      seen.ids.add(id);
+      const row = index.rows.get(id);
+      if (row && row.childIds.length > 0 && ROW_KIND_INFO[row.kind].startsClosed) closing.push(id);
+    }
+    if (closing.length > 0) feature.collapseRows(closing);
+  }, [index, docId, feature]);
+
+  // Feature 011 (US2 scenario 5): when the selected row's kind is unticked, the selection moves
+  // to the row that now stands for its element (the nearest shown one above it).
+  useEffect(() => {
+    const id = feature.getState().selection.id;
+    if (!id || index.rows.has(id) || !document) return;
+    // A script row that went (Clean, its node deleted): the row of its element instead.
+    const up = rowForNode(index, document, nodeIdOfRow(id));
+    if (up) feature.select(up, 'tree');
+  }, [index, document, feature]);
+
   /* --------------------------------------------------------- Body -> tree */
 
   useEffect(() => {
@@ -141,7 +228,13 @@ export function DocumentTree() {
     const rowId = rowForSelection(index, document, selectionNodeId, selectionPath);
     if (!rowId) return;
     const pending = feature.takePendingNavigation();
-    if (pending && (rowId === pending || isRowWithin(index, rowId, pending))) {
+    if (
+      pending &&
+      (rowId === pending ||
+        isRowWithin(index, rowId, pending) ||
+        // A script row stands for its element, whose own row the Body names.
+        (isScriptRowId(pending) && rowId === rowForNode(index, document, nodeIdOfRow(pending))))
+    ) {
       // Echo of a navigation started from the tree: keep the clicked row selected.
       return;
     }
@@ -172,12 +265,70 @@ export function DocumentTree() {
       feature.markNavigation(rowId);
       feature.select(rowId, 'tree');
       if (scroll) scrollToSelected.current = true;
+      // Feature 011 (US4, D9): in the Source view the row goes to its element there.
+      if (activeView === 'source') {
+        goToRowInSource(store, rowId, false);
+        return;
+      }
       if (sourceDirty) return;
       const controller = bodyController(store);
-      if (controller) revealInBody(controller, rowId);
+      if (controller) revealInBody(controller, nodeIdOfRow(rowId));
     },
-    [feature, sourceDirty, store],
+    [feature, sourceDirty, store, activeView],
   );
+
+  /* -------------------------------------------------------- tree scripts */
+
+  // Feature 011 (US11; contracts/tree.md §5): a script's next run replaces its rows; Ctrl+choosing
+  // it first clears the other scripts' rows.
+  const runTreeRowsScript = useCallback(
+    (script: ScriptInfo, ctrl: boolean) => {
+      if (!scriptsFeature) return;
+      if (ctrl) scriptRows.clearOthers(script.id);
+      scriptRows.clear(script.id);
+      void scriptsFeature.runScript(script, ctx);
+    },
+    [ctx, scriptRows, scriptsFeature],
+  );
+  const treeRowScripts = scriptsFeature?.treeRowScripts() ?? [];
+  const scriptItems: PopupMenuItem[] = [
+    ...(treeRowScripts.length > 0
+      ? treeRowScripts.map((script): PopupMenuItem => {
+          const icon = scriptIconUrl(script);
+          const enabled = scriptsFeature!.canRun(script, ctx);
+          return {
+            id: `script-${script.id}`,
+            // A literal "&" of a script's name is no access letter.
+            label: scriptName(script, language).replace(/&/g, '&&'),
+            ...(icon ? { icon: { url: icon } } : {}),
+            tooltip:
+              script.description?.[language] ??
+              script.description?.en ??
+              scriptName(script, language),
+            enabled,
+            title: t('tree.scripts.cannotRun'),
+            run: (how) => runTreeRowsScript(script, how?.ctrl ?? false),
+          };
+        })
+      : [{ id: 'none', label: t('tree.scripts.none'), enabled: false, run: () => undefined }]),
+    'separator',
+    {
+      id: 'clean',
+      label: t('tree.scripts.clean'),
+      tooltip: t('tree.scripts.cleanTip'),
+      enabled: scriptSets.size > 0,
+      title: t('tree.scripts.nothingToClean'),
+      run: () => scriptRows.clear(),
+    },
+  ];
+
+  // Double-click and Enter: the Body view's View, or - in the Source view - the element there with
+  // the focus in the Source view (feature 011, D10).
+  const activate = useCallback(() => {
+    const id = feature.getState().selection.id;
+    if (activeView === 'source' && id) goToRowInSource(store, id, true);
+    else void services.commands.execute('tree.view', ctx);
+  }, [activeView, feature, store, services.commands, ctx]);
 
   const runCommand = useCallback(
     (id: string) => {
@@ -235,7 +386,7 @@ export function DocumentTree() {
       }
       case 'Enter':
         event.preventDefault();
-        if (selectedId) runCommand('tree.view');
+        if (selectedId) activate();
         break;
       case '*':
         event.preventDefault();
@@ -286,35 +437,7 @@ export function DocumentTree() {
       <div className="mfbe-tree-caption" data-testid="panel-tree-caption">
         {t('tree.caption')}
       </div>
-      <div
-        className="mfbe-tree-toolbar"
-        role="toolbar"
-        aria-label={t('tree.a11y.toolbar')}
-        data-testid="tree-toolbar"
-      >
-        {TREE_TOOLBAR.map((button) => {
-          const commandId = treeOpCommandId(button.op);
-          const command = services.commands.get(commandId);
-          const enabled = services.commands.isEnabled(commandId, ctx);
-          const tooltip = command ? commandTooltip(command, t) : t(button.labelKey);
-          return (
-            <button
-              key={button.op}
-              type="button"
-              className="mfbe-toolbar-button mfbe-tree-toolbar-button"
-              data-testid={button.testId}
-              data-command={commandId}
-              title={t(button.labelKey)}
-              aria-label={tooltip}
-              aria-description={command ? commandDescription(command, t) : undefined}
-              disabled={!enabled}
-              onClick={() => runCommand(commandId)}
-            >
-              <img src={treeIconUrl(button.icon)} width={24} height={24} alt="" draggable={false} />
-            </button>
-          );
-        })}
-      </div>
+      <TreeMenuBar shown={shown} scripts={scriptItems} />
       <div
         ref={containerRef}
         className="mfbe-tree-content"
@@ -352,7 +475,7 @@ export function DocumentTree() {
               expanded={row.childIds.length > 0 ? !collapsed.has(row.id) : undefined}
               onSelect={selectRow}
               onToggle={feature.toggleCollapsed.bind(feature)}
-              onActivate={() => runCommand('tree.view')}
+              onActivate={activate}
               onContextMenu={(x, y) => {
                 // Right-click selects the row without moving the Body (the Body would scroll
                 // and close the menu); View / the operations reveal the element afterwards.
@@ -365,9 +488,39 @@ export function DocumentTree() {
               expandLabel={t('tree.a11y.expand')}
               collapseLabel={t('tree.a11y.collapse')}
               emptyPictureLabel={t('tree.emptyPicture')}
+              idTitle={idTitle}
             />
           ))}
         </div>
+      </div>
+      <div
+        className="mfbe-tree-toolbar"
+        role="toolbar"
+        aria-label={t('tree.a11y.toolbar')}
+        data-testid="tree-toolbar"
+      >
+        {TREE_TOOLBAR.map((button) => {
+          const commandId = treeOpCommandId(button.op);
+          const command = services.commands.get(commandId);
+          const enabled = services.commands.isEnabled(commandId, ctx);
+          const tooltip = command ? commandTooltip(command, t) : t(button.labelKey);
+          return (
+            <button
+              key={button.op}
+              type="button"
+              className="mfbe-toolbar-button mfbe-tree-toolbar-button"
+              data-testid={button.testId}
+              data-command={commandId}
+              title={t(button.labelKey)}
+              aria-label={tooltip}
+              aria-description={command ? commandDescription(command, t) : undefined}
+              disabled={!enabled}
+              onClick={() => runCommand(commandId)}
+            >
+              <img src={treeIconUrl(button.icon)} width={24} height={24} alt="" draggable={false} />
+            </button>
+          );
+        })}
       </div>
       {menu ? <TreeContextMenu position={menu} onClose={closeMenu} /> : null}
     </div>
@@ -390,6 +543,8 @@ interface TreeRowViewProps {
   collapseLabel: string;
   /** Feature 010 (D8): the caption of a picture without an image. */
   emptyPictureLabel: string;
+  /** Feature 011 (D51): the tooltip of a section's id badge. */
+  idTitle: (id: string) => string;
 }
 
 function TreeRowView({
@@ -405,6 +560,7 @@ function TreeRowView({
   expandLabel,
   collapseLabel,
   emptyPictureLabel,
+  idTitle,
 }: TreeRowViewProps) {
   return (
     <div
@@ -452,7 +608,7 @@ function TreeRowView({
       )}
       <img
         className="mfbe-tree-icon"
-        src={treeIconUrl(ROW_ICONS[row.kind])}
+        src={row.iconUrl ?? treeIconUrl(ROW_ICONS[row.kind])}
         width={16}
         height={16}
         alt=""
@@ -464,6 +620,15 @@ function TreeRowView({
       >
         {row.emptyPicture ? emptyPictureLabel : row.caption}
       </span>
+      {row.elementId ? (
+        <span
+          className="mfbe-tree-id-badge"
+          data-testid={`tree-row-${row.id}-id`}
+          title={idTitle(row.elementId)}
+        >
+          #
+        </span>
+      ) : null}
       {mark ? (
         <span
           className="mfbe-table-mark-badge mfbe-tree-mark"

@@ -79,6 +79,15 @@ std::string read_entry(const std::filesystem::path& archive, const std::string& 
 // without a comment (DP-6, resource-formats §5).
 std::string zip_one(const std::string& entry_name, std::string_view bytes);
 
+// Feature 011 (US6, the Markdown ZIP): the bytes of a new archive holding `entries` in their order,
+// each deflated, named as given (UTF-8, flagged as such when not ASCII), stamped with the current
+// time. The bytes of each entry are read while the archive is written.
+struct ZipEntry {
+    std::string name;
+    std::string_view bytes;
+};
+std::string zip_entries(const std::vector<ZipEntry>& entries);
+
 // The legacy-name judge (DP-2), exposed for tests: decodes the raw names of one archive's
 // unflagged entries with the most plausible of `candidates` (code page numbers, in tie
 // priority order). Valid UTF-8 everywhere is taken as UTF-8. Returns the chosen code page

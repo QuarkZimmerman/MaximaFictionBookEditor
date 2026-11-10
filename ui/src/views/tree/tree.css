@@ -7,7 +7,8 @@
   align-items: center;
   gap: 2px;
   padding: 2px 4px;
-  border-bottom: 1px solid var(--mfbe-color-border);
+  /* Feature 011 (D35): the toolbar stands below the tree, as in the original. */
+  border-top: 1px solid var(--mfbe-color-border);
   background: var(--mfbe-color-toolbar-bg);
   user-select: none;
 }
@@ -121,4 +122,31 @@
 .mfbe-menu-popup.mfbe-tree-menu {
   position: fixed;
   z-index: 600;
+}
+
+/* Feature 011 (D35): the tree's menu bar (Elements, Scripts), drawn like the main menu bar. */
+.mfbe-tree-menubar {
+  flex: none;
+  border-bottom: 1px solid var(--mfbe-color-border);
+}
+
+/* Feature 011 (D51): a section that has an id - a "#" badge at the right end of its row, dark type
+   on white with a thin border, so it stands out in the light and the dark theme alike; hidden with
+   View > Show Ids off. */
+.mfbe-tree-id-badge {
+  display: none;
+  flex: none;
+  margin-left: auto;
+  padding: 0 4px;
+  border: 1px solid #8f8f8f;
+  border-radius: 3px;
+  background: #ffffff;
+  color: #1f1f1f;
+  font:
+    700 10px/13px system-ui,
+    sans-serif;
+}
+
+.mfbe-show-ids .mfbe-tree-id-badge {
+  display: inline-block;
 }

@@ -20,6 +20,7 @@ import { actions, createAppStore } from '@/model/store';
 import { getBodyController } from '@/views/body/bodyEditor';
 
 import { fakeDocument, fakeRpc } from '../features/testUtils';
+import { defaultSettings } from '../settings/fixtures';
 
 configure({ asyncUtilTimeout: 5000 });
 
@@ -106,9 +107,9 @@ describe('Document Tree panel', { timeout: 30_000 }, () => {
     const { store, user } = await renderApp(largeBook());
     const tree = screen.getByTestId('tree-content');
     expect(tree).toHaveAttribute('data-section-count', '52');
-    // Two block rows (feature 004), the body, its title, 50 sections with a title each, the
-    // nested pair with their titles.
-    expect(tree).toHaveAttribute('data-row-count', String(2 + 1 + 1 + 50 * 2 + 4));
+    // Two block rows (feature 004), the body, 50 sections and the nested pair - no title rows at
+    // the original's starting choices (feature 011, FR-010, FR-014).
+    expect(tree).toHaveAttribute('data-row-count', String(2 + 1 + 50 + 2));
     const rows = within(screen.getByTestId('tree-rows')).getAllByRole('treeitem');
     expect(rows[0]).toHaveAttribute('data-testid', 'tree-row-desc:annotation');
     expect(rows[0]).toHaveAttribute('data-row-kind', 'annotationBlock');
@@ -146,23 +147,27 @@ describe('Document Tree panel', { timeout: 30_000 }, () => {
     await waitFor(() =>
       expect(screen.getByTestId('tree-row-s3')).toHaveAttribute('data-selected', 'true'),
     );
-    // A caret inside a title selects the title row.
+    // A caret inside a title selects its section's row: titles have no rows at the original's
+    // starting choices (feature 011, FR-010).
     act(() => {
       controller.setCaret({ view: 'body', nodeId: 't4p', offset: 1 });
     });
     await waitFor(() =>
-      expect(screen.getByTestId('tree-row-t4')).toHaveAttribute('data-selected', 'true'),
+      expect(screen.getByTestId('tree-row-s4')).toHaveAttribute('data-selected', 'true'),
     );
     const tree = screen.getByTestId('tree-content');
     tree.focus();
     await user.keyboard('{ArrowDown}');
     expect(screen.getByTestId('tree-row-s5')).toHaveAttribute('data-selected', 'true');
     await waitFor(() => expect(store.getState().selectionPath).toMatch(/^body\[1\]\/section\[5\]/));
+    // A row with rows below it closes and opens with the arrows (s1 holds the nested pair).
+    await user.click(screen.getByTestId('tree-row-s1'));
+    tree.focus();
     await user.keyboard('{ArrowLeft}');
-    expect(screen.getByTestId('tree-row-s5')).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByTestId('tree-row-t5')).toBeNull();
+    expect(screen.getByTestId('tree-row-s1')).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByTestId('tree-row-s1a')).toBeNull();
     await user.keyboard('{ArrowRight}');
-    expect(screen.getByTestId('tree-row-t5')).toBeInTheDocument();
+    expect(screen.getByTestId('tree-row-s1a')).toBeInTheDocument();
   });
 
   it('Move Right / Delete run through the toolbar as single undo entries', async () => {
@@ -319,24 +324,82 @@ describe('Document Tree marks (feature 006, US8)', { timeout: 30_000 }, () => {
     expect(mark).toHaveClass('mfbe-table-mark-badge');
     expect(mark).toHaveClass('mfbe-tree-mark');
     expect(mark).toHaveTextContent('!');
-    expect(mark).toHaveAttribute('aria-label', 'Irregular table: row 2 covers 1 of 2 columns');
+    expect(mark).toHaveAttribute('aria-label', 'Table needs repair: row 2 covers 1 of 2 columns');
     expect(mark).toHaveAttribute(
       'title',
-      'Row 2 covers 1 of 2 columns. Repair table makes the table regular.',
+      "Row 2 covers 1 of 2 columns. Repair table makes every row cover the table's columns.",
     );
-    // The cite contains two irregular tables: one line each, in document order.
-    const cite = screen.getByTestId('tree-row-C1');
-    expect(cite).toHaveAttribute('data-irregular', 'true');
-    const lines = [
-      'Contains an irregular table: 1 overlapping span',
-      'Contains an irregular table "named": row 2 covers 1 of 2 columns',
-    ].join('\n');
-    expect(screen.getByTestId('tree-row-C1-mark')).toHaveAttribute('title', lines);
-    expect(screen.getByTestId('tree-row-C1-mark')).toHaveAttribute('aria-label', lines);
+    // The cite holds two irregular tables: at the original's starting choices the cite has no
+    // row and each table its own, with its own mark (feature 011, FR-011, FR-014).
+    expect(screen.queryByTestId('tree-row-C1')).toBeNull();
+    expect(screen.getByTestId('tree-row-T3')).toHaveAttribute('data-irregular', 'true');
+    expect(screen.getByTestId('tree-row-T4-mark')).toHaveAttribute(
+      'aria-label',
+      'Table "named" needs repair: row 2 covers 1 of 2 columns',
+    );
     // Every other row: no mark.
     for (const id of ['T2', 'S1', 'body1', 'desc:annotation', 'desc:history']) {
       expect(screen.getByTestId(`tree-row-${id}`), id).not.toHaveAttribute('data-irregular');
       expect(screen.queryByTestId(`tree-row-${id}-mark`), id).toBeNull();
     }
+  });
+});
+
+// Feature 011 (US2 scenarios 5-6; D34, FR-014): the tree bar's Elements menu.
+describe('the Elements menu (feature 011)', { timeout: 30_000 }, () => {
+  const withElements = (treeElements: Record<string, boolean>) => {
+    const settings = defaultSettings();
+    return { ...settings, view: { ...settings.view, treeElements } };
+  };
+
+  it('lists the kinds in the original order with its ticks; a choice is saved in view.treeElements', async () => {
+    const { rpc, user } = await renderApp(largeBook());
+    expect(screen.getByTestId('tree-menubar')).toBeInTheDocument();
+    await user.click(screen.getByTestId('tree-menu-elements'));
+    const popup = await screen.findByTestId('tree-menu-elements-popup');
+    const entries = within(popup).getAllByRole('menuitemcheckbox');
+    // The tick of a checked entry is drawn before its label.
+    const label = (entry: HTMLElement) => (entry.textContent ?? '').replace('\u2713', '');
+    expect(entries.map(label)).toEqual([
+      'Section',
+      'Body',
+      'Picture',
+      'Annotation',
+      'History',
+      'Poem',
+      'Stanza',
+      'Title',
+      'Epigraph',
+      'Quote',
+      'Subtitle',
+      'Table',
+      'Header cell',
+      'Cell',
+    ]);
+    expect(
+      entries.filter((entry) => entry.getAttribute('aria-checked') === 'false').map(label),
+    ).toEqual(['Title', 'Epigraph', 'Quote']);
+    expect(entries[9]).toHaveAttribute('title', 'Shows or hides the rows of the FB2 element cite');
+    await user.click(entries[7]!);
+    await waitFor(() =>
+      expect(rpc.calls.filter((call) => call.method === 'settings.set').at(-1)?.params).toEqual({
+        patch: { view: { treeElements: { title: true } } },
+      }),
+    );
+  });
+
+  it('a new choice rebuilds the rows at once; the selection moves up when its kind is hidden', async () => {
+    const { store, user } = await renderApp(largeBook());
+    const tree = screen.getByTestId('tree-content');
+    act(() => actions.setSettings(store, withElements({ title: true })));
+    // The body's title, 50 section titles and the nested pair's two.
+    await waitFor(() => expect(tree).toHaveAttribute('data-row-count', String(55 + 53)));
+    await user.click(screen.getByTestId('tree-row-t4'));
+    expect(tree).toHaveAttribute('data-selected-id', 't4');
+    act(() => actions.setSettings(store, withElements({})));
+    await waitFor(() => expect(tree).toHaveAttribute('data-row-count', '55'));
+    await waitFor(() => expect(tree).toHaveAttribute('data-selected-id', 's4'));
+    // The Body view shows the same book: the choice changes the tree only.
+    expect(screen.getByTestId('body-editor')).toHaveTextContent('Chapter 4');
   });
 });

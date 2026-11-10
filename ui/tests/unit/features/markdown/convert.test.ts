@@ -146,6 +146,10 @@ describe('special characters and the front matter (§3, D30)', () => {
       sequence: { name: 'Saga', number: 2 },
       cover: '#cover.jpg',
       genres: ['sf'],
+      // Feature 011 (US7, D29): every series, the translators and the custom information too.
+      sequences: [{ name: 'Saga', number: 2 }],
+      translators: [],
+      custom: [],
     });
   });
 });

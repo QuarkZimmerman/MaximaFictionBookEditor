@@ -483,6 +483,16 @@ void JobControl::check_cancelled() const {
     }
 }
 
+// Feature 011 (test hooks): a pause after every progress step, so journeys can see a job's
+// progress, cancel it and try to close the window while it runs (test.slowJobs).
+namespace {
+std::atomic<int> g_job_step_delay_ms{0};
+}  // namespace
+
+void set_job_step_delay_ms(int ms) {
+    g_job_step_delay_ms.store(ms < 0 ? 0 : ms);
+}
+
 struct JobManager::Job : JobControl {
     std::string job_id;
     Origin origin;  // RPC method (+ docId/path) that started the job, for the error log
@@ -498,6 +508,9 @@ struct JobManager::Job : JobControl {
             notifier->notify(
                 "job.progress",
                 json{{"jobId", job_id}, {"phase", phase}, {"done", done}, {"total", total}});
+        }
+        if (const int ms = g_job_step_delay_ms.load(); ms > 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(ms));
         }
     }
 };

@@ -2,22 +2,23 @@
   "manifestVersion": 1,
   "id": "tree/example-1",
   "name": {
-    "en": "Paragraphs Without a Full Stop...",
-    "ru": "Абзацы без точки...",
-    "uk": "Абзаци без крапки..."
+    "en": "Paragraphs Without a Full Stop",
+    "ru": "Абзацы без точки",
+    "uk": "Абзаци без крапки"
   },
   "description": {
-    "en": "Sample tree command: lists the paragraphs of the clicked node (or of the whole book) that contain no full stop and jumps to the chosen one",
-    "ru": "Пример команды дерева: показывает абзацы выбранного узла (или всей книги), в которых нет точки, и переходит к выбранному",
-    "uk": "Приклад команди дерева: показує абзаци вибраного вузла (або всієї книги), у яких немає крапки, і переходить до вибраного"
+    "en": "Sample tree script: lists the paragraphs of the book that contain no full stop as rows of the Document tree, in their places; Clean removes them",
+    "ru": "Пример скрипта дерева: показывает абзацы книги, в которых нет точки, строками дерева документа на их местах; «Очистить» убирает их",
+    "uk": "Приклад скрипту дерева: показує абзаци книги, у яких немає крапки, рядками дерева документа на їхніх місцях; «Очистити» прибирає їх"
   },
-  "kind": "tree",
+  "kind": "treeRows",
   "entry": "index.js",
   "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
     "en": "Paragraphs Without a Full Stop",
-    "ru": "Абзацы без точки"
+    "ru": "Абзацы без точки",
+    "uk": "Абзаци без крапки"
   },
   "legacy": {
     "source": "TreeCmd/Пример 1.js",

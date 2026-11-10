@@ -19,7 +19,9 @@
         {
           "submenu": "export",
           "items": [
-            "file.exportFbd"
+            "file.exportFbd",
+            "file.exportMarkdown",
+            "file.exportMarkdownZip"
           ]
         },
         "---",
@@ -111,7 +113,10 @@
         "view.description",
         "view.body",
         "view.source",
+        "view.styles",
+        "view.preview",
         "---",
+        "view.showIds",
         "view.fastMode"
       ]
     },
@@ -143,7 +148,16 @@
         "---",
         "style.link",
         "style.footnote",
-        "style.removeLink"
+        "style.removeLink",
+        "---",
+        {
+          "submenu": "namedStyle",
+          "items": [
+            "style.namedNone",
+            "---",
+            "style.removeNamed"
+          ]
+        }
       ]
     },
     {
@@ -226,6 +240,7 @@
     "{\"commandId\":\"view.body\",\"keys\":\"Alt+F2\"}",
     "{\"commandId\":\"view.description\",\"keys\":\"Alt+F1\"}",
     "{\"commandId\":\"view.fastMode\",\"keys\":\"F5\"}",
+    "{\"commandId\":\"view.preview\",\"keys\":\"Shift+F5\"}",
     "{\"commandId\":\"view.source\",\"keys\":\"Alt+F3\"}",
     "{\"commandId\":\"view.tree\",\"keys\":\"Mod+F5\"}"
   ]

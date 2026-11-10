@@ -4,7 +4,9 @@
     "file": {
       "importDescription": "Оп&ис із файлу FictionBook...",
       "exportFbd": "Експорт у &FBD...",
-      "importMarkdown": "Файл &Markdown..."
+      "importMarkdown": "Файл &Markdown...",
+      "exportMarkdown": "Експорт у Mar&kdown...",
+      "exportMarkdownZip": "Експорт у Markdown &ZIP..."
     }
   },
   "cmd": {
@@ -20,6 +22,14 @@
       "importMarkdown": {
         "tooltip": "Імпорт Markdown",
         "description": "Створити нову книгу з файлу Markdown: заголовки стають секціями, малюнки й виноски переносяться"
+      },
+      "exportMarkdown": {
+        "tooltip": "Експорт у Markdown",
+        "description": "Записати книгу одним файлом Markdown із вбудованими зображеннями"
+      },
+      "exportMarkdownZip": {
+        "tooltip": "Експорт у Markdown ZIP",
+        "description": "Записати книгу ZIP-архівом із файлом Markdown і його зображеннями"
       }
     }
   },
@@ -45,6 +55,17 @@
       "doneWithErrors_few": "Опис експортовано до {{path}}. Знайдено {{count}} помилки.",
       "doneWithErrors_many": "Опис експортовано до {{path}}. Знайдено {{count}} помилок.",
       "doneWithErrors_other": "Опис експортовано до {{path}}. Знайдено {{count}} помилки."
+    },
+    "markdown": {
+      "filterMd": "Файли Markdown (*.md)",
+      "filterZip": "Архіви Markdown ZIP (*.md.zip)",
+      "includePictures": "Додати зображення",
+      "includePicturesQuestion": "Додати зображення книги до файлу Markdown?",
+      "exporting": "Експорт у Markdown…",
+      "done": "Експортовано в {{path}}: секцій {{sections}}, зображень {{pictures}}, таблиць {{tables}}, приміток {{notes}}.",
+      "doneWithLeftOut": "Експортовано в {{path}}: секцій {{sections}}, зображень {{pictures}}, таблиць {{tables}}, приміток {{notes}}; не перенесено елементів: {{count}}.",
+      "cancelled": "Експорт скасовано; файл не записано.",
+      "tooLargeToImport": "Файл більший, ніж редактор імпортує (128 МБ): щоб імпортувати його знову, експортуйте в ZIP."
     }
   }
 }

@@ -60,6 +60,8 @@ export interface ContextMenuExtensions {
     click: ContextMenuClick,
     ctx: CommandContext,
   ) => ContextMenuItem[];
+  /** Feature 011 (US9, FR-020f): the *Named Style* submenu, as in the Style menu. */
+  namedStyles?: (controller: BodyEditorController, ctx: CommandContext) => ContextMenuItem[];
 }
 
 export const contextMenuExtensions: ContextMenuExtensions = {};

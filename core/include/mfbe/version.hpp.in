@@ -11,5 +11,5 @@ inline constexpr const char* kHomepage = "@MFBE_URL@";
 inline constexpr int kApiVersion = 1;
 // Additive contract revision within kApiVersion (absent in app.info = 0); feature 002 = 1,
 // feature 003 = 2, feature 004 = 3, feature 005 = 4, feature 006 = 5, feature 007 = 6.
-inline constexpr int kApiMinor = 9;
+inline constexpr int kApiMinor = 10;
 }  // namespace mfbe::version

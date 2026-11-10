@@ -1602,12 +1602,7 @@
     "snapshot": "tree/example-1.xml",
     "script": "scripts/tree/example-1",
     "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
-    "args": [
-      "--tree-node",
-      "n14",
-      "--answer",
-      "{\"target\":\"n23\"}"
-    ]
+    "args": []
   },
   {
     "snapshot": "02/sequence-between-notes-6.xml",

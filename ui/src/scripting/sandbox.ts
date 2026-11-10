@@ -252,8 +252,8 @@ export function msgBoxResult(buttonId: string): number {
 }
 
 export interface MfbeObject {
-  /** Script API version 2 (feature 007): version-1 scripts run unchanged. */
-  readonly version: 2;
+  /** Script API version 3 (feature 011): version-1 and version-2 scripts run unchanged. */
+  readonly version: 3;
   readonly doc: Record<string, (...args: unknown[]) => Promise<unknown>>;
   readonly selection: Record<string, (...args: unknown[]) => Promise<unknown>>;
   readonly ui: Record<string, (...args: unknown[]) => Promise<unknown>>;
@@ -267,6 +267,8 @@ export interface MfbeObject {
   readonly clipboard: Record<string, (...args: unknown[]) => Promise<unknown>>;
   readonly files: Record<string, (...args: unknown[]) => Promise<unknown>>;
   readonly scripts: Record<string, (...args: unknown[]) => Promise<unknown>>;
+  /** Version 3 (feature 011, power (e)): rows of the Document tree, in a `treeRows` run. */
+  readonly tree: Record<string, (...args: unknown[]) => Promise<unknown>>;
   MsgBox(text: string, caption?: string, flags?: number): Promise<number>;
   InputBox(prompt: string, caption?: string, defaultValue?: string): Promise<string | null>;
   BeginUndoUnit(label?: string): Promise<void>;
@@ -304,6 +306,7 @@ const ENV_METHODS = ['settings', 'docLanguage'] as const;
 const CLIPBOARD_METHODS = ['readText', 'writeText'] as const;
 const FILES_METHODS = ['saveText', 'saveBinaries'] as const;
 const SCRIPTS_METHODS = ['run'] as const;
+const TREE_METHODS = ['showRows', 'clearRows'] as const;
 
 function section(
   bridge: Bridge,
@@ -322,7 +325,7 @@ function section(
 export function createMfbe(bridge: Bridge): MfbeObject {
   const ui = section(bridge, 'ui', UI_METHODS);
   const mfbe: MfbeObject = {
-    version: 2,
+    version: 3,
     doc: section(bridge, 'doc', DOC_METHODS),
     selection: section(bridge, 'selection', SELECTION_METHODS),
     ui,
@@ -335,6 +338,7 @@ export function createMfbe(bridge: Bridge): MfbeObject {
     clipboard: section(bridge, 'clipboard', CLIPBOARD_METHODS),
     files: section(bridge, 'files', FILES_METHODS),
     scripts: section(bridge, 'scripts', SCRIPTS_METHODS),
+    tree: section(bridge, 'tree', TREE_METHODS),
     async MsgBox(text: string, caption?: string, flags = 0): Promise<number> {
       const pressed = await ui.message!(String(text), {
         caption,

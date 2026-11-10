@@ -19,7 +19,7 @@ import type { Page } from '@playwright/test';
 
 import { expect, fixtureBook, test, waitForBook, type CoreHandle } from './fixtures/core';
 import { pageText } from './fixtures/i18n';
-import { MOD, REPLACE } from './fixtures/keys';
+import { LINE_START, MOD, REPLACE } from './fixtures/keys';
 
 const WORD = 'разыскать';
 const OCCURRENCES = 20;
@@ -308,7 +308,9 @@ test.describe('US5 - Find and Replace work on the visible text', () => {
     // Select "старую карту" in the first occurrence's paragraph.
     const paragraph = page.getByTestId('body-editor').locator('p', { hasText: 'старую карту' });
     await paragraph.click();
-    await page.keyboard.press('Home');
+    // The line's start: the Body view leaves Home to the engine, and on macOS Home only scrolls
+    // (the caret stayed where the click put it, so the selection depended on where it landed).
+    await page.keyboard.press(LINE_START);
     for (let i = 0; i < 'Утром Анна решила разыскать '.length; i++) {
       await page.keyboard.press('ArrowRight');
     }

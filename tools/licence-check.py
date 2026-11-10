@@ -425,6 +425,21 @@ def collect_vcpkg(installed: Path | None, triplet_name: str | None,
 # npm
 
 
+# Feature 011 (D49): packages a dependency requires but the bundle leaves out - an alias of
+# ui/vite.config.ts replaces them - with the alias's marker that must stay in that file.
+NOT_SHIPPED = {
+    "elkjs": ("elkUnavailable.ts", "Mermaid's optional ELK layout (EPL-2.0), aliased to "
+              "ui/src/features/markdown/diagrams/elkUnavailable.ts in ui/vite.config.ts"),
+    "mj-context-menu": ("menuUnavailable.ts", "MathJax's interactive menu, which the formula drawing "
+                        "never uses, aliased to ui/src/features/markdown/diagrams/menuUnavailable.ts"),
+}
+
+# Packages whose package.json names no licence; the licence of their LICENSE file instead.
+LICENCE_OVERRIDES = {
+    "khroma": ("MIT", "the package.json names no licence; its license file is the MIT License"),
+}
+
+
 def collect_npm(problems: list[str]) -> list[Component]:
     lock_file = REPO / "ui" / "package-lock.json"
     package_file = REPO / "ui" / "package.json"
@@ -449,10 +464,17 @@ def collect_npm(problems: list[str]) -> list[Component]:
             index = base.rfind("/node_modules/")
             base = base[:index] if index >= 0 else ""
 
+    vite_config = (REPO / "ui" / "vite.config.ts").read_text(encoding="utf-8")
+    for name, (marker, _) in NOT_SHIPPED.items():
+        if marker not in vite_config:
+            problems.append(f"npm: {name} is listed as not shipped, but ui/vite.config.ts has no "
+                            f"alias to {marker}")
     visited: dict[str, dict] = {}
     queue: list[tuple[str, str]] = [("", dep) for dep in sorted(root.get("dependencies", {}))]
     while queue:
         from_path, dep = queue.pop()
+        if dep in NOT_SHIPPED:
+            continue
         resolved = resolve(from_path, dep)
         if resolved is None:
             problems.append(f"npm: {dep} (required by {from_path or 'ui/package.json'}) is not in package-lock.json")
@@ -474,6 +496,8 @@ def collect_npm(problems: list[str]) -> list[Component]:
         if isinstance(declared, list):
             declared = " OR ".join(d.get("type", "") if isinstance(d, dict) else str(d) for d in declared)
         licence, note = choose_licence(declared, [])
+        if not declared and name in LICENCE_OVERRIDES:
+            licence, note = LICENCE_OVERRIDES[name]
         # Feature 010 (PD2): the Noto fonts are data - separate font files of the interface that
         # the Markdown import reads at run time to draw pictures of special characters, never
         # combined into the program (aggregate, GPLv3 section 5), shipped with the OFL text.
@@ -488,7 +512,7 @@ def collect_npm(problems: list[str]) -> list[Component]:
             name=name,
             version=version,
             licence=licence,
-            text=f"ui/node_modules/{name}/LICENSE",
+            text=f"ui/{path_key}/LICENSE",
             note=note,
             homepage=f"https://www.npmjs.com/package/{name}",
         )
@@ -502,7 +526,8 @@ def collect_npm(problems: list[str]) -> list[Component]:
             else:
                 component.problems.append("the shipped OFL text ui/public/fonts/OFL-1.1.txt is missing")
         if have_modules:
-            package_dir = node_modules / name
+            # The copy the lock file names (a nested one when two versions are installed).
+            package_dir = REPO / "ui" / path_key
             installed_json = package_dir / "package.json"
             if installed_json.is_file():
                 installed = json.loads(installed_json.read_text(encoding="utf-8"))
@@ -521,7 +546,7 @@ def collect_npm(problems: list[str]) -> list[Component]:
                 p for p in package_dir.glob("*") if p.is_file() and re.match(r"(?i)^(licen[cs]e|copying)", p.name)
             ) if package_dir.is_dir() else []
             if texts and not is_font:
-                component.text = f"ui/node_modules/{name}/{texts[0].name}"
+                component.text = f"ui/{path_key}/{texts[0].name}"
                 component.text_paths.append(texts[0])
             elif package_dir.is_dir() and not is_font:
                 component.problems.append("no LICENSE file in the installed package")

@@ -1,0 +1,199 @@
+/*
+ * Feature 011 (US10; D44 clarify; contracts/styles.md §5): Preview's e-reader base sheet, applied
+ * before the book's own stylesheets. The book's elements are created in the FB2 namespace and have
+ * no browser styles of their own: this sheet says which are blocks and how a reader lays them out.
+ */
+html {
+  background: #f4f1ea;
+}
+
+body {
+  margin: 0;
+  padding: 2em 1em 4em;
+  color: #1d1b18;
+  font-family: Georgia, 'Noto Serif', 'DejaVu Serif', 'Times New Roman', serif;
+  font-size: 1.1rem;
+  line-height: 1.5;
+}
+
+FictionBook {
+  display: block;
+  max-width: 38em;
+  margin: 0 auto;
+  text-align: justify;
+  hyphens: auto;
+}
+
+body, section, title, subtitle, epigraph, cite, annotation, poem, stanza, v, p, text-author, date,
+empty-line {
+  display: block;
+}
+
+FictionBook > body + body {
+  margin-top: 3em;
+  border-top: 1px solid #c9c2b4;
+  padding-top: 1em;
+}
+
+section {
+  margin: 0 0 1.5em;
+}
+
+p {
+  margin: 0;
+  text-indent: 1.5em;
+}
+
+title {
+  margin: 1.5em 0 1em;
+  text-align: center;
+  font-weight: bold;
+  font-size: 1.3em;
+  hyphens: manual;
+}
+
+title p,
+subtitle {
+  text-indent: 0;
+}
+
+section section title {
+  font-size: 1.15em;
+}
+
+subtitle {
+  margin: 1em 0;
+  text-align: center;
+  font-weight: bold;
+}
+
+epigraph {
+  width: 60%;
+  margin: 1em 0 1em auto;
+  font-style: italic;
+}
+
+epigraph p {
+  text-indent: 0;
+}
+
+text-author {
+  text-align: right;
+  font-style: italic;
+  text-indent: 0;
+}
+
+cite {
+  margin: 1em 2em;
+}
+
+annotation {
+  margin: 1em 0;
+  font-size: 0.95em;
+}
+
+poem {
+  margin: 1em 0 1em 3em;
+}
+
+stanza {
+  margin: 0 0 1em;
+}
+
+v {
+  text-indent: 0;
+  text-align: left;
+}
+
+empty-line {
+  height: 1.5em;
+}
+
+strong {
+  font-weight: bold;
+}
+
+emphasis {
+  font-style: italic;
+}
+
+strikethrough {
+  text-decoration: line-through;
+}
+
+sub {
+  vertical-align: sub;
+  font-size: 0.8em;
+}
+
+sup {
+  vertical-align: super;
+  font-size: 0.8em;
+}
+
+code {
+  font-family: 'DejaVu Sans Mono', Consolas, monospace;
+  font-size: 0.9em;
+}
+
+a {
+  color: #2a5db0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+a[data-note] {
+  font-size: 0.8em;
+  vertical-align: super;
+  text-decoration: none;
+}
+
+image {
+  display: block;
+  margin: 1em auto;
+  text-align: center;
+  text-indent: 0;
+}
+
+p image,
+v image,
+td image,
+th image {
+  display: inline;
+  margin: 0;
+}
+
+image img {
+  max-width: 100%;
+  height: auto;
+}
+
+table {
+  margin: 1em auto;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  border: 1px solid #8a8274;
+  padding: 0.2em 0.5em;
+  text-indent: 0;
+  text-align: left;
+}
+
+th {
+  font-weight: bold;
+}
+
+.mfbe-preview-note {
+  position: absolute;
+  z-index: 10;
+  max-width: 28em;
+  padding: 0.6em 0.9em;
+  background: #fffdf8;
+  border: 1px solid #8a8274;
+  border-radius: 4px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  font-size: 0.95em;
+  text-align: left;
+}

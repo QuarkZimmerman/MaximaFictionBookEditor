@@ -41,7 +41,9 @@ export type { BinaryMeta, Document, ValidationIssue, ValidationReport } from '@/
 export const RPC_API_VERSION = 1;
 /**
  * Additive contract revision within RPC_API_VERSION (`app.info().apiMinor`; absent = 0). The
- * revision this UI was written for (9 since feature 010: `import.readMarkdown`, `template.xml`,
+ * revision this UI was written for (10 since feature 011: `export.markdown`, `styles.check`,
+ * the dialogs' `role`, the issue codes `description.emptyAuthor`,
+ * `style.conflict` and `style.unreadable`, `test.slowJobs`; 9 since feature 010: `import.readMarkdown`, `template.xml`,
  * `doc.newFromXml`, `binary.add`'s `imagesOnly`, `BinaryMeta.transparent`, the models' `efforts`
  * of `ai.models`, the service list's known models, `test.holdStartup`; 8 since feature 009: books in ZIP archives - `doc.open` with
  * `entry` and `needsChoice`, `Document.source`, `files.inspect`, the archive errors - backups and
@@ -59,7 +61,7 @@ export const RPC_API_VERSION = 1;
  * and requires >= 5 since feature 006 (`AI_REQUIRED_API_MINOR` in `ui/src/ai/index.ts`; 4
  * before).
  */
-export const RPC_API_MINOR = 9;
+export const RPC_API_MINOR = 10;
 
 /* ------------------------------------------------------------------------ */
 /* Error codes (rpc-api.md §1)                                              */
@@ -169,7 +171,8 @@ export interface ReleaseUnavailableData {
 /* Shared value types                                                       */
 /* ------------------------------------------------------------------------ */
 
-export type ViewId = 'description' | 'body' | 'source';
+/** The views; feature 011 (US8) adds the Styles view (`styles`), which carries no caret or position. */
+export type ViewId = 'description' | 'body' | 'source' | 'styles';
 export type UiLanguage = 'en' | 'ru' | 'uk';
 export type ThemeSetting = 'system' | 'light' | 'dark';
 export type UiLanguageSetting = UiLanguage | 'system';
@@ -288,6 +291,14 @@ export interface Settings {
     fastMode: boolean;
     /** The status bar panes shown (feature 009, FR-056); the message pane always shows. */
     statusBarPanes: StatusBarPane[];
+    /**
+     * Feature 011 (D34): the Document tree's Elements choices, entry id -> shown; an entry not in
+     * the object takes the original's default (views/tree/elementKinds.ts). Absent from cores
+     * older than apiMinor 10.
+     */
+    treeElements?: Record<string, boolean>;
+    /** Feature 011 (D51): mark the elements that have an id (the Body view's tabs, the tree's badge). */
+    showIds?: boolean;
   };
   other: {
     defaultEncoding: string;
@@ -513,7 +524,7 @@ export interface ScriptManifest {
   id: string;
   name: Record<string, string>;
   description?: Record<string, string>;
-  kind: 'menu' | 'tree';
+  kind: 'menu' | 'tree' | 'treeRows';
   entry?: string;
   icon?: string;
   defaultHotkey?: string;
@@ -615,6 +626,23 @@ export function isJobStart(value: unknown): value is JobStart {
     'jobId' in value &&
     typeof (value as { jobId: unknown }).jobId === 'string'
   );
+}
+
+/**
+ * Feature 011 (contracts/rpc-api.md `export.markdown`): the file written, the pictures it holds and
+ * the names of those that could not be read and were left out (the text's own summary - sections,
+ * tables, notes, what Markdown cannot carry - comes from the interface's serializer).
+ */
+export interface MarkdownExportResult {
+  path: string;
+  pictures: number;
+  skipped: string[];
+}
+
+/** Feature 011: a stylesheet as `styles.check` takes it (the model's `Stylesheet` as text). */
+export interface StylesheetText {
+  type: string;
+  text: string;
 }
 
 export interface JobProgress {
@@ -1248,6 +1276,26 @@ export interface RpcMethods {
   };
   /** Cancels a running long operation; it then reports `job.failed` 1090 (rpc-api.md §1). */
   'job.cancel': { params: { jobId: string }; result: Empty };
+  /**
+   * Feature 011 (US5, US6): writes a Markdown export as a job; never changes the document, its
+   * file, the settings or Recent files. Pictures are named by binary id and read by the core.
+   */
+  'export.markdown': {
+    params: {
+      docId: string;
+      path: string;
+      form: 'md' | 'zip';
+      text: string;
+      pictures: { binaryId: string; name: string }[];
+      includePictures: boolean;
+    };
+    result: MaybeJob<MarkdownExportResult>;
+  };
+  /** Feature 011 (US8): the style issues of the document's stylesheets, or of the given ones. */
+  'styles.check': {
+    params: { docId: string; stylesheets?: StylesheetText[] };
+    result: { issues: ValidationIssue[] };
+  };
 
   // §3.3 binary
   'binary.list': { params: { docId: string }; result: BinaryMeta[] };
@@ -1384,6 +1432,8 @@ export interface RpcMethods {
       folder?: string;
       /** The file proposed: the dialog opens on its folder with its name filled in. */
       defaultPath?: string;
+      /** Feature 011 (D32): only `document` (Open) keeps the chosen folder for the next dialog. */
+      role?: 'document';
     };
     result: { paths: string[] };
   };
@@ -1403,6 +1453,8 @@ export interface RpcMethods {
       selectedFilter?: number;
       /** Feature 009 (DP-8): the "save as ZIP archive" checkbox beside the encoding choice. */
       zipChoice?: { label: string; checked: boolean };
+      /** Feature 011 (D32): only `document` (Save As) keeps the chosen folder. */
+      role?: 'document';
     };
     /** `zip` is absent when the dialog could not carry the checkbox (feature 009). */
     result: { path?: string; encoding?: string; zip?: boolean };
@@ -1437,6 +1489,8 @@ export interface RpcMethods {
 
   // §5 development/test-only
   'test.enqueueDialog': { params: { method: string; result: unknown }; result: Empty };
+  /** Feature 011: slows every job's progress steps (journeys of the modal export). */
+  'test.slowJobs': { params: { millisecondsPerStep: number }; result: Empty };
   'test.corpusSample': { params: { count: number; seed: number }; result: { paths: string[] } };
   'test.metrics': {
     params: void;

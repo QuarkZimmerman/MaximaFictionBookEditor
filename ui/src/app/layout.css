@@ -921,6 +921,14 @@ textarea {
   border-radius: 4px 4px 0 0;
   background: var(--mfbe-color-chrome-bg-2);
   cursor: default;
+  /* Feature 011 (US8): four tabs since the Styles view - in a narrow view a tab gives way, its
+     name cut with an ellipsis (the whole name in its tooltip), before the switcher overflows;
+     one line keeps the tabs' height. */
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .mfbe-view-tab-active {
@@ -943,6 +951,19 @@ textarea {
   min-height: 0;
   overflow: auto;
   user-select: text;
+}
+
+/* Feature 011 (rc.3 smoke test): a view's buttons are controls, not text - their labels are never
+   selected, though the view's text is - and a greyed one looks greyed in both themes (buttons take
+   the text colour, which hides the engine's own disabled look). Low specificity: a view's own
+   button styles still win. */
+:where(.mfbe-view-content) button {
+  user-select: none;
+}
+
+:where(.mfbe-view-content) button:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 /* A script is computing (feature 003, FR-011): the pointer over the document pane shows the

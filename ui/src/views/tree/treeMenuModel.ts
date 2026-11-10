@@ -8,6 +8,7 @@
 
 import type { TFunction } from 'i18next';
 
+import { isScriptRowId } from './scriptRows';
 import { BLOCK_ROW_KINDS, type TreeIndex, type TreeRow } from './treeModel';
 
 export interface TreeMenuItem {
@@ -32,6 +33,10 @@ const DELETABLE: ReadonlySet<string> = new Set([
   'poem',
   'cite',
   'table',
+  // Feature 011 (US2, contracts/tree.md §4): subtitles, stanzas and inline pictures.
+  'subtitle',
+  'stanza',
+  'inline-image',
 ]);
 
 const NAME_LENGTH = 30;
@@ -63,6 +68,14 @@ export function treeMenuFor(index: TreeIndex, rowId: string | null, t: TFunction
     { id: 'view', commandId: 'tree.view', label: t('tree.menuFor.goTo') },
     { id: 'viewSource', commandId: 'tree.viewSource', label: t('tree.menuFor.goToSource') },
   ];
+  // Feature 011 (US11; contracts/tree.md §4): a script row - Go To, Go To Source, Clean.
+  if (isScriptRowId(rowId)) {
+    return [
+      ...navigation,
+      'separator',
+      { id: 'cleanRow', commandId: 'tree.cleanRow', label: t('tree.menuFor.cleanRow') },
+    ];
+  }
   const row = rowId ? index.rows.get(rowId) : undefined;
   if (!row || BLOCK_ROW_KINDS.has(row.kind)) return navigation;
   const lines: TreeMenuLine[] = [...navigation];
@@ -131,7 +144,7 @@ export function treeMenuFor(index: TreeIndex, rowId: string | null, t: TFunction
       },
     );
   }
-  if (row.kind === 'image') {
+  if (row.kind === 'image' || row.kind === 'inline-image') {
     lines.push(
       'separator',
       { id: 'changePicture', commandId: 'image.change', label: t('tree.menuFor.changePicture') },
@@ -144,7 +157,7 @@ export function treeMenuFor(index: TreeIndex, rowId: string | null, t: TFunction
       id: 'delete',
       commandId: 'tree.delete',
       label: t(`tree.menuFor.delete.${row.kind}`),
-      reason: t('tree.reason.cannotDelete'),
+      reason: row.kind === 'stanza' ? t('tree.reason.onlyStanza') : t('tree.reason.cannotDelete'),
     });
   }
   return lines;

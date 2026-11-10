@@ -584,6 +584,10 @@ private:
             }
         }
         if (written == 0 && required) {
+            // A required list without a person is written as the reader found it (`<author/>`),
+            // so untouched books round-trip; the editor's own edits never send one (feature 011,
+            // FR-001: the interface puts the schema's empty author in, ui/src/views/description/
+            // model.ts).
             line_start(depth);
             emit(std::string("<") + name + "/>\n");
         }

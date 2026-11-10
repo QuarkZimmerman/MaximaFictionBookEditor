@@ -1,0 +1,15 @@
+{
+  "preview": {
+    "title": "Preview",
+    "back": "Back",
+    "backTip": "Return to where the last link was followed (Alt+Left)",
+    "backNothing": "No link followed yet",
+    "close": "Close",
+    "closeTip": "Close Preview (Esc); the editor stays as it was",
+    "rendering": "Rendering…",
+    "statusTip": "Preview: the book as a reader shows it (Shift+F5)",
+    "reason": {
+      "noDocument": "Open a book to preview it"
+    }
+  }
+}

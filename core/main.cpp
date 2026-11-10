@@ -5,7 +5,7 @@
 //   mfbe-core validate FILE... [--json] [--resources DIR]
 //                       exit 0 = every file well-formed and valid (warnings allowed),
 //                       1 = parse errors or validation errors, 2 = usage
-//   mfbe-core roundtrip FILE --out DIR [--encoding utf-8] [--json] [--resources DIR]
+//   mfbe-core roundtrip FILE --out DIR [--encoding utf-8] [--json] [--resources DIR] [--fixed-details]
 //                       open -> save unchanged -> re-open -> structural comparison -> validate;
 //                       exit 0 = identical and valid, 1 = identical but invalid,
 //                       3 = structural differences, 4 = could not open, 2 = usage
@@ -308,15 +308,21 @@ int run_validate(const std::vector<std::string>& files, bool as_json,
 }
 
 int run_roundtrip(const std::string& file, const std::string& out_dir, const std::string& encoding,
-                  bool as_json, const std::string& resources) {
+                  bool as_json, const std::string& resources, bool fixed_details) {
     apply_resources_override(resources);
     const auto canonical = mfbe::encoding::normalize_name(encoding);
     if (!canonical || !mfbe::encoding::is_supported(*canonical)) {
         std::fprintf(stderr, "mfbe-core roundtrip: unsupported encoding '%s'\n", encoding.c_str());
         return kExitUsage;
     }
+    // Feature 011 (guard G10): fixed document details, so that two saves compare byte for byte.
+    mfbe::model::DetailsContext fixed;
+    fixed.program = mfbe::version::kProductName;
+    fixed.year = 2000;
+    fixed.new_id = [] { return std::string("00000000-0000-4000-8000-000000000000"); };
     const mfbe::roundtrip::Report report = mfbe::roundtrip::run(
-        mfbe::platform::path_from_utf8(file), mfbe::platform::path_from_utf8(out_dir), *canonical);
+        mfbe::platform::path_from_utf8(file), mfbe::platform::path_from_utf8(out_dir), *canonical,
+        {}, fixed_details ? &fixed : nullptr);
     if (as_json) {
         nlohmann::json j = report.to_json();
         j["peakRssBytes"] = peak_rss_bytes();
@@ -397,11 +403,14 @@ int run_command_line(int argc, const Char* const* argv) {
     std::string roundtrip_encoding = "utf-8";
     std::string roundtrip_resources;
     bool roundtrip_json = false;
+    bool roundtrip_fixed_details = false;
     CLI::App* roundtrip = app.add_subcommand("roundtrip", "Open + save without edits");
     roundtrip->add_option("file", roundtrip_file, "FB2 file")->required();
     roundtrip->add_option("--out", roundtrip_out, "output directory")->required();
     roundtrip->add_option("--encoding", roundtrip_encoding, "output encoding (default utf-8)");
     roundtrip->add_flag("--json", roundtrip_json, "JSON output (one object)");
+    roundtrip->add_flag("--fixed-details", roundtrip_fixed_details,
+                        "fill in the document details with fixed values (corpus guard G10)");
     roundtrip->add_option("--resources", roundtrip_resources, "override bundled resources root")
         ->check(CLI::ExistingDirectory);
 
@@ -445,7 +454,7 @@ int run_command_line(int argc, const Char* const* argv) {
     }
     if (*roundtrip) {
         return run_roundtrip(roundtrip_file, roundtrip_out, roundtrip_encoding, roundtrip_json,
-                             roundtrip_resources);
+                             roundtrip_resources, roundtrip_fixed_details);
     }
     if (*convert) {
         return run_convert_images(convert_file, convert_out, convert_format, convert_quality,

@@ -9,6 +9,8 @@
  */
 
 import {
+  lazy,
+  Suspense,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -29,7 +31,13 @@ import { actions, documentFileName, useAppState } from '@/model/store';
 import { isAiBusy, useAiBusyPointer } from './aiBusy';
 import { BodyView } from '@/views/body/BodyView';
 import { DescriptionView } from '@/views/description/DescriptionView';
+import { PreviewOverlay } from '@/features/preview/PreviewOverlay';
+import { closePreview, usePreview } from '@/features/preview/previewState';
+import { namedStyleMenuItems } from '@/features/styles/namedStyles';
 import { SourceView } from '@/views/source/SourceView';
+
+// Feature 011 (US8, PD2): the Styles view loads css-tree and its CSS editor only when it opens.
+const StylesView = lazy(() => import('@/views/styles/StylesView'));
 import { DocumentTree } from '@/views/tree/DocumentTree';
 import { runScheduledCheck } from '@/features/help';
 import { getSettingsFeature } from '@/features/settings';
@@ -436,13 +444,17 @@ function Shell({
   );
   const scriptsMenu = useScriptsMenu();
   const scriptToolbarButtons = useScriptToolbarButtons();
+  const stylesheets = useAppState((s) => s.document?.stylesheets, store);
+  const previewRequest = usePreview();
   const menuItems = useMemo<DynamicMenuItems>(
     () => ({
       ...dynamicMenuItems,
       recent: recentFiles.length > 0 ? files.recent.menuItems() : [],
       scripts: scriptsMenu,
+      // Feature 011 (US9): Style > Named Style lists the book's named styles.
+      namedStyles: namedStyleMenuItems(stylesheets),
     }),
-    [dynamicMenuItems, files, recentFiles, scriptsMenu],
+    [dynamicMenuItems, files, recentFiles, scriptsMenu, stylesheets],
   );
 
   const navigateToIssue = useMemo(() => createIssueNavigator(ctx), [ctx]);
@@ -513,6 +525,13 @@ function Shell({
             {activeView === 'description' ? <DescriptionView /> : null}
             {activeView === 'body' ? <BodyView /> : null}
             {activeView === 'source' ? <SourceView /> : null}
+            {activeView === 'styles' ? (
+              <Suspense
+                fallback={<div className="mfbe-view-placeholder">{t('styles.loading')}</div>}
+              >
+                <StylesView />
+              </Suspense>
+            ) : null}
           </div>
           <TransientNotice />
           {validation ? (
@@ -546,6 +565,8 @@ function Shell({
       </div>
       <StatusBar />
       <DialogHost service={dialogs.service} />
+      {/* Feature 011 (US10): Preview over the whole window. */}
+      {previewRequest ? <PreviewOverlay request={previewRequest} onClose={closePreview} /> : null}
     </div>
   );
 }

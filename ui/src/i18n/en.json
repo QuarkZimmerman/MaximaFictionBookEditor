@@ -134,7 +134,10 @@
       "description": "D&escription",
       "body": "&Body",
       "source": "So&urce",
-      "fastMode": "Fast Mode"
+      "showIds": "Show &Ids",
+      "fastMode": "Fast Mode",
+      "styles": "St&yles",
+      "preview": "Pre&view"
     },
     "add": {
       "caption": "&Add",
@@ -158,7 +161,10 @@
       "subtitle": "&Subtitle",
       "link": "&Link...",
       "footnote": "&Footnote...",
-      "removeLink": "&Remove link"
+      "removeLink": "&Remove link",
+      "namedStyle": "Na&med Style",
+      "noNamedStyles": "No named styles",
+      "removeNamed": "Remove Named St&yle"
     },
     "tools": {
       "caption": "&Tools",
@@ -220,7 +226,8 @@
     "caption": "Document structure",
     "clean": "Clean",
     "empty": "No document is open.",
-    "emptyPicture": "Empty picture"
+    "emptyPicture": "Empty picture",
+    "idBadge": "Id: #{{id}} - links point here as #{{id}}"
   },
   "views": {
     "description": {
@@ -255,7 +262,10 @@
       "sourceOnly": "The file is not well-formed XML and was opened in Source mode only. Correct the errors to use the other views.",
       "loadFailed": "The document source could not be loaded.\n{{reason}}"
     },
-    "switcher": "Views"
+    "switcher": "Views",
+    "styles": {
+      "title": "Styles"
+    }
   },
   "editing": {
     "unknownElement": "Unknown element - edit it in the Source view",
@@ -442,9 +452,21 @@
         "tooltip": "Source",
         "description": "Show document source code"
       },
+      "showIds": {
+        "tooltip": "Show or hide the marks of the elements that have an id",
+        "description": "Shows a small #id tab on the elements of the Body view that have an id (links can point to them) and a # badge on the tree's sections that have one; the marks are never part of the text"
+      },
       "fastMode": {
         "tooltip": "Toggle fast mode",
         "description": "Toggle fast mode"
+      },
+      "styles": {
+        "tooltip": "Styles",
+        "description": "Show and edit the book's stylesheets"
+      },
+      "preview": {
+        "tooltip": "Preview",
+        "description": "Show the book as a reader shows it"
       }
     },
     "insert": {
@@ -545,6 +567,10 @@
       "code": {
         "tooltip": "Code",
         "description": "Marks the selection \"code\" (toggle)"
+      },
+      "removeNamed": {
+        "tooltip": "Remove Named Style",
+        "description": "Remove the named style from the selected text, or from the element at the caret"
       }
     },
     "tools": {
@@ -905,7 +931,12 @@
       "externalHref": "Image \"{{href}}\" refers to an external file"
     },
     "description": {
-      "emptyRequired": "Required element \"{{element}}\" is missing or empty"
+      "emptyRequired": "Required element \"{{element}}\" is missing or empty",
+      "emptyAuthor": "Required element \"author\" has neither a name nor a nickname"
+    },
+    "style": {
+      "conflict": "Stylesheets {{sheets}} give \"{{selector}}\" different values of {{property}}: {{values}}",
+      "unreadable": "Stylesheet {{sheet}} cannot be read from line {{line}} on; it is kept as it is"
     }
   },
   "error": {
@@ -1030,7 +1061,8 @@
     "docIssues_one": "{{count}} issue",
     "docIssues_other": "{{count}} issues",
     "errorsFound_one": "{{count}} error found.",
-    "errorsFound_other": "{{count}} errors found."
+    "errorsFound_other": "{{count}} errors found.",
+    "regexInvalid": "Not a valid regular expression: {{reason}}."
   },
   "description": {
     "titleInfo": "Title info",

@@ -634,7 +634,7 @@ test.describe('US4 (004) - import a description from an FBD or FB2 file', () => 
     await expect(page.getByTestId('description-book-title')).toHaveValue('');
   });
 
-  test('9. the open request carries the three types with descriptors first and the remembered folder; the chosen folder is remembered (FR-053)', async ({
+  test('9. the open request carries the three types with descriptors first and the remembered folder, which stays remembered (FR-053; feature 011, D32)', async ({
     core,
     page,
   }) => {
@@ -661,7 +661,8 @@ test.describe('US4 (004) - import a description from an FBD or FB2 file', () => 
     ]);
     if (process.platform !== 'win32') expect(request.folder).toBe(remembered);
     const settings = await core.rpc<{ session: { lastFileDialogFolder: string } }>('settings.get');
-    expect(settings.session.lastFileDialogFolder).toBe(chosen);
+    // Feature 011 (D32): an import leaves no trace - the folder Open starts in stays as it was.
+    expect(settings.session.lastFileDialogFolder).toBe(remembered);
   });
 
   test('10. pending Source edits are committed first; a malformed Source refuses with the usual message', async ({

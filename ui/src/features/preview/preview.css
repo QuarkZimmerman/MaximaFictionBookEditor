@@ -1,0 +1,29 @@
+/* Feature 011 (US10): Preview over the whole window - its bar and the reader's page. */
+.mfbe-preview {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  display: flex;
+  flex-direction: column;
+  background: var(--mfbe-color-bg, #ffffff);
+}
+
+.mfbe-preview-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--mfbe-color-border);
+  background: var(--mfbe-color-toolbar-bg);
+}
+
+.mfbe-preview-title {
+  flex: 1;
+  font-weight: 600;
+}
+
+.mfbe-preview-frame {
+  flex: 1;
+  width: 100%;
+  border: 0;
+}

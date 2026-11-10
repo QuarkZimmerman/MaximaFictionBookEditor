@@ -125,7 +125,8 @@ describe('script sandbox surface = contract allow-list (docs/scripting/mfbe.d.ts
 
   it('parses the contract into the expected shape', () => {
     // Version 2 (feature 007) adds the powers the editor performs at a script's request:
-    // clipboard, files and other scripts (constitution principle V).
+    // clipboard, files and other scripts (constitution principle V); version 3 (feature 011)
+    // power (e), the rows a tree script shows in the Document tree.
     expect(contract.consts.map((c) => c.name)).toEqual([
       'doc',
       'selection',
@@ -135,6 +136,7 @@ describe('script sandbox surface = contract allow-list (docs/scripting/mfbe.d.ts
       'clipboard',
       'files',
       'scripts',
+      'tree',
       'version',
     ]);
     expect(contract.functions).toEqual(['MsgBox', 'InputBox', 'BeginUndoUnit', 'EndUndoUnit']);
@@ -147,6 +149,7 @@ describe('script sandbox surface = contract allow-list (docs/scripting/mfbe.d.ts
       'Clipboard',
       'Files',
       'Scripts',
+      'Tree',
       'Context',
     ]) {
       expect(contract.interfaces.has(name), name).toBe(true);
@@ -157,7 +160,7 @@ describe('script sandbox surface = contract allow-list (docs/scripting/mfbe.d.ts
     const expected = sorted([...contract.consts.map((c) => c.name), ...contract.functions]);
     expect(sorted(Object.keys(mfbe))).toEqual(expected);
     expect(Object.isFrozen(mfbe)).toBe(true);
-    expect(mfbe.version).toBe(2); // script API version 2 (feature 007)
+    expect(mfbe.version).toBe(3); // script API version 3 (feature 011)
     for (const name of contract.functions) {
       expect(typeof mfbe[name], name).toBe('function');
     }
@@ -200,7 +203,7 @@ describe('script sandbox surface = contract allow-list (docs/scripting/mfbe.d.ts
     const table = impl.slice(tableStart, impl.indexOf('};', tableStart));
     const keys = [
       ...table.matchAll(
-        /'((?:doc|selection|ui|edit|env|clipboard|files|scripts)\.[A-Za-z]+)'\s*:/g,
+        /'((?:doc|selection|ui|edit|env|clipboard|files|scripts|tree)\.[A-Za-z]+)'\s*:/g,
       ),
     ].map((m) => m[1]!);
     expect(sorted(keys)).toEqual(sorted(expected));

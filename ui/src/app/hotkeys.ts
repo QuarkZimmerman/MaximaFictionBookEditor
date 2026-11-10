@@ -483,6 +483,8 @@ export const DEFAULT_HOTKEYS: readonly DefaultHotkey[] = [
   { commandId: 'view.description', keys: 'Alt+F1' },
   { commandId: 'view.source', keys: 'Alt+F3' },
   { commandId: 'view.fastMode', keys: 'F5' },
+  // Feature 011 (US10, PD1): Preview.
+  { commandId: 'view.preview', keys: 'Shift+F5' },
   { commandId: 'view.tree', keys: 'Mod+F5' },
   // Additions of this editor (feature 005): the AI assistant panel and "Ask AI..." - inert
   // while the assistant is disabled (the commands are invisible stubs then).

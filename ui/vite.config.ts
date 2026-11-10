@@ -95,9 +95,23 @@ export default defineConfig({
   // The core serves the bundle from a sub-path, so every asset URL must be relative.
   base: './',
   resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
-    },
+    alias: [
+      // Feature 011 (D49): Mermaid's optional ELK layout (elkjs, EPL-2.0) is not shipped.
+      {
+        find: /^elkjs\/lib\/elk\.bundled\.js$/,
+        replacement: fileURLToPath(
+          new URL('./src/features/markdown/diagrams/elkUnavailable.ts', import.meta.url),
+        ),
+      },
+      // Feature 011 (D50): MathJax's interactive menu is not used and not shipped.
+      {
+        find: /^mj-context-menu(\/.*)?$/,
+        replacement: fileURLToPath(
+          new URL('./src/features/markdown/diagrams/menuUnavailable.ts', import.meta.url),
+        ),
+      },
+      { find: '@', replacement: fileURLToPath(new URL('./src', import.meta.url)) },
+    ],
   },
   define: {
     __MFBE_TOKEN__: JSON.stringify(process.env.MFBE_TOKEN ?? ''),
@@ -106,6 +120,10 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    // The editor's own core serves the bundle from the local disk, so a chunk's size is no download
+    // cost (the main bundle of about 2.3 MB starts in about 200 ms, feature 011's measurement); the
+    // warning is kept for a chunk that grows past that.
+    chunkSizeWarningLimit: 2600,
     rolldownOptions: {
       output: {
         codeSplitting: {

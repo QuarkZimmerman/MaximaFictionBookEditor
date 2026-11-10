@@ -115,6 +115,16 @@
       "tooltip": "Export as FBD",
       "description": "Write the description of this document, with its cover, as an FBD file"
     },
+    "file.exportMarkdown": {
+      "label": "Export as Mar&kdown...",
+      "tooltip": "Export as Markdown",
+      "description": "Write the book as one Markdown file, its pictures embedded"
+    },
+    "file.exportMarkdownZip": {
+      "label": "Export as Markdown &ZIP...",
+      "tooltip": "Export as Markdown ZIP",
+      "description": "Write the book as a ZIP archive holding a Markdown file and its pictures"
+    },
     "file.importDescription": {
       "label": "&Description from FictionBook file...",
       "tooltip": "Import description",
@@ -390,6 +400,11 @@
       "tooltip": "Hyperlink",
       "description": "Add a hyperlink"
     },
+    "style.namedNone": {
+      "label": "No named styles",
+      "tooltip": "No named styles",
+      "description": "No named style is defined: add a class selector in the Styles view"
+    },
     "style.normal": {
       "label": "&Normal",
       "tooltip": "Normal",
@@ -399,6 +414,11 @@
       "label": "&Remove link",
       "tooltip": "Remove links",
       "description": "Remove links from selected text"
+    },
+    "style.removeNamed": {
+      "label": "Remove Named St&yle",
+      "tooltip": "Remove Named Style",
+      "description": "Remove the named style from the selected text, or from the element at the caret"
     },
     "style.strikethrough": {
       "label": "Strikethrough",
@@ -523,7 +543,7 @@
     "table.repair": {
       "label": "Re&pair table",
       "tooltip": "Repair table",
-      "description": "Make an irregular table regular without deleting any content"
+      "description": "Make every row of the table cover its columns, without deleting any content"
     },
     "table.select": {
       "label": "S&elect table",
@@ -569,6 +589,11 @@
       "label": "&Words...",
       "tooltip": "Words",
       "description": "Word frequency list with replacements"
+    },
+    "tree.cleanRow": {
+      "label": "Tree: clean the script row",
+      "tooltip": "Tree: clean the script row",
+      "description": "Remove this row the tree script showed; the book is unchanged"
     },
     "tree.delete": {
       "label": "Tree: delete",
@@ -635,6 +660,16 @@
       "tooltip": "Toggle LinksBar",
       "description": "Show or hide the links bar"
     },
+    "view.preview": {
+      "label": "Pre&view",
+      "tooltip": "Preview",
+      "description": "Show the book as a reader shows it"
+    },
+    "view.showIds": {
+      "label": "Show &Ids",
+      "tooltip": "Show or hide the marks of the elements that have an id",
+      "description": "Shows a small #id tab on the elements of the Body view that have an id (links can point to them) and a # badge on the tree's sections that have one; the marks are never part of the text"
+    },
     "view.source": {
       "label": "So&urce",
       "tooltip": "Source",
@@ -644,6 +679,11 @@
       "label": "&Status Bar",
       "tooltip": "Toggle StatusBar",
       "description": "Show or hide the status bar"
+    },
+    "view.styles": {
+      "label": "St&yles",
+      "tooltip": "Styles",
+      "description": "Show and edit the book's stylesheets"
     },
     "view.tableBar": {
       "label": "Table Bar",
@@ -781,6 +821,16 @@
       "label": "Экспорт в &FBD...",
       "tooltip": "Экспорт в FBD",
       "description": "Записать описание этого документа вместе с обложкой в файл FBD"
+    },
+    "file.exportMarkdown": {
+      "label": "Экспорт в Mar&kdown...",
+      "tooltip": "Экспорт в Markdown",
+      "description": "Записать книгу одним файлом Markdown со встроенными картинками"
+    },
+    "file.exportMarkdownZip": {
+      "label": "Экспорт в Markdown &ZIP...",
+      "tooltip": "Экспорт в Markdown ZIP",
+      "description": "Записать книгу ZIP-архивом с файлом Markdown и его картинками"
     },
     "file.importDescription": {
       "label": "Опис&ание из файла FictionBook...",
@@ -1057,6 +1107,11 @@
       "tooltip": "Гиперссылка",
       "description": "Добавить гиперссылку"
     },
+    "style.namedNone": {
+      "label": "Нет именованных стилей",
+      "tooltip": "Нет именованных стилей",
+      "description": "Именованных стилей нет: добавьте селектор класса в виде стилей"
+    },
     "style.normal": {
       "label": "&Обычный",
       "tooltip": "Обычный текст",
@@ -1066,6 +1121,11 @@
       "label": "&Удалить ссылку",
       "tooltip": "Удалить ссылки",
       "description": "Удалить ссылки из выделенного текста"
+    },
+    "style.removeNamed": {
+      "label": "Удалить имено&ванный стиль",
+      "tooltip": "Удалить именованный стиль",
+      "description": "Убрать именованный стиль с выделенного текста или с элемента под курсором"
     },
     "style.strikethrough": {
       "label": "Зачеркнутый текст",
@@ -1190,7 +1250,7 @@
     "table.repair": {
       "label": "&Исправить таблицу",
       "tooltip": "Исправить таблицу",
-      "description": "Сделать неправильную таблицу правильной, не удаляя содержимого"
+      "description": "Сделать так, чтобы каждая строка таблицы покрывала все её столбцы, не удаляя содержимого"
     },
     "table.select": {
       "label": "Выд&елить таблицу",
@@ -1236,6 +1296,11 @@
       "label": "&Слова...",
       "tooltip": "Слова",
       "description": "Частотный список слов книги с заменами"
+    },
+    "tree.cleanRow": {
+      "label": "Дерево: убрать строку скрипта",
+      "tooltip": "Дерево: убрать строку скрипта",
+      "description": "Убрать эту строку, показанную скриптом дерева; книга не меняется"
     },
     "tree.delete": {
       "label": "Структура: удалить",
@@ -1302,6 +1367,16 @@
       "tooltip": "Панель ссылок",
       "description": "Показать или скрыть панель ссылок"
     },
+    "view.preview": {
+      "label": "Прос&мотр",
+      "tooltip": "Просмотр",
+      "description": "Показать книгу так, как её показывает читалка"
+    },
+    "view.showIds": {
+      "label": "Показывать иденти&фикаторы",
+      "tooltip": "Показать или скрыть отметки элементов с идентификатором",
+      "description": "Показывает маленькую вкладку #id на элементах вида «Текст», у которых есть идентификатор (на них могут указывать ссылки), и значок # у таких разделов в дереве; отметки никогда не входят в текст"
+    },
     "view.source": {
       "label": "&Код",
       "tooltip": "Перейти к коду",
@@ -1311,6 +1386,11 @@
       "label": "&Строка состояния",
       "tooltip": "Строка состояния",
       "description": "Показать или скрыть строку состояния"
+    },
+    "view.styles": {
+      "label": "Сти&ли",
+      "tooltip": "Стили",
+      "description": "Показать и изменить таблицы стилей книги"
     },
     "view.tableBar": {
       "label": "П&анель таблиц",
@@ -1448,6 +1528,16 @@
       "label": "Експорт у &FBD...",
       "tooltip": "Експорт у FBD",
       "description": "Записати опис цього документа разом з обкладинкою у файл FBD"
+    },
+    "file.exportMarkdown": {
+      "label": "Експорт у Mar&kdown...",
+      "tooltip": "Експорт у Markdown",
+      "description": "Записати книгу одним файлом Markdown із вбудованими зображеннями"
+    },
+    "file.exportMarkdownZip": {
+      "label": "Експорт у Markdown &ZIP...",
+      "tooltip": "Експорт у Markdown ZIP",
+      "description": "Записати книгу ZIP-архівом із файлом Markdown і його зображеннями"
     },
     "file.importDescription": {
       "label": "Оп&ис із файлу FictionBook...",
@@ -1724,6 +1814,11 @@
       "tooltip": "Гіперпосилання",
       "description": "Додати гіперпосилання"
     },
+    "style.namedNone": {
+      "label": "Немає іменованих стилів",
+      "tooltip": "Немає іменованих стилів",
+      "description": "Іменованих стилів немає: додайте селектор класу у вигляді стилів"
+    },
     "style.normal": {
       "label": "&Звичайний",
       "tooltip": "Звичайний текст",
@@ -1733,6 +1828,11 @@
       "label": "&Видалити посилання",
       "tooltip": "Видалити посилання",
       "description": "Видалити посилання з виділеного тексту"
+    },
+    "style.removeNamed": {
+      "label": "Видалити іменова&ний стиль",
+      "tooltip": "Видалити іменований стиль",
+      "description": "Прибрати іменований стиль з виділеного тексту або з елемента під курсором"
     },
     "style.strikethrough": {
       "label": "Закреслений текст",
@@ -1857,7 +1957,7 @@
     "table.repair": {
       "label": "В&иправити таблицю",
       "tooltip": "Виправити таблицю",
-      "description": "Зробити неправильну таблицю правильною, не видаляючи вмісту"
+      "description": "Зробити так, щоб кожен рядок таблиці покривав усі її стовпці, не видаляючи вмісту"
     },
     "table.select": {
       "label": "Ви&ділити таблицю",
@@ -1903,6 +2003,11 @@
       "label": "&Слова...",
       "tooltip": "Слова",
       "description": "Частотний список слів книги із замінами"
+    },
+    "tree.cleanRow": {
+      "label": "Дерево: прибрати рядок скрипту",
+      "tooltip": "Дерево: прибрати рядок скрипту",
+      "description": "Прибрати цей рядок, показаний скриптом дерева; книга не змінюється"
     },
     "tree.delete": {
       "label": "Структура: видалити",
@@ -1969,6 +2074,16 @@
       "tooltip": "Панель посилань",
       "description": "Показати чи сховати панель посилань"
     },
+    "view.preview": {
+      "label": "Пере&гляд",
+      "tooltip": "Перегляд",
+      "description": "Показати книгу так, як її показує читалка"
+    },
+    "view.showIds": {
+      "label": "Показувати &ідентифікатори",
+      "tooltip": "Показати або сховати позначки елементів з ідентифікатором",
+      "description": "Показує маленьку вкладку #id на елементах вигляду «Текст», що мають ідентифікатор (на них можуть вказувати посилання), і значок # біля таких розділів у дереві; позначки ніколи не входять до тексту"
+    },
     "view.source": {
       "label": "&Код",
       "tooltip": "Перейти до коду",
@@ -1978,6 +2093,11 @@
       "label": "&Смуга стану",
       "tooltip": "Смуга стану",
       "description": "Показати чи сховати смугу стану"
+    },
+    "view.styles": {
+      "label": "Сти&лі",
+      "tooltip": "Стилі",
+      "description": "Показати й змінити таблиці стилів книги"
     },
     "view.tableBar": {
       "label": "П&анель таблиць",

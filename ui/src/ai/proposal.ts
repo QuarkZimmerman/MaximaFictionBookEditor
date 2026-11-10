@@ -287,8 +287,14 @@ export function parseManifest(
   if (value.entry !== undefined && typeof value.entry !== 'string') {
     return { ok: false, reason: 'script.json: entry must be a string' };
   }
-  if (value.kind !== undefined && value.kind !== 'menu' && value.kind !== 'tree') {
-    return { ok: false, reason: 'script.json: kind must be "menu" or "tree"' };
+  // Feature 011 (US11, D41): a treeRows script lists places as rows of the Document tree.
+  if (
+    value.kind !== undefined &&
+    value.kind !== 'menu' &&
+    value.kind !== 'tree' &&
+    value.kind !== 'treeRows'
+  ) {
+    return { ok: false, reason: 'script.json: kind must be "menu", "tree" or "treeRows"' };
   }
   const description = value.description === undefined ? undefined : stringMap(value.description);
   if (value.description !== undefined && !description) {

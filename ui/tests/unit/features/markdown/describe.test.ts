@@ -33,7 +33,9 @@ describe('buildBook', () => {
     ]);
     expect(titleInfo.getElementsByTagName('book-title')[0]!.textContent).toBe('My Book');
     expect(titleInfo.getElementsByTagName('last-name')[0]!.textContent).toBe('Writer');
-    expect(titleInfo.getElementsByTagName('date')[0]!.getAttribute('value')).toBe('2026');
+    // Feature 011 (D31, FR-081): a year alone is no xs:date - the date keeps its text, no value.
+    expect(titleInfo.getElementsByTagName('date')[0]!.getAttribute('value')).toBeNull();
+    expect(titleInfo.getElementsByTagName('date')[0]!.textContent).toBe('2026');
     expect(titleInfo.getElementsByTagName('lang')[0]!.textContent).toBe('en');
     expect(
       titleInfo

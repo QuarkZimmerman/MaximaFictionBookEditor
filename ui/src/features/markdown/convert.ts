@@ -16,7 +16,8 @@ import sub from 'markdown-it-sub';
 import sup from 'markdown-it-sup';
 import taskLists from 'markdown-it-task-lists';
 
-import { frontList, frontText, readFrontMatter } from './frontMatter';
+import { styleLooks } from './export/serialize';
+import { frontList, frontText, readFrontMatter, type FlowValue } from './frontMatter';
 import {
   codePoints,
   expandEmojiCodes,
@@ -25,6 +26,7 @@ import {
   treatmentOf,
   type SpecialChar,
 } from './specialChars';
+import { mathRule } from './mathRule';
 
 export interface MarkdownPerson {
   firstName?: string;
@@ -45,6 +47,49 @@ export interface MarkdownDescription {
   /** The cover picture's href: `#id` of a picture to add, or a web address kept as written. */
   cover?: string;
   genres: string[];
+  // Feature 011 (US7, D29, D46): the rest of the editor's own header (contracts/markdown-export.md
+  // §1) and Pandoc's keys (§7).
+  sequences: MarkdownSequence[];
+  srcLang?: string;
+  translators: MarkdownPerson[];
+  source?: {
+    title?: string;
+    authors: MarkdownPerson[];
+    lang?: string;
+    sequences: MarkdownSequence[];
+  };
+  document?: {
+    authors: MarkdownPerson[];
+    program?: string;
+    date?: string;
+    srcUrls: string[];
+    srcOcr?: string;
+    id?: string;
+    version?: string;
+    history: string[];
+  };
+  publish?: {
+    bookName?: string;
+    publisher?: string;
+    city?: string;
+    year?: string;
+    isbn?: string;
+    sequences: MarkdownSequence[];
+  };
+  custom: { type: string; text: string }[];
+}
+
+export interface MarkdownSequence {
+  name: string;
+  number?: number;
+}
+
+/** A stylesheet the import found (D46): the export's own, or CSS another tool wrote. */
+export interface MarkdownStylesheet {
+  type: string;
+  text: string;
+  /** CSS written for HTML (Pandoc's header, a `<style>` block): translated to FB2 (D46, §7). */
+  foreign: boolean;
 }
 
 /** A picture to add once the book exists (D29): a file, or the bytes of a `data:` address. */
@@ -57,7 +102,51 @@ export interface MarkdownPicture {
   data?: string;
 }
 
-export type SummaryKind = 'webPicture' | 'missingTarget' | 'htmlTag' | 'droppedChar';
+export type SummaryKind =
+  | 'webPicture'
+  | 'missingTarget'
+  | 'htmlTag'
+  | 'droppedChar'
+  // Feature 011 (US7; D46; FR-073, FR-074): header keys without an FB2 field, CSS not read, classes
+  // beyond the first, rules and declarations the translation dropped.
+  | 'headerKey'
+  | 'webCss'
+  | 'cssFile'
+  | 'extraClass'
+  | 'cssDropped'
+  // Feature 011 (D49, FR-075a): a Mermaid block that could not be drawn, kept as code.
+  | 'diagram'
+  // Feature 011 (D50, FR-075b): a formula that could not be drawn, kept as written.
+  | 'formula';
+
+/**
+ * Feature 011 (D50): a TeX formula. The converter leaves `<!--mfbe-formula:<index>-->` where it
+ * stands; the import flow puts `imageXml` there - a picture in the line, a block one on its own -
+ * or, when it cannot be drawn, `textXml`, the formula as written.
+ */
+export interface MarkdownFormula {
+  index: number;
+  /** The picture's binary id; the export recognises a formula by it. */
+  id: string;
+  source: string;
+  display: boolean;
+  imageXml: string;
+  textXml: string;
+}
+
+/**
+ * Feature 011 (D49): a ```mermaid block outside quotes and notes. The converter leaves the marker
+ * `<!--mfbe-diagram:<index>-->` in the body; the import flow draws the diagram (Mermaid needs the
+ * page) and puts `imageXml` there, or `codeXml` - the block as code - when it cannot be drawn.
+ */
+export interface MarkdownDiagram {
+  index: number;
+  /** The picture's binary id; the export recognises a diagram by it. */
+  id: string;
+  source: string;
+  imageXml: string;
+  codeXml: string;
+}
 
 export interface SummaryItem {
   kind: SummaryKind;
@@ -70,8 +159,14 @@ export interface ConvertResult {
   description: MarkdownDescription;
   pictures: MarkdownPicture[];
   chars: SpecialChar[];
+  diagrams: MarkdownDiagram[];
+  formulas: MarkdownFormula[];
   summary: SummaryItem[];
   stats: { sections: number; pictures: number; tables: number; notes: number };
+  /** Feature 011 (US7, D46): the stylesheets of the header and of the text, in order. */
+  stylesheets: MarkdownStylesheet[];
+  /** The local CSS files the header's `css:` names, as written (read by the import afterwards). */
+  cssFiles: string[];
 }
 
 export interface ConvertOptions {
@@ -83,6 +178,8 @@ export interface ConvertOptions {
   notesTitle: string;
   /** The FB2 genre codes the editor knows; front-matter genres outside them are left out. */
   genres?: ReadonlySet<string>;
+  /** Feature 011 (D49): the alternative text of a diagram's picture, in the interface language. */
+  diagramAlt?: string;
 }
 
 const NBSP = '\u00a0';
@@ -178,6 +275,45 @@ function joinPath(dir: string, relative: string): string {
   return out.join(separator);
 }
 
+/** The header keys the import reads (feature 010's, the editor's export's, Pandoc's). */
+const KNOWN_HEADER_KEYS: ReadonlySet<string> = new Set([
+  'title',
+  'author',
+  'authors',
+  'genres',
+  'genre',
+  'description',
+  'summary',
+  'abstract',
+  'keywords',
+  'tags',
+  'subject',
+  'date',
+  'lang',
+  'language',
+  'src_lang',
+  'translator',
+  'translators',
+  'series',
+  'sequence',
+  'series_index',
+  'number',
+  'cover',
+  'image',
+  'cover-image',
+  'source',
+  'document',
+  'publish',
+  'custom',
+  'stylesheets',
+  'header-includes',
+  'css',
+  'publisher',
+  'identifier',
+  'isbn',
+  'rights',
+]);
+
 function personOf(name: string): MarkdownPerson {
   const words = name.trim().split(/\s+/).filter(Boolean);
   if (words.length === 1) return { nickname: words[0] };
@@ -221,10 +357,18 @@ class Converter {
   private readonly pictures: MarkdownPicture[] = [];
   private readonly pictureIds = new Map<string, string>();
   private readonly chars = new Map<string, SpecialChar>();
+  private readonly diagrams: MarkdownDiagram[] = [];
+  private readonly formulas: MarkdownFormula[] = [];
   private readonly summary: SummaryItem[] = [];
   private readonly summaryKeys = new Set<string>();
   private readonly notes: string[] = [];
   private readonly stats = { sections: 0, pictures: 0, tables: 0, notes: 0 };
+  /** Feature 011 (US7, D46): the `<style>` blocks of the text, in order. */
+  private readonly textStyles: MarkdownStylesheet[] = [];
+  /** The classes of the `<div class>` blocks the parser is inside (D46): their paragraphs' style. */
+  private readonly divStyles: string[] = [];
+  /** Whether each open `<span>` is a named style (a class-less one closes nothing). */
+  private readonly spans: boolean[] = [];
   private readonly root: SectionNode = {
     level: 0,
     title: null,
@@ -242,7 +386,26 @@ class Converter {
       .use(footnote)
       .use(sub)
       .use(sup)
-      .use(taskLists, { enabled: false });
+      .use(taskLists, { enabled: false })
+      // Feature 011 (D50): $…$ and $$…$$ formulas by GitHub's rules.
+      .use(mathRule);
+  }
+
+  /** The marker of a formula (D50); a block one outside quotes and notes is a picture of its own. */
+  private formula(source: string, display: boolean, ctx: BlockContext | null): string {
+    const index = this.formulas.length;
+    const id = `formula-${index + 1}`;
+    const picture = `<image l:href="#${id}" alt="${attr(source)}"/>`;
+    const own = display && ctx !== null && !ctx.inCite;
+    this.formulas.push({
+      index,
+      id,
+      source,
+      display,
+      imageXml: own ? picture : display ? `<p>${picture}</p>` : picture,
+      textXml: display ? `<p>${esc(`$$${source}$$`)}</p>` : esc(`$${source}$`),
+    });
+    return `<!--mfbe-formula:${index}-->`;
   }
 
   private unique(base: string): string {
@@ -260,9 +423,9 @@ class Converter {
   }
 
   run(text: string): ConvertResult {
-    const { values, body } = readFrontMatter(text);
+    const { values, structured, body } = readFrontMatter(text);
     const env: Record<string, unknown> = {};
-    const tokens = this.md.parse(body, env);
+    const tokens = this.md.parse(this.prepare(body, values, structured), env);
     const footnoteCount = ((env.footnotes as { list?: unknown[] } | undefined)?.list ?? []).length;
     for (let n = 1; n <= footnoteCount; n += 1) this.used.add(`n_${n}`);
     // The sections' ids first, so that links to later headings find them.
@@ -320,49 +483,240 @@ class Converter {
     return {
       bodyXml,
       notesXml,
-      description: this.describe(values, titlePlain),
+      description: this.describe(values, structured, titlePlain),
       pictures: this.pictures,
       chars: [...this.chars.values()],
+      diagrams: this.diagrams,
+      formulas: this.formulas,
       summary: this.summary,
       stats: this.stats,
+      stylesheets: [...this.headerStylesheets(values, structured), ...this.textStyles],
+      cssFiles: this.cssFiles(values),
     };
+  }
+
+  /**
+   * Feature 011 (US7, D29, D46): the text as the converter reads it - without the editor's own
+   * cover and title page, which the header gives back as the description; Pandoc's `::: {.x}`
+   * blocks and `[text]{.x}` spans as the `<div class>` and `<span class>` they stand for; a named
+   * style's span without the Markdown forms the export added to imitate its look.
+   */
+  private prepare(
+    body: string,
+    values: ReturnType<typeof readFrontMatter>['values'],
+    structured: ReturnType<typeof readFrontMatter>['structured'],
+  ): string {
+    let text = body;
+    const title = frontText(values, 'title');
+    if (title) {
+      const lead = text.replace(/^\s+/, '');
+      const withoutCover = lead.replace(/^!\[cover\](\[[^\]\n]*\]|\([^)\n]*\))[ \t]*\n+/, '');
+      const page = /^# ([^\n]*)\n+((?:\*[^*\n][^\n]*\*\n+)*)(\*\*[^\n]*\*\*\n+)?---[ \t]*\n/.exec(
+        withoutCover,
+      );
+      if (page && page[1]!.replace(/\\(.)/g, '$1').trim() === title) {
+        text = withoutCover.slice(page[0].length);
+      } else if (withoutCover !== lead) {
+        text = withoutCover;
+      }
+    }
+    text = text
+      .replace(
+        /^:::[ \t]*\{\.([\w-]+)((?:[ \t]+\.[\w-]+)*)\}[ \t]*$/gm,
+        (_, name: string, extra: string) => {
+          if (extra.trim()) this.note('extraClass', extra.trim());
+          return `\n<div class="${name}">\n`;
+        },
+      )
+      .replace(/^:::[ \t]*$/gm, '\n</div>\n')
+      .replace(
+        /\[([^\]\n]+)\]\{\.([\w-]+)((?:[ \t]+\.[\w-]+)*)\}(?!\()/g,
+        (_, inner: string, name: string, extra: string) => {
+          if (extra.trim()) this.note('extraClass', extra.trim());
+          return `<span class="${name}">${inner}</span>`;
+        },
+      );
+    // The export imitates a named style's look with Markdown's forms inside its span (D45): the
+    // import takes the span alone back.
+    const css = this.headerStylesheets(values, structured).map((sheet) => ({
+      type: sheet.type,
+      content: sheet.text,
+    }));
+    const looks = styleLooks({ stylesheets: css });
+    if (looks.size > 0) {
+      text = text.replace(
+        /<span class="([\w-]+)"( data-fb2-style="element")?>(.*?)<\/span>/g,
+        (whole, name: string, element: string | undefined, inner: string) => {
+          const look = looks.get(name);
+          if (!look) return whole;
+          let content = inner;
+          if (look.bold) content = /^\*\*(.*)\*\*$/s.exec(content)?.[1] ?? content;
+          if (look.italic) content = /^\*(.*)\*$/s.exec(content)?.[1] ?? content;
+          if (look.strike) content = /^~~(.*)~~$/s.exec(content)?.[1] ?? content;
+          if (look.mono) {
+            const code = /^(`+) ?(.*?) ?\1$/s.exec(content);
+            if (code) content = code[2]!.replace(/[\\`*_[\]<&]/g, (ch) => `\\${ch}`);
+          }
+          return `<span class="${name}"${element ?? ''}>${content}</span>`;
+        },
+      );
+    }
+    return text;
   }
 
   private describe(
     values: ReturnType<typeof readFrontMatter>['values'],
+    structured: ReturnType<typeof readFrontMatter>['structured'],
     headingTitle: string,
   ): MarkdownDescription {
+    const flowText = (value: FlowValue | undefined): string =>
+      typeof value === 'string' ? value.trim() : typeof value === 'number' ? String(value) : '';
+    const flowList = (value: FlowValue | undefined): string[] =>
+      Array.isArray(value)
+        ? value.map(flowText).filter(Boolean)
+        : flowText(value)
+          ? [flowText(value)]
+          : [];
+    const map = (key: string): Record<string, FlowValue> | undefined => {
+      const value = structured.get(key);
+      return value && typeof value === 'object' && !Array.isArray(value) ? value : undefined;
+    };
+    const maps = (key: string): Record<string, FlowValue>[] => {
+      const value = structured.get(key);
+      return Array.isArray(value)
+        ? (value.filter(
+            (item) => item && typeof item === 'object' && !Array.isArray(item),
+          ) as Record<string, FlowValue>[])
+        : [];
+    };
+    const raw = (...keys: string[]): string[] => {
+      for (const key of keys) {
+        const value = values.get(key);
+        if (value === undefined) continue;
+        const list = (Array.isArray(value) ? value : [value])
+          .map((item) => item.trim())
+          .filter(Boolean);
+        if (list.length > 0) return list;
+      }
+      return [];
+    };
+    const sequencesOf = (names: string[], numbers: string[]): MarkdownSequence[] =>
+      names.map((name, i) => {
+        const number = Number(numbers[i]);
+        return { name, number: Number.isInteger(number) && number > 0 ? number : undefined };
+      });
+    const paragraphs = (text: string) =>
+      text
+        .split(/\n\s*\n/)
+        .map((p) => p.trim())
+        .filter(Boolean);
+
     const title = frontText(values, 'title') || headingTitle.trim() || this.options.fileName;
-    const sequenceName = frontText(values, 'series', 'sequence');
-    const sequenceNumber = Number(frontText(values, 'series_index', 'number'));
+    const sequences = sequencesOf(raw('series', 'sequence'), raw('series_index', 'number'));
     const annotation = frontText(values, 'description', 'summary', 'abstract');
-    const keywords = frontList(values, 'keywords', 'tags');
-    const cover = frontText(values, 'cover', 'image');
+    const keywords = frontList(values, 'keywords', 'tags', 'subject');
+    const cover = frontText(values, 'cover', 'image', 'cover-image');
     const genres = frontList(values, 'genres', 'genre').filter(
       (code) => !this.options.genres || this.options.genres.has(code),
     );
+    const source = map('source');
+    const document = map('document');
+    const publish = map('publish');
+    // Pandoc's keys where the editor's own are absent (D46, contracts/markdown-export.md §7).
+    const publisher = flowText(publish?.publisher) || frontText(values, 'publisher');
+    const identifier = flowText(publish?.isbn) || frontText(values, 'identifier', 'isbn');
+    const custom = maps('custom').map((item) => ({
+      type: flowText(item.type),
+      text: flowText(item.text),
+    }));
+    const rights = frontText(values, 'rights');
+    if (rights) custom.push({ type: 'rights', text: rights });
+    for (const key of values.keys()) {
+      if (!KNOWN_HEADER_KEYS.has(key)) this.note('headerKey', key);
+    }
     return {
       title,
       authors: frontList(values, 'authors', 'author').map(personOf),
       date: frontText(values, 'date') || undefined,
       lang: frontText(values, 'lang', 'language') || undefined,
-      annotation: annotation
-        ? annotation
-            .split(/\n\s*\n/)
-            .map((p) => p.trim())
-            .filter(Boolean)
-        : [],
+      annotation: annotation ? paragraphs(annotation) : [],
       keywords: keywords.length ? keywords.join(', ') : undefined,
-      sequence: sequenceName
-        ? {
-            name: sequenceName,
-            number:
-              Number.isInteger(sequenceNumber) && sequenceNumber > 0 ? sequenceNumber : undefined,
-          }
-        : undefined,
+      sequence: sequences[0],
+      sequences,
       cover: cover ? this.pictureHref(cover) : undefined,
       genres,
+      srcLang: frontText(values, 'src_lang') || undefined,
+      translators: frontList(values, 'translator', 'translators').map(personOf),
+      source: source
+        ? {
+            title: flowText(source.title) || undefined,
+            authors: flowList(source.author).map(personOf),
+            lang: flowText(source.lang) || undefined,
+            sequences: sequencesOf(flowList(source.series), flowList(source.series_index)),
+          }
+        : undefined,
+      document: document
+        ? {
+            authors: flowList(document.author).map(personOf),
+            program: flowText(document.program) || undefined,
+            date: flowText(document.date) || undefined,
+            srcUrls: flowList(document.src_url),
+            srcOcr: flowText(document.src_ocr) || undefined,
+            id: flowText(document.id) || undefined,
+            version: flowText(document.version) || undefined,
+            history: paragraphs(flowText(document.history)),
+          }
+        : undefined,
+      publish:
+        publish || publisher || identifier
+          ? {
+              bookName: flowText(publish?.book_name) || undefined,
+              publisher: publisher || undefined,
+              city: flowText(publish?.city) || undefined,
+              year: flowText(publish?.year) || undefined,
+              isbn: identifier || undefined,
+              sequences: sequencesOf(flowList(publish?.series), flowList(publish?.series_index)),
+            }
+          : undefined,
+      custom,
     };
+  }
+
+  /** The header's stylesheets (D46): the editor's own exactly, else Pandoc's `<style>` blocks. */
+  private headerStylesheets(
+    values: ReturnType<typeof readFrontMatter>['values'],
+    structured: ReturnType<typeof readFrontMatter>['structured'],
+  ): MarkdownStylesheet[] {
+    const own = structured.get('stylesheets');
+    if (Array.isArray(own) && own.length > 0) {
+      return own
+        .filter((item) => item && typeof item === 'object' && !Array.isArray(item))
+        .map((item) => {
+          const sheet = item as Record<string, FlowValue>;
+          return {
+            type: typeof sheet.type === 'string' && sheet.type ? sheet.type : 'text/css',
+            text: typeof sheet.text === 'string' ? sheet.text : '',
+            foreign: false,
+          };
+        });
+    }
+    const includes = values.get('header-includes');
+    const text = Array.isArray(includes) ? includes.join('\n') : (includes ?? '');
+    return [...text.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)].map((match) => ({
+      type: 'text/css',
+      text: match[1]!.trim(),
+      foreign: true,
+    }));
+  }
+
+  /** The local CSS files the header's `css:` names; web addresses are never fetched (FR-084). */
+  private cssFiles(values: ReturnType<typeof readFrontMatter>['values']): string[] {
+    const files: string[] = [];
+    for (const entry of frontList(values, 'css')) {
+      if (/^[a-z][a-z0-9+.-]*:\/\//i.test(entry)) this.note('webCss', entry);
+      else files.push(entry);
+    }
+    return files;
   }
 
   private untitled(level: number, blocks: string[]): SectionNode {
@@ -482,19 +836,47 @@ class Converter {
       case 'fence':
       case 'code_block': {
         const indent = ctx.depth > 1 ? LIST_INDENT.repeat(ctx.depth - 1) : '';
+        const code: string[] = [];
         for (const line of token.content.replace(/\n$/, '').split('\n')) {
           const expanded = line.replace(/\t/g, '    ');
           if (!expanded.trim()) {
-            out('<empty-line/>');
+            code.push('<empty-line/>');
             continue;
           }
           const lead = /^ */.exec(expanded)![0].length;
-          out(`<p>${indent}<code>${NBSP.repeat(lead)}${esc(expanded.slice(lead))}</code></p>`);
+          code.push(
+            `<p>${indent}<code>${NBSP.repeat(lead)}${esc(expanded.slice(lead))}</code></p>`,
+          );
         }
+        // Feature 011 (D49): a Mermaid diagram becomes a picture - not in a quote or a note, where
+        // FB2 has no block pictures.
+        const language = token.type === 'fence' ? (token.info.trim().split(/\s+/)[0] ?? '') : '';
+        // Feature 011 (D50): GitHub's ```math block is a formula.
+        if (language.toLowerCase() === 'math' && token.content.trim()) {
+          out(this.formula(token.content.trim(), true, ctx));
+          return index;
+        }
+        if (language.toLowerCase() === 'mermaid' && !ctx.inCite && token.content.trim()) {
+          const diagram = this.diagrams.length;
+          const id = `mermaid-${diagram + 1}`;
+          this.diagrams.push({
+            index: diagram,
+            id,
+            source: token.content.replace(/\n$/, ''),
+            imageXml: `<image l:href="#${id}" alt="${attr(this.options.diagramAlt ?? '')}"/>`,
+            codeXml: code.join(''),
+          });
+          out(`<!--mfbe-diagram:${diagram}-->`);
+          return index;
+        }
+        code.forEach(out);
         return index;
       }
       case 'hr':
         out('<subtitle>* * *</subtitle>');
+        return index;
+      case 'math_block':
+        out(this.formula(token.content, true, ctx));
         return index;
       case 'table_open':
         return this.table(tokens, index, out);
@@ -523,6 +905,36 @@ class Converter {
   }
 
   private paragraph(children: Token[], out: (xml: string) => void, ctx: BlockContext): void {
+    // Feature 011 (D18, D29): the export's empty line is a paragraph of a no-break space.
+    if (
+      children.length > 0 &&
+      children.every((child) => child.type === 'text' && child.content === '\u00a0')
+    ) {
+      out('<empty-line/>');
+      return;
+    }
+    // A styled paragraph (D45): its whole content in a span marked as the element's style.
+    let style = this.divStyles[this.divStyles.length - 1] ?? '';
+    const meaningful = children.filter(
+      (child) => !(child.type === 'text' && !child.content.trim()),
+    );
+    const first = meaningful[0];
+    const last = meaningful[meaningful.length - 1];
+    const opening =
+      first?.type === 'html_inline'
+        ? /^<span class="([\w-]+)" data-fb2-style="element">$/.exec(first.content.trim())
+        : null;
+    if (
+      opening &&
+      last &&
+      last !== first &&
+      last.type === 'html_inline' &&
+      last.content.trim() === '</span>'
+    ) {
+      style = opening[1]!;
+      children = children.filter((child) => child !== first && child !== last);
+    }
+    const open = style ? `<p style="${attr(style)}">` : '<p>';
     const indent = ctx.depth > 1 ? LIST_INDENT.repeat(ctx.depth - 1) : '';
     let prefix = indent;
     if (ctx.item) {
@@ -533,11 +945,11 @@ class Converter {
         prefix += LIST_INDENT;
       }
     }
-    let first = true;
+    let firstLine = true;
     for (const segment of this.inline(children)) {
       if (!segment.trim()) continue;
-      out(`<p>${first ? prefix : indent}${segment}</p>`);
-      first = false;
+      out(`${open}${firstLine ? prefix : indent}${segment}</p>`);
+      firstLine = false;
     }
   }
 
@@ -549,7 +961,9 @@ class Converter {
       const token = tokens[k]!;
       if (token.type === 'tr_open') row = [];
       else if (token.type === 'tr_close') {
-        if (row) rows.push(`<tr>${row.join('')}</tr>`);
+        // Feature 011 (D19, D29): the export's empty header row (a table without header cells).
+        const empty = row?.every((cell) => /^<th[^>]*><\/th>$/.test(cell)) ?? false;
+        if (row && !(empty && rows.length === 0)) rows.push(`<tr>${row.join('')}</tr>`);
         row = null;
       } else if (token.type === 'th_open' || token.type === 'td_open') {
         const tag = token.type === 'th_open' ? 'th' : 'td';
@@ -621,6 +1035,9 @@ class Converter {
           break;
         case 'code_inline':
           push(`<code>${esc(token.content)}</code>`);
+          break;
+        case 'math_inline':
+          push(this.formula(token.content, false, null));
           break;
         case 'softbreak':
           push(' ');
@@ -793,6 +1210,18 @@ class Converter {
     } else if (name === 'a') {
       if (closing) sink.closeTag('a');
       else sink.openTag('a', `<a l:href="${attr(this.href(value('href')))}">`);
+    } else if (name === 'span') {
+      // Feature 011 (US7, D45, D46): a span with a class is the named style of that name.
+      if (closing) {
+        if (this.spans.pop()) sink.closeTag('style');
+      } else {
+        const classes = value('class').split(/\s+/).filter(Boolean);
+        this.spans.push(classes.length > 0);
+        if (classes.length > 1) this.note('extraClass', classes.slice(1).join(' '));
+        if (classes.length > 0) sink.openTag('style', `<style name="${attr(classes[0]!)}">`);
+        // A span without a class carries nothing FB2 has: dropped and listed, as before.
+        else this.note('htmlTag', name);
+      }
     } else if (name === 'br') {
       sink.breakLine();
     } else if (name === 'img') {
@@ -813,6 +1242,24 @@ class Converter {
   private htmlBlock(html: string, out: (xml: string) => void): void {
     const content = html.replace(/<!--[\s\S]*?-->/g, '');
     if (!content.trim()) return;
+    // Feature 011 (US7, D46): CSS in the text, and the classes of `<div>` blocks.
+    const styles = [...content.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)];
+    if (styles.length > 0) {
+      for (const style of styles)
+        this.textStyles.push({ type: 'text/css', text: style[1]!.trim(), foreign: true });
+      return;
+    }
+    const div = /^\s*<div\s+class="([^"]+)"\s*>\s*$/i.exec(content);
+    if (div) {
+      const classes = div[1]!.split(/\s+/).filter(Boolean);
+      if (classes.length > 1) this.note('extraClass', classes.slice(1).join(' '));
+      this.divStyles.push(classes[0] ?? '');
+      return;
+    }
+    if (/^\s*<\/div>\s*$/i.test(content)) {
+      this.divStyles.pop();
+      return;
+    }
     if (/<table[\s>]/i.test(content)) {
       const rows: string[] = [];
       for (const row of content.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)) {
@@ -824,13 +1271,25 @@ class Converter {
             ?.toLowerCase();
           const inline = this.md.parseInline(cell[3]!.replace(/<br\s*\/?>/gi, ' ').trim(), {})[0];
           const text = inline ? this.inline(inline.children).join(' ') : '';
-          cells.push(`<${tag}${align ? ` align="${align}"` : ''}>${text}</${tag}>`);
+          // Feature 011 (D19, D45): merged cells and the cells' named styles come back.
+          const attrs = cell[2] ?? '';
+          const span = (key: string) => {
+            const value = Number(
+              new RegExp(`${key}\\s*=\\s*["']?(\\d+)`, 'i').exec(attrs)?.[1] ?? 1,
+            );
+            return value > 1 ? ` ${key}="${value}"` : '';
+          };
+          const cls = /class\s*=\s*"([^"]+)"/i.exec(attrs)?.[1]?.split(/\s+/)[0];
+          cells.push(
+            `<${tag}${cls ? ` style="${attr(cls)}"` : ''}${span('colspan')}${span('rowspan')}${align ? ` align="${align}"` : ''}>${text}</${tag}>`,
+          );
         }
         if (cells.length) rows.push(`<tr>${cells.join('')}</tr>`);
       }
       if (rows.length) {
         this.stats.tables += 1;
-        out(`<table>${rows.join('')}</table>`);
+        const tableClass = /<table[^>]*class\s*=\s*"([^"]+)"/i.exec(content)?.[1]?.split(/\s+/)[0];
+        out(`<table${tableClass ? ` style="${attr(tableClass)}"` : ''}>${rows.join('')}</table>`);
       }
       return;
     }

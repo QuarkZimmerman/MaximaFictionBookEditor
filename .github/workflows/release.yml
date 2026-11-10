@@ -154,7 +154,7 @@ jobs:
         shell: pwsh
         run: tools/ci/annotate-failure.ps1 -Log "$env:RUNNER_TEMP/wix.log" -Title "WiX install"
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -169,7 +169,7 @@ jobs:
       - uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/.vcpkg-cache
-          key: vcpkg-${{ matrix.name }}-${{ hashFiles('vcpkg.json', 'CMakePresets.json') }}
+          key: vcpkg-${{ matrix.name }}-${{ hashFiles('vcpkg.json', 'CMakePresets.json', 'triplets/*.cmake') }}
           restore-keys: vcpkg-${{ matrix.name }}-
 
       - name: Cache CEF distribution
@@ -201,6 +201,15 @@ jobs:
         if: failure()
         shell: bash
         run: tools/ci/annotate-failure.sh "$RUNNER_TEMP/build.log" "Build"
+      - name: Recorded warnings (feature 011, D48)
+        shell: bash
+        run: tools/ci/warning-scan.sh "$RUNNER_TEMP/build.log"
+      # Feature 011 (D47, FR-086): no object built for a newer macOS than the editor targets, and
+      # no Mach-O of the application bundle requiring more than macOS 13.0.
+      - name: macOS deployment target (feature 011)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: tools/ci/macos-deployment-check.sh "$RUNNER_TEMP/build.log" "build/${{ matrix.preset }}/bin/mfbe.app"
 
       # --- gates -----------------------------------------------------------------------------
       # The shipped binaries are built without the test-only RPC hooks (constitution: compiled

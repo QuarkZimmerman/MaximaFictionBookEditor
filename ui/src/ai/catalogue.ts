@@ -539,7 +539,7 @@ export interface CatalogueScript {
   description?: string;
   /** Feature 007: the descriptions by language, as the manifest gives them. */
   descriptions?: Record<string, string>;
-  kind: 'menu' | 'tree';
+  kind: 'menu' | 'tree' | 'treeRows';
   needsSelection: boolean;
   /** The group id (the folder's name) the script shows in. */
   group: string;
@@ -2386,7 +2386,8 @@ const scriptEntrySchema = z.looseObject({
   group: z.string(),
   name: z.record(z.string(), z.string()),
   description: z.string().optional(),
-  kind: z.enum(['menu', 'tree']),
+  // Feature 011 (US11, D41): 'treeRows' lists places as rows of the Document tree.
+  kind: z.enum(['menu', 'tree', 'treeRows']),
   runnable: z.boolean(),
   reason: z.enum(['needsSelection', 'treeOnly', 'sourceView']).optional(),
   origin: z.string(),
@@ -2474,7 +2475,7 @@ function registerScriptReadTools(server: McpServer, ctx: ToolContext): void {
     {
       title: 'List the scripts',
       description:
-        'Lists the scripts of the editor - bundled ones (about 370), the user\'s and the assistant\'s own - in parts: {total, offset, entries}. Narrow it with group (a group id such as "13_subtitles", or a group name) and query (words that must all occur in the id, the names or descriptions in Russian or English, or the original FictionBook Editor path; letter case and ё/е do not matter) rather than paging through everything; offset and limit (default 50, at most 200) page through what matches. Each entry: id, group, name {en, ru}, description (English), kind ("menu" runs from the Scripts menu, "tree" acts on a Document Tree node), runnable with reason "needsSelection" (set_selection first), "treeOnly" (pass treeNode) or "sourceView" (scripts run in the Body view only; ask the user to switch), origin (bundled, settings, user, portable or assistant) and overrides: true for a changed copy that took a script\'s place.',
+        'Lists the scripts of the editor - bundled ones (about 370), the user\'s and the assistant\'s own - in parts: {total, offset, entries}. Narrow it with group (a group id such as "13_subtitles", or a group name) and query (words that must all occur in the id, the names or descriptions in Russian or English, or the original FictionBook Editor path; letter case and ё/е do not matter) rather than paging through everything; offset and limit (default 50, at most 200) page through what matches. Each entry: id, group, name {en, ru}, description (English), kind ("menu" runs from the Scripts menu, "tree" acts on a Document Tree node, "treeRows" shows rows in the Document tree via mfbe.tree.showRows, run like "menu"), runnable with reason "needsSelection" (set_selection first), "treeOnly" (pass treeNode) or "sourceView" (scripts run in the Body view only; ask the user to switch), origin (bundled, settings, user, portable or assistant) and overrides: true for a changed copy that took a script\'s place.',
       inputSchema: z.object({
         group: z
           .string()

@@ -73,6 +73,38 @@ std::string last_error_message() {
     return result;
 }
 
+// Windows refuses to replace a file that another process holds open without FILE_SHARE_DELETE - an
+// antivirus scan, a backup or sync tool, a program reading it - usually for milliseconds (feature
+// 011: the CI's Windows journey caught "being used by another process" while it polled
+// settings.json). Such a refusal is retried for up to two seconds before the write fails.
+bool transient_lock(DWORD error) {
+    return error == ERROR_SHARING_VIOLATION || error == ERROR_LOCK_VIOLATION ||
+           error == ERROR_ACCESS_DENIED || error == ERROR_UNABLE_TO_REMOVE_REPLACED;
+}
+
+// Runs `op` (a replace or a move of `temp`) until it succeeds, fails for another reason, two
+// seconds have passed, or the new file is no longer at its temporary name (then something moved,
+// and the caller handles that state). GetLastError() keeps the last failure's code.
+template <typename Op>
+BOOL retry_while_locked(const std::filesystem::path& temp, Op op) {
+    DWORD waited = 0;
+    DWORD pause = 10;
+    for (;;) {
+        if (op()) {
+            return TRUE;
+        }
+        const DWORD error = GetLastError();
+        if (!transient_lock(error) || waited >= 2000 ||
+            GetFileAttributesW(temp.c_str()) == INVALID_FILE_ATTRIBUTES) {
+            SetLastError(error);
+            return FALSE;
+        }
+        Sleep(pause);
+        waited += pause;
+        pause = std::min<DWORD>(pause * 2, 200);
+    }
+}
+
 BackupOutcome write_temp_and_replace(const std::filesystem::path& target,
                                      const std::filesystem::path& temp, std::string_view bytes,
                                      const WriteOptions& options) {
@@ -126,8 +158,10 @@ BackupOutcome write_temp_and_replace(const std::filesystem::path& target,
                 CopyFileW(target.c_str(), bak.c_str(), FALSE);
                 DeleteFileW(temp.c_str());
                 throw WriteError(platform::utf8_from_path(target), "injected fault: after_backup");
-            } else if (ReplaceFileW(target.c_str(), temp.c_str(), bak.c_str(),
-                                    REPLACEFILE_IGNORE_MERGE_ERRORS, nullptr, nullptr)) {
+            } else if (retry_while_locked(temp, [&] {
+                           return ReplaceFileW(target.c_str(), temp.c_str(), bak.c_str(),
+                                               REPLACEFILE_IGNORE_MERGE_ERRORS, nullptr, nullptr);
+                       })) {
                 outcome.kept = true;
                 return outcome;
             } else {
@@ -136,8 +170,10 @@ BackupOutcome write_temp_and_replace(const std::filesystem::path& target,
                     GetFileAttributesW(temp.c_str()) != INVALID_FILE_ATTRIBUTES) {
                     // ERROR_UNABLE_TO_MOVE_REPLACEMENT_2: the replaced file already went to the
                     // backup name; finish by moving the new file in.
-                    if (MoveFileExW(temp.c_str(), target.c_str(),
-                                    MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+                    if (retry_while_locked(temp, [&] {
+                            return MoveFileExW(temp.c_str(), target.c_str(),
+                                               MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
+                        })) {
                         outcome.kept = GetFileAttributesW(bak.c_str()) != INVALID_FILE_ATTRIBUTES;
                         if (outcome.kept) {
                             outcome.reason.clear();
@@ -151,11 +187,15 @@ BackupOutcome write_temp_and_replace(const std::filesystem::path& target,
                 }
             }
         }
-        ok = ReplaceFileW(target.c_str(), temp.c_str(), nullptr, REPLACEFILE_IGNORE_MERGE_ERRORS,
-                          nullptr, nullptr);
+        ok = retry_while_locked(temp, [&] {
+            return ReplaceFileW(target.c_str(), temp.c_str(), nullptr,
+                                REPLACEFILE_IGNORE_MERGE_ERRORS, nullptr, nullptr);
+        });
     } else {
-        ok = MoveFileExW(temp.c_str(), target.c_str(),
-                         MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
+        ok = retry_while_locked(temp, [&] {
+            return MoveFileExW(temp.c_str(), target.c_str(),
+                               MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
+        });
     }
     if (!ok) {
         const std::string reason = "replace failed: " + last_error_message();

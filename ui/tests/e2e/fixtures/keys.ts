@@ -20,6 +20,9 @@ export const LINE_START = MAC ? 'Meta+ArrowLeft' : 'Home';
 export const LINE_END = MAC ? 'Meta+ArrowRight' : 'End';
 export const SELECT_TO_LINE_END = MAC ? 'Meta+Shift+ArrowRight' : 'Shift+End';
 
+/** Caret to the start of the document (Cmd+Up on macOS). */
+export const DOC_START = MAC ? 'Meta+ArrowUp' : 'Control+Home';
+
 /** Edit > Replace: Option+Cmd+F on macOS, where Cmd+H hides the application. */
 export const REPLACE = MAC ? 'Alt+Meta+f' : 'Control+h';
 

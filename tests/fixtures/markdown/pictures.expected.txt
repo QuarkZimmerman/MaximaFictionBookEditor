@@ -9,7 +9,10 @@
     "title": "Pictures",
     "authors": [],
     "annotation": [],
-    "genres": []
+    "sequences": [],
+    "genres": [],
+    "translators": [],
+    "custom": []
   },
   "pictures": [
     {

@@ -138,7 +138,14 @@ function domAttrs(node: PMNode, className: string, extra: Record<string, string 
   if (node.attrs.nodeId) out['data-node-id'] = String(node.attrs.nodeId);
   if (node.attrs.id) out['data-id'] = String(node.attrs.id);
   if (node.attrs.lang) out.lang = String(node.attrs.lang);
-  if (node.attrs.style) out['data-style'] = String(node.attrs.style);
+  // Feature 011: the named style's name and the id (D51) when the pointer rests on the element.
+  const tips: string[] = [];
+  if (node.attrs.style) {
+    out['data-style'] = String(node.attrs.style);
+    tips.push(String(node.attrs.style));
+  }
+  if (node.attrs.id) tips.push(`#${String(node.attrs.id)}`);
+  if (tips.length > 0) out.title = tips.join(' · ');
   for (const [key, value] of Object.entries(extra)) {
     if (value !== null && value !== undefined) out[key] = value;
   }
@@ -570,7 +577,13 @@ const marks: Record<string, MarkSpec> = {
     toDOM(mark) {
       return [
         'span',
-        { class: 'fb-style', 'data-style': String(mark.attrs.name), ...langAttr(mark) },
+        {
+          class: 'fb-style',
+          'data-style': String(mark.attrs.name),
+          // Feature 011: the named style's name when the pointer rests on the text.
+          title: String(mark.attrs.name),
+          ...langAttr(mark),
+        },
         0,
       ];
     },

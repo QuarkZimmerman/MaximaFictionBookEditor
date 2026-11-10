@@ -184,6 +184,10 @@ public:
 // RpcError -> job.failed {jobId, error}; any other exception -> internal error.
 using JobFunction = std::function<json(JobControl& control)>;
 
+// Feature 011 (test hooks, `test.slowJobs`): every job pauses this many milliseconds after each of
+// its progress steps; 0 (the default) turns the pause off.
+void set_job_step_delay_ms(int ms);
+
 class JobManager {
 public:
     explicit JobManager(Notifier& notifier);

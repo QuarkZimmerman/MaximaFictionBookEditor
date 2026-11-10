@@ -313,6 +313,7 @@ function Invoke-EditorRun([string]$Label, [string]$Arguments, [scriptblock]$Step
 # (В in the Russian interface, X in the English one) picks Exit. The editor ends on its own, with
 # exit code 0.
 function Exit-Editor([hashtable]$ExitKey = $keyVe) {
+    Wait-WindowFocus
     Send-CdpKey $script:cdp $keyF10
     Wait-Until 'File focused in the menu bar' {
         (Get-CdpValue $script:cdp 'document.activeElement && document.activeElement.getAttribute("data-menu-id")') -ceq 'file'
@@ -456,6 +457,23 @@ function Assert-NoNewWindow([string]$What, [string[]]$Before) {
     Write-Host "engine key: $What opened no window"
 }
 
+# Waits until the editor's window has the system's focus (document.hasFocus()), then a moment more.
+# After a native dialog closes Windows gives the focus back only after a while, and the engine then
+# restores the focused element - which closes a menu that a synthetic press opened just before
+# (feature 011: the menu steps timed out with the Body editor focused and no menu open). A user's
+# click comes after that activation; the journey's synthetic input waits for it the same way.
+function Wait-WindowFocus {
+    $deadline = (Get-Date).AddSeconds(10)
+    while ((Get-Date) -lt $deadline) {
+        if ((Get-CdpValue $script:cdp 'document.hasFocus()') -eq $true) {
+            Start-Sleep -Milliseconds 300
+            return
+        }
+        Start-Sleep -Milliseconds 100
+    }
+    Write-Host 'journey: the window did not report the focus within 10 s; going on'
+}
+
 # Clicks the element with $TestId in the page (menus and dialogs of the interface react to clicks
 # as to the mouse).
 function Click-Element([string]$TestId) {
@@ -466,6 +484,7 @@ function Click-Element([string]$TestId) {
 # Menu bar buttons open their menu on mouse-down (a synthetic click() alone does nothing).
 function Press-Element([string]$TestId) {
     Wait-Until "the element $TestId" { Test-Element $TestId }
+    Wait-WindowFocus
     $null = Get-CdpValue $script:cdp @"
 (() => { const el = document.querySelector('[data-testid="$TestId"]'); for (const type of ['mousedown', 'mouseup', 'click']) { el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, button: 0 })); } return true; })()
 "@

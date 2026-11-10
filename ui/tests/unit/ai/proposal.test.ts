@@ -188,6 +188,11 @@ describe('the manifest checks', () => {
       ok: false,
       reason: expect.stringMatching(/kind/),
     });
+    // Feature 011 (US11, D41): a script of the tree bar's Scripts menu, listing places.
+    expect(parseManifest(manifest({ kind: 'treeRows' }))).toMatchObject({
+      ok: true,
+      manifest: { kind: 'treeRows' },
+    });
     expect(parseManifest(manifest({ entry: 5 }))).toMatchObject({
       ok: false,
       reason: expect.stringMatching(/entry/),

@@ -11,7 +11,8 @@ import type { BinaryMeta, Description, Document } from '@/model/document';
 /* Catalogue (scripts.list)                                                  */
 /* ------------------------------------------------------------------------ */
 
-export type ScriptKind = 'menu' | 'tree';
+// Feature 011 (US11, D41): 'treeRows' scripts list places in the tree (the tree bar's Scripts menu).
+export type ScriptKind = 'menu' | 'tree' | 'treeRows';
 
 export interface ScriptInfo {
   manifestVersion: 1;
@@ -305,7 +306,10 @@ export type ApiMethod =
   | 'clipboard.writeText'
   | 'files.saveText'
   | 'files.saveBinaries'
-  | 'scripts.run';
+  | 'scripts.run'
+  // Script API version 3 (feature 011, contracts/script-api.md): power (e), rows of the tree.
+  | 'tree.showRows'
+  | 'tree.clearRows';
 
 export const API_METHODS: readonly ApiMethod[] = [
   'doc.get',
@@ -345,6 +349,8 @@ export const API_METHODS: readonly ApiMethod[] = [
   'files.saveText',
   'files.saveBinaries',
   'scripts.run',
+  'tree.showRows',
+  'tree.clearRows',
 ];
 
 /** Messages from the host to the worker (over the private MessagePort). */

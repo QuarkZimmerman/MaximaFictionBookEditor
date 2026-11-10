@@ -11065,9 +11065,11 @@
       "status": "unchanged",
       "predecessor": "TreeCmd/Пример 1.js",
       "differences": [
-        "The original marked the document for the Document Tree: ProcessCmd() wrapped every paragraph whose text holds no full stop in <DIV class=\"abc\"> (GetClassName()), and the tree listed those paragraphs under GetTitle() «Пример 1». Tree commands are entries of the Document Tree's context menu here, run on the clicked node, and the document holds no marking classes: the command lists the text blocks without a full stop inside the clicked node (the whole book when run without a node) in a form and selects the one chosen, and the status bar gives their count."
+        "The original marked the document for the Document Tree: ProcessCmd() wrapped every paragraph whose text holds no full stop in <DIV class=\"abc\"> (GetClassName()), and the tree listed those paragraphs under GetTitle() «Пример 1». The document holds no marking classes here: the script shows the text blocks without a full stop as rows of the Document tree, in their places, with its icon (mfbe.tree.showRows), the book unchanged; the tree bar's Clean, a row's Clean or the script's next run removes them, and the status bar gives their count."
       ],
-      "fixes": [],
+      "fixes": [
+        "The Document tree bar's Scripts menu runs it again and the tree lists the paragraphs without a full stop as rows in their places, as the original did; since feature 001 it had been an entry of the tree's context menu that listed them in a form and selected the one chosen."
+      ],
       "openQuestions": [],
       "recheck": {
         "class": "identical",

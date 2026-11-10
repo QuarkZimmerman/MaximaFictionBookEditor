@@ -1,4 +1,6 @@
 // JPEG/PNG encoding (T091). See mfbe/images.hpp.
+#include "setjmp_frame.hpp"
+
 #include <mfbe/images.hpp>
 
 #include <algorithm>
@@ -128,6 +130,27 @@ void png_encode_body(PngEncodeState& st, png_structp png, png_infop info, const 
 
 }  // namespace
 
+// The only frame between libjpeg's setjmp and its longjmp; see the decoder's jpeg_run. False after
+// a libjpeg error (the message in st->err).
+#if defined(_MSC_VER)
+// MSVC reports C4611 at every setjmp of C++ code, whatever the frame holds; this frame holds no
+// object with a destructor (feature 011, D48), so the warning is known not to apply here.
+#pragma warning(push)
+#pragma warning(disable : 4611)
+#endif
+static MFBE_SETJMP_FRAME bool jpeg_encode_run(JpegEncodeState* st, const Bitmap* bitmap,
+                                              int quality) {
+    if (setjmp(st->err.jump)) {
+        return false;
+    }
+    jpeg_create_compress(&st->cinfo);
+    jpeg_encode_body(*st, *bitmap, quality);
+    return true;
+}
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
+
 std::string encode_jpeg(const Bitmap& bitmap, int quality) {
     if (bitmap.width <= 0 || bitmap.height <= 0 || bitmap.rgba.size() < bitmap.pixel_count() * 4) {
         throw DecodeError("corrupt", "cannot encode an empty bitmap");
@@ -136,27 +159,42 @@ std::string encode_jpeg(const Bitmap& bitmap, int quality) {
     st->cinfo.err = jpeg_std_error(&st->err.pub);
     st->err.pub.error_exit = jpeg_error_exit;
     st->err.pub.output_message = jpeg_output_message;
-    // C4611 (setjmp next to C++ objects): the longjmp lands in this frame, whose only object is
-    // the unique_ptr, and jpeg_encode_body holds nothing with a destructor while libjpeg runs.
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 4611)
-#endif
-    if (setjmp(st->err.jump)) {
+    bool ok = false;
+    try {
+        ok = jpeg_encode_run(st.get(), &bitmap, quality);
+    } catch (...) {
         jpeg_destroy_compress(&st->cinfo);
+        std::free(st->buffer);
+        throw;
+    }
+    jpeg_destroy_compress(&st->cinfo);
+    if (!ok) {
         std::free(st->buffer);
         throw DecodeError("corrupt", std::string("JPEG encode: ") + st->err.message);
     }
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
-    jpeg_create_compress(&st->cinfo);
-    jpeg_encode_body(*st, bitmap, quality);
-    jpeg_destroy_compress(&st->cinfo);
     std::string out(reinterpret_cast<const char*>(st->buffer), st->size);
     std::free(st->buffer);
     return out;
 }
+
+// As jpeg_encode_run, for libpng: false after a libpng error (the message in st->error).
+#if defined(_MSC_VER)
+// MSVC reports C4611 at every setjmp of C++ code, whatever the frame holds; this frame holds no
+// object with a destructor (feature 011, D48), so the warning is known not to apply here.
+#pragma warning(push)
+#pragma warning(disable : 4611)
+#endif
+static MFBE_SETJMP_FRAME bool png_encode_run(PngEncodeState* st, png_structp png, png_infop info,
+                                             const Bitmap* bitmap) {
+    if (setjmp(png_jmpbuf(png))) {
+        return false;
+    }
+    png_encode_body(*st, png, info, *bitmap);
+    return true;
+}
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 
 std::string encode_png(const Bitmap& bitmap) {
     if (bitmap.width <= 0 || bitmap.height <= 0 || bitmap.rgba.size() < bitmap.pixel_count() * 4) {
@@ -173,12 +211,17 @@ std::string encode_png(const Bitmap& bitmap) {
         png_destroy_write_struct(&png, nullptr);
         throw DecodeError("corrupt", "PNG encode: cannot create info");
     }
-    if (setjmp(png_jmpbuf(png))) {
+    bool ok = false;
+    try {
+        ok = png_encode_run(st.get(), png, info, &bitmap);
+    } catch (...) {
         png_destroy_write_struct(&png, &info);
+        throw;
+    }
+    png_destroy_write_struct(&png, &info);
+    if (!ok) {
         throw DecodeError("corrupt", "PNG encode: " + st->error);
     }
-    png_encode_body(*st, png, info, bitmap);
-    png_destroy_write_struct(&png, &info);
     return std::move(st->out);
 }
 

@@ -4,8 +4,8 @@
  * the equivalence harness `tests/scripts/run-script.mjs`). Never active in a normal session.
  *
  *   __mfbeTest.runScript(idOrDir, {treeNodeId?})  -> RunResult   (also __mfbeTest.scripts.run)
- *   __mfbeTest.scripts.{list, refresh, state, lastRunId, cancel, treeCommands, document, toXml,
- *                       select, selectRange}
+ *   __mfbeTest.scripts.{list, refresh, state, lastRunId, cancel, treeCommands, treeRows, document,
+ *                       toXml, select, selectRange}
  *   __mfbeTest.sourceMapping.{enabled, last, bodySelection, sourceSelection, select, sourceText}
  *       (feature 004 US7: the Body <-> Source mapping switch of the FR-073 measurement, the
  *       record of the last mapping step, and readers / a setter of the two editors' selections
@@ -16,6 +16,7 @@ import type { CommandContext } from '@/app/commands';
 import type { ModelPoint } from '@/rpc/types';
 import { getBodyController, hasBodyController, selectionPoints } from '@/views/body/bodyEditor';
 import { getSourceEditor } from '@/views/source/sourceEditor';
+import { getScriptRows } from '@/views/tree/scriptRows';
 import {
   sourceMappingState,
   type SourceMappingStep,
@@ -36,6 +37,8 @@ export interface ScriptTestHooks {
   state(): RunState | null;
   lastRunId(): string | null;
   treeCommands(nodeId: string): { id: string; scriptId: string; label: string }[];
+  /** Feature 011 (US11): the rows tree scripts show in the Document tree, script by script. */
+  treeRows(): { scriptId: string; nodeId: string; caption?: string }[];
   document(): unknown;
   toXml(): Promise<string>;
   /** Selects a text block (or `[from, to)` inside it) in the Body view; false when unknown. */
@@ -131,6 +134,10 @@ export function installScriptTestHooks(
         scriptId,
         label,
       })),
+    treeRows: () =>
+      [...getScriptRows(feature.store).getState().values()].flatMap((set) =>
+        set.entries.map((entry) => ({ scriptId: set.scriptId, ...entry })),
+      ),
     document: () => feature.store.getState().document,
     select(nodeId, from, to) {
       if (!hasBodyController(feature.store)) return false;

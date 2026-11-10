@@ -48,7 +48,7 @@ struct OpenFileRequest {
     int selectedFilter = 0;                  // index of the type selected when the dialog opens
     std::optional<std::string> folder;       // where the dialog opens (UTF-8); default: last used
     std::optional<std::string> defaultPath;  // the file proposed: its folder, its name filled in
-    bool documentDialog = false;             // offers FictionBook files (derived from `filters`)
+    bool documentDialog = false;             // `role: "document"`: Open (feature 011, D32)
 };
 struct OpenFileResult {
     std::vector<std::string> paths;  // empty = cancelled
@@ -63,7 +63,7 @@ struct SaveFileRequest {
     std::optional<std::string> encodingLabel;     // its label (default: the shell's own text)
     int selectedFilter = 0;                       // index of the type selected when it opens
     std::optional<std::string> folder;            // where it opens when defaultPath names no folder
-    bool documentDialog = false;  // offers FictionBook files (derived from `filters`)
+    bool documentDialog = false;                  // `role: "document"`: Save As (feature 011, D32)
     // Feature 009 (DP-8): the "save as ZIP archive" checkbox beside the encoding choice - its
     // label (none = no checkbox) and whether it starts ticked.
     std::optional<std::string> zipLabel;
@@ -123,7 +123,8 @@ nlohmann::json to_json(const ReleaseResult& r);  // {tag, version, url} or {erro
 ReleaseResult release_from_github(int http_status, std::string_view body);
 
 // Tolerant parsers (missing fields -> defaults); throw std::invalid_argument on wrong types.
-// The request parsers set documentDialog from the filters.
+// The request parsers set documentDialog from `role: "document"` (feature 011, D32: Open and Save
+// As only; every export and import dialog keeps no folder, whatever its filters offer).
 OpenFileRequest open_file_request_from_json(const nlohmann::json& j);
 OpenFileResult open_file_result_from_json(const nlohmann::json& j);
 SaveFileRequest save_file_request_from_json(const nlohmann::json& j);

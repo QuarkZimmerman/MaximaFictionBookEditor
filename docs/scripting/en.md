@@ -38,8 +38,8 @@ scripts/
 │   │   └── icon.png                 16 px icon for the Scripts toolbar (optional, PNG/ICO/SVG)
 │   └── 02_К нижнему регистру/
 ├── 06_Чистка/
-└── tree/                            → "tree" scripts (Document Tree context menu)
-    └── Пример 1/
+└── tree/                            → tree scripts: "tree" (Document Tree context menu) and
+    └── Пример 1/                      "treeRows" (the tree bar's Scripts menu, section 4.8)
 ```
 
 Use **Scripts > Reload scripts** after adding or editing a package (the list is also refreshed
@@ -86,7 +86,7 @@ backup in `script-backups/` of your data folder, from which the assistant can re
 | `id` | no | unique id (reverse-DNS style recommended); defaults to `<group folder>/<script folder>`; a script of a higher folder (section 1) with the id of a lower one replaces it in its place; the same id twice in one folder is reported and the first one wins |
 | `name` | yes | display names by language; `en` is required, `ru` optional |
 | `description` | no | tooltip / status-bar text by language |
-| `kind` | yes | `menu` (Scripts menu, toolbar, hotkey) or `tree` (Document Tree context menu). Missing: `tree` inside the `tree/` folder, `menu` elsewhere, with a warning |
+| `kind` | yes | `menu` (Scripts menu, toolbar, hotkey), `tree` (Document Tree context menu) or `treeRows` (the Document tree bar's *Scripts* menu: shows places as rows of the tree, section 4.8). Missing: `tree` inside the `tree/` folder, `menu` elsewhere, with a warning |
 | `entry` | no | entry module inside the folder, default `index.js` |
 | `icon` | no | PNG, ICO or SVG inside the folder; scripts with an icon get a toolbar button |
 | `defaultHotkey` | no | chord such as `Ctrl+Alt+U`, `Mod+Shift+F5` (`Mod` = Ctrl, Cmd on macOS); users may change it in Settings > Hotkeys (group "Scripts"); collisions are reported there |
@@ -116,6 +116,7 @@ export default async function run(ctx) {
   // ctx.script     = { id, name, group, kind }
   // ctx.uiLanguage = 'en' | 'ru'
   // ctx.treeNode   = { nodeId, type } for kind "tree" (the node that was right-clicked)
+  //                  (kind "treeRows" runs on the whole book: no treeNode)
   // ctx.cancelled  = true once the user asked to cancel
   const selection = await mfbe.selection.get();
   await mfbe.ui.message(selection ? selection.text : 'Nothing selected');
@@ -257,6 +258,46 @@ and the callee's own error rejects in the caller, which may catch it. Errors of 
 these codes in `error.code` (and `name` `ScriptApiError`); `files.failed` reports a file that
 could not be written. A cancelled dialog is never an error.
 
+### 4.8 Version 3: rows of the Document tree - `mfbe.tree`
+
+`mfbe.version` is `3` since 0.0.9; scripts of versions 1 and 2 run unchanged. A script of kind
+`treeRows` is a tree script as FictionBook Editor had them: the Document tree bar's *Scripts* menu
+lists it with its icon, and choosing it runs it; the main Scripts menu and the tree's context menu do
+not list it. Instead of marking the book, it shows the places it finds as rows of the tree - display
+only, the book does not change (constitution principle V, power (e)).
+
+| Member | What it does |
+|--------|--------------|
+| `tree.showRows(entries)` | Shows `entries` - `[{ node, caption? }]`, `node` a NodeRef or a nodeId - as rows of the tree under the script's name and icon, each in its place (under the row of the nearest element above it), replacing the script's earlier rows. A `caption` shows at most 80 characters; without one the row shows the script's name. Unknown and stale nodes are skipped; resolves with the number of rows shown |
+| `tree.clearRows()` | Removes the script's rows |
+
+Both reject with the code `notAllowed` in a run of a script of another kind. The rows stay until
+the tree bar's *Clean*, a row's own *Clean*, the script's next run, or the deletion of their element;
+they are never saved, and another book clears them. Choosing a script with Ctrl held first removes
+the other scripts' rows. A click on a row goes to its place; its right-click menu has *Go To*,
+*Go To Source* and *Clean*.
+
+```js
+// scripts/tree/<your folder>/script.json: { ..., "kind": "treeRows", "icon": "icon.png" }
+export default async function run(ctx) {
+  const found = [];
+  for (const p of await mfbe.doc.getElementsByTagName('p')) {
+    const text = await mfbe.doc.textOf(p);
+    if (!text.includes('.')) found.push({ node: p, caption: text });
+  }
+  const shown = await mfbe.tree.showRows(found);
+  await mfbe.ui.status(`Paragraphs without a full stop: ${shown}`);
+}
+```
+
+**Adding and editing one.** A tree script is a package like any other: a folder with its
+`script.json` (names in English, Russian and Ukrainian, `"kind": "treeRows"`, an icon) and its code,
+in the personal scripts folder (*Scripts > Open scripts folder*; the portable copy's `user/scripts`) -
+no administrator rights are needed. Copy the sample `tree/example-1` (*Paragraphs Without a Full
+Stop*) into it to change it: the copy with the same `id` takes the bundled one's place. After adding
+or editing a package, *Scripts > Reload scripts* shows it in the tree bar's menu. The AI assistant can
+write one too; it lands in its own folder (`90_assistant`).
+
 ## 5. Sandbox rules
 
 Scripts run in a dedicated Web Worker with a private channel to the editor. Before the script
@@ -350,7 +391,7 @@ handful of host helpers. The capabilities map one to one:
 | `document.selection.createRange().text` | `(await mfbe.selection.get()).text` | |
 | `range.text = s`, `range.pasteHTML(...)` | `await mfbe.selection.replaceText(s)`, `selection.wrap(...)` | |
 | `api.fbwDoc` / `doc.Description...` | `await mfbe.doc.get()` + `doc.setDescription(...)` | |
-| `TreeCmd`: `ProcessCmd()`, `GetClassName()`, `GetTitle()` | `kind: "tree"`, `run(ctx)` with `ctx.treeNode`, `name` in the manifest | highlighting classes are replaced by edits or `selection.selectNode` |
+| `TreeCmd`: `ProcessCmd()`, `GetClassName()`, `GetTitle()` | `kind: "treeRows"`, `run(ctx)`, `mfbe.tree.showRows(...)`, `name` and `icon` in the manifest | the marking classes become the rows `showRows` shows (section 4.8); a command acting on one node is `kind: "tree"` with `ctx.treeNode` |
 
 Conversion tiers used for the bundled scripts: **Tier 1** (text/regex over paragraphs,
 MsgBox/InputBox) ports mechanically with the façade; **Tier 2** (sections, notes, images,

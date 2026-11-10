@@ -855,3 +855,34 @@ TEST_CASE("validator: table ids are xs:ID exactly where ncnames.json says",
     CHECK(valid_names > 0);
     CHECK(valid_names < names.size());
 }
+
+// Feature 011 (US1; D3, FR-004): no author with a name or a nickname is a warning, not an error.
+TEST_CASE("validator: description.emptyAuthor warns when no author has a name or a nickname",
+          "[validator][persons]") {
+    MemoryBinaryStore store;
+    model::NodeIdAllocator ids;
+    fb2::ReadResult r = fb2::read_file(test::fixtures_dir() / "books" / "modern-utf8.fb2", store, ids);
+    const auto has_empty_author = [&](const model::Document& d) {
+        const auto report = validation::validate_document(d, &store, r.xlink_prefix);
+        bool found = false;
+        for (const auto& issue : report.issues) {
+            if (issue.code == "description.emptyAuthor") {
+                found = true;
+                CHECK(issue.severity == model::Severity::warning);
+            }
+        }
+        return std::make_pair(found, report.errorCount);
+    };
+    CHECK_FALSE(has_empty_author(r.document).first);
+    model::Person empty;
+    empty.firstName = "";
+    empty.lastName = " ";
+    r.document.description.titleInfo.authors = {empty};
+    const auto [found, errors] = has_empty_author(r.document);
+    CHECK(found);
+    CHECK(errors == 0);
+    model::Person nick;
+    nick.nickname = "N";
+    r.document.description.titleInfo.authors = {empty, nick};
+    CHECK_FALSE(has_empty_author(r.document).first);
+}

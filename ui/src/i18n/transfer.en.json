@@ -4,7 +4,9 @@
     "file": {
       "importDescription": "&Description from FictionBook file...",
       "exportFbd": "Export as &FBD...",
-      "importMarkdown": "&Markdown File..."
+      "importMarkdown": "&Markdown File...",
+      "exportMarkdown": "Export as Mar&kdown...",
+      "exportMarkdownZip": "Export as Markdown &ZIP..."
     }
   },
   "cmd": {
@@ -20,6 +22,14 @@
       "importMarkdown": {
         "tooltip": "Import Markdown",
         "description": "Make a new book from a Markdown file: its headings become sections, its pictures and notes come along"
+      },
+      "exportMarkdown": {
+        "tooltip": "Export as Markdown",
+        "description": "Write the book as one Markdown file, its pictures embedded"
+      },
+      "exportMarkdownZip": {
+        "tooltip": "Export as Markdown ZIP",
+        "description": "Write the book as a ZIP archive holding a Markdown file and its pictures"
       }
     }
   },
@@ -41,6 +51,17 @@
       "done": "Description exported to {{path}}. No errors found.",
       "doneWithErrors_one": "Description exported to {{path}}. {{count}} error found.",
       "doneWithErrors_other": "Description exported to {{path}}. {{count}} errors found."
+    },
+    "markdown": {
+      "filterMd": "Markdown files (*.md)",
+      "filterZip": "Markdown ZIP archives (*.md.zip)",
+      "includePictures": "Include pictures",
+      "includePicturesQuestion": "Include the book's pictures in the Markdown file?",
+      "exporting": "Exporting as Markdown…",
+      "done": "Exported to {{path}}: {{sections}} sections, {{pictures}} pictures, {{tables}} tables, {{notes}} notes.",
+      "doneWithLeftOut": "Exported to {{path}}: {{sections}} sections, {{pictures}} pictures, {{tables}} tables, {{notes}} notes; {{count}} items could not be carried over.",
+      "cancelled": "The export was cancelled; no file was written.",
+      "tooLargeToImport": "The file is larger than the editor imports (128 MB): export it as a ZIP to import it again."
     }
   }
 }

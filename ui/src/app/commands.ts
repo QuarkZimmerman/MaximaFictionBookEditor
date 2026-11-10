@@ -491,6 +491,8 @@ export async function saveDocument(
   if (options.saveAs || !path) {
     const choice = await rpc.call('dialog.saveFile', {
       title: ctx.t('cmd.file.saveAs.tooltip'),
+      // Feature 011 (D32): only Open and Save As keep the folder they were left in.
+      role: 'document',
       filters: fileFilters(ctx),
       // The document's own file, or the bare name composed from its description (feature 004
       // FR-050), as the full flow passes it.
@@ -620,6 +622,7 @@ export function createBuiltinCommands(): Command[] {
         const { paths } = await ctx.rpc!.call('dialog.openFile', {
           title: ctx.t('cmd.file.open.tooltip'),
           filters: fileFilters(ctx),
+          role: 'document',
         });
         if (paths.length > 0) await openDocument(ctx, paths[0]!);
       },
@@ -781,6 +784,22 @@ export function createBuiltinCommands(): Command[] {
     viewCommand('description', 'id_view_desc'),
     viewCommand('body', 'id_view_body'),
     viewCommand('source', 'id_view_source'),
+    // Feature 011 (US8): the Styles view.
+    viewCommand('styles', 'id_style_normal'),
+    // Feature 011 (US10): Preview - a stub until features/preview takes it over.
+    stub('view.preview', 'view', cmdKeys('view.preview', 'menu.view.preview'), 'preview'),
+    // Feature 011 (D51): the marks of the elements that have an id - the Body view's tabs, the
+    // tree's badge - shown or not (`view.showIds`, on by default).
+    {
+      id: 'view.showIds',
+      group: 'view',
+      ...cmdKeys('view.showIds', 'menu.view.showIds'),
+      checked: (ctx) => ctx.store.getState().settings?.view?.showIds !== false,
+      run(ctx) {
+        const showIds = ctx.store.getState().settings?.view?.showIds === false;
+        void ctx.rpc?.call('settings.set', { patch: { view: { showIds } } }).catch(() => undefined);
+      },
+    },
     {
       id: 'view.fastMode',
       group: 'view',

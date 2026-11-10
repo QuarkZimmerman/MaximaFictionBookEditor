@@ -38,6 +38,8 @@
  *    are unavailable (the registry's default `duringScriptRun` policy); only Exit is allowed.
  */
 
+import { isModalJobRunning } from '@/app/modalJob';
+import { closePreview, currentPreview } from '@/features/preview/previewState';
 import {
   currentDocumentName,
   switchView,
@@ -578,6 +580,8 @@ export class FileFeature {
         title: ctx.t('cmd.file.open.tooltip'),
         filters: openFileTypes(ctx.t),
         selectedFilter: 0,
+        // Feature 011 (D32): only Open and Save As keep the folder they were left in.
+        role: 'document',
       }));
     } finally {
       this.nativeDialogOpen -= 1;
@@ -1023,6 +1027,7 @@ export class FileFeature {
           : current;
       const choice = await rpc.call('dialog.saveFile', {
         title: ctx.t('cmd.file.saveAs.tooltip'),
+        role: 'document',
         filters: documentFilters(ctx),
         selectedFilter,
         defaultPath,
@@ -1202,12 +1207,20 @@ export class FileFeature {
    * request at a time: a second one while the prompts are up is ignored, and a request that
    * arrives while another dialog is open (a prompt of New/Open, Settings, a native file
    * dialog) is ignored too, as a native window refuses to close behind its modal dialog - the
-   * user finishes that dialog and closes again.
+   * user finishes that dialog and closes again. A running modal job (feature 011) is treated the
+   * same way: the window stays until the job ends or is cancelled.
    */
   async handleCloseRequested(ctx: CommandContext): Promise<void> {
     if (this.closeRequestPending) return;
     const dialogs = ctx.dialogs as Dialogs & { service?: { isModalOpen: boolean } };
-    if (dialogs.service?.isModalOpen || ctx.rpc?.fileDialogOpen) return;
+    // Feature 011 (DP-11): a modal job (the Markdown export, Preview preparing) refuses the close.
+    if (dialogs.service?.isModalOpen || ctx.rpc?.fileDialogOpen || isModalJobRunning()) return;
+    // Feature 011 (rc.3 smoke test): the window's close button closes an open Preview, as Esc does;
+    // the window itself stays (its prompts would open behind Preview).
+    if (currentPreview() !== null) {
+      closePreview();
+      return;
+    }
     this.closeRequestPending = true;
     try {
       await this.exitApplication(ctx, { force: true });

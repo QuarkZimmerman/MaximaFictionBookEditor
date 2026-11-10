@@ -4,11 +4,14 @@ import type { FeatureContext } from '@/app/services';
 import { registerDescriptionFeature } from './description';
 import { registerEditingFeature } from './editing';
 import { registerHelpFeature } from './help';
+import { registerIdsFeature } from './ids';
 import { registerImagesFeature } from './images';
 import { registerScriptsFeature } from './scripts';
 import { registerSettingsFeature } from './settings';
 import { registerSourceFeature } from './source';
 import { registerSpellFeature } from './spell';
+import { registerPreviewFeature } from './preview';
+import { registerNamedStylesFeature } from './styles/namedStyles';
 import { registerTablesFeature } from './tables';
 import { registerTransferFeature } from './transfer';
 import { registerTreeFeature } from './tree';
@@ -33,6 +36,11 @@ export const featureRegistrars: Array<(ctx: FeatureContext) => void> = [
   registerTablesFeature,
   registerWordsFeature,
   registerTransferFeature,
+  // Feature 011 (US9): the named styles of the book's stylesheets.
+  registerNamedStylesFeature,
+  registerIdsFeature,
+  // Feature 011 (US10): View > Preview.
+  registerPreviewFeature,
   registerSettingsFeature,
   registerScriptsFeature,
   registerHelpFeature,

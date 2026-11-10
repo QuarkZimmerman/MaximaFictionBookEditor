@@ -77,7 +77,8 @@ describe('App shell', () => {
     let view = screen.getByTestId('menu-view-popup');
     expect(within(view).queryByTestId('menu-view-toggle')).not.toBeInTheDocument();
     expect(within(view).getAllByRole('separator')).toHaveLength(2);
-    expect(view.querySelectorAll('[role^="menuitem"]')).toHaveLength(10);
+    // Feature 011 (US8, US10): View > Styles and View > Preview after View > Source.
+    expect(view.querySelectorAll('[role^="menuitem"]')).toHaveLength(13);
     expect(screen.queryByTestId('toolbar-ai.toggle')).not.toBeInTheDocument();
     // Not even an empty wrapper of the toolbar slot (US9 T065: a hidden item has no element;
     // the stored layout keeps it - toolbarLayouts.ts), and no doubled separator either.
@@ -208,7 +209,8 @@ describe('App shell', () => {
 
     // Enter activates the highlighted item: View > D&escription (first item after Home + 7 downs)
     await user.keyboard('{Alt>}v{/Alt}');
-    await user.keyboard('{End}{ArrowUp}{ArrowUp}{ArrowUp}'); // Fast Mode -> Source -> Body -> Description
+    // Fast Mode -> Show Ids -> Preview -> Styles (feature 011) -> Source -> Body -> Description
+    await user.keyboard('{End}{ArrowUp}{ArrowUp}{ArrowUp}{ArrowUp}{ArrowUp}{ArrowUp}');
     await user.keyboard('{Enter}');
     expect(screen.getByTestId('panel-description')).toBeInTheDocument();
   });

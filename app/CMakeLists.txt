@@ -41,6 +41,18 @@ endif()
 
 find_package(CEFDistribution REQUIRED)
 
+# CEF's cef_variables.cmake targets macOS 12.0 (CEF_TARGET_SDK, its -mmacosx-version-min flag and
+# CMAKE_OSX_DEPLOYMENT_TARGET); the editor and every library it links target 13.0
+# (cmake/MfbeCompilerOptions.cmake, triplets/*-osx.cmake), so the wrapper and the helpers follow
+# (feature 011, D47: no "built for newer macOS version" warnings, minos 13.0 throughout).
+if(OS_MAC)
+  set(CEF_TARGET_SDK "13.0")
+  list(TRANSFORM CEF_COMPILER_FLAGS REPLACE "^-mmacosx-version-min=.*$"
+       "-mmacosx-version-min=${CEF_TARGET_SDK}")
+  # A normal variable, as cef_variables.cmake sets it: it shadows the cached 13.0 in this directory.
+  set(CMAKE_OSX_DEPLOYMENT_TARGET "${CEF_TARGET_SDK}")
+endif()
+
 # libcef_dll_wrapper (static, built from the distribution sources with CEF's flags).
 add_subdirectory(${CEF_LIBCEF_DLL_WRAPPER_PATH} libcef_dll_wrapper)
 

@@ -11,7 +11,8 @@ import type { ViewId } from '@/rpc/types';
 import { useAppRevision, useAppServices, useCommandContext } from './services';
 import { tip } from './tooltips';
 
-const VIEWS: readonly ViewId[] = ['description', 'body', 'source'];
+// Feature 011 (US8): the Styles view after Source.
+const VIEWS: readonly ViewId[] = ['description', 'body', 'source', 'styles'];
 
 export function ViewSwitcher() {
   const { t } = useTranslation();

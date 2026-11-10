@@ -284,6 +284,24 @@ export function installTablesTestHooks(ctx: FeatureContext): void {
       return runFuzz(host, { seed, steps });
     },
   };
+  // Feature 011 (SC-013, FR-006): the journeys' end-of-test check validates the shown book as the
+  // Validate command does (tests/e2e/fixtures/core.ts, `bookValidity`).
+  const book = {
+    async validate(): Promise<{ errorCount: number; path: string | null; codes: string[] } | null> {
+      const document = ctx.store.getState().document;
+      const rpc = ctx.rpc;
+      if (!document || !rpc) return null;
+      const report = await rpc.runJob('doc.validate', { docId: document.docId, document });
+      return {
+        errorCount: report.errorCount,
+        path: document.path ?? null,
+        codes: report.issues
+          .filter((issue) => issue.severity === 'error')
+          .map((issue) => issue.code)
+          .slice(0, 10),
+      };
+    },
+  };
   const existing = window.__mfbeTest ?? {};
-  window.__mfbeTest = Object.assign(existing, { tables: hooks });
+  window.__mfbeTest = Object.assign(existing, { tables: hooks, book });
 }

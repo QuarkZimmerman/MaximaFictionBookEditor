@@ -393,12 +393,20 @@ test.describe('US6 (005) - scripts through the assistant', () => {
       for (const script of list.entries) {
         expect(typeof script.id).toBe('string');
         expect(typeof script.name.en).toBe('string');
-        expect(['menu', 'tree']).toContain(script.kind);
+        // Feature 011 (US11, D41): tree scripts of kind treeRows are listed too.
+        expect(['menu', 'tree', 'treeRows']).toContain(script.kind);
         expect(typeof script.runnable).toBe('boolean');
       }
     }
     expect(lists[4]!.entries.length).toBeGreaterThan(0);
-    expect(lists[4]!.entries.every((s) => s.kind === 'tree' && s.reason === 'treeOnly')).toBe(true);
+    // A tree command needs its node; a treeRows script (feature 011, D41) runs like a menu script.
+    expect(
+      lists[4]!.entries.every(
+        (s) =>
+          (s.kind === 'tree' && s.reason === 'treeOnly') ||
+          (s.kind === 'treeRows' && s.reason === undefined),
+      ),
+    ).toBe(true);
 
     // read_script: the manifest and the entry in full, the icon as a binary with its size.
     const read = parse<{

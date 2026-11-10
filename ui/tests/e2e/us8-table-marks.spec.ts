@@ -202,14 +202,6 @@ function markTooltip(lang: UiLang, p: Params): string {
   return `${head}. ${uiText(lang, 'tables.mark.repairHint')}`;
 }
 
-/** The tooltip of an entry that contains the table (decision 8). */
-function containsText(lang: UiLang, p: Params): string {
-  const problems = problemsText(lang, p);
-  return p.id
-    ? uiText(lang, 'tables.mark.containsNamed', { id: p.id, problems })
-    : uiText(lang, 'tables.mark.contains', { problems });
-}
-
 /* ------------------------------------------------------------------------ */
 /* The document                                                             */
 /* ------------------------------------------------------------------------ */
@@ -641,30 +633,15 @@ test.describe('US8 (feature 006) - irregular tables are marked, in the Body view
     // the second section annotation -; nothing for the source book's annotation (C58).
     // A table's own row: the Body mark's name and tooltip; a containing entry: its lines as both.
     const expected = new Map<string, { title: string; label: string }>();
-    const contains = (p: Params) => ({
-      title: containsText(lang, p),
-      label: containsText(lang, p),
-    });
-    const blocks = new Set([
-      doc.description.titleInfo.annotation,
-      doc.description.documentInfo.history,
-    ]);
     for (const one of SHOWN) {
-      const { table, parent } = locateAfter(doc, `Case ${one.name} (`);
-      const ref = table.attrs!.nodeId!;
-      if (parent.type === 'section') {
-        expected.set(`tree-row-${ref}`, {
-          title: markTooltip(lang, one.expect.params),
-          label: markName(lang, one.expect.params),
-        });
-      } else if (!blocks.has(parent)) {
-        // A cite's or a section annotation's table: its entry contains it.
-        expect(['cite', 'annotation'], one.name).toContain(parent.type);
-        expected.set(`tree-row-${parent.attrs!.nodeId!}`, contains(one.expect.params));
-      }
+      const { table } = locateAfter(doc, `Case ${one.name} (`);
+      // Feature 011 (FR-011, D37): every table has its own row wherever it stands - in a
+      // section, a cite, a section annotation, the book's annotation or the history.
+      expected.set(`tree-row-${table.attrs!.nodeId!}`, {
+        title: markTooltip(lang, one.expect.params),
+        label: markName(lang, one.expect.params),
+      });
     }
-    expected.set('tree-row-desc:annotation', contains(params('overlap-from-two-rows-above')));
-    expected.set('tree-row-desc:history', contains(params('three-problems')));
     expect(expected.size).toBe(12);
     await page.getByTestId('tree-content').focus();
     await page.keyboard.press('*');

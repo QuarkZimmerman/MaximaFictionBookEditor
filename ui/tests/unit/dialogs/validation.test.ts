@@ -43,10 +43,10 @@ describe('table.irregular in the Validation panel', () => {
       pastEnd: 0,
     };
     expect(issueMessage(warning(tooltipExample), t.en, i18n)).toBe(
-      'Irregular table: row 2 covers 2 of 3 columns; 1 overlapping span',
+      'Table needs repair: row 2 covers 2 of 3 columns; 1 overlapping span',
     );
     expect(issueMessage(warning({ ...tooltipExample, overlaps: 0, id: 't2' }), t.en, i18n)).toBe(
-      'Irregular table "t2": row 2 covers 2 of 3 columns',
+      'Table "t2" needs repair: row 2 covers 2 of 3 columns',
     );
     expect(
       issueMessage(
@@ -55,7 +55,7 @@ describe('table.irregular in the Validation panel', () => {
         i18n,
       ),
     ).toBe(
-      'Irregular table: 2 rows cover fewer than 4 columns; 1 overlapping span; 1 span reaches past the last row',
+      'Table needs repair: 2 rows cover fewer than 4 columns; 1 overlapping span; 1 span reaches past the last row',
     );
     expect(
       issueMessage(
@@ -63,7 +63,7 @@ describe('table.irregular in the Validation panel', () => {
         t.en,
         i18n,
       ),
-    ).toBe('Irregular table: row 2 covers 0 of 1 column');
+    ).toBe('Table needs repair: row 2 covers 0 of 1 column');
     // Russian and Ukrainian: the catalogue's plural forms for each count, the named variant.
     const summaries = [
       { rows: 2, columns: 4, shortRows: 0, overlaps: 2, pastEnd: 2 },

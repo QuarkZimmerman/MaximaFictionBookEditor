@@ -63,34 +63,142 @@ never linked.
 
 | Component | Version | Licence | Full text |
 |---|---|---|---|
+| @antfu/install-pkg | 2.1.0 | MIT | `ui/node_modules/@antfu/install-pkg/LICENSE` |
 | @babel/runtime | 7.29.10 | MIT | `ui/node_modules/@babel/runtime/LICENSE` |
+| @braintree/sanitize-url | 7.1.2 | MIT | `ui/node_modules/@braintree/sanitize-url/LICENSE` |
+| @chevrotain/cst-dts-gen | 13.2.0 | Apache-2.0 | `ui/node_modules/@chevrotain/cst-dts-gen/LICENSE.txt` |
+| @chevrotain/gast | 13.2.0 | Apache-2.0 | `ui/node_modules/@chevrotain/gast/LICENSE.txt` |
+| @chevrotain/regexp-to-ast | 13.2.0 | Apache-2.0 | `ui/node_modules/@chevrotain/regexp-to-ast/LICENSE.txt` |
+| @chevrotain/types | 13.2.0 | Apache-2.0 | `ui/node_modules/@chevrotain/types/LICENSE.txt` |
+| @chevrotain/utils | 13.2.0 | Apache-2.0 | `ui/node_modules/@chevrotain/utils/LICENSE.txt` |
 | @codemirror/autocomplete | 6.20.3 | MIT | `ui/node_modules/@codemirror/autocomplete/LICENSE` |
 | @codemirror/commands | 6.11.1 | MIT | `ui/node_modules/@codemirror/commands/LICENSE` |
+| @codemirror/lang-css | 6.3.1 | MIT | `ui/node_modules/@codemirror/lang-css/LICENSE` |
 | @codemirror/lang-xml | 6.1.0 | MIT | `ui/node_modules/@codemirror/lang-xml/LICENSE` |
 | @codemirror/language | 6.13.1 | MIT | `ui/node_modules/@codemirror/language/LICENSE` |
 | @codemirror/search | 6.7.2 | MIT | `ui/node_modules/@codemirror/search/LICENSE` |
 | @codemirror/state | 6.7.6 | MIT | `ui/node_modules/@codemirror/state/LICENSE` |
 | @codemirror/streamparser | 6.0.0 | MIT | `ui/node_modules/@codemirror/streamparser/LICENSE` |
 | @codemirror/view | 6.43.14 | MIT | `ui/node_modules/@codemirror/view/LICENSE` |
+| @iconify/types | 2.0.0 | MIT | `ui/node_modules/@iconify/types/license.txt` |
+| @iconify/utils | 3.1.7 | MIT | `ui/node_modules/@iconify/utils/license.txt` |
 | @lezer/common | 1.5.3 | MIT | `ui/node_modules/@lezer/common/LICENSE` |
+| @lezer/css | 1.3.9 | MIT | `ui/node_modules/@lezer/css/LICENSE` |
 | @lezer/highlight | 1.2.5 | MIT | `ui/node_modules/@lezer/highlight/LICENSE` |
 | @lezer/lr | 1.4.11 | MIT | `ui/node_modules/@lezer/lr/LICENSE` |
 | @lezer/xml | 1.0.6 | MIT | `ui/node_modules/@lezer/xml/LICENSE` |
 | @marijn/find-cluster-break | 1.0.4 | MIT | `ui/node_modules/@marijn/find-cluster-break/LICENSE` |
+| @mermaid-js/parser | 2.0.1 | MIT | `ui/node_modules/@mermaid-js/parser/LICENSE` |
 | @modelcontextprotocol/client | 2.3.1 | Apache-2.0 | `ui/node_modules/@modelcontextprotocol/client/LICENSE` |
 | @modelcontextprotocol/core | 2.3.1 | Apache-2.0 | `ui/node_modules/@modelcontextprotocol/core/LICENSE` |
 | @modelcontextprotocol/server | 2.3.1 | Apache-2.0 | `ui/node_modules/@modelcontextprotocol/server/LICENSE` |
+| @types/d3 | 7.4.3 | MIT | `ui/node_modules/@types/d3/LICENSE` |
+| @types/d3-array | 3.2.2 | MIT | `ui/node_modules/@types/d3-array/LICENSE` |
+| @types/d3-axis | 3.0.6 | MIT | `ui/node_modules/@types/d3-axis/LICENSE` |
+| @types/d3-brush | 3.0.6 | MIT | `ui/node_modules/@types/d3-brush/LICENSE` |
+| @types/d3-chord | 3.0.6 | MIT | `ui/node_modules/@types/d3-chord/LICENSE` |
+| @types/d3-color | 3.1.3 | MIT | `ui/node_modules/@types/d3-color/LICENSE` |
+| @types/d3-contour | 3.0.6 | MIT | `ui/node_modules/@types/d3-contour/LICENSE` |
+| @types/d3-delaunay | 6.0.4 | MIT | `ui/node_modules/@types/d3-delaunay/LICENSE` |
+| @types/d3-dispatch | 3.0.7 | MIT | `ui/node_modules/@types/d3-dispatch/LICENSE` |
+| @types/d3-drag | 3.0.7 | MIT | `ui/node_modules/@types/d3-drag/LICENSE` |
+| @types/d3-dsv | 3.0.7 | MIT | `ui/node_modules/@types/d3-dsv/LICENSE` |
+| @types/d3-ease | 3.0.2 | MIT | `ui/node_modules/@types/d3-ease/LICENSE` |
+| @types/d3-fetch | 3.0.7 | MIT | `ui/node_modules/@types/d3-fetch/LICENSE` |
+| @types/d3-force | 3.0.10 | MIT | `ui/node_modules/@types/d3-force/LICENSE` |
+| @types/d3-format | 3.0.4 | MIT | `ui/node_modules/@types/d3-format/LICENSE` |
+| @types/d3-geo | 3.1.1 | MIT | `ui/node_modules/@types/d3-geo/LICENSE` |
+| @types/d3-hierarchy | 3.1.7 | MIT | `ui/node_modules/@types/d3-hierarchy/LICENSE` |
+| @types/d3-interpolate | 3.0.4 | MIT | `ui/node_modules/@types/d3-interpolate/LICENSE` |
+| @types/d3-path | 3.1.1 | MIT | `ui/node_modules/@types/d3-path/LICENSE` |
+| @types/d3-polygon | 3.0.2 | MIT | `ui/node_modules/@types/d3-polygon/LICENSE` |
+| @types/d3-quadtree | 3.0.6 | MIT | `ui/node_modules/@types/d3-quadtree/LICENSE` |
+| @types/d3-random | 3.0.4 | MIT | `ui/node_modules/@types/d3-random/LICENSE` |
+| @types/d3-scale | 4.0.9 | MIT | `ui/node_modules/@types/d3-scale/LICENSE` |
+| @types/d3-scale-chromatic | 3.1.0 | MIT | `ui/node_modules/@types/d3-scale-chromatic/LICENSE` |
+| @types/d3-selection | 3.0.12 | MIT | `ui/node_modules/@types/d3-selection/LICENSE` |
+| @types/d3-shape | 3.2.0 | MIT | `ui/node_modules/@types/d3-shape/LICENSE` |
+| @types/d3-time | 3.0.4 | MIT | `ui/node_modules/@types/d3-time/LICENSE` |
+| @types/d3-time-format | 4.0.3 | MIT | `ui/node_modules/@types/d3-time-format/LICENSE` |
+| @types/d3-timer | 3.0.2 | MIT | `ui/node_modules/@types/d3-timer/LICENSE` |
+| @types/d3-transition | 3.0.9 | MIT | `ui/node_modules/@types/d3-transition/LICENSE` |
+| @types/d3-zoom | 3.0.9 | MIT | `ui/node_modules/@types/d3-zoom/LICENSE` |
+| @types/geojson | 7946.0.16 | MIT | `ui/node_modules/@types/geojson/LICENSE` |
+| @types/trusted-types | 2.0.7 | MIT | `ui/node_modules/@types/trusted-types/LICENSE` |
+| @upsetjs/venn.js | 2.0.0 | MIT | `ui/node_modules/@upsetjs/venn.js/LICENSE` |
+| @xmldom/xmldom | 0.9.12 | MIT | `ui/node_modules/@xmldom/xmldom/LICENSE` |
 | argparse | 3.0.4 | PSF-2.0 | `ui/node_modules/argparse/LICENSE` |
+| chevrotain | 13.2.0 | Apache-2.0 | `ui/node_modules/chevrotain/LICENSE.txt` |
+| commander | 7.2.0 | MIT | `ui/node_modules/commander/LICENSE` |
+| commander | 15.1.0 | MIT | `ui/node_modules/katex/node_modules/commander/LICENSE` |
+| commander | 13.1.0 | MIT | `ui/node_modules/speech-rule-engine/node_modules/commander/LICENSE` |
+| cose-base | 1.0.3 | MIT | `ui/node_modules/cose-base/LICENSE` |
+| cose-base | 2.2.0 | MIT | `ui/node_modules/cytoscape-fcose/node_modules/cose-base/LICENSE` |
 | crelt | 1.0.7 | MIT | `ui/node_modules/crelt/LICENSE` |
 | cross-spawn | 7.0.6 | MIT | `ui/node_modules/cross-spawn/LICENSE` |
+| css-tree | 3.2.1 | MIT | `ui/node_modules/css-tree/LICENSE` |
+| cytoscape | 3.34.4 | MIT | `ui/node_modules/cytoscape/LICENSE` |
+| cytoscape-cose-bilkent | 4.1.0 | MIT | `ui/node_modules/cytoscape-cose-bilkent/LICENSE` |
+| cytoscape-fcose | 2.2.0 | MIT | `ui/node_modules/cytoscape-fcose/LICENSE` |
+| d3 | 7.9.2 | ISC | `ui/node_modules/d3/LICENSE` |
+| d3-array | 3.2.5 | ISC | `ui/node_modules/d3-array/LICENSE` |
+| d3-array | 2.12.1 | BSD-3-Clause | `ui/node_modules/d3-sankey/node_modules/d3-array/LICENSE` |
+| d3-axis | 3.0.1 | ISC | `ui/node_modules/d3-axis/LICENSE` |
+| d3-brush | 3.0.1 | ISC | `ui/node_modules/d3-brush/LICENSE` |
+| d3-chord | 3.0.2 | ISC | `ui/node_modules/d3-chord/LICENSE` |
+| d3-color | 3.1.1 | ISC | `ui/node_modules/d3-color/LICENSE` |
+| d3-contour | 4.0.3 | ISC | `ui/node_modules/d3-contour/LICENSE` |
+| d3-delaunay | 6.0.6 | ISC | `ui/node_modules/d3-delaunay/LICENSE` |
+| d3-dispatch | 3.0.2 | ISC | `ui/node_modules/d3-dispatch/LICENSE` |
+| d3-drag | 3.0.1 | ISC | `ui/node_modules/d3-drag/LICENSE` |
+| d3-dsv | 3.0.2 | ISC | `ui/node_modules/d3-dsv/LICENSE` |
+| d3-ease | 3.0.2 | BSD-3-Clause | `ui/node_modules/d3-ease/LICENSE` |
+| d3-fetch | 3.0.2 | ISC | `ui/node_modules/d3-fetch/LICENSE` |
+| d3-force | 3.0.1 | ISC | `ui/node_modules/d3-force/LICENSE` |
+| d3-format | 3.1.3 | ISC | `ui/node_modules/d3-format/LICENSE` |
+| d3-geo | 3.1.2 | ISC | `ui/node_modules/d3-geo/LICENSE` |
+| d3-hierarchy | 3.1.3 | ISC | `ui/node_modules/d3-hierarchy/LICENSE` |
+| d3-interpolate | 3.0.2 | ISC | `ui/node_modules/d3-interpolate/LICENSE` |
+| d3-path | 3.1.1 | ISC | `ui/node_modules/d3-path/LICENSE` |
+| d3-path | 1.0.9 | BSD-3-Clause | `ui/node_modules/d3-sankey/node_modules/d3-path/LICENSE` |
+| d3-polygon | 3.0.2 | ISC | `ui/node_modules/d3-polygon/LICENSE` |
+| d3-quadtree | 3.0.2 | ISC | `ui/node_modules/d3-quadtree/LICENSE` |
+| d3-random | 3.0.2 | ISC | `ui/node_modules/d3-random/LICENSE` |
+| d3-sankey | 0.12.3 | BSD-3-Clause | `ui/node_modules/d3-sankey/LICENSE` |
+| d3-scale | 4.0.3 | ISC | `ui/node_modules/d3-scale/LICENSE` |
+| d3-scale-chromatic | 3.1.1 | ISC | `ui/node_modules/d3-scale-chromatic/LICENSE` |
+| d3-selection | 3.0.1 | ISC | `ui/node_modules/d3-selection/LICENSE` |
+| d3-shape | 1.3.7 | BSD-3-Clause | `ui/node_modules/d3-sankey/node_modules/d3-shape/LICENSE` |
+| d3-shape | 3.2.1 | ISC | `ui/node_modules/d3-shape/LICENSE` |
+| d3-time | 3.1.1 | ISC | `ui/node_modules/d3-time/LICENSE` |
+| d3-time-format | 4.1.1 | ISC | `ui/node_modules/d3-time-format/LICENSE` |
+| d3-timer | 3.0.2 | ISC | `ui/node_modules/d3-timer/LICENSE` |
+| d3-transition | 3.0.2 | ISC | `ui/node_modules/d3-transition/LICENSE` |
+| d3-zoom | 3.0.1 | ISC | `ui/node_modules/d3-zoom/LICENSE` |
+| dagre-d3-es | 7.0.14 | MIT | `ui/node_modules/dagre-d3-es/LICENSE.md` |
+| dayjs | 1.11.23 | MIT | `ui/node_modules/dayjs/LICENSE` |
+| delaunator | 5.1.0 | ISC | `ui/node_modules/delaunator/LICENSE` |
+| dompurify | 3.4.17 | Apache-2.0 | `ui/node_modules/dompurify/LICENSE` |
 | entities | 8.1.0 | BSD-2-Clause | `ui/node_modules/entities/LICENSE` |
+| es-toolkit | 1.53.2 | MIT | `ui/node_modules/es-toolkit/LICENSE` |
+| esm | 3.2.25 | MIT | `ui/node_modules/esm/LICENSE` |
 | eventsource | 3.0.7 | MIT | `ui/node_modules/eventsource/LICENSE` |
 | eventsource-parser | 3.1.1 | MIT | `ui/node_modules/eventsource-parser/LICENSE` |
+| hachure-fill | 0.5.2 | MIT | `ui/node_modules/hachure-fill/LICENSE` |
 | html-parse-stringify | 4.0.1 | MIT | `ui/node_modules/html-parse-stringify/LICENSE` |
 | i18next | 26.4.4 | MIT | `ui/node_modules/i18next/LICENSE` |
+| iconv-lite | 0.6.3 | MIT | `ui/node_modules/iconv-lite/LICENSE` |
+| import-meta-resolve | 4.2.0 | MIT | `ui/node_modules/import-meta-resolve/license` |
+| internmap | 1.0.1 | ISC | `ui/node_modules/d3-sankey/node_modules/internmap/LICENSE` |
+| internmap | 2.0.3 | ISC | `ui/node_modules/internmap/LICENSE` |
 | isexe | 2.0.0 | ISC | `ui/node_modules/isexe/LICENSE` |
 | jose | 6.2.13 | MIT | `ui/node_modules/jose/LICENSE.md` |
+| katex | 0.18.10 | MIT | `ui/node_modules/katex/LICENSE` |
+| khroma | 2.1.0 | MIT | `ui/node_modules/khroma/license` |
+| layout-base | 2.0.1 | MIT | `ui/node_modules/cytoscape-fcose/node_modules/layout-base/LICENSE` |
+| layout-base | 1.0.2 | MIT | `ui/node_modules/layout-base/LICENSE` |
 | linkify-it | 6.1.0 | MIT | `ui/node_modules/linkify-it/LICENSE` |
+| lodash-es | 4.18.1 | MIT | `ui/node_modules/lodash-es/LICENSE` |
 | markdown-it | 15.0.3 | MIT | `ui/node_modules/markdown-it/LICENSE` |
 | markdown-it-attrs | 5.0.1 | MIT | `ui/node_modules/markdown-it-attrs/LICENSE` |
 | markdown-it-deflist | 4.0.0 | MIT | `ui/node_modules/markdown-it-deflist/LICENSE` |
@@ -98,10 +206,19 @@ never linked.
 | markdown-it-sub | 2.0.0 | MIT | `ui/node_modules/markdown-it-sub/LICENSE` |
 | markdown-it-sup | 2.0.0 | MIT | `ui/node_modules/markdown-it-sup/LICENSE` |
 | markdown-it-task-lists | 2.1.1 | ISC | `ui/node_modules/markdown-it-task-lists/LICENSE` |
+| marked | 16.4.2 | MIT | `ui/node_modules/marked/LICENSE.md` |
+| mathjax-full | 3.2.2 | Apache-2.0 | `ui/node_modules/mathjax-full/LICENSE` |
+| mdn-data | 2.27.1 | CC0-1.0 | `ui/node_modules/mdn-data/LICENSE` |
 | mdurl | 2.1.0 | MIT | `ui/node_modules/mdurl/LICENSE` |
+| mermaid | 12.2.0 | MIT | `ui/node_modules/mermaid/LICENSE` |
+| mhchemparser | 4.2.1 | Apache-2.0 | `ui/node_modules/mhchemparser/LICENSE.txt` |
 | orderedmap | 2.1.1 | MIT | `ui/node_modules/orderedmap/LICENSE` |
+| package-manager-detector | 1.9.0 | MIT | `ui/node_modules/package-manager-detector/LICENSE` |
+| path-data-parser | 0.1.0 | MIT | `ui/node_modules/path-data-parser/LICENSE` |
 | path-key | 3.1.1 | MIT | `ui/node_modules/path-key/license` |
 | pkce-challenge | 5.0.1 | MIT | `ui/node_modules/pkce-challenge/LICENSE` |
+| points-on-curve | 0.2.0 | MIT | `ui/node_modules/points-on-curve/LICENSE` |
+| points-on-path | 0.2.1 | MIT | `ui/node_modules/points-on-path/LICENSE` |
 | prosemirror-commands | 1.7.2 | MIT | `ui/node_modules/prosemirror-commands/LICENSE` |
 | prosemirror-history | 1.5.1 | MIT | `ui/node_modules/prosemirror-history/LICENSE` |
 | prosemirror-inputrules | 1.5.1 | MIT | `ui/node_modules/prosemirror-inputrules/LICENSE` |
@@ -114,15 +231,26 @@ never linked.
 | react | 19.3.0 | MIT | `ui/node_modules/react/LICENSE` |
 | react-dom | 19.3.0 | MIT | `ui/node_modules/react-dom/LICENSE` |
 | react-i18next | 17.0.16 | MIT | `ui/node_modules/react-i18next/LICENSE` |
+| robust-predicates | 3.0.3 | Unlicense | `ui/node_modules/robust-predicates/LICENSE` |
 | rope-sequence | 1.3.4 | MIT | `ui/node_modules/rope-sequence/LICENSE` |
+| roughjs | 4.6.6 | MIT | `ui/node_modules/roughjs/LICENSE` |
+| rw | 1.3.3 | BSD-3-Clause | `ui/node_modules/rw/LICENSE` |
+| safer-buffer | 2.1.2 | MIT | `ui/node_modules/safer-buffer/LICENSE` |
 | scheduler | 0.28.0 | MIT | `ui/node_modules/scheduler/LICENSE` |
 | shebang-command | 2.0.0 | MIT | `ui/node_modules/shebang-command/license` |
 | shebang-regex | 3.0.0 | MIT | `ui/node_modules/shebang-regex/license` |
+| source-map-js | 1.2.2 | BSD-3-Clause | `ui/node_modules/source-map-js/LICENSE` |
+| speech-rule-engine | 4.1.5 | Apache-2.0 | `ui/node_modules/speech-rule-engine/LICENSE` |
 | style-mod | 4.1.4 | MIT | `ui/node_modules/style-mod/LICENSE` |
+| stylis | 4.4.0 | MIT | `ui/node_modules/stylis/LICENSE` |
+| tinyexec | 1.3.1 | MIT | `ui/node_modules/tinyexec/LICENSE` |
+| ts-dedent | 2.3.0 | MIT | `ui/node_modules/ts-dedent/LICENSE` |
 | uc.micro | 3.0.0 | MIT | `ui/node_modules/uc.micro/LICENSE.txt` |
 | use-sync-external-store | 1.7.0 | MIT | `ui/node_modules/use-sync-external-store/LICENSE` |
+| uuid | 14.0.3 | MIT | `ui/node_modules/uuid/LICENSE.md` |
 | w3c-keyname | 2.2.8 | MIT | `ui/node_modules/w3c-keyname/LICENSE` |
 | which | 2.0.2 | ISC | `ui/node_modules/which/LICENSE` |
+| wicked-good-xpath | 1.3.0 | MIT | `ui/node_modules/wicked-good-xpath/LICENSE` |
 | zod | 4.6.7 | MIT | `ui/node_modules/zod/LICENSE` |
 
 Development-only packages (bundler, test runners, linters, type definitions) are not
@@ -171,22 +299,24 @@ ship with the Linux packages only (resources/certs/, refreshed by tools/refresh-
 
 | Licence | Components |
 |---|---|
-| MIT | 61 |
-| Apache-2.0 | 5 |
-| BSD-3-Clause | 5 |
+| MIT | 137 |
+| ISC | 36 |
+| Apache-2.0 | 15 |
+| BSD-3-Clause | 12 |
 | OFL-1.1 | 4 |
 | BSD-2-Clause | 3 |
-| ISC | 3 |
 | LGPL-2.1-or-later | 2 |
 | Apache-2.0 AND MIT | 1 |
 | BSD-3-Clause AND IJG | 1 |
 | BSD-3-Clause AND ISC AND curl | 1 |
 | BSD-style | 1 |
+| CC0-1.0 | 1 |
 | GPL-3.0-only | 1 |
 | MPL-1.1 | 1 |
 | MPL-2.0 | 1 |
 | PSF-2.0 | 1 |
 | SCOWL AND BSD-style AND public-domain | 1 |
+| Unlicense | 1 |
 | Zlib | 1 |
 | bzip2-1.0.6 | 1 |
 | libpng-2.0 | 1 |

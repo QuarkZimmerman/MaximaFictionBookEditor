@@ -852,13 +852,19 @@ const KEY_SETS = {
     { keys: 'ctrl+s', state: 'modal', logs: ['IDC_SAVE_PAGE blocked'], outcome: 'kept' },
   ],
   // US2 (FR-002 to FR-004): no key reloads the editor's page. In the Body view F5 and Ctrl+F5
-  // keep their editor meanings (Fast Mode, the Document Tree), as in FictionBook Editor.
+  // keep their editor meanings (Fast Mode, the Document Tree), as in FictionBook Editor, and
+  // Shift+F5 opens Preview (feature 011, D44); the engine's own reload stays blocked.
   reload: [
     { keys: 'ctrl+r', state: 'body', logs: ['IDC_RELOAD blocked'], outcome: 'kept' },
     { keys: 'ctrl+r', state: 'modal', logs: ['IDC_RELOAD blocked'], outcome: 'kept' },
     { keys: 'F5', state: 'body', logs: [], outcome: (ctx) => toggled(ctx, 'F5', 'Fast Mode', fastModeOn) },
     { keys: 'F5', state: 'modal', logs: ['IDC_RELOAD blocked'], outcome: 'kept' },
-    { keys: 'shift+F5', state: 'body', logs: ['IDC_RELOAD_BYPASSING_CACHE blocked'], outcome: 'kept' },
+    {
+      keys: 'shift+F5',
+      state: 'body',
+      logs: ['IDC_RELOAD_BYPASSING_CACHE blocked'],
+      outcome: (ctx) => openedAndClosed(ctx, 'shift+F5', 'Preview', previewShown),
+    },
     { keys: 'shift+F5', state: 'modal', logs: ['IDC_RELOAD_BYPASSING_CACHE blocked'], outcome: 'kept' },
     { keys: 'ctrl+F5', state: 'body', logs: [], outcome: (ctx) => toggled(ctx, 'ctrl+F5', 'the Document Tree', treeShown) },
     { keys: 'ctrl+F5', state: 'modal', logs: ['IDC_RELOAD_BYPASSING_CACHE blocked'], outcome: 'kept' },
@@ -1038,6 +1044,19 @@ async function fastModeOn(ctx) {
 
 async function treeShown(ctx) {
   return ctx.page.locator('[data-testid="panel-tree"]').isVisible();
+}
+
+async function previewShown(ctx) {
+  return ctx.page.locator('[data-testid="preview"]').isVisible();
+}
+
+// An editor key that opens an overlay (feature 011: Shift+F5, Preview): it opened; Escape closes
+// it again, so the next key finds the editor as it was.
+async function openedAndClosed(ctx, chord, what, shown) {
+  await waitUntil(`${what} open after ${chord}`, async () => shown(ctx), timeoutMs);
+  ctx.press('Escape');
+  await waitUntil(`${what} closed after Escape`, async () => !(await shown(ctx)), timeoutMs);
+  return `${chord} opened ${what} (the editor's own command), Escape closed it`;
 }
 
 // An editor key that toggles a state: the key changed it; pressed again, it changes it back.

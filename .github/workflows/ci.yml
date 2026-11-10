@@ -97,7 +97,7 @@ jobs:
           python3 tools/changelog-check.py
           version=$(sed -n 's/^.*"version": *"\([0-9.]*\).*$/\1/p' ui/package.json | head -1)
           python3 tools/changelog-in-short.py "$version"
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
       - name: Parity matrix (SC-003, T157)
@@ -170,7 +170,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/.vcpkg-cache
-          key: vcpkg-${{ matrix.name }}-${{ hashFiles('vcpkg.json', 'CMakePresets.json') }}
+          key: vcpkg-${{ matrix.name }}-${{ hashFiles('vcpkg.json', 'CMakePresets.json', 'triplets/*.cmake') }}
           restore-keys: vcpkg-${{ matrix.name }}-
 
       - name: Configure
@@ -196,6 +196,13 @@ jobs:
         if: failure()
         shell: bash
         run: tools/ci/annotate-failure.sh "$RUNNER_TEMP/build.log" "Build"
+      - name: Recorded warnings (feature 011, D48)
+        shell: bash
+        run: tools/ci/warning-scan.sh "$RUNNER_TEMP/build.log"
+      - name: macOS deployment target of the core build (feature 011)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: tools/ci/macos-deployment-check.sh "$RUNNER_TEMP/build.log" "build/${{ matrix.preset }}/bin"
 
       - name: Test
         shell: bash
@@ -227,7 +234,7 @@ jobs:
         working-directory: ui
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -249,6 +256,11 @@ jobs:
         # Feature 010 (FR-046): every interactive control carries a tooltip - a control without one
         # fails the run. Guards G7 and G9 run with the unit tests.
         run: node ../tools/tooltip-check.mjs --strict
+      - name: Table term (guard G14)
+        if: runner.os == 'Linux'
+        # Feature 011 (FR-020a, D40): no catalogue text calls a table that needs repair "irregular"
+        # or names a category of tables - a text that does fails the run.
+        run: node ../tools/term-check.mjs --strict
       - name: Upload UI bundle
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v6
@@ -285,7 +297,7 @@ jobs:
             core_bin: mfbe-core
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -499,7 +511,7 @@ jobs:
         shell: pwsh
         run: tools/ci/annotate-failure.ps1 -Log "$env:RUNNER_TEMP/wix.log" -Title "WiX install"
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -514,7 +526,7 @@ jobs:
       - uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/.vcpkg-cache
-          key: vcpkg-${{ matrix.name }}-${{ hashFiles('vcpkg.json', 'CMakePresets.json') }}
+          key: vcpkg-${{ matrix.name }}-${{ hashFiles('vcpkg.json', 'CMakePresets.json', 'triplets/*.cmake') }}
           restore-keys: vcpkg-${{ matrix.name }}-
 
       - name: Cache CEF distribution
@@ -546,6 +558,9 @@ jobs:
         if: failure()
         shell: bash
         run: tools/ci/annotate-failure.sh "$RUNNER_TEMP/build.log" "Build"
+      - name: Recorded warnings (feature 011, D48)
+        shell: bash
+        run: tools/ci/warning-scan.sh "$RUNNER_TEMP/build.log"
 
       # The shipped configuration is built without the test-only RPC hooks, so the core test
       # suite (which drives them) runs in the `core` job; here the application is exercised.
@@ -592,6 +607,13 @@ jobs:
           out=$(build/${{ matrix.preset }}/bin/mfbe.app/Contents/MacOS/mfbe --version); echo "$out"
           [[ "$out" == *"Maxima Fiction Book Editor $MFBE_VERSION (build $MFBE_VERSION+"* ]] ||
             { echo "::error::mfbe --version does not name the version label $MFBE_VERSION"; exit 1; }
+
+      # Feature 011 (D47, FR-086): no object built for a newer macOS than the editor targets, and
+      # no Mach-O of the application bundle requiring more than macOS 13.0.
+      - name: macOS deployment target (feature 011)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: tools/ci/macos-deployment-check.sh "$RUNNER_TEMP/build.log" "build/${{ matrix.preset }}/bin/mfbe.app"
 
       - name: Shell smoke (Xvfb + CDP; real UI, file argument, About dialog)
         if: runner.os == 'Linux'

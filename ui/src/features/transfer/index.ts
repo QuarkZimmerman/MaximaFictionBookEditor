@@ -12,6 +12,7 @@ import type { FeatureContext } from '@/app/services';
 
 import { cmdKeys } from '../editing/common';
 import { exportFbd } from './exportFbd';
+import { exportMarkdown } from './exportMarkdown';
 import { importDescription } from './importDescription';
 
 export { exportDefaultPath, exportFbd, exportFileTypes } from './exportFbd';
@@ -48,6 +49,25 @@ export function registerTransferFeature(ctx: FeatureContext): void {
       enabled: connectedWithDocument,
       run: async (context) => {
         await exportFbd(context);
+      },
+    },
+    // Feature 011 (US5, US6): the Markdown exports, after Export as FBD.
+    {
+      id: 'file.exportMarkdown',
+      group: 'file',
+      ...cmdKeys('file.exportMarkdown', 'menu.file.exportMarkdown'),
+      enabled: connectedWithDocument,
+      run: async (context) => {
+        await exportMarkdown(context, 'md');
+      },
+    },
+    {
+      id: 'file.exportMarkdownZip',
+      group: 'file',
+      ...cmdKeys('file.exportMarkdownZip', 'menu.file.exportMarkdownZip'),
+      enabled: connectedWithDocument,
+      run: async (context) => {
+        await exportMarkdown(context, 'zip');
       },
     },
   ];

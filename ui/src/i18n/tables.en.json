@@ -92,7 +92,7 @@
       },
       "repair": {
         "tooltip": "Repair table",
-        "description": "Make an irregular table regular without deleting any content"
+        "description": "Make every row of the table cover its columns, without deleting any content"
       },
       "select": {
         "tooltip": "Select table",
@@ -202,9 +202,9 @@
       "separator": "; "
     },
     "mark": {
-      "repairHint": "Repair table makes the table regular.",
-      "contains": "Contains an irregular table: {{problems}}",
-      "containsNamed": "Contains an irregular table \"{{id}}\": {{problems}}"
+      "repairHint": "Repair table makes every row cover the table's columns.",
+      "contains": "Contains a table that needs repair: {{problems}}",
+      "containsNamed": "Contains the table \"{{id}}\", which needs repair: {{problems}}"
     },
     "msg": {
       "idInvalid": "The ID is not valid: an FB2 identifier has no spaces and does not start with a digit.",
@@ -220,8 +220,8 @@
   },
   "validation": {
     "table": {
-      "irregular": "Irregular table: {{problems}}",
-      "irregularNamed": "Irregular table \"{{id}}\": {{problems}}"
+      "irregular": "Table needs repair: {{problems}}",
+      "irregularNamed": "Table \"{{id}}\" needs repair: {{problems}}"
     }
   },
   "dialog": {
@@ -235,9 +235,9 @@
       "columnsInvalid": "Columns must be a whole number between {{min}} and {{max}}."
     },
     "tableMark": {
-      "title": "Irregular table",
+      "title": "Table needs repair",
       "repair": "&Repair table",
-      "hint": "Repair table makes the table regular. No cell content is deleted, and Undo brings the table back."
+      "hint": "Repair table makes every row cover the table's columns. No cell content is deleted, and Undo brings the table back."
     }
   },
   "tableBar": {

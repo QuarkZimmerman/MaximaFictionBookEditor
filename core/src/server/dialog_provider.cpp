@@ -227,7 +227,8 @@ OpenFileRequest open_file_request_from_json(const json& j) {
     r.selectedFilter = index_or(o, "selectedFilter", 0);
     r.folder = opt_str(o, "folder");
     r.defaultPath = opt_str(o, "defaultPath");
-    r.documentDialog = offers_fictionbook_files(r.filters);
+    // Feature 011 (D32, DP-12): only Open and Save As - `role: "document"` - keep a folder.
+    r.documentDialog = str_or(o, "role") == "document";
     return r;
 }
 
@@ -251,7 +252,8 @@ SaveFileRequest save_file_request_from_json(const json& j) {
     r.selectedEncoding = opt_str(o, "selectedEncoding");
     r.encodingLabel = opt_str(o, "encodingLabel");
     r.selectedFilter = index_or(o, "selectedFilter", 0);
-    r.documentDialog = offers_fictionbook_files(r.filters);
+    // Feature 011 (D32, DP-12): only Open and Save As - `role: "document"` - keep a folder.
+    r.documentDialog = str_or(o, "role") == "document";
     if (const auto it = o.find("zipChoice"); it != o.end() && it->is_object()) {
         r.zipLabel = opt_str(*it, "label");
         r.zipChecked = it->value("checked", false);

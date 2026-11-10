@@ -144,6 +144,11 @@ export class ScriptsFeature {
     return this.all().filter((script) => script.kind === 'tree');
   }
 
+  /** Feature 011 (US11, D41): the scripts of the tree bar's Scripts menu, which list places. */
+  treeRowScripts(): ScriptInfo[] {
+    return this.all().filter((script) => script.kind === 'treeRows');
+  }
+
   subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener);
     return () => {

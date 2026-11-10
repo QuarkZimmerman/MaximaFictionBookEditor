@@ -25,7 +25,7 @@ Record live(int slot, const std::string& active, bool untouched,
     r.last_active_at = active;
     r.heartbeat_at = "2026-11-01T10:00:00Z";
     r.untouched = untouched;
-    if (!book_id.empty()) r.book = BookRef{"/x.fb2", book_id};
+    if (!book_id.empty()) r.book = BookRef{.path = "/x.fb2", .file_id = book_id, .entry = {}};
     return r;
 }
 

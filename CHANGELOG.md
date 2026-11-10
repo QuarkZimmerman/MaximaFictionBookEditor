@@ -3,6 +3,89 @@
 All notable changes to Maxima Fiction Book Editor. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.0.9 - unreleased
+
+### In short
+
+- The Document tree as in FictionBook Editor, with its Elements menu and tree scripts
+- Books export as Markdown, in one file or a ZIP, and import back with their styles
+- A Styles view for the book's stylesheets, and named styles in the Style menu
+- Preview shows the book as an e-book reader does
+- Regular expressions find escaped punctuation again; an invalid one says why
+- An empty author keeps the book valid; a tree click in the Source view stays there
+- A table that needs repair says what to do instead of being called irregular
+- macOS builds for macOS 13 throughout; other build warnings fixed
+
+### Added
+
+- File > Export > Export as Markdown... writes the book as one Markdown file, its pictures
+  embedded as JPEG pictures of at most 0.7 MB when the save dialog's Include pictures box is
+  ticked; Export as Markdown ZIP... writes a ZIP archive with the Markdown file and the pictures
+  as they are. A YAML header carries the whole description and the stylesheets, a title page
+  follows; sections become headings, notes footnotes, tables Markdown or HTML tables, named styles
+  spans with their look imitated. A progress bar with Cancel shows while it runs; a cancelled
+  export writes no file, and an export changes nothing that is remembered.
+- The Markdown import reads such a file back - the description from its header, the stylesheets,
+  the named styles - and Markdown other tools wrote: Pandoc's header keys fill their FB2 fields,
+  CSS from its header, from local css: files and from style blocks is translated to the book's
+  elements, spans and blocks with a class become named styles. A stylesheet on the web is never
+  fetched.
+- Mermaid diagrams of an imported Markdown file become pictures, drawn offline and kept small (a
+  JPEG or a PNG, whichever is smaller); the export writes them back as Mermaid blocks, and a
+  diagram that cannot be drawn stays code and is listed after the import.
+- Formulas of an imported Markdown file ($…$, $$…$$, math blocks) become small pictures drawn
+  offline, in their lines or on their own; the export writes them back as written.
+- Elements that have an id show it: a small #id tab in the Body view and a # badge on the
+  tree's sections; View > Show Ids switches the marks off.
+- View > Styles shows the book's stylesheets as groups of rules, one per selector, with a CSS
+  editor completing standard properties and their keywords; Add selector..., Rename..., Remove and
+  New stylesheet; selectors that match nothing in an FB2 book and properties that are not standard
+  CSS are refused with the reason; a conflict between two stylesheets is marked and reported by
+  Validate. Each change is one Undo step.
+- Style > Named Style lists the stylesheets' classes: with text selected the style goes on each
+  paragraph's selected part, else on the paragraph, verse, subtitle, text author, table or cell at
+  the caret; Remove Named Style takes it away. The Body view's context menu has the same submenu.
+- View > Preview (Shift+F5), a toolbar button beside Validate and a status bar button show the
+  book as an e-book reader does, over the whole window, at the caret's element: links jump, Back
+  returns, note references open their note, Esc returns to the editor as it was.
+- The Document tree's menu bar has FictionBook Editor's Elements menu, choosing the kinds of rows
+  shown (kept for the next start), and its Scripts menu: tree scripts list places as rows of the
+  tree in their places, with their icons, until Clean. Script interface version 3 adds
+  mfbe.tree.showRows and mfbe.tree.clearRows for scripts of the new kind treeRows.
+- Validate warns when no author of the book has a name or a nickname.
+
+### Changed
+
+- The Document tree shows the rows FictionBook Editor showed: no title rows; subtitles, stanzas,
+  pictures in the text, header cells and cells have rows; titles, epigraphs and quotes are shown
+  when ticked in Elements. Rows holding stanzas, cells or what an annotation, a quote or an
+  epigraph contains start closed, and * opens every row; subtitles, stanzas and cells have menus
+  of their own; the tree's toolbar is below it.
+- In the Source view a click or an arrow key on a tree row shows the element's opening tag there
+  and keeps the focus in the tree; a double-click or Enter puts the focus into the Source view.
+  The Body view does not move.
+- The mark of a table that needs repair, its popover, the tree, Validate and Repair table no
+  longer call it irregular: they say "Table needs repair: row 3 covers 2 of 3 columns".
+- The tree sample script Paragraphs Without a Full Stop runs from the tree bar's Scripts menu
+  again and lists the paragraphs as rows of the tree, as in FictionBook Editor; its id stays.
+- macOS: the editor and every library it uses are built for macOS 13, and the build refuses a
+  part built for a newer macOS.
+
+### Fixed
+
+- On Windows, saving a book or the settings failed when another program - an antivirus scan, a
+  sync or backup tool - held the file open at that moment ("being used by another process"); the
+  editor now retries the save for up to two seconds.
+- After a Description edit, an author without a name was written as an empty `<author/>`, which
+  the FB2 schema refuses; it is written as FictionBook Editor wrote it (issue #11).
+- In regular expressions, an escaped punctuation mark such as `\—`, `\«` or `\-` found nothing in
+  the Body view, the Source view and the description's fields (issue #12); an invalid expression
+  said "Cannot find the string" instead of why.
+- Export as FBD and Import description moved the folder File > Open starts in.
+- A Markdown file whose header gave only a year as its date was imported as an invalid book.
+- Windows: a corrupt picture could skip the picture decoder's and encoder's clean-up (compiler
+  warning C4611); a few other build warnings are gone, and CI now fails on them.
+
 ## 0.0.8 - 2026-11-07
 
 ### In short

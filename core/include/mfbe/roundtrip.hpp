@@ -12,6 +12,7 @@
 
 #include <mfbe/binary_store.hpp>
 #include <mfbe/document.hpp>
+#include <mfbe/document_details.hpp>
 #include <mfbe/images.hpp>
 
 #include <nlohmann/json.hpp>
@@ -74,7 +75,10 @@ struct Report {
 // Opens `input`, converts non-JPEG/PNG image binaries exactly as a save does (FR-110, same
 // ids), writes the otherwise unchanged document to `out_dir/<name>` in `encoding`, re-opens
 // the copy and compares. Never throws for document problems (they land in the report).
+// `details`: the document details filled in as a save does; null for today's (the editor's own).
+// The corpus guard G10 (feature 011) passes fixed ones so that two saves compare byte for byte.
 Report run(const std::filesystem::path& input, const std::filesystem::path& out_dir,
-           const std::string& encoding = "utf-8", const images::ConversionPolicy& policy = {});
+           const std::string& encoding = "utf-8", const images::ConversionPolicy& policy = {},
+           const model::DetailsContext* details = nullptr);
 
 }  // namespace mfbe::roundtrip

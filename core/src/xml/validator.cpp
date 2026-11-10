@@ -1,4 +1,5 @@
 // FB2 validation: XSD + consistency checks (T044). See mfbe/validator.hpp.
+#include "xml/css_rules.hpp"
 #include "xml/validator_internal.hpp"
 #include "xml/xml_security.hpp"
 
@@ -622,10 +623,27 @@ std::vector<ValidationIssue> consistency_issues(const model::Document& document,
     required(d.titleInfo.bookTitle.empty(), "book-title");
     required(d.titleInfo.lang.empty(), "lang");
     required(d.documentInfo.id.empty(), "id");
+    // Feature 011 (D3, FR-004): a warning like the empty book title's when no author of the book
+    // has a name or a nickname - the empty author the schema allows is valid, not complete.
+    const auto filled = [](const std::optional<std::string>& value) {
+        return value && value->find_first_not_of(" \t\r\n") != std::string::npos;
+    };
+    const bool named_author = std::any_of(d.titleInfo.authors.begin(), d.titleInfo.authors.end(),
+                                          [&](const model::Person& p) {
+                                              return filled(p.firstName) || filled(p.middleName) ||
+                                                     filled(p.lastName) || filled(p.nickname);
+                                          });
+    if (!named_author) {
+        out.push_back(make_issue(Severity::warning, "description.emptyAuthor", {}));
+    }
     required(d.documentInfo.version.empty(), "version");
     required(d.documentInfo.date.text.empty() &&
                  !(d.documentInfo.date.value && !d.documentInfo.date.value->empty()),
              "date");
+    // Feature 011 (US8, contracts/styles.md §3): conflicting and unreadable stylesheets.
+    auto styles = css::style_issues(document.stylesheets);
+    out.insert(out.end(), std::make_move_iterator(styles.begin()),
+               std::make_move_iterator(styles.end()));
     return out;
 }
 

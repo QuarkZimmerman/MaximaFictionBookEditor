@@ -8,8 +8,14 @@
 
 import { createNodeIdGenerator } from '@/editor/schema';
 import type { AnnotationNode, Description, Person, Sequence } from '@/model/document';
+import en from '@/i18n/description.en.json';
 import {
   cleanDescription,
+  emptyAuthor,
+  optionalPersons,
+  requiredPersons,
+  schemaPerson,
+  withSchemaPersons,
   cleanGenres,
   cleanMatch,
   cleanPerson,
@@ -426,5 +432,87 @@ describe('ids, extras and paths', () => {
     expect(form.srcTitleInfo).toBeUndefined();
     expect(form.titleInfo.authors).not.toBe(description.titleInfo.authors);
     expect(form.titleInfo.authors[0]).toEqual(description.titleInfo.authors[0]);
+  });
+});
+
+// Feature 011 (US1; D1-D3, FR-001-FR-005): persons in the schema's forms after an edit.
+describe('persons in the schema forms (feature 011)', () => {
+  const blank = (): Person => ({ homePages: [], emails: [] });
+
+  it('a required list keeps one empty author when nobody is filled in', () => {
+    expect(requiredPersons([])).toEqual([emptyAuthor()]);
+    expect(requiredPersons([blank(), { ...blank(), firstName: '  ' }])).toEqual([emptyAuthor()]);
+    expect(emptyAuthor()).toEqual({ firstName: '', lastName: '', homePages: [], emails: [] });
+  });
+
+  it('a person takes a first and a last name, or a nickname alone', () => {
+    expect(schemaPerson({ ...blank(), firstName: 'Anna' })).toMatchObject({
+      firstName: 'Anna',
+      lastName: '',
+    });
+    expect(schemaPerson({ ...blank(), emails: ['a@b.c'] })).toMatchObject({
+      firstName: '',
+      lastName: '',
+    });
+    expect(schemaPerson({ ...blank(), nickname: 'Nick' })).toEqual({
+      ...blank(),
+      nickname: 'Nick',
+    });
+    expect(schemaPerson({ ...blank(), nickname: 'Nick', middleName: 'M' })).toMatchObject({
+      firstName: '',
+      lastName: '',
+      middleName: 'M',
+      nickname: 'Nick',
+    });
+  });
+
+  it('translators and publishers with nothing filled in are left out', () => {
+    expect(optionalPersons([blank()])).toEqual([]);
+    expect(optionalPersons([{ ...blank(), lastName: 'Lee' }])).toEqual([
+      { ...blank(), firstName: '', lastName: 'Lee' },
+    ]);
+  });
+
+  it("the Description view's commit keeps every required list valid", () => {
+    const form = baseForm();
+    form.titleInfo.authors = [blank()];
+    form.documentInfo.authors = [];
+    form.titleInfo.translators = [blank()];
+    form.srcTitleInfo = { ...baseForm().titleInfo, bookTitle: 'Original', authors: [] };
+    const clean = cleanDescription(form);
+    expect(clean.titleInfo.authors).toEqual([emptyAuthor()]);
+    expect(clean.documentInfo.authors).toEqual([emptyAuthor()]);
+    expect(clean.srcTitleInfo?.authors).toEqual([emptyAuthor()]);
+    expect(clean.titleInfo.translators).toEqual([]);
+  });
+
+  it('an empty source book is still left out', () => {
+    const form = baseForm();
+    form.srcTitleInfo = {
+      genres: [],
+      authors: [blank()],
+      bookTitle: '',
+      coverpage: [],
+      lang: '',
+      translators: [],
+      sequences: [],
+    };
+    expect(cleanDescription(form).srcTitleInfo).toBeUndefined();
+  });
+
+  it("a script's or the assistant's description gets the same forms, values as given", () => {
+    const description = baseForm();
+    description.titleInfo.authors = [{ ...blank(), firstName: ' Anna ' }];
+    description.documentInfo.authors = [];
+    const fixed = withSchemaPersons(description);
+    expect(fixed.titleInfo.authors).toEqual([{ ...blank(), firstName: ' Anna ', lastName: '' }]);
+    expect(fixed.documentInfo.authors).toEqual([emptyAuthor()]);
+    expect(fixed.titleInfo.bookTitle).toBe(description.titleInfo.bookTitle);
+  });
+
+  it('the mark on an incomplete person says what to fill in, not that it is invalid (FR-005)', () => {
+    const text = en.descriptionForm.person.incomplete;
+    expect(text).toBe('Enter a first and a last name, or a nickname alone.');
+    expect(text.toLowerCase()).not.toContain('valid');
   });
 });

@@ -626,11 +626,13 @@ const VIEW_ICONS: Record<ViewId, string> = {
   description: 'id_view_desc',
   body: 'id_view_body',
   source: 'id_view_source',
+  // Feature 011 (US8): the Styles view.
+  styles: 'id_style_normal',
 };
 
-/** Replaces the three `view.*` commands with the parse-before-leaving behaviour. */
+/** Replaces the four `view.*` commands with the parse-before-leaving behaviour. */
 export function registerViewCommands(registry: CommandRegistry): void {
-  for (const view of ['description', 'body', 'source'] as const) {
+  for (const view of ['description', 'body', 'source', 'styles'] as const) {
     const command: Command = {
       id: `view.${view}`,
       group: 'view',
