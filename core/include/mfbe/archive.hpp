@@ -85,6 +85,10 @@ std::string zip_one(const std::string& entry_name, std::string_view bytes);
 struct ZipEntry {
     std::string name;
     std::string_view bytes;
+    // Feature 012 (EPUB's `mimetype`, research R3): written without compression, and without a time
+    // stamp or an owner, so that libarchive writes no extra field into its header.
+    bool stored = false;
+    bool untimed = false;
 };
 std::string zip_entries(const std::vector<ZipEntry>& entries);
 
