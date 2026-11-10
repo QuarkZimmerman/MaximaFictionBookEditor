@@ -39,6 +39,8 @@ export interface PackageMetadata {
   series: { name: string; number?: number }[];
   /** The editor's own description (D7, research DP-9). */
   mfbeDescription?: string;
+  /** D27: fixed-layout pages (`rendition:layout` `pre-paginated`), whose positions are not kept. */
+  fixedLayout: boolean;
   /** What the package holds that has no FB2 field (D28: listed). */
   unmapped: string[];
 }
@@ -185,6 +187,10 @@ export function readPackage(xml: string, path: string): EpubPackage {
     identifiers: dc('identifier').map(textOf).filter(Boolean),
     rights: dc('rights').map(textOf).find(Boolean),
     series,
+    fixedLayout: metas.some(
+      (meta) =>
+        meta.getAttribute('property') === 'rendition:layout' && textOf(meta) === 'pre-paginated',
+    ),
     mfbeDescription:
       metas.find((meta) => meta.getAttribute('property') === 'mfbe:fb2-description')?.textContent ??
       undefined,

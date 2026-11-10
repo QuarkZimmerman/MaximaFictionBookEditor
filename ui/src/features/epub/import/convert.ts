@@ -8,19 +8,32 @@
  * editor's export - give their FB2 structure back.
  */
 
+import type { SpecialChar } from '@/features/markdown/specialChars';
+
 import { XmlNameAllocator } from '../shared/names';
+import type { ClassPlan, Fb2Form } from './css';
+import { Dropped, type DroppedKind } from './dropped';
+import { MAX_NESTING, Yielder } from './limits';
 import { folderOf, resolvePath, type NavEntry } from './package';
 
 export type ImportSummaryKind =
   | 'linkAsText'
   | 'pictureLeftOut'
+  | 'pictureConverted'
+  | 'pictureTooLarge'
+  | 'formulaAsText'
+  | 'drawingLeftOut'
+  | 'droppedChar'
+  | 'nestingFlattened'
+  | 'cssDropped'
   | 'remote'
   | 'dropped'
   | 'listedData'
   | 'recovered'
   | 'unreadable'
   | 'outside'
-  | 'pageMissing';
+  | 'pageMissing'
+  | DroppedKind;
 
 export interface ImportSummaryItem {
   kind: ImportSummaryKind;
@@ -43,6 +56,24 @@ export interface ConvertInput {
   /** The words the description gives (title, authors, series), to recognise a title page (D18). */
   descriptionWords: Set<string>;
   notesTitle: string;
+  /** D26: what the book's classes become (none: the classes are not looked at). */
+  classes?: ClassPlan;
+  /** D27: what is left out, counted by kind. */
+  dropped?: Dropped;
+  /** D29: called between pages, for the progress and Cancel. */
+  yielder?: Yielder;
+}
+
+/** A formula or an SVG drawing of a page, drawn by the job before the book is made (D23, D24). */
+export interface Drawing {
+  /** The binary id its picture gets. */
+  id: string;
+  /** The `<math>` or `<svg>` element's markup. */
+  markup: string;
+  /** A block of its own, or inline in its line. */
+  display: boolean;
+  /** Its text form: MathML's `alttext` or its text; an SVG's title or alt. */
+  alt: string;
 }
 
 export interface ConvertedBook {
@@ -52,11 +83,55 @@ export interface ConvertedBook {
   pictures: Map<string, string>;
   /** The cover picture's path, when a cover page shows one. */
   coverPath?: string;
+  /** Placeholders `<!--mfbe-math:N-->` (`-block:` for a block) in the XML, by N. */
+  formulas: Drawing[];
+  /** Placeholders `<!--mfbe-svg:N-->` (`-block:` for a block) in the XML, by N. */
+  drawings: Drawing[];
+  /** The special characters that became pictures (010 D37), by picture id. */
+  chars: Map<string, SpecialChar>;
   stats: { sections: number; pictures: number; tables: number; notes: number };
   summary: ImportSummaryItem[];
 }
 
+/** D26: the classes the pages carry, and how many paragraphs carry each. */
+export function classUseOf(pages: readonly ConvertPage[]): {
+  used: Set<string>;
+  paragraphs: Map<string, number>;
+} {
+  const used = new Set<string>();
+  const paragraphs = new Map<string, number>();
+  for (const page of pages) {
+    const body = page.doc.getElementsByTagName('body')[0] ?? page.doc.documentElement;
+    if (!body) continue;
+    for (const element of Array.from(body.getElementsByTagName('*'))) {
+      const list = (element.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
+      for (const name of list) used.add(name);
+      if (element.localName.toLowerCase() === 'p') {
+        for (const name of list) paragraphs.set(name, (paragraphs.get(name) ?? 0) + 1);
+      }
+    }
+  }
+  return { used, paragraphs };
+}
+
 const EPUB_OPS = 'http://www.idpf.org/2007/ops';
+const XLINK = 'http://www.w3.org/1999/xlink';
+/** D27: interactive parts and embedded objects, counted and left out. */
+const FORM_PARTS = new Set(['input', 'button', 'select', 'textarea']);
+const EMBEDDED = new Set(['object', 'embed', 'iframe', 'canvas']);
+/** SVG elements that draw something themselves (an SVG of none but one picture frames it). */
+export const GRAPHICS = new Set([
+  'path',
+  'rect',
+  'circle',
+  'ellipse',
+  'line',
+  'polyline',
+  'polygon',
+  'text',
+  'use',
+  'foreignObject',
+]);
 // The characters XML 1.0 does not allow, removed from every text the import writes.
 // eslint-disable-next-line no-control-regex
 const INVALID_XML = new RegExp('[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\uFFFE\\uFFFF]', 'g');
@@ -240,7 +315,12 @@ interface NoteDefinition {
   backlinkTargets: Set<string>;
 }
 
-export function convertPages(input: ConvertInput): ConvertedBook {
+export async function convertPages(input: ConvertInput): Promise<ConvertedBook> {
+  // The Markdown import's character map (010 D37), loaded with the conversion: imported statically, it
+  // was left alone in a `job-*.js` chunk that the command's import() named instead of `epub-import`
+  // (tests/unit/epub/chunk.test.ts).
+  const { codePoints, graphemes, isPlain, specialChar, treatmentOf } =
+    await import('@/features/markdown/specialChars');
   const summary: ImportSummaryItem[] = [];
   const note = (kind: ImportSummaryKind, detail: string): void => {
     summary.push({ kind, detail });
@@ -248,6 +328,13 @@ export function convertPages(input: ConvertInput): ConvertedBook {
   const ids = new XmlNameAllocator();
   const pictures = new Map<string, string>();
   const stats = { sections: 0, pictures: 0, tables: 0, notes: 0 };
+  const dropped = input.dropped ?? new Dropped();
+  const formulas: Drawing[] = [];
+  const drawings: Drawing[] = [];
+  const chars = new Map<string, SpecialChar>();
+  const plan = input.classes;
+  let depth = 0;
+  let flattened = false;
   const stemOf = (path: string): string =>
     path.slice(path.lastIndexOf('/') + 1).replace(/\.[^.]*$/, '');
 
@@ -364,11 +451,15 @@ export function convertPages(input: ConvertInput): ConvertedBook {
     stack.push(section);
     stats.sections++;
   };
+  // Two block pictures in a row get an empty line between them (FB2 2.1's section allows no
+  // picture straight after another); a block formula or drawing is a picture too.
+  const isPicture = (xml: string): boolean =>
+    xml.startsWith('<image') || /^<!--mfbe-(math|svg)-block:/.test(xml);
   const addBlock = (xml: string): void => {
     if (!xml) return;
     const section = top();
     const previous = section.blocks[section.blocks.length - 1];
-    if (xml.startsWith('<image') && typeof previous === 'string' && previous.startsWith('<image'))
+    if (isPicture(xml) && typeof previous === 'string' && isPicture(previous))
       section.blocks.push('<empty-line/>');
     section.blocks.push(xml);
   };
@@ -376,17 +467,117 @@ export function convertPages(input: ConvertInput): ConvertedBook {
   // Inline content.
   let currentPage: ConvertPage;
   let currentNote: NoteDefinition | null = null;
+  // D25: special characters as the Markdown import carries them (010 D37): emoji, dingbats and
+  // symbols as small pictures, private-use characters (a font of the book's own) listed.
+  const textXml = (text: string): string => {
+    if (isPlain(text)) return escapeText(text);
+    let xml = '';
+    for (const grapheme of graphemes(text)) {
+      const treatment = treatmentOf(grapheme);
+      if (treatment === 'keep') xml += escapeText(grapheme);
+      else if (treatment === 'drop') note('droppedChar', codePoints(grapheme));
+      else if (treatment !== 'invisible') {
+        const char = specialChar(grapheme)!;
+        chars.set(char.id, char);
+        xml += `<image l:href="#${char.id}" alt="${escapeAttr(char.text)}"/>`;
+      }
+    }
+    return xml;
+  };
+
+  // D27: what FB2 has no place for, counted by kind.
+  const countDropped = (element: Element): void => {
+    const name = local(element);
+    if (name === 'script') dropped.add('droppedScripts');
+    else if (name === 'form' || FORM_PARTS.has(name)) {
+      if (!element.parentElement?.closest('form')) dropped.add('droppedForms');
+    } else if (EMBEDDED.has(name)) dropped.add('droppedEmbedded');
+    else if (name === 'pagenum') dropped.add('droppedPageMarkers');
+  };
+
+  // D24: a formula becomes a picture the job draws; until then a placeholder.
+  const formula = (element: Element, block: boolean): string => {
+    const index = formulas.length;
+    formulas.push({
+      id: ids.allocate(`mathml_${index + 1}`),
+      markup: new XMLSerializer().serializeToString(element),
+      display: block || element.getAttribute('display') === 'block',
+      alt: (element.getAttribute('alttext') ?? '').trim() || textOf(element),
+    });
+    return block ? `<!--mfbe-math-block:${index}-->` : `<!--mfbe-math:${index}-->`;
+  };
+
+  // D23: an SVG drawing becomes a picture the job draws; an SVG that only frames a picture gives
+  // that picture itself.
+  const svgPicture = (element: Element, block: boolean): string => {
+    const all = Array.from(element.getElementsByTagName('*'));
+    const framed = all.filter((child) => local(child) === 'image');
+    const alt =
+      textOf(
+        all.find((child) => local(child) === 'title') ?? element.ownerDocument.createElement('i'),
+      ) ||
+      (element.getAttribute('aria-label') ?? '');
+    if (framed.length === 1 && !all.some((child) => GRAPHICS.has(local(child)))) {
+      const href =
+        framed[0]!.getAttributeNS(XLINK, 'href') ?? framed[0]!.getAttribute('href') ?? '';
+      const id = pictureId(currentPage, href);
+      if (!id) return '';
+      stats.pictures++;
+      return `<image l:href="#${id}"${alt ? ` alt="${escapeAttr(alt)}"` : ''}/>`;
+    }
+    const index = drawings.length;
+    drawings.push({
+      id: ids.allocate(`svg_${index + 1}`),
+      markup: new XMLSerializer().serializeToString(element),
+      display: block,
+      alt,
+    });
+    stats.pictures++;
+    return block ? `<!--mfbe-svg-block:${index}-->` : `<!--mfbe-svg:${index}-->`;
+  };
+
+  // D26: an element's classes, as FB2 forms and a named style, by the plan.
+  const classesOf = (element: Element): { forms: Fb2Form[]; named: string[] } => {
+    const forms: Fb2Form[] = [];
+    const named: string[] = [];
+    if (!plan) return { forms, named };
+    for (const name of classes(element)) {
+      if (name === plan.paragraphClass) continue;
+      for (const form of plan.forms.get(name) ?? []) if (!forms.includes(form)) forms.push(form);
+      if (plan.named.has(name)) named.push(name);
+    }
+    return { forms, named };
+  };
+  const withForms = (xml: string, forms: readonly Fb2Form[]): string =>
+    forms.reduceRight((inner, form) => wrap(form, inner), xml);
+  const styled = (element: Element, xml: string): string => {
+    if (!xml.trim()) return xml;
+    const { forms, named } = classesOf(element);
+    let out = withForms(xml, forms);
+    for (const name of [...named].reverse())
+      out = `<style name="${escapeAttr(name)}">${out}</style>`;
+    return out;
+  };
+
   const inline = (node: Node, inLink: boolean): string => {
     if (node.nodeType === Node.TEXT_NODE || node.nodeType === Node.CDATA_SECTION_NODE) {
-      return escapeText(normaliseSpace(node.nodeValue ?? ''));
+      return textXml(normaliseSpace(node.nodeValue ?? ''));
     }
     if (node.nodeType !== Node.ELEMENT_NODE) return '';
     const element = node as Element;
     const name = local(element);
     if (DROPPED.has(name)) {
-      if (name === 'script') note('dropped', 'script');
+      countDropped(element);
       return '';
     }
+    if (epubTypes(element).includes('pagebreak')) {
+      dropped.add('droppedPageMarkers');
+      return '';
+    }
+    return styled(element, inlineElement(element, name, inLink));
+  };
+
+  const inlineElement = (element: Element, name: string, inLink: boolean): string => {
     const inner = (): string =>
       Array.from(element.childNodes)
         .map((child) => inline(child, inLink || name === 'a'))
@@ -423,6 +614,13 @@ export function convertPages(input: ConvertInput): ConvertedBook {
         const alt = element.getAttribute('alt');
         return `<image l:href="#${id}"${alt ? ` alt="${escapeAttr(alt)}"` : ''}/>`;
       }
+      case 'math':
+        return formula(element, false);
+      case 'svg':
+        return svgPicture(element, false);
+      case 'audio':
+      case 'video':
+        return media(element, false);
       case 'ruby': {
         const base = Array.from(element.childNodes)
           .filter(
@@ -453,6 +651,25 @@ export function convertPages(input: ConvertInput): ConvertedBook {
       default:
         return inner();
     }
+  };
+
+  // D27: audio and video are left out; their fallback text and poster picture are kept.
+  const media = (element: Element, block: boolean): string => {
+    const source =
+      element.getAttribute('src') ??
+      Array.from(element.getElementsByTagName('source'))[0]?.getAttribute('src') ??
+      local(element);
+    dropped.add('droppedMedia', source.slice(source.lastIndexOf('/') + 1));
+    const poster = element.getAttribute('poster');
+    const posterId = poster ? pictureId(currentPage, poster) : null;
+    if (posterId) stats.pictures++;
+    const fallback = textXml(textOf(element));
+    if (block) {
+      if (posterId) addBlock(`<image l:href="#${posterId}"/>`);
+      if (fallback) addBlock(`<p>${fallback}</p>`);
+      return '';
+    }
+    return `${posterId ? `<image l:href="#${posterId}"/>` : ''}${fallback}`;
   };
   const wrap = (tag: string, inner: string): string =>
     inner.trim() ? `<${tag}>${inner}</${tag}>` : inner;
@@ -505,9 +722,19 @@ export function convertPages(input: ConvertInput): ConvertedBook {
     }
     flush();
     const id = idFor(currentPage, element);
-    return out.map(
-      (text, index) => `<${tag}${index === 0 && id ? ` id="${id}"` : ''}>${text}</${tag}>`,
-    );
+    // D26: the block's classes - FB2 forms around its text, its first named style as the
+    // paragraph's style, the others around its text.
+    const { forms, named } = classesOf(element);
+    const [style, ...others] = named;
+    return out.map((text, index) => {
+      let inner = withForms(text, forms);
+      for (const name of [...others].reverse())
+        inner = `<style name="${escapeAttr(name)}">${inner}</style>`;
+      return (
+        `<${tag}${index === 0 && id ? ` id="${id}"` : ''}${style ? ` style="${escapeAttr(style)}"` : ''}>` +
+        `${inner}</${tag}>`
+      );
+    });
   };
 
   const titleXml = (element: Element): string => {
@@ -650,7 +877,11 @@ export function convertPages(input: ConvertInput): ConvertedBook {
       const el = child as Element;
       const name = local(el);
       if (noteElements.has(el) || DROPPED.has(name) || name === 'nav') {
-        if (name === 'script') note('dropped', 'script');
+        if (DROPPED.has(name)) countDropped(el);
+        continue;
+      }
+      if (epubTypes(el).includes('pagebreak')) {
+        dropped.add('droppedPageMarkers');
         continue;
       }
       if (
@@ -670,7 +901,25 @@ export function convertPages(input: ConvertInput): ConvertedBook {
     flushRun();
   };
 
+  // D29: nesting past the limit is flattened into paragraphs, and listed once.
   const block = (element: Element, listDepth: number): void => {
+    if (depth >= MAX_NESTING) {
+      if (!flattened) {
+        flattened = true;
+        note('nestingFlattened', String(MAX_NESTING));
+      }
+      for (const p of paragraphsOf(element)) addBlock(p);
+      return;
+    }
+    depth++;
+    try {
+      blockInner(element, listDepth);
+    } finally {
+      depth--;
+    }
+  };
+
+  const blockInner = (element: Element, listDepth: number): void => {
     const name = local(element);
     const kind = classes(element);
     const types = epubTypes(element);
@@ -815,28 +1064,17 @@ export function convertPages(input: ConvertInput): ConvertedBook {
         );
         return;
       }
-      case 'svg':
+      // D23, D24: a formula or a drawing of its own is a block picture.
       case 'math':
-        // Drawn as pictures by US3 (D23, D24); until then their text stays.
-        if ((element.textContent ?? '').trim())
-          addBlock(`<p>${escapeText(normaliseSpace(element.textContent ?? '').trim())}</p>`);
-        note('dropped', name);
+        addBlock(formula(element, true));
+        return;
+      case 'svg':
+        addBlock(svgPicture(element, true));
         return;
       case 'audio':
-      case 'video': {
-        note('dropped', name);
-        const fallback = normaliseSpace(element.textContent ?? '').trim();
-        if (fallback) addBlock(`<p>${escapeText(fallback)}</p>`);
-        const poster = element.getAttribute('poster');
-        if (poster) {
-          const id = pictureId(currentPage, poster);
-          if (id) {
-            stats.pictures++;
-            addBlock(`<image l:href="#${id}"/>`);
-          }
-        }
+      case 'video':
+        media(element, true);
         return;
-      }
       default:
         blockContent(element, listDepth);
     }
@@ -850,7 +1088,8 @@ export function convertPages(input: ConvertInput): ConvertedBook {
     ...input.pages.filter((page) => page.linear),
     ...input.pages.filter((page) => !page.linear),
   ];
-  for (const page of ordered) {
+  for (const [index, page] of ordered.entries()) {
+    await input.yielder?.step();
     currentPage = page;
     const body = page.doc.getElementsByTagName('body')[0] ?? page.doc.documentElement;
     if (!body) continue;
@@ -860,11 +1099,13 @@ export function convertPages(input: ConvertInput): ConvertedBook {
     const bodyKinds = classes(body).concat(
       Array.from(body.children).flatMap((child) => classes(child)),
     );
-    // D18: a cover page that only shows the cover becomes the book's cover.
+    // D18: a cover page that only shows the cover becomes the book's cover - one the package
+    // marks as such, or the first page when it holds nothing but one picture (a picture alone on a
+    // page further on is an illustration, kept in the text).
     if (
       page.role === 'cover' ||
       bodyKinds.includes('fb2-cover') ||
-      (text.length < 3 && images.length + svgImages.length === 1)
+      (index === 0 && text.length < 3 && images.length + svgImages.length === 1)
     ) {
       const picture = images[0] ?? svgImages[0];
       if (picture && !coverPath) {
@@ -1014,7 +1255,7 @@ export function convertPages(input: ConvertInput): ConvertedBook {
     });
   bodyXml = resolveLinks(bodyXml);
   if (notesXml) notesXml = resolveLinks(notesXml);
-  return { bodyXml, notesXml, pictures, coverPath, stats, summary };
+  return { bodyXml, notesXml, pictures, coverPath, formulas, drawings, chars, stats, summary };
 }
 
 /** The folder of the package, for tests. */

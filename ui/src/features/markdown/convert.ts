@@ -22,6 +22,7 @@ import {
   codePoints,
   expandEmojiCodes,
   graphemes,
+  isPlain,
   specialChar,
   treatmentOf,
   type SpecialChar,
@@ -184,24 +185,6 @@ export interface ConvertOptions {
 
 const NBSP = '\u00a0';
 const LIST_INDENT = NBSP.repeat(4);
-/** Text the fast path takes as it is: nothing that becomes a picture or is dropped. */
-function isPlain(text: string): boolean {
-  for (let i = 0; i < text.length; i += 1) {
-    const c = text.charCodeAt(i);
-    if (c === 9 || c === 10 || c === 13 || (c >= 0x20 && c <= 0x7e)) continue;
-    if (
-      (c >= 0xa0 && c <= 0x24f) ||
-      (c >= 0x300 && c <= 0x52f) ||
-      (c >= 0x2010 && c <= 0x2027) ||
-      (c >= 0x2030 && c <= 0x205e) ||
-      (c >= 0x20a0 && c <= 0x20bf)
-    ) {
-      continue;
-    }
-    return false;
-  }
-  return true;
-}
 
 function esc(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');

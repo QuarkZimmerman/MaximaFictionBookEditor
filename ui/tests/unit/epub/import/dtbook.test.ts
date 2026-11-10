@@ -20,9 +20,9 @@ const DTBOOK =
   '</linegroup></poem></level1></bodymatter></book></dtbook>\n';
 
 describe('the EPUB import of DTBook', () => {
-  it('converts a DTBook page with its poem and epigraph', () => {
+  it('converts a DTBook page with its poem and epigraph', async () => {
     const { doc } = parsePage(DTBOOK, 'dtbook');
-    const book = convertPages({
+    const book = await convertPages({
       pages: [{ path: 'OEBPS/poem.xml', doc, linear: true }],
       navigation: [],
       images: new Map(),
@@ -35,9 +35,9 @@ describe('the EPUB import of DTBook', () => {
     );
   });
 
-  it('reads its notes and leaves out the front matter that repeats the description', () => {
+  it('reads its notes and leaves out the front matter that repeats the description', async () => {
     const { doc } = parsePage(NOTED, 'dtbook');
-    const book = convertPages({
+    const book = await convertPages({
       pages: [{ path: 'OEBPS/book.xml', doc, linear: true }],
       navigation: [],
       images: new Map(),
@@ -52,12 +52,12 @@ describe('the EPUB import of DTBook', () => {
     );
   });
 
-  it("shows EPUB 3.0's switch by its fallback", () => {
+  it("shows EPUB 3.0's switch by its fallback", async () => {
     const xhtml =
       '<?xml version="1.0" encoding="UTF-8"?>\n<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">' +
       '<head><title>t</title></head><body><h1>T</h1><p>x = <epub:switch><epub:case required-namespace="http://www.w3.org/1998/Math/MathML">' +
       '<math xmlns="http://www.w3.org/1998/Math/MathML"><mi>a</mi></math></epub:case><epub:default>a</epub:default></epub:switch></p></body></html>';
-    const book = convertPages({
+    const book = await convertPages({
       pages: [{ path: 'OEBPS/a.xhtml', doc: parsePage(xhtml, 'xhtml').doc, linear: true }],
       navigation: [],
       images: new Map(),

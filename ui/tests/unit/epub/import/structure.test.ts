@@ -17,7 +17,7 @@ function page(path: string, body: string, options: Partial<ConvertPage> = {}): C
   return { path, doc: parsePage(xhtml, 'xhtml').doc, linear: true, ...options };
 }
 
-function convert(pages: ConvertPage[], extra: Partial<ConvertInput> = {}) {
+async function convert(pages: ConvertPage[], extra: Partial<ConvertInput> = {}) {
   return convertPages({
     pages,
     navigation: [],
@@ -32,8 +32,8 @@ function convert(pages: ConvertPage[], extra: Partial<ConvertInput> = {}) {
 }
 
 describe('the EPUB import: structure (D18)', () => {
-  it('makes sections from the headings by their levels relative to each other', () => {
-    const book = convert([
+  it('makes sections from the headings by their levels relative to each other', async () => {
+    const book = await convert([
       page(
         'OEBPS/a.xhtml',
         '<body><h2>One</h2><p>a</p><h3>One.1</h3><p>b</p><h2>Two</h2><p>c</p></body>',
@@ -47,11 +47,11 @@ describe('the EPUB import: structure (D18)', () => {
     expect(book.stats.sections).toBe(3);
   });
 
-  it('titles a page without a heading from the contents, and keeps text before any heading', () => {
+  it('titles a page without a heading from the contents, and keeps text before any heading', async () => {
     const navigation: NavEntry[] = [
       { label: 'Глава 1', path: 'OEBPS/b.xhtml', fragment: '', depth: 1 },
     ];
-    const book = convert(
+    const book = await convert(
       [
         page('OEBPS/a.xhtml', '<body><p>Before.</p></body>'),
         page('OEBPS/b.xhtml', '<body><p>Text.</p></body>'),
@@ -63,8 +63,8 @@ describe('the EPUB import: structure (D18)', () => {
     );
   });
 
-  it('takes the cover from a cover page and does not repeat it, nor a title page', () => {
-    const book = convert([
+  it('takes the cover from a cover page and does not repeat it, nor a title page', async () => {
+    const book = await convert([
       page(
         'OEBPS/cover.xhtml',
         '<body><div><img src="images/cover.jpg" alt="Cover"/></div></body>',
@@ -79,7 +79,7 @@ describe('the EPUB import: structure (D18)', () => {
       '<body><section><title><p>Chapter</p></title><p>Text.</p></section></body>',
     );
     // A title page that says more than the description is text.
-    const kept = convert([
+    const kept = await convert([
       page('OEBPS/title.xhtml', '<body><h1>The Book</h1><p>A dedication to my cat.</p></body>', {
         role: 'title-page',
       }),
@@ -87,8 +87,8 @@ describe('the EPUB import: structure (D18)', () => {
     expect(kept.bodyXml).toContain('A dedication to my cat.');
   });
 
-  it("makes one opening heading above all chapters the body's title", () => {
-    const book = convert([
+  it("makes one opening heading above all chapters the body's title", async () => {
+    const book = await convert([
       page('OEBPS/t.xhtml', '<body><h1>The Book</h1></body>'),
       page('OEBPS/a.xhtml', '<body><h2>Chapter 1</h2><p>a</p></body>'),
       page('OEBPS/b.xhtml', '<body><h2>Chapter 2</h2><p>b</p></body>'),
@@ -99,16 +99,16 @@ describe('the EPUB import: structure (D18)', () => {
     );
   });
 
-  it('reads the non-linear pages after the text', () => {
-    const book = convert([
+  it('reads the non-linear pages after the text', async () => {
+    const book = await convert([
       page('OEBPS/extra.xhtml', '<body><h1>Extra</h1><p>x</p></body>', { linear: false }),
       page('OEBPS/a.xhtml', '<body><h1>Main</h1><p>m</p></body>'),
     ]);
     expect(book.bodyXml.indexOf('Main')).toBeLessThan(book.bodyXml.indexOf('Extra'));
   });
 
-  it("joins the continued pages of the editor's own export", () => {
-    const book = convert([
+  it("joins the continued pages of the editor's own export", async () => {
+    const book = await convert([
       page(
         'OEBPS/0001.xhtml',
         '<body><div id="s1" class="fb2-section"><h1 class="fb2-title">Long</h1><p>a</p></div></body>',
@@ -122,8 +122,8 @@ describe('the EPUB import: structure (D18)', () => {
 });
 
 describe('the EPUB import: text (D19, contracts §3)', () => {
-  it('maps the text table', () => {
-    const book = convert([
+  it('maps the text table', async () => {
+    const book = await convert([
       page(
         'OEBPS/a.xhtml',
         '<body><h1>T</h1>' +
@@ -157,8 +157,8 @@ describe('the EPUB import: text (D19, contracts §3)', () => {
     expect(book.stats).toMatchObject({ tables: 1, pictures: 1 });
   });
 
-  it('puts an epigraph where FB2 has one, and a quotation elsewhere', () => {
-    const book = convert([
+  it('puts an epigraph where FB2 has one, and a quotation elsewhere', async () => {
+    const book = await convert([
       page(
         'OEBPS/a.xhtml',
         '<body><h1>T</h1><blockquote epub:type="epigraph"><p>Epi.</p><p class="fb2-text-author">Author</p></blockquote>' +
@@ -173,13 +173,13 @@ describe('the EPUB import: text (D19, contracts §3)', () => {
 });
 
 describe('the EPUB import: notes (D20)', () => {
-  const notesOf = (pages: ConvertPage[]): { body: string; notes: string } => {
-    const book = convert(pages);
+  const notesOf = async (pages: ConvertPage[]): Promise<{ body: string; notes: string }> => {
+    const book = await convert(pages);
     return { body: book.bodyXml, notes: book.notesXml ?? '' };
   };
 
-  it('reads EPUB 3 footnotes', () => {
-    const { body, notes } = notesOf([
+  it('reads EPUB 3 footnotes', async () => {
+    const { body, notes } = await notesOf([
       page(
         'OEBPS/a.xhtml',
         '<body><h1>T</h1><p>Text<a epub:type="noteref" href="#n1">1</a>.</p>' +
@@ -193,8 +193,8 @@ describe('the EPUB import: notes (D20)', () => {
     );
   });
 
-  it('reads EPUB 2 notes: a target that links back to its reference', () => {
-    const { body, notes } = notesOf([
+  it('reads EPUB 2 notes: a target that links back to its reference', async () => {
+    const { body, notes } = await notesOf([
       page(
         'OEBPS/a.xhtml',
         '<body><h1>T</h1><p>Text<a id="r1" href="notes.xhtml#n1">[1]</a>.</p></body>',
@@ -209,8 +209,8 @@ describe('the EPUB import: notes (D20)', () => {
     expect(notes).toContain('<title><p>1</p></title><p>The note.</p>');
   });
 
-  it("reads InDesign's footnotes", () => {
-    const { body, notes } = notesOf([
+  it("reads InDesign's footnotes", async () => {
+    const { body, notes } = await notesOf([
       page(
         'OEBPS/a.xhtml',
         '<body><h1>T</h1><p>Text<a class="_idFootnoteLink" href="#fn1">1</a>.</p>' +
@@ -223,8 +223,8 @@ describe('the EPUB import: notes (D20)', () => {
 });
 
 describe("the EPUB import: the FB2 converter's marks and the links (D21, D22)", () => {
-  it('gives the FB2 structure back from the converter found in the corpus', () => {
-    const book = convert([
+  it('gives the FB2 structure back from the converter found in the corpus', async () => {
+    const book = await convert([
       page(
         'OEBPS/a.xhtml',
         '<body><h1 class="body_head">The Book</h1><div class="section1"><h2>Chapter</h2>' +
@@ -238,8 +238,8 @@ describe("the EPUB import: the FB2 converter's marks and the links (D21, D22)", 
     );
   });
 
-  it('resolves links inside the book, keeps those outside it, and writes missing ones as text', () => {
-    const book = convert([
+  it('resolves links inside the book, keeps those outside it, and writes missing ones as text', async () => {
+    const book = await convert([
       page(
         'OEBPS/a.xhtml',
         '<body><h1>One</h1><p><a href="b.xhtml#place">a place</a> <a href="b.xhtml">next chapter</a> ' +
