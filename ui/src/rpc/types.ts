@@ -1344,7 +1344,7 @@ export interface RpcMethods {
   'epub.write.abort': { params: { token: string }; result: Record<string, never> };
   /** Feature 010 (US8): a new untitled, modified document from FB2 text, tied to no file. */
   'doc.newFromXml': {
-    params: { xml: string; origin?: { kind: 'markdown'; path: string } };
+    params: { xml: string; origin?: { kind: 'markdown' | 'epub'; path: string } };
     result: MaybeJob<{ document: Document & LoadReport; warnings: ValidationIssue[] }>;
   };
   /** Feature 010 (US1, test hooks only): the core answers the next connection's requests after `ms`. */

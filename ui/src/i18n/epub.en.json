@@ -22,7 +22,6 @@
     "openRefused": "{{path}} is an EPUB book. File > Open takes FictionBook (FB2) books, FBD files and ZIP archives holding FB2 books; an EPUB book is imported with File > Import > EPUB File....",
     "importCaption": "EPUB import",
     "exportCaption": "EPUB export",
-    "notReady": "This part of the EPUB support is still being built.",
     "filter": "EPUB books (*.epub)",
     "exporting": "Exporting as EPUB…",
     "exportDone": "Exported to {{path}}: {{pages}} pages, {{pictures}} pictures, {{tables}} tables, {{notes}} notes.",
@@ -48,6 +47,32 @@
       "targetIsSource": "{{path}} is the book's own file; choose another name.",
       "unknownToken": "The export lost its file; try again.",
       "ioError": "The file could not be written."
+    },
+    "openTitle": "Import an EPUB book",
+    "importing": "Importing the EPUB book…",
+    "importDone": "Imported from EPUB: {{sections}} sections, {{pictures}} pictures, {{tables}} tables, {{notes}} notes.",
+    "importCancelled": "The import was cancelled; the book in the window is unchanged.",
+    "importFailed": "{{path}} could not be imported: {{reason}}",
+    "importSummaryIntro": "Not everything came over as written:",
+    "importSummary": {
+      "linkAsText": "Link to a place that does not exist, written as text: {{detail}}",
+      "pictureLeftOut": "Picture not added: {{detail}}",
+      "remote": "Resource on the web, not fetched: {{detail}}",
+      "dropped": "Left out (FB2 has no place for it): {{detail}}",
+      "listedData": "Data without an FB2 field: {{detail}}",
+      "recovered": "Page that is not well-formed, read as HTML: {{detail}}",
+      "unreadable": "Part of the book that could not be read: {{detail}}",
+      "outside": "File named outside the book, not read: {{detail}}",
+      "pageMissing": "Page the reading order names but the book does not hold: {{detail}}"
+    },
+    "refused": {
+      "notZip": "it is not an EPUB book (not a ZIP archive).",
+      "noPackage": "it is not an EPUB book (it has no package document).",
+      "protected": "the book is protected (DRM) and cannot be imported.",
+      "tooLarge": "the file is larger than the import reads (512 MB).",
+      "zipBomb": "the archive unpacks to far more than it holds and is not read.",
+      "tooManyEntries": "the archive holds too many files.",
+      "encryptedZip": "the archive is protected by a password."
     }
   }
 }
