@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<stylesheet type="text/css">p { text-indent: 2em; }
+.letter { font-style: italic; text-align: right; }
+epigraph { font-size: 80%; }
+.smallcaps { font-variant: small-caps; }</stylesheet>
+	<description>
+		<title-info>
+			<genre>sf_fantasy</genre>
+			<author>
+				<first-name>Anna</first-name>
+				<middle-name>B.</middle-name>
+				<last-name>Example</last-name>
+			</author>
+			<book-title>The Reference Book</book-title>
+			<annotation>
+				<p>The annotation of the reference book.</p>
+			</annotation>
+			<keywords>reference, export, epub</keywords>
+			<date value="2026-11-10">2026</date>
+			<coverpage>
+				<image l:href="#cover"/>
+			</coverpage>
+			<lang>en</lang>
+			<src-lang>en</src-lang>
+			<translator>
+				<first-name>Peter</first-name>
+				<last-name>Translator</last-name>
+			</translator>
+			<sequence name="The Series" number="3"/>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<date value="2026-11-10">2026</date>
+			<id>5b0e8a52-3c1d-4f6e-9a7b-2c8d4e6f8a10</id>
+			<version>1.0</version>
+		</document-info>
+		<publish-info>
+			<book-name>The Reference Book</book-name>
+			<publisher>Example Press</publisher>
+			<city>Kyiv</city>
+			<year>2026</year>
+			<isbn>978-0-00-000000-2</isbn>
+		</publish-info>
+		<custom-info info-type="mlillustrator">Van_Gogh Vincent</custom-info>
+		<custom-info info-type="mleditor">Редактор Ю.</custom-info>
+	</description>
+	<body>
+		<image l:href="#pic-jpg" alt="Body picture" title="The body picture's caption"/>
+		<title>
+			<p>Anna Example</p>
+			<p>The Reference Book</p>
+		</title>
+		<epigraph>
+			<p>An epigraph of the body.</p>
+			<text-author>Someone Wise</text-author>
+		</epigraph>
+		<section id="ch1">
+			<title>
+				<p>Chapter One</p>
+				<p>with a second title line</p>
+			</title>
+			<epigraph>
+				<p>A chapter epigraph.</p>
+			</epigraph>
+			<image l:href="#pic-png" alt="A section picture" title="A caption under the picture"/>
+			<annotation>
+				<p>A section annotation.</p>
+			</annotation>
+			<p id="p1">Plain, <strong>strong</strong>, <emphasis>emphasis</emphasis>, <strikethrough>struck</strikethrough>, H<sub>2</sub>O, x<sup>2</sup>, <code>code()</code>, <style name="smallcaps">small caps</style> and an inline <image l:href="#pic-png" alt="inline"/> picture.</p>
+			<p>A note<a l:href="#n1" type="note">[1]</a>, a second note<a l:href="#n2" type="note">[2]</a>, a link to <a l:href="#ch2">chapter two</a> and to <a l:href="https://example.com/">a web page</a>.</p>
+			<p style="letter">A paragraph in the named style letter.</p>
+			<empty-line/>
+			<subtitle>A subtitle</subtitle>
+			<cite>
+				<p>A quotation.</p>
+				<text-author>Its Author</text-author>
+			</cite>
+			<poem>
+				<title>
+					<p>A Poem</p>
+				</title>
+				<epigraph>
+					<p>The poem's epigraph.</p>
+				</epigraph>
+				<stanza>
+					<title>
+						<p>Stanza one</p>
+					</title>
+					<subtitle>Its subtitle</subtitle>
+					<v>First verse line,</v>
+					<v>second verse line.</v>
+				</stanza>
+				<stanza>
+					<v>Another stanza.</v>
+				</stanza>
+				<text-author>The Poet</text-author>
+				<date value="2026-01-01">1 January 2026</date>
+			</poem>
+			<table>
+				<tr>
+					<th>Head A</th>
+					<th align="center">Head B</th>
+				</tr>
+				<tr>
+					<td colspan="2" align="right">Two columns</td>
+				</tr>
+				<tr>
+					<td rowspan="2" valign="middle">Two rows</td>
+					<td>Cell</td>
+				</tr>
+				<tr>
+					<td>Cell</td>
+				</tr>
+			</table>
+		</section>
+		<section id="part2">
+			<title>
+				<p>Part Two</p>
+			</title>
+			<section id="ch2-1">
+				<title>
+					<p>A subsection</p>
+				</title>
+				<p xml:lang="de">Ein deutscher Absatz.</p>
+			</section>
+			<section id="ch2">
+				<title>
+					<p>Chapter Two</p>
+				</title>
+				<p>The last chapter.</p>
+			</section>
+		</section>
+	</body>
+	<body name="notes">
+		<title>
+			<p>Notes</p>
+		</title>
+		<section id="n1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>The first note.</p>
+		</section>
+		<section id="n2">
+			<title>
+				<p>2</p>
+			</title>
+			<p>The second note.</p>
+		</section>
+	</body>
+	<binary id="pic-jpg" content-type="image/jpeg">/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkI
+CQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQ
+EBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAAGAAgDAREA
+AhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAABf/EACMQAAACCQUAAAAAAAAAAAAAABMWAAQHEhUX
+ITEzIiZUVWH/xAAUAQEAAAAAAAAAAAAAAAAAAAAF/8QAKREAAAALCAMAAAAAAAAAAAAAABESExQV
+FiExMjMCAwUGIiRSUyVhYv/aAAwDAQACEQMRAD8APO7NpMEwobt7aHq/LEzPC4tFvLVRVmczNsu0
+zx/ScvOkimI3U1R+pnAYssNUqEZ3HMmzzHMMqV0PUA//2Q==</binary>
+	<binary id="pic-png" content-type="image/png">iVBORw0KGgoAAAANSUhEUgAAAAgAAAAGAQMAAADEy024AAAABlBMVEVAYKD/0EA3Gm2JAAAADklE
+QVQI12NgYLCBQgYABawA8UkjcVEAAAAASUVORK5CYII=</binary>
+	<binary id="cover" content-type="image/jpeg">/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkI
+CQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQ
+EBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAAGAAgDAREA
+AhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAABf/EACMQAAACCQUAAAAAAAAAAAAAABMWAAQHEhUX
+ITEzIiZUVWH/xAAUAQEAAAAAAAAAAAAAAAAAAAAF/8QAKREAAAALCAMAAAAAAAAAAAAAABESExQV
+FiExMjMCAwUGIiRSUyVhYv/aAAwDAQACEQMRAD8APO7NpMEwobt7aHq/LEzPC4tFvLVRVmczNsu0
+zx/ScvOkimI3U1R+pnAYssNUqEZ3HMmzzHMMqV0PUA//2Q==</binary>
+</FictionBook>
