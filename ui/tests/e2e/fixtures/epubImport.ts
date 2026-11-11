@@ -21,23 +21,30 @@ export const EPUBS = path.resolve(
 export const epub = (name: string): string => path.join(EPUBS, name);
 
 /** Starts File > Import > EPUB File... on `file`; returns the document the window showed before. */
+/**
+ * File > Import > EPUB File... with `file` queued for the Open dialog; resolves the document shown
+ * before. `question: false` tells that the window's book is unchanged, so that no time goes into
+ * waiting for the unsaved-changes question (the timing journeys).
+ */
 export async function importViaMenu(
   core: CoreHandle,
   page: Page,
   file: string,
+  { question = true }: { question?: boolean } = {},
 ): Promise<string | null> {
   const before = await shownDocId(page);
   await core.enqueueDialog('dialog.openFile', { paths: [file] });
   await page.getByTestId('menu-file').click({ timeout: 15_000 });
   await page.getByTestId('menu-file-import').hover({ timeout: 15_000 });
   await page.getByTestId('menu-file-import-importEpub').click({ timeout: 15_000 });
+  if (!question) return before;
   // The book a previous import made is unsaved: the editor asks first, as Open does (D15).
-  const question = page.getByRole('dialog').filter({ hasText: 'Save changes to' });
-  const asked = await question
+  const dialog = page.getByRole('dialog').filter({ hasText: 'Save changes to' });
+  const asked = await dialog
     .waitFor({ state: 'visible', timeout: 2000 })
     .then(() => true)
     .catch(() => false);
-  if (asked) await question.getByRole('button', { name: 'No' }).click({ timeout: 15_000 });
+  if (asked) await dialog.getByRole('button', { name: 'No' }).click({ timeout: 15_000 });
   return before;
 }
 

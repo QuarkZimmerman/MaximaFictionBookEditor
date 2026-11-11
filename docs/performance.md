@@ -23,6 +23,13 @@ update this page when the reader, the binary store or the Body view windowing ch
 | Table commands on a 300 × 10 table and on the largest real shapes, 628 × 4 and 298 × 14, in the 10 MB book (command to painted frame, median of 5 per command; feature 006, SC-005) | 100 ms × `MFBE_PERF_FACTOR` |
 | Table commands on a 1000 × 20 table in the 10 MB book (every run; feature 006, SC-005) | 1 s |
 | Typing in the 10 MB book after a table command (keystroke to painted frame, median of 11; feature 006) | 100 ms |
+| EPUB export of the 10 MB text book: the menu entry until the status bar names the file (feature 012, SC-010; `ui/tests/e2e/perf-epub.spec.ts`) | 5 s × `MFBE_PERF_FACTOR` |
+| EPUB export of the 150 MB picture book (feature 012, SC-010) | 20 s × `MFBE_PERF_FACTOR` |
+| EPUB import of the 10 MB text book's EPUB: the Open dialog's answer until the new book is editable (feature 012, SC-010) | 5 s × `MFBE_PERF_FACTOR` |
+| EPUB import of the 150 MB picture book's EPUB (feature 012, SC-010) | 30 s × `MFBE_PERF_FACTOR` |
+| EPUB export and import: peak resident memory of `mfbe-core` and of the page's renderer, each (feature 012, SC-010) | 1.5 GB |
+| EPUB export and import: the longest time the progress bar stands still, and Cancel until the progress window is gone (feature 012, SC-010) | 1 s × `MFBE_PERF_FACTOR` |
+| View > Show Book Styles on the 10 MB book until the styles are drawn, and typing with them shown (median of 10; feature 012, SC-017) | 1 s; 100 ms (× `MFBE_PERF_FACTOR`) |
 
 ## Measurements (T150)
 

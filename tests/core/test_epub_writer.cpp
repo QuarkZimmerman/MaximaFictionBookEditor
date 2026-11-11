@@ -53,6 +53,37 @@ TEST_CASE("epub writer: mimetype first, stored, without an extra field", "[epub]
     CHECK(epub::is_epub(target));
 }
 
+TEST_CASE("epub writer: JPEG and PNG pictures are stored as they are, the rest deflated",
+          "[epub]") {
+    // Feature 012 (SC-010): deflating compressed pictures gains nothing, costs time on a big book,
+    // and a padded picture could pass the import's ratio limit (DP-15).
+    const test::TempDir temp("epub-writer-pictures");
+    const fs::path target = temp.path() / "book.epub";
+    epub::Writer writer(target);
+    const std::string jpeg = std::string("\xFF\xD8\xFF\xE0", 4) + std::string(3u << 20, '\0');
+    const std::string png = std::string("\x89PNG\r\n\x1A\n", 8) + std::string(3u << 20, '\0');
+    writer.add(
+        "META-INF/container.xml",
+        "<?xml version=\"1.0\"?><container version=\"1.0\" "
+        "xmlns=\"urn:oasis:names:tc:opendocument:xmlns:container\"><rootfiles>"
+        "<rootfile full-path=\"EPUB/package.opf\" media-type=\"application/oebps-package+xml\"/>"
+        "</rootfiles></container>");
+    writer.add("EPUB/package.opf", "<package/>");
+    writer.add("EPUB/images/a.jpg", jpeg);
+    writer.add("EPUB/images/b.png", png);
+    writer.add("EPUB/text/c.xhtml", std::string(5000, 'x'));
+    CHECK(writer.commit() > 0);
+
+    const archive::Listing listing = archive::list(target);
+    REQUIRE(listing.entries.size() == 6);
+    CHECK(listing.entries[3].method == 0);
+    CHECK(listing.entries[3].compressed == listing.entries[3].size);
+    CHECK(listing.entries[4].method == 0);
+    CHECK(listing.entries[5].method == 8);
+    // The import reads such a book: no entry passes the ratio limit.
+    CHECK_NOTHROW(epub::open(target));
+}
+
 TEST_CASE("epub writer: names follow EPUB 3.3's rules", "[epub]") {
     CHECK(epub::valid_name("EPUB/text/0001.xhtml"));
     CHECK(epub::valid_name("EPUB/images/пример.png"));

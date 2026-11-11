@@ -1,7 +1,8 @@
 // EPUB container services: writing an EPUB for the export (feature 012, T011; D3, D4, D13,
 // contracts/rpc-api.md §3, research R3). The files are kept until commit(), which builds the ZIP
 // with the archive module's writer (mimetype first, stored, no time stamp and no owner, so no extra
-// field; the rest deflated) and replaces the target with the atomic writer of every save.
+// field; JPEG and PNG pictures stored as they are, the rest deflated) and replaces the target with
+// the atomic writer of every save.
 #include <mfbe/archive.hpp>
 #include <mfbe/atomic_file.hpp>
 #include <mfbe/epub.hpp>
@@ -144,7 +145,10 @@ std::uint64_t Writer::commit() {
     entries.reserve(files_.size() + 1);
     entries.push_back({"mimetype", kMimetype, true, true});
     for (const auto& [name, bytes] : files_) {
-        entries.push_back({name, bytes});
+        // JPEG and PNG pictures are compressed already: stored as they are (feature 012, SC-010).
+        const bool compressed = bytes.rfind("\xFF\xD8\xFF", 0) == 0 ||
+                                bytes.rfind(std::string("\x89PNG\r\n\x1A\n", 8), 0) == 0;
+        entries.push_back({name, bytes, compressed});
     }
     const std::string zip = archive::zip_entries(entries);
     atomic_file::write_atomic(target_, zip);
