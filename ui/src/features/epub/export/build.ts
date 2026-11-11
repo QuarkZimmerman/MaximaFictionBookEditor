@@ -302,6 +302,10 @@ export function buildEpub(input: BuildInput): BuiltEpub {
   titlePage += '</div>';
   drafts.push({ name: 'EPUB/text/title.xhtml', title: words.titlePage, html: titlePage });
 
+  // D34: every page of a body other than the notes carries the body's mark, so that the editor's own
+  // import gives each body back (the attributes are set per body below).
+  let bodyMark = '';
+
   // A body's own picture, title and epigraphs, on a page before its sections.
   const bodyIntro = (body: BodyNode, entryList: TocEntry[]): TocEntry[] => {
     const intro = body.content.filter((child) => child.type !== 'section');
@@ -321,7 +325,7 @@ export function buildEpub(input: BuildInput): BuiltEpub {
     drafts.push({
       name: textPage(),
       title: label || title,
-      html: `<div id="${id}" class="fb2-body-intro"${lang}>${html}</div>`,
+      html: `<div id="${id}" class="fb2-body-intro"${lang}${bodyMark}>${html}</div>`,
     });
     if (!label) return entryList;
     const entry: TocEntry = { label, target: anchorLink(id), children: [] };
@@ -345,7 +349,7 @@ export function buildEpub(input: BuildInput): BuiltEpub {
       : '';
     const label = titleText(section.content.find((child) => child.type === 'title') as AnyNode);
     const wrap = (inner: string, first: boolean): string =>
-      `<div${first && id ? ` id="${attr(id)}"` : ''} class="fb2-section${first ? '' : ' fb-continued'}"${lang}>${inner}</div>`;
+      `<div${first && id ? ` id="${attr(id)}"` : ''} class="fb2-section${first ? '' : ' fb-continued'}"${lang}${bodyMark}>${inner}</div>`;
     let current = opening.join('');
     let size = encoder.encode(current).length;
     let first = true;
@@ -374,8 +378,11 @@ export function buildEpub(input: BuildInput): BuiltEpub {
   };
 
   let firstTextPage = '';
+  let bodyOrdinal = 0;
   document.bodies.forEach((body, index) => {
     if (notesBodies.has(index)) return;
+    const name = (body.attrs as { name?: string }).name;
+    bodyMark = ` data-fb2-body="${++bodyOrdinal}"${name ? ` data-fb2-body-name="${attr(name)}"` : ''}`;
     const before = drafts.length;
     const entries = bodyIntro(body, toc);
     for (const child of body.content) {
@@ -398,12 +405,13 @@ export function buildEpub(input: BuildInput): BuiltEpub {
     document.bodies.forEach((body, index) => {
       if (!notesBodies.has(index)) return;
       const heading = body.content.find((child) => child.type === 'title');
+      // D34: the notes' heading is marked, so that the editor's import does not read it as a chapter;
+      // the one the export adds for a notes body without a title also as added.
       if (heading) {
-        html += headed
-          ? renderTitle(heading as AnyNode, ctx, 1)
-          : renderTitle(heading as AnyNode, ctx, 1).replace(/^<h1/, `<h1 id="${headingId}"`);
+        const own = renderTitle(heading as AnyNode, ctx, 1, 'fb2-title fb2-notes-title');
+        html += headed ? own : own.replace(/^<h1/, `<h1 id="${headingId}"`);
       } else if (!headed) {
-        html += `<h1 id="${headingId}" class="fb2-title">${text(words.notes)}</h1>`;
+        html += `<h1 id="${headingId}" class="fb2-title fb2-notes-title fb2-generated">${text(words.notes)}</h1>`;
       }
       headed = true;
       for (const child of body.content as AnyNode[]) {
@@ -665,6 +673,12 @@ export function buildEpub(input: BuildInput): BuiltEpub {
   meta.push(
     `<meta property="mfbe:fb2-description">${text(JSON.stringify(document.description))}</meta>`,
   );
+  // D34: the book's stylesheets as they are, so that the editor's own import gives them back exactly
+  // (the EPUB's CSS is a translation of them).
+  if (document.stylesheets.length > 0) {
+    const sheets = document.stylesheets.map(({ type, content }) => ({ type, content }));
+    meta.push(`<meta property="mfbe:fb2-stylesheets">${text(JSON.stringify(sheets))}</meta>`);
+  }
   if (coverItem) meta.push(`<meta name="cover" content="${coverItem.id}"/>`);
 
   const guide: string[] = [];

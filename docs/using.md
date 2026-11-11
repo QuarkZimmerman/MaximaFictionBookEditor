@@ -279,6 +279,76 @@ to the book's elements (`blockquote` becomes `cite`, `em` `emphasis`, headings `
 stay); spans and blocks with a class - `<span class>`, `<div class>`, `[text]{.x}`, `::: {.x}` - become
 named styles. A stylesheet on the web is never fetched; what the import could not use is listed.
 
+## EPUB books
+
+*File > Export > Export as EPUB…* writes the book as an EPUB 3.3 book; *File > Import > EPUB File…*
+makes a new book from an EPUB. Both are copies made once: neither is a save or an open, nothing
+remembers them (recent files, folders, settings), and *File > Open* refuses an EPUB, pointing to the
+import. Each shows its progress with *Cancel*, and the window does not close while one runs.
+
+### Exporting as EPUB
+
+The save dialog proposes the book's name with `.epub` in its folder. The book is written as the window
+has it, edits in the Source view included, and stays as it was.
+
+- A cover page from the description's cover, a title page with the book's title, series, authors and
+  annotation, then one page per chapter of the main body - a long chapter is divided between its
+  subsections or paragraphs -, the other bodies, and the notes on a page of their own, each note with a
+  link back to its first reference.
+- Sections, titles, epigraphs, quotes, poems, subtitles, text authors, tables and the inline styles keep
+  their structure. Pictures keep their bytes and their alternative text; a block picture's title becomes
+  its caption. Links inside the book lead to their targets; links to the web stay as they are.
+- The book's stylesheets are translated for EPUB readers over a plain base look; named styles become
+  classes of the same names.
+- The words the export adds - "Cover", "Title page", "Contents", "Notes" - are in the book's language
+  for English, Russian and Ukrainian, else in English.
+- The EPUB passes the W3C's EPUBCheck without an error or a warning. It also carries the parts older
+  readers use (an NCX table of contents and a guide) and its accessibility data: the schema.org fields
+  and a summary saying whether every picture has a text alternative.
+- What the export had to fill in - a missing title, language or identifier - and the pictures it left
+  out are listed after it; otherwise the status bar says where the file went.
+
+### Importing an EPUB book
+
+The import asks about unsaved changes as *Open* does. The new book is unsaved; *Save As* proposes the
+EPUB's name with `.fb2`.
+
+- EPUB 2.0 to 3.3 are read, with the older OEB and DTBook pages they may hold. A book protected by DRM
+  is refused with a message; font obfuscation is not DRM. A file that is not a ZIP, a password ZIP, a ZIP
+  bomb or a book naming files outside itself is refused with its reason or read without those files;
+  nothing outside the EPUB is read and nothing on the web is fetched.
+- The reading order gives the text's order, headings give the sections, the table of contents titles the
+  pages without a heading. A cover page and a title page that only repeat the description become the
+  description and the cover, not text. EPUB 3's and EPUB 2's notes become FB2 notes.
+- The description comes from the package: title, authors and translators, language, series, subjects
+  (genres where they match), the annotation, the publisher and the ISBN. The roles the Maxima site and
+  the FBD Maker know (an editor, an illustrator…) become the custom information they read; other people
+  are listed.
+- Pictures become JPEG or PNG only: JPEG and PNG as they are; GIF, WebP, BMP and TIFF converted - PNG
+  when transparent or of 256 colours or fewer, else JPEG at the quality of *Settings > Other*; SVG
+  pictures and drawings are drawn, and an SVG that only frames a picture gives that picture itself; AVIF
+  is decoded. A picture of more than 100 megapixels is left out.
+- MathML formulas become pictures drawn by the editor, with their text as the alternative; one that
+  cannot be drawn keeps its text. Emoji and symbols readers' fonts may lack become small pictures, as in
+  the Markdown import.
+- The book's classes: italic, bold, struck, raised, lowered or monospaced text becomes those FB2 styles;
+  a look FB2 cannot express - centring, small capitals, a size, a colour - becomes a named style with its
+  rule in the book's stylesheet; the class most paragraphs carry gives the stylesheet's paragraph rule
+  instead of a style on every paragraph.
+- Left out and listed: embedded fonts, audio and video (their text and poster picture stay), scripts
+  (never run), forms, read-aloud synchronisation, page-number markers and the page list, and the
+  positions of fixed-layout pages, whose text and pictures come in reading order.
+
+### Exporting and importing again
+
+A book exported to EPUB and imported again comes back with its text, sections, styles, links, notes,
+tables, pictures (byte for byte, with their titles), description, stylesheets and named styles, apart
+from these differences:
+
+- the title page and the cover page come back as the description and the cover, not as text;
+- ids the export had to change to make them unique keep their new form;
+- chapters the export divided into pages are joined again.
+
 ## The Styles view
 
 *View > Styles*, after the Source view, shows the book's stylesheets - each a group with its type, the
@@ -306,8 +376,20 @@ chosen style is put on the selected part of each paragraph; without a selection 
 of the paragraph, verse, subtitle, text author, table or cell at the caret. *Remove Named Style* takes
 it away. The Body view's context menu offers the same submenu. The entries are greyed with the reason
 when the book defines no class or nothing at the caret can carry a style. In the Body view styled text
-carries a very faint dotted underline, and the style's name shows when the pointer rests on it;
-Preview shows the styles themselves.
+carries a very faint dotted underline. Resting the pointer on it names every style in effect there, the
+outermost first ("Named styles: sign, letter"), says which one no stylesheet defines, and shows the
+element's id on a line of its own; tables and cells are named too. Preview shows the styles themselves.
+
+*View > Show Book Styles* - also on the Commands toolbar, beside Preview - draws the book's own
+stylesheets in the Body view while you edit, as a reader draws them over its own look. It starts off
+and is remembered. The book's rules win over the Body view's look; the editor's marks - the caret, the
+selection, spelling marks, the ids' tabs, the named-style underline, table marks and search highlights -
+stay on top. Colours are drawn as the book sets them, in the dark theme too. What would take an editing
+function away is held back or limited: nothing hides text, shrinks it below a readable size, moves it
+out of the view or onto other text, fixes, transforms, clips or animates it, blocks the pointer or the
+selection, or loads anything but a picture written into the stylesheet (`data:`). Fast mode wins: while
+it is on, the entry is greyed with the reason and keeps its check mark. Showing the styles changes
+nothing in the book.
 
 ## Preview
 

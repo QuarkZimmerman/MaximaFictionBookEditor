@@ -62,6 +62,11 @@ export interface ConvertInput {
   dropped?: Dropped;
   /** D29: called between pages, for the progress and Cancel. */
   yielder?: Yielder;
+  /**
+   * D34: the editor's own EPUB - every id kept as written where it is free, its notes' heading read as
+   * the notes body's title.
+   */
+  editorBook?: boolean;
 }
 
 /** A formula or an SVG drawing of a page, drawn by the job before the book is made (D23, D24). */
@@ -116,6 +121,7 @@ export function classUseOf(pages: readonly ConvertPage[]): {
 
 const EPUB_OPS = 'http://www.idpf.org/2007/ops';
 const XLINK = 'http://www.w3.org/1999/xlink';
+const XML_NS = 'http://www.w3.org/XML/1998/namespace';
 /** D27: interactive parts and embedded objects, counted and left out. */
 const FORM_PARTS = new Set(['input', 'button', 'select', 'textarea']);
 const EMBEDDED = new Set(['object', 'embed', 'iframe', 'canvas']);
@@ -303,6 +309,9 @@ interface Section {
   title?: string;
   id?: string;
   epigraphs: string[];
+  /** FB2's section picture and annotation, before the content (D34: subsections may follow). */
+  image?: string;
+  annotation?: string;
   blocks: Array<string | Section>;
 }
 
@@ -312,6 +321,8 @@ interface NoteDefinition {
   page: ConvertPage;
   fbId: string;
   label?: string;
+  /** D34: the note's own title, from the editor's own EPUB. */
+  title?: string;
   backlinkTargets: Set<string>;
 }
 
@@ -354,7 +365,12 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
       key,
       element,
       page,
-      fbId: ids.allocate(`note_${stemOf(page.path)}_${key.split('#')[1] ?? ''}`),
+      // D34: the editor's own notes keep their ids as written, where free.
+      fbId: ids.allocate(
+        input.editorBook
+          ? key.split('#')[1] || 'note'
+          : `note_${stemOf(page.path)}_${key.split('#')[1] ?? ''}`,
+      ),
       backlinkTargets: new Set(),
     });
   };
@@ -411,10 +427,10 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
     const id = element.getAttribute('id');
     if (!id) return undefined;
     const key = `${page.path}#${id}`;
-    if (!linkTargets.has(key) || notes.has(key)) return undefined;
+    if ((!linkTargets.has(key) && !input.editorBook) || notes.has(key)) return undefined;
     const existing = fbIds.get(key);
     if (existing) return existing;
-    const fbId = ids.allocate(`${stemOf(page.path)}_${id}`);
+    const fbId = ids.allocate(input.editorBook ? id : `${stemOf(page.path)}_${id}`);
     fbIds.set(key, fbId);
     return fbId;
   };
@@ -439,9 +455,25 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
   };
 
   // The body under construction.
-  const root: Section = { level: 0, epigraphs: [], blocks: [] };
+  let root: Section = { level: 0, epigraphs: [], blocks: [] };
   let stack: Section[] = [root];
   let bodyTitle: string | undefined;
+  // D34: the editor's own EPUB - a body's own picture and epigraphs (on the page before its
+  // sections), the notes' heading, and the id a section's page <div> carries for its heading.
+  let bodyImage: string | undefined;
+  const bodyEpigraphs: string[] = [];
+  let inBodyIntro = false;
+  let notesHeading: string | undefined;
+  let pendingSectionId: string | undefined;
+  // D34: the editor's own EPUB marks each body's pages; the bodies finished so far, as FB2.
+  let currentBodyMark: string | null = null;
+  let currentBodyName: string | undefined;
+  const finishedBodies: string[] = [];
+  const takeSectionId = (): string | undefined => {
+    const id = pendingSectionId;
+    pendingSectionId = undefined;
+    return id;
+  };
   let coverPath: string | undefined;
   const top = (): Section => stack[stack.length - 1]!;
   const openSection = (level: number, title: string | undefined, id: string | undefined): void => {
@@ -457,7 +489,19 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
     xml.startsWith('<image') || /^<!--mfbe-(math|svg)-block:/.test(xml);
   const addBlock = (xml: string): void => {
     if (!xml) return;
+    if (inBodyIntro && !bodyImage && !bodyTitle && xml.startsWith('<image')) {
+      bodyImage = xml;
+      return;
+    }
     const section = top();
+    if (section.blocks.length === 0 && isPicture(xml)) {
+      // The section's own picture, before any content; content never starts with a picture.
+      if (section !== root && !section.image && !section.annotation && xml.startsWith('<image')) {
+        section.image = xml;
+        return;
+      }
+      if (section.image || section.annotation) section.blocks.push('<empty-line/>');
+    }
     const previous = section.blocks[section.blocks.length - 1];
     if (isPicture(xml) && typeof previous === 'string' && isPicture(previous))
       section.blocks.push('<empty-line/>');
@@ -470,7 +514,7 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
   // D25: special characters as the Markdown import carries them (010 D37): emoji, dingbats and
   // symbols as small pictures, private-use characters (a font of the book's own) listed.
   const textXml = (text: string): string => {
-    if (isPlain(text)) return escapeText(text);
+    if (input.editorBook || isPlain(text)) return escapeText(text);
     let xml = '';
     for (const grapheme of graphemes(text)) {
       const treatment = treatmentOf(grapheme);
@@ -671,8 +715,10 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
     }
     return `${posterId ? `<image l:href="#${posterId}"/>` : ''}${fallback}`;
   };
+  // Formatting around spaces alone is dropped - other books' source layout - except in the editor's
+  // own EPUB, whose paragraphs are written inline: every space there is the book's (D34).
   const wrap = (tag: string, inner: string): string =>
-    inner.trim() ? `<${tag}>${inner}</${tag}>` : inner;
+    inner.trim() || (input.editorBook && inner) ? `<${tag}>${inner}</${tag}>` : inner;
   const link = (element: Element, inner: string, inLink: boolean): string => {
     const idref = element.getAttribute('idref');
     const href =
@@ -712,7 +758,9 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
     const out: string[] = [];
     let run = '';
     const flush = (): void => {
-      const text = run.replace(/^\s+|\s+$/g, '');
+      // The editor's own paragraphs keep their edge spaces; white space alone between blocks is
+      // layout, never a paragraph.
+      const text = input.editorBook && run.trim() ? run : run.replace(/^\s+|\s+$/g, '');
       if (text) out.push(text);
       run = '';
     };
@@ -726,19 +774,24 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
     // paragraph's style, the others around its text.
     const { forms, named } = classesOf(element);
     const [style, ...others] = named;
+    const lang =
+      element.getAttributeNS(XML_NS, 'lang') ||
+      element.getAttribute('xml:lang') ||
+      element.getAttribute('lang');
     return out.map((text, index) => {
       let inner = withForms(text, forms);
       for (const name of [...others].reverse())
         inner = `<style name="${escapeAttr(name)}">${inner}</style>`;
       return (
-        `<${tag}${index === 0 && id ? ` id="${id}"` : ''}${style ? ` style="${escapeAttr(style)}"` : ''}>` +
+        `<${tag}${index === 0 && id ? ` id="${id}"` : ''}${style ? ` style="${escapeAttr(style)}"` : ''}` +
+        `${lang ? ` xml:lang="${escapeAttr(lang)}"` : ''}>` +
         `${inner}</${tag}>`
       );
     });
   };
 
   const titleXml = (element: Element): string => {
-    const lines = paragraphsOf(element).map((line) => line.replace(/^<p id="[^"]*">/, '<p>'));
+    const lines = paragraphsOf(element).map((line) => line.replace(/^<p id="[^"]*"/, '<p'));
     return lines.length > 0 ? `<title>${lines.join('')}</title>` : '';
   };
 
@@ -747,6 +800,7 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
   // A poem: DTBook's poem/linegroup/line, z3998's verse, the converters' and the editor's classes.
   const poemXml = (element: Element): string => {
     const stanzas: string[] = [];
+    const epigraphs: string[] = [];
     let title = '';
     let loose: string[] = [];
     const tail: string[] = [];
@@ -765,14 +819,24 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
       else if (name === 'linegroup' || kind.includes('stanza') || kind.includes('fb2-stanza')) {
         flush();
         const lines: string[] = [];
+        let stanzaTitle = '';
+        let subtitle = '';
         for (const line of Array.from(child.children)) {
-          if (classes(line).includes('fb2-stanza-title')) continue;
-          lines.push(...paragraphsOf(line, 'v'));
+          const lineKind = classes(line);
+          if (lineKind.includes('fb2-stanza-title')) stanzaTitle = titleXml(line);
+          else if (lineKind.includes('fb2-subtitle') && lines.length === 0)
+            subtitle = paragraphsOf(line, 'subtitle').join('');
+          else lines.push(...paragraphsOf(line, 'v'));
         }
-        if (lines.length > 0) stanzas.push(`<stanza>${lines.join('')}</stanza>`);
+        if (lines.length > 0)
+          stanzas.push(`<stanza>${stanzaTitle}${subtitle}${lines.join('')}</stanza>`);
       } else if (kind.includes('fb2-text-author') || name === 'author')
         tail.push(...paragraphsOf(child, 'text-author'));
-      else if (kind.includes('fb2-date')) tail.push(`<date>${inlineOf(child)}</date>`);
+      else if (kind.includes('fb2-date')) {
+        const value = child.getAttribute('data-fb2-value');
+        tail.push(`<date${value ? ` value="${escapeAttr(value)}"` : ''}>${inlineOf(child)}</date>`);
+      } else if (kind.includes('fb2-epigraph') || name === 'epigraph')
+        epigraphs.push(`<epigraph>${quotedBlocks(child, true)}</epigraph>`);
       else if (
         name === 'line' ||
         name === 'p' ||
@@ -787,7 +851,7 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
     if (stanzas.length === 0) return '';
     const authors = tail.filter((one) => one.startsWith('<text-author'));
     const date = tail.find((one) => one.startsWith('<date'));
-    return `<poem>${title}${stanzas.join('')}${authors.join('')}${date ?? ''}</poem>`;
+    return `<poem>${title}${epigraphs.join('')}${stanzas.join('')}${authors.join('')}${date ?? ''}</poem>`;
   };
 
   // The blocks inside an epigraph or a cite, as FB2 allows them there.
@@ -809,6 +873,8 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
       else if (kind.includes('fb2-poem') || name === 'poem' || kind.includes('poem'))
         parts.push(poemXml(child));
       else if (kind.includes('fb2-empty-line')) parts.push('<empty-line/>');
+      else if (!epigraph && kind.includes('fb2-subtitle'))
+        parts.push(...paragraphsOf(child, 'subtitle'));
       else parts.push(...paragraphsOf(child));
     });
     if (parts.length === 0) parts.push(...paragraphsOf(element));
@@ -935,6 +1001,30 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
       bodyTitle = titleXml(element);
       return;
     }
+    // D34: a body's own picture, title and epigraphs, on the page before its sections.
+    if (kind.includes('fb2-body-intro')) {
+      inBodyIntro = true;
+      blockContent(element, listDepth);
+      inBodyIntro = false;
+      return;
+    }
+    // D34: the notes' heading - the notes body's title, or nothing when the export added it.
+    if (kind.includes('fb2-notes-title')) {
+      if (!kind.includes('fb2-generated')) notesHeading = titleXml(element);
+      return;
+    }
+    // D34: a note's own title.
+    if (kind.includes('fb2-note-title')) {
+      if (currentNote) currentNote.title = titleXml(element);
+      return;
+    }
+    // D34: the editor's sections carry their id on their page's <div>, not on the heading.
+    if (kind.includes('fb2-section') && !kind.includes('fb-continued')) {
+      pendingSectionId = idFor(currentPage, element);
+      blockContent(element, listDepth);
+      pendingSectionId = undefined;
+      return;
+    }
     // The FB2 marks come before the heading levels: the converter writes subtitles as <h5>.
     if (kind.includes('subtitle') || kind.includes('fb2-subtitle')) {
       for (const p of paragraphsOf(element, 'subtitle')) addBlock(p);
@@ -942,7 +1032,7 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
     }
     const level = headingLevel(element);
     if (level !== null) {
-      openSection(level, titleXml(element), idFor(currentPage, element));
+      openSection(level, titleXml(element), idFor(currentPage, element) ?? takeSectionId());
       return;
     }
     if (kind.includes('fb2-empty-line')) {
@@ -962,6 +1052,10 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
     ) {
       const section = top();
       const xml = quotedBlocks(element, true);
+      if (inBodyIntro) {
+        bodyEpigraphs.push(`<epigraph>${xml}</epigraph>`);
+        return;
+      }
       if (section.blocks.length === 0 && section !== root)
         section.epigraphs.push(`<epigraph>${xml}</epigraph>`);
       else addBlock(`<cite>${xml}</cite>`);
@@ -986,8 +1080,13 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
       addBlock(`<cite>${quotedBlocks(element, false)}</cite>`);
       return;
     }
+    // A section's annotation (D34): FB2 holds it after the title, the epigraphs and the picture.
     if (kind.includes('fb2-annotation')) {
-      blockContent(element, listDepth);
+      const inner = quotedBlocks(element, false).replace(/<(\/?)text-author/g, '<$1p');
+      const section = top();
+      if (section !== root && section.blocks.length === 0 && !section.annotation) {
+        section.annotation = `<annotation>${inner}</annotation>`;
+      } else addBlock(`<annotation>${inner}</annotation>`);
       return;
     }
     switch (name) {
@@ -1080,6 +1179,67 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
     }
   };
 
+  // One FB2 body from what the pages gave since the previous one: several for the editor's own
+  // EPUB (D34), one for any other book.
+  function assembleBody(name?: string): string {
+    // D18: one opening heading above all chapters is the body's title.
+    if (!bodyTitle && root.blocks.length === 1 && typeof root.blocks[0] !== 'string') {
+      const only = root.blocks[0] as Section;
+      if (
+        only.title &&
+        !only.annotation &&
+        only.blocks.some((child) => typeof child !== 'string') &&
+        !only.blocks.some((child) => typeof child === 'string' && child !== '<empty-line/>')
+      ) {
+        bodyTitle = only.title;
+        // Its epigraphs and its picture become the body's own (FB2's body: image?, title?, epigraph*).
+        bodyEpigraphs.push(...only.epigraphs);
+        bodyImage ??= only.image;
+        root.blocks = only.blocks;
+        stats.sections--;
+      }
+    }
+
+    const sectionXml = (section: Section): string => {
+      const head =
+        `${section.title ?? ''}${section.epigraphs.join('')}` +
+        `${section.image ?? ''}${section.annotation ?? ''}`;
+      const hasChildren = section.blocks.some((child) => typeof child !== 'string');
+      let inner = '';
+      if (!hasChildren) {
+        inner = (section.blocks as string[]).join('') || '<empty-line/>';
+      } else {
+        let run: string[] = [];
+        const flush = (): void => {
+          if (run.length > 0) inner += `<section>${run.join('')}</section>`;
+          run = [];
+        };
+        for (const child of section.blocks) {
+          if (typeof child === 'string') run.push(child);
+          else {
+            flush();
+            inner += sectionXml(child);
+          }
+        }
+        flush();
+      }
+      return `<section${section.id ? ` id="${section.id}"` : ''}>${head}${inner}</section>`;
+    };
+    let bodyInner = '';
+    let run: string[] = [];
+    for (const child of root.blocks) {
+      if (typeof child === 'string') run.push(child);
+      else {
+        if (run.length > 0) bodyInner += `<section>${run.join('')}</section>`;
+        run = [];
+        bodyInner += sectionXml(child);
+      }
+    }
+    if (run.length > 0) bodyInner += `<section>${run.join('')}</section>`;
+    if (!bodyInner) bodyInner = '<section><empty-line/></section>';
+    return `<body${name ? ` name="${escapeAttr(name)}"` : ''}>${bodyImage ?? ''}${bodyTitle ?? ''}${bodyEpigraphs.join('')}${bodyInner}</body>`;
+  }
+
   // 4. The pages, in reading order: linear ones first, then the others.
   const pageTitles = new Map<string, NavEntry>();
   for (const entry of input.navigation)
@@ -1140,6 +1300,22 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
     )
       continue;
     // A page without a heading of its own is titled by the table of contents, when it has an entry.
+    // D34: in the editor's own EPUB a new body begins where the pages' body mark changes.
+    if (input.editorBook) {
+      const mark = body.firstElementChild?.getAttribute('data-fb2-body') ?? null;
+      if (mark !== null && currentBodyMark !== null && mark !== currentBodyMark) {
+        finishedBodies.push(assembleBody(currentBodyName));
+        root = { level: 0, epigraphs: [], blocks: [] };
+        stack = [root];
+        bodyTitle = undefined;
+        bodyImage = undefined;
+        bodyEpigraphs.length = 0;
+      }
+      if (mark !== null) {
+        currentBodyMark = mark;
+        currentBodyName = body.firstElementChild?.getAttribute('data-fb2-body-name') ?? undefined;
+      }
+    }
     const firstHeading = Array.from(body.getElementsByTagName('*')).find(
       (element) =>
         (headingLevel(element) !== null &&
@@ -1180,65 +1356,17 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
       const content =
         (stack[0]!.blocks.filter((one) => typeof one === 'string') as string[]).join('') ||
         '<empty-line/>';
-      const label = definition.label ? plainTitle(definition.label) : '';
-      sections.push(`<section id="${definition.fbId}">${label}${content}</section>`);
+      const title = definition.title ?? (definition.label ? plainTitle(definition.label) : '');
+      sections.push(`<section id="${definition.fbId}">${title}${content}</section>`);
       stats.notes++;
     }
-    notesXml = `<body name="notes">${plainTitle(input.notesTitle)}${sections.join('')}</body>`;
+    const heading = notesHeading ?? (input.editorBook ? '' : plainTitle(input.notesTitle));
+    notesXml = `<body name="notes">${heading}${sections.join('')}</body>`;
     stack = [root];
     currentNote = null;
   }
 
-  // D18: one opening heading above all chapters is the body's title.
-  if (!bodyTitle && root.blocks.length === 1 && typeof root.blocks[0] !== 'string') {
-    const only = root.blocks[0] as Section;
-    if (
-      only.title &&
-      only.blocks.some((child) => typeof child !== 'string') &&
-      !only.blocks.some((child) => typeof child === 'string' && child !== '<empty-line/>')
-    ) {
-      bodyTitle = only.title;
-      root.blocks = only.blocks;
-      stats.sections--;
-    }
-  }
-
-  const sectionXml = (section: Section): string => {
-    const head = `${section.title ?? ''}${section.epigraphs.join('')}`;
-    const hasChildren = section.blocks.some((child) => typeof child !== 'string');
-    let inner = '';
-    if (!hasChildren) {
-      inner = (section.blocks as string[]).join('') || '<empty-line/>';
-    } else {
-      let run: string[] = [];
-      const flush = (): void => {
-        if (run.length > 0) inner += `<section>${run.join('')}</section>`;
-        run = [];
-      };
-      for (const child of section.blocks) {
-        if (typeof child === 'string') run.push(child);
-        else {
-          flush();
-          inner += sectionXml(child);
-        }
-      }
-      flush();
-    }
-    return `<section${section.id ? ` id="${section.id}"` : ''}>${head}${inner}</section>`;
-  };
-  let bodyInner = '';
-  let run: string[] = [];
-  for (const child of root.blocks) {
-    if (typeof child === 'string') run.push(child);
-    else {
-      if (run.length > 0) bodyInner += `<section>${run.join('')}</section>`;
-      run = [];
-      bodyInner += sectionXml(child);
-    }
-  }
-  if (run.length > 0) bodyInner += `<section>${run.join('')}</section>`;
-  if (!bodyInner) bodyInner = '<section><empty-line/></section>';
-  let bodyXml = `<body>${bodyTitle ?? ''}${bodyInner}</body>`;
+  let bodyXml = finishedBodies.join('') + assembleBody(currentBodyName);
 
   // 6. Links inside the book, resolved now that every anchor has its FB2 id (D22).
   const resolveLinks = (xml: string): string =>

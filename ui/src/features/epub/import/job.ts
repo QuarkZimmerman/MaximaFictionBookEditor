@@ -18,7 +18,7 @@ import type { FileFeature } from '@/features/file/fileCommands';
 import type { ConvertResult } from '@/features/markdown/convert';
 import { buildBook } from '@/features/markdown/describe';
 import { drawChar } from '@/features/markdown/pictures';
-import type { BinaryMeta, Description } from '@/model/document';
+import type { BinaryMeta, Description, Stylesheet } from '@/model/document';
 import { actions } from '@/model/store';
 import { isRpcError } from '@/rpc/client';
 import { RpcErrorCode, type EpubSource, type GenreEntry } from '@/rpc/types';
@@ -33,7 +33,7 @@ import {
   type ConvertPage,
   type ImportSummaryItem,
 } from './convert';
-import { planClasses } from './css';
+import { namedStylesPlan, planClasses } from './css';
 import { describe } from './description';
 import { Dropped } from './dropped';
 import { CancelledError, Yielder } from './limits';
@@ -269,7 +269,20 @@ export async function importEpub(
       for (const match of sheet.matchAll(REMOTE_URL))
         summary.push({ kind: 'remote', detail: match[1]! });
     }
-    const plan = planClasses(sheets, classUseOf(pages));
+    // D34: the editor's own EPUB gives its book's stylesheets back as they were, its classes as its
+    // named styles and its ids as written; the look of other books is read from their CSS (D26).
+    const editorBook = Boolean(pkg.metadata.mfbeDescription);
+    let restoredSheets: Stylesheet[] | null = null;
+    if (editorBook && pkg.metadata.mfbeStylesheets) {
+      try {
+        restoredSheets = JSON.parse(pkg.metadata.mfbeStylesheets) as Stylesheet[];
+      } catch {
+        summary.push({ kind: 'listedData', detail: 'mfbe:fb2-stylesheets' });
+      }
+    }
+    const plan = editorBook
+      ? namedStylesPlan(classUseOf(pages))
+      : planClasses(sheets, classUseOf(pages));
     for (const part of plan.dropped) summary.push({ kind: 'cssDropped', detail: part });
     const descriptionWords = new Set(
       wordsOf(
@@ -287,6 +300,7 @@ export async function importEpub(
       descriptionWords,
       notesTitle: ctx.t('editing.footnote.notesTitle'),
       classes: plan,
+      editorBook,
       dropped,
       yielder,
     });
@@ -311,9 +325,11 @@ export async function importEpub(
       description: described.description,
       bodyXml: figures.bodyXml,
       notesXml: figures.notesXml,
-      stylesheets: plan.stylesheet
-        ? [{ type: 'text/css', text: plan.stylesheet, foreign: false }]
-        : [],
+      stylesheets: restoredSheets
+        ? restoredSheets.map(({ type, content }) => ({ type, text: content, foreign: false }))
+        : plan.stylesheet
+          ? [{ type: 'text/css', text: plan.stylesheet, foreign: false }]
+          : [],
     } as unknown as ConvertResult);
     await yielder.step();
     // The core's job is not cancelled: it would leave the document it made unknown here. A

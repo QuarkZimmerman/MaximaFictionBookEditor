@@ -344,7 +344,8 @@ function poem(node: PoemNode, ctx: RenderContext): string {
       case 'text-author':
         return paragraphLike(child, 'fb2-text-author', ctx);
       case 'date':
-        return `<p${idAttr(ctx, child.attrs.nodeId)} class="fb2-date"${langAttrs(child.attrs.lang)}>${renderInline(child.content, ctx)}</p>`;
+        // D34: the date's value, for the editor's import.
+        return `<p${idAttr(ctx, child.attrs.nodeId)} class="fb2-date"${child.attrs.value ? ` data-fb2-value="${attr(child.attrs.value)}"` : ''}${langAttrs(child.attrs.lang)}>${renderInline(child.content, ctx)}</p>`;
       default:
         return '';
     }

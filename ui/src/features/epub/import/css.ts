@@ -45,6 +45,8 @@ interface Declaration {
 }
 
 const CLASS_NAME = /^[A-Za-z_][\w-]*$/;
+/** The structure marks of the editor's own EPUB: never a look of the book (D18, D34). */
+const FB2_MARK = /^(fb2-|fb-continued$)/;
 const MONOSPACE = /\b(monospace|courier|consolas|menlo|monaco|[\w-]*mono)\b/i;
 const ZERO = /^(-?0(\.0+)?(px|em|rem|pt|%)?\s*)+$/;
 
@@ -163,7 +165,8 @@ export function planClasses(sheets: readonly string[], use: ClassUse): ClassPlan
       for (const selector of node.prelude.children.toArray() as CssNode[]) {
         const subject = subjectOf(selector);
         if (!subject) continue;
-        if (subject !== 'p' && !use.used.has(subject.slice(1))) continue;
+        if (subject !== 'p' && (!use.used.has(subject.slice(1)) || FB2_MARK.test(subject.slice(1))))
+          continue;
         const list = rules.get(subject) ?? [];
         // A later declaration of the same property wins, as in the cascade.
         for (const declaration of declarations) {
@@ -210,6 +213,7 @@ export function planClasses(sheets: readonly string[], use: ClassUse): ClassPlan
   let paragraphClass: string | undefined;
   let most = 0;
   for (const [name, count] of use.paragraphs) {
+    if (FB2_MARK.test(name)) continue;
     if (count > most) {
       most = count;
       paragraphClass = name;
@@ -244,5 +248,19 @@ export function planClasses(sheets: readonly string[], use: ClassUse): ClassPlan
     paragraphClass,
     stylesheet: translated.css,
     dropped,
+  };
+}
+
+/**
+ * D34: the plan for the editor's own EPUB. Its classes are the book's named styles as written (the
+ * export writes each named style as its class); its FB2 marks are structure, and its stylesheets come
+ * back from `mfbe:fb2-stylesheets` rather than from its CSS.
+ */
+export function namedStylesPlan(use: ClassUse): ClassPlan {
+  return {
+    forms: new Map(),
+    named: new Set([...use.used].filter((name) => !FB2_MARK.test(name))),
+    stylesheet: '',
+    dropped: [],
   };
 }
