@@ -15,7 +15,7 @@ import type { Page } from '@playwright/test';
 
 import { writeBigPictureBook } from './fixtures/bigPictureBook';
 import { expect, test, waitForBook, type CoreHandle } from './fixtures/core';
-import { MEMORY_BUDGET_BYTES, peakRssBytes } from './fixtures/memory';
+import { MEMORY_BUDGET_BYTES, OWN_CORE, peakRssBytes } from './fixtures/memory';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const GENERATOR = path.join(REPO_ROOT, 'tests', 'fixtures', 'gen-large-book.py');
@@ -51,6 +51,9 @@ async function exportAs(
   expect(existsSync(target)).toBe(true);
   return elapsed;
 }
+
+// Each test measures a core of its own (fixtures/memory.ts).
+test.use(OWN_CORE);
 
 test.describe('performance - the Markdown exports (SC-009)', () => {
   let dir: string;

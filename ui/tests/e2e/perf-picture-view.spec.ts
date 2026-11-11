@@ -19,7 +19,7 @@ import path from 'node:path';
 
 import { writeBigPictureBook } from './fixtures/bigPictureBook';
 import { expect, test, waitForBook } from './fixtures/core';
-import { MEMORY_BUDGET_BYTES, peakRssBytes, rendererPids } from './fixtures/memory';
+import { MEMORY_BUDGET_BYTES, OWN_CORE, peakRssBytes, rendererPids } from './fixtures/memory';
 
 const VIEW_BUDGET_MS = 1000;
 const FRAME_BUDGET_MS = 100;
@@ -71,6 +71,9 @@ const ESCAPE_TIMED = `(async () => {
 
 const mb = (bytes: number | null) =>
   bytes === null ? 'n/a' : `${(bytes / 1048576).toFixed(0)} MB`;
+
+// Each test measures a core of its own (fixtures/memory.ts).
+test.use(OWN_CORE);
 
 test.describe(
   'performance - the picture view of a 20 MB picture in a 150 MB book (FR-055)',

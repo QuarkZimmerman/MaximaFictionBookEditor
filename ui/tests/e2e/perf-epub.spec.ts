@@ -22,7 +22,7 @@ import { writeBigPictureBook } from './fixtures/bigPictureBook';
 import { expect, shownDocId, test, waitForBook, type CoreHandle } from './fixtures/core';
 import { exportEpubTo } from './fixtures/epubExport';
 import { importDone, importViaMenu } from './fixtures/epubImport';
-import { MEMORY_BUDGET_BYTES, peakRssBytes, rendererPeakBytes } from './fixtures/memory';
+import { MEMORY_BUDGET_BYTES, OWN_CORE, peakRssBytes, rendererPeakBytes } from './fixtures/memory';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const GENERATOR = path.join(REPO_ROOT, 'tests', 'fixtures', 'gen-large-book.py');
@@ -188,6 +188,9 @@ function writeTextBook(dir: string): string | null {
 test.afterEach(async ({ core }) => {
   if (core.hasCore) await core.rpc('settings.set', { patch: { view: null } }).catch(() => {});
 });
+
+// Each test measures a core of its own (fixtures/memory.ts).
+test.use(OWN_CORE);
 
 test.describe('performance - the EPUB export and import, the book styles (SC-010, SC-017)', () => {
   test.describe.configure({ mode: 'serial' });

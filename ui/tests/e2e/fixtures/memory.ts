@@ -8,6 +8,13 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 /** The constitution's memory budget for one process. */
 export const MEMORY_BUDGET_BYTES = 1.5 * 1024 * 1024 * 1024;
 
+/**
+ * `test.use(OWN_CORE)` for a journey that measures peak memory: each test gets a core of its own (the
+ * fixture's `coreEnv` option), since VmHWM is a process's peak over its whole life and a worker's core
+ * serves every test of the worker - in one `@perf` run a test would read the peak an earlier one left.
+ */
+export const OWN_CORE = { coreEnv: { MFBE_E2E_OWN_CORE: 'peak-memory' } };
+
 /** Peak resident set size of a process (Linux VmHWM; null elsewhere). */
 export function peakRssBytes(pid: number | undefined): number | null {
   if (!pid || !existsSync(`/proc/${pid}/status`)) return null;
