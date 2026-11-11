@@ -143,7 +143,8 @@ static MFBE_SETJMP_FRAME bool jpeg_encode_run(JpegEncodeState* st, const Bitmap*
     if (setjmp(st->err.jump)) {
         return false;
     }
-    jpeg_create_compress(&st->cinfo);
+    // jpeg_create_compress() without its macro, whose expansion holds an old-style cast.
+    jpeg_CreateCompress(&st->cinfo, JPEG_LIB_VERSION, sizeof(st->cinfo));
     jpeg_encode_body(*st, *bitmap, quality);
     return true;
 }

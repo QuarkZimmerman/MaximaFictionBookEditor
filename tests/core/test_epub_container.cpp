@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <catch2/catch_test_macros.hpp>
 #include <fstream>
+#include <optional>
 #include <string>
 
 using namespace mfbe;
@@ -20,13 +21,15 @@ fs::path fixture(const std::string& name) {
 }
 
 epub::Refusal refusal_of(const fs::path& path, const epub::Limits& limits = {}) {
+    std::optional<epub::Refusal> reason;
     try {
         (void)epub::open(path, limits);
     } catch (const epub::Refused& e) {
-        return e.reason;
+        reason = e.reason;
     }
-    FAIL("not refused: " << path.string());
-    return epub::Refusal::not_zip;
+    INFO("not refused: " << path.string());
+    REQUIRE(reason.has_value());
+    return *reason;
 }
 
 bool offers(const epub::Source& source, const std::string& name) {

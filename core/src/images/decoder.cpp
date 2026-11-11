@@ -169,7 +169,8 @@ static MFBE_SETJMP_FRAME bool jpeg_run(JpegState* st, std::string_view bytes) {
     if (setjmp(st->err.jump)) {
         return false;
     }
-    jpeg_create_decompress(&st->cinfo);
+    // jpeg_create_decompress() without its macro, whose expansion holds an old-style cast.
+    jpeg_CreateDecompress(&st->cinfo, JPEG_LIB_VERSION, sizeof(st->cinfo));
     jpeg_decode_body(*st, bytes);
     return true;
 }
