@@ -50,6 +50,12 @@ function books(): string[] {
 
 const firstLine = (error: unknown): string => String(error).split('\n')[0]!;
 
+// The view settings these journeys change (spelling, the language, the book's styles) go back to their
+// defaults after each test: a worker's core keeps its settings from one test to the next.
+test.afterEach(async ({ core }) => {
+  if (core.hasCore) await core.rpc('settings.set', { patch: { view: null } }).catch(() => {});
+});
+
 test.describe('corpus gate - EPUB (feature 012)', () => {
   test('the FB2 sample exports to EPUB', async ({ core, page }) => {
     test.skip(

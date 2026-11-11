@@ -55,6 +55,12 @@ async function tipOver(page: Page, text: string): Promise<string | null> {
   return editor.getAttribute('title');
 }
 
+// The view settings these journeys change (spelling, the language, the book's styles) go back to their
+// defaults after each test: a worker's core keeps its settings from one test to the next.
+test.afterEach(async ({ core }) => {
+  if (core.hasCore) await core.rpc('settings.set', { patch: { view: null } }).catch(() => {});
+});
+
 test.describe('US5 (feature 012) - the named-style tooltip', () => {
   test.beforeEach(async ({ core }) => {
     test.skip(!core.hasCore, 'needs mfbe-core (MFBE_CORE_BIN)');

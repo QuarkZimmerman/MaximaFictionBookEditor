@@ -55,6 +55,12 @@ function keepInvalid(book: string, xml: string): string | undefined {
   return file;
 }
 
+// The view settings these journeys change (spelling, the language, the book's styles) go back to their
+// defaults after each test: a worker's core keeps its settings from one test to the next.
+test.afterEach(async ({ core }) => {
+  if (core.hasCore) await core.rpc('settings.set', { patch: { view: null } }).catch(() => {});
+});
+
 test.describe('US7 (feature 012) - export and import again', () => {
   test('each book comes back, apart from D34 (SC-013)', async ({ core, page }) => {
     test.skip(!core.hasCore, 'needs mfbe-core (MFBE_CORE_BIN)');

@@ -1,4 +1,8 @@
-/** Toolbar model: button order of the original Commands toolbar and the icon URL helper. */
+/**
+ * Toolbar model: the button order of the original Commands toolbar and the buttons it offers. Data only,
+ * with no imports, so that the journeys read the same layout (tests/e2e/us8-toolbars.spec.ts); the icon
+ * URL helper is in toolbarIcons.ts.
+ */
 
 /**
  * `IDR_MAINFRAME TOOLBAR 24, 24` - `null` marks a separator. The AI assistant's button
@@ -88,7 +92,3 @@ export const COMMANDS_TOOLBAR_OFFERED: readonly string[] = [
   'table.paragraphBefore',
   'table.paragraphAfter',
 ];
-
-export function iconUrl(icon: string, size: 16 | 24 = 24): string {
-  return `${import.meta.env.BASE_URL}icons/toolbar${size}/${icon}.png`;
-}

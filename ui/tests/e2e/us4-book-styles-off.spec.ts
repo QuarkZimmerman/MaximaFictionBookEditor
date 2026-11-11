@@ -132,6 +132,12 @@ function differences(expected: BodySnapshot, actual: BodySnapshot): string[] {
   return out;
 }
 
+// The view settings these journeys change (spelling, the language, the book's styles) go back to their
+// defaults after each test: a worker's core keeps its settings from one test to the next.
+test.afterEach(async ({ core }) => {
+  if (core.hasCore) await core.rpc('settings.set', { patch: { view: null } }).catch(() => {});
+});
+
 test.describe('G17 (feature 012) - Show Book Styles off draws as 0.0.9 did', () => {
   test('the reference book, light and dark: elements, classes and computed styles', async ({
     core,

@@ -287,6 +287,12 @@ async function switchBookStyles(page: Page): Promise<void> {
 
 const xml = (page: Page) => page.evaluate(() => window.__mfbeTest!.scripts!.toXml());
 
+// The view settings these journeys change (spelling, the language, the book's styles) go back to their
+// defaults after each test: a worker's core keeps its settings from one test to the next.
+test.afterEach(async ({ core }) => {
+  if (core.hasCore) await core.rpc('settings.set', { patch: { view: null } }).catch(() => {});
+});
+
 test.describe('US4 (feature 012) - the book styles in the Body view', () => {
   test.beforeEach(async ({ core }) => {
     test.skip(!core.hasCore, 'needs mfbe-core (MFBE_CORE_BIN)');

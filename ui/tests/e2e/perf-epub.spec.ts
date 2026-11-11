@@ -183,6 +183,12 @@ function writeTextBook(dir: string): string | null {
   return book;
 }
 
+// The view settings these journeys change (spelling, the language, the book's styles) go back to their
+// defaults after each test: a worker's core keeps its settings from one test to the next.
+test.afterEach(async ({ core }) => {
+  if (core.hasCore) await core.rpc('settings.set', { patch: { view: null } }).catch(() => {});
+});
+
 test.describe('performance - the EPUB export and import, the book styles (SC-010, SC-017)', () => {
   test.describe.configure({ mode: 'serial' });
   let dir: string;

@@ -37,59 +37,17 @@ import {
 } from './fixtures/i18n';
 import { pressAlt } from './fixtures/keys';
 
+import { COMMANDS_TOOLBAR } from '../../src/app/toolbarDefinitions';
+
 const REPO_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../..');
 const SCRIPT_FIXTURES = path.join(REPO_ROOT, 'tests', 'scripts', 'fixtures');
 
 /**
- * The Commands toolbar of the original (`IDR_MAINFRAME TOOLBAR`), "-" for a separator, plus
- * the AI assistant's button after the view buttons (feature 005, research R8.6).
+ * The Commands toolbar of the original (`IDR_MAINFRAME TOOLBAR`), "-" for a separator, with the buttons
+ * later features put into the default layout (the AI assistant's, Preview, Show Book Styles): read from
+ * the interface's own definition, so that a new default button needs no edit here.
  */
-const ORIGINAL_COMMANDS = [
-  'file.new',
-  'file.open',
-  'file.save',
-  '-',
-  'file.validate',
-  // Feature 011 (US10): Preview beside Validate.
-  'view.preview',
-  '-',
-  'view.description',
-  'view.body',
-  'view.source',
-  'ai.toggle',
-  '-',
-  'insert.binary',
-  'insert.image',
-  'insert.inlineImage',
-  '-',
-  'edit.find',
-  'edit.findNext',
-  '-',
-  'edit.cut',
-  'edit.copy',
-  'edit.paste',
-  '-',
-  'edit.undo',
-  'edit.redo',
-  '-',
-  'style.strong',
-  'style.emphasis',
-  'style.sup',
-  'style.sub',
-  'style.strikethrough',
-  'style.code',
-  '-',
-  'style.link',
-  'style.footnote',
-  'style.removeLink',
-  'edit.gotoFootnote',
-  '-',
-  'style.normal',
-  'style.subtitle',
-  'style.textAuthor',
-  '-',
-  'tools.spellcheck',
-];
+const ORIGINAL_COMMANDS = COMMANDS_TOOLBAR.map((item) => item ?? '-');
 
 /**
  * The buttons the Commands toolbar offers beyond its original layout (feature 006, FR-041):

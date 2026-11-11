@@ -30,7 +30,7 @@ import { commandDescription, commandTooltip, unavailableTitle } from './commands
 import { LinksBar } from './LinksBar';
 import { PopupMenu } from './PopupMenu';
 import { TableBar } from './TableBar';
-import { iconUrl } from './toolbarDefinitions';
+import { iconUrl } from './toolbarIcons';
 import {
   LAST_SCRIPT,
   SEPARATOR,
