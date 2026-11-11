@@ -60,7 +60,7 @@ export function BodyView({ editable = true }: BodyViewProps) {
   }, [controller, nbspChar]);
 
   useEffect(() => {
-    controller.setTranslate((key) => t(key));
+    controller.setTranslate((key, vars) => t(key, vars));
   }, [controller, t]);
 
   useEffect(() => {

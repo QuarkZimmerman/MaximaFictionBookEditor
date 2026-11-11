@@ -3517,6 +3517,7 @@ def main() -> None:
     write("german-book.fb2", f012_notes_book("de", "Ein Buch", "Ein Text mit Anmerkung", "Die Anmerkung."))
     write("book-styles-reference.fb2", f012_reference_all_elements(F012_LOOK_STYLESHEET, "f012-book-styles"))
     write("book-styles-hostile.fb2", f012_reference_all_elements(F012_HOSTILE_STYLESHEET, "f012-book-styles-hostile"))
+    write("named-style-tips.fb2", f012_named_style_tips())
 
 
 # ----------------------------------------------------------------------------------------------
@@ -3753,6 +3754,30 @@ def f012_reference_all_elements(stylesheet: str | None = None, doc_id: str | Non
                      stylesheet=stylesheet, extra_title_info=title_info,
                      extra_description=description, coverpage=cover, title_info_after=title_info_after,
                      doc_id=doc_id or "5b0e8a52-3c1d-4f6e-9a7b-2c8d4e6f8a10")
+
+
+def f012_named_style_tips() -> str:
+    """Feature 012 (US5, T058; D41): every case of the named-style tooltip - a span, a paragraph,
+    a span in a paragraph, a table and a cell, an id over styled text, a style no stylesheet defines."""
+    stylesheet = (".sign { font-weight: bold; }\n.letter { font-style: italic; }\n"
+                  ".grid { border: 1px solid #888888; }\n.cell { color: #333333; }")
+    body = """		<section>
+			<title>
+				<p>Named styles</p>
+			</title>
+			<p><style name="letter">A styled span</style> in plain text.</p>
+			<p style="sign">A styled paragraph.</p>
+			<p style="sign">Signed and <style name="letter">lettered</style>.</p>
+			<table style="grid">
+				<tr>
+					<td>Plain cell</td>
+					<td style="cell">Styled cell</td>
+				</tr>
+			</table>
+			<p id="chapter-2">An id with <style name="letter">styled text</style> inside.</p>
+			<p><style name="ghost">An undefined style</style>.</p>
+		</section>"""
+    return f012_book("en", "Named style tips", body, stylesheet=stylesheet, doc_id="f012-named-style-tips")
 
 
 def f012_invalid_for_export() -> str:

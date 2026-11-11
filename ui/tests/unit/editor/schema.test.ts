@@ -189,7 +189,8 @@ describe('fb2Schema', () => {
     const para = section.child(1);
     expect(para.type.spec.toDOM!(para)).toEqual([
       'p',
-      { class: 'fb-p', 'data-style': 'lead', title: 'lead' },
+      // Feature 012 (D41): no title of its own - the tooltip plugin names the styles.
+      { class: 'fb-p', 'data-style': 'lead' },
       0,
     ]);
     const empty = section.child(2);
@@ -214,7 +215,7 @@ describe('fb2Schema', () => {
     ]);
     expect(marks.style!.spec.toDOM!(marks.style!.create({ name: 'x' }), true)).toEqual([
       'span',
-      { class: 'fb-style', 'data-style': 'x', title: 'x' },
+      { class: 'fb-style', 'data-style': 'x' },
       0,
     ]);
     expect(rawXmlElementName('  <l:foo-bar x="1"/>')).toBe('l:foo-bar');
@@ -327,11 +328,7 @@ describe('feature 006: cells, marks and atoms in the schema and the conversions'
       node.child(index).marks[0]!.type.spec.toDOM!(node.child(index).marks[0]!, true);
     expect(dom(0)).toEqual(['strong', { class: 'fb-strong', lang: 'la' }, 0]);
     expect(dom(1)).toEqual(['code', { class: 'fb-code', lang: '' }, 0]);
-    expect(dom(2)).toEqual([
-      'span',
-      { class: 'fb-style', 'data-style': 'x', title: 'x', lang: 'la' },
-      0,
-    ]);
+    expect(dom(2)).toEqual(['span', { class: 'fb-style', 'data-style': 'x', lang: 'la' }, 0]);
     expect(dom(3)).toEqual([
       'a',
       { class: 'fb-link fb-note', href: '#n1', 'data-type': 'note', 'data-xlink-type': 'simple' },
@@ -478,7 +475,7 @@ describe('feature 006: cells, marks and atoms in the schema and the conversions'
     const out = document.createElement('div');
     out.appendChild(DOMSerializer.fromSchema(fb2Schema).serializeFragment(paragraph.content));
     expect(out.innerHTML).toBe(
-      '<span class="fb-style" data-style="a" title="a">x<span class="fb-style" data-style="b" title="b">y</span></span>' +
+      '<span class="fb-style" data-style="a">x<span class="fb-style" data-style="b">y</span></span>' +
         '<em class="fb-emphasis" lang="la">u<em class="fb-emphasis" lang="de">v</em></em>',
     );
   });

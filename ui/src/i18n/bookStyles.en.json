@@ -1,5 +1,5 @@
 {
-  "$comment": "Show Book Styles (feature 012, US4): the View menu entry, its toolbar button and the reason it is unavailable. Feature catalogue merged into en.json by i18n/index.ts.",
+  "$comment": "Show Book Styles (feature 012, US4): the View menu entry, its toolbar button and the reason it is unavailable. Also the named-style tooltip (US5, D41). Feature catalogue merged into en.json by i18n/index.ts.",
   "menu": {
     "view": {
       "showBookStyles": "Show Boo&k Styles"
@@ -15,5 +15,10 @@
   },
   "bookStyles": {
     "fastMode": "Fast mode is on"
+  },
+  "namedStyleTip": {
+    "one": "Named style: {{name}}",
+    "many": "Named styles: {{names}}",
+    "undefined": "(not in the stylesheets)"
   }
 }
