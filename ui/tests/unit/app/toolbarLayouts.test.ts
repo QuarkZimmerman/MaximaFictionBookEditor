@@ -41,14 +41,15 @@ describe('toolbar layouts', () => {
 
   it('offers the original buttons, and "Last script" with the scripts that have an icon', () => {
     // The original's 31 buttons plus the AI assistant's (feature 005, research R8.6) and
-    // Preview's (feature 011, US10), then Table... and the 24 table commands (feature 006, FR-041).
-    expect(availableButtons('commands')).toHaveLength(58);
+    // Preview's (feature 011, US10) and Show Book Styles' (feature 012, D35), then Table... and the
+    // 24 table commands (feature 006, FR-041).
+    expect(availableButtons('commands')).toHaveLength(59);
+    expect(availableButtons('commands')).toContain('view.showBookStyles');
     expect(availableButtons('commands')).not.toContain(SEPARATOR);
     expect(availableButtons('commands')).toContain('ai.toggle');
-    expect(availableButtons('commands').slice(0, 33)).toEqual(
-      COMMANDS_TOOLBAR.filter((id) => id !== null),
-    );
-    expect(availableButtons('commands').slice(33)).toEqual(COMMANDS_TOOLBAR_OFFERED);
+    const layout = COMMANDS_TOOLBAR.filter((id) => id !== null);
+    expect(availableButtons('commands').slice(0, layout.length)).toEqual(layout);
+    expect(availableButtons('commands').slice(layout.length)).toEqual(COMMANDS_TOOLBAR_OFFERED);
     expect(availableButtons('scripts', SCRIPTS)).toEqual([LAST_SCRIPT, ...SCRIPTS]);
   });
 

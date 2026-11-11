@@ -13,63 +13,18 @@
  * Run it against the Release core: MFBE_CORE_BIN=../build/linux-core-release/bin/mfbe-core.
  */
 
-import { copyFileSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { copyFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { writeBigPictureBook } from './fixtures/bigPictureBook';
 import { expect, test, waitForBook } from './fixtures/core';
+import { MEMORY_BUDGET_BYTES, OWN_CORE, peakRssBytes, rendererPids } from './fixtures/memory';
 
 const VIEW_BUDGET_MS = 1000;
 const FRAME_BUDGET_MS = 100;
-const MEMORY_BUDGET_BYTES = 1.5 * 1024 * 1024 * 1024;
 /** Hosted CI runners against a 2020-era laptop (docs/performance.md). */
 const PERF_FACTOR = Number(process.env.MFBE_PERF_FACTOR ?? 2) || 2;
-
-/** Peak resident set size of a process (Linux VmHWM; null elsewhere). */
-function peakRssBytes(pid: number | undefined): number | null {
-  if (!pid || !existsSync(`/proc/${pid}/status`)) return null;
-  const match = /VmHWM:\s+(\d+)\s+kB/.exec(readFileSync(`/proc/${pid}/status`, 'utf8'));
-  return match ? Number(match[1]) * 1024 : null;
-}
-
-function parentOf(pid: number): number | null {
-  try {
-    const match = /PPid:\s+(\d+)/.exec(readFileSync(`/proc/${pid}/status`, 'utf8'));
-    return match ? Number(match[1]) : null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * The renderer processes of this test worker's browser (Linux): the Chromium processes with
- * `--type=renderer` whose ancestors include this worker - other browsers on the machine are
- * not counted.
- */
-function rendererPids(): number[] {
-  if (!existsSync('/proc')) return [];
-  const pids: number[] = [];
-  for (const entry of readdirSync('/proc')) {
-    if (!/^\d+$/.test(entry)) continue;
-    const pid = Number(entry);
-    let cmdline: string;
-    try {
-      cmdline = readFileSync(`/proc/${pid}/cmdline`, 'utf8');
-    } catch {
-      continue;
-    }
-    if (!cmdline.includes('--type=renderer')) continue;
-    for (let ancestor = parentOf(pid), hops = 0; ancestor && hops < 10; hops += 1) {
-      if (ancestor === process.pid) {
-        pids.push(pid);
-        break;
-      }
-      ancestor = parentOf(ancestor);
-    }
-  }
-  return pids;
-}
 
 /**
  * In-page timing (a program string: the journeys are typed without the DOM library): the click
@@ -116,6 +71,9 @@ const ESCAPE_TIMED = `(async () => {
 
 const mb = (bytes: number | null) =>
   bytes === null ? 'n/a' : `${(bytes / 1048576).toFixed(0)} MB`;
+
+// Each test measures a core of its own (fixtures/memory.ts).
+test.use(OWN_CORE);
 
 test.describe(
   'performance - the picture view of a 20 MB picture in a 150 MB book (FR-055)',

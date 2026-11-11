@@ -452,7 +452,8 @@ export class FileFeature {
 
   private importedSaveName(docId: string | null): string | null {
     const origin = docId ? this.importOrigins.get(docId) : undefined;
-    return origin ? `${origin.replace(/\.(md|markdown)$/i, '')}.fb2` : null;
+    // Feature 012 (D15): an EPUB import proposes the EPUB's name with `.fb2` the same way.
+    return origin ? `${origin.replace(/\.(md|markdown|epub)$/i, '')}.fb2` : null;
   }
 
   async closeCurrentDocument(ctx: CommandContext): Promise<void> {
@@ -850,11 +851,14 @@ export class FileFeature {
       // Not a FictionBook file at all (binary, plain text, other XML): refused outright.
       // Source-only mode below is reserved for malformed files that still carry the tag.
       if (error instanceof RpcError && error.code === RpcErrorCode.docNotFictionBook) {
+        // Feature 012 (D14): an EPUB is a book Open does not take; it comes in through
+        // File > Import > EPUB File, and the message says so.
+        const epub = (error.data as { reason?: string } | undefined)?.reason === 'epub';
         await ctx.dialogs.showMessage({
-          text: ctx.t('msg.notFictionBook', { path }),
+          text: epub ? ctx.t('epub.openRefused', { path }) : ctx.t('msg.notFictionBook', { path }),
           caption: ctx.t('dialog.error.caption'),
           icon: 'error',
-          testId: 'dialog-not-fictionbook',
+          testId: epub ? 'dialog-epub-refused' : 'dialog-not-fictionbook',
         });
         void this.recent.refresh(rpc);
         return false;

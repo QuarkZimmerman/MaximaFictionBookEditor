@@ -49,6 +49,7 @@ import { createTableNodeViews, type TableViewOptions } from '@/editor/nodeviews/
 import { blockBoundaryPlugin, markControllerTransaction } from '@/editor/plugins/blockBoundary';
 import { blockCaptionsKey, blockCaptionsPlugin } from '@/editor/plugins/blockCaptions';
 import { clipboardPlugin, type ClipboardOptions } from '@/editor/plugins/clipboard';
+import { namedStyleTipsPlugin, type Translate } from '@/editor/plugins/namedStyleTips';
 import { DEFAULT_NBSP_DISPLAY_CHAR, nbspMarkerPlugin, nbspPluginKey } from '@/editor/plugins/nbsp';
 import { pictureLayoutPlugin } from '@/editor/plugins/pictureLayout';
 import { nodeIdPlugin } from '@/editor/plugins/nodeIds';
@@ -78,7 +79,8 @@ import {
 } from '@/editor/virtualization';
 import { bodyCaretInfo, CaretInfoFeed } from '@/app/caretInfo';
 import { pathOfCaret, type StructuralPosition } from '@/editor/structuralPath';
-import type { Document } from '@/model/document';
+import { classNamesOf } from '@/features/styles/classNames';
+import type { Document, Stylesheet } from '@/model/document';
 import { collectBookIds } from '@/model/ids';
 import { actions, type AppStore } from '@/model/store';
 import type { UndoCoordinator } from '@/model/undo';
@@ -241,8 +243,10 @@ export interface EditorStateOptions {
   isOvertype?: () => boolean;
   toggleOvertype?: () => void;
   nextNodeId?: () => string;
-  /** The localised texts the block captions use (read on every repaint). */
-  getTranslate?: () => (key: string) => string;
+  /** The localised texts the block captions and the named-style tooltip use (read on every use). */
+  getTranslate?: () => Translate;
+  /** Feature 012 (D41): the named styles the book's stylesheets define, for the tooltip. */
+  getStyleNames?: () => ReadonlySet<string>;
   /**
    * The paste router's options (feature 006, I14): the book's ids, the node-id generator and the
    * status bar. Without them: no book ids, the state's generator, no messages (the unit tests).
@@ -274,6 +278,10 @@ export function createBodyEditorState(doc: PMNode, options: EditorStateOptions):
       ),
       blockBoundaryPlugin(),
       blockCaptionsPlugin(options.getTranslate ?? (() => (key) => key)),
+      namedStyleTipsPlugin(
+        options.getTranslate ?? (() => (key) => key),
+        options.getStyleNames ?? (() => new Set()),
+      ),
       nodeIdPlugin(nextNodeId),
       nbspMarkerPlugin(options.getNbspChar),
       searchMatchPlugin(),
@@ -381,7 +389,10 @@ export class BodyEditorController {
   private nbspChar: string | null = null;
   private readonly getNbspChar: () => string;
   private readonly extraPlugins: Plugin[];
-  private translate: (key: string) => string;
+  private translate: Translate;
+  /** Feature 012 (D41): the book's named styles, read again only when its stylesheets change. */
+  private styleSheetsRead: readonly Stylesheet[] | null = null;
+  private styleNameSet: ReadonlySet<string> = new Set();
   /** Feature 010 (US9): the kind of the user's last own edit, to keep typing and deleting apart. */
   private lastInputKind: 'typing' | 'delete' | null = null;
   /**
@@ -578,6 +589,7 @@ export class BodyEditorController {
       toggleOvertype: () => actions.toggleInsertMode(this.store),
       nextNodeId: this.nextNodeId,
       getTranslate: () => this.translate,
+      getStyleNames: () => this.styleNames(),
       plugins: this.extraPlugins,
       // The paste router (feature 006, I14): the whole book's ids from the store's document, the
       // generator the plans share, refusals in the status bar.
@@ -1162,13 +1174,23 @@ export class BodyEditorController {
     this.view?.setProps({ editable: () => this.isEditable });
   }
 
-  setTranslate(translate: (key: string) => string): void {
+  setTranslate(translate: Translate): void {
     if (this.translate === translate) return;
     this.translate = translate;
     // The block captions are drawn from the catalogue: repaint them in the new language.
     this.repaint(blockCaptionsKey);
     // So are the irregular tables' marks (feature 006 US8, data-model §3.3 "Language").
     for (const listener of [...this.languageListeners]) listener();
+  }
+
+  /** The named styles the book's stylesheets define (D41), for the tooltip. */
+  private styleNames(): ReadonlySet<string> {
+    const sheets = this.store.getState().document?.stylesheets ?? [];
+    if (sheets !== this.styleSheetsRead) {
+      this.styleSheetsRead = sheets;
+      this.styleNameSet = new Set(classNamesOf(sheets));
+    }
+    return this.styleNameSet;
   }
 
   /** Sets the NBSP display character (Settings > Other) and repaints the markers. */

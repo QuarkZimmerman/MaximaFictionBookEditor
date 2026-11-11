@@ -18,10 +18,15 @@
 # --check-hashes compares the saves with such a FILE - committed under tests/corpus/baselines/,
 # recorded with the 0.0.8 writer - and fails on any book saved differently. Only hashes are
 # committed: the library's books stay local.
+#
+# Feature 012 (DP-19, SC-022), before every rc tag: --epub-export also exports SAMPLE_FILE's books to
+# EPUB and checks each file with EPUBCheck (no fatal error, error or warning); --epub-import LIST
+# imports the EPUB books of LIST (sample.py --ext epub) without a failure or a hang, each new book's
+# bodies valid. Both drive the editor itself (build ui/dist first): epub-export.py, epub-import.py.
 set -u
 
 usage() {
-    echo "usage: $0 SAMPLE_FILE [-j N] [--out DIR] [--core PATH] [--encoding ENC] [--save-hashes FILE] [--check-hashes FILE] [--markdown]" >&2
+    echo "usage: $0 SAMPLE_FILE [-j N] [--out DIR] [--core PATH] [--encoding ENC] [--save-hashes FILE] [--check-hashes FILE] [--markdown] [--epub-export] [--epub-import LIST]" >&2
     exit 2
 }
 
@@ -40,12 +45,16 @@ SAVE_HASHES=""
 CHECK_HASHES=""
 # Feature 011 (FR-081): --markdown also exports every book as Markdown and imports it again.
 MARKDOWN=0
+EPUB_EXPORT=0
+EPUB_IMPORT=""
 while [ $# -gt 0 ]; do
     case "$1" in
         -j) JOBS="$2"; shift 2 ;;
         --out) OUT="$2"; shift 2 ;;
         --core) CORE="$2"; shift 2 ;;
         --markdown) MARKDOWN=1; shift ;;
+        --epub-export) EPUB_EXPORT=1; shift ;;
+        --epub-import) EPUB_IMPORT="$2"; shift 2 ;;
         --encoding) ENCODING="$2"; shift 2 ;;
         --save-hashes) SAVE_HASHES="$2"; shift 2 ;;
         --check-hashes) CHECK_HASHES="$2"; shift 2 ;;
@@ -261,5 +270,12 @@ if [ "$MARKDOWN" = 1 ]; then
     md_core="$(realpath "${CORE:-build/linux-core-release/bin/mfbe-core}")"
     (cd "$(dirname "$0")/../../ui" && MFBE_CORPUS_LIST="$md_list" MFBE_CORE_BIN="$md_core" \
         npx vitest run --config vitest.corpus.config.ts) || status=1
+fi
+# Feature 012 (DP-19, SC-022): the EPUB runs.
+if [ "$EPUB_EXPORT" = 1 ]; then
+    python3 "$HERE/epub-export.py" "$SAMPLE" --out "$OUT/epub-export" --core "$CORE" || status=1
+fi
+if [ -n "$EPUB_IMPORT" ]; then
+    python3 "$HERE/epub-import.py" "$EPUB_IMPORT" --out "$OUT/epub-import" --core "$CORE" || status=1
 fi
 exit $status

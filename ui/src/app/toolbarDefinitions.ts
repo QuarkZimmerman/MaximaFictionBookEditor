@@ -1,4 +1,8 @@
-/** Toolbar model: button order of the original Commands toolbar and the icon URL helper. */
+/**
+ * Toolbar model: the button order of the original Commands toolbar and the buttons it offers. Data only,
+ * with no imports, so that the journeys read the same layout (tests/e2e/us8-toolbars.spec.ts); the icon
+ * URL helper is in toolbarIcons.ts.
+ */
 
 /**
  * `IDR_MAINFRAME TOOLBAR 24, 24` - `null` marks a separator. The AI assistant's button
@@ -14,6 +18,9 @@ export const COMMANDS_TOOLBAR: readonly (string | null)[] = [
   'file.validate',
   // Feature 011 (US10): Preview beside Validate - both look at the whole book.
   'view.preview',
+  // Feature 012 (D35): Show Book Styles beside Preview; a customised layout gains it only through
+  // Customize or Reset.
+  'view.showBookStyles',
   null,
   'view.description',
   'view.body',
@@ -85,7 +92,3 @@ export const COMMANDS_TOOLBAR_OFFERED: readonly string[] = [
   'table.paragraphBefore',
   'table.paragraphAfter',
 ];
-
-export function iconUrl(icon: string, size: 16 | 24 = 24): string {
-  return `${import.meta.env.BASE_URL}icons/toolbar${size}/${icon}.png`;
-}

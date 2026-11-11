@@ -319,6 +319,7 @@ bool LoopbackServer::check_auth(uWS::HttpResponse<false>* res, uWS::HttpRequest*
 void LoopbackServer::setup_http() {
     app_->get("/health", [this](auto* res, auto* req) { serve_health(res, req); });
     register_binary_http(*this, services_);
+    register_epub_http(*this, services_);
     register_scripts_http(*this, services_);
     app_->any("/*", [this](auto* res, auto* req) {
         if (!check_auth(res, req)) {

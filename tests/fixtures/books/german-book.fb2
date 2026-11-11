@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>sf_fantasy</genre>
+			<author>
+				<first-name>Anna</first-name>
+				<middle-name>B.</middle-name>
+				<last-name>Example</last-name>
+			</author>
+			<book-title>Ein Buch</book-title>
+			<lang>de</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<date value="2026-11-10">2026</date>
+			<id>f012-de</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<section>
+			<p>Ein Text mit Anmerkung<a l:href="#n1" type="note">1</a>.</p>
+		</section>
+	</body>
+	<body name="notes">
+		<section id="n1">
+			<p>Die Anmerkung.</p>
+		</section>
+	</body>
+</FictionBook>

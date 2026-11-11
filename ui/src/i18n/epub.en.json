@@ -1,0 +1,94 @@
+{
+  "$comment": "EPUB import and export (feature 012): the File > Import and File > Export entries, File > Open's refusal of an EPUB, the import's and the export's messages, progress and summaries. Feature catalogue merged into en.json by i18n/index.ts.",
+  "menu": {
+    "file": {
+      "importEpub": "E&PUB File...",
+      "exportEpub": "Export as EP&UB..."
+    }
+  },
+  "cmd": {
+    "file": {
+      "importEpub": {
+        "tooltip": "Import EPUB",
+        "description": "Make a new book from an EPUB book of any version up to 3.3: its chapters, notes and pictures come along, best effort"
+      },
+      "exportEpub": {
+        "tooltip": "Export as EPUB",
+        "description": "Write the book as a valid EPUB 3.3 file that older reading devices can open too"
+      }
+    }
+  },
+  "epub": {
+    "openRefused": "{{path}} is an EPUB book. File > Open takes FictionBook (FB2) books, FBD files and ZIP archives holding FB2 books; an EPUB book is imported with File > Import > EPUB File....",
+    "importCaption": "EPUB import",
+    "exportCaption": "EPUB export",
+    "filter": "EPUB books (*.epub)",
+    "exporting": "Exporting as EPUB…",
+    "exportDone": "Exported to {{path}}: {{pages}} pages, {{pictures}} pictures, {{tables}} tables, {{notes}} notes.",
+    "exportCancelled": "The export was cancelled; no file was written.",
+    "exportFailed": "The EPUB {{path}} was not written:\n{{detail}}",
+    "exportSummaryIntro": "Not everything was carried over as written:",
+    "summaryMore": "… and {{count}} more",
+    "summary": {
+      "pictureLeftOut": "Picture left out: {{detail}}",
+      "linkAsText": "Link written as text: {{detail}}",
+      "cssDropped": "Stylesheet part left out: {{detail}}",
+      "stylesheetDropped": "Stylesheet that is not CSS left out: {{detail}}",
+      "gapFilled": "Filled in the file only: {{detail}}",
+      "idMadeUnique": "Id used more than once, made unique in the file: {{detail}}"
+    },
+    "gap": {
+      "title": "the book's title",
+      "language": "the book's language (und)",
+      "identifier": "the book's identifier"
+    },
+    "writeFailed": {
+      "badName": "A file name inside the EPUB is not valid.",
+      "targetIsSource": "{{path}} is the book's own file; choose another name.",
+      "unknownToken": "The export lost its file; try again.",
+      "ioError": "The file could not be written."
+    },
+    "openTitle": "Import an EPUB book",
+    "importing": "Importing the EPUB book…",
+    "importDone": "Imported from EPUB: {{sections}} sections, {{pictures}} pictures, {{tables}} tables, {{notes}} notes.",
+    "importCancelled": "The import was cancelled; the book in the window is unchanged.",
+    "importFailed": "{{path}} could not be imported: {{reason}}",
+    "importSummaryIntro": "Not everything came over as written:",
+    "importSummary": {
+      "linkAsText": "Link to a place that does not exist, written as text: {{detail}}",
+      "pictureLeftOut": "Picture not added: {{detail}}",
+      "remote": "Resource on the web, not fetched: {{detail}}",
+      "dropped": "Left out (FB2 has no place for it): {{detail}}",
+      "listedData": "Data without an FB2 field: {{detail}}",
+      "recovered": "Page that is not well-formed, read as HTML: {{detail}}",
+      "unreadable": "Part of the book that could not be read: {{detail}}",
+      "outside": "File named outside the book, not read: {{detail}}",
+      "pageMissing": "Page the reading order names but the book does not hold: {{detail}}",
+      "pictureConverted": "Picture converted to JPEG or PNG: {{detail}}",
+      "pictureTooLarge": "Picture larger than 100 megapixels, not added: {{detail}}",
+      "formulaAsText": "Formula that could not be drawn, kept as its text: {{detail}}",
+      "drawingLeftOut": "Drawing that could not be drawn, left out: {{detail}}",
+      "droppedChar": "Character no bundled font draws (a private-use character of the book's own font), left out: {{detail}}",
+      "nestingFlattened": "Nesting deeper than {{detail}} levels, flattened into paragraphs",
+      "cssDropped": "Style the book's look could not use, left out: {{detail}}",
+      "droppedFonts": "Embedded fonts, left out: {{detail}}",
+      "droppedMedia": "Audio and video, left out (their text and poster picture kept): {{detail}}",
+      "droppedScripts": "Scripts, left out and never run: {{detail}}",
+      "droppedForms": "Forms and interactive parts, left out: {{detail}}",
+      "droppedEmbedded": "Embedded objects and canvases, left out: {{detail}}",
+      "droppedOverlays": "Read-aloud synchronisation (media overlays), left out: {{detail}}",
+      "droppedPageMarkers": "Page-number markers, left out: {{detail}}",
+      "droppedPageList": "The list of the print edition's pages, left out",
+      "droppedFixedLayout": "The positions of the fixed-layout pages, left out: their text and pictures come in reading order"
+    },
+    "refused": {
+      "notZip": "it is not an EPUB book (not a ZIP archive).",
+      "noPackage": "it is not an EPUB book (it has no package document).",
+      "protected": "the book is protected (DRM) and cannot be imported.",
+      "tooLarge": "the file is larger than the import reads (512 MB).",
+      "zipBomb": "the archive unpacks to far more than it holds and is not read.",
+      "tooManyEntries": "the archive holds too many files.",
+      "encryptedZip": "the archive is protected by a password."
+    }
+  }
+}

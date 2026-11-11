@@ -8,6 +8,7 @@
 #include <mfbe/core_server.hpp>
 #include <mfbe/dialog_provider.hpp>
 #include <mfbe/document_session.hpp>
+#include <mfbe/epub.hpp>
 #include <mfbe/exclusions.hpp>
 #include <mfbe/file_watch.hpp>
 #include <mfbe/genres.hpp>
@@ -28,6 +29,7 @@
 #include <chrono>
 #include <filesystem>
 #include <functional>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -53,6 +55,13 @@ struct Services {
     settings::HotkeysStore hotkeys;
     resources::ResourceLayers layers;
     session::DocumentRegistry documents;
+    // Feature 012 (epub.*): the EPUBs opened for an import and the EPUBs being written for an
+    // export, by their tokens; each ends with epub.close, epub.write.commit or epub.write.abort.
+    struct EpubState {
+        std::mutex mutex;
+        std::map<std::string, epub::Source> sources;
+        std::map<std::string, std::unique_ptr<epub::Writer>> writers;
+    } epub;
 
     rpc::Notifier& notifier;
     rpc::JobManager jobs;
@@ -135,6 +144,7 @@ private:
 };
 
 void register_app_handlers(rpc::RpcRouter& router, Services& services);
+void register_epub_handlers(rpc::RpcRouter& router, Services& services);
 void register_log_handlers(rpc::RpcRouter& router, Services& services);
 void register_settings_handlers(rpc::RpcRouter& router, Services& services);
 void register_dialog_handlers(rpc::RpcRouter& router, Services& services);

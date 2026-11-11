@@ -139,6 +139,25 @@ export function graphemes(text: string): string[] {
   return Array.from(segmenter.segment(text), (part) => part.segment);
 }
 
+/** Text the fast path takes as it is: nothing that becomes a picture or is dropped. */
+export function isPlain(text: string): boolean {
+  for (let i = 0; i < text.length; i += 1) {
+    const c = text.charCodeAt(i);
+    if (c === 9 || c === 10 || c === 13 || (c >= 0x20 && c <= 0x7e)) continue;
+    if (
+      (c >= 0xa0 && c <= 0x24f) ||
+      (c >= 0x300 && c <= 0x52f) ||
+      (c >= 0x2010 && c <= 0x2027) ||
+      (c >= 0x2030 && c <= 0x205e) ||
+      (c >= 0x20a0 && c <= 0x20bf)
+    ) {
+      continue;
+    }
+    return false;
+  }
+  return true;
+}
+
 /** The special character a grapheme becomes, or null when it stays text or is dropped. */
 export function specialChar(grapheme: string): SpecialChar | null {
   const treatment = treatmentOf(grapheme);

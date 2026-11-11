@@ -122,6 +122,7 @@ std::vector<Raw> read_central(const std::filesystem::path& path) {
         Raw raw;
         raw.entry.flags = u16(h + 8);
         raw.entry.method = u16(h + 10);
+        raw.entry.crc = u32(h + 16);
         raw.entry.compressed = u32(h + 20);
         raw.entry.size = u32(h + 24);
         raw.entry.offset = u32(h + 42);
@@ -310,6 +311,70 @@ std::string read_entry(const std::filesystem::path& archive_path, const std::str
             throw ArchiveError(Reason::too_large, entry_name, "the entry is too large");
         }
         data.append(buffer, static_cast<std::size_t>(n));
+    }
+    return data;
+}
+
+std::string read_entry_at(const std::filesystem::path& archive_path, const Entry& entry) {
+    if ((entry.flags & 0x0001) != 0) {
+        throw ArchiveError(Reason::encrypted, entry.name, "the entry is encrypted");
+    }
+    if (entry.method != 0 && entry.method != 8) {
+        throw ArchiveError(Reason::method, entry.name, "neither stored nor deflated");
+    }
+    std::ifstream in(archive_path, std::ios::binary);
+    if (!in) {
+        throw ArchiveError(Reason::damaged, entry.name, "the archive cannot be opened");
+    }
+    const std::string local = read_range(in, entry.offset, 30);
+    const auto* h = reinterpret_cast<const unsigned char*>(local.data());
+    if (u32(h) != 0x04034b50) {
+        throw ArchiveError(Reason::damaged, entry.name, "no local header at the entry's offset");
+    }
+    // The local header's own name and extra lengths, which may differ from the central record's.
+    const std::uint64_t data_at = entry.offset + 30 + u16(h + 26) + u16(h + 28);
+    const std::string packed = read_range(in, data_at, entry.compressed);
+    std::string data;
+    if (entry.method == 0) {
+        if (entry.compressed != entry.size) {
+            throw ArchiveError(Reason::damaged, entry.name, "a stored entry of two sizes");
+        }
+        data = packed;
+    } else {
+        // Inflated into exactly the declared size: data that run past it are refused unread.
+        data.resize(static_cast<std::size_t>(entry.size));
+        z_stream z{};
+        if (inflateInit2(&z, -MAX_WBITS) != Z_OK) {
+            throw ArchiveError(Reason::damaged, entry.name, "the inflater cannot start");
+        }
+        z.next_in = reinterpret_cast<Bytef*>(const_cast<char*>(packed.data()));
+        z.avail_in = static_cast<uInt>(packed.size());
+        z.next_out = reinterpret_cast<Bytef*>(data.data());
+        z.avail_out = static_cast<uInt>(data.size());
+        int r = inflate(&z, Z_FINISH);
+        if (r == Z_BUF_ERROR && z.avail_out == 0) {
+            // The output is full before the stream's end (zlib may hold output even when all the
+            // input is read): only an end of stream, with no byte more, may follow.
+            unsigned char probe = 0;
+            z.next_out = &probe;
+            z.avail_out = 1;
+            r = inflate(&z, Z_FINISH);
+            inflateEnd(&z);
+            if (r != Z_STREAM_END || z.avail_out == 0) {
+                throw ArchiveError(Reason::too_large, entry.name,
+                                   "the entry unpacks beyond its declared size");
+            }
+        } else {
+            inflateEnd(&z);
+        }
+        if (r != Z_STREAM_END || z.total_out != entry.size) {
+            throw ArchiveError(Reason::damaged, entry.name, "the entry's data are damaged");
+        }
+    }
+    const auto crc = static_cast<std::uint32_t>(
+        crc32(0, reinterpret_cast<const Bytef*>(data.data()), static_cast<uInt>(data.size())));
+    if (crc != entry.crc) {
+        throw ArchiveError(Reason::damaged, entry.name, "the entry's data fail their check");
     }
     return data;
 }

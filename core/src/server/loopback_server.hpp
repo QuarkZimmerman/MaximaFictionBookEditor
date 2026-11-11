@@ -93,6 +93,8 @@ private:
 
 // Registers GET/HEAD/POST /binary/... (binary_handlers.cpp); called before the catch-all.
 void register_binary_http(LoopbackServer& server, Services& services);
+// Feature 012: GET /epub/{token}/{entry} and PUT /epub-write/{token}/{name} (epub_handlers.cpp).
+void register_epub_http(LoopbackServer& server, Services& services);
 // Registers GET/HEAD /scripts/{scriptId}/{file} (scripts_handlers.cpp).
 void register_scripts_http(LoopbackServer& server, Services& services);
 

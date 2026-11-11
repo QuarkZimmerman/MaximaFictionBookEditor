@@ -78,7 +78,12 @@ struct ConversionPolicy {
     Format preferred = Format::jpeg;  // settings other.pasteImageFormat
     int jpeg_quality = 90;            // settings other.jpegQuality (1..100)
     bool png_when_alpha = true;       // transparent pixels force PNG
+    // Feature 012 (D23, the EPUB import): 256 colours or fewer force PNG as well.
+    bool png_when_few_colours = false;
 };
+
+// True when the bitmap has 256 distinct colours (alpha included) or fewer.
+bool few_colours(const Bitmap& bitmap);
 
 struct Conversion {
     std::string bytes;

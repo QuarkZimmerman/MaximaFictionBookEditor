@@ -34,7 +34,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useAppServices, useCommandContext } from '@/app/services';
-import { iconUrl } from '@/app/toolbarDefinitions';
+import { iconUrl } from '@/app/toolbarIcons';
 import {
   INLINE_MARKS,
   markActive,

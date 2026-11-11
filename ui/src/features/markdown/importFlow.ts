@@ -16,7 +16,7 @@ import { isRpcError } from '@/rpc/client';
 import { RpcErrorCode, type MarkdownText } from '@/rpc/types';
 
 import type { ConvertResult, MarkdownStylesheet, SummaryItem } from './convert';
-import type { DrawnDiagram } from './diagrams/render';
+import type { DrawnDiagram } from './diagrams/raster';
 import { buildBook } from './describe';
 import { addPictures } from './pictures';
 import { convertInWorker } from './run';

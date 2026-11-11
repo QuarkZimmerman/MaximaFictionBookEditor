@@ -3,6 +3,42 @@
 All notable changes to Maxima Fiction Book Editor. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.0.10 - unreleased
+
+### In short
+
+- Books export as EPUB 3.3 that passes EPUBCheck, and EPUB books import as new books
+- Imported pictures become JPEG or PNG; formulas and drawings are drawn; a book's look becomes styles
+- An EPUB the editor made imports back as the same book
+- View > Show Book Styles draws the book's own stylesheets in the Body view while you edit
+- The named-style tooltip names every style in effect, with the element's id
+
+### Added
+
+- File > Export > Export as EPUB... writes the book as an EPUB 3.3 book that passes the W3C's
+  EPUBCheck: a cover page, a title page from the description, one page per chapter, the notes on a
+  page of their own with links back, pictures with their captions, the stylesheets translated, the
+  accessibility data and the parts older readers use. A progress bar with Cancel shows while it
+  runs; an export changes nothing that is remembered.
+- File > Import > EPUB File... makes a new book from an EPUB 2.0 to 3.3: sections from the
+  headings, EPUB notes as FB2 notes, the description from the package. Pictures become JPEG or PNG,
+  SVG drawings and MathML formulas are drawn, the book's classes become FB2 styles or named styles;
+  fonts, audio, video, scripts and the other parts FB2 has no place for are listed. A DRM-protected
+  or broken file is refused with a message, and nothing on the web is fetched.
+- An EPUB the editor made imports back as the same book: its description, stylesheets, named
+  styles, ids, bodies and notes. tests/epub/round-trip.mjs checks the round trip over a list of
+  books.
+- View > Show Book Styles, also on the Commands toolbar, draws the book's own stylesheets in the
+  Body view while you edit; the editor's marks stay on top, and what would take editing away is held
+  back. It starts off and is remembered; Fast mode wins.
+
+### Changed
+
+- The named-style tooltip names every style in effect where the pointer rests, the outermost
+  first, says which one no stylesheet defines, and keeps the element's id on a line of its own;
+  tables and cells are included.
+- File > Open refuses an EPUB and points to File > Import > EPUB File....
+
 ## 0.0.9 - 2026-11-10
 
 ### In short

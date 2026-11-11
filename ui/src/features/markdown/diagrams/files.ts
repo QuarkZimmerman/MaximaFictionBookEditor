@@ -9,6 +9,8 @@
 export const SOURCE_KEYWORD = 'mermaid';
 /** Feature 011 (D50): the keyword of a formula's TeX source. */
 export const FORMULA_KEYWORD = 'tex';
+/** Feature 012 (D24): the keyword of a formula's MathML source (an EPUB's formula). */
+export const MATHML_KEYWORD = 'mathml';
 
 const PNG_SIGNATURE = Uint8Array.of(137, 80, 78, 71, 13, 10, 26, 10);
 /** A JPEG comment holds at most 65,533 bytes (its length field counts itself). */

@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstdint>
+#include <unordered_set>
 
 namespace mfbe::images {
 
@@ -43,6 +45,22 @@ std::optional<Format> format_from_mime(std::string_view mime) {
     return std::nullopt;
 }
 
+bool few_colours(const Bitmap& bitmap) {
+    std::unordered_set<std::uint32_t> seen;
+    seen.reserve(512);
+    const std::uint8_t* pixel = bitmap.rgba.data();
+    const std::size_t count = std::min(bitmap.pixel_count(), bitmap.rgba.size() / 4);
+    for (std::size_t i = 0; i < count; ++i, pixel += 4) {
+        seen.insert(static_cast<std::uint32_t>(pixel[0]) << 24 |
+                    static_cast<std::uint32_t>(pixel[1]) << 16 |
+                    static_cast<std::uint32_t>(pixel[2]) << 8 | pixel[3]);
+        if (seen.size() > 256) {
+            return false;
+        }
+    }
+    return true;
+}
+
 std::optional<Conversion> convert(std::string_view bytes, const ConversionPolicy& policy,
                                   std::string* error, bool force) {
     const Probe probe_result = probe(bytes);
@@ -68,7 +86,8 @@ std::optional<Conversion> convert(std::string_view bytes, const ConversionPolicy
         return std::nullopt;
     }
     Format target = policy.preferred;
-    if (policy.png_when_alpha && bitmap->has_alpha) {
+    if ((policy.png_when_alpha && bitmap->has_alpha) ||
+        (policy.png_when_few_colours && few_colours(*bitmap))) {
         target = Format::png;
     }
     if (force && is_jpeg_or_png(probe_result.contentType) &&

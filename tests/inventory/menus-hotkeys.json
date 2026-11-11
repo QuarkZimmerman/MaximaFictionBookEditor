@@ -13,7 +13,8 @@
           "submenu": "import",
           "items": [
             "file.importDescription",
-            "file.importMarkdown"
+            "file.importMarkdown",
+            "file.importEpub"
           ]
         },
         {
@@ -21,7 +22,8 @@
           "items": [
             "file.exportFbd",
             "file.exportMarkdown",
-            "file.exportMarkdownZip"
+            "file.exportMarkdownZip",
+            "file.exportEpub"
           ]
         },
         "---",
@@ -117,6 +119,7 @@
         "view.preview",
         "---",
         "view.showIds",
+        "view.showBookStyles",
         "view.fastMode"
       ]
     },

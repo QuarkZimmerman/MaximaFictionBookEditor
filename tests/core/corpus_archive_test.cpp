@@ -3,6 +3,8 @@
 // reader byte for byte, and the book read from the archive then passes the same round trip as
 // the plain file (open -> save unchanged -> re-open -> structural comparison). Label "corpus";
 // skips (passes) when no tests/corpus/sample-*.txt exists, like the plain corpus case.
+#include "corpus_lists.hpp"
+
 #include <mfbe/archive.hpp>
 #include <mfbe/roundtrip.hpp>
 
@@ -21,28 +23,10 @@ namespace {
 namespace fs = std::filesystem;
 
 std::vector<std::string> sampled_books() {
-    std::vector<fs::path> lists;
-    std::error_code ec;
-    for (const auto& entry : fs::directory_iterator(MFBE_TEST_CORPUS_DIR, ec)) {
-        const std::string name = entry.path().filename().string();
-        if (entry.is_regular_file() && name.rfind("sample-", 0) == 0 &&
-            entry.path().extension() == ".txt") {
-            lists.push_back(entry.path());
-        }
-    }
-    std::sort(lists.begin(), lists.end());
     std::vector<std::string> books;
-    for (const auto& list : lists) {
-        std::ifstream in(list);
-        std::string line;
-        while (std::getline(in, line)) {
-            while (!line.empty() && (line.back() == '\r' || line.back() == ' ')) {
-                line.pop_back();
-            }
-            if (!line.empty() && line[0] != '#') {
-                books.push_back(line);
-            }
-        }
+    for (const auto& list : corpus::sample_lists()) {
+        const auto listed = corpus::fb2_books(list);
+        books.insert(books.end(), listed.begin(), listed.end());
     }
     return books;
 }

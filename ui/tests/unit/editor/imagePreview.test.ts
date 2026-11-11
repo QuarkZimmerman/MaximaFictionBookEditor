@@ -228,13 +228,17 @@ describe('the display rules of pictures (ui/src/editor/pictures.css, styles.css)
   const styles = read('styles.css');
   const pictures = read('pictures.css');
   const css = `${pictures}\n${styles}`;
-  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({
-    selectors: m[1]!
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean),
-    body: m[2]!,
-  }));
+  // Leaf rules only: an at-rule statement (`@import`, feature 012's `@layer` order) belongs to no
+  // selector, and a layer's block header ends at its brace.
+  const rules = [...css.replace(/@[a-z-]+[^;{}]*;/g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(
+    (m) => ({
+      selectors: m[1]!
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+      body: m[2]!,
+    }),
+  );
   const ruleFor = (selector: string) => rules.find(({ selectors }) => selectors.includes(selector));
 
   it('keeps every picture rule in pictures.css, imported by styles.css (feature 007, DP-4)', () => {

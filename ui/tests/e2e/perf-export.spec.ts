@@ -6,7 +6,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,18 +15,11 @@ import type { Page } from '@playwright/test';
 
 import { writeBigPictureBook } from './fixtures/bigPictureBook';
 import { expect, test, waitForBook, type CoreHandle } from './fixtures/core';
+import { MEMORY_BUDGET_BYTES, OWN_CORE, peakRssBytes } from './fixtures/memory';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const GENERATOR = path.join(REPO_ROOT, 'tests', 'fixtures', 'gen-large-book.py');
 const FACTOR = Number(process.env.MFBE_PERF_FACTOR ?? 1);
-const MEMORY_BUDGET = 1.5 * 1024 * 1024 * 1024;
-
-/** Peak resident set size of a process (Linux VmHWM, as perf-picture-view reads it; null elsewhere). */
-function peakRssBytes(pid: number | undefined): number | null {
-  if (!pid || !existsSync(`/proc/${pid}/status`)) return null;
-  const match = /VmHWM:\s+(\d+)\s+kB/.exec(readFileSync(`/proc/${pid}/status`, 'utf8'));
-  return match ? Number(match[1]) * 1024 : null;
-}
 
 async function open(core: CoreHandle, page: Page, file: string): Promise<void> {
   await core.openApp(page);
@@ -58,6 +51,9 @@ async function exportAs(
   expect(existsSync(target)).toBe(true);
   return elapsed;
 }
+
+// Each test measures a core of its own (fixtures/memory.ts).
+test.use(OWN_CORE);
 
 test.describe('performance - the Markdown exports (SC-009)', () => {
   let dir: string;
@@ -114,13 +110,11 @@ test.describe('performance - the Markdown exports (SC-009)', () => {
       // The core's peak memory over both exports stays within the constitution's budget.
       const peak = peakRssBytes(core.pid);
       if (peak !== null) {
-        test
-          .info()
-          .annotations.push({
-            type: 'perf',
-            description: `core peak ${(peak / 2 ** 20).toFixed(0)} MB`,
-          });
-        expect(peak, 'peak resident memory of the core').toBeLessThan(MEMORY_BUDGET);
+        test.info().annotations.push({
+          type: 'perf',
+          description: `core peak ${(peak / 2 ** 20).toFixed(0)} MB`,
+        });
+        expect(peak, 'peak resident memory of the core').toBeLessThan(MEMORY_BUDGET_BYTES);
       }
     },
   );

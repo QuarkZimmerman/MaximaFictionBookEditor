@@ -3508,6 +3508,311 @@ def main() -> None:
     write("href-200.fb2", f008_href_200())
     write("spell-en-in-ru.fb2", f008_spell_book())
     write("spell-en-in-ru.expected.json", f008_spell_expected())
+    write("reference-all-elements.fb2", f012_reference_all_elements())
+    write("invalid-for-export.fb2", f012_invalid_for_export())
+    write("pictures-alt.fb2", f012_pictures(True))
+    write("pictures-no-alt.fb2", f012_pictures(False))
+    write("no-pictures.fb2", f012_pictures(None))
+    write("russian-untitled-notes.fb2", f012_notes_book("ru", "Книга", "Текст с примечанием", "Примечание."))
+    write("german-book.fb2", f012_notes_book("de", "Ein Buch", "Ein Text mit Anmerkung", "Die Anmerkung."))
+    write("book-styles-reference.fb2", f012_reference_all_elements(F012_LOOK_STYLESHEET, "f012-book-styles"))
+    write("book-styles-hostile.fb2", f012_reference_all_elements(F012_HOSTILE_STYLESHEET, "f012-book-styles-hostile"))
+    write("named-style-tips.fb2", f012_named_style_tips())
+
+
+# ----------------------------------------------------------------------------------------------
+# Feature 012 (EPUB export, T006): the reference books of the export. reference-all-elements.fb2
+# holds every FB2 2.1 element, captions on block pictures (D12), the FBD Maker's labelled people
+# (D6) and a stylesheet with element and named-style rules (D12); the others test D4's gaps, D43's
+# accessibility data and D8's words in the book's language.
+# ----------------------------------------------------------------------------------------------
+def f012_book(lang: str | None, title: str, body: str, *, notes: str = "", binaries: str = "",
+              stylesheet: str = "", extra_title_info: str = "", extra_description: str = "",
+              coverpage: str = "", doc_id: str = "f012-book", title_info_after: str = "") -> str:
+    lang_el = f"\n\t\t\t<lang>{lang}</lang>" if lang is not None else ""
+    style_el = f'\n\t<stylesheet type="text/css">{stylesheet}</stylesheet>' if stylesheet else ""
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
+<FictionBook xmlns="{FB_NS}" xmlns:l="{XLINK_NS}">{style_el}
+	<description>
+		<title-info>
+			<genre>sf_fantasy</genre>
+			<author>
+				<first-name>Anna</first-name>
+				<middle-name>B.</middle-name>
+				<last-name>Example</last-name>
+			</author>
+			<book-title>{title}</book-title>{extra_title_info}{coverpage}{lang_el}{title_info_after}
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<date value="2026-11-10">2026</date>
+			<id>{doc_id}</id>
+			<version>1.0</version>
+		</document-info>{extra_description}
+	</description>
+	<body>
+{body}
+	</body>{notes}{binaries}
+</FictionBook>
+"""
+
+
+# Feature 012 (Show Book Styles, T050; SC-014, SC-015): the reference book under the two reference
+# stylesheets. The look one has every kind of property the Styles view accepts, on every FB2 element
+# kind and on both named styles, in absolute units so that the Body view and Preview compute the same
+# values; the hostile one holds the rules that would take an editing function away.
+F012_LOOK_STYLESHEET = """
+p { text-indent: 24px; line-height: 22px; letter-spacing: 0.5px; word-spacing: 2px; margin-top: 4px; margin-bottom: 6px; hyphens: auto; }
+p::first-letter { color: #990000; }
+section { padding-left: 10px; border-left: 3px solid #336699; background-color: #f4f8ff; }
+title { text-align: center; font-family: Georgia, serif; font-size: 22px; font-weight: 700; text-transform: uppercase; text-shadow: 1px 1px 0 #cccccc; }
+subtitle { font-style: italic; text-align: right; color: #884400; direction: ltr; }
+subtitle::before { content: "\\00a7  "; }
+epigraph { font-size: 13px; margin-left: 120px; color: #335577; max-width: 420px; }
+cite { border: 2px dashed #aa7733; border-radius: 6px; padding: 8px; background-image: linear-gradient(#ffffff, #eeeeee); columns: 2; column-gap: 20px; }
+annotation { outline: 1px dotted #557755; outline-offset: 2px; box-shadow: 2px 2px 4px #999999; clear: both; }
+poem { margin-left: 40px; min-width: 200px; counter-reset: verse; writing-mode: horizontal-tb; }
+stanza { margin-bottom: 10px; }
+v { font-variant: small-caps; counter-increment: verse; }
+v::after { content: " [" counter(verse) "]"; }
+text-author { font-weight: 600; text-align: right; font-stretch: condensed; }
+date { color: #666666; text-decoration-line: overline; opacity: 0.8; }
+emphasis { color: #aa0000; }
+strong { font-weight: 900; letter-spacing: 1px; }
+strikethrough { text-decoration-line: line-through; text-decoration-style: wavy; text-decoration-color: #ff0000; }
+sub { font-size: 10px; }
+sup { font-size: 10px; position: relative; top: -2px; }
+code { font-family: monospace; background-color: #eeeeee; display: inline-block; }
+a { color: #0055aa; }
+table { width: 300px; }
+th { background-color: #ddeeff; }
+td { border: 1px solid #888888; }
+empty-line { min-height: 12px; }
+.letter { font-style: italic; text-align: right; color: #2266aa; }
+.smallcaps { font-variant-caps: small-caps; background-color: #ffffcc; }
+"""
+F012_HOSTILE_STYLESHEET = """
+@import url(https://example.com/remote.css);
+@font-face { font-family: Remote; src: url(https://example.com/remote.woff2); }
+@keyframes spin { to { transform: rotate(360deg); } }
+p { display: none; }
+title { visibility: hidden; }
+epigraph { opacity: 0.05; }
+subtitle { color: transparent; }
+cite { font-size: 0; }
+section { position: fixed; top: 0; left: 0; }
+stanza { transform: rotate(90deg); }
+v { height: 0; overflow: hidden; }
+emphasis { pointer-events: none; user-select: none; }
+strong { animation: spin 1s infinite; transition: color 10s; }
+code { background-image: url(https://example.com/remote.png); }
+text-author { cursor: none; caret-color: transparent; }
+annotation { max-height: 1px; }
+.letter { font-size: 1px; }
+"""
+
+
+def f012_reference_all_elements(stylesheet: str | None = None, doc_id: str | None = None) -> str:
+    stylesheet = stylesheet or (
+        "p { text-indent: 2em; }\n.letter { font-style: italic; text-align: right; }\n"
+        "epigraph { font-size: 80%; }\n.smallcaps { font-variant: small-caps; }"
+    )
+    body = """		<image l:href="#pic-jpg" alt="Body picture" title="The body picture's caption"/>
+		<title>
+			<p>Anna Example</p>
+			<p>The Reference Book</p>
+		</title>
+		<epigraph>
+			<p>An epigraph of the body.</p>
+			<text-author>Someone Wise</text-author>
+		</epigraph>
+		<section id="ch1">
+			<title>
+				<p>Chapter One</p>
+				<p>with a second title line</p>
+			</title>
+			<epigraph>
+				<p>A chapter epigraph.</p>
+			</epigraph>
+			<image l:href="#pic-png" alt="A section picture" title="A caption under the picture"/>
+			<annotation>
+				<p>A section annotation.</p>
+			</annotation>
+			<p id="p1">Plain, <strong>strong</strong>, <emphasis>emphasis</emphasis>, <strikethrough>struck</strikethrough>, H<sub>2</sub>O, x<sup>2</sup>, <code>code()</code>, <style name="smallcaps">small caps</style> and an inline <image l:href="#pic-png" alt="inline"/> picture.</p>
+			<p>A note<a l:href="#n1" type="note">[1]</a>, a second note<a l:href="#n2" type="note">[2]</a>, a link to <a l:href="#ch2">chapter two</a> and to <a l:href="https://example.com/">a web page</a>.</p>
+			<p style="letter">A paragraph in the named style letter.</p>
+			<empty-line/>
+			<subtitle>A subtitle</subtitle>
+			<cite>
+				<p>A quotation.</p>
+				<text-author>Its Author</text-author>
+			</cite>
+			<poem>
+				<title>
+					<p>A Poem</p>
+				</title>
+				<epigraph>
+					<p>The poem's epigraph.</p>
+				</epigraph>
+				<stanza>
+					<title>
+						<p>Stanza one</p>
+					</title>
+					<subtitle>Its subtitle</subtitle>
+					<v>First verse line,</v>
+					<v>second verse line.</v>
+				</stanza>
+				<stanza>
+					<v>Another stanza.</v>
+				</stanza>
+				<text-author>The Poet</text-author>
+				<date value="2026-01-01">1 January 2026</date>
+			</poem>
+			<table>
+				<tr>
+					<th>Head A</th>
+					<th align="center">Head B</th>
+				</tr>
+				<tr>
+					<td colspan="2" align="right">Two columns</td>
+				</tr>
+				<tr>
+					<td rowspan="2" valign="middle">Two rows</td>
+					<td>Cell</td>
+				</tr>
+				<tr>
+					<td>Cell</td>
+				</tr>
+			</table>
+		</section>
+		<section id="part2">
+			<title>
+				<p>Part Two</p>
+			</title>
+			<section id="ch2-1">
+				<title>
+					<p>A subsection</p>
+				</title>
+				<p xml:lang="de">Ein deutscher Absatz.</p>
+			</section>
+			<section id="ch2">
+				<title>
+					<p>Chapter Two</p>
+				</title>
+				<p>The last chapter.</p>
+			</section>
+		</section>"""
+    notes = """
+	<body name="notes">
+		<title>
+			<p>Notes</p>
+		</title>
+		<section id="n1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>The first note.</p>
+		</section>
+		<section id="n2">
+			<title>
+				<p>2</p>
+			</title>
+			<p>The second note.</p>
+		</section>
+	</body>"""
+    binaries = f"""
+	<binary id="pic-jpg" content-type="image/jpeg">{b64("tiny.jpg")}</binary>
+	<binary id="pic-png" content-type="image/png">{b64("tiny.png")}</binary>
+	<binary id="cover" content-type="image/jpeg">{b64("tiny.jpg")}</binary>"""
+    title_info = """
+			<annotation>
+				<p>The annotation of the reference book.</p>
+			</annotation>
+			<keywords>reference, export, epub</keywords>
+			<date value="2026-11-10">2026</date>"""
+    title_info_after = """
+			<src-lang>en</src-lang>
+			<translator>
+				<first-name>Peter</first-name>
+				<last-name>Translator</last-name>
+			</translator>
+			<sequence name="The Series" number="3"/>"""
+    description = """
+		<publish-info>
+			<book-name>The Reference Book</book-name>
+			<publisher>Example Press</publisher>
+			<city>Kyiv</city>
+			<year>2026</year>
+			<isbn>978-0-00-000000-2</isbn>
+		</publish-info>
+		<custom-info info-type="mlillustrator">Van_Gogh Vincent</custom-info>
+		<custom-info info-type="mleditor">Редактор Ю.</custom-info>"""
+    cover = '\n\t\t\t<coverpage>\n\t\t\t\t<image l:href="#cover"/>\n\t\t\t</coverpage>'
+    return f012_book("en", "The Reference Book", body, notes=notes, binaries=binaries,
+                     stylesheet=stylesheet, extra_title_info=title_info,
+                     extra_description=description, coverpage=cover, title_info_after=title_info_after,
+                     doc_id=doc_id or "5b0e8a52-3c1d-4f6e-9a7b-2c8d4e6f8a10")
+
+
+def f012_named_style_tips() -> str:
+    """Feature 012 (US5, T058; D41): every case of the named-style tooltip - a span, a paragraph,
+    a span in a paragraph, a table and a cell, an id over styled text, a style no stylesheet defines."""
+    stylesheet = (".sign { font-weight: bold; }\n.letter { font-style: italic; }\n"
+                  ".grid { border: 1px solid #888888; }\n.cell { color: #333333; }")
+    body = """		<section>
+			<title>
+				<p>Named styles</p>
+			</title>
+			<p><style name="letter">A styled span</style> in plain text.</p>
+			<p style="sign">A styled paragraph.</p>
+			<p style="sign">Signed and <style name="letter">lettered</style>.</p>
+			<table style="grid">
+				<tr>
+					<td>Plain cell</td>
+					<td style="cell">Styled cell</td>
+				</tr>
+			</table>
+			<p id="chapter-2">An id with <style name="letter">styled text</style> inside.</p>
+			<p><style name="ghost">An undefined style</style>.</p>
+		</section>"""
+    return f012_book("en", "Named style tips", body, stylesheet=stylesheet, doc_id="f012-named-style-tips")
+
+
+def f012_invalid_for_export() -> str:
+    body = """		<section id="dup">
+			<p>A link to <a l:href="#nowhere">a missing place</a>.</p>
+			<image l:href="#missing-binary" alt="no data"/>
+		</section>
+		<section id="dup">
+			<p>A second element with the same id.</p>
+		</section>"""
+    return f012_book(None, "", body, doc_id="f012-invalid")
+
+
+def f012_pictures(all_alt: bool | None) -> str:
+    if all_alt is None:
+        return f012_book("en", "No pictures", "\t\t<section>\n\t\t\t<p>Only text.</p>\n\t\t</section>",
+                         doc_id="f012-no-pictures")
+    second = 'alt="The second picture"' if all_alt else ""
+    body = f"""		<section>
+			<image l:href="#a" alt="The first picture"/>
+			<p>Text between the pictures.</p>
+			<image l:href="#b" {second}/>
+			<p>Text.</p>
+		</section>"""
+    binaries = f"""
+	<binary id="a" content-type="image/png">{b64("tiny.png")}</binary>
+	<binary id="b" content-type="image/jpeg">{b64("tiny.jpg")}</binary>"""
+    name = "f012-pictures-alt" if all_alt else "f012-pictures-no-alt"
+    return f012_book("en", "Pictures", body, binaries=binaries, doc_id=name)
+
+
+def f012_notes_book(lang: str, title: str, text: str, note: str) -> str:
+    body = f'\t\t<section>\n\t\t\t<p>{text}<a l:href="#n1" type="note">1</a>.</p>\n\t\t</section>'
+    notes = f'\n\t<body name="notes">\n\t\t<section id="n1">\n\t\t\t<p>{note}</p>\n\t\t</section>\n\t</body>'
+    return f012_book(lang, title, body, notes=notes, doc_id=f"f012-{lang}")
 
 
 if __name__ == "__main__":

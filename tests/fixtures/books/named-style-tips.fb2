@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<stylesheet type="text/css">.sign { font-weight: bold; }
+.letter { font-style: italic; }
+.grid { border: 1px solid #888888; }
+.cell { color: #333333; }</stylesheet>
+	<description>
+		<title-info>
+			<genre>sf_fantasy</genre>
+			<author>
+				<first-name>Anna</first-name>
+				<middle-name>B.</middle-name>
+				<last-name>Example</last-name>
+			</author>
+			<book-title>Named style tips</book-title>
+			<lang>en</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<date value="2026-11-10">2026</date>
+			<id>f012-named-style-tips</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<section>
+			<title>
+				<p>Named styles</p>
+			</title>
+			<p><style name="letter">A styled span</style> in plain text.</p>
+			<p style="sign">A styled paragraph.</p>
+			<p style="sign">Signed and <style name="letter">lettered</style>.</p>
+			<table style="grid">
+				<tr>
+					<td>Plain cell</td>
+					<td style="cell">Styled cell</td>
+				</tr>
+			</table>
+			<p id="chapter-2">An id with <style name="letter">styled text</style> inside.</p>
+			<p><style name="ghost">An undefined style</style>.</p>
+		</section>
+	</body>
+</FictionBook>

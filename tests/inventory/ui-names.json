@@ -110,6 +110,11 @@
       "tooltip": "Exit",
       "description": "Quit the application; prompts to save documents"
     },
+    "file.exportEpub": {
+      "label": "Export as EP&UB...",
+      "tooltip": "Export as EPUB",
+      "description": "Write the book as a valid EPUB 3.3 file that older reading devices can open too"
+    },
     "file.exportFbd": {
       "label": "Export as &FBD...",
       "tooltip": "Export as FBD",
@@ -129,6 +134,11 @@
       "label": "&Description from FictionBook file...",
       "tooltip": "Import description",
       "description": "Import the description of another FictionBook file into this document"
+    },
+    "file.importEpub": {
+      "label": "E&PUB File...",
+      "tooltip": "Import EPUB",
+      "description": "Make a new book from an EPUB book of any version up to 3.3: its chapters, notes and pictures come along, best effort"
     },
     "file.importMarkdown": {
       "label": "&Markdown File...",
@@ -665,6 +675,11 @@
       "tooltip": "Preview",
       "description": "Show the book as a reader shows it"
     },
+    "view.showBookStyles": {
+      "label": "Show Boo&k Styles",
+      "tooltip": "Show book styles",
+      "description": "Draw the book's own stylesheets in the Body view while you edit; the editing marks stay on top"
+    },
     "view.showIds": {
       "label": "Show &Ids",
       "tooltip": "Show or hide the marks of the elements that have an id",
@@ -817,6 +832,11 @@
       "tooltip": "Выход",
       "description": "Закрыть программу; будет предложено сохранить документ перед закрытием"
     },
+    "file.exportEpub": {
+      "label": "Экспорт в EP&UB...",
+      "tooltip": "Экспорт в EPUB",
+      "description": "Записать книгу корректным файлом EPUB 3.3, который откроют и старые устройства чтения"
+    },
     "file.exportFbd": {
       "label": "Экспорт в &FBD...",
       "tooltip": "Экспорт в FBD",
@@ -836,6 +856,11 @@
       "label": "Опис&ание из файла FictionBook...",
       "tooltip": "Импорт описания",
       "description": "Импортировать описание из другого файла FictionBook в этот документ"
+    },
+    "file.importEpub": {
+      "label": "Файл E&PUB...",
+      "tooltip": "Импорт EPUB",
+      "description": "Создать новую книгу из книги EPUB любой версии до 3.3: главы, примечания и иллюстрации переносятся, насколько это возможно"
     },
     "file.importMarkdown": {
       "label": "Файл &Markdown...",
@@ -1372,6 +1397,11 @@
       "tooltip": "Просмотр",
       "description": "Показать книгу так, как её показывает читалка"
     },
+    "view.showBookStyles": {
+      "label": "Пока&зывать стили книги",
+      "tooltip": "Показывать стили книги",
+      "description": "Отображать собственные таблицы стилей книги в режиме «Дизайн» во время правки; отметки редактора остаются поверх"
+    },
     "view.showIds": {
       "label": "Показывать иденти&фикаторы",
       "tooltip": "Показать или скрыть отметки элементов с идентификатором",
@@ -1524,6 +1554,11 @@
       "tooltip": "Вийти",
       "description": "Закрити програму; перед закриттям буде запропоновано зберегти документ"
     },
+    "file.exportEpub": {
+      "label": "Експорт у EP&UB...",
+      "tooltip": "Експорт у EPUB",
+      "description": "Записати книгу коректним файлом EPUB 3.3, який відкриють і старі пристрої для читання"
+    },
     "file.exportFbd": {
       "label": "Експорт у &FBD...",
       "tooltip": "Експорт у FBD",
@@ -1543,6 +1578,11 @@
       "label": "Оп&ис із файлу FictionBook...",
       "tooltip": "Імпорт опису",
       "description": "Імпортувати опис з іншого файлу FictionBook у цей документ"
+    },
+    "file.importEpub": {
+      "label": "Файл E&PUB...",
+      "tooltip": "Імпорт EPUB",
+      "description": "Створити нову книгу з книги EPUB будь-якої версії до 3.3: розділи, примітки та ілюстрації переносяться, наскільки це можливо"
     },
     "file.importMarkdown": {
       "label": "Файл &Markdown...",
@@ -2078,6 +2118,11 @@
       "label": "Пере&гляд",
       "tooltip": "Перегляд",
       "description": "Показати книгу так, як її показує читалка"
+    },
+    "view.showBookStyles": {
+      "label": "Пока&зувати стилі книги",
+      "tooltip": "Показувати стилі книги",
+      "description": "Відображати власні таблиці стилів книги в режимі «Тіло документа» під час редагування; позначки редактора лишаються поверх"
     },
     "view.showIds": {
       "label": "Показувати &ідентифікатори",

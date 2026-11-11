@@ -99,14 +99,19 @@ export const MAIN_MENU: readonly MenuSpec[] = [
         kind: 'submenu',
         id: 'import',
         labelKey: 'menu.file.import',
-        items: [cmd('file.importDescription'), cmd('file.importMarkdown')],
+        items: [cmd('file.importDescription'), cmd('file.importMarkdown'), cmd('file.importEpub')],
       },
       {
         // The FBD export of feature 004 (FR-040) in place of the plugin placeholder.
         kind: 'submenu',
         id: 'export',
         labelKey: 'menu.file.export',
-        items: [cmd('file.exportFbd'), cmd('file.exportMarkdown'), cmd('file.exportMarkdownZip')],
+        items: [
+          cmd('file.exportFbd'),
+          cmd('file.exportMarkdown'),
+          cmd('file.exportMarkdownZip'),
+          cmd('file.exportEpub'),
+        ],
       },
       sep,
       {
@@ -178,6 +183,7 @@ export const MAIN_MENU: readonly MenuSpec[] = [
       cmd('view.preview'),
       sep,
       cmd('view.showIds'),
+      cmd('view.showBookStyles'),
       cmd('view.fastMode'),
     ],
   },

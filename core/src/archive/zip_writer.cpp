@@ -96,8 +96,12 @@ std::string zip_entries(const std::vector<ZipEntry>& entries) {
         archive_entry_set_size(e.get(), static_cast<la_int64_t>(entry.bytes.size()));
         archive_entry_set_filetype(e.get(), AE_IFREG);
         archive_entry_set_perm(e.get(), 0644);
-        archive_entry_set_mtime(e.get(), now, 0);
-        if (archive_write_header(a.get(), e.get()) < ARCHIVE_WARN) {
+        if (!entry.untimed) {
+            archive_entry_set_mtime(e.get(), now, 0);
+        }
+        const int method = entry.stored ? archive_write_zip_set_compression_store(a.get())
+                                        : archive_write_zip_set_compression_deflate(a.get());
+        if (method != ARCHIVE_OK || archive_write_header(a.get(), e.get()) < ARCHIVE_WARN) {
             fail(a.get());
         }
         std::size_t done = 0;

@@ -38,30 +38,7 @@ import type { ScriptSourceResult, ScriptsListResult } from '@/scripting/types';
 
 export type { BinaryMeta, Document, ValidationIssue, ValidationReport } from '@/model/document';
 
-export const RPC_API_VERSION = 1;
-/**
- * Additive contract revision within RPC_API_VERSION (`app.info().apiMinor`; absent = 0). The
- * revision this UI was written for (10 since feature 011: `export.markdown`, `styles.check`,
- * the dialogs' `role`, the issue codes `description.emptyAuthor`,
- * `style.conflict` and `style.unreadable`, `test.slowJobs`; 9 since feature 010: `import.readMarkdown`, `template.xml`,
- * `doc.newFromXml`, `binary.add`'s `imagesOnly`, `BinaryMeta.transparent`, the models' `efforts`
- * of `ai.models`, the service list's known models, `test.holdStartup`; 8 since feature 009: books in ZIP archives - `doc.open` with
- * `entry` and `needsChoice`, `Document.source`, `files.inspect`, the archive errors - backups and
- * ZIP saves through `doc.save`, the Save As dialog's ZIP checkbox, `binary.rename`, and the
- * settings `other.keepBackup` and `view.statusBarPanes`; 7 since feature 008: the open requests
- * between copies -
- * `app.openRequest`, `app.openRequestAck`, `app.openInNewCopy`, `app.bookHolder`,
- * `app.activateCopy`, `app.copyState`, `app.activated` - and the settings `other.openFromOutside`
- * and `view.spellExtraDictionaries`; 6 since feature 007: the scripts' `legacy.sourceVersion`,
- * `origin` and `overrides`, the group icon route, package isolation, `files.saveText` and
- * `files.saveBinaries`, the script backups; 5 since feature 006: the cell's and the marks'
- * languages, marks on inline atoms, the writer's link rule, `session.tableDialog`); it accepts
- * any core answering minor >= 1 (rpc-api.md §6) - the client performs no minor check at connect
- * time and gates nothing on 8; the AI assistant (feature 005) reads `app.info().apiMinor` itself
- * and requires >= 5 since feature 006 (`AI_REQUIRED_API_MINOR` in `ui/src/ai/index.ts`; 4
- * before).
- */
-export const RPC_API_MINOR = 10;
+export { RPC_API_MINOR, RPC_API_VERSION } from './version';
 
 /* ------------------------------------------------------------------------ */
 /* Error codes (rpc-api.md §1)                                              */
@@ -94,6 +71,14 @@ export const RpcErrorCode = {
   /** Feature 010: `import.readMarkdown` - the file is not text {path} / larger than it reads {path, limit}. */
   importNotText: 1100,
   importTooLarge: 1101,
+  /**
+   * Feature 012: `epub.open` refused the file {reason: `epub.notZip` | `epub.noPackage` |
+   * `epub.protected` | `epub.tooLarge` | `epub.zipBomb` | `epub.tooManyEntries` |
+   * `epub.encryptedZip`, path}; an export's EPUB could not be written {reason: `epub.badName` |
+   * `epub.targetIsSource` | `epub.unknownToken` | `epub.ioError`, name?, path?}.
+   */
+  epubRefused: 1110,
+  epubWriteFailed: 1111,
   spellDictionaryUnavailable: 1020,
   scriptNotFound: 1030,
   scriptInvalidManifest: 1031,
@@ -299,6 +284,11 @@ export interface Settings {
     treeElements?: Record<string, boolean>;
     /** Feature 011 (D51): mark the elements that have an id (the Body view's tabs, the tree's badge). */
     showIds?: boolean;
+    /**
+     * Feature 012 (D36): the Body view draws the book's own stylesheets (View > Show Book Styles);
+     * default false. Absent from cores older than apiMinor 11.
+     */
+    showBookStyles?: boolean;
   };
   other: {
     defaultEncoding: string;
@@ -1043,6 +1033,19 @@ export type AiOutcome =
 export type ChatRequest = { messages: unknown[]; [member: string]: unknown };
 
 /** `ai.models`: the service's list normalised (`id` from `id` or `name`, strings as ids). */
+/** Feature 012: an EPUB opened for the import (`epub.open`, contracts/rpc-api.md §1). */
+export interface EpubSource {
+  token: string;
+  /** The package's version attribute: '2.0', '3.0', '3.1', ... ('' when absent). */
+  version: string;
+  packagePath: string;
+  protection: 'none' | 'fontObfuscation' | 'drm';
+  mimetypeFirst: boolean;
+  entries: { name: string; size: number; packed: number; method: number }[];
+  /** Names leading outside the container: never read, listed by the import. */
+  outside: string[];
+}
+
 /** Feature 010 (US8): a Markdown file read as text (`import.readMarkdown`). */
 export interface MarkdownText {
   text: string;
@@ -1306,9 +1309,35 @@ export interface RpcMethods {
   };
   /** Feature 010 (US8): the effective template's FB2 text, for the import's description. */
   'template.xml': { params: void; result: { xml: string } };
-  /** Feature 010 (US8): a new untitled, modified document from FB2 text, tied to no file. */
+  /** Feature 012 (contracts/rpc-api.md §1): opens an EPUB for the import; entries over `/epub/{token}/{entry}`. */
+  'epub.open': { params: { path: string }; result: EpubSource };
+  'epub.close': { params: { token: string }; result: Record<string, never> };
+  /**
+   * Feature 012 (§1, D23): a picture of the opened EPUB put into the document's binaries inside the
+   * core - JPEG and PNG as they are, GIF/WebP/BMP/TIFF converted (PNG when transparent or of 256
+   * colours or fewer, else JPEG). 1110 `epub.pictureTooLarge` past 100 megapixels; 1013
+   * `binaryNotImage` for what the core does not decode (AVIF, JPEG XL, SVG).
+   */
+  'epub.picture': {
+    params: { token: string; entry: string; docId: string; suggestedId: string };
+    result: { binary: BinaryMeta; from: string; converted: boolean };
+  };
+  /** Feature 012 (§3): an EPUB being written; files over `PUT /epub-write/{token}/{name}`. */
+  'epub.write.begin': { params: { path: string; docId?: string }; result: { token: string } };
+  /** Feature 012 (§3): copies a book binary into the EPUB inside the core, byte for byte. */
+  'epub.write.binary': {
+    params: { token: string; stem: string; docId: string; binaryId: string };
+    /** The name is the stem with `.jpg` or `.png`; `converted` when the picture was not JPEG or PNG. */
+    result: { name: string; mediaType: 'image/jpeg' | 'image/png'; converted: boolean };
+  };
+  'epub.write.commit': { params: { token: string }; result: { bytes: number } };
+  'epub.write.abort': { params: { token: string }; result: Record<string, never> };
+  /**
+   * Feature 010 (US8): a new untitled, modified document from FB2 text, tied to no file. Feature 012
+   * (SC-010): text of 2 MB or more is read as a job, with its progress, as `doc.open` reads a big book.
+   */
   'doc.newFromXml': {
-    params: { xml: string; origin?: { kind: 'markdown'; path: string } };
+    params: { xml: string; origin?: { kind: 'markdown' | 'epub'; path: string } };
     result: MaybeJob<{ document: Document & LoadReport; warnings: ValidationIssue[] }>;
   };
   /** Feature 010 (US1, test hooks only): the core answers the next connection's requests after `ms`. */

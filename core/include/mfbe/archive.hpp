@@ -37,6 +37,7 @@ struct Entry {
     std::uint64_t offset = 0;  // of the local header
     std::uint16_t method = 0;
     std::uint16_t flags = 0;  // general-purpose bit flags (bit 0: encrypted)
+    std::uint32_t crc = 0;    // CRC-32 of the uncompressed data, from the central directory
     bool directory = false;
 };
 
@@ -74,6 +75,13 @@ Listing list(const std::filesystem::path& archive);
 // damaged, too_large, missing). Nothing is ever written to the disk.
 std::string read_entry(const std::filesystem::path& archive, const std::string& entry);
 
+// Feature 012: the bytes of the listed entry `entry`, read directly at its local header - an EPUB's
+// many pages are read one by one, and reading by name walks the whole archive each time. Stored and
+// deflated entries only (the OCF allows no other method); the data are checked against the central
+// directory's size and CRC, and never unpacked past the declared size (throws ArchiveError:
+// encrypted, method, damaged, too_large when the data run past the declared size).
+std::string read_entry_at(const std::filesystem::path& archive, const Entry& entry);
+
 // The bytes of a new archive holding `bytes` as its only entry, deflated, at its top level,
 // named `entry_name` (UTF-8, flagged as such when not ASCII), stamped with the current time,
 // without a comment (DP-6, resource-formats §5).
@@ -85,6 +93,10 @@ std::string zip_one(const std::string& entry_name, std::string_view bytes);
 struct ZipEntry {
     std::string name;
     std::string_view bytes;
+    // Feature 012 (EPUB's `mimetype`, research R3): written without compression, and without a time
+    // stamp or an owner, so that libarchive writes no extra field into its header.
+    bool stored = false;
+    bool untimed = false;
 };
 std::string zip_entries(const std::vector<ZipEntry>& entries);
 

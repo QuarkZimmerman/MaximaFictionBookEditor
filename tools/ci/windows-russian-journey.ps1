@@ -1030,6 +1030,9 @@ Invoke-EditorRun 'Start with the book' "`"$bookPath`"" {
     Assert-RussianInterface
     Wait-Until 'the status bar' { Test-Element 'statusbar' }
 
+    # A window just started gets the system's focus only after a while on the CI's Windows; a key
+    # pressed before then is lost (feature 012: F2 saved nothing within 30 s).
+    Wait-WindowFocus
     Send-CdpKey $script:cdp $keyF2
     Wait-Until 'the book saved in place' { (Get-Item -LiteralPath $bookPath).LastWriteTimeUtc -gt $planted }
     if (-not (Test-Bytes ([IO.File]::ReadAllBytes($bookPath)) ([Text.Encoding]::UTF8.GetBytes($bookTitle)))) {

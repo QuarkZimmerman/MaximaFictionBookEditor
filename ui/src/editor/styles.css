@@ -39,9 +39,11 @@
   outline: none;
 }
 
-/* Explicit selection colour: the browser default is not legible on every theme/platform. */
-.mfbe-body-view ::selection {
-  background: var(--mfbe-body-selection);
+@layer fb-marks {
+  /* Explicit selection colour: the browser default is not legible on every theme/platform. */
+  .mfbe-body-view ::selection {
+    background: var(--mfbe-body-selection);
+  }
 }
 
 /* ---------------------------------------------------------------------- */
@@ -104,112 +106,113 @@
   margin-top: 0.5em;
 }
 
-/* ---------------------------------------------------------------------- */
-/* Framed containers (main.css: div#fbw_body div)                         */
-/* ---------------------------------------------------------------------- */
+@layer fb-look {
+  /* ---------------------------------------------------------------------- */
+  /* Framed containers (main.css: div#fbw_body div)                         */
+  /* ---------------------------------------------------------------------- */
 
-.fb-editor div {
-  padding: 0 0 0 0.4em;
-  margin: 0.5em 0;
-  border-left: solid 1px;
-  clear: both;
-}
+  .fb-editor div {
+    padding: 0 0 0 0.4em;
+    margin: 0.5em 0;
+    border-left: solid 1px;
+    clear: both;
+  }
 
-.fb-editor .fb-body {
-  padding: 0;
-  margin: 0;
-  border: none;
-}
+  .fb-editor .fb-body {
+    padding: 0;
+    margin: 0;
+    border: none;
+  }
 
-.fb-section {
-  border-color: var(--mfbe-fb-section);
-}
+  .fb-section {
+    border-color: var(--mfbe-fb-section);
+  }
 
-.fb-cite {
-  padding-left: 2em;
-  padding-right: 2em;
-  color: var(--mfbe-fb-cite);
-  border-color: var(--mfbe-fb-cite);
-}
+  .fb-cite {
+    padding-left: 2em;
+    padding-right: 2em;
+    color: var(--mfbe-fb-cite);
+    border-color: var(--mfbe-fb-cite);
+  }
 
-.fb-epigraph {
-  font-size: 80%;
-  border-color: var(--mfbe-fb-epigraph);
-  color: var(--mfbe-fb-epigraph);
-}
+  .fb-epigraph {
+    font-size: 80%;
+    border-color: var(--mfbe-fb-epigraph);
+    color: var(--mfbe-fb-epigraph);
+  }
 
-.fb-epigraph p {
-  text-indent: 3em;
-  margin: 0 1em 0.5em 25%;
-}
+  .fb-epigraph p {
+    text-indent: 3em;
+    margin: 0 1em 0.5em 25%;
+  }
 
-.fb-annotation {
-  border-color: var(--mfbe-fb-annotation);
-  color: var(--mfbe-fb-annotation);
-}
+  .fb-annotation {
+    border-color: var(--mfbe-fb-annotation);
+    color: var(--mfbe-fb-annotation);
+  }
 
-.fb-history {
-  border-color: var(--mfbe-fb-history);
-  color: var(--mfbe-fb-history);
-}
+  .fb-history {
+    border-color: var(--mfbe-fb-history);
+    color: var(--mfbe-fb-history);
+  }
 
-/*
+  /*
  * The annotation and history blocks at the top of the Body view (feature 004, FR-010): set off
  * from the book text by a frame and a light tint in the element's colour, as the original's
  * coloured borders set them off, and captioned through generated content - the caption is
  * never text of the document (not selected, copied, found or checked). `data-caption` is a
  * node decoration of `plugins/blockCaptions.ts`, refreshed on a language change.
  */
-.fb-editor .fb-desc-block {
-  position: relative;
-  margin: 0 0 0.9em;
-  padding: 1.5em 0.6em 0.4em 0.8em;
-  border: 1px solid;
-  border-left-width: 4px;
-  border-radius: 3px;
-}
+  .fb-editor .fb-desc-block {
+    position: relative;
+    margin: 0 0 0.9em;
+    padding: 1.5em 0.6em 0.4em 0.8em;
+    border: 1px solid;
+    border-left-width: 4px;
+    border-radius: 3px;
+  }
 
-.fb-editor .fb-desc-block::before {
-  content: attr(data-caption);
-  position: absolute;
-  top: 0;
-  left: 0;
-  padding: 0 8px 1px 6px;
-  border-bottom-right-radius: 3px;
-  font: var(--mfbe-font-ui);
-  font-size: 11px;
-  line-height: 16px;
-  letter-spacing: 0.02em;
-  color: var(--mfbe-fb-desc-caption-fg);
-  pointer-events: none;
-  user-select: none;
-}
+  .fb-editor .fb-desc-block::before {
+    content: attr(data-caption);
+    position: absolute;
+    top: 0;
+    left: 0;
+    padding: 0 8px 1px 6px;
+    border-bottom-right-radius: 3px;
+    font: var(--mfbe-font-ui);
+    font-size: 11px;
+    line-height: 16px;
+    letter-spacing: 0.02em;
+    color: var(--mfbe-fb-desc-caption-fg);
+    pointer-events: none;
+    user-select: none;
+  }
 
-.fb-editor .fb-desc-block.fb-annotation {
-  background: var(--mfbe-fb-annotation-bg);
-}
+  .fb-editor .fb-desc-block.fb-annotation {
+    background: var(--mfbe-fb-annotation-bg);
+  }
 
-.fb-editor .fb-desc-block.fb-annotation::before {
-  background: var(--mfbe-fb-annotation);
-}
+  .fb-editor .fb-desc-block.fb-annotation::before {
+    background: var(--mfbe-fb-annotation);
+  }
 
-.fb-editor .fb-desc-block.fb-history {
-  background: var(--mfbe-fb-history-bg);
-}
+  .fb-editor .fb-desc-block.fb-history {
+    background: var(--mfbe-fb-history-bg);
+  }
 
-.fb-editor .fb-desc-block.fb-history::before {
-  background: var(--mfbe-fb-history);
-}
+  .fb-editor .fb-desc-block.fb-history::before {
+    background: var(--mfbe-fb-history);
+  }
 
-.fb-poem {
-  border-color: var(--mfbe-fb-poem);
-}
+  .fb-poem {
+    border-color: var(--mfbe-fb-poem);
+  }
 
-.fb-stanza {
-  border-color: var(--mfbe-fb-stanza);
-}
+  .fb-stanza {
+    border-color: var(--mfbe-fb-stanza);
+  }
 
-/*
+  /*
  * The stanza and title rules carry `.fb-editor` so that they outrank the generic paragraph rule
  * below (`.fb-editor p`, specificity 0,1,1): with the same weight the later rule won and verses
  * came out justified with the paragraph margin, title lines justified and indented (feature
@@ -217,375 +220,397 @@
  * 0,2,1 each, so the order of the rules no longer matters. The epigraph margin and the title
  * padding, lost to the same cascade, stay as they are (candidates).
  */
-.fb-editor .fb-stanza p {
-  text-align: left;
-  text-indent: 3em;
-  margin-bottom: 0;
+  .fb-editor .fb-stanza p {
+    text-align: left;
+    text-indent: 3em;
+    margin-bottom: 0;
+  }
+
+  .fb-title {
+    font-size: 130%;
+    border-color: var(--mfbe-fb-title-bg);
+    background: var(--mfbe-fb-title-bg);
+    color: var(--mfbe-fb-title-fg);
+    padding: 0.3em;
+  }
+
+  .fb-editor .fb-title p {
+    text-align: center;
+    text-indent: 0;
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Paragraph-like elements                                                */
+  /* ---------------------------------------------------------------------- */
+
+  .fb-editor p {
+    text-indent: 3em;
+    margin: 0 0 0.2em;
+    text-align: justify;
+    min-height: 1.4em;
+  }
+
+  .fb-editor p.fb-subtitle {
+    text-align: center;
+    font-weight: bold;
+    text-indent: 0;
+  }
+
+  .fb-editor p.fb-text-author,
+  .fb-editor p.fb-date {
+    margin-left: 3em;
+    margin-bottom: 1em;
+    text-align: right;
+    text-indent: 0;
+    color: var(--mfbe-fb-author);
+  }
+
+  .fb-editor p.fb-date {
+    font-style: italic;
+  }
+
+  .fb-editor p.fb-empty-line {
+    min-height: 1.4em;
+    margin: 0 0 0.2em;
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Inline styles                                                          */
+  /* ---------------------------------------------------------------------- */
+
+  .fb-emphasis {
+    font-style: italic;
+  }
+
+  .fb-strong {
+    font-weight: bold;
+  }
+
+  .fb-strikethrough {
+    text-decoration: line-through;
+  }
+
+  .fb-code {
+    font-family: var(--mfbe-font-mono);
+    font-style: normal;
+    background: var(--mfbe-fb-code-bg);
+  }
 }
 
-.fb-title {
-  font-size: 130%;
-  border-color: var(--mfbe-fb-title-bg);
-  background: var(--mfbe-fb-title-bg);
-  color: var(--mfbe-fb-title-fg);
-  padding: 0.3em;
-}
-
-.fb-editor .fb-title p {
-  text-align: center;
-  text-indent: 0;
-}
-
-/* ---------------------------------------------------------------------- */
-/* Paragraph-like elements                                                */
-/* ---------------------------------------------------------------------- */
-
-.fb-editor p {
-  text-indent: 3em;
-  margin: 0 0 0.2em;
-  text-align: justify;
-  min-height: 1.4em;
-}
-
-.fb-editor p.fb-subtitle {
-  text-align: center;
-  font-weight: bold;
-  text-indent: 0;
-}
-
-.fb-editor p.fb-text-author,
-.fb-editor p.fb-date {
-  margin-left: 3em;
-  margin-bottom: 1em;
-  text-align: right;
-  text-indent: 0;
-  color: var(--mfbe-fb-author);
-}
-
-.fb-editor p.fb-date {
-  font-style: italic;
-}
-
-.fb-editor p.fb-empty-line {
-  min-height: 1.4em;
-  margin: 0 0 0.2em;
-}
-
-/* ---------------------------------------------------------------------- */
-/* Inline styles                                                          */
-/* ---------------------------------------------------------------------- */
-
-.fb-emphasis {
-  font-style: italic;
-}
-
-.fb-strong {
-  font-weight: bold;
-}
-
-.fb-strikethrough {
-  text-decoration: line-through;
-}
-
-.fb-code {
-  font-family: var(--mfbe-font-mono);
-  font-style: normal;
-  background: var(--mfbe-fb-code-bg);
-}
-
-/* Feature 011 (rc.2 review): text carrying a named style - a span or a whole element - has a very
+@layer fb-marks {
+  /* Feature 011 (rc.2 review): text carrying a named style - a span or a whole element - has a very
    faint dotted underline in the text's own colour, so it reads the same in the light and the dark
    theme; the book's CSS itself is shown by Preview. */
-.fb-style,
-[data-style]:not(table) {
-  text-decoration-line: underline;
-  text-decoration-style: dotted;
-  text-decoration-thickness: 1.5px;
-  /* The accent colour, not the text's: a third of a light text colour vanished on the dark theme's
+  .fb-style,
+  [data-style]:not(table) {
+    text-decoration-line: underline;
+    text-decoration-style: dotted;
+    text-decoration-thickness: 1.5px;
+    /* The accent colour, not the text's: a third of a light text colour vanished on the dark theme's
      background (rc.3 smoke test). */
-  text-decoration-color: color-mix(in srgb, var(--mfbe-color-accent) 65%, transparent);
-  text-underline-offset: 3px;
+    text-decoration-color: color-mix(in srgb, var(--mfbe-color-accent) 65%, transparent);
+    text-underline-offset: 3px;
+  }
 }
 
-a.fb-link {
-  color: var(--mfbe-fb-link);
-  text-decoration: underline;
-  cursor: text;
+@layer fb-look {
+  a.fb-link {
+    color: var(--mfbe-fb-link);
+    text-decoration: underline;
+    cursor: text;
+  }
+
+  a.fb-note {
+    vertical-align: super;
+    color: var(--mfbe-fb-note);
+    font-size: 75%;
+    text-decoration: none;
+  }
 }
 
-a.fb-note {
-  vertical-align: super;
-  color: var(--mfbe-fb-note);
-  font-size: 75%;
-  text-decoration: none;
-}
-
-/* Non-breaking space marker: the character stays in the text, the display char is painted over
+@layer fb-marks {
+  /* Non-breaking space marker: the character stays in the text, the display char is painted over
    it. The absolutely positioned marker becomes a block and would inherit the paragraph's first-line
    indent (3em in sections, poems, epigraphs) and be drawn over the following text: no indent. */
-.fb-nbsp {
-  position: relative;
-  color: transparent;
+  .fb-nbsp {
+    position: relative;
+    color: transparent;
+  }
+
+  .fb-nbsp::before {
+    content: attr(data-char);
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    text-indent: 0;
+    text-align: center;
+    color: var(--mfbe-fb-nbsp);
+    pointer-events: none;
+  }
 }
 
-.fb-nbsp::before {
-  content: attr(data-char);
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  text-indent: 0;
-  text-align: center;
-  color: var(--mfbe-fb-nbsp);
-  pointer-events: none;
-}
+@layer fb-look {
+  /* ---------------------------------------------------------------------- */
+  /* Tables                                                                 */
+  /* ---------------------------------------------------------------------- */
 
-/* ---------------------------------------------------------------------- */
-/* Tables                                                                 */
-/* ---------------------------------------------------------------------- */
-
-/*
+  /*
  * Every table keeps an 8 px gutter on its right for the warning mark of an irregular table
  * (feature 006 US8, FR-057; C54), so showing or hiding the mark moves no table; only a table
  * whose minimum width fills the gutter gains a scroll bar while the mark shows.
  */
-.fb-editor table.fb-table {
-  border-collapse: separate;
-  border-spacing: 2px;
-  margin: 0.5em 8px 0.5em 0.4em;
-  border-left: solid 1px var(--mfbe-fb-table-border);
-  padding-left: 0.4em;
+  .fb-editor table.fb-table {
+    border-collapse: separate;
+    border-spacing: 2px;
+    margin: 0.5em 8px 0.5em 0.4em;
+    border-left: solid 1px var(--mfbe-fb-table-border);
+    padding-left: 0.4em;
+  }
 }
 
-/*
+@layer fb-marks {
+  /*
  * The mark (data-model §3.3; R6.2): a zero-height caption on top of the table, which leaves its
  * layout as it is (R6 probe P8), holding the badge centred on the table's top-right corner, so
  * it touches neither the top-right cell's text nor the block above. Never selected; the 1 px
  * ring in the Body background sets it off from cell colours (U33). Fast Mode shows it too.
  */
-.fb-editor table.fb-table > caption.fb-table-mark-host {
-  caption-side: top;
-  position: relative;
-  height: 0;
-  padding: 0;
-  border: 0;
-  line-height: 0;
+  .fb-editor table.fb-table > caption.fb-table-mark-host {
+    caption-side: top;
+    position: relative;
+    height: 0;
+    padding: 0;
+    border: 0;
+    line-height: 0;
+  }
+
+  .fb-editor .fb-table-mark {
+    position: absolute;
+    right: -7px;
+    top: max(-7px, -0.5em);
+    width: 14px;
+    height: 14px;
+    user-select: none;
+    cursor: pointer;
+  }
+
+  .fb-editor .fb-table-mark .mfbe-table-mark-badge {
+    display: block;
+    box-shadow: 0 0 0 1px var(--mfbe-body-bg);
+  }
 }
 
-.fb-editor .fb-table-mark {
-  position: absolute;
-  right: -7px;
-  top: max(-7px, -0.5em);
-  width: 14px;
-  height: 14px;
-  user-select: none;
-  cursor: pointer;
-}
-
-.fb-editor .fb-table-mark .mfbe-table-mark-badge {
-  display: block;
-  box-shadow: 0 0 0 1px var(--mfbe-body-bg);
-}
-
-/*
+@layer fb-look {
+  /*
  * Every cell is at least 3em wide (requester, issue #7): an empty cell or a cell holding one
  * character is as easy to click and type into as any other, about three times the width an
  * empty cell had (its padding alone). Wider content widens the cell as before.
  */
-.fb-editor .fb-table th,
-.fb-editor .fb-table td {
-  padding: 2px 6px;
-  min-width: 3em;
-  text-indent: 0;
-  vertical-align: top;
-}
+  .fb-editor .fb-table th,
+  .fb-editor .fb-table td {
+    padding: 2px 6px;
+    min-width: 3em;
+    text-indent: 0;
+    vertical-align: top;
+  }
 
-.fb-editor .fb-table th {
-  text-align: center;
-  background: var(--mfbe-fb-th-bg);
-  color: var(--mfbe-fb-th-fg);
-  font-weight: bold;
-}
+  .fb-editor .fb-table th {
+    text-align: center;
+    background: var(--mfbe-fb-th-bg);
+    color: var(--mfbe-fb-th-fg);
+    font-weight: bold;
+  }
 
-.fb-editor .fb-table td {
-  background: var(--mfbe-fb-td-bg);
-  color: var(--mfbe-fb-td-fg);
-}
+  .fb-editor .fb-table td {
+    background: var(--mfbe-fb-td-bg);
+    color: var(--mfbe-fb-td-fg);
+  }
 
-/*
+  /*
  * Cell alignment shown as written (feature 006, US6 sc.4; research R6.7; C60): an author rule
  * outranks an attribute's presentational hint, so the defaults above would hide every `valign`
  * and the `align` of a header cell. Header cells stay centred unless the cell or its row sets an
  * alignment; `td` cells already follow their own `align` (`CellView` writes `align` and
  * `valign`, the `tr` its `align`).
  */
-.fb-editor .fb-table :is(th, td)[valign='middle'] {
-  vertical-align: middle;
+  .fb-editor .fb-table :is(th, td)[valign='middle'] {
+    vertical-align: middle;
+  }
+
+  .fb-editor .fb-table :is(th, td)[valign='bottom'] {
+    vertical-align: bottom;
+  }
+
+  .fb-editor .fb-table th[align='left'] {
+    text-align: left;
+  }
+
+  .fb-editor .fb-table th[align='right'] {
+    text-align: right;
+  }
+
+  .fb-editor .fb-table tr[align] > th:not([align]) {
+    text-align: inherit;
+  }
 }
 
-.fb-editor .fb-table :is(th, td)[valign='bottom'] {
-  vertical-align: bottom;
-}
-
-.fb-editor .fb-table th[align='left'] {
-  text-align: left;
-}
-
-.fb-editor .fb-table th[align='right'] {
-  text-align: right;
-}
-
-.fb-editor .fb-table tr[align] > th:not([align]) {
-  text-align: inherit;
-}
-
-/*
+@layer fb-marks {
+  /*
  * A selected block of cells (feature 006, data-model §5.6, C51): the tint over the cell's own
  * background, so header and data cells stay apart (Fast Mode included), and an accent line
  * that carries the visibility. Text selected inside a cell takes a colour that keeps 4.5:1.
  */
-.fb-editor .fb-table .mfbe-cell-selected {
-  background-image: linear-gradient(var(--mfbe-cell-selected-tint), var(--mfbe-cell-selected-tint));
-  box-shadow: inset 0 0 0 1px var(--mfbe-color-accent);
-}
+  .fb-editor .fb-table .mfbe-cell-selected {
+    background-image: linear-gradient(
+      var(--mfbe-cell-selected-tint),
+      var(--mfbe-cell-selected-tint)
+    );
+    box-shadow: inset 0 0 0 1px var(--mfbe-color-accent);
+  }
 
-.fb-editor .fb-table :is(td, th)::selection,
-.fb-editor .fb-table :is(td, th) *::selection {
-  background: var(--mfbe-cell-text-selection);
-}
+  .fb-editor .fb-table :is(td, th)::selection,
+  .fb-editor .fb-table :is(td, th) *::selection {
+    background: var(--mfbe-cell-text-selection);
+  }
 
-/*
+  /*
  * For a selection that is not visible (a block) ProseMirror still puts the DOM selection from
  * anchor to head and only adds this class: hidden inside tables, caret included, so the cell
  * colour does not paint cells outside the block. Scoped to tables: a selected image keeps its
  * tint.
  */
-.fb-editor.ProseMirror-hideselection .fb-table ::selection {
-  background: transparent;
+  .fb-editor.ProseMirror-hideselection .fb-table ::selection {
+    background: transparent;
+  }
+
+  .fb-editor.ProseMirror-hideselection .fb-table {
+    caret-color: transparent;
+  }
+
+  /* A table selected as a whole (Select table): the outline the hidden selection no longer gives. */
+  .fb-editor table.fb-table.fb-selected {
+    outline: 2px solid var(--mfbe-color-accent);
+    outline-offset: 1px;
+  }
 }
 
-.fb-editor.ProseMirror-hideselection .fb-table {
-  caret-color: transparent;
+@layer fb-look {
+  /* ---------------------------------------------------------------------- */
+  /* Images: pictures.css (imported at the top)                             */
+  /* ---------------------------------------------------------------------- */
+
+  /* ---------------------------------------------------------------------- */
+  /* Unknown elements (raw-xml)                                             */
+  /* ---------------------------------------------------------------------- */
+
+  .fb-editor .fb-unknown,
+  .fb-editor .fb-unknown-inline {
+    border: 1px dashed var(--mfbe-fb-unknown-border);
+    background: var(--mfbe-fb-unknown-bg);
+    color: var(--mfbe-fb-unknown-fg);
+    font: var(--mfbe-font-ui);
+  }
+
+  .fb-editor .fb-unknown {
+    padding: 2px 6px;
+    margin: 0.3em 0;
+  }
+
+  .fb-editor .fb-unknown-inline {
+    display: inline-block;
+    padding: 0 4px;
+    margin: 0 2px;
+    vertical-align: baseline;
+  }
+
+  .fb-unknown-name::before {
+    content: '<';
+  }
+
+  .fb-unknown-name::after {
+    content: '>';
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Fast mode (T154, FR-025; the original main_fast.css): the class        */
+  /* `mfbe-body-view--fast` is applied on the Body root by editor/fastMode */
+  /* .ts. No frames, backgrounds or colours, no font-size changes, images  */
+  /* collapsed to a placeholder box, no NBSP markers.                       */
+  /* ---------------------------------------------------------------------- */
+
+  .mfbe-body-view--fast .fb-editor div {
+    padding-left: 0.4em;
+    border-left: none;
+    background: transparent;
+  }
+
+  .mfbe-body-view--fast .fb-editor .fb-body {
+    padding: 0;
+  }
+
+  .mfbe-body-view--fast .fb-section,
+  .mfbe-body-view--fast .fb-cite,
+  .mfbe-body-view--fast .fb-epigraph,
+  .mfbe-body-view--fast .fb-annotation,
+  .mfbe-body-view--fast .fb-history,
+  .mfbe-body-view--fast .fb-poem,
+  .mfbe-body-view--fast .fb-stanza,
+  .mfbe-body-view--fast .fb-text-author,
+  .mfbe-body-view--fast .fb-date,
+  .mfbe-body-view--fast p.fb-text-author,
+  .mfbe-body-view--fast p.fb-date {
+    color: inherit;
+    font-size: inherit;
+  }
+
+  .mfbe-body-view--fast .fb-title {
+    padding: 0 0 0 0.3em;
+    background: transparent;
+    color: inherit;
+    font-size: inherit;
+    font-weight: bold;
+  }
+
+  .mfbe-body-view--fast a.fb-note {
+    font-size: inherit;
+  }
+
+  .mfbe-body-view--fast .fb-editor table.fb-table {
+    border-left: none;
+  }
+
+  .mfbe-body-view--fast .fb-table th,
+  .mfbe-body-view--fast .fb-table td {
+    background: transparent;
+    color: inherit;
+  }
+
+  .mfbe-body-view--fast .fb-code,
+  .mfbe-body-view--fast .fb-editor .fb-unknown,
+  .mfbe-body-view--fast .fb-editor .fb-unknown-inline {
+    background: transparent;
+  }
 }
 
-/* A table selected as a whole (Select table): the outline the hidden selection no longer gives. */
-.fb-editor table.fb-table.fb-selected {
-  outline: 2px solid var(--mfbe-color-accent);
-  outline-offset: 1px;
-}
+@layer fb-marks {
+  /* Images: pictures.css, "Fast Mode". */
 
-/* ---------------------------------------------------------------------- */
-/* Images: pictures.css (imported at the top)                             */
-/* ---------------------------------------------------------------------- */
+  /* Non-breaking spaces are shown as plain spaces. */
+  .mfbe-body-view--fast .fb-nbsp {
+    color: inherit;
+  }
 
-/* ---------------------------------------------------------------------- */
-/* Unknown elements (raw-xml)                                             */
-/* ---------------------------------------------------------------------- */
+  .mfbe-body-view--fast .fb-nbsp::before {
+    content: none;
+  }
 
-.fb-editor .fb-unknown,
-.fb-editor .fb-unknown-inline {
-  border: 1px dashed var(--mfbe-fb-unknown-border);
-  background: var(--mfbe-fb-unknown-bg);
-  color: var(--mfbe-fb-unknown-fg);
-  font: var(--mfbe-font-ui);
-}
-
-.fb-editor .fb-unknown {
-  padding: 2px 6px;
-  margin: 0.3em 0;
-}
-
-.fb-editor .fb-unknown-inline {
-  display: inline-block;
-  padding: 0 4px;
-  margin: 0 2px;
-  vertical-align: baseline;
-}
-
-.fb-unknown-name::before {
-  content: '<';
-}
-
-.fb-unknown-name::after {
-  content: '>';
-}
-
-/* ---------------------------------------------------------------------- */
-/* Fast mode (T154, FR-025; the original main_fast.css): the class        */
-/* `mfbe-body-view--fast` is applied on the Body root by editor/fastMode */
-/* .ts. No frames, backgrounds or colours, no font-size changes, images  */
-/* collapsed to a placeholder box, no NBSP markers.                       */
-/* ---------------------------------------------------------------------- */
-
-.mfbe-body-view--fast .fb-editor div {
-  padding-left: 0.4em;
-  border-left: none;
-  background: transparent;
-}
-
-.mfbe-body-view--fast .fb-editor .fb-body {
-  padding: 0;
-}
-
-.mfbe-body-view--fast .fb-section,
-.mfbe-body-view--fast .fb-cite,
-.mfbe-body-view--fast .fb-epigraph,
-.mfbe-body-view--fast .fb-annotation,
-.mfbe-body-view--fast .fb-history,
-.mfbe-body-view--fast .fb-poem,
-.mfbe-body-view--fast .fb-stanza,
-.mfbe-body-view--fast .fb-text-author,
-.mfbe-body-view--fast .fb-date,
-.mfbe-body-view--fast p.fb-text-author,
-.mfbe-body-view--fast p.fb-date {
-  color: inherit;
-  font-size: inherit;
-}
-
-.mfbe-body-view--fast .fb-title {
-  padding: 0 0 0 0.3em;
-  background: transparent;
-  color: inherit;
-  font-size: inherit;
-  font-weight: bold;
-}
-
-.mfbe-body-view--fast a.fb-note {
-  font-size: inherit;
-}
-
-.mfbe-body-view--fast .fb-editor table.fb-table {
-  border-left: none;
-}
-
-.mfbe-body-view--fast .fb-table th,
-.mfbe-body-view--fast .fb-table td {
-  background: transparent;
-  color: inherit;
-}
-
-.mfbe-body-view--fast .fb-code,
-.mfbe-body-view--fast .fb-editor .fb-unknown,
-.mfbe-body-view--fast .fb-editor .fb-unknown-inline {
-  background: transparent;
-}
-
-/* Images: pictures.css, "Fast Mode". */
-
-/* Non-breaking spaces are shown as plain spaces. */
-.mfbe-body-view--fast .fb-nbsp {
-  color: inherit;
-}
-
-.mfbe-body-view--fast .fb-nbsp::before {
-  content: none;
-}
-
-/* The current Find / Replace match (plugins/searchMatch.ts): drawn like a selection, also while
+  /* The current Find / Replace match (plugins/searchMatch.ts): drawn like a selection, also while
    the editor has no focus. */
-.fb-editor .mfbe-search-match {
-  background-color: Highlight;
-  color: HighlightText;
+  .fb-editor .mfbe-search-match {
+    background-color: Highlight;
+    color: HighlightText;
+  }
 }
 
 /* Feature 009 (US3, DP-11): the note tooltip - the theme's popup colours, the interface font
@@ -610,76 +635,81 @@ a.fb-note {
 .mfbe-note-tooltip[hidden] {
   display: none;
 }
-/* Ctrl (Cmd on macOS) held: links take the hand pointer, a click follows them (DP-12). */
-.mfbe-mod-held a.fb-link,
-.mfbe-mod-held a.fb-link * {
-  cursor: pointer;
-}
 
-/* Feature 011 (D51): an element that has an id carries a small "#id" tab at its top right, drawn
+@layer fb-marks {
+  /* Ctrl (Cmd on macOS) held: links take the hand pointer, a click follows them (DP-12). */
+  .mfbe-mod-held a.fb-link,
+  .mfbe-mod-held a.fb-link * {
+    cursor: pointer;
+  }
+
+  /* Feature 011 (D51): an element that has an id carries a small "#id" tab at its top right, drawn
    outside the text - it takes no clicks and cannot be typed into or selected. A paragraph, verse,
    subtitle or text author is also very faintly tinted; a quote, epigraph, poem or annotation has a
    faint outline instead; a section has only the tab beside its title; a cell only a "#" in its
    corner (its id in the tooltip). The accent colour at low strength over the Body view's own
    background reads the same in the light and the dark theme; View > Show Ids switches it off. */
-.mfbe-show-ids .fb-editor [data-id]:not(.fb-td, .fb-th, .fb-tr, .fb-body, .fb-desc-block) {
-  position: relative;
-  margin-top: 1.5em;
-}
+  .mfbe-show-ids .fb-editor [data-id]:not(.fb-td, .fb-th, .fb-tr, .fb-body, .fb-desc-block) {
+    position: relative;
+    margin-top: 1.5em;
+  }
 
-.mfbe-show-ids .fb-editor :is(.fb-p, .fb-v, .fb-subtitle, .fb-text-author)[data-id] {
-  border-radius: 3px 0 3px 3px;
-  background: color-mix(in srgb, var(--mfbe-color-accent) 9%, transparent);
-}
+  .mfbe-show-ids .fb-editor :is(.fb-p, .fb-v, .fb-subtitle, .fb-text-author)[data-id] {
+    border-radius: 3px 0 3px 3px;
+    background: color-mix(in srgb, var(--mfbe-color-accent) 9%, transparent);
+  }
 
-.mfbe-show-ids
-  .fb-editor
-  :is(.fb-cite, .fb-epigraph, .fb-poem, .fb-annotation:not(.fb-desc-block))[data-id] {
-  border-radius: 3px 0 3px 3px;
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--mfbe-color-accent) 40%, transparent);
-}
+  .mfbe-show-ids
+    .fb-editor
+    :is(.fb-cite, .fb-epigraph, .fb-poem, .fb-annotation:not(.fb-desc-block))[data-id] {
+    border-radius: 3px 0 3px 3px;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--mfbe-color-accent) 40%, transparent);
+  }
 
-.mfbe-show-ids .fb-editor [data-id]:not(.fb-td, .fb-th, .fb-tr, .fb-body, .fb-desc-block)::before {
-  content: '#' attr(data-id);
-  position: absolute;
-  right: 0;
-  bottom: 100%;
-  z-index: 1;
-  max-width: 70%;
-  overflow: hidden;
-  padding: 0 6px;
-  border-radius: 4px 4px 0 0;
-  background: color-mix(in srgb, var(--mfbe-color-accent) 22%, transparent);
-  color: var(--mfbe-color-accent);
-  font:
-    600 10px/1.6 system-ui,
-    sans-serif;
-  font-style: normal;
-  letter-spacing: 0;
-  text-align: right;
-  text-decoration: none;
-  text-indent: 0;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  pointer-events: none;
-  user-select: none;
-}
+  .mfbe-show-ids
+    .fb-editor
+    [data-id]:not(.fb-td, .fb-th, .fb-tr, .fb-body, .fb-desc-block)::before {
+    content: '#' attr(data-id);
+    position: absolute;
+    right: 0;
+    bottom: 100%;
+    z-index: 1;
+    max-width: 70%;
+    overflow: hidden;
+    padding: 0 6px;
+    border-radius: 4px 4px 0 0;
+    background: color-mix(in srgb, var(--mfbe-color-accent) 22%, transparent);
+    color: var(--mfbe-color-accent);
+    font:
+      600 10px/1.6 system-ui,
+      sans-serif;
+    font-style: normal;
+    letter-spacing: 0;
+    text-align: right;
+    text-decoration: none;
+    text-indent: 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    pointer-events: none;
+    user-select: none;
+  }
 
-.mfbe-show-ids .fb-editor :is(.fb-td, .fb-th)[data-id] {
-  position: relative;
-  /* room for the corner mark, so it never covers the cell's text */
-  padding-right: 12px;
-}
+  .mfbe-show-ids .fb-editor :is(.fb-td, .fb-th)[data-id] {
+    position: relative;
+    /* room for the corner mark, so it never covers the cell's text */
+    padding-right: 12px;
+  }
 
-.mfbe-show-ids .fb-editor :is(.fb-td, .fb-th)[data-id]::after {
-  content: '#';
-  position: absolute;
-  top: 1px;
-  right: 3px;
-  color: var(--mfbe-color-accent);
-  font:
-    700 9px/1 system-ui,
-    sans-serif;
-  pointer-events: none;
-  user-select: none;
+  .mfbe-show-ids .fb-editor :is(.fb-td, .fb-th)[data-id]::after {
+    content: '#';
+    position: absolute;
+    top: 1px;
+    right: 3px;
+    color: var(--mfbe-color-accent);
+    font:
+      700 9px/1 system-ui,
+      sans-serif;
+    pointer-events: none;
+    user-select: none;
+  }
 }
