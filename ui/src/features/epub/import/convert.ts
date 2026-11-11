@@ -1244,6 +1244,10 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
   // The one FB2 body besides the notes, from what the pages gave (D34: the further bodies of the
   // editor's own EPUB are its sections by then).
   function assembleBody(): string {
+    // Loose blocks as the untitled section FB2 requires around them. A picture alone there is the
+    // section's own picture, which content must follow (FB2 2.1's sectionType).
+    const looseSection = (run: string[]): string =>
+      `<section>${run.join('')}${run.length === 1 && run[0]!.startsWith('<image') ? '<empty-line/>' : ''}</section>`;
     // D18: one opening heading above all chapters is the body's title.
     // Not for the editor's own EPUB, whose body title is always marked (fb2-body-title).
     if (
@@ -1279,7 +1283,7 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
       } else {
         let run: string[] = [];
         const flush = (): void => {
-          if (run.length > 0) inner += `<section>${run.join('')}</section>`;
+          if (run.length > 0) inner += looseSection(run);
           run = [];
         };
         for (const child of section.blocks) {
@@ -1298,12 +1302,12 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
     for (const child of root.blocks) {
       if (typeof child === 'string') run.push(child);
       else {
-        if (run.length > 0) bodyInner += `<section>${run.join('')}</section>`;
+        if (run.length > 0) bodyInner += looseSection(run);
         run = [];
         bodyInner += sectionXml(child);
       }
     }
-    if (run.length > 0) bodyInner += `<section>${run.join('')}</section>`;
+    if (run.length > 0) bodyInner += looseSection(run);
     if (!bodyInner) bodyInner = '<section><empty-line/></section>';
     return `<body>${bodyImage ?? ''}${bodyTitle ?? ''}${bodyEpigraphs.join('')}${bodyInner}</body>`;
   }

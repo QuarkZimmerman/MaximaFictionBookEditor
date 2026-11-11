@@ -41,9 +41,9 @@ test.describe('the hostile EPUBs (feature 012, SC-009)', () => {
     page,
   }) => {
     for (const [name, dialog] of [
-      ['zip-bomb.epub', 'dialog-epub-import-failed'],
-      ['not-zip.epub', 'dialog-epub-import-failed'],
-      ['password-zip.epub', 'dialog-epub-import-failed'],
+      ['zip-bomb.epub', 'dialog-epub-import-refused'],
+      ['not-zip.epub', 'dialog-epub-import-refused'],
+      ['password-zip.epub', 'dialog-epub-import-refused'],
       ['drm-adept.epub', 'dialog-epub-protected'],
     ] as const) {
       await importViaMenu(core, page, epub(name));

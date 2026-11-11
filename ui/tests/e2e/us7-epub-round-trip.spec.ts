@@ -9,15 +9,14 @@
  * results as JSON.
  */
 
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import type { Page } from '@playwright/test';
-
-import { expect, fixtureBook, test, waitForBook, type CoreHandle } from './fixtures/core';
+import { expect, fixtureBook, test } from './fixtures/core';
 import { bodyErrors, bookXml, importDone, importViaMenu } from './fixtures/epubImport';
+import { exportEpubTo, openBookCopy } from './fixtures/epubExport';
 
 const COMPARE = readFileSync(
   path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../tests/epub/compare-fb2.js'),
@@ -56,40 +55,6 @@ function keepInvalid(book: string, xml: string): string | undefined {
   return file;
 }
 
-async function openCopy(core: CoreHandle, page: Page, book: string, dir: string): Promise<string> {
-  const copy = path.join(dir, path.basename(book));
-  copyFileSync(book, copy);
-  await core.enqueueDialog('dialog.openFile', { paths: [copy] });
-  await page.getByTestId('menu-file').click();
-  await page.getByTestId('menu-file-open').click();
-  await waitForBook(page, copy, 120_000);
-  return copy;
-}
-
-async function exportEpub(core: CoreHandle, page: Page, target: string): Promise<void> {
-  await core.enqueueDialog('dialog.saveFile', { path: target });
-  await page.getByTestId('menu-file').click();
-  await page.getByTestId('menu-file-export').hover();
-  await page.getByTestId('menu-file-export-exportEpub').click();
-  const status = page.getByTestId('status-message');
-  const summary = page.getByTestId('dialog-epub-export-summary');
-  const failed = page.getByTestId('dialog-epub-export-failed');
-  await expect
-    .poll(
-      async () => {
-        if (await failed.isVisible())
-          throw new Error(`the export failed: ${await failed.textContent()}`);
-        if (await summary.isVisible()) {
-          await summary.getByRole('button', { name: 'OK' }).click();
-          return true;
-        }
-        return (await status.textContent())?.includes(`Exported to ${target}`) ?? false;
-      },
-      { timeout: 120_000 },
-    )
-    .toBe(true);
-}
-
 test.describe('US7 (feature 012) - export and import again', () => {
   test('each book comes back, apart from D34 (SC-013)', async ({ core, page }) => {
     test.skip(!core.hasCore, 'needs mfbe-core (MFBE_CORE_BIN)');
@@ -101,11 +66,11 @@ test.describe('US7 (feature 012) - export and import again', () => {
     for (const book of list) {
       const dir = mkdtempSync(path.join(os.tmpdir(), 'mfbe-round-trip-'));
       try {
-        await openCopy(core, page, book, dir);
+        await openBookCopy(core, page, book, dir);
         const invalid = await bodyErrors(core, page);
         const original = await bookXml(core, page);
         const epub = path.join(dir, 'book.epub');
-        await exportEpub(core, page, epub);
+        await exportEpubTo(core, page, epub);
         // importDone waits for the new book to be the shown one.
         await importDone(page, await importViaMenu(core, page, epub), 120_000);
         const againErrors = await bodyErrors(core, page);

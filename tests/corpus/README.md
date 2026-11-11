@@ -99,3 +99,28 @@ tests/corpus/run.sh tests/corpus/sample-1-50.txt --check-hashes tests/corpus/bas
 The report's line "saves as recorded (G10)" must read all of them; any book saved differently fails
 the run. `--save-hashes FILE` records such a file; a baseline is recorded again only when a feature
 means to change how untouched books are written, never to make the check pass.
+
+## The EPUB runs (feature 012, before every rc tag)
+
+Both runs go through the editor itself, the journey `ui/tests/e2e/corpus-epub.spec.ts` against the real
+core and the built interface, so build `ui/dist` first (`npm run build` in `ui/`). They use the release
+core when it is built, else the debug one (`--core` chooses).
+
+- `--epub-export` exports every FB2 book of the sample to EPUB and checks each file with EPUBCheck
+  (`tools/ci/epubcheck.sh`, the pinned release; Java 11 or newer): any failed export and any fatal
+  error, error or warning fails the run (SC-022).
+- `--epub-import LIST` imports the EPUB books of LIST, each within a time limit, and validates each new
+  book's bodies: a failed or hung import and any invalid body fail the run. A book the core refuses -
+  DRM, or not a readable EPUB - is listed with its message and is no fault.
+
+The EPUB sample comes from the library's EPUB books, drawn like the strata (`--ext epub`: ids up to
+654000, a file's existence decides, its content is not read):
+
+```bash
+tests/corpus/sample.py --ext epub --count 100 --seed 1 --out tests/corpus/sample-epub-100.txt
+tests/corpus/run.sh tests/corpus/sample-1-50.txt --epub-export --epub-import tests/corpus/sample-epub-100.txt
+```
+
+`epub-export.py` and `epub-import.py` also run on their own (`LIST [--out DIR] [--core PATH]`); each
+writes `report.txt` and `report.json` in its folder, by default `tests/corpus/out/epub-export` and
+`tests/corpus/out/epub-import`.

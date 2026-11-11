@@ -32,6 +32,21 @@ async function convert(pages: ConvertPage[], extra: Partial<ConvertInput> = {}) 
 }
 
 describe('the EPUB import: structure (D18)', () => {
+  it('gives a page holding only a picture a valid untitled section (FB2 2.1: content after it)', async () => {
+    // After the cover (the image-only first page), a publisher's logo on a page of its own.
+    const book = await convert([
+      page(
+        'OEBPS/cover.xhtml',
+        '<body><div><img src="images/cover.jpg" alt="Cover"/></div></body>',
+      ),
+      page('OEBPS/logo.xhtml', '<body><div><img src="images/pic.png" alt="Logo"/></div></body>'),
+      page('OEBPS/a.xhtml', '<body><h2>One</h2><p>a</p><h2>Two</h2><p>b</p></body>'),
+    ]);
+    expect(book.bodyXml).toMatch(
+      /^<body><section><image l:href="#pic" alt="Logo"\/><empty-line\/><\/section><section><title>/,
+    );
+  });
+
   it('makes sections from the headings by their levels relative to each other', async () => {
     const book = await convert([
       page(

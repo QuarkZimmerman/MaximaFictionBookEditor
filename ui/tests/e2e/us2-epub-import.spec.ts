@@ -103,8 +103,8 @@ test.describe('US2 (feature 012) - the EPUB import', () => {
     await page.getByTestId('dialog-epub-protected-button-ok').click();
     for (const name of ['not-zip.epub', 'zip-bomb.epub', 'password-zip.epub']) {
       await importViaMenu(core, page, epub(name));
-      await expect(page.getByTestId('dialog-epub-import-failed')).toBeVisible({ timeout: 20_000 });
-      await page.getByTestId('dialog-epub-import-failed-button-ok').click();
+      await expect(page.getByTestId('dialog-epub-import-refused')).toBeVisible({ timeout: 20_000 });
+      await page.getByTestId('dialog-epub-import-refused-button-ok').click();
     }
     await importDone(page, await importViaMenu(core, page, epub('font-obfuscation.epub')));
   });

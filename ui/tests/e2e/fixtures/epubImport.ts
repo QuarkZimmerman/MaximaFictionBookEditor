@@ -46,6 +46,9 @@ export async function importViaMenu(
  * the progress gone (the status line may still hold the previous import's message), or the failure;
  * a summary is closed.
  */
+/** The core refused the file (DRM, or not a readable EPUB): an outcome of the import, not a fault. */
+export class ImportRefused extends Error {}
+
 export async function importDone(
   page: Page,
   before: string | null,
@@ -53,15 +56,26 @@ export async function importDone(
 ): Promise<string> {
   const summary = page.getByTestId('dialog-epub-import-summary');
   const failed = page.getByTestId('dialog-epub-import-failed');
+  const refused = page.getByTestId('dialog-epub-import-refused');
+  const protectedBook = page.getByTestId('dialog-epub-protected');
   const progress = page.getByTestId('modal-job');
   await expect
     .poll(
       async () =>
         (await failed.isVisible()) ||
+        (await refused.isVisible()) ||
+        (await protectedBook.isVisible()) ||
         ((await shownDocId(page)) !== before && !(await progress.isVisible())),
       { timeout },
     )
     .toBe(true);
+  for (const dialog of [refused, protectedBook]) {
+    if (await dialog.isVisible()) {
+      const text = (await dialog.textContent()) ?? '';
+      await dialog.getByRole('button', { name: 'OK' }).click({ timeout: 15_000 });
+      throw new ImportRefused(text);
+    }
+  }
   if (await failed.isVisible()) throw new Error(`the import failed: ${await failed.textContent()}`);
   // The summary, when there is one, follows the end of the progress at once.
   const shown = await summary

@@ -21,12 +21,17 @@ LE or BE alike) and its text, decoded by its BOM or XML declaration, matches
 REGEX (--matching). The first --count matches in draw order are written sorted,
 the same list whatever the number of threads.
 
+EPUB mode (--ext epub; feature 012, DP-19): the draw mode over the library's EPUB books
+(<id>/<id>.epub, ids up to 654000 by default, where the library's last range ends): an id is kept
+when its file exists, with no read of its content.
+
 Ids mode (--ids): the paths of the given ids; a missing one is reported.
 
 Usage:
   tests/corpus/sample.py --count 500 --seed 1 [--include-fbd] [--root /book_disk/books]
   tests/corpus/sample.py --containing "<table" --count 300 --seed 6 --out LIST [--threads 8] [--max-id 652500]
   tests/corpus/sample.py --matching REGEX --count 5 --seed 6 --out LIST
+  tests/corpus/sample.py --ext epub --count 100 --seed 1 --out tests/corpus/sample-epub-100.txt
   tests/corpus/sample.py --ids ID [ID ...] --out LIST
 Output: the whole-library mode writes tests/corpus/sample-<seed>-<count>.txt by
 default (git-ignored); the other modes write --out. A short summary goes to stdout.
@@ -48,6 +53,8 @@ from typing import Callable
 
 DEFAULT_ROOT = Path("/book_disk/books")
 DEFAULT_MAX_ID = 652500
+# The EPUB books reach past the FB2 default; the library's last range ends at this id.
+DEFAULT_MAX_ID_EPUB = 654000
 
 
 def iter_books(root: Path, include_fbd: bool):
@@ -79,7 +86,7 @@ def iter_books(root: Path, include_fbd: bool):
 # ------------------------------------------------------------------------------------------
 
 
-def book_path(root: Path, book_id: int) -> Path:
+def book_path(root: Path, book_id: int, ext: str = "fb2") -> Path:
     """The library's path of a book id, e.g. 6 ->
     <root>/00000001-00250000/00000001-00000500/00000006/6.fb2."""
     top = (book_id - 1) // 250_000 * 250_000 + 1
@@ -89,7 +96,7 @@ def book_path(root: Path, book_id: int) -> Path:
         / f"{top:08d}-{top + 249_999:08d}"
         / f"{sub:08d}-{sub + 499:08d}"
         / f"{book_id:08d}"
-        / f"{book_id}.fb2"
+        / f"{book_id}.{ext}"
     )
 
 
@@ -139,7 +146,7 @@ class Probe:
 
 
 def make_check(
-    root: Path, containing: str | None, matching: re.Pattern[str] | None
+    root: Path, containing: str | None, matching: re.Pattern[str] | None, ext: str = "fb2"
 ) -> Callable[[int], Probe]:
     needles = []
     if containing is not None:
@@ -150,8 +157,14 @@ def make_check(
         ]
 
     def check(book_id: int) -> Probe:
+        if not needles and matching is None:
+            # Nothing to look for in the content (the EPUB mode): the file's existence decides.
+            try:
+                return Probe(True, book_path(root, book_id, ext).stat().st_size, True)
+            except (FileNotFoundError, NotADirectoryError):
+                return Probe(False)
         try:
-            with open(book_path(root, book_id), "rb") as fh:
+            with open(book_path(root, book_id, ext), "rb") as fh:
                 data = fh.read()
         except (FileNotFoundError, NotADirectoryError):
             return Probe(False)
@@ -229,11 +242,11 @@ def run_draw(args: argparse.Namespace) -> int:
         except re.error as error:
             print(f"--matching: not a regular expression: {error}", file=sys.stderr)
             return 2
-    check = make_check(args.root, args.containing, matching)
+    check = make_check(args.root, args.containing, matching, args.ext)
     matches, stats = draw_matches(
         draw_order(args.seed, args.max_id), check, args.count, max(1, args.threads)
     )
-    paths = sorted(str(book_path(args.root, book_id)) for book_id in matches)
+    paths = sorted(str(book_path(args.root, book_id, args.ext)) for book_id in matches)
     write_list(args.out, paths)
     print(
         f"drew {stats['drawn']} ids (seed {args.seed}, 1 to {args.max_id}):"
@@ -251,7 +264,7 @@ def run_ids(args: argparse.Namespace) -> int:
     paths: set[str] = set()
     missing = 0
     for book_id in args.ids:
-        path = book_path(args.root, book_id)
+        path = book_path(args.root, book_id, args.ext)
         if path.is_file():
             paths.add(str(path))
         else:
@@ -285,18 +298,25 @@ def main() -> int:
                     help="draw mode: keep books whose decoded text matches REGEX")
     ap.add_argument("--ids", type=positive_id, nargs="+", metavar="ID",
                     help="write the paths of these book ids")
-    ap.add_argument("--max-id", type=positive_id, default=DEFAULT_MAX_ID,
-                    help=f"draw mode: the highest id drawn (default {DEFAULT_MAX_ID})")
+    ap.add_argument("--max-id", type=positive_id, default=None,
+                    help=f"draw mode: the highest id drawn (default {DEFAULT_MAX_ID}, "
+                         f"{DEFAULT_MAX_ID_EPUB} with --ext epub)")
+    ap.add_argument("--ext", choices=("fb2", "epub"), default="fb2",
+                    help="the books' kind: fb2 (default), or epub - the draw mode over EPUB books")
     ap.add_argument("--threads", type=int, default=8, help="draw mode: reader threads (default 8)")
     args = ap.parse_args()
 
-    draw = args.containing is not None or args.matching is not None
+    if args.max_id is None:
+        args.max_id = DEFAULT_MAX_ID_EPUB if args.ext == "epub" else DEFAULT_MAX_ID
+    if args.ext == "epub" and (args.containing is not None or args.matching is not None):
+        ap.error("--ext epub reads no content: an EPUB is a ZIP, --containing and --matching read FB2 text")
+    draw = args.containing is not None or args.matching is not None or args.ext == "epub"
     if args.ids and draw:
         ap.error("--ids cannot be combined with --containing or --matching")
     if args.containing == "":
         ap.error("--containing needs a non-empty TEXT")
     if (draw or args.ids) and args.out is None:
-        ap.error("--containing, --matching and --ids need --out")
+        ap.error("--containing, --matching, --ext epub and --ids need --out")
 
     if not args.root.is_dir():
         print(f"corpus root not found: {args.root}", file=sys.stderr)

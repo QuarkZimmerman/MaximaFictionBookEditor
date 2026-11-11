@@ -434,7 +434,8 @@ export async function importEpub(
         (error.data as { reason?: string } | undefined)?.reason ?? 'epub.notZip'
       ).replace(/^epub\./, '');
       reason = ctx.t(`epub.refused.${code}`);
-      if (code === 'protected') testId = 'dialog-epub-protected';
+      // The core refused the file - DRM, or not a readable EPUB (D17, D29): an outcome, not a fault.
+      testId = code === 'protected' ? 'dialog-epub-protected' : 'dialog-epub-import-refused';
     }
     await ctx.dialogs.showMessage({
       text: ctx.t('epub.importFailed', { path, reason }),
