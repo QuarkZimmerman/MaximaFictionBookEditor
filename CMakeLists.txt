@@ -14,7 +14,7 @@ project(MaximaFictionBookEditor
 # The pre-release part of the version label: 0.0.6-rc, and 0.0.6-rc.N from a release tag
 # v0.0.6-rc.N (cmake/MfbeVersion.cmake). It is emptied only for a final version, on the
 # requester's word (feature 006, FR-054).
-set(MFBE_VERSION_PRERELEASE "rc")
+set(MFBE_VERSION_PRERELEASE "")
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
