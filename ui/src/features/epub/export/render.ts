@@ -243,20 +243,24 @@ export function renderTitle(
   level: number | null,
   kind = 'fb2-title',
 ): string {
-  const lines = title.content
-    .filter((line): line is ParagraphNode => line.type === 'p')
-    .map((line) => {
-      const inner = renderInline(line.content, ctx);
-      const id = idAttr(ctx, line.attrs.nodeId);
-      return id ? `<span${id}>${inner}</span>` : inner;
-    });
+  // D34: a title's empty lines too, marked, so that the editor's import gives them back.
+  const EMPTY = '\u0000empty';
+  const lines = title.content.map((line) => {
+    if (line.type !== 'p') return EMPTY;
+    const inner = renderInline(line.content, ctx);
+    const id = idAttr(ctx, line.attrs.nodeId);
+    return id ? `<span${id}>${inner}</span>` : inner;
+  });
   if (level === null) {
     return `<div${idAttr(ctx, title.attrs.nodeId)}${classAttr(kind)}${langAttrs(title.attrs.lang)}>${lines
-      .map((line) => `<p>${line}</p>`)
+      .map((line) => (line === EMPTY ? '<p class="fb2-empty-line">\u00a0</p>' : `<p>${line}</p>`))
       .join('')}</div>`;
   }
+  const shown = lines.map((line) =>
+    line === EMPTY ? '<span class="fb2-empty-line"></span>' : line,
+  );
   const tag = `h${Math.min(Math.max(level, 1), 6)}`;
-  return `<${tag}${idAttr(ctx, title.attrs.nodeId)}${classAttr(kind)}${langAttrs(title.attrs.lang)}>${lines.join('<br/>')}</${tag}>`;
+  return `<${tag}${idAttr(ctx, title.attrs.nodeId)}${classAttr(kind)}${langAttrs(title.attrs.lang)}>${shown.join('<br/>')}</${tag}>`;
 }
 
 /** The plain text of a title's lines, joined by spaces (the contents' entries). */

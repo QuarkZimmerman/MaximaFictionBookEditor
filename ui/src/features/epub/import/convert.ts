@@ -790,9 +790,46 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
     });
   };
 
+  // A title line by line: the <p>s of a <div> title, or a heading's runs between its <br>s; a line
+  // marked fb2-empty-line is FB2's empty line (D34). Each line keeps the heading's class and language.
   const titleXml = (element: Element): string => {
-    const lines = paragraphsOf(element).map((line) => line.replace(/^<p id="[^"]*"/, '<p'));
-    return lines.length > 0 ? `<title>${lines.join('')}</title>` : '';
+    const lines: string[] = [];
+    const line = (node: Element): void => {
+      if (classes(node).includes('fb2-empty-line')) lines.push('<empty-line/>');
+      else lines.push(...paragraphsOf(node).map((one) => one.replace(/^<p id="[^"]*"/, '<p')));
+    };
+    const children = Array.from(element.children);
+    if (children.length > 0 && children.every((child) => ['p', 'div'].includes(local(child)))) {
+      for (const child of children) line(child);
+    } else {
+      let segment: ChildNode[] = [];
+      const flush = (): void => {
+        const marks = segment.filter((node) => node.nodeType === Node.ELEMENT_NODE) as Element[];
+        const words = segment
+          .filter((node) => node.nodeType !== Node.ELEMENT_NODE)
+          .map((node) => node.nodeValue ?? '')
+          .join('')
+          .trim();
+        if (marks.length === 1 && !words && classes(marks[0]!).includes('fb2-empty-line')) {
+          lines.push('<empty-line/>');
+        } else if (segment.length > 0) {
+          const holder = element.ownerDocument.createElement('p');
+          for (const name of ['class', 'lang', 'xml:lang']) {
+            const value = element.getAttribute(name);
+            if (value) holder.setAttribute(name, value);
+          }
+          for (const node of segment) holder.appendChild(node.cloneNode(true));
+          line(holder);
+        }
+        segment = [];
+      };
+      for (const node of Array.from(element.childNodes)) {
+        if (node.nodeType === Node.ELEMENT_NODE && local(node as Element) === 'br') flush();
+        else segment.push(node);
+      }
+      flush();
+    }
+    return lines.some((one) => one !== '<empty-line/>') ? `<title>${lines.join('')}</title>` : '';
   };
 
   const plainTitle = (text: string): string => `<title><p>${escapeText(text)}</p></title>`;
@@ -1020,6 +1057,23 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
     }
     // D34: the editor's sections carry their id on their page's <div>, not on the heading.
     if (kind.includes('fb2-section') && !kind.includes('fb-continued')) {
+      const titled = Array.from(element.children).some(
+        (child) => headingLevel(child) !== null || classes(child).includes('fb2-title'),
+      );
+      if (input.editorBook && !titled) {
+        // An untitled section keeps its level - one past the section <div>s around it on its page,
+        // as the export's headings count - and closes after its own content.
+        let level = 1;
+        for (let up = element.parentElement; up; up = up.parentElement) {
+          if (classes(up).includes('fb2-section')) level++;
+        }
+        openSection(level, '', idFor(currentPage, element));
+        const opened = top();
+        blockContent(element, listDepth);
+        const at = stack.indexOf(opened);
+        if (at > 0) stack.length = at;
+        return;
+      }
       pendingSectionId = idFor(currentPage, element);
       blockContent(element, listDepth);
       pendingSectionId = undefined;
@@ -1183,7 +1237,13 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
   // EPUB (D34), one for any other book.
   function assembleBody(name?: string): string {
     // D18: one opening heading above all chapters is the body's title.
-    if (!bodyTitle && root.blocks.length === 1 && typeof root.blocks[0] !== 'string') {
+    // Not for the editor's own EPUB, whose body title is always marked (fb2-body-title).
+    if (
+      !input.editorBook &&
+      !bodyTitle &&
+      root.blocks.length === 1 &&
+      typeof root.blocks[0] !== 'string'
+    ) {
       const only = root.blocks[0] as Section;
       if (
         only.title &&
@@ -1356,7 +1416,10 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
       const content =
         (stack[0]!.blocks.filter((one) => typeof one === 'string') as string[]).join('') ||
         '<empty-line/>';
-      const title = definition.title ?? (definition.label ? plainTitle(definition.label) : '');
+      // The editor's own notes keep the title they had - none when they had none (D34).
+      const title =
+        definition.title ??
+        (!input.editorBook && definition.label ? plainTitle(definition.label) : '');
       sections.push(`<section id="${definition.fbId}">${title}${content}</section>`);
       stats.notes++;
     }

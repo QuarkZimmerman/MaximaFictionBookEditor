@@ -175,6 +175,17 @@
         `${part}: line ${aLo + 1} of the original (${aHi - aLo} line(s)) against line ${bLo + 1} ` +
           `of the book imported again (${bHi - bLo})`,
       );
+      if (aHi - aLo === 1 && bHi - bLo === 1) {
+        // One line against one: shown around its first difference, which may lie far into it.
+        const x = a[aLo];
+        const y = b[bLo];
+        let at = 0;
+        while (at < x.length && at < y.length && x[at] === y[at]) at++;
+        const from = Math.max(0, at - 80);
+        const cut = (line) => `${from > 0 ? '…' : ''}${line.slice(from, at + 120)}`;
+        differences.push(`  - ${cut(x)}`, `  + ${cut(y)}`);
+        continue;
+      }
       for (let k = 0; k < Math.min(3, aHi - aLo); k++) differences.push(`  - ${a[aLo + k].slice(0, 240)}`);
       for (let k = 0; k < Math.min(3, bHi - bLo); k++) differences.push(`  + ${b[bLo + k].slice(0, 240)}`);
     }
