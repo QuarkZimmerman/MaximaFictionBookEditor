@@ -2,8 +2,9 @@
  * Feature 012 (US1; D2, D3, D13, D33; FR-002-FR-005, FR-015): File > Export > Export as EPUB.... The
  * first module of the lazy chunk `epub-export`.
  *
- * The Save dialog proposes the book's name with `.epub` in its folder and carries no options (D2).
- * The export writes the book as the window has it, Source edits applied first (D3); it is modal -
+ * The command applies Source edits (D3), shows the Save dialog - the book's name with `.epub` in its
+ * folder, no options (D2) - and starts the progress before this part loads (index.ts, D32). The
+ * export writes the book as the window has it; it is modal -
  * progress and *Cancel*, the window refuses to close - and leaves no trace: no Recent files, no
  * folder of its own, no setting, no change of the document (D33). The core puts the pictures into
  * the EPUB; the pages, the navigation and the package are built here and checked before anything
@@ -11,28 +12,20 @@
  */
 
 import type { CommandContext } from '@/app/commands';
-import { startModalJob } from '@/app/modalJob';
 import { proposedStem } from '@/features/file/proposedName';
 import type { Document } from '@/model/document';
 import { epubWriteUrl } from '@/model/binaryUrls';
 import { actions } from '@/model/store';
 import { isRpcError } from '@/rpc/client';
 import { RpcErrorCode } from '@/rpc/types';
-import { commitPendingSource } from '@/views/source/sourceSession';
 
+import type { EpubRun } from '../index';
 import { NameAllocator } from '../shared/names';
 import { wordsLanguage } from '../shared/words';
 import { buildEpub, verifyEpub } from './build';
 import type { PlacedPicture, SummaryItem } from './render';
 
 class Cancelled extends Error {}
-
-/** The folder part of a path, with its separator ('' for a book never saved). */
-function folderOf(path: string | null | undefined): string {
-  if (!path) return '';
-  const at = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
-  return at >= 0 ? path.slice(0, at + 1) : '';
-}
 
 /** The binaries the book shows, the cover first, then in book order; each once (D12). */
 export function usedPictures(document: Document): string[] {
@@ -86,32 +79,23 @@ function summaryLines(ctx: CommandContext, summary: readonly SummaryItem[]): str
   return shown;
 }
 
-/** The whole flow of an export; resolves true once the file is written. */
-export async function exportEpub(ctx: CommandContext): Promise<boolean> {
+/**
+ * The export of the book `docId` to `run.path` under `run.modal`, which the command started once the
+ * Save dialog gave a file (index.ts, D32); resolves true once the file is written.
+ */
+export async function exportEpub(
+  ctx: CommandContext,
+  docId: string,
+  run: EpubRun,
+): Promise<boolean> {
   const { store, rpc } = ctx;
-  if (!rpc) return false;
-  if ((await commitPendingSource(ctx)) === 'error') return false;
-  const state = store.getState();
-  if (!state.document || !state.docId) return false;
-  const docId = state.docId;
-  const stem = proposedStem(state.document.description, ctx.t('app.untitled'));
-  const choice = await rpc.call('dialog.saveFile', {
-    title: ctx.t('cmd.file.exportEpub.tooltip'),
-    filters: [{ name: ctx.t('epub.filter'), extensions: ['epub'] }],
-    selectedFilter: 0,
-    // D2: the book's name in the book's folder; the dialog keeps no folder of its own (D33).
-    defaultPath: `${folderOf(state.path)}${stem}.epub`,
-  });
-  const path = choice.path;
-  if (!path) return false;
+  const { path, modal } = run;
   const current = store.getState();
-  if (!current.document || current.docId !== docId) return false;
+  if (!rpc || !current.document || current.docId !== docId) {
+    modal.end();
+    return false;
+  }
   const document = current.document;
-
-  let cancelled = false;
-  const modal = startModalJob(ctx.t('epub.exporting'), () => {
-    cancelled = true;
-  });
   let token: string | null = null;
   try {
     token = (await rpc.call('epub.write.begin', { path, docId })).token;
@@ -134,7 +118,7 @@ export async function exportEpub(ctx: CommandContext): Promise<boolean> {
     const placed = new Map<string, PlacedPicture>();
     const leftOut: SummaryItem[] = [];
     for (const binaryId of pictures) {
-      if (cancelled) throw new Cancelled();
+      if (run.cancelled()) throw new Cancelled();
       try {
         const result = await rpc.call('epub.write.binary', {
           token,
@@ -154,12 +138,13 @@ export async function exportEpub(ctx: CommandContext): Promise<boolean> {
       }
       modal.progress(++done, total);
     }
-    if (cancelled) throw new Cancelled();
+    if (run.cancelled()) throw new Cancelled();
     const built = buildEpub({
       document,
       pictures: placed,
       modified: new Date(),
-      fallbackTitle: stem,
+      // D4: a book without a title takes the name the Save dialog proposed (index.ts).
+      fallbackTitle: proposedStem(document.description, ctx.t('app.untitled')),
       genreNames: genres,
     });
     const faults = verifyEpub(
@@ -171,7 +156,7 @@ export async function exportEpub(ctx: CommandContext): Promise<boolean> {
     }
     modal.progress(++done, total);
     for (const file of built.files) {
-      if (cancelled) throw new Cancelled();
+      if (run.cancelled()) throw new Cancelled();
       await put(token, file.name, file.text);
     }
     await rpc.call('epub.write.commit', { token });
@@ -207,7 +192,7 @@ export async function exportEpub(ctx: CommandContext): Promise<boolean> {
   } catch (error) {
     modal.end();
     if (token) await rpc.call('epub.write.abort', { token }).catch(() => undefined);
-    if (cancelled || error instanceof Cancelled) {
+    if (run.cancelled() || error instanceof Cancelled) {
       actions.setStatusMessage(store, ctx.t('epub.exportCancelled'));
       return false;
     }

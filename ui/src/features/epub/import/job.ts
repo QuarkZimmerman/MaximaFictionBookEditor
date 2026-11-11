@@ -2,9 +2,9 @@
  * Feature 012 (US2, US3; D14-D17, D23-D31, D33; FR-020-FR-031, FR-040-FR-045): File > Import > EPUB
  * File.... The first module of the lazy chunk `epub-import`.
  *
- * The unsaved-changes question first, as Open asks it; then the EPUB, opened by the core, which
- * refuses DRM, files that are not EPUB books and hostile archives before anything is read (D17,
- * D29). The package, the table of contents, the pages and the book's stylesheets are read here and
+ * The command asks the unsaved-changes question, as Open asks it, shows the Open dialog and starts the
+ * progress before this part loads (index.ts, D32). Here the EPUB is opened by the core, which refuses
+ * DRM, files that are not EPUB books and hostile archives before anything is read (D17, D29). The package, the table of contents, the pages and the book's stylesheets are read here and
  * converted to an FB2 book; formulas and drawings are drawn before the book is made, its pictures
  * put into it - as JPEG or PNG only (D23) - before it replaces the window's book, and Save As
  * proposes the EPUB's name with `.fb2` (D15). The import is modal, with *Cancel*, yields often
@@ -13,7 +13,6 @@
  */
 
 import type { CommandContext } from '@/app/commands';
-import { startModalJob } from '@/app/modalJob';
 import { uploadBinary } from '@/features/images/binaries';
 import type { FileFeature } from '@/features/file/fileCommands';
 import type { ConvertResult } from '@/features/markdown/convert';
@@ -24,6 +23,7 @@ import { actions } from '@/model/store';
 import { isRpcError } from '@/rpc/client';
 import { RpcErrorCode, type EpubSource, type GenreEntry } from '@/rpc/types';
 
+import type { EpubRun } from '../index';
 import { xmlName } from '../shared/names';
 import {
   classUseOf,
@@ -202,29 +202,24 @@ async function drawFigures(
   };
 }
 
-/** Runs the import; false when cancelled or refused (the window's book is then unchanged). */
-export async function importEpub(ctx: CommandContext, files: FileFeature): Promise<boolean> {
+/**
+ * Runs the import of `run.path` under `run.modal`, which the command started once the Open dialog gave
+ * a file (index.ts, D32); false when cancelled or refused (the window's book is then unchanged).
+ */
+export async function importEpub(
+  ctx: CommandContext,
+  files: FileFeature,
+  run: EpubRun,
+): Promise<boolean> {
   const rpc = ctx.rpc;
-  if (!rpc) return false;
-  if (!(await files.confirmDiscardChanges(ctx))) return false;
-  const { paths } = await rpc.call('dialog.openFile', {
-    title: ctx.t('epub.openTitle'),
-    filters: [{ name: ctx.t('epub.filter'), extensions: ['epub'] }],
-    selectedFilter: 0,
-  });
-  const path = paths[0];
-  if (!path) return false;
-
-  let cancelled = false;
-  const modal = startModalJob(ctx.t('epub.importing'), () => {
-    cancelled = true;
-  });
+  const { path, modal } = run;
+  if (!rpc) {
+    modal.end();
+    return false;
+  }
   let done = 0;
   let total = 1;
-  const yielder = new Yielder(
-    () => cancelled,
-    () => modal.progress(Math.min(++done, total), total),
-  );
+  const yielder = new Yielder(run.cancelled, () => modal.progress(Math.min(++done, total), total));
   let source: EpubSource | null = null;
   try {
     source = await rpc.call('epub.open', { path });
@@ -412,7 +407,7 @@ export async function importEpub(ctx: CommandContext, files: FileFeature): Promi
   } catch (error) {
     modal.end();
     if (source) await rpc.call('epub.close', { token: source.token }).catch(() => undefined);
-    if (cancelled || error instanceof CancelledError) {
+    if (run.cancelled() || error instanceof CancelledError) {
       actions.setStatusMessage(ctx.store, ctx.t('epub.importCancelled'));
       return false;
     }

@@ -265,6 +265,43 @@ document's stem with `.fbd` or the never-saved document's proposed name
 (`features/file/proposedName.ts`: "Last name First name - Book title", sanitised for every
 platform, passed to the dialog as a bare name the shell shows in the remembered folder).
 
+**EPUB import and export (feature 012).** Two one-time operations (011 D32, D33): neither keeps
+anything once it ends - no Recent files entry, no folder, no setting, no change to the window's
+book after an export or a cancelled import.
+
+* *Who does what (constitution III as amended in 3.4.0).* The core opens and writes the ZIP
+  container (`epub.open`, `GET /epub/{token}/{entry}`, `epub.write.*`), applies the size limits,
+  recognises DRM and never offers a name leading outside the container; it reads each entry at its
+  own local header (`archive::read_entry_at`: stored or deflated, never inflated past the declared
+  size, CRC checked) - a read by name walked the whole archive each time, which made a 10,000-page
+  book take minutes. It puts the book's pictures into the EPUB and the EPUB's pictures into the book
+  (`epub.write.binary`, `epub.picture`), so binaries never cross to the interface. The interface
+  converts: on export the pages, the navigation, the package and the CSS, built and checked before
+  anything is committed; on import the package, the pages, the description, the book's classes and
+  its formulas and drawings.
+* *The chunk rule (D32).* `ui/src/features/epub/index.ts` is the static entry in the main bundle.
+  It registers File > Import > EPUB File... and File > Export > Export as EPUB..., asks the
+  operation's questions itself - the unsaved-changes question and the Open dialog of the import, the
+  Save dialog of the export - then starts the modal progress and only then loads its part with
+  `import()`: the first use never waits without a sign, and a dialog closed without a file loads
+  nothing. `ui/vite.config.ts` puts every module under `src/features/epub/import/` into the chunk
+  `epub-import`, every module under `src/features/epub/export/` into `epub-export`, and the tables
+  both read (`src/features/epub/shared/`) into `epub-shared`. What keeps it so:
+  - nothing outside `src/features/epub/` imports a module of these folders, and neither part imports
+    the other (type imports excepted);
+  - a module outside the groups that only an EPUB part uses is loaded with `import()`. Imported
+    statically, rolldown leaves it in the dynamic entry's own chunk, which becomes a facade named
+    after the entry (`job-*.js`), and the command's `import()` no longer names `epub-import` - this
+    happened with `features/markdown/specialChars.ts`, which the import now loads with the
+    conversion;
+  - what a part needs only for some books is loaded with `import()` too: MathJax for MathML formulas,
+    the SVG rasteriser `features/markdown/diagrams/raster.ts`, which carries no Mermaid.
+
+  The guards: `ui/tests/unit/epub/chunk.test.ts` (G16) reads the built output - one `epub-import`
+  and one `epub-export` chunk, each reached only through `import()`, neither importing the other -
+  and `ui/tests/e2e/us6-epub-lazy.spec.ts` (G15) records the bundle's requests through ordinary work
+  and after each operation.
+
 **Validate.** `doc.validate` accepts either the model or Source text; the report lists
 severity, line, column, element path and message per issue. The Validation panel jumps to
 issues; `edit.gotoWrongTag` uses the same locations in the Source view.
