@@ -9,8 +9,7 @@
  * `<out>/results.json` holds one record per book; the scripts judge them.
  */
 
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import os from 'node:os';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { test } from './fixtures/core';
@@ -22,6 +21,7 @@ import {
   importViaMenu,
   ImportRefused,
 } from './fixtures/epubImport';
+import { scratchDir } from './fixtures/scratch';
 
 const MODE = process.env.MFBE_CORPUS_MODE;
 const LIST = process.env.MFBE_CORPUS_LIST;
@@ -65,7 +65,7 @@ test.describe('corpus gate - EPUB (feature 012)', () => {
       const started = Date.now();
       const epub = path.join(OUT!, `${path.basename(book, path.extname(book))}.epub`);
       try {
-        await openBookCopy(core, page, book, mkdtempSync(path.join(os.tmpdir(), 'mfbe-corpus-')));
+        await openBookCopy(core, page, book, scratchDir('corpus-'));
         await exportEpubTo(core, page, epub, BOOK_LIMIT_MS);
         results.push({ book, ms: Date.now() - started, epub });
       } catch (error) {

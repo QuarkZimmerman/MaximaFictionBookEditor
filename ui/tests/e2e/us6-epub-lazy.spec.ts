@@ -8,14 +8,14 @@
  * - the first export shows its progress at once, while its part loads.
  */
 
-import { copyFileSync, existsSync, mkdtempSync, writeFileSync } from 'node:fs';
-import os from 'node:os';
+import { copyFileSync, existsSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import type { Page } from '@playwright/test';
 
 import { expect, fixtureBook, test, waitForBook, type CoreHandle } from './fixtures/core';
 import { epub, importDone, importViaMenu } from './fixtures/epubImport';
+import { scratchDir } from './fixtures/scratch';
 
 /** The bundle's files the page requested, by name. */
 function recordAssets(page: Page): string[] {
@@ -36,7 +36,7 @@ function epubParts(assets: readonly string[]): string[] {
 
 /** Opens a copy of a fixture book, so that saving it touches no fixture. */
 async function openCopy(core: CoreHandle, page: Page, name: string): Promise<string> {
-  const book = path.join(mkdtempSync(path.join(os.tmpdir(), 'mfbe-epub-lazy-')), name);
+  const book = path.join(scratchDir('epub-lazy-'), name);
   copyFileSync(fixtureBook(name), book);
   await core.enqueueDialog('dialog.openFile', { paths: [book] });
   await page.getByTestId('menu-file').click();

@@ -5,12 +5,11 @@
  * refused; File > Open refuses an EPUB; Save As proposes the EPUB's name with `.fb2`.
  */
 
-import { mkdtempSync } from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 
 import { expect, shownDocId, startCoreWith, test } from './fixtures/core';
 import { bodyErrors, bookXml, epub, EPUBS, importDone, importViaMenu } from './fixtures/epubImport';
+import { scratchDir } from './fixtures/scratch';
 
 test.describe('US2 (feature 012) - the EPUB import', () => {
   test.beforeEach(async ({ core, page }) => {
@@ -177,7 +176,7 @@ test.describe('US2 (feature 012) - the EPUB import', () => {
     // editor alike (app.openPaths); `--open` gives the first.
     const binary = process.env.MFBE_CORE_BIN ?? '';
     test.skip(!/mfbe-core/.test(path.basename(binary)), 'needs the real mfbe-core binary');
-    const dataDir = mkdtempSync(path.join(os.tmpdir(), 'mfbe-epub-open-'));
+    const dataDir = scratchDir('epub-open-');
     const second = await startCoreWith(binary, dataDir, ['--open', epub('epub-3.0.epub')]);
     const context = await browser.newContext();
     try {

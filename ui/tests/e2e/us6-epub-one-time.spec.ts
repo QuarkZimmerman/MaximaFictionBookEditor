@@ -8,14 +8,14 @@
  * - no request has left the machine.
  */
 
-import { copyFileSync, existsSync, mkdtempSync, readFileSync } from 'node:fs';
-import os from 'node:os';
+import { copyFileSync, existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import type { Page } from '@playwright/test';
 
 import { expect, fixtureBook, test, waitForBook, type CoreHandle } from './fixtures/core';
 import { epub, importDone, importViaMenu } from './fixtures/epubImport';
+import { scratchDir } from './fixtures/scratch';
 
 declare const window: { __mfbeTest?: { scripts?: { toXml(): Promise<string> } } };
 
@@ -45,7 +45,7 @@ async function editorTrace(core: CoreHandle) {
 }
 
 async function openCopy(core: CoreHandle, page: Page, name: string): Promise<string> {
-  const book = path.join(mkdtempSync(path.join(os.tmpdir(), 'mfbe-epub-once-')), name);
+  const book = path.join(scratchDir('epub-once-'), name);
   copyFileSync(fixtureBook(name), book);
   await core.enqueueDialog('dialog.openFile', { paths: [book] });
   await page.getByTestId('menu-file').click();

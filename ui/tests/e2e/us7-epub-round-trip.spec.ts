@@ -9,14 +9,14 @@
  * results as JSON.
  */
 
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import os from 'node:os';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { expect, fixtureBook, test } from './fixtures/core';
 import { bodyErrors, bookXml, importDone, importViaMenu } from './fixtures/epubImport';
 import { exportEpubTo, openBookCopy } from './fixtures/epubExport';
+import { scratchDir } from './fixtures/scratch';
 
 const COMPARE = readFileSync(
   path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../tests/epub/compare-fb2.js'),
@@ -64,7 +64,7 @@ test.describe('US7 (feature 012) - export and import again', () => {
     await core.openApp(page);
     const results: Result[] = [];
     for (const book of list) {
-      const dir = mkdtempSync(path.join(os.tmpdir(), 'mfbe-round-trip-'));
+      const dir = scratchDir('round-trip-');
       try {
         await openBookCopy(core, page, book, dir);
         const invalid = await bodyErrors(core, page);

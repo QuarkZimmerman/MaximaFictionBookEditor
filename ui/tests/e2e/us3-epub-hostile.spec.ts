@@ -6,13 +6,12 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync } from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { expect, test } from './fixtures/core';
 import { bookXml, epub, importDone, importViaMenu } from './fixtures/epubImport';
+import { scratchDir } from './fixtures/scratch';
 
 const GENERATOR = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -90,7 +89,7 @@ test.describe('the hostile EPUBs (feature 012, SC-009)', () => {
   test('10,000 pages give a book', async ({ core, page }) => {
     // SC-010's budgets are the release build's (the @perf journeys); this one is a book, not a hang.
     test.setTimeout(300_000);
-    const dir = mkdtempSync(path.join(os.tmpdir(), 'mfbe-epub-large-'));
+    const dir = scratchDir('epub-large-');
     execFileSync('python3', [GENERATOR, '--large', dir]);
     await importDone(
       page,

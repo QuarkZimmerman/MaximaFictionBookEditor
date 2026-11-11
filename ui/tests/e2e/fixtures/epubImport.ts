@@ -5,14 +5,14 @@
  * validation errors.
  */
 
-import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
-import os from 'node:os';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import type { Page } from '@playwright/test';
 
 import { expect, shownDocId, type CoreHandle } from './core';
+import { scratchDir } from './scratch';
 
 export const EPUBS = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -97,7 +97,7 @@ export async function importDone(
 
 /** The book as the editor writes it: saved with Save As to a scratch file and read back. */
 export async function bookXml(core: CoreHandle, page: Page): Promise<string> {
-  const target = path.join(mkdtempSync(path.join(os.tmpdir(), 'mfbe-epub-import-')), 'book.fb2');
+  const target = path.join(scratchDir('epub-import-'), 'book.fb2');
   await core.enqueueDialog('dialog.saveFile', { path: target, encoding: 'utf-8' });
   await page.getByTestId('menu-file').click();
   await page.getByTestId('menu-file-saveAs').click();

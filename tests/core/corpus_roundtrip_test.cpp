@@ -1,11 +1,13 @@
 // Corpus round-trip gate as a CTest (label "corpus", T038/T046, Constitution IV).
 //
 // Reads every tests/corpus/sample-*.txt (written by tests/corpus/sample.py; git-ignored) and
-// round-trips each listed book in-process: open -> save unchanged -> re-open -> structural
-// comparison -> validate. Requirements: nothing crashes, every book that opens is structurally
-// identical after the round trip, and malformed books report line/column instead of failing
-// silently. Validation failures of real-world books are expected and only reported.
-// Skips (passes) when no sample file exists so the default `ctest` run stays hermetic.
+// round-trips each listed FB2 book in-process (corpus_lists.hpp): open -> save unchanged -> re-open
+// -> structural comparison -> validate. Requirements: nothing crashes, every book that opens is
+// structurally identical after the round trip, and malformed books report line/column instead of
+// failing silently. Validation failures of real-world books are expected and only reported. Skips
+// (passes) when no sample file exists so the default `ctest` run stays hermetic.
+#include "corpus_lists.hpp"
+
 #include <mfbe/roundtrip.hpp>
 
 #include <algorithm>
@@ -23,39 +25,10 @@ namespace {
 
 namespace fs = std::filesystem;
 
-std::vector<fs::path> sample_files() {
-    std::vector<fs::path> out;
-    std::error_code ec;
-    for (const auto& entry : fs::directory_iterator(MFBE_TEST_CORPUS_DIR, ec)) {
-        const std::string name = entry.path().filename().string();
-        if (entry.is_regular_file() && name.rfind("sample-", 0) == 0 &&
-            entry.path().extension() == ".txt") {
-            out.push_back(entry.path());
-        }
-    }
-    std::sort(out.begin(), out.end());
-    return out;
-}
-
-std::vector<std::string> read_list(const fs::path& file) {
-    std::vector<std::string> paths;
-    std::ifstream in(file);
-    std::string line;
-    while (std::getline(in, line)) {
-        while (!line.empty() && (line.back() == '\r' || line.back() == ' ')) {
-            line.pop_back();
-        }
-        if (!line.empty() && line[0] != '#') {
-            paths.push_back(line);
-        }
-    }
-    return paths;
-}
-
 }  // namespace
 
 TEST_CASE("corpus: every sampled book round-trips structurally identical", "[corpus]") {
-    const auto samples = sample_files();
+    const auto samples = corpus::sample_lists();
     if (samples.empty()) {
         WARN("no tests/corpus/sample-*.txt found - run tests/corpus/sample.py first; skipping");
         SUCCEED();
@@ -73,7 +46,7 @@ TEST_CASE("corpus: every sampled book round-trips structurally identical", "[cor
     std::vector<std::string> invalid;
     const auto started = std::chrono::steady_clock::now();
     for (const auto& sample : samples) {
-        const auto books = read_list(sample);
+        const auto books = corpus::fb2_books(sample);
         for (std::size_t i = 0; i < books.size(); ++i) {
             const std::string& path = books[i];
             if (!fs::exists(path, ec)) {
