@@ -35,13 +35,17 @@ const FACTOR = Number(process.env.MFBE_PERF_FACTOR ?? 1) || 1;
  */
 const WATCH_PROGRESS = `(() => {
   const w = window;
-  const p = (w.__mfbeProgress = { changes: [], last: null, seen: false, end: 0 });
+  performance.clearMarks();
+  const p = (w.__mfbeProgress = { changes: [], values: [], last: null, seen: false, end: 0 });
   const tick = () => {
     const job = document.querySelector('[data-testid="modal-job"]');
     if (job) {
       const bar = document.querySelector('[data-testid="modal-job-progress"]');
       const value = bar && bar.hasAttribute('value') ? bar.getAttribute('value') : 'busy';
-      if (!p.seen || value !== p.last) p.changes.push(performance.now());
+      if (!p.seen || value !== p.last) {
+        p.changes.push(performance.now());
+        p.values.push(value);
+      }
       p.last = value;
       p.seen = true;
     } else if (p.seen) {
@@ -60,6 +64,28 @@ const LONGEST_STILL = `(() => {
   let longest = 0;
   for (let i = 1; i < marks.length; i += 1) longest = Math.max(longest, marks[i] - marks[i - 1]);
   return longest;
+})()`;
+
+/** The import's phases (its performance marks), each with its ms since the one before. */
+const IMPORT_PHASES = `(() => {
+  const marks = performance.getEntriesByType('mark').filter((m) => m.name.startsWith('epub-import:'));
+  let last = window.__mfbeProgress.changes[0] ?? (marks[0] ? marks[0].startTime : 0);
+  return marks
+    .map((m) => {
+      const ms = m.startTime - last;
+      last = m.startTime;
+      return m.name.slice('epub-import:'.length) + ' ' + ms.toFixed(0);
+    })
+    .join(', ');
+})()`;
+
+/** Where the bar stood longest: its value then, and the one after (or the window's end). */
+const STILL_WHERE = `(() => {
+  const p = window.__mfbeProgress;
+  const marks = [...p.changes, p.end || performance.now()];
+  let at = 1;
+  for (let i = 1; i < marks.length; i += 1) if (marks[i] - marks[i - 1] > marks[at] - marks[at - 1]) at = i;
+  return (p.values[at - 1] ?? '?') + ' -> ' + (p.values[at] ?? 'the end');
 })()`;
 
 /**
@@ -139,7 +165,11 @@ async function timedExport(core: CoreHandle, page: Page, target: string) {
   const started = Date.now();
   await exportEpubTo(core, page, target, 300_000);
   const ms = Date.now() - started;
-  return { ms, still: await page.evaluate<number>(LONGEST_STILL) };
+  return {
+    ms,
+    still: await page.evaluate<number>(LONGEST_STILL),
+    where: await page.evaluate<string>(STILL_WHERE),
+  };
 }
 
 /** The import of `epub` until the new book is editable, timed, its progress watched. */
@@ -151,7 +181,12 @@ async function timedImport(core: CoreHandle, page: Page, epub: string) {
   await importDone(page, before, 300_000);
   await expect(page.getByTestId('body-editor')).toBeVisible();
   const ms = Date.now() - started;
-  return { ms, still: await page.evaluate<number>(LONGEST_STILL) };
+  return {
+    ms,
+    still: await page.evaluate<number>(LONGEST_STILL),
+    where: await page.evaluate<string>(STILL_WHERE),
+    phases: await page.evaluate<string>(IMPORT_PHASES),
+  };
 }
 
 function checkMemory(core: CoreHandle): void {
@@ -221,11 +256,16 @@ test.describe('performance - the EPUB export and import, the book styles (SC-010
       await core.openApp(page);
       await open(core, page, book!);
       const out = await timedExport(core, page, path.join(dir, 'large.epub'));
-      note(`10 MB export: ${out.ms} ms, the bar still at most ${out.still.toFixed(0)} ms`);
+      note(
+        `10 MB export: ${out.ms} ms, the bar still at most ${out.still.toFixed(0)} ms (${out.where})`,
+      );
       expect(out.ms, '10 MB export').toBeLessThan(5_000 * FACTOR);
       expect(out.still, 'the export progress stands still').toBeLessThan(1_000 * FACTOR);
       const back = await timedImport(core, page, path.join(dir, 'large.epub'));
-      note(`10 MB import: ${back.ms} ms, the bar still at most ${back.still.toFixed(0)} ms`);
+      note(
+        `10 MB import: ${back.ms} ms, the bar still at most ${back.still.toFixed(0)} ms (${back.where})`,
+      );
+      note(`10 MB import phases (ms): ${back.phases}`);
       expect(back.ms, '10 MB import').toBeLessThan(5_000 * FACTOR);
       expect(back.still, 'the import progress stands still').toBeLessThan(1_000 * FACTOR);
       checkMemory(core);
@@ -241,11 +281,16 @@ test.describe('performance - the EPUB export and import, the book styles (SC-010
       await core.openApp(page);
       await open(core, page, book.file);
       const out = await timedExport(core, page, path.join(dir, 'pictures.epub'));
-      note(`150 MB export: ${out.ms} ms, the bar still at most ${out.still.toFixed(0)} ms`);
+      note(
+        `150 MB export: ${out.ms} ms, the bar still at most ${out.still.toFixed(0)} ms (${out.where})`,
+      );
       expect(out.ms, '150 MB export').toBeLessThan(20_000 * FACTOR);
       expect(out.still, 'the export progress stands still').toBeLessThan(1_000 * FACTOR);
       const back = await timedImport(core, page, path.join(dir, 'pictures.epub'));
-      note(`150 MB import: ${back.ms} ms, the bar still at most ${back.still.toFixed(0)} ms`);
+      note(
+        `150 MB import: ${back.ms} ms, the bar still at most ${back.still.toFixed(0)} ms (${back.where})`,
+      );
+      note(`150 MB import phases (ms): ${back.phases}`);
       expect(back.ms, '150 MB import').toBeLessThan(30_000 * FACTOR);
       expect(back.still, 'the import progress stands still').toBeLessThan(1_000 * FACTOR);
       checkMemory(core);

@@ -27,6 +27,9 @@ import type { PlacedPicture, SummaryItem } from './render';
 
 class Cancelled extends Error {}
 
+/** Lets the page draw (the progress bar) before the next long synchronous step. */
+const nextTask = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
+
 /** The binaries the book shows, the cover first, then in book order; each once (D12). */
 export function usedPictures(document: Document): string[] {
   const used: string[] = [];
@@ -112,7 +115,7 @@ export async function exportEpub(
       })
       .catch(() => undefined);
     const pictures = usedPictures(document);
-    const total = pictures.length + 2;
+    let total = pictures.length + 2;
     let done = 0;
     const names = new NameAllocator();
     const placed = new Map<string, PlacedPicture>();
@@ -147,6 +150,11 @@ export async function exportEpub(
       fallbackTitle: proposedStem(document.description, ctx.t('app.untitled')),
       genreNames: genres,
     });
+    // SC-010: the progress moves at least once a second - the files go to the core one by one, each a
+    // step, and the bar is drawn between the long steps.
+    total = pictures.length + built.files.length + 3;
+    modal.progress(++done, total);
+    await nextTask();
     const faults = verifyEpub(
       built.files,
       [...placed.values()].map((picture) => picture.name),
@@ -158,6 +166,7 @@ export async function exportEpub(
     for (const file of built.files) {
       if (run.cancelled()) throw new Cancelled();
       await put(token, file.name, file.text);
+      modal.progress(++done, total);
     }
     await rpc.call('epub.write.commit', { token });
     token = null;

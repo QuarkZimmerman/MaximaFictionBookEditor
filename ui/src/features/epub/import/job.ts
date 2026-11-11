@@ -202,6 +202,12 @@ async function drawFigures(
   };
 }
 
+/** The share of the progress bar the core's job reading the new book takes (SC-010). */
+const JOB_SPAN = 20;
+
+/** Lets the page draw (the progress bar) before the next long synchronous step. */
+const nextTask = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
+
 /**
  * Runs the import of `run.path` under `run.modal`, which the command started once the Open dialog gave
  * a file (index.ts, D32); false when cancelled or refused (the window's book is then unchanged).
@@ -219,7 +225,11 @@ export async function importEpub(
   }
   let done = 0;
   let total = 1;
-  const yielder = new Yielder(run.cancelled, () => modal.progress(Math.min(++done, total), total));
+  // The bar never fills before the import's end: the steps are counted ahead, roughly (SC-010).
+  const yielder = new Yielder(run.cancelled, () => {
+    done = Math.min(done + 1, total - 1);
+    modal.progress(done, total);
+  });
   let source: EpubSource | null = null;
   try {
     source = await rpc.call('epub.open', { path });
@@ -243,6 +253,7 @@ export async function importEpub(
       : [];
     if (/page-list|<pageList[\s>]/.test(navigationText)) dropped.add('droppedPageList');
     const pages = await readPages(token, pkg, summary, yielder);
+    performance.mark('epub-import:pages read');
     const genres = await rpc
       .call('resources.genres')
       .then((list) => list.entries as GenreEntry[])
@@ -318,7 +329,9 @@ export async function importEpub(
     if (coverPath && converted.pictures.has(coverPath)) {
       described.description.cover = `#${converted.pictures.get(coverPath)}`;
     }
+    performance.mark('epub-import:converted');
     const figures = await drawFigures(converted, summary, yielder);
+    performance.mark('epub-import:drawn figures');
 
     const { xml: templateXml } = await rpc.call('template.xml');
     const xml = buildBook(templateXml, {
@@ -331,10 +344,26 @@ export async function importEpub(
           ? [{ type: 'text/css', text: plan.stylesheet, foreign: false }]
           : [],
     } as unknown as ConvertResult);
+    performance.mark('epub-import:book built');
     await yielder.step();
     // The core's job is not cancelled: it would leave the document it made unknown here. A
     // Cancel during it takes effect when it ends, and the new document is closed then.
-    const opened = await rpc.runJob('doc.newFromXml', { xml, origin: { kind: 'epub', path } });
+    // SC-010: the core's job that reads the new book reports its own progress; the bar follows it.
+    const jobBase = done;
+    total += JOB_SPAN;
+    const opened = await rpc.runJob(
+      'doc.newFromXml',
+      { xml, origin: { kind: 'epub', path } },
+      {
+        onProgress: (progress) => {
+          if (progress.total <= 0) return;
+          const step = Math.round((progress.done / progress.total) * JOB_SPAN);
+          modal.progress(Math.min(jobBase + step, total), total);
+        },
+      },
+    );
+    done = jobBase + JOB_SPAN;
+    performance.mark('epub-import:core read');
     const docId = opened.document.docId;
     // The pictures go into the new book before the window shows it, so that nothing asks for a
     // picture the book does not hold yet, and Cancel still leaves the window's book as it was (D16).
@@ -400,9 +429,15 @@ export async function importEpub(
     await rpc.call('epub.close', { token }).catch(() => undefined);
     source = null;
     // Only now is the window's book replaced (D15, D16).
-    await files.loadImported(ctx, document, path);
+    // The import's own work is done: its progress window closes, and the window then draws the new
+    // book as Open draws one - a bar standing full while a big book is drawn would stand still that
+    // long (SC-010). Until it is drawn, the window keeps its book (D16).
+    performance.mark('epub-import:pictures added');
     modal.progress(total, total);
     modal.end();
+    await nextTask();
+    await files.loadImported(ctx, document, path);
+    performance.mark('epub-import:window drawn');
     const counts = ctx.t('epub.importDone', {
       sections: converted.stats.sections,
       pictures: added.length - converted.chars.size,

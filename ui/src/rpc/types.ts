@@ -1332,7 +1332,10 @@ export interface RpcMethods {
   };
   'epub.write.commit': { params: { token: string }; result: { bytes: number } };
   'epub.write.abort': { params: { token: string }; result: Record<string, never> };
-  /** Feature 010 (US8): a new untitled, modified document from FB2 text, tied to no file. */
+  /**
+   * Feature 010 (US8): a new untitled, modified document from FB2 text, tied to no file. Feature 012
+   * (SC-010): text of 2 MB or more is read as a job, with its progress, as `doc.open` reads a big book.
+   */
   'doc.newFromXml': {
     params: { xml: string; origin?: { kind: 'markdown' | 'epub'; path: string } };
     result: MaybeJob<{ document: Document & LoadReport; warnings: ValidationIssue[] }>;

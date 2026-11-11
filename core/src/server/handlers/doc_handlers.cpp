@@ -975,6 +975,45 @@ platform::FileWatcher& file_watcher(Services& services) {
 /* Handlers                                                                                   */
 /* ----------------------------------------------------------------------------------------- */
 
+namespace {
+
+// Feature 010 (US8) and 012 (SC-010): the FB2 text of a new untitled book (doc.newFromXml) read,
+// with the document details a load fills in; the session's docId and data come after.
+void read_new_book(const std::string& xml, Opened& opened, const std::string& ui_language) {
+    fb2::ReadOptions options;
+    options.file_kind = model::FileKind::fb2;
+    try {
+        opened.read = fb2::read_bytes(xml, *opened.store, opened.ids, options);
+    } catch (const fb2::NotFictionBookFailure& e) {
+        throw not_fictionbook("", e.reason);
+    } catch (const fb2::ParseFailure& e) {
+        throw parse_error(e.error);
+    }
+    model::Document& doc = opened.read.document;
+    doc.path.reset();
+    doc.sourceEncoding = "utf-8";
+    opened.filled_in =
+        model::fill_in_document_details(doc, model::details_context_now(true, ui_language));
+}
+
+json new_book_result(Opened& opened, const std::string& doc_id) {
+    opened.read.document.docId = doc_id;
+    return json{{"document", loaded_document_json(opened.read.document, opened.filled_in)},
+                {"warnings", issues_json(opened.read.warnings)}};
+}
+
+void fill_new_session(session::DocumentSession& s, Opened& opened) {
+    s.fileKind = model::FileKind::fb2;
+    s.sourceEncoding = "utf-8";
+    s.xlinkPrefix = opened.read.xlink_prefix;
+    s.schemaHint = opened.read.document.schemaHint;
+    s.binaries = std::move(opened.store);
+    s.ids = opened.ids;
+    s.snapshot = opened.read.document;
+}
+
+}  // namespace
+
 void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
     router.add_method("doc.new", [&services](const json&, rpc::RpcContext&) {
         // The first blank.fb2 of the template layers; a user file that turns out unusable
@@ -1053,35 +1092,58 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
     });
 
     // Feature 010 (US8, rpc-api "doc.newFromXml"): a new untitled document from FB2 text - the
-    // Markdown import's book. Like doc.new it is tied to no file: no recent entry, no position.
-    router.add_method("doc.newFromXml", [&services](const json& params, rpc::RpcContext&) {
-        const std::string xml = rpc::params::string(params, "xml");
-        Opened opened;
-        fb2::ReadOptions options;
-        options.file_kind = model::FileKind::fb2;
-        try {
-            opened.read = fb2::read_bytes(xml, *opened.store, opened.ids, options);
-        } catch (const fb2::NotFictionBookFailure& e) {
-            throw not_fictionbook("", e.reason);
-        } catch (const fb2::ParseFailure& e) {
-            throw parse_error(e.error);
+    // Markdown and EPUB imports' book. Like doc.new it is tied to no file: no recent entry, no
+    // position. Feature 012 (SC-010): a big book is read as a job, as doc.open reads one, so that
+    // the import's progress moves while the core reads it; the session exists from the start.
+    router.add_method("doc.newFromXml", [&services](const json& params, rpc::RpcContext& ctx) {
+        std::string xml = rpc::params::string(params, "xml");
+        const std::string ui_language = ui_language_setting(services);
+        if (xml.size() < kJobThresholdBytes) {
+            Opened opened;
+            read_new_book(xml, opened, ui_language);
+            session::DocumentSession& s = services.documents.create();
+            json result = new_book_result(opened, s.docId);
+            fill_new_session(s, opened);
+            return result;
         }
-        session::DocumentSession& s = services.documents.create();
-        model::Document& doc = opened.read.document;
-        doc.docId = s.docId;
-        doc.path.reset();
-        doc.sourceEncoding = "utf-8";
-        const std::vector<std::string> filled_in = model::fill_in_document_details(
-            doc, model::details_context_now(true, ui_language_setting(services)));
-        s.fileKind = model::FileKind::fb2;
-        s.sourceEncoding = "utf-8";
-        s.xlinkPrefix = opened.read.xlink_prefix;
-        s.schemaHint = doc.schemaHint;
-        s.binaries = std::move(opened.store);
-        s.ids = opened.ids;
-        s.snapshot = doc;
-        return json{{"document", loaded_document_json(doc, filled_in)},
-                    {"warnings", issues_json(opened.read.warnings)}};
+        const std::string doc_id = services.documents.create().docId;
+        const std::string job_id = ctx.jobs.start([&services, xml = std::move(xml), ui_language,
+                                                   doc_id](rpc::JobControl& control) -> json {
+            control.progress("read", 0, 100);
+            auto opened = std::make_shared<Opened>();
+            try {
+                read_new_book(xml, *opened, ui_language);
+            } catch (...) {
+                on_loop_thread(
+                    services,
+                    [&services, doc_id] {
+                        services.documents.close(doc_id);
+                        return 0;
+                    },
+                    &control);
+                throw;
+            }
+            control.progress("model", 90, 100);
+            json result = new_book_result(*opened, doc_id);
+            const bool registered = on_loop_thread(
+                services,
+                [&services, doc_id, opened] {
+                    session::DocumentSession* s = services.documents.find(doc_id);
+                    if (s == nullptr) {
+                        return false;  // closed while loading
+                    }
+                    fill_new_session(*s, *opened);
+                    return true;
+                },
+                &control);
+            if (!registered) {
+                throw rpc::RpcError(rpc::codes::kCancelled, "document was closed while loading",
+                                    json{{"docId", doc_id}});
+            }
+            control.progress("done", 100, 100);
+            return result;
+        });
+        return json{{"jobId", job_id}};
     });
 
     // Feature 010 (US8, D31, rpc-api "import.readMarkdown"): a Markdown file read as text, never

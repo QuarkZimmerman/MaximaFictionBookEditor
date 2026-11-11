@@ -6,6 +6,7 @@
 
 #include <mfbe/archive.hpp>
 #include <mfbe/epub.hpp>
+#include <mfbe/utf8_paths.hpp>
 
 #include <libxml/tree.h>
 
@@ -254,7 +255,7 @@ bool is_epub(const fs::path& path) {
                 return true;
             }
         }
-        if (lower_ascii(path.extension().string()) == ".epub") {
+        if (lower_ascii(platform::utf8_from_path(path.extension())) == ".epub") {
             return std::any_of(
                 listing.entries.begin(), listing.entries.end(),
                 [](const archive::Entry& e) { return e.name == "META-INF/container.xml"; });
