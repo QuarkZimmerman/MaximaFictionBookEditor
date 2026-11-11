@@ -121,6 +121,9 @@ function differences(expected: BodySnapshot, actual: BodySnapshot): string[] {
         continue;
       }
       for (const name of new Set([...Object.keys(a), ...Object.keys(b)])) {
+        // An inset is resolved from the layout, which follows each system's fonts: the baseline
+        // was taken on Linux, so the cascade is compared, not where a box lands (macOS differs).
+        if (LAYOUT_INSET.test(name)) continue;
         if (a[name] !== b[name] && out.length < 20) {
           out.push(
             `${was.path}${part === 'style' ? '' : `::${part}`} ${name}: ${a[name]} now ${b[name]}`,
@@ -137,6 +140,9 @@ function differences(expected: BodySnapshot, actual: BodySnapshot): string[] {
 test.afterEach(async ({ core }) => {
   if (core.hasCore) await core.rpc('settings.set', { patch: { view: null } }).catch(() => {});
 });
+
+/** Computed insets are layout results (px), not cascade values. */
+const LAYOUT_INSET = /^(top|right|bottom|left|inset(-[a-z-]+)?)$/;
 
 test.describe('G17 (feature 012) - Show Book Styles off draws as 0.0.9 did', () => {
   test('the reference book, light and dark: elements, classes and computed styles', async ({

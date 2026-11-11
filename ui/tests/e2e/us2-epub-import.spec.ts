@@ -124,7 +124,8 @@ test.describe('US2 (feature 012) - the EPUB import', () => {
     await importDone(page, await importViaMenu(core, page, epub('epub-3.3.epub')));
     // Ctrl+S on the new, untitled book asks for its file, proposing the EPUB's name (D15).
     await core.enqueueDialog('dialog.saveFile', { path: null });
-    await page.keyboard.press('Control+s');
+    // Cmd+S on macOS, Ctrl+S elsewhere.
+    await page.keyboard.press('ControlOrMeta+s');
     const validation = page.getByTestId('dialog-validation-failed-button-yes');
     const invalid = await validation
       .waitFor({ state: 'visible', timeout: 5000 })
