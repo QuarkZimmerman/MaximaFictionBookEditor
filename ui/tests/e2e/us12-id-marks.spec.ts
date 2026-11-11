@@ -49,6 +49,12 @@ const tab = (page: Page, selector: string) =>
       (element) => element.ownerDocument.defaultView!.getComputedStyle(element, '::before').content,
     );
 
+// Show Ids goes back to its default after each test: a worker's core keeps its settings from one test
+// to the next (G17 once ran after this journey with the ids hidden).
+test.afterEach(async ({ core }) => {
+  if (core.hasCore) await core.rpc('settings.set', { patch: { view: null } }).catch(() => {});
+});
+
 test.describe('feature 011 (D51) - the marks of elements that have an id', () => {
   let dir: string;
   let file: string;

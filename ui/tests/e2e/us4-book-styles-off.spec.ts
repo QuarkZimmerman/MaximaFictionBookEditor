@@ -151,6 +151,8 @@ test.describe('G17 (feature 012) - Show Book Styles off draws as 0.0.9 did', () 
   }) => {
     test.skip(!core.hasCore, 'needs mfbe-core (MFBE_CORE_BIN)');
     // The spelling marks come and go with the checker's timing: not part of the look compared.
+    // From the default view settings, whatever an earlier test of the worker left (Show Ids off once did).
+    await core.rpc('settings.set', { patch: { view: null } });
     await core.rpc('settings.set', { patch: { view: { spellEnabled: false, theme: 'light' } } });
     await core.openApp(page);
     const book = fixtureBook('reference-all-elements.fb2');
