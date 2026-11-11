@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useAppServices } from '@/app/services';
 import { fastModeClassName } from '@/editor/fastMode';
+import { BOOK_STYLES_CLASS, bookStylesShown } from '@/features/styles/bookStylesSwitch';
 import { DEFAULT_NBSP_DISPLAY_CHAR } from '@/editor/plugins/nbsp';
 import { getSymbolsFeature } from '@/features/editing';
 import { useAppState } from '@/model/store';
@@ -40,6 +41,8 @@ export function BodyView({ editable = true }: BodyViewProps) {
   const docId = useAppState((s) => s.docId, store);
   const sourceOnly = useAppState((s) => s.sourceOnly, store);
   const fastMode = useAppState((s) => s.fastMode, store);
+  // Feature 012 (D36, D39): the book's own stylesheets drawn - the setting on, Fast mode off.
+  const bookStyles = useAppState((s) => bookStylesShown(s), store);
   const connection = useAppState((s) => s.connection, store);
   const startup = useAppState((s) => s.startup, store);
   const nbspChar = useAppState(
@@ -111,7 +114,7 @@ export function BodyView({ editable = true }: BodyViewProps) {
       data-testid="panel-body"
     >
       <div
-        className={`mfbe-body-view${fastModeClassName(fastMode)}`}
+        className={`mfbe-body-view${fastModeClassName(fastMode)}${bookStyles ? ` ${BOOK_STYLES_CLASS}` : ''}`}
         data-testid="body-view"
         data-fast-mode={fastMode ? 'true' : undefined}
         data-whole-book={snapshot.wholeBook ? 'true' : 'false'}

@@ -15,6 +15,12 @@
  * one place.
  */
 
+/* Feature 012 (US4, contracts/book-styles.md §2): the cascade layers of the Body view. A later layer
+   wins: the book's own stylesheets (`fb-book`, View > Show Book Styles) over the editor's look
+   (`fb-look`), the editor's marks (`fb-marks`) over the book. Declared here and in editor/pictures.css, so the
+   order holds whichever stylesheet comes first. */
+@layer fb-look, fb-book, fb-marks;
+
 :root {
   color-scheme: light;
 
@@ -957,13 +963,17 @@ textarea {
    selected, though the view's text is - and a greyed one looks greyed in both themes (buttons take
    the text colour, which hides the engine's own disabled look). Low specificity: a view's own
    button styles still win. */
-:where(.mfbe-view-content) button {
-  user-select: none;
-}
+/* Feature 012: in the lowest layer, so a view's own button styles still win now that the Body view's
+   look is layered (an unlayered rule wins over any layered one, whatever its specificity). */
+@layer fb-look {
+  :where(.mfbe-view-content) button {
+    user-select: none;
+  }
 
-:where(.mfbe-view-content) button:disabled {
-  opacity: 0.45;
-  cursor: default;
+  :where(.mfbe-view-content) button:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
 }
 
 /* A script is computing (feature 003, FR-011): the pointer over the document pane shows the

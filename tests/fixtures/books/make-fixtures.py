@@ -3515,6 +3515,8 @@ def main() -> None:
     write("no-pictures.fb2", f012_pictures(None))
     write("russian-untitled-notes.fb2", f012_notes_book("ru", "Книга", "Текст с примечанием", "Примечание."))
     write("german-book.fb2", f012_notes_book("de", "Ein Buch", "Ein Text mit Anmerkung", "Die Anmerkung."))
+    write("book-styles-reference.fb2", f012_reference_all_elements(F012_LOOK_STYLESHEET, "f012-book-styles"))
+    write("book-styles-hostile.fb2", f012_reference_all_elements(F012_HOSTILE_STYLESHEET, "f012-book-styles-hostile"))
 
 
 # ----------------------------------------------------------------------------------------------
@@ -3556,8 +3558,63 @@ def f012_book(lang: str | None, title: str, body: str, *, notes: str = "", binar
 """
 
 
-def f012_reference_all_elements() -> str:
-    stylesheet = (
+# Feature 012 (Show Book Styles, T050; SC-014, SC-015): the reference book under the two reference
+# stylesheets. The look one has every kind of property the Styles view accepts, on every FB2 element
+# kind and on both named styles, in absolute units so that the Body view and Preview compute the same
+# values; the hostile one holds the rules that would take an editing function away.
+F012_LOOK_STYLESHEET = """
+p { text-indent: 24px; line-height: 22px; letter-spacing: 0.5px; word-spacing: 2px; margin-top: 4px; margin-bottom: 6px; hyphens: auto; }
+p::first-letter { color: #990000; }
+section { padding-left: 10px; border-left: 3px solid #336699; background-color: #f4f8ff; }
+title { text-align: center; font-family: Georgia, serif; font-size: 22px; font-weight: 700; text-transform: uppercase; text-shadow: 1px 1px 0 #cccccc; }
+subtitle { font-style: italic; text-align: right; color: #884400; direction: ltr; }
+subtitle::before { content: "\\00a7  "; }
+epigraph { font-size: 13px; margin-left: 120px; color: #335577; max-width: 420px; }
+cite { border: 2px dashed #aa7733; border-radius: 6px; padding: 8px; background-image: linear-gradient(#ffffff, #eeeeee); columns: 2; column-gap: 20px; }
+annotation { outline: 1px dotted #557755; outline-offset: 2px; box-shadow: 2px 2px 4px #999999; clear: both; }
+poem { margin-left: 40px; min-width: 200px; counter-reset: verse; writing-mode: horizontal-tb; }
+stanza { margin-bottom: 10px; }
+v { font-variant: small-caps; counter-increment: verse; }
+v::after { content: " [" counter(verse) "]"; }
+text-author { font-weight: 600; text-align: right; font-stretch: condensed; }
+date { color: #666666; text-decoration-line: overline; opacity: 0.8; }
+emphasis { color: #aa0000; }
+strong { font-weight: 900; letter-spacing: 1px; }
+strikethrough { text-decoration-line: line-through; text-decoration-style: wavy; text-decoration-color: #ff0000; }
+sub { font-size: 10px; }
+sup { font-size: 10px; position: relative; top: -2px; }
+code { font-family: monospace; background-color: #eeeeee; display: inline-block; }
+a { color: #0055aa; }
+table { width: 300px; }
+th { background-color: #ddeeff; }
+td { border: 1px solid #888888; }
+empty-line { min-height: 12px; }
+.letter { font-style: italic; text-align: right; color: #2266aa; }
+.smallcaps { font-variant-caps: small-caps; background-color: #ffffcc; }
+"""
+F012_HOSTILE_STYLESHEET = """
+@import url(https://example.com/remote.css);
+@font-face { font-family: Remote; src: url(https://example.com/remote.woff2); }
+@keyframes spin { to { transform: rotate(360deg); } }
+p { display: none; }
+title { visibility: hidden; }
+epigraph { opacity: 0.05; }
+subtitle { color: transparent; }
+cite { font-size: 0; }
+section { position: fixed; top: 0; left: 0; }
+stanza { transform: rotate(90deg); }
+v { height: 0; overflow: hidden; }
+emphasis { pointer-events: none; user-select: none; }
+strong { animation: spin 1s infinite; transition: color 10s; }
+code { background-image: url(https://example.com/remote.png); }
+text-author { cursor: none; caret-color: transparent; }
+annotation { max-height: 1px; }
+.letter { font-size: 1px; }
+"""
+
+
+def f012_reference_all_elements(stylesheet: str | None = None, doc_id: str | None = None) -> str:
+    stylesheet = stylesheet or (
         "p { text-indent: 2em; }\n.letter { font-style: italic; text-align: right; }\n"
         "epigraph { font-size: 80%; }\n.smallcaps { font-variant: small-caps; }"
     )
@@ -3695,7 +3752,7 @@ def f012_reference_all_elements() -> str:
     return f012_book("en", "The Reference Book", body, notes=notes, binaries=binaries,
                      stylesheet=stylesheet, extra_title_info=title_info,
                      extra_description=description, coverpage=cover, title_info_after=title_info_after,
-                     doc_id="5b0e8a52-3c1d-4f6e-9a7b-2c8d4e6f8a10")
+                     doc_id=doc_id or "5b0e8a52-3c1d-4f6e-9a7b-2c8d4e6f8a10")
 
 
 def f012_invalid_for_export() -> str:
