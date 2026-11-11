@@ -455,7 +455,7 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
   };
 
   // The body under construction.
-  let root: Section = { level: 0, epigraphs: [], blocks: [] };
+  const root: Section = { level: 0, epigraphs: [], blocks: [] };
   let stack: Section[] = [root];
   let bodyTitle: string | undefined;
   // D34: the editor's own EPUB - a body's own picture and epigraphs (on the page before its
@@ -465,10 +465,12 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
   let inBodyIntro = false;
   let notesHeading: string | undefined;
   let pendingSectionId: string | undefined;
-  // D34: the editor's own EPUB marks each body's pages; the bodies finished so far, as FB2.
+  // D34: the editor's own EPUB marks each body's pages. FB2 holds one body besides the notes, so a
+  // further body becomes a section of it - its sections one level down when it has a head.
+  let firstBodyMark: string | null = null;
   let currentBodyMark: string | null = null;
-  let currentBodyName: string | undefined;
-  const finishedBodies: string[] = [];
+  let levelOffset = 0;
+  const furtherBody = (): boolean => currentBodyMark !== firstBodyMark;
   const takeSectionId = (): string | undefined => {
     const id = pendingSectionId;
     pendingSectionId = undefined;
@@ -489,7 +491,7 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
     xml.startsWith('<image') || /^<!--mfbe-(math|svg)-block:/.test(xml);
   const addBlock = (xml: string): void => {
     if (!xml) return;
-    if (inBodyIntro && !bodyImage && !bodyTitle && xml.startsWith('<image')) {
+    if (inBodyIntro && !furtherBody() && !bodyImage && !bodyTitle && xml.startsWith('<image')) {
       bodyImage = xml;
       return;
     }
@@ -1035,7 +1037,9 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
       return;
     // The editor's own and the FB2 converter's body title (D18, D21).
     if (kind.includes('fb2-body-title') || (name === 'h1' && kind.includes('body_head'))) {
-      bodyTitle = titleXml(element);
+      // A further body's title heads its section (D34).
+      if (inBodyIntro && furtherBody()) top().title = titleXml(element);
+      else bodyTitle = titleXml(element);
       return;
     }
     // D34: a body's own picture, title and epigraphs, on the page before its sections.
@@ -1067,7 +1071,7 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
         for (let up = element.parentElement; up; up = up.parentElement) {
           if (classes(up).includes('fb2-section')) level++;
         }
-        openSection(level, '', idFor(currentPage, element));
+        openSection(level + levelOffset, '', idFor(currentPage, element));
         const opened = top();
         blockContent(element, listDepth);
         const at = stack.indexOf(opened);
@@ -1086,7 +1090,11 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
     }
     const level = headingLevel(element);
     if (level !== null) {
-      openSection(level, titleXml(element), idFor(currentPage, element) ?? takeSectionId());
+      openSection(
+        level + levelOffset,
+        titleXml(element),
+        idFor(currentPage, element) ?? takeSectionId(),
+      );
       return;
     }
     if (kind.includes('fb2-empty-line')) {
@@ -1107,7 +1115,7 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
       const section = top();
       const xml = quotedBlocks(element, true);
       if (inBodyIntro) {
-        bodyEpigraphs.push(`<epigraph>${xml}</epigraph>`);
+        (furtherBody() ? top().epigraphs : bodyEpigraphs).push(`<epigraph>${xml}</epigraph>`);
         return;
       }
       if (section.blocks.length === 0 && section !== root)
@@ -1233,9 +1241,9 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
     }
   };
 
-  // One FB2 body from what the pages gave since the previous one: several for the editor's own
-  // EPUB (D34), one for any other book.
-  function assembleBody(name?: string): string {
+  // The one FB2 body besides the notes, from what the pages gave (D34: the further bodies of the
+  // editor's own EPUB are its sections by then).
+  function assembleBody(): string {
     // D18: one opening heading above all chapters is the body's title.
     // Not for the editor's own EPUB, whose body title is always marked (fb2-body-title).
     if (
@@ -1297,7 +1305,7 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
     }
     if (run.length > 0) bodyInner += `<section>${run.join('')}</section>`;
     if (!bodyInner) bodyInner = '<section><empty-line/></section>';
-    return `<body${name ? ` name="${escapeAttr(name)}"` : ''}>${bodyImage ?? ''}${bodyTitle ?? ''}${bodyEpigraphs.join('')}${bodyInner}</body>`;
+    return `<body>${bodyImage ?? ''}${bodyTitle ?? ''}${bodyEpigraphs.join('')}${bodyInner}</body>`;
   }
 
   // 4. The pages, in reading order: linear ones first, then the others.
@@ -1359,23 +1367,24 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
       text.length < 4000
     )
       continue;
-    // A page without a heading of its own is titled by the table of contents, when it has an entry.
-    // D34: in the editor's own EPUB a new body begins where the pages' body mark changes.
+    // D34: in the editor's own EPUB a body begins where the pages' body mark changes. A further body
+    // becomes a top-level section of the one FB2 allows, holding the body's own title, epigraphs
+    // and picture when it has them, with its sections one level down.
     if (input.editorBook) {
-      const mark = body.firstElementChild?.getAttribute('data-fb2-body') ?? null;
-      if (mark !== null && currentBodyMark !== null && mark !== currentBodyMark) {
-        finishedBodies.push(assembleBody(currentBodyName));
-        root = { level: 0, epigraphs: [], blocks: [] };
-        stack = [root];
-        bodyTitle = undefined;
-        bodyImage = undefined;
-        bodyEpigraphs.length = 0;
-      }
-      if (mark !== null) {
+      const first = body.firstElementChild;
+      const mark = first?.getAttribute('data-fb2-body') ?? null;
+      if (mark !== null && mark !== currentBodyMark) {
         currentBodyMark = mark;
-        currentBodyName = body.firstElementChild?.getAttribute('data-fb2-body-name') ?? undefined;
+        firstBodyMark ??= mark;
+        stack = [root];
+        levelOffset = 0;
+        if (furtherBody() && first && classes(first).includes('fb2-body-intro')) {
+          openSection(1, '', undefined);
+          levelOffset = 1;
+        }
       }
     }
+    // A page without a heading of its own is titled by the table of contents, when it has an entry.
     const firstHeading = Array.from(body.getElementsByTagName('*')).find(
       (element) =>
         (headingLevel(element) !== null &&
@@ -1429,7 +1438,7 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
     currentNote = null;
   }
 
-  let bodyXml = finishedBodies.join('') + assembleBody(currentBodyName);
+  let bodyXml = assembleBody();
 
   // 6. Links inside the book, resolved now that every anchor has its FB2 id (D22).
   const resolveLinks = (xml: string): string =>

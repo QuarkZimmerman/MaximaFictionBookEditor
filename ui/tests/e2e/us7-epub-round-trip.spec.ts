@@ -9,7 +9,7 @@
  * results as JSON.
  */
 
-import { copyFileSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -39,6 +39,21 @@ interface Result {
   failure?: string;
   /** The original's own body errors: FB2's schema refuses parts of it, which no export can carry. */
   invalid?: string[];
+  /** The book imported again is not valid: always a fault of the conversion. */
+  againInvalid?: string[];
+  /** Where that book was kept, beside the report, for its diagnosis. */
+  againFile?: string;
+}
+
+/** Keeps a book imported again that is not valid beside the report; undefined without a report. */
+function keepInvalid(book: string, xml: string): string | undefined {
+  const report = process.env.MFBE_ROUND_TRIP_REPORT;
+  if (!report) return undefined;
+  const dir = `${report.replace(/\.json$/, '')}-invalid`;
+  mkdirSync(dir, { recursive: true });
+  const file = path.join(dir, path.basename(book));
+  writeFileSync(file, xml);
+  return file;
 }
 
 async function openCopy(core: CoreHandle, page: Page, book: string, dir: string): Promise<string> {
@@ -93,6 +108,7 @@ test.describe('US7 (feature 012) - export and import again', () => {
         await exportEpub(core, page, epub);
         // importDone waits for the new book to be the shown one.
         await importDone(page, await importViaMenu(core, page, epub), 120_000);
+        const againErrors = await bodyErrors(core, page);
         const again = await bookXml(core, page);
         const differences = await page.evaluate<string[]>(
           `(${COMPARE})(${JSON.stringify(original)}, ${JSON.stringify(again)})`,
@@ -101,6 +117,9 @@ test.describe('US7 (feature 012) - export and import again', () => {
           book,
           differences,
           ...(invalid.length > 0 ? { invalid: invalid.slice(0, 3) } : {}),
+          ...(againErrors.length > 0
+            ? { againInvalid: againErrors.slice(0, 3), againFile: keepInvalid(book, again) }
+            : {}),
         });
       } catch (error) {
         results.push({ book, differences: [], failure: String(error).split('\n')[0] });
@@ -110,10 +129,14 @@ test.describe('US7 (feature 012) - export and import again', () => {
     if (process.env.MFBE_ROUND_TRIP_REPORT) {
       writeFileSync(process.env.MFBE_ROUND_TRIP_REPORT, `${JSON.stringify(results, null, 2)}\n`);
     }
-    // A book with invalid bodies is reported apart: what FB2 refuses comes back in a valid form.
+    // A valid book comes back exactly; an invalid one (reported apart) tests that its conversion still
+    // gives a valid book; a book imported again that is not valid is a fault either way (D34).
     expect(
       results.filter(
-        (result) => result.failure || (!result.invalid && result.differences.length > 0),
+        (result) =>
+          result.failure ||
+          result.againInvalid ||
+          (!result.invalid && result.differences.length > 0),
       ),
     ).toEqual([]);
   });

@@ -347,7 +347,10 @@ from these differences:
 
 - the title page and the cover page come back as the description and the cover, not as text;
 - ids the export had to change to make them unique keep their new form;
-- chapters the export divided into pages are joined again.
+- chapters the export divided into pages are joined again;
+- parts of a book that FB2's schema does not allow come back in a valid form;
+- pictures nothing in the book shows are not exported, so they do not come back;
+- a link to a place the book does not hold comes back as its text.
 
 ## The Styles view
 

@@ -303,7 +303,7 @@ export function buildEpub(input: BuildInput): BuiltEpub {
   drafts.push({ name: 'EPUB/text/title.xhtml', title: words.titlePage, html: titlePage });
 
   // D34: every page of a body other than the notes carries the body's mark, so that the editor's own
-  // import gives each body back (the attributes are set per body below).
+  // import knows where each body begins (set per body below).
   let bodyMark = '';
 
   // A body's own picture, title and epigraphs, on a page before its sections.
@@ -381,8 +381,7 @@ export function buildEpub(input: BuildInput): BuiltEpub {
   let bodyOrdinal = 0;
   document.bodies.forEach((body, index) => {
     if (notesBodies.has(index)) return;
-    const name = (body.attrs as { name?: string }).name;
-    bodyMark = ` data-fb2-body="${++bodyOrdinal}"${name ? ` data-fb2-body-name="${attr(name)}"` : ''}`;
+    bodyMark = ` data-fb2-body="${++bodyOrdinal}"`;
     const before = drafts.length;
     const entries = bodyIntro(body, toc);
     for (const child of body.content) {

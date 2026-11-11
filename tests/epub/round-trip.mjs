@@ -60,7 +60,7 @@ const run = spawnSync(
 
 if (existsSync(report)) {
   const results = JSON.parse(readFileSync(report, 'utf8'));
-  const failed = results.filter((result) => result.failure);
+  const failed = results.filter((result) => result.failure || result.againInvalid);
   const differing = results.filter(
     (result) => !result.failure && !result.invalid && result.differences.length > 0,
   );
@@ -74,6 +74,10 @@ if (existsSync(report)) {
   for (const result of [...failed, ...differing, ...invalid.filter((r) => r.differences.length > 0)]) {
     console.log(`\n${result.book}`);
     if (result.failure) console.log(`  failed: ${result.failure}`);
+    if (result.againInvalid) {
+      console.log(`  the book imported again is not valid: ${result.againInvalid[0]}`);
+      if (result.againFile) console.log(`  kept as ${result.againFile}`);
+    }
     if (result.invalid) console.log(`  invalid original: ${result.invalid[0]}`);
     for (const line of result.differences.slice(0, 12)) console.log(`  ${line}`);
   }

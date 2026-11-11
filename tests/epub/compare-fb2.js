@@ -38,8 +38,15 @@
     ]));
   const originalBinaries = binariesOf(original);
   const againBinaries = binariesOf(again);
-  for (const data of originalBinaries.values()) {
-    if (!labels.has(data)) labels.set(data, `picture ${labels.size + 1}`);
+  // D34: pictures nothing in the book shows are not exported - only the shown ones must come back.
+  const shown = new Set(
+    [...original.getElementsByTagName('*')]
+      .map((element) => element.getAttributeNS(XLINK, 'href') || '')
+      .filter((href) => href.startsWith('#'))
+      .map((href) => href.slice(1)),
+  );
+  for (const [id, data] of originalBinaries) {
+    if (shown.has(id) && !labels.has(data)) labels.set(data, `picture ${labels.size + 1}`);
   }
 
   const words = (value) => (value || '').replace(/\s+/g, ' ');
@@ -73,7 +80,10 @@
       const inner = [...node.childNodes].map(inline).join('');
       if (name === 'a') {
         const kind = node.getAttribute('type') ? ` ${node.getAttribute('type')}` : '';
-        return `[a${kind} ${target(hrefOf(node))}]${inner}[/a]`;
+        const where = target(hrefOf(node));
+        // D34: a link to a place the book does not hold comes back as its text (as D22).
+        if (where.startsWith('-> nothing')) return inner;
+        return `[a${kind} ${where}]${inner}[/a]`;
       }
       if (name === 'image') {
         const alt = node.getAttribute('alt') ? ` alt="${node.getAttribute('alt')}"` : '';

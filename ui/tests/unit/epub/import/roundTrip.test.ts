@@ -117,6 +117,37 @@ describe("the editor's own EPUB, imported again (D34)", () => {
     );
   });
 
+  it('gives further bodies back as sections of the one body FB2 allows', async () => {
+    const intro = (n: number, title: string) =>
+      page(
+        `EPUB/text/b${n}.xhtml`,
+        `<div id="body${n}" class="fb2-body-intro" data-fb2-body="${n}">` +
+          `<h1 class="fb2-title fb2-body-title">${title}</h1>` +
+          (n === 2 ? '<blockquote class="fb2-epigraph"><p>Its epigraph.</p></blockquote>' : '') +
+          '</div>',
+      );
+    const chapter = (n: number) =>
+      page(
+        `EPUB/text/s${n}.xhtml`,
+        `<div id="s${n}" class="fb2-section" data-fb2-body="${n}"><h1 class="fb2-title">S${n}</h1>` +
+          `<div id="s${n}a" class="fb2-section"><h2 class="fb2-title">S${n}a</h2><p>T${n}</p></div></div>`,
+      );
+    const book = await convert([
+      intro(1, 'Main'),
+      chapter(1),
+      intro(2, 'Second'),
+      chapter(2),
+      chapter(3),
+    ]);
+    expect(book.bodyXml).toBe(
+      '<body><title><p>Main</p></title>' +
+        '<section id="s1"><title><p>S1</p></title><section id="s1a"><title><p>S1a</p></title><p>T1</p></section></section>' +
+        '<section><title><p>Second</p></title><epigraph><p>Its epigraph.</p></epigraph>' +
+        '<section id="s2"><title><p>S2</p></title><section id="s2a"><title><p>S2a</p></title><p>T2</p></section></section></section>' +
+        '<section id="s3"><title><p>S3</p></title><section id="s3a"><title><p>S3a</p></title><p>T3</p></section></section></body>',
+    );
+  });
+
   it('keeps every space of its paragraphs, also around formatting', async () => {
     const book = await convert([
       page(
