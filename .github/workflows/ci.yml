@@ -1146,3 +1146,55 @@ jobs:
           name: shell-smoke
           path: build/shell-smoke*.png
           if-no-files-found: ignore
+
+  # Feature 013 (T018, research R3), temporary: on the Intel macOS runner the Release workflow uses,
+  # which directories the core tests' OpenSSL headers come from. Runs only when CI is started by hand
+  # (GitHub starts a workflow by hand only when its file exists on the default branch, as ci.yml does).
+  openssl-headers-diagnostic:
+    name: OpenSSL headers (Intel macOS, diagnostic)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Ninja
+        shell: bash
+        run: |
+          if ! command -v ninja >/dev/null 2>&1; then brew install ninja; fi
+          ninja --version
+
+      - name: Install macOS build dependencies
+        run: brew install autoconf automake autoconf-archive libtool pkg-config
+
+      - name: Set up vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgDirectory: ${{ github.workspace }}/vcpkg
+          vcpkgJsonGlob: vcpkg.json
+          runVcpkgInstall: false
+
+      - name: Cache vcpkg binaries
+        uses: actions/cache@v5
+        with:
+          path: ${{ github.workspace }}/.vcpkg-cache
+          key: vcpkg-macos-intel-${{ hashFiles('vcpkg.json', 'CMakePresets.json', 'triplets/*.cmake') }}
+          restore-keys: vcpkg-macos-intel-
+
+      - name: Configure
+        shell: bash
+        run: cmake --preset macos-core-release
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+
+      - name: Where the tests' OpenSSL headers come from
+        shell: bash
+        run: |
+          build=build/macos-core-release
+          echo "== CMake cache entries naming /usr/local"
+          grep -n "/usr/local" "$build/CMakeCache.txt" || echo "(none)"
+          echo "== the compile command of tests/core/test_tls_ca.cpp, one argument per line"
+          ninja -C "$build" -t commands mfbe_core_tests | grep "test_tls_ca.cpp" | tr ' ' '\n' | grep -vE '^$' | head -80
+          echo "== include directories over every compile of the tests"
+          ninja -C "$build" -t commands mfbe_core_tests | grep -oE "(-I|-isystem )[^ ]+" | sort | uniq -c | sort -rn | head -40
+          echo "== build.ninja lines naming /usr/local"
+          grep -n "/usr/local" "$build/build.ninja" | cut -c1-300 | head -20 || true
