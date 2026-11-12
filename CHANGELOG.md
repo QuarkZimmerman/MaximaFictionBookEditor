@@ -7,7 +7,9 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 
 ### In short
 
-- (filled while feature 013 is built)
+- Formulas of imported Markdown and EPUB books are drawn by MathJax 4, in its own look
+- Windows builds prepare the compiler without Node.js 20; every build step runs on Node.js 24
+- The core's HTTPS tests use the project's own OpenSSL on every platform
 
 ## 0.0.10 - 2026-11-11
 

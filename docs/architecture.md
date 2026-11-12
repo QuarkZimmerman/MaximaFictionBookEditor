@@ -295,7 +295,10 @@ book after an export or a cancelled import.
     happened with `features/markdown/specialChars.ts`, which the import now loads with the
     conversion;
   - what a part needs only for some books is loaded with `import()` too: MathJax for MathML formulas,
-    the SVG rasteriser `features/markdown/diagrams/raster.ts`, which carries no Mermaid.
+    the SVG rasteriser `features/markdown/diagrams/raster.ts`, which carries no Mermaid; and MathJax 4's
+    default font, whose glyph data comes in parts, each its own chunk, loaded only for the formulas that
+    need it (feature 013; `ui/tests/unit/markdown/formulaChunk.test.ts` checks that nothing the page
+    loads at start holds MathJax or its font).
 
   The guards: `ui/tests/unit/epub/chunk.test.ts` (G16) reads the built output - one `epub-import`
   and one `epub-export` chunk, each reached only through `import()`, neither importing the other -
