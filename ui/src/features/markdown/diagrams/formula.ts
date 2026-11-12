@@ -34,6 +34,9 @@ const mathmlPage = mathjax.document('', {
   OutputJax: new SVG({ fontCache: 'none' }),
 });
 
+/** The MathJax version that draws the formulas (the formula baseline records with it, feature 013). */
+export const MATHJAX_VERSION: string = mathjax.version;
+
 const exOf = (value: string | null) => Number.parseFloat((value ?? '').replace(/ex$/, '')) || 0;
 
 /** A formula's notation: TeX (the Markdown import) or MathML (the EPUB import). */
