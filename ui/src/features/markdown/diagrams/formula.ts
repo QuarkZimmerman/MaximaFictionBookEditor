@@ -36,9 +36,37 @@ const mathmlPage = mathjax.document('', {
 
 const exOf = (value: string | null) => Number.parseFloat((value ?? '').replace(/ex$/, '')) || 0;
 
+/** A formula's notation: TeX (the Markdown import) or MathML (the EPUB import). */
+export type FormulaInput = 'tex' | 'mathml';
+
+/** The width and height of MathJax's drawing, in ex. */
+function svgSize(svg: string): { width: number; height: number } {
+  const root = new DOMParser().parseFromString(svg, 'image/svg+xml').documentElement;
+  return { width: exOf(root.getAttribute('width')), height: exOf(root.getAttribute('height')) };
+}
+
+/**
+ * Feature 013 (SC-001): the SVG MathJax draws for a formula (a block formula when `display`) - the
+ * step `drawFormula` and `drawMathML` share before rasterising, and the one the formula baseline
+ * measures. Rejects as the drawing does: with MathJax's reason, or for an empty formula.
+ */
+export async function formulaSvg(
+  input: FormulaInput,
+  source: string,
+  display: boolean,
+): Promise<string> {
+  const doc = input === 'tex' ? page : mathmlPage;
+  const svg = adaptor.innerHTML(doc.convert(source, { display }));
+  const error = /data-mjx-error="([^"]*)"/.exec(svg) ?? (svg.includes('merror') ? ['', ''] : null);
+  if (error) throw new Error(error[1] || 'not a valid formula');
+  const { width, height } = svgSize(svg);
+  if (width <= 0 || height <= 0) throw new Error('an empty formula');
+  return svg;
+}
+
 /** Draws `tex` (a block formula when `display`); rejects with TeX's reason when it is not valid. */
 export async function drawFormula(tex: string, display: boolean): Promise<DrawnDiagram> {
-  return drawn(adaptor.innerHTML(page.convert(tex, { display })), tex, FORMULA_KEYWORD);
+  return drawn(await formulaSvg('tex', tex, display), tex, FORMULA_KEYWORD);
 }
 
 /**
@@ -46,16 +74,14 @@ export async function drawFormula(tex: string, display: boolean): Promise<DrawnD
  * rejects when MathJax cannot read it.
  */
 export async function drawMathML(mathml: string, display: boolean): Promise<DrawnDiagram> {
-  return drawn(adaptor.innerHTML(mathmlPage.convert(mathml, { display })), mathml, MATHML_KEYWORD);
+  return drawn(await formulaSvg('mathml', mathml, display), mathml, MATHML_KEYWORD);
 }
 
+/** Rasterises a drawing `formulaSvg` accepted. */
 async function drawn(svg: string, source: string, keyword: string): Promise<DrawnDiagram> {
-  const error = /data-mjx-error="([^"]*)"/.exec(svg) ?? (svg.includes('merror') ? ['', ''] : null);
-  if (error) throw new Error(error[1] || 'not a valid formula');
-  const root = new DOMParser().parseFromString(svg, 'image/svg+xml').documentElement;
-  const width = exOf(root.getAttribute('width')) * PIXELS_PER_EX;
-  const height = exOf(root.getAttribute('height')) * PIXELS_PER_EX;
-  if (width <= 0 || height <= 0) throw new Error('an empty formula');
+  const size = svgSize(svg);
+  const width = size.width * PIXELS_PER_EX;
+  const height = size.height * PIXELS_PER_EX;
   const factor = Math.min(1, MAX_WIDTH / width, MAX_HEIGHT / height);
   return rasterise(
     svg,
