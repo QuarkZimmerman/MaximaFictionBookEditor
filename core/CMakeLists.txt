@@ -18,6 +18,9 @@ find_package(WebP CONFIG REQUIRED)
 find_package(TIFF REQUIRED)
 find_package(GIF REQUIRED)
 find_package(Stb REQUIRED)
+# Feature 014 (PD2): Poppler finishes the PDF export and reads PDFs; vcpkg ships it for pkg-config.
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(POPPLER REQUIRED IMPORTED_TARGET poppler)
 # ZIP archives (feature 009, PD1): the ZIP reader and writer only; built with the bzip2, lzma and
 # zstd features so every ZIP compression method libarchive reads is read (research DP-1, DP-3).
 find_package(LibArchive REQUIRED)
@@ -96,6 +99,7 @@ if(NOT WIN32)
   find_package(Iconv REQUIRED)
   target_link_libraries(mfbe_core PRIVATE Iconv::Iconv)
 endif()
+target_link_libraries(mfbe_core PRIVATE PkgConfig::POPPLER)
 
 if(WIN32)
   target_link_libraries(mfbe_core PRIVATE ws2_32 shell32 ole32)
