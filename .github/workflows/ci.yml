@@ -1180,16 +1180,30 @@ jobs:
           key: vcpkg-macos-intel-${{ hashFiles('vcpkg.json', 'CMakePresets.json', 'triplets/*.cmake') }}
           restore-keys: vcpkg-macos-intel-
 
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Cache CEF distribution
+        uses: actions/cache@v5
+        with:
+          path: third_party/downloads
+          key: cef-${{ hashFiles('cmake/CefVersion.cmake') }}-macosx64
+
+      # The core-only preset (macos-core-release) was clean: its tests take vcpkg's OpenSSL headers.
+      # The Release workflow builds with the application preset, as here.
       - name: Configure
         shell: bash
-        run: cmake --preset macos-core-release
+        run: cmake --preset macos-app-release
         env:
           VCPKG_ROOT: ${{ github.workspace }}/vcpkg
 
       - name: Where the tests' OpenSSL headers come from
         shell: bash
         run: |
-          build=build/macos-core-release
+          build=build/macos-app-release
           echo "== CMake cache entries naming /usr/local"
           grep -n "/usr/local" "$build/CMakeCache.txt" || echo "(none)"
           echo "== the compile command of tests/core/test_tls_ca.cpp, one argument per line"
