@@ -1221,3 +1221,9 @@ jobs:
           ninja -C "$build" "$obj" 2>&1 | grep -E "warning|error|openssl" | head -20 || true
           cmd=$(ninja -C "$build" -t commands "$obj" | tail -1)
           (cd "$build" && eval "$cmd -H -fsyntax-only" 2>&1 | grep -E "openssl/(ssl|opensslv|asn1)\.h" | head -10) || true
+          echo "== vcpkg's OpenSSL headers"
+          ls "build/vcpkg_installed/x64-osx/include/openssl" 2>&1 | head -5
+          echo "== the real compile's search list (-v)"
+          (cd "$build" && eval "$cmd -v -fsyntax-only" 2>&1 | sed -n '/search starts here/,/End of search list/p') || true
+          echo "== the include tree down to the first OpenSSL header (-H)"
+          (cd "$build" && eval "$cmd -H -fsyntax-only" 2>&1 | grep -E '^\.+ ' | sed -n '1,/openssl/p' | tail -12) || true
