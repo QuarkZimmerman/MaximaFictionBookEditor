@@ -88,6 +88,8 @@ never linked.
 | @lezer/lr | 1.4.11 | MIT | `ui/node_modules/@lezer/lr/LICENSE` |
 | @lezer/xml | 1.0.6 | MIT | `ui/node_modules/@lezer/xml/LICENSE` |
 | @marijn/find-cluster-break | 1.0.4 | MIT | `ui/node_modules/@marijn/find-cluster-break/LICENSE` |
+| @mathjax/mathjax-newcm-font | 4.1.3 | Apache-2.0 | `ui/node_modules/@mathjax/src/LICENSE` |
+| @mathjax/src | 4.1.3 | Apache-2.0 | `ui/node_modules/@mathjax/src/LICENSE` |
 | @mermaid-js/parser | 2.0.1 | MIT | `ui/node_modules/@mermaid-js/parser/LICENSE` |
 | @modelcontextprotocol/client | 2.3.1 | Apache-2.0 | `ui/node_modules/@modelcontextprotocol/client/LICENSE` |
 | @modelcontextprotocol/core | 2.3.1 | Apache-2.0 | `ui/node_modules/@modelcontextprotocol/core/LICENSE` |
@@ -131,7 +133,7 @@ never linked.
 | chevrotain | 13.2.0 | Apache-2.0 | `ui/node_modules/chevrotain/LICENSE.txt` |
 | commander | 7.2.0 | MIT | `ui/node_modules/commander/LICENSE` |
 | commander | 15.1.0 | MIT | `ui/node_modules/katex/node_modules/commander/LICENSE` |
-| commander | 13.1.0 | MIT | `ui/node_modules/speech-rule-engine/node_modules/commander/LICENSE` |
+| commander | 14.0.3 | MIT | `ui/node_modules/speech-rule-engine/node_modules/commander/LICENSE` |
 | cose-base | 1.0.3 | MIT | `ui/node_modules/cose-base/LICENSE` |
 | cose-base | 2.2.0 | MIT | `ui/node_modules/cytoscape-fcose/node_modules/cose-base/LICENSE` |
 | crelt | 1.0.7 | MIT | `ui/node_modules/crelt/LICENSE` |
@@ -181,7 +183,6 @@ never linked.
 | dompurify | 3.4.17 | Apache-2.0 | `ui/node_modules/dompurify/LICENSE` |
 | entities | 8.1.0 | BSD-2-Clause | `ui/node_modules/entities/LICENSE` |
 | es-toolkit | 1.53.2 | MIT | `ui/node_modules/es-toolkit/LICENSE` |
-| esm | 3.2.25 | MIT | `ui/node_modules/esm/LICENSE` |
 | eventsource | 3.0.7 | MIT | `ui/node_modules/eventsource/LICENSE` |
 | eventsource-parser | 3.1.1 | MIT | `ui/node_modules/eventsource-parser/LICENSE` |
 | hachure-fill | 0.5.2 | MIT | `ui/node_modules/hachure-fill/LICENSE` |
@@ -207,7 +208,6 @@ never linked.
 | markdown-it-sup | 2.0.0 | MIT | `ui/node_modules/markdown-it-sup/LICENSE` |
 | markdown-it-task-lists | 2.1.1 | ISC | `ui/node_modules/markdown-it-task-lists/LICENSE` |
 | marked | 16.4.2 | MIT | `ui/node_modules/marked/LICENSE.md` |
-| mathjax-full | 3.2.2 | Apache-2.0 | `ui/node_modules/mathjax-full/LICENSE` |
 | mdn-data | 2.27.1 | CC0-1.0 | `ui/node_modules/mdn-data/LICENSE` |
 | mdurl | 2.1.0 | MIT | `ui/node_modules/mdurl/LICENSE` |
 | mermaid | 12.2.0 | MIT | `ui/node_modules/mermaid/LICENSE` |
@@ -240,7 +240,7 @@ never linked.
 | shebang-command | 2.0.0 | MIT | `ui/node_modules/shebang-command/license` |
 | shebang-regex | 3.0.0 | MIT | `ui/node_modules/shebang-regex/license` |
 | source-map-js | 1.2.2 | BSD-3-Clause | `ui/node_modules/source-map-js/LICENSE` |
-| speech-rule-engine | 4.1.5 | Apache-2.0 | `ui/node_modules/speech-rule-engine/LICENSE` |
+| speech-rule-engine | 5.0.0-rc.4 | Apache-2.0 | `ui/node_modules/speech-rule-engine/LICENSE` |
 | style-mod | 4.1.4 | MIT | `ui/node_modules/style-mod/LICENSE` |
 | stylis | 4.4.0 | MIT | `ui/node_modules/stylis/LICENSE` |
 | tinyexec | 1.3.1 | MIT | `ui/node_modules/tinyexec/LICENSE` |
@@ -299,9 +299,9 @@ ship with the Linux packages only (resources/certs/, refreshed by tools/refresh-
 
 | Licence | Components |
 |---|---|
-| MIT | 137 |
+| MIT | 136 |
 | ISC | 36 |
-| Apache-2.0 | 15 |
+| Apache-2.0 | 16 |
 | BSD-3-Clause | 12 |
 | OFL-1.1 | 4 |
 | BSD-2-Clause | 3 |

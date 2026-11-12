@@ -439,6 +439,17 @@ LICENCE_OVERRIDES = {
     "khroma": ("MIT", "the package.json names no licence; its license file is the MIT License"),
 }
 
+# Packages that ship no licence text of their own, with the package of the same author and the same
+# licence whose text stands for theirs (a licence's text is the same word for word).
+LICENCE_TEXT_FROM = {
+    "@mathjax/mathjax-newcm-font": (
+        "@mathjax/src",
+        "MathJax 4's default font, from the same MathJax project and under the same Apache-2.0 as "
+        "@mathjax/src; the package ships no licence text, so @mathjax/src's Apache-2.0 text stands "
+        "for it (feature 013)",
+    ),
+}
+
 
 def collect_npm(problems: list[str]) -> list[Component]:
     lock_file = REPO / "ui" / "package-lock.json"
@@ -548,6 +559,19 @@ def collect_npm(problems: list[str]) -> list[Component]:
             if texts and not is_font:
                 component.text = f"ui/{path_key}/{texts[0].name}"
                 component.text_paths.append(texts[0])
+            elif package_dir.is_dir() and not is_font and name in LICENCE_TEXT_FROM:
+                source, why = LICENCE_TEXT_FROM[name]
+                source_dir = node_modules / source
+                source_texts = sorted(
+                    p for p in source_dir.glob("*")
+                    if p.is_file() and re.match(r"(?i)^(licen[cs]e|copying)", p.name)
+                ) if source_dir.is_dir() else []
+                if source_texts:
+                    component.text = f"ui/node_modules/{source}/{source_texts[0].name}"
+                    component.text_paths.append(source_texts[0])
+                    component.note = f"{component.note}; {why}" if component.note else why
+                else:
+                    component.problems.append(f"no LICENSE file in the installed package, nor in {source}")
             elif package_dir.is_dir() and not is_font:
                 component.problems.append("no LICENSE file in the installed package")
         components.append(component)
