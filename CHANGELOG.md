@@ -3,6 +3,14 @@
 All notable changes to Maxima Fiction Book Editor. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.0.11 - unreleased
+
+### In short
+
+- Formulas of imported Markdown and EPUB books are drawn by MathJax 4, in its own look
+- Windows builds prepare the compiler without Node.js 20; every build step runs on Node.js 24
+- macOS builds compile against the SDK and the project's own libraries only, never Homebrew's headers
+
 ## 0.0.10 - 2026-11-11
 
 ### In short

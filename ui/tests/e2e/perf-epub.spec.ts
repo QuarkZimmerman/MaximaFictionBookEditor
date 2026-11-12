@@ -27,6 +27,11 @@ import { MEMORY_BUDGET_BYTES, OWN_CORE, peakRssBytes, rendererPeakBytes } from '
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const GENERATOR = path.join(REPO_ROOT, 'tests', 'fixtures', 'gen-large-book.py');
 const FACTOR = Number(process.env.MFBE_PERF_FACTOR ?? 1) || 1;
+/** The reference EPUBs of feature 012 (`tests/fixtures/epub/make-fixtures.py`). */
+const FIXTURE_EPUBS = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '../../../tests/fixtures/epub',
+);
 
 /**
  * Records, in the page, each moment the progress window's bar changes and the moment the window goes
@@ -269,6 +274,20 @@ test.describe('performance - the EPUB export and import, the book styles (SC-010
       expect(back.ms, '10 MB import').toBeLessThan(5_000 * FACTOR);
       expect(back.still, 'the import progress stands still').toBeLessThan(1_000 * FACTOR);
       checkMemory(core);
+    },
+  );
+
+  test(
+    'an EPUB with a MathML formula: the first formula import after start within 5 s (013, SC-005)',
+    { tag: '@perf' },
+    async ({ core, page }) => {
+      test.setTimeout(300_000);
+      // A core and a page of their own: the formula part and MathJax 4's font are not loaded yet.
+      await core.openApp(page);
+      const back = await timedImport(core, page, path.join(FIXTURE_EPUBS, 'everything.epub'));
+      note(`first formula import (everything.epub): ${back.ms} ms`);
+      note(`first formula import phases (ms): ${back.phases}`);
+      expect(back.ms, 'the first formula import').toBeLessThan(5_000 * FACTOR);
     },
   );
 

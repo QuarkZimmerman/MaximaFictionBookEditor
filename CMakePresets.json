@@ -35,6 +35,7 @@
       "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Darwin" },
       "cacheVariables": {
         "CMAKE_OSX_DEPLOYMENT_TARGET": "13.0",
+        "CMAKE_OSX_SYSROOT": "macosx",
         "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/triplets"
       }
     },

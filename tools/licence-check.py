@@ -439,6 +439,19 @@ LICENCE_OVERRIDES = {
     "khroma": ("MIT", "the package.json names no licence; its license file is the MIT License"),
 }
 
+# Packages that ship no licence text of their own, with the package of the same author and the same
+# licence whose LICENSE file stands for theirs (a licence's text is the same word for word). Applied
+# whether ui/node_modules is installed or not, so that CI's lint job (which has none) writes the
+# same rows; with the packages installed, the file's presence is checked.
+LICENCE_TEXT_FROM = {
+    "@mathjax/mathjax-newcm-font": (
+        "@mathjax/src",
+        "MathJax 4's default font, from the same MathJax project and under the same Apache-2.0 as "
+        "@mathjax/src; the package ships no licence text, so @mathjax/src's Apache-2.0 text stands "
+        "for it (feature 013)",
+    ),
+}
+
 
 def collect_npm(problems: list[str]) -> list[Component]:
     lock_file = REPO / "ui" / "package-lock.json"
@@ -502,6 +515,8 @@ def collect_npm(problems: list[str]) -> list[Component]:
         # the Markdown import reads at run time to draw pictures of special characters, never
         # combined into the program (aggregate, GPLv3 section 5), shipped with the OFL text.
         is_font = name.startswith("@fontsource/")
+        if name in LICENCE_TEXT_FROM:
+            note = f"{note}; {LICENCE_TEXT_FROM[name][1]}" if note else LICENCE_TEXT_FROM[name][1]
         if is_font:
             note = ("font files shipped as separate files of the interface and read at run time by "
                     "the Markdown import to draw pictures of special characters; not combined into "
@@ -512,7 +527,8 @@ def collect_npm(problems: list[str]) -> list[Component]:
             name=name,
             version=version,
             licence=licence,
-            text=f"ui/{path_key}/LICENSE",
+            text=(f"ui/node_modules/{LICENCE_TEXT_FROM[name][0]}/LICENSE" if name in LICENCE_TEXT_FROM
+                  else f"ui/{path_key}/LICENSE"),
             note=note,
             homepage=f"https://www.npmjs.com/package/{name}",
         )
@@ -548,6 +564,13 @@ def collect_npm(problems: list[str]) -> list[Component]:
             if texts and not is_font:
                 component.text = f"ui/{path_key}/{texts[0].name}"
                 component.text_paths.append(texts[0])
+            elif package_dir.is_dir() and not is_font and name in LICENCE_TEXT_FROM:
+                source_text = node_modules / LICENCE_TEXT_FROM[name][0] / "LICENSE"
+                if source_text.is_file():
+                    component.text_paths.append(source_text)
+                else:
+                    component.problems.append(
+                        f"no LICENSE file in the installed package, nor in {LICENCE_TEXT_FROM[name][0]}")
             elif package_dir.is_dir() and not is_font:
                 component.problems.append("no LICENSE file in the installed package")
         components.append(component)
