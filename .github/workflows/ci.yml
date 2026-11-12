@@ -1212,3 +1212,12 @@ jobs:
           ninja -C "$build" -t commands mfbe_core_tests | grep -oE "(-I|-isystem )[^ ]+" | sort | uniq -c | sort -rn | head -40
           echo "== build.ninja lines naming /usr/local"
           grep -n "/usr/local" "$build/build.ninja" | cut -c1-300 | head -20 || true
+          echo "== environment variables that add include or library directories"
+          env | grep -E "^(CPATH|CPLUS_INCLUDE_PATH|C_INCLUDE_PATH|OBJC_INCLUDE_PATH|LIBRARY_PATH|SDKROOT|CPPFLAGS|CXXFLAGS|CFLAGS|LDFLAGS)=" || echo "(none)"
+          echo "== the compiler's include search order"
+          echo | /usr/bin/c++ -x c++ -E -v - 2>&1 | sed -n '/search starts here/,/End of search list/p'
+          echo "== the OpenSSL headers test_tls_ca.cpp actually includes (-H)"
+          obj=tests/core/CMakeFiles/mfbe_core_tests.dir/test_tls_ca.cpp.o
+          ninja -C "$build" "$obj" 2>&1 | grep -E "warning|error|openssl" | head -20 || true
+          cmd=$(ninja -C "$build" -t commands "$obj" | tail -1)
+          (cd "$build" && eval "$cmd -H -fsyntax-only" 2>&1 | grep -E "openssl/(ssl|opensslv|asn1)\.h" | head -10) || true
