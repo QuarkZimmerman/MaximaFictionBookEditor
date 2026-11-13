@@ -140,6 +140,10 @@ body { font-family: '${text}', '${georgian}', '${armenian}', '${mono}'; font-siz
    line's end - or at one of the book's soft hyphens - would stay in the text layer and break the
    word for search and copy. Lines break between words only, the same on every system. */
 *, *::before, *::after { hyphens: none !important; -webkit-hyphens: none !important; }
+/* SC-009: glyph advances as the font gives them, unhinted, on every system - Linux otherwise rounds
+   them to the hinting grid, and lines with small raised marks break elsewhere than on Windows and
+   macOS. */
+* { text-rendering: geometricPrecision !important; }
 .mfbe-page { position: relative; box-sizing: border-box; width: ${layout.pageWidth}px;
   height: ${layout.pageHeight}px; padding: ${layout.margin}px; overflow: hidden;
   break-after: page; page-break-after: always; }
