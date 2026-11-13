@@ -26,6 +26,7 @@ import { createPrintFrame, pictureBox } from './document';
 import { layoutFor, type PrintLayout } from './layout';
 import { PX_TO_PT, type PageMap, type PageMapBookmark, type PageMapPicture } from './pageMap';
 import { planPages, type PlanBlock } from './plan';
+import { pdfWords, wordsLanguage } from './words';
 
 export const PAGES_PER_PART = 1000;
 
@@ -214,11 +215,6 @@ function cloneText(element: Element, from: number, to: number): Element {
   return clone;
 }
 
-function wordsLanguage(lang: string | undefined): string {
-  const base = (lang ?? '').toLowerCase().split(/[-_]/)[0];
-  return base === 'ru' || base === 'uk' ? base : 'en';
-}
-
 function escapeXml(text: string): string {
   return text.replace(
     /[<>&"]/g,
@@ -327,7 +323,8 @@ export async function paginate(
       box.className = 'mfbe-picture';
       box.setAttribute('data-binary-id', coverMeta.id);
       box.setAttribute('role', 'img');
-      box.setAttribute('aria-label', title);
+      // FR-010: the cover picture's alternative text, in the book's language.
+      box.setAttribute('aria-label', pdfWords(lang).cover);
       box.style.width = `${coverMeta.width * scale}px`;
       box.style.height = `${coverMeta.height * scale}px`;
       content.append(box);
