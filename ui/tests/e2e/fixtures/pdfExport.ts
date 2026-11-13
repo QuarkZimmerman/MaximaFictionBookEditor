@@ -69,7 +69,13 @@ export interface Expected {
  * DOM types: the reader is a string evaluated there), with the title page's words (D11).
  */
 export async function expectedText(page: Page, file: string): Promise<Expected> {
-  const xml = readFileSync(file, 'utf8');
+  // The book as the window holds it (any encoding of its file), else the file as UTF-8.
+  const held = await page
+    .evaluate(
+      `window.__mfbeTest && window.__mfbeTest.scripts ? window.__mfbeTest.scripts.toXml() : null`,
+    )
+    .catch(() => null);
+  const xml = typeof held === 'string' && held ? held : readFileSync(file, 'utf8');
   return page.evaluate(`(() => {
     const doc = new DOMParser().parseFromString(${JSON.stringify(xml)}, 'application/xml');
     const NS = 'http://www.gribuser.ru/xml/fictionbook/2.0';

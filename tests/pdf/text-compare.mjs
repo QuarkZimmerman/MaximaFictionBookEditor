@@ -120,8 +120,11 @@ export function compareText(pageTexts, expected) {
     let end = at;
     while (end < all.length && !covered[end]) end++;
     const run = all.slice(at, end);
-    // Note labels and reference marks ("1", "[2]", "*") and the added words are allowed.
-    if (!allowed.has(run) && !/^[\d[\]().*†‡§]+$/.test(run)) extra.push(run);
+    // Note labels and reference marks ("1", "[2]", "*") and the added words are allowed - the
+    // title page's words in whatever order it shows them, a page number beside them.
+    let rest = run;
+    for (const word of allowed) if (word) rest = rest.replace(word, "");
+    if (!allowed.has(run) && !/^[\d[\]().*†‡§]*$/.test(rest)) extra.push(run);
     at = end;
   }
   // "Each word whole" (D5): a letter, a hyphen at the end of a line, a letter, where the book has
