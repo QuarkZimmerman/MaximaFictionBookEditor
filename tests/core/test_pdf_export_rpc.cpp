@@ -64,7 +64,7 @@ std::string sample_pdf() {
 TEST_CASE("pdf export rpc: a part is uploaded, printed through the seam and written",
           "[pdf][rpc]") {
     Fixture f;
-    const auto target = f.data.path() / "out" / "книга.pdf";
+    const auto target = f.data.path() / "out" / platform::path_from_utf8("книга.pdf");
     std::filesystem::create_directories(target.parent_path());
 
     const json bad = f.ws.call(

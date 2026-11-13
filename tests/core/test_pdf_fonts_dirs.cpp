@@ -79,7 +79,7 @@ TEST_CASE("pdf fonts dirs: a portable folder that cannot be written falls back t
 TEST_CASE("pdf fonts dirs: names outside ASCII, of the folders and of the font",
           "[pdf][fonts][dirs][rpc]") {
     test::TempDir tmp;
-    const auto data = tmp / platform::path_from_utf8("Пользователь Ünïcode");
+    const auto data = tmp.path() / platform::path_from_utf8("Пользователь Ünïcode");
     std::filesystem::create_directories(data);
     CoreServerOptions options;
     options.data_dir = platform::utf8_from_path(data);
