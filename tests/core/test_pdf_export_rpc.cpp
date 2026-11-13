@@ -7,6 +7,7 @@
 
 #include <mfbe/atomic_file.hpp>
 #include <mfbe/core_server.hpp>
+#include <mfbe/utf8_paths.hpp>
 
 #include <catch2/catch_test_macros.hpp>
 #include <chrono>
@@ -26,7 +27,7 @@ struct Fixture {
 
     Fixture() {
         CoreServerOptions options;
-        options.data_dir = data.path().string();
+        options.data_dir = platform::utf8_from_path(data.path());
         options.test_hooks = true;
         server = CoreServer::start(options);
         REQUIRE(ws.open(server->port(), "/rpc?token=" + server->token()) == 101);
@@ -66,14 +67,14 @@ TEST_CASE("pdf export rpc: a part is uploaded, printed through the seam and writ
     const auto target = f.data.path() / "out" / "книга.pdf";
     std::filesystem::create_directories(target.parent_path());
 
-    const json bad =
-        f.ws.call("pdf.export.begin", json{{"path", target.string()}, {"pageSize", "a3"}});
+    const json bad = f.ws.call(
+        "pdf.export.begin", json{{"path", platform::utf8_from_path(target)}, {"pageSize", "a3"}});
     REQUIRE(bad.contains("error"));
     CHECK(bad["error"]["code"] == 1112);
     CHECK(bad["error"]["data"]["reason"] == "pdf.badPageSize");
 
-    const json begun =
-        f.ws.call("pdf.export.begin", json{{"path", target.string()}, {"pageSize", "a5"}});
+    const json begun = f.ws.call(
+        "pdf.export.begin", json{{"path", platform::utf8_from_path(target)}, {"pageSize", "a5"}});
     REQUIRE(begun.contains("result"));
     const std::string token = begun["result"]["token"];
     CHECK(begun["result"]["pageSize"] == "a5");
@@ -139,8 +140,8 @@ TEST_CASE("pdf export rpc: a failed print and an abort leave nothing behind", "[
     Fixture f;
     const auto target = f.data.path() / "never.pdf";
     const std::string token =
-        f.ws.call("pdf.export.begin",
-                  json{{"path", target.string()}, {"pageSize", "letter"}})["result"]["token"];
+        f.ws.call("pdf.export.begin", json{{"path", platform::utf8_from_path(target)},
+                                           {"pageSize", "letter"}})["result"]["token"];
     const json printing = f.ws.call("pdf.export.print", json{{"token", token}, {"part", 0}});
     const std::string print_job = printing["result"]["jobId"];
     json requests;
@@ -229,7 +230,8 @@ TEST_CASE("pdf fonts rpc: an installed font added, served, used and removed (T05
     // Added again from its file: kept once.
     const auto copy = f.data.path() / "DejaVuSansMono.ttf";
     atomic_file::write_atomic(copy, mono);
-    const json again = f.ws.call("pdf.fonts.addFile", json{{"path", copy.string()}});
+    const json again =
+        f.ws.call("pdf.fonts.addFile", json{{"path", platform::utf8_from_path(copy)}});
     REQUIRE(again.contains("result"));
     CHECK(again["result"]["refused"] == "duplicate");
 
