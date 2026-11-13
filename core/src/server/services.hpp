@@ -65,6 +65,24 @@ struct Services {
         std::map<std::string, std::unique_ptr<epub::Writer>> writers;
     } epub;
 
+    // Feature 014 (pdf.export.*, contracts/rpc-api.md): the PDF exports under way, by token. Each
+    // keeps its paged parts and printed parts in its own folder of the data folder, removed by
+    // pdf.export.finish, pdf.export.abort, or after ten minutes without a call.
+    struct PdfExport {
+        std::filesystem::path target;
+        std::string doc_id;
+        std::string page_size;
+        double width_in = 0;
+        double height_in = 0;
+        std::filesystem::path work;
+        int parts = 1;
+        std::chrono::steady_clock::time_point touched;
+    };
+    struct PdfState {
+        std::mutex mutex;
+        std::map<std::string, PdfExport> exports;
+    } pdf;
+
     rpc::Notifier& notifier;
     rpc::JobManager jobs;
     // The AI assistant (feature 005): the service list and the transport, both created on the
@@ -154,6 +172,8 @@ private:
 
 void register_app_handlers(rpc::RpcRouter& router, Services& services);
 void register_epub_handlers(rpc::RpcRouter& router, Services& services);
+// Feature 014: pdf.export.* (pdf_handlers.cpp).
+void register_pdf_handlers(rpc::RpcRouter& router, Services& services);
 void register_log_handlers(rpc::RpcRouter& router, Services& services);
 void register_settings_handlers(rpc::RpcRouter& router, Services& services);
 void register_dialog_handlers(rpc::RpcRouter& router, Services& services);

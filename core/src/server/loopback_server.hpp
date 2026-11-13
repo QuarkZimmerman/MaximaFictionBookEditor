@@ -95,6 +95,8 @@ private:
 void register_binary_http(LoopbackServer& server, Services& services);
 // Feature 012: GET /epub/{token}/{entry} and PUT /epub-write/{token}/{name} (epub_handlers.cpp).
 void register_epub_http(LoopbackServer& server, Services& services);
+// Feature 014: PUT /pdf/{token}/part/{n} and GET /pdf/{token}/print/{n} (pdf_handlers.cpp).
+void register_pdf_http(LoopbackServer& server, Services& services);
 // Registers GET/HEAD /scripts/{scriptId}/{file} (scripts_handlers.cpp).
 void register_scripts_http(LoopbackServer& server, Services& services);
 #ifdef MFBE_TEST_HOOKS

@@ -79,6 +79,8 @@ export const RpcErrorCode = {
    */
   epubRefused: 1110,
   epubWriteFailed: 1111,
+  /** Feature 014: a PDF export that cannot go on (reason pdf.*, contracts/rpc-api.md). */
+  pdfExportFailed: 1112,
   spellDictionaryUnavailable: 1020,
   scriptNotFound: 1030,
   scriptInvalidManifest: 1031,

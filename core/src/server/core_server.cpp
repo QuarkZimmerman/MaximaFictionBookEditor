@@ -397,6 +397,7 @@ struct CoreServer::Impl : rpc::Notifier {
         server::register_styles_handlers(router, *services);
         server::register_binary_handlers(router, *services);
         server::register_epub_handlers(router, *services);
+        server::register_pdf_handlers(router, *services);
         server::register_resources_handlers(router, *services);
         server::register_spell_handlers(router, *services);
         server::register_words_handlers(router, *services);
