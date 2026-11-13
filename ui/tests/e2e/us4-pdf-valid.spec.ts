@@ -19,46 +19,52 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../.
 const OUT = path.join(ROOT, 'build', 'pdf-export');
 
 test.describe('US4: every book gives a valid PDF, or a message (feature 014)', () => {
-  test('hostile books give files, their gaps listed', async ({ core, page, context }) => {
-    test.skip(!core.hasCore, 'needs the core');
-    test.setTimeout(1_800_000);
-    mkdirSync(OUT, { recursive: true });
-    const books = scratchDir('pdf-us4-');
-    execFileSync('python3', [
-      path.join(ROOT, 'tests', 'fixtures', 'pdf', 'make-fixtures.py'),
-      '--hostile',
-      books,
-    ]);
-    await core.openApp(page);
-    const seam = startPrintSeam(core, context, { readyTimeoutMs: 1_500_000 });
-    try {
-      // The editor itself refuses the 1,000-deep book when it opens it (its XML reader stops at 256
-      // levels), with a message; the PDF's own cap (64 levels, DP-19) is shown on 200 levels.
-      const deep = readFileSync(path.join(books, 'deep-nesting.fb2'), 'utf8');
-      writeFileSync(
-        path.join(books, 'nesting-200.fb2'),
-        deep
-          .replace(/(<section><title><p>Level (\d+)<\/p><\/title>)/g, (all, _x, n) =>
-            Number(n) <= 200 ? all : '',
-          )
-          .replace(/(<\/section>)+/, '</section>'.repeat(200)),
-        'utf8',
-      );
-      for (const [name, listed] of [
-        ['nesting-200.fb2', ''],
-        ['huge-picture.fb2', 'Picture #huge.png left out'],
-        ['big-table.fb2', ''],
-      ] as const) {
-        await openFixtureBook(core, page, path.join(books, name));
-        const target = path.join(OUT, `hostile-${name.replace('.fb2', '')}.pdf`);
-        const said = await exportPdfTo(core, page, target, 'A5 (148 × 210 mm)', 1_500_000);
-        expect(existsSync(target), name).toBe(true);
-        if (listed) expect(said).toContain(listed);
+  // A stress test: its books take the page's renderer to about 1.6 GB, so it runs with the timed
+  // journeys, one at a time (@perf), not beside the other journeys' workers.
+  test(
+    'hostile books give files, their gaps listed',
+    { tag: '@perf' },
+    async ({ core, page, context }) => {
+      test.skip(!core.hasCore, 'needs the core');
+      test.setTimeout(1_800_000);
+      mkdirSync(OUT, { recursive: true });
+      const books = scratchDir('pdf-us4-');
+      execFileSync('python3', [
+        path.join(ROOT, 'tests', 'fixtures', 'pdf', 'make-fixtures.py'),
+        '--hostile',
+        books,
+      ]);
+      await core.openApp(page);
+      const seam = startPrintSeam(core, context, { readyTimeoutMs: 1_500_000 });
+      try {
+        // The editor itself refuses the 1,000-deep book when it opens it (its XML reader stops at 256
+        // levels), with a message; the PDF's own cap (64 levels, DP-19) is shown on 200 levels.
+        const deep = readFileSync(path.join(books, 'deep-nesting.fb2'), 'utf8');
+        writeFileSync(
+          path.join(books, 'nesting-200.fb2'),
+          deep
+            .replace(/(<section><title><p>Level (\d+)<\/p><\/title>)/g, (all, _x, n) =>
+              Number(n) <= 200 ? all : '',
+            )
+            .replace(/(<\/section>)+/, '</section>'.repeat(200)),
+          'utf8',
+        );
+        for (const [name, listed] of [
+          ['nesting-200.fb2', ''],
+          ['huge-picture.fb2', 'Picture #huge.png left out'],
+          ['big-table.fb2', ''],
+        ] as const) {
+          await openFixtureBook(core, page, path.join(books, name));
+          const target = path.join(OUT, `hostile-${name.replace('.fb2', '')}.pdf`);
+          const said = await exportPdfTo(core, page, target, 'A5 (148 × 210 mm)', 1_500_000);
+          expect(existsSync(target), name).toBe(true);
+          if (listed) expect(said).toContain(listed);
+        }
+      } finally {
+        await seam.stop();
       }
-    } finally {
-      await seam.stop();
-    }
-  });
+    },
+  );
 
   test('a folder the editor cannot write to gives a message and no file', async ({
     core,
