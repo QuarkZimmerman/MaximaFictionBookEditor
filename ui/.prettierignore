@@ -6,3 +6,5 @@ test-results
 package-lock.json
 # Guard G5 (feature 010): compared byte for byte with the request body it records.
 tests/e2e/fixtures/ai-requests-baseline.json
+# The Body view snapshot G17 writes and compares (us4-book-styles-off.spec.ts): kept as written.
+tests/e2e/fixtures/body-view-0.0.9.json
