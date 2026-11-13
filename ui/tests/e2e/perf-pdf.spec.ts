@@ -38,11 +38,14 @@ function generate(dir: string, name: string, megabytes: number): string | null {
 async function longestStill(
   page: Page,
   running: () => boolean,
-): Promise<{ longest: number; at: string }> {
+): Promise<{ longest: number; at: string; slow: string[] }> {
   let last = '';
   let since = Date.now();
   let longest = 0;
   let at = '';
+  // Every still period over 0.7 s, with where it stood: the steps that hold the bar.
+  const slow: string[] = [];
+  let reported = false;
   while (running()) {
     // Read without waiting: a locator would wait for the bar once the window has closed.
     const value = await page
@@ -52,8 +55,14 @@ async function longestStill(
       .catch(() => null);
     // A bar without a value is indeterminate (the core's writing step): it moves by itself.
     if (value === null || value !== last) {
+      if (reported) slow[slow.length - 1] += ` ${Date.now() - since} ms`;
+      reported = false;
       last = (value as string | null) ?? '';
       since = Date.now();
+    }
+    if (!reported && Date.now() - since > 700) {
+      slow.push(`at ${last}%:`);
+      reported = true;
     }
     if (Date.now() - since > longest) {
       longest = Date.now() - since;
@@ -64,7 +73,7 @@ async function longestStill(
     }
     await page.waitForTimeout(100);
   }
-  return { longest, at };
+  return { longest, at, slow };
 }
 
 function checkMemory(core: CoreHandle, what: string): void {
@@ -136,7 +145,8 @@ test.describe('performance - the PDF export (SC-010)', () => {
         );
         const elapsed = Date.now() - started;
         running = false;
-        const { longest, at } = await still;
+        const { longest, at, slow } = await still;
+        console.log(`still over 0.7 s: ${slow.join(', ') || 'none'}`);
         const measured = `10 MB in A6: ${elapsed} ms; the progress stood still ${longest} ms at most (at ${at})`;
         console.log(measured);
         test.info().annotations.push({ type: 'perf', description: measured });

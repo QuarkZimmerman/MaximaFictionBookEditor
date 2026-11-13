@@ -71,10 +71,13 @@ export async function exportPdf(ctx: CommandContext, docId: string, run: PdfRun)
       await put(token, part, paged.parts[part]);
       modal.progress(++done, total);
     }
+    // SC-010: the browser prints a part in one go, with no progress of its own: the bar shows busy
+    // while the parts print.
+    modal.progress(0, 0);
     for (let part = 0; part < parts; part++) {
       if (run.cancelled()) throw new Cancelled();
       await rpc.runJob('pdf.export.print', { token, part });
-      modal.progress(++done, total);
+      ++done;
     }
     if (run.cancelled()) throw new Cancelled();
     const base = done;
@@ -107,11 +110,11 @@ export async function exportPdf(ctx: CommandContext, docId: string, run: PdfRun)
         hints: paged.hints,
       },
       {
-        // SC-010: the bar moves at least once a second; the writing, which the core does in one
-        // go, shows as busy.
+        // SC-010: the bar moves at least once a second. The joining (a part at a time, each in
+        // one go) and the writing show as busy; the check counts its pages.
         onProgress: ({ phase, done: stepDone, total: stepTotal }) => {
-          if (stepTotal <= 0) modal.progress(0, 0);
-          else modal.progress(base + (phase === 'check' ? 2 : 0) + stepDone / stepTotal, total);
+          if (stepTotal <= 0 || phase !== 'check') modal.progress(0, 0);
+          else modal.progress(base + 2 + stepDone / stepTotal, total);
         },
       },
     );
