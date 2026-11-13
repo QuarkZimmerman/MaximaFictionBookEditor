@@ -179,10 +179,25 @@ export class NodeRpcClient {
   >();
   private readonly notificationListeners = new Set<(method: string, params: unknown) => void>();
 
+  /** The one opening of the socket that concurrent callers share (null when closed). */
+  private connecting: Promise<void> | null = null;
+
   constructor(private readonly url: string) {}
 
-  async connect(): Promise<void> {
-    if (this.socket) return;
+  /**
+   * Opens the socket once. Concurrent first calls - a journey's own call and a background helper's
+   * (the PDF export's print seam polls from the start) - wait for the same opening, so none of them
+   * sends before the socket is open.
+   */
+  connect(): Promise<void> {
+    this.connecting ??= this.open().catch((error: unknown) => {
+      this.connecting = null;
+      throw error;
+    });
+    return this.connecting;
+  }
+
+  private async open(): Promise<void> {
     const socket = new WebSocket(this.url);
     this.socket = socket;
     await new Promise<void>((resolve, reject) => {
@@ -213,6 +228,7 @@ export class NodeRpcClient {
       for (const entry of this.pending.values()) entry.reject(new Error('connection closed'));
       this.pending.clear();
       this.socket = null;
+      this.connecting = null;
     });
   }
 
