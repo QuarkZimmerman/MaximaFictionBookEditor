@@ -10,6 +10,32 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 - Formulas of imported Markdown and EPUB books are drawn by MathJax 4, in its own look
 - Windows builds prepare the compiler without Node.js 20; every build step runs on Node.js 24
 - macOS builds compile against the SDK and the project's own libraries only, never Homebrew's headers
+- Books export as searchable, archival PDF (PDF/A-2U) in nine page sizes, laid out as Preview shows
+- The PDF has bookmarks, links, notes at the foot of their pages, and the whole description
+- Settings > PDF export: page size, text font and size, margins; fonts added from files or the system
+
+### Added
+
+- File > Export > Export as PDF... writes the book as Preview shows it, on pages of one of nine
+  sizes chosen in the save dialog (A4, B5, A5, B6, A6, Legal, Letter, Executive, Statement): a cover
+  page, a title page, the bodies, page numbers at the foot. The text is searchable and copyable,
+  the structure tagged for screen readers, and the file is PDF/A-2U, checked by the editor before it
+  is written. A progress bar with Cancel shows while it runs; a cancelled export writes nothing.
+- Notes are printed at the foot of the page that refers to them, each leading back to its
+  reference; notes nothing refers to come after the text. Bookmarks follow the book's sections;
+  links inside the book lead to their targets.
+- The PDF's metadata holds the whole description - title, authors, annotation, keywords, genres,
+  language, date, publisher, translators, ISBN, and the series as Calibre reads it - with the
+  editor's own record of the description and a few hints, so the book can be recreated later.
+- The fonts Noto Serif, Noto Sans and DejaVu Sans Mono come with the editor for the PDF; a book's
+  own fonts are replaced by the shipped family of the same kind, and characters none of them has
+  are drawn with a system font and listed. A summary lists what the PDF could not keep as the book
+  has it.
+- Settings > PDF export: the default page size, the text font, the text size and the margins, each
+  with its default and a Reset. Fonts can be added from files or from the fonts installed on the
+  computer; a font whose licence forbids embedding is refused, one that forbids subsetting is
+  embedded whole. The page size chosen is kept for the open book.
+- mfbe-core fonts list | add <file>: the fonts added for the PDF export, from the command line.
 
 ## 0.0.10 - 2026-11-11
 
