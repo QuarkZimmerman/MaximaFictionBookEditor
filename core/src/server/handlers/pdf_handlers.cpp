@@ -38,7 +38,8 @@ constexpr int kMaxParts = 1000;
 // The paged document tells the print browser it is ready once its fonts are (the shell's print
 // service and the journeys' print seam wait for this title; contracts/print-service.md).
 constexpr std::string_view kReadyScript =
-    "<script>document.fonts.ready.then(function(){document.title='mfbe-print-ready';});</script>";
+    "<script xmlns=\"http://www.w3.org/1999/xhtml\">"
+    "document.fonts.ready.then(function(){document.title='mfbe-print-ready';});</script>";
 
 struct PageSize {
     const char* id;
@@ -220,7 +221,9 @@ void serve_print(LoopbackServer& server, Services& services, uWS::HttpResponse<f
     const auto body_end = html.rfind("</body>");
     html.insert(body_end == std::string::npos ? html.size() : body_end, kReadyScript);
     res->writeStatus("200 OK");
-    res->writeHeader("Content-Type", "text/html; charset=utf-8");
+    // XHTML: the book's elements are in the FB2 namespace, as Preview builds them, and only
+    // XML keeps them so (an HTML parser would read <title> or <section> as its own elements).
+    res->writeHeader("Content-Type", "application/xhtml+xml; charset=utf-8");
     res->writeHeader("Cache-Control", "no-store");
     res->writeHeader("X-Content-Type-Options", "nosniff");
     res->end(html);
