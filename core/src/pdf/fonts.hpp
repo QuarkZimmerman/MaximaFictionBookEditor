@@ -41,7 +41,8 @@ struct AddedFont {
     int face = 0;
     std::string family;
     std::string style;
-    std::string kind;  // serif | sans-serif | monospace
+    std::string postscript;  // its PostScript name, as the PDF's embedded font is named
+    std::string kind;        // serif | sans-serif | monospace
     int fs_type = 0;
     bool whole_font = false;  // fsType bit 8, "No subsetting": embedded whole (R6)
     std::string source;       // file | installed
@@ -76,5 +77,9 @@ AddResult add_font(const std::filesystem::path& dir, std::string_view bytes, con
 
 /// Removes the entry `id`, and its file when no other entry uses it; false when there is none.
 bool remove_font(const std::filesystem::path& dir, const std::string& id);
+
+/// The font program of face `face` of `file` (a TrueType or OpenType file, or a collection, whose
+/// face is written out as a font of its own); empty when `file` is no such font.
+std::string font_program(std::string_view file, int face);
 
 }  // namespace mfbe::pdf

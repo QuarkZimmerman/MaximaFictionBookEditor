@@ -658,6 +658,20 @@ void register_pdf_handlers(rpc::RpcRouter& router, Services& services) {
         }
         input.genre_names = rpc::params::string_array_or(params, "genreNames");
         input.hints = rpc::params::string_or(params, "hints", "");
+        // R6: the text font, when the user added it and its licence forbids subsetting, whole.
+        const std::string text_font = services.settings.get_string("pdf.textFont");
+        for (const pdf::AddedFont& font : pdf::added_fonts(added_fonts_dir(services))) {
+            if (font.id != text_font || !font.whole_font || font.postscript.empty())
+                continue;
+            try {
+                std::string program = pdf::font_program(
+                    atomic_file::read_file(added_fonts_dir(services) / font.file), font.face);
+                if (!program.empty())
+                    input.whole_fonts.push_back({font.postscript, std::move(program)});
+            } catch (const std::exception&) {
+                // The file is gone: the engine's subset stays.
+            }
+        }
         // D17: the bookmarks of the page map, nested.
         if (params.contains("pageMap") && params["pageMap"].is_object() &&
             params["pageMap"].contains("bookmarks") && params["pageMap"]["bookmarks"].is_array()) {

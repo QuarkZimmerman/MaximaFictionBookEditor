@@ -34,6 +34,13 @@ struct FinishInput {
     std::string hints;
     // D17: the bookmarks, from the page map.
     std::vector<Bookmark> bookmarks;
+    // R6: fonts whose licence forbids subsetting (fsType bit 8), embedded whole in place of the
+    // engine's subset: the PostScript name the PDF's font carries, and the font program.
+    struct WholeFont {
+        std::string postscript;
+        std::string program;
+    };
+    std::vector<WholeFont> whole_fonts;
 };
 
 /// What the finishing left out, for the summary (D23).

@@ -5,6 +5,7 @@
 #include "pdf/coverage.hpp"
 #include "pdf/document.hpp"
 #include "pdf/finish.hpp"
+#include "pdf/fonts.hpp"
 #include "pdf/join.hpp"
 #include "pdf/tounicode.hpp"
 #include "pdf_test_support.hpp"
@@ -317,4 +318,89 @@ TEST_CASE("pdf outline: the bookmarks, nested, each to its page and height (D17)
     CHECK(d.getCatalog()->findPage(dest.arrayGetNF(0).getRef()) == 2);
     // The check of the finished file still passes with the outline in.
     CHECK(pdf::check_finished(finished, {doc->page_text(0), doc->page_text(1)}).empty());
+}
+
+TEST_CASE("pdf finish: a font that may not be subset is embedded whole (R6, T053)", "[pdf]") {
+    const auto repo = test::fixtures_dir().parent_path().parent_path();
+    const std::string regular =
+        atomic_file::read_file(repo / "resources" / "fonts" / "NotoSerif-Regular.ttf");
+    pdf::FinishInput input = a5("Целиком");
+    input.whole_fonts = {{"NotoSerif-Regular", pdf::font_program(regular, 0)}};
+    const std::vector<char> finished = pdf::finish(sample(), input);
+    std::string error;
+    auto doc = pdf::Document::open_bytes(finished, &error);
+    REQUIRE(doc);
+    PDFDoc& d = *doc->impl().doc;
+    int whole = 0;
+    int subsets = 0;
+    for (int n = 1; n <= d.getNumPages(); ++n) {
+        const Object fonts = d.getPage(n)->getResourceDict()->lookup("Font");
+        for (int i = 0; fonts.isDict() && i < fonts.dictGetLength(); ++i) {
+            const Object font = fonts.dictGetVal(i);
+            const std::string base = font.dictLookup("BaseFont").getName();
+            const Object descriptor =
+                font.dictLookup("DescendantFonts").arrayGet(0).dictLookup("FontDescriptor");
+            if (base == "NotoSerif-Regular") {
+                Object program = descriptor.dictLookup("FontFile2");
+                REQUIRE(program.isStream());
+                CHECK(program.streamGetDict()->lookup("Length1").getInt() ==
+                      static_cast<int>(regular.size()));
+                REQUIRE(program.getStream()->rewind());
+                const auto bytes = program.getStream()->toUnsignedChars();
+                CHECK(std::string(bytes.begin(), bytes.end()) == regular);
+                CHECK(descriptor.dictLookup("FontName").isName("NotoSerif-Regular"));
+                CHECK(descriptor.dictLookup("CIDSet").isNull());
+                ++whole;
+            } else {
+                CHECK(base.find('+') == 6);  // the other fonts stay subsets
+                ++subsets;
+            }
+        }
+    }
+    CHECK(whole >= 1);
+    CHECK(subsets >= 1);
+    // Its text reads as before, and the check of the finished file passes.
+    CHECK(pdf::check_finished(finished, {doc->page_text(0), doc->page_text(1)}).empty());
+}
+
+TEST_CASE("pdf fonts: a face of a collection becomes a font of its own (R6)", "[pdf][fonts]") {
+    const auto repo = test::fixtures_dir().parent_path().parent_path();
+    const std::string a =
+        atomic_file::read_file(repo / "resources" / "fonts" / "DejaVuSansMono.ttf");
+    const std::string b =
+        atomic_file::read_file(repo / "resources" / "fonts" / "DejaVuSansMono-Bold.ttf");
+    // A collection of the two: its header, then each face's table directory and tables, as they are
+    // in their files (offsets moved by where each file starts).
+    const auto be32 = [](std::uint32_t v) {
+        return std::string{static_cast<char>(v >> 24), static_cast<char>(v >> 16),
+                           static_cast<char>(v >> 8), static_cast<char>(v)};
+    };
+    const auto moved = [&](const std::string& font, std::uint32_t by) {
+        std::string out = font;
+        const auto u16 = [&](std::size_t at) {
+            return static_cast<unsigned>(static_cast<unsigned char>(font[at]) << 8 |
+                                         static_cast<unsigned char>(font[at + 1]));
+        };
+        for (unsigned t = 0, n = u16(4); t < n; ++t) {
+            const std::size_t entry = 12 + 16 * t + 8;
+            const std::uint32_t at = (u16(entry) << 16) | u16(entry + 2);
+            out.replace(entry, 4, be32(at + by));
+        }
+        return out;
+    };
+    const std::uint32_t first = 12 + 8;
+    std::string ttc = "ttcf" + be32(0x00010000) + be32(2) + be32(first) +
+                      be32(first + static_cast<std::uint32_t>(a.size()));
+    ttc += moved(a, first) + moved(b, first + static_cast<std::uint32_t>(a.size()));
+    const auto faces = pdf::inspect_font(ttc, 1);
+    REQUIRE(faces.faces.size() == 2);
+    REQUIRE(faces.font);
+    CHECK(faces.font->postscript == "DejaVuSansMono-Bold");
+    const std::string program = pdf::font_program(ttc, 1);
+    const auto alone = pdf::inspect_font(program, 0);
+    REQUIRE(alone.font);
+    CHECK(alone.faces.size() == 1);
+    CHECK(alone.font->postscript == "DejaVuSansMono-Bold");
+    CHECK(pdf::font_program(a, 0) == a);
+    CHECK(pdf::font_program(ttc, 2).empty());
 }

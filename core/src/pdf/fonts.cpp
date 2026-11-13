@@ -128,11 +128,17 @@ std::string kind_of(FT_Face face) {
 }
 
 nlohmann::json to_json(const AddedFont& f) {
-    return {{"id", f.id},          {"file", f.file},
-            {"face", f.face},      {"family", f.family},
-            {"style", f.style},    {"kind", f.kind},
-            {"fsType", f.fs_type}, {"wholeFont", f.whole_font},
-            {"source", f.source},  {"sourceName", f.source_name}};
+    return {{"id", f.id},
+            {"file", f.file},
+            {"face", f.face},
+            {"family", f.family},
+            {"style", f.style},
+            {"kind", f.kind},
+            {"fsType", f.fs_type},
+            {"wholeFont", f.whole_font},
+            {"source", f.source},
+            {"sourceName", f.source_name},
+            {"postscript", f.postscript}};
 }
 
 void write_index(const std::filesystem::path& dir, const std::vector<AddedFont>& fonts) {
@@ -193,6 +199,8 @@ FontInspection inspect_font(std::string_view bytes, int face_index) {
     font.face = face_index;
     font.family = chosen.face->family_name ? chosen.face->family_name : "";
     font.style = chosen.face->style_name ? chosen.face->style_name : "";
+    if (const char* ps = FT_Get_Postscript_Name(chosen.face))
+        font.postscript = ps;
     font.kind = kind_of(chosen.face);
     font.fs_type = fs_type;
     font.whole_font = (fs_type & FT_FSTYPE_NO_SUBSETTING) != 0;
@@ -218,6 +226,7 @@ std::vector<AddedFont> added_fonts(const std::filesystem::path& dir) {
         f.face = e.value("face", 0);
         f.family = e.value("family", std::string());
         f.style = e.value("style", std::string());
+        f.postscript = e.value("postscript", std::string());
         f.kind = e.value("kind", std::string("serif"));
         f.fs_type = e.value("fsType", 0);
         f.whole_font = e.value("wholeFont", false);
@@ -290,6 +299,50 @@ bool remove_font(const std::filesystem::path& dir, const std::string& id) {
         std::filesystem::remove(dir / file, ec);
     }
     return true;
+}
+
+std::string font_program(std::string_view file, int face) {
+    const auto u16 = [&](std::size_t at) -> std::uint32_t {
+        if (at + 2 > file.size())
+            return 0;
+        return (static_cast<std::uint32_t>(static_cast<unsigned char>(file[at])) << 8) |
+               static_cast<unsigned char>(file[at + 1]);
+    };
+    const auto u32 = [&](std::size_t at) -> std::uint32_t { return (u16(at) << 16) | u16(at + 2); };
+    if (file.size() < 12)
+        return {};
+    if (file.substr(0, 4) != "ttcf")
+        return face == 0 ? std::string(file) : std::string();
+    // An OpenType collection: the face's table directory, then its tables, copied into a font of
+    // its own (offsets recomputed, each table 4-byte aligned; the checksums are the tables' own).
+    const std::uint32_t faces = u32(8);
+    if (face < 0 || static_cast<std::uint32_t>(face) >= faces)
+        return {};
+    const std::uint32_t dir = u32(12 + 4 * static_cast<std::size_t>(face));
+    const std::uint32_t count = u16(dir + 4);
+    if (count == 0 || dir + 12 + 16 * static_cast<std::size_t>(count) > file.size())
+        return {};
+    std::string out(file.substr(dir, 12));
+    std::string tables;
+    const std::size_t first = 12 + 16 * static_cast<std::size_t>(count);
+    for (std::uint32_t t = 0; t < count; ++t) {
+        const std::size_t entry = dir + 12 + 16 * static_cast<std::size_t>(t);
+        const std::uint32_t at = u32(entry + 8);
+        const std::uint32_t length = u32(entry + 12);
+        if (static_cast<std::size_t>(at) + length > file.size())
+            return {};
+        std::string record(file.substr(entry, 8));  // tag and checksum
+        for (const std::uint32_t v : {static_cast<std::uint32_t>(first + tables.size()), length}) {
+            for (int shift = 24; shift >= 0; shift -= 8) {
+                record.push_back(static_cast<char>((v >> shift) & 0xFF));
+            }
+        }
+        out += record;
+        tables.append(file.substr(at, length));
+        while (tables.size() % 4 != 0)
+            tables.push_back('\0');
+    }
+    return out + tables;
 }
 
 }  // namespace mfbe::pdf

@@ -13,6 +13,7 @@
 #include <Page.h>
 #include <Stream.h>
 #include <XRef.h>
+#include <algorithm>
 #include <chrono>
 #include <cstdio>
 #include <ctime>
@@ -149,6 +150,81 @@ void mend_ligatures(PDFDoc& doc) {
     }
 }
 
+// R6: a font whose licence forbids subsetting gets its whole program back in place of the engine's
+// subset. The engine's subsets keep the glyph ids (research R6), so every glyph the text draws
+// stays.
+void embed_whole(PDFDoc& doc, const std::vector<FinishInput::WholeFont>& whole) {
+    if (whole.empty())
+        return;
+    XRef* xref = doc.getXRef();
+    std::set<int> done;
+    // "ABCDEF+Name" is a subset's name (ISO 32000-1, 9.6.4); the whole font is named without it.
+    const auto untagged = [](const std::string& name) {
+        const bool tagged = name.size() > 7 && name[6] == '+' &&
+                            std::all_of(name.begin(), name.begin() + 6,
+                                        [](char c) { return c >= 'A' && c <= 'Z'; });
+        return tagged ? name.substr(7) : name;
+    };
+    for (int n = 1; n <= doc.getNumPages(); ++n) {
+        Page* page = doc.getPage(n);
+        Dict* resources = page ? page->getResourceDict() : nullptr;
+        if (!resources)
+            continue;
+        const Object fonts = resources->lookup("Font");
+        if (!fonts.isDict())
+            continue;
+        for (int i = 0; i < fonts.dictGetLength(); ++i) {
+            const Object& font_ref = fonts.dictGetValNF(i);
+            if (!font_ref.isRef() || !done.insert(font_ref.getRef().num).second)
+                continue;
+            Object font = xref->fetch(font_ref.getRef());
+            if (!font.isDict() || !font.dictLookup("Subtype").isName("Type0"))
+                continue;
+            const Object base = font.dictLookup("BaseFont");
+            if (!base.isName())
+                continue;
+            const std::string name = untagged(base.getName());
+            const auto it =
+                std::find_if(whole.begin(), whole.end(),
+                             [&](const FinishInput::WholeFont& w) { return w.postscript == name; });
+            if (it == whole.end() || it->program.empty())
+                continue;
+            const Object descendants = font.dictLookup("DescendantFonts");
+            if (!descendants.isArray() || descendants.arrayGetLength() < 1)
+                continue;
+            const Object& cid_ref = descendants.arrayGetNF(0);
+            if (!cid_ref.isRef())
+                continue;
+            Object cid = xref->fetch(cid_ref.getRef());
+            if (!cid.isDict())
+                continue;
+            const Object& descriptor_ref = cid.dictLookupNF("FontDescriptor");
+            if (!descriptor_ref.isRef())
+                continue;
+            Object descriptor = xref->fetch(descriptor_ref.getRef());
+            if (!descriptor.isDict() || descriptor.dictLookupNF("FontFile2").isNull())
+                continue;
+            auto dict = std::make_unique<Dict>(xref);
+            dict->set("Length1", Object(static_cast<int>(it->program.size())));
+            // Poppler compresses a stream held in memory itself under /FlateDecode (research).
+            dict->set("Filter", Object(objName, "FlateDecode"));
+            const Object program(std::make_unique<AutoFreeMemStream>(
+                std::vector<char>(it->program.begin(), it->program.end()),
+                Object(std::move(dict))));
+            descriptor.dictSet("FontFile2", Object(xref->addIndirectObject(program)));
+            descriptor.dictSet("FontName", Object(objName, name.c_str()));
+            // PDF/A-2 6.2.11.4.2: a CIDSet must name every CID of the program; the subset's does
+            // not.
+            descriptor.dictRemove("CIDSet");
+            xref->setModifiedObject(&descriptor, descriptor_ref.getRef());
+            cid.dictSet("BaseFont", Object(objName, name.c_str()));
+            xref->setModifiedObject(&cid, cid_ref.getRef());
+            font.dictSet("BaseFont", Object(objName, name.c_str()));
+            xref->setModifiedObject(&font, font_ref.getRef());
+        }
+    }
+}
+
 // Sets the Print flag (F 4) on every annotation of every page, as PDF/A asks (ISO 19005-2, 6.3.2).
 void print_annotations(PDFDoc& doc) {
     XRef* xref = doc.getXRef();
@@ -220,6 +296,8 @@ std::vector<char> finish(std::vector<char> printed, const FinishInput& input,
         report->pictures_left_out = drawn.left_out;
     // R3 step 3: ligatures read as their letters (D5).
     mend_ligatures(doc);
+    // R6: the fonts that may not be subset, whole.
+    embed_whole(doc, input.whole_fonts);
     // D18, PDF/A-2 6.3.2: every annotation (the engine's links) printed and shown.
     print_annotations(doc);
     // D17: the bookmarks (before the catalog's other entries below, which keep them).
