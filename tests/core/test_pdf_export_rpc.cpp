@@ -159,3 +159,21 @@ TEST_CASE("pdf export rpc: a failed print and an abort leave nothing behind", "[
     CHECK_FALSE(std::filesystem::exists(target));
     CHECK_FALSE(std::filesystem::exists(f.data.path() / "pdf-export" / token));
 }
+
+TEST_CASE("pdf export rpc: the shipped fonts are served to the paged document", "[pdf][rpc]") {
+    Fixture f;
+    const std::string query = "?token=" + f.server->token();
+    const auto regular =
+        test::http_get(f.server->port(), "/pdf/fonts/shipped/noto-serif/Regular" + query);
+    REQUIRE(regular.status == 200);
+    CHECK(regular.headers.at("content-type") == "font/ttf");
+    REQUIRE(regular.body.size() > 100000);
+    CHECK(regular.body.compare(0, 4, std::string("\x00\x01\x00\x00", 4)) == 0);  // TrueType
+    CHECK(test::http_get(f.server->port(), "/pdf/fonts/shipped/dejavu-sans-mono/BoldItalic" + query)
+              .status == 200);
+    CHECK(test::http_get(f.server->port(), "/pdf/fonts/shipped/noto-serif/Light" + query).status ==
+          404);
+    CHECK(test::http_get(f.server->port(), "/pdf/fonts/shipped/nothing/Regular" + query).status ==
+          404);
+    CHECK(test::http_get(f.server->port(), "/pdf/fonts/shipped/noto-serif/Regular").status == 401);
+}

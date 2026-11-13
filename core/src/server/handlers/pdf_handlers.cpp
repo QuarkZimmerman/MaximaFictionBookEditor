@@ -9,6 +9,7 @@
 // Everything of an export lives in its own folder of the data folder until finish or abort, or
 // ten minutes without a call.
 
+#include "pdf/fonts.hpp"
 #include "server/loopback_server.hpp"
 #include "server/services.hpp"
 
@@ -229,10 +230,39 @@ void serve_print(LoopbackServer& server, Services& services, uWS::HttpResponse<f
     res->end(html);
 }
 
+void serve_font(LoopbackServer& server, Services& services, uWS::HttpResponse<false>* res,
+                uWS::HttpRequest* req) {
+    if (!server.check_auth(res, req)) {
+        return;
+    }
+    const std::string id = LoopbackServer::url_decode(req->getParameter(0));
+    const std::string style = LoopbackServer::url_decode(req->getParameter(1));
+    const auto file = pdf::shipped_file(services.resources_dir / "fonts", id, style);
+    std::string bytes;
+    if (file) {
+        try {
+            bytes = atomic_file::read_file(*file);
+        } catch (const std::exception&) {
+        }
+    }
+    if (bytes.empty()) {
+        end_plain(res, "404 Not Found", "no such font");
+        return;
+    }
+    res->writeStatus("200 OK");
+    res->writeHeader("Content-Type", "font/ttf");
+    res->writeHeader("Cache-Control", "private, max-age=3600");
+    res->writeHeader("X-Content-Type-Options", "nosniff");
+    res->end(bytes);
+}
+
 }  // namespace
 
 void register_pdf_http(LoopbackServer& server, Services& services) {
     uWS::App& app = server.app();
+    // Feature 014 (T017): the shipped fonts the paged document's @font-face rules name.
+    app.get("/pdf/fonts/shipped/:id/:style",
+            [&server, &services](auto* res, auto* req) { serve_font(server, services, res, req); });
     app.put("/pdf/:token/part/:n", [&server, &services](auto* res, auto* req) {
         upload_part(server, services, res, req);
     });
