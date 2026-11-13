@@ -27,6 +27,10 @@
       "executive": "Executive (7.25 × 10.5 in)",
       "statement": "Statement (5.5 × 8.5 in)"
     },
+    "sizeGroups": {
+      "iso": "ISO sizes",
+      "american": "North American sizes"
+    },
     "exporting": "Exporting as PDF…",
     "exportCaption": "PDF export",
     "exportDone": "Exported to {{path}}: {{pages}} pages, page size {{size}}.",

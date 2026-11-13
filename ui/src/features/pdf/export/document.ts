@@ -11,6 +11,7 @@ import { buildPreview, FB2_NS, XHTML_NS } from '@/features/preview/buildPreview'
 import { pdfFontUrl } from '@/model/binaryUrls';
 import type { BinaryMeta, Document } from '@/model/document';
 
+import { replaceBookFonts, type TextFont } from './fontKinds';
 import { printCss, type PrintLayout } from './layout';
 
 export interface PrintFrame {
@@ -23,6 +24,8 @@ export interface PrintFrame {
   css: string[];
   /** Pictures left out: no data, not decodable, or a web address (D12). */
   leftOut: string[];
+  /** The font names of the book's stylesheets that were replaced (D7), for the summary. */
+  replacedFonts: string[];
   dispose(): void;
 }
 
@@ -61,6 +64,16 @@ export async function createPrintFrame(
   const dispose = (): void => frame.remove();
   try {
     await buildPreview(doc, book, { docId });
+    // D7: the fonts the book's stylesheets name keep their kind (the first sheet is Preview's base,
+    // whose families the print stylesheet below overrides).
+    const textFont: TextFont = {
+      id: layout.fontId,
+      kind: layout.fontId === 'noto-sans' ? 'sans-serif' : 'serif',
+    };
+    const replaced = new Set<string>();
+    for (const sheet of [...doc.head.querySelectorAll('style')].slice(1)) {
+      sheet.textContent = await replaceBookFonts(sheet.textContent ?? '', textFont, replaced);
+    }
     const style = doc.createElement('style');
     // Absolute addresses: the interface is built with a relative base ('./'), and the paged
     // document is printed from another path of the same core (/pdf/{token}/print/{n}).
@@ -101,7 +114,7 @@ export async function createPrintFrame(
       else image.append(box);
     }
     await doc.fonts.ready;
-    return { doc, root, flow, css, leftOut, dispose };
+    return { doc, root, flow, css, leftOut, replacedFonts: [...replaced], dispose };
   } catch (error) {
     dispose();
     throw error;

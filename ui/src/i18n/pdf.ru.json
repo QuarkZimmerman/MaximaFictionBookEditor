@@ -27,6 +27,10 @@
       "executive": "Executive (7,25 × 10,5 дюйма)",
       "statement": "Statement (5,5 × 8,5 дюйма)"
     },
+    "sizeGroups": {
+      "iso": "Размеры ISO",
+      "american": "Североамериканские размеры"
+    },
     "exporting": "Экспорт в PDF…",
     "exportCaption": "Экспорт в PDF",
     "exportDone": "Экспортировано в {{path}}: страниц: {{pages}}, размер страницы {{size}}.",

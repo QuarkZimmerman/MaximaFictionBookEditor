@@ -6,8 +6,8 @@
  *
  * The page size comes with the Save dialog (D2): the dialog's labelled list carries the nine sizes
  * (`encodingChoices` with the label "Page size:", the chosen label returned as `encoding`). A
- * dialog that cannot carry the list returns no `encoding`; the export then keeps the size it
- * proposed.
+ * dialog that cannot carry the list returns no `encoding`; the size is then asked in the editor's
+ * own window (PageSizeDialog.tsx).
  */
 import type { CommandContext, CommandRegistry } from '@/app/commands';
 import { startModalJob, type ModalJobHandle } from '@/app/modalJob';
@@ -17,6 +17,7 @@ import type { PdfPageSizeId } from '@/rpc/types';
 import { commitPendingSource } from '@/views/source/sourceSession';
 
 import { DEFAULT_PDF_PAGE_SIZE, PDF_PAGE_SIZES, pdfPageSize } from './pageSizes';
+import { showPageSizeDialog } from './showPageSizeDialog';
 
 export const EXPORT_PDF_COMMAND = 'file.exportPdf';
 
@@ -75,8 +76,14 @@ export function registerPdfFeature(commands: CommandRegistry): void {
         encodingLabel: ctx.t('pdf.pageSizeLabel'),
       });
       if (!path || store.getState().docId !== docId) return;
+      // D2: a dialog that could not carry the list answered without it - the size is asked in the
+      // editor's own window; its *Cancel* writes nothing.
       const chosen = encoding === undefined ? -1 : labels.indexOf(encoding);
-      const pageSize = chosen >= 0 ? PDF_PAGE_SIZES[chosen].id : proposed;
+      const pageSize =
+        chosen >= 0
+          ? PDF_PAGE_SIZES[chosen].id
+          : await showPageSizeDialog(ctx.dialogs, { defaultSize: proposed, path });
+      if (!pageSize || store.getState().docId !== docId) return;
       let cancelled = false;
       const modal = startModalJob(ctx.t('pdf.exporting'), () => {
         cancelled = true;

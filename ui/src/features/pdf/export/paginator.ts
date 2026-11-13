@@ -55,6 +55,8 @@ export interface Paginated {
   pageMap: PageMap;
   /** Pictures left out (D12), for the summary. */
   leftOut: string[];
+  /** The book's font names replaced by D7's families, for the summary. */
+  replacedFonts: string[];
 }
 
 class PaginationCancelled extends Error {}
@@ -435,6 +437,7 @@ export async function paginate(
     return {
       parts,
       leftOut: frame.leftOut,
+      replacedFonts: frame.replacedFonts,
       pageMap: {
         pages: serialised.length,
         bookmarks,
