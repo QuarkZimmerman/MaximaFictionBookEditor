@@ -1367,7 +1367,17 @@ export interface RpcMethods {
   'pdf.export.print': { params: { token: string; part: number }; result: { part: number } };
   /** Job: the finished file, written atomically. */
   'pdf.export.finish': {
-    params: { token: string; pageMap: unknown; title?: string };
+    params: {
+      token: string;
+      pageMap: unknown;
+      title?: string;
+      /** D14-D16: the book's description; the core writes it into the XMP and Info. */
+      description?: unknown;
+      /** The genres, named in the book's language. */
+      genreNames?: string[];
+      /** R10: the editor's hints (JSON). */
+      hints?: string;
+    };
     /**
      * `uncovered`: the characters no shipped font draws (D7), drawn with a system font;
      * `picturesLeftOut`: the binaries the core could not draw (no data, not a picture, too large).

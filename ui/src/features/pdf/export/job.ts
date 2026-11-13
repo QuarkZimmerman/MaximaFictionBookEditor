@@ -20,6 +20,7 @@ import { RpcErrorCode } from '@/rpc/types';
 import type { PdfRun } from '../index';
 import { pdfPageSize } from '../pageSizes';
 import { paginate } from './paginator';
+import { wordsLanguage } from './words';
 
 class Cancelled extends Error {}
 
@@ -69,12 +70,30 @@ export async function exportPdf(ctx: CommandContext, docId: string, run: PdfRun)
     }
     if (run.cancelled()) throw new Cancelled();
     const base = done;
+    // D14: the genres by name in the book's language, as the EPUB export names them (012 D6).
+    const titleInfo = current.document.description.titleInfo;
+    const language = wordsLanguage(titleInfo.lang);
+    const named = await rpc
+      .call('resources.genres')
+      .then(
+        (list) =>
+          new Map(
+            list.entries.map((entry) => [
+              entry.code,
+              entry.names[language] ?? entry.names.en ?? entry.code,
+            ]),
+          ),
+      )
+      .catch(() => new Map<string, string>());
     const finished = await rpc.runJob(
       'pdf.export.finish',
       {
         token,
         pageMap: paged.pageMap,
-        title: current.document.description.titleInfo.bookTitle ?? '',
+        title: titleInfo.bookTitle ?? '',
+        // D14-D16: the description as the window has it; the core writes it into the metadata.
+        description: current.document.description,
+        genreNames: titleInfo.genres.map((genre) => named.get(genre.code) ?? genre.code),
       },
       {
         // SC-010: the bar moves at least once a second; the writing, which the core does in one

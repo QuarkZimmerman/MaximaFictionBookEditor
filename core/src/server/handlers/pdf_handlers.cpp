@@ -398,7 +398,12 @@ void register_pdf_handlers(rpc::RpcRouter& router, Services& services) {
                 const auto from = xml.find("<description");
                 const auto to = xml.find("</description>");
                 if (from != std::string::npos && to != std::string::npos) {
-                    input.description_xml = xml.substr(from, to + 14 - from);
+                    // A standalone element: the namespaces its document's root declared go on it,
+                    // so that the record reads back on its own (a later import, D15).
+                    input.description_xml =
+                        "<description xmlns=\"http://www.gribuser.ru/xml/fictionbook/2.0\" "
+                        "xmlns:l=\"http://www.w3.org/1999/xlink\"" +
+                        xml.substr(from + 12, to + 14 - from - 12);
                 }
             } catch (const std::exception& error) {
                 throw failed("pdf.checkFailed",
