@@ -404,3 +404,21 @@ TEST_CASE("pdf fonts: a face of a collection becomes a font of its own (R6)", "[
     CHECK(pdf::font_program(a, 0) == a);
     CHECK(pdf::font_program(ttc, 2).empty());
 }
+
+TEST_CASE("pdf check: a hyphen the engine adds at a line's end is not a fault (DP-17)", "[pdf]") {
+    // The sample's page 1 checked against a page map text missing one hyphen it shows: still sound
+    // when the page shows an extra hyphen, a fault when the page lacks a character.
+    const std::vector<char> finished = pdf::finish(sample(), a5("Перенос"));
+    std::string error;
+    auto doc = pdf::Document::open_bytes(finished, &error);
+    REQUIRE(doc);
+    std::string page = doc->page_text(0);
+    std::vector<std::string> texts = {page, doc->page_text(1)};
+    const auto at = page.find('-');
+    if (at != std::string::npos) {
+        texts[0] = page.substr(0, at) + page.substr(at + 1);
+        CHECK(pdf::check_finished(finished, texts).empty());
+    }
+    texts[0] = page + "Ж";
+    CHECK_FALSE(pdf::check_finished(finished, texts).empty());
+}

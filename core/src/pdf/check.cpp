@@ -150,7 +150,10 @@ std::vector<std::string> check_finished(const std::vector<char>& finished,
         for (const auto& [ch, n] : count) {
             if (n > 0 && missing.size() < 80)
                 missing += ch;
-            if (n < 0 && extra.size() < 80)
+            // A hyphen the engine adds where it breaks a word at a line's end (macOS hyphenates,
+            // plan DP-17) is drawn but is not the page map's text: an added hyphen is not a fault.
+            const bool hyphen = ch == "-" || ch == "\xE2\x80\x90";
+            if (n < 0 && !hyphen && extra.size() < 80)
                 extra += ch;
         }
         if (!missing.empty() || !extra.empty()) {
