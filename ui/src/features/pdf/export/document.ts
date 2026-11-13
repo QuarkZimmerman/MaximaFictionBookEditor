@@ -62,7 +62,11 @@ export async function createPrintFrame(
   try {
     await buildPreview(doc, book, { docId });
     const style = doc.createElement('style');
-    style.textContent = printCss(layout, pdfFontUrl);
+    // Absolute addresses: the interface is built with a relative base ('./'), and the paged
+    // document is printed from another path of the same core (/pdf/{token}/print/{n}).
+    style.textContent = printCss(layout, (id, fontStyle) =>
+      new URL(pdfFontUrl(id, fontStyle), window.location.href).toString(),
+    );
     doc.head.append(style);
     const css = [...doc.head.querySelectorAll('style')].map((element) => element.textContent ?? '');
 
