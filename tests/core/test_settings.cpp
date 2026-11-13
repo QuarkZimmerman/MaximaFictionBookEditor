@@ -93,7 +93,12 @@ TEST_CASE("settings: defaults are exactly resource-formats.md section 6", "[sett
     // Feature 010 (resource-formats §2): the thinking effort, Model's default.
     CHECK(d["ai"]["effort"].is_null());
     CHECK(d["ai"].size() == 6);
-    CHECK(d.size() == 6);
+    // Feature 014 (D25, FR-070, data-model PdfExportSettings): the PDF export's page.
+    CHECK(d["pdf"] == json{{"defaultPageSize", "a4"},
+                           {"textFont", "noto-serif"},
+                           {"textSize", "standard"},
+                           {"margins", "standard"}});
+    CHECK(d.size() == 7);
 }
 
 TEST_CASE(
@@ -290,6 +295,40 @@ TEST_CASE("settings: invalid patch values are rejected with the field name", "[s
     expect_field(json{{"other", {{"keepBackup", "yes"}}}}, "other.keepBackup");
     CHECK_THROWS_AS(store.apply_patch(json::array()), settings::SettingsError);
     CHECK(store.get() == before);  // nothing applied
+}
+
+TEST_CASE("settings: feature 014 PDF export keys validate their values", "[settings]") {
+    test::TempDir tmp;
+    settings::SettingsStore store(tmp / "settings.json");
+    store.load();
+    auto expect_field = [&](const json& patch, const std::string& field) {
+        try {
+            store.apply_patch(patch);
+            FAIL("expected SettingsError for " << field);
+        } catch (const settings::SettingsError& e) {
+            CHECK(e.field == field);
+        }
+    };
+    // "one of the table" (D3), smaller | standard | larger, narrow | standard | wide.
+    expect_field(json{{"pdf", {{"defaultPageSize", "a3"}}}}, "pdf.defaultPageSize");
+    expect_field(json{{"pdf", {{"textSize", "huge"}}}}, "pdf.textSize");
+    expect_field(json{{"pdf", {{"margins", "none"}}}}, "pdf.margins");
+    expect_field(json{{"pdf", {{"textFont", ""}}}}, "pdf.textFont");
+    expect_field(json{{"pdf", {{"textFont", std::string(81, 'a')}}}}, "pdf.textFont");
+    // Every size of the table, and an added font's id, are accepted and persisted.
+    for (const char* size :
+         {"a4", "b5", "a5", "b6", "a6", "legal", "letter", "executive", "statement"}) {
+        store.apply_patch(json{{"pdf", {{"defaultPageSize", size}}}});
+        CHECK(store.get()["pdf"]["defaultPageSize"] == size);
+    }
+    const std::string added(64, 'f');
+    store.apply_patch(
+        json{{"pdf", {{"textFont", added}, {"textSize", "larger"}, {"margins", "narrow"}}}});
+    settings::SettingsStore reread(tmp / "settings.json");
+    reread.load();
+    CHECK(reread.get()["pdf"]["textFont"] == added);
+    CHECK(reread.get()["pdf"]["textSize"] == "larger");
+    CHECK(reread.get()["pdf"]["margins"] == "narrow");
 }
 
 TEST_CASE("settings: supported encodings list", "[settings]") {

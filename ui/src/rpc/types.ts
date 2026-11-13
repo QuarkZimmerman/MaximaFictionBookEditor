@@ -249,6 +249,10 @@ export type StatusBarPane =
   'path' | 'position' | 'selection' | 'character' | 'encoding' | 'validity' | 'insmode';
 
 /** settings.json, resource-formats.md §6. */
+/** The PDF export's page sizes (feature 014, D3), portrait only. */
+export type PdfPageSizeId =
+  'a4' | 'b5' | 'a5' | 'b6' | 'a6' | 'legal' | 'letter' | 'executive' | 'statement';
+
 export interface Settings {
   schemaVersion: 1;
   view: {
@@ -324,6 +328,18 @@ export interface Settings {
   };
   words: {
     showExclusionsInWordsDialog: boolean;
+  };
+  /**
+   * The PDF export's settings (feature 014, D25, FR-070). Optional in the type: a core of an
+   * earlier API minor sends none, and every reader falls back to the defaults below.
+   */
+  pdf?: {
+    /** One of the nine sizes of D3; default `a4`. */
+    defaultPageSize: PdfPageSizeId;
+    /** A shipped family's id or an added font's id; an unknown one reads as `noto-serif`. */
+    textFont: string;
+    textSize: 'smaller' | 'standard' | 'larger';
+    margins: 'narrow' | 'standard' | 'wide';
   };
   session: {
     /**
