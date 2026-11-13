@@ -23,10 +23,12 @@
 # EPUB and checks each file with EPUBCheck (no fatal error, error or warning); --epub-import LIST
 # imports the EPUB books of LIST (sample.py --ext epub) without a failure or a hang, each new book's
 # bodies valid. Both drive the editor itself (build ui/dist first): epub-export.py, epub-import.py.
+# Feature 014 (DP-16): --pdf-export exports SAMPLE_FILE's books to PDF in A5 and checks each with
+# veraPDF (PDF/A-2U) and tests/pdf/text-compare.mjs: pdf-export.py.
 set -u
 
 usage() {
-    echo "usage: $0 SAMPLE_FILE [-j N] [--out DIR] [--core PATH] [--encoding ENC] [--save-hashes FILE] [--check-hashes FILE] [--markdown] [--epub-export] [--epub-import LIST]" >&2
+    echo "usage: $0 SAMPLE_FILE [-j N] [--out DIR] [--core PATH] [--encoding ENC] [--save-hashes FILE] [--check-hashes FILE] [--markdown] [--epub-export] [--pdf-export] [--epub-import LIST]" >&2
     exit 2
 }
 
@@ -46,6 +48,7 @@ CHECK_HASHES=""
 # Feature 011 (FR-081): --markdown also exports every book as Markdown and imports it again.
 MARKDOWN=0
 EPUB_EXPORT=0
+PDF_EXPORT=0
 EPUB_IMPORT=""
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -54,6 +57,7 @@ while [ $# -gt 0 ]; do
         --core) CORE="$2"; shift 2 ;;
         --markdown) MARKDOWN=1; shift ;;
         --epub-export) EPUB_EXPORT=1; shift ;;
+        --pdf-export) PDF_EXPORT=1; shift ;;
         --epub-import) EPUB_IMPORT="$2"; shift 2 ;;
         --encoding) ENCODING="$2"; shift 2 ;;
         --save-hashes) SAVE_HASHES="$2"; shift 2 ;;
@@ -277,5 +281,9 @@ if [ "$EPUB_EXPORT" = 1 ]; then
 fi
 if [ -n "$EPUB_IMPORT" ]; then
     python3 "$HERE/epub-import.py" "$EPUB_IMPORT" --out "$OUT/epub-import" --core "$CORE" || status=1
+fi
+# Feature 014 (DP-16): the PDF run - A5, veraPDF and the text read back, no crash or hang.
+if [ "$PDF_EXPORT" = 1 ]; then
+    python3 "$HERE/pdf-export.py" "$SAMPLE" --out "$OUT/pdf-export" --core "$CORE" || status=1
 fi
 exit $status

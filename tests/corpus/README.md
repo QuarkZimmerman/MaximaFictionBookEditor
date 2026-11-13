@@ -124,3 +124,23 @@ tests/corpus/run.sh tests/corpus/sample-1-50.txt --epub-export --epub-import tes
 `epub-export.py` and `epub-import.py` also run on their own (`LIST [--out DIR] [--core PATH]`); each
 writes `report.txt` and `report.json` in its folder, by default `tests/corpus/out/epub-export` and
 `tests/corpus/out/epub-import`.
+
+## The PDF run (feature 014, DP-16)
+
+`--pdf-export` exports every FB2 book of the sample to PDF in A5 through the editor itself (the journey
+`ui/tests/e2e/corpus-pdf.spec.ts`, printed through the journeys' print seam; build `ui/dist` first), then
+checks each file twice:
+
+- veraPDF against the PDF/A-2U profile (`tools/ci/verapdf.sh`, the pinned release; Java 11 or newer);
+- pdf.js reads the text back against the book's own (`tests/pdf/text-compare.mjs`): every block, in
+  order, each word whole.
+
+A failed export, a book still running after five minutes (a hang), a file veraPDF fails or a text that
+does not read back fails the run.
+
+```bash
+tests/corpus/run.sh tests/corpus/sample-1-50.txt --pdf-export
+```
+
+`pdf-export.py` also runs on its own (`LIST [--out DIR] [--core PATH]`), writing `report.txt` and
+`report.json` in its folder, by default `tests/corpus/out/pdf-export`.

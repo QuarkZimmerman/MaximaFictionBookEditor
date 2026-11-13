@@ -18,7 +18,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { Page } from '@playwright/test';
 
 import { expect, fixtureBook, recordOutside, test, type CoreHandle } from './fixtures/core';
-import { exportPdfTo, openFixtureBook } from './fixtures/pdfExport';
+import { expectedText, exportPdfTo, openFixtureBook, type Expected } from './fixtures/pdfExport';
 import { startPrintSeam } from './fixtures/printSeam';
 import { scratchDir } from './fixtures/scratch';
 
@@ -40,10 +40,6 @@ const SIZES: { id: string; label: string; width: number; height: number }[] = [
   { id: 'statement', label: 'Statement (5.5 × 8.5 in)', width: 396, height: 612 },
 ];
 
-interface Expected {
-  blocks: { text: string; note: boolean }[];
-  addedWords: string[];
-}
 interface TextTools {
   pdfPageTexts(bytes: Uint8Array): Promise<string[]>;
   compareText(
@@ -106,44 +102,6 @@ async function readPdf(file: string): Promise<{ sizes: number[][]; figures: stri
   }
   await task.destroy();
   return { sizes, figures };
-}
-
-/**
- * The book's own text, block by block, read from its FB2 file in the page (the e2e files have no
- * DOM types: the reader is a string evaluated there), with the title page's words (D11).
- */
-async function expectedText(page: Page, file: string): Promise<Expected> {
-  const xml = readFileSync(file, 'utf8');
-  return page.evaluate(`(() => {
-    const doc = new DOMParser().parseFromString(${JSON.stringify(xml)}, 'application/xml');
-    const NS = 'http://www.gribuser.ru/xml/fictionbook/2.0';
-    const clean = (s) => s.replace(/\\s+/g, ' ').trim();
-    const blocks = [];
-    const BLOCKS = new Set(['p', 'v', 'subtitle', 'text-author', 'date', 'th', 'td']);
-    for (const body of doc.getElementsByTagNameNS(NS, 'body')) {
-      const note = /^(notes|comments)$/i.test(body.getAttribute('name') || '');
-      const walk = (el) => {
-        for (const child of el.children) {
-          // D19: the notes go to the feet of the pages; their body's own title is not printed.
-          if (note && el === body && child.localName === 'title') continue;
-          if (BLOCKS.has(child.localName)) blocks.push({ text: clean(child.textContent), note });
-          else walk(child);
-        }
-      };
-      walk(body);
-    }
-    const info = doc.getElementsByTagNameNS(NS, 'title-info')[0];
-    const words = [];
-    const title = info && info.getElementsByTagNameNS(NS, 'book-title')[0];
-    if (title) words.push(clean(title.textContent));
-    for (const author of info ? info.getElementsByTagNameNS(NS, 'author') : []) {
-      const part = (name) => clean((author.getElementsByTagNameNS(NS, name)[0] || {}).textContent || '');
-      const full = ['first-name', 'middle-name', 'last-name'].map(part).filter(Boolean).join(' ');
-      words.push(full || part('nickname'));
-    }
-    // The title page shows them together: its whole text is added too.
-    return { blocks, addedWords: [...words, words.join(' ')] };
-  })()`);
 }
 
 /** What the export must leave as it was: the book's text, file, title and undo state. */
