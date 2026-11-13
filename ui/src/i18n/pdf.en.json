@@ -51,7 +51,12 @@
       "ioError": "the file could not be written ({{message}})",
       "checkFailed": "the finished file failed its own check ({{message}})",
       "unknownToken": "the export was no longer known to the core",
-      "noPart": "a part of the pages is missing"
+      "noPart": "a part of the pages is missing",
+      "tooManyPages": "the book has more pages than a PDF the editor writes may have"
+    },
+    "limit": {
+      "pages": "the book would take {{count}} pages; a PDF the editor writes has at most {{max}}",
+      "notes": "the book has {{count}} notes; a PDF the editor writes holds at most {{max}}"
     }
   }
 }

@@ -145,6 +145,8 @@ export async function createPrintFrame(
   book: Document,
   docId: string,
   layout: PrintLayout,
+  /** DP-19: a picture of more pixels is left out and listed, never decoded. */
+  maxPixels = 100_000_000,
 ): Promise<PrintFrame> {
   const frame = window.document.createElement('iframe');
   frame.setAttribute('aria-hidden', 'true');
@@ -199,7 +201,8 @@ export async function createPrintFrame(
       const img = image.querySelector('img');
       const id = href.startsWith('#') ? href.slice(1) : '';
       const meta = binaries.get(id);
-      const size = meta?.decodable ? pictureBox(meta, layout) : null;
+      const pixels = (meta?.width ?? 0) * (meta?.height ?? 0);
+      const size = meta?.decodable && pixels <= maxPixels ? pictureBox(meta, layout) : null;
       if (!size) {
         leftOut.push(href || '(no reference)');
         image.remove();

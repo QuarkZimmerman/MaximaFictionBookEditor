@@ -1356,7 +1356,12 @@ export interface RpcMethods {
    */
   'pdf.export.begin': {
     params: { path: string; pageSize: PdfPageSizeId; docId?: string };
-    result: { token: string; pageSize: PdfPageSizeId };
+    /** `limits`: DP-19's, by which the export refuses a book before printing. */
+    result: {
+      token: string;
+      pageSize: PdfPageSizeId;
+      limits?: { pages: number; notes: number; nesting: number; pixels: number };
+    };
   };
   /** Declares how many parts the paged document has (each uploaded with PUT /pdf/{token}/part/{n}). */
   'pdf.export.document': {

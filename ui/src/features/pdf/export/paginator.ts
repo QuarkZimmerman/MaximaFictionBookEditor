@@ -46,7 +46,20 @@ const CONTAINERS = new Set([
 ]);
 const SPLITTABLE = new Set(['p', 'v', 'text-author']);
 
+/** DP-19: a book beyond the export's limits, refused before printing. */
+export class PdfLimitError extends Error {
+  constructor(
+    readonly limit: 'pages' | 'notes',
+    readonly count: number,
+    readonly max: number,
+  ) {
+    super(`${limit}: ${count} of at most ${max}`);
+  }
+}
+
 export interface PaginateOptions {
+  /** DP-19, from pdf.export.begin. */
+  limits?: { pages: number; notes: number; nesting: number; pixels?: number };
   pageSize: PdfPageSize;
   settings: Settings['pdf'];
   cancelled: () => boolean;
@@ -248,13 +261,15 @@ export async function paginate(
 ): Promise<Paginated> {
   const layout: PrintLayout = layoutFor(options.pageSize, options.settings);
   const docId = ctx.store.getState().docId ?? '';
-  const frame = await createPrintFrame(book, docId, layout);
+  const frame = await createPrintFrame(book, docId, layout, options.limits?.pixels);
   try {
     const { doc, root, css } = frame;
     const lang = book.description.titleInfo.lang ?? '';
     const title = book.description.titleInfo.bookTitle ?? '';
     // D19: the notes, and which of them a reference points to.
     const notes = noteSections(root);
+    const limits = options.limits ?? { pages: 20_000, notes: 100_000, nesting: 64 };
+    if (notes.size > limits.notes) throw new PdfLimitError('notes', notes.size, limits.notes);
     const referenced = new Set<string>();
     for (const body of root.getElementsByTagNameNS(FB2_NS, 'body')) {
       if (isNotesBody(body)) continue;
@@ -284,6 +299,8 @@ export async function paginate(
       root.append(body);
     }
     const blocks = collectBlocks(root);
+    // DP-19: sections deeper than the limit are drawn and bookmarked at its level.
+    for (const block of blocks) block.depth = Math.min(block.depth, limits.nesting);
     let lastYield = performance.now();
     const breath = async (done: number, total: number): Promise<void> => {
       if (options.cancelled()) throw new PaginationCancelled();
@@ -334,6 +351,8 @@ export async function paginate(
       layout.contentHeight,
       footGap,
     );
+    const pageCount = planned.length + 2;
+    if (pageCount > limits.pages) throw new PdfLimitError('pages', pageCount, limits.pages);
 
     const pagesHost = doc.createElement('div');
     doc.body.append(pagesHost);

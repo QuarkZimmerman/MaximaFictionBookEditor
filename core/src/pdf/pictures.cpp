@@ -3,6 +3,7 @@
 #include "pdf/pictures.hpp"
 
 #include "pdf/document.hpp"
+#include "pdf/limits.hpp"
 
 #include <mfbe/images.hpp>
 
@@ -17,8 +18,6 @@
 
 namespace mfbe::pdf {
 namespace {
-
-constexpr std::uint64_t kMaxPixels = 100'000'000;  // DP-19
 
 struct JpegInfo {
     int width = 0;

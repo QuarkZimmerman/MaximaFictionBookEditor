@@ -14,6 +14,7 @@
 #include "pdf/finish.hpp"
 #include "pdf/fonts.hpp"
 #include "pdf/join.hpp"
+#include "pdf/limits.hpp"
 #include "pdf/xmp.hpp"
 #include "server/loopback_server.hpp"
 #include "server/services.hpp"
@@ -317,7 +318,14 @@ void register_pdf_handlers(rpc::RpcRouter& router, Services& services) {
         }
         std::lock_guard lock(services.pdf.mutex);
         services.pdf.exports.emplace(token, std::move(e));
-        return json{{"token", token}, {"pageSize", page->id}};
+        // DP-19: the limits the interface refuses a book by, before printing.
+        return json{{"token", token},
+                    {"pageSize", page->id},
+                    {"limits",
+                     {{"pages", pdf::kMaxPages},
+                      {"notes", pdf::kMaxNotes},
+                      {"nesting", pdf::kMaxNesting},
+                      {"pixels", pdf::kMaxPixels}}}};
     });
 
     router.add_method("pdf.export.document", [&services](const json& params, rpc::RpcContext&) {
@@ -465,6 +473,11 @@ void register_pdf_handlers(rpc::RpcRouter& router, Services& services) {
                 }
                 input.pictures.push_back(std::move(placed));
             }
+        }
+        // DP-19: enforced again here, whatever the interface sent.
+        if (static_cast<int>(page_texts.size()) > pdf::kMaxPages) {
+            throw failed("pdf.tooManyPages",
+                         json{{"pages", page_texts.size()}, {"max", pdf::kMaxPages}});
         }
         // R10: the hints go into the file only when they are sound.
         if (!input.hints.empty()) {

@@ -19,7 +19,7 @@ import { RpcErrorCode } from '@/rpc/types';
 
 import type { PdfRun } from '../index';
 import { pdfPageSize } from '../pageSizes';
-import { paginate } from './paginator';
+import { paginate, PdfLimitError } from './paginator';
 import { wordsLanguage } from './words';
 
 class Cancelled extends Error {}
@@ -44,12 +44,14 @@ export async function exportPdf(ctx: CommandContext, docId: string, run: PdfRun)
   }
   let token: string | null = null;
   try {
-    token = (await rpc.call('pdf.export.begin', { path, pageSize: run.pageSize, docId })).token;
+    const begun = await rpc.call('pdf.export.begin', { path, pageSize: run.pageSize, docId });
+    token = begun.token;
     const size = pdfPageSize(run.pageSize);
     const paged = await paginate(ctx, current.document, {
       pageSize: size,
       settings: current.settings?.pdf,
       cancelled: run.cancelled,
+      limits: begun.limits,
       progress: (done, total) => modal.progress(done, total * 3),
     });
     if (run.cancelled()) throw new Cancelled();
@@ -146,6 +148,9 @@ export async function exportPdf(ctx: CommandContext, docId: string, run: PdfRun)
       return false;
     }
     let detail = error instanceof Error ? error.message : String(error);
+    if (error instanceof PdfLimitError) {
+      detail = ctx.t(`pdf.limit.${error.limit}`, { count: error.count, max: error.max });
+    }
     if (isRpcError(error) && error.code === RpcErrorCode.pdfExportFailed) {
       const data = (error.data ?? {}) as { reason?: string; message?: string };
       const reason = (data.reason ?? 'pdf.ioError').replace(/^pdf\./, '');
