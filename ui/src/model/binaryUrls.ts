@@ -182,3 +182,31 @@ export function epubWriteUrl(
 ): string {
   return withToken(`${baseUrl}epub-write/${encodeURIComponent(token)}/${entryPath(name)}`, '?');
 }
+
+/**
+ * Feature 014 (contracts/rpc-api.md): part `part` of the PDF export's paged document under `token`
+ * (`PUT /pdf/{token}/part/{n}`, the HTML as the body).
+ */
+export function pdfPartUrl(
+  token: string,
+  part: number,
+  baseUrl: string = import.meta.env.BASE_URL ?? '/',
+): string {
+  return withToken(`${baseUrl}pdf/${encodeURIComponent(token)}/part/${part}`, '?');
+}
+
+/**
+ * Feature 014 (contracts/rpc-api.md): a font file the PDF export ships, as the paged document's
+ * `@font-face` rules name it (`GET /pdf/fonts/shipped/{id}/{style}`; style Regular, Italic, Bold or
+ * BoldItalic).
+ */
+export function pdfFontUrl(
+  id: string,
+  style: string,
+  baseUrl: string = import.meta.env.BASE_URL ?? '/',
+): string {
+  return withToken(
+    `${baseUrl}pdf/fonts/shipped/${encodeURIComponent(id)}/${encodeURIComponent(style)}`,
+    '?',
+  );
+}

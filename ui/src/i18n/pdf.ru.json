@@ -1,0 +1,46 @@
+{
+  "$comment": "PDF export (feature 014): the File > Export entry, the Save dialog's page sizes, the export's progress, messages and reasons. Feature catalogue merged by i18n/index.ts.",
+  "menu": {
+    "file": {
+      "exportPdf": "Экспор&т в PDF..."
+    }
+  },
+  "cmd": {
+    "file": {
+      "exportPdf": {
+        "tooltip": "Экспорт в PDF",
+        "description": "Записать книгу в файл PDF/A выбранного размера страницы, с поиском по тексту, закладками, ссылками, сносками и полным описанием в метаданных"
+      }
+    }
+  },
+  "pdf": {
+    "filter": "Документы PDF (*.pdf)",
+    "pageSizeLabel": "Размер страницы:",
+    "sizes": {
+      "a4": "A4 (210 × 297 мм)",
+      "b5": "B5 (176 × 250 мм)",
+      "a5": "A5 (148 × 210 мм)",
+      "b6": "B6 (125 × 176 мм)",
+      "a6": "A6 (105 × 148 мм)",
+      "legal": "Legal (8,5 × 14 дюйма)",
+      "letter": "Letter (8,5 × 11 дюйма)",
+      "executive": "Executive (7,25 × 10,5 дюйма)",
+      "statement": "Statement (5,5 × 8,5 дюйма)"
+    },
+    "exporting": "Экспорт в PDF…",
+    "exportCaption": "Экспорт в PDF",
+    "exportDone": "Экспортировано в {{path}}: страниц: {{pages}}, размер страницы {{size}}.",
+    "exportCancelled": "Экспорт отменён, файл не записан.",
+    "exportFailed": "Файл PDF {{path}} не записан:\n{{detail}}",
+    "reason": {
+      "noPrinter": "для печати нужно окно редактора",
+      "printFailed": "браузерный движок не смог напечатать страницы ({{message}})",
+      "targetIsSource": "выбранный файл — это сама книга или архив, из которого она открыта",
+      "badPageSize": "этого размера страницы нет среди девяти",
+      "ioError": "файл не удалось записать ({{message}})",
+      "checkFailed": "готовый файл не прошёл собственную проверку ({{message}})",
+      "unknownToken": "ядро уже не знает этот экспорт",
+      "noPart": "не хватает части страниц"
+    }
+  }
+}

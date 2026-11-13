@@ -1,0 +1,104 @@
+/**
+ * Feature 014 (D4, D23; plan PD1, research R1, R7): the PDF export's job, the first module of the
+ * lazy chunk `pdf-export`. The command chose the file and the page size and started the progress
+ * (../index.ts); this part:
+ * 1. lays the book out in pages (paginator.ts on Preview's look, document.ts);
+ * 2. uploads each part of the paged document (`PUT /pdf/{token}/part/{n}`);
+ * 3. has the core print each part (`pdf.export.print`, the shell's hidden browser or the journeys'
+ *    seam);
+ * 4. has the core finish and write the file (`pdf.export.finish`, with the page map).
+ *
+ * It is modal, with progress and *Cancel*, and leaves no trace but the file (D4, D25): nothing of
+ * the book changes and no setting is written.
+ */
+import type { CommandContext } from '@/app/commands';
+import { pdfPartUrl } from '@/model/binaryUrls';
+import { actions } from '@/model/store';
+import { isRpcError } from '@/rpc/client';
+import { RpcErrorCode } from '@/rpc/types';
+
+import type { PdfRun } from '../index';
+import { pdfPageSize } from '../pageSizes';
+import { paginate } from './paginator';
+
+class Cancelled extends Error {}
+
+async function put(token: string, part: number, html: string): Promise<void> {
+  const response = await fetch(pdfPartUrl(token, part), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    body: new TextEncoder().encode(html),
+  });
+  if (!response.ok) throw new Error(`part ${part}: ${response.status}`);
+}
+
+/** The export of the book `docId` under `run`; resolves true once the file is written. */
+export async function exportPdf(ctx: CommandContext, docId: string, run: PdfRun): Promise<boolean> {
+  const { store, rpc } = ctx;
+  const { path, modal } = run;
+  const current = store.getState();
+  if (!rpc || !current.document || current.docId !== docId) {
+    modal.end();
+    return false;
+  }
+  let token: string | null = null;
+  try {
+    token = (await rpc.call('pdf.export.begin', { path, pageSize: run.pageSize, docId })).token;
+    const size = pdfPageSize(run.pageSize);
+    const paged = await paginate(ctx, current.document, {
+      pageSize: size,
+      settings: current.settings?.pdf,
+      cancelled: run.cancelled,
+      progress: (done, total) => modal.progress(done, total * 3),
+    });
+    if (run.cancelled()) throw new Cancelled();
+    const parts = paged.parts.length;
+    const total = parts * 3 + 1;
+    let done = parts;
+    await rpc.call('pdf.export.document', { token, parts });
+    for (let part = 0; part < parts; part++) {
+      if (run.cancelled()) throw new Cancelled();
+      await put(token, part, paged.parts[part]);
+      modal.progress(++done, total);
+    }
+    for (let part = 0; part < parts; part++) {
+      if (run.cancelled()) throw new Cancelled();
+      await rpc.runJob('pdf.export.print', { token, part });
+      modal.progress(++done, total);
+    }
+    if (run.cancelled()) throw new Cancelled();
+    await rpc.runJob('pdf.export.finish', { token, pageMap: paged.pageMap });
+    token = null;
+    modal.progress(total, total);
+    modal.end();
+    actions.setStatusMessage(
+      store,
+      ctx.t('pdf.exportDone', {
+        path,
+        pages: paged.pageMap.pages,
+        size: ctx.t(`pdf.sizes.${run.pageSize}`),
+      }),
+    );
+    return true;
+  } catch (error) {
+    modal.end();
+    if (token) await rpc.call('pdf.export.abort', { token }).catch(() => undefined);
+    if (run.cancelled() || error instanceof Cancelled) {
+      actions.setStatusMessage(store, ctx.t('pdf.exportCancelled'));
+      return false;
+    }
+    let detail = error instanceof Error ? error.message : String(error);
+    if (isRpcError(error) && error.code === RpcErrorCode.pdfExportFailed) {
+      const data = (error.data ?? {}) as { reason?: string; message?: string };
+      const reason = (data.reason ?? 'pdf.ioError').replace(/^pdf\./, '');
+      detail = ctx.t(`pdf.reason.${reason}`, { message: data.message ?? '' });
+    }
+    await ctx.dialogs.showMessage({
+      text: ctx.t('pdf.exportFailed', { path, detail }),
+      caption: ctx.t('pdf.exportCaption'),
+      icon: 'error',
+      testId: 'dialog-pdf-export-failed',
+    });
+    return false;
+  }
+}

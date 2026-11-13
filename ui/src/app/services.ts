@@ -27,6 +27,7 @@ import { HotkeyMap, detectPlatform } from './hotkeys';
 import { resourceCatalogsFor } from '@/views/description/resources';
 import { provideCompletionLists } from '@/views/source/attributeCompletion';
 import { registerEpubFeature } from '@/features/epub';
+import { registerPdfFeature } from '@/features/pdf';
 import { registerMarkdownImport } from '@/features/markdown/importCommand';
 
 /** What a feature registrar receives; keep it minimal and stable. */
@@ -108,6 +109,7 @@ export function createAppServices(options: CreateAppServicesOptions = {}): AppSe
   registerMarkdownImport(commands, files);
   // Feature 012: File > Import > EPUB File... and File > Export > Export as EPUB... (lazy parts, D32).
   registerEpubFeature(commands, files);
+  registerPdfFeature(commands);
   registerViewCommands(commands);
   // Feature modules (editing, source tools, description, tree, spelling, images, words,
   // settings, scripts) register their commands/plugins through their own registrar file;

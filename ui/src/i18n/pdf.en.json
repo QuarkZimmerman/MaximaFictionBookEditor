@@ -1,0 +1,46 @@
+{
+  "$comment": "PDF export (feature 014): the File > Export entry, the Save dialog's page sizes, the export's progress, messages and reasons. Feature catalogue merged by i18n/index.ts.",
+  "menu": {
+    "file": {
+      "exportPdf": "Expor&t as PDF..."
+    }
+  },
+  "cmd": {
+    "file": {
+      "exportPdf": {
+        "tooltip": "Export as PDF",
+        "description": "Write the book as a searchable PDF/A file in a page size you choose, with bookmarks, links, footnotes and the whole description in its metadata"
+      }
+    }
+  },
+  "pdf": {
+    "filter": "PDF documents (*.pdf)",
+    "pageSizeLabel": "Page size:",
+    "sizes": {
+      "a4": "A4 (210 × 297 mm)",
+      "b5": "B5 (176 × 250 mm)",
+      "a5": "A5 (148 × 210 mm)",
+      "b6": "B6 (125 × 176 mm)",
+      "a6": "A6 (105 × 148 mm)",
+      "legal": "Legal (8.5 × 14 in)",
+      "letter": "Letter (8.5 × 11 in)",
+      "executive": "Executive (7.25 × 10.5 in)",
+      "statement": "Statement (5.5 × 8.5 in)"
+    },
+    "exporting": "Exporting as PDF…",
+    "exportCaption": "PDF export",
+    "exportDone": "Exported to {{path}}: {{pages}} pages, page size {{size}}.",
+    "exportCancelled": "The export was cancelled; no file was written.",
+    "exportFailed": "The PDF {{path}} was not written:\n{{detail}}",
+    "reason": {
+      "noPrinter": "printing needs the editor's window",
+      "printFailed": "the browser engine could not print the pages ({{message}})",
+      "targetIsSource": "the file chosen is the book itself, or the archive it was opened from",
+      "badPageSize": "the page size is not one of the nine",
+      "ioError": "the file could not be written ({{message}})",
+      "checkFailed": "the finished file failed its own check ({{message}})",
+      "unknownToken": "the export was no longer known to the core",
+      "noPart": "a part of the pages is missing"
+    }
+  }
+}

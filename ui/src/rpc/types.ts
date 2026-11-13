@@ -1351,6 +1351,27 @@ export interface RpcMethods {
   'epub.write.commit': { params: { token: string }; result: { bytes: number } };
   'epub.write.abort': { params: { token: string }; result: Record<string, never> };
   /**
+   * Feature 014 (specs/014-pdf-export/contracts/rpc-api.md): a PDF export of the book `docId` to
+   * `path` (chosen with dialog.saveFile) in one of the nine page sizes; errors 1112 pdfExportFailed.
+   */
+  'pdf.export.begin': {
+    params: { path: string; pageSize: PdfPageSizeId; docId?: string };
+    result: { token: string; pageSize: PdfPageSizeId };
+  };
+  /** Declares how many parts the paged document has (each uploaded with PUT /pdf/{token}/part/{n}). */
+  'pdf.export.document': {
+    params: { token: string; parts: number };
+    result: Record<string, never>;
+  };
+  /** Job: the print service prints one part (contracts/print-service.md). */
+  'pdf.export.print': { params: { token: string; part: number }; result: { part: number } };
+  /** Job: the finished file, written atomically. */
+  'pdf.export.finish': {
+    params: { token: string; pageMap: unknown };
+    result: { path: string; bytes: number };
+  };
+  'pdf.export.abort': { params: { token: string }; result: { known: boolean } };
+  /**
    * Feature 010 (US8): a new untitled, modified document from FB2 text, tied to no file. Feature 012
    * (SC-010): text of 2 MB or more is read as a job, with its progress, as `doc.open` reads a big book.
    */
