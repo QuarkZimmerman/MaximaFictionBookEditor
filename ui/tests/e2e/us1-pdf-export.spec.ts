@@ -138,6 +138,10 @@ test.describe('US1: export a searchable PDF in a chosen page size (feature 014)'
   }) => {
     test.setTimeout(900_000);
     const outside = await recordOutside(context);
+    // The core's record holds the dialogs of the earlier tests of this worker too.
+    const earlier = (await core.rpc<{ method: string }[]>('test.dialogRequests')).filter(
+      (r) => r.method === 'dialog.saveFile',
+    ).length;
     await core.openApp(page);
     const seam = startPrintSeam(core, context);
     const { compareText, pdfPageTexts } = await textTools();
@@ -184,7 +188,7 @@ test.describe('US1: export a searchable PDF in a chosen page size (feature 014)'
         }[]
       >('test.dialogRequests');
       // The first export proposes A4; later ones the size kept for the book (D25).
-      const save = requests.filter((r) => r.method === 'dialog.saveFile')[0];
+      const save = requests.filter((r) => r.method === 'dialog.saveFile')[earlier];
       expect(save?.encodingChoices).toEqual(SIZES.map((s) => s.label));
       expect(save?.selectedEncoding).toBe('A4 (210 × 297 mm)');
       expect(save?.encodingLabel).toBe('Page size:');
