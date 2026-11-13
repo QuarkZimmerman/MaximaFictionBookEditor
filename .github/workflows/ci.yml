@@ -351,6 +351,20 @@ jobs:
             exit 1
           fi
           tools/ci/epubcheck.sh "${books[@]}"
+      # Feature 014 (D21, FR-040, SC-001): every PDF the export journeys wrote passes veraPDF
+      # 1.30.3 against the PDF/A-2 level U profile with no failed rule (tools/ci/verapdf.sh pins the
+      # release and its SHA-256; same Java as EPUBCheck).
+      - name: veraPDF over the exported reference books (feature 014)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          shopt -s nullglob
+          books=(build/pdf-export/*.pdf)
+          if [ "${#books[@]}" -lt 9 ]; then
+            echo "::error::the export journeys (us1-pdf-export) wrote ${#books[@]} PDFs, expected at least 9"
+            exit 1
+          fi
+          tools/ci/verapdf.sh "${books[@]}"
       - name: Platform journeys (feature 004, SC-006 / SC-009; Windows and macOS)
         # Only the journeys tagged `@platform`; `--pass-with-no-tests` keeps the leg green on
         # a branch that has not written one yet. The hooks core of this system comes from the
