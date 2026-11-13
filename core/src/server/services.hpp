@@ -1,6 +1,7 @@
 // Internal: everything RPC handlers need, bundled (not part of the public API).
 #pragma once
 
+#include "print/queued_print_service.hpp"
 #include "server/ai_state.hpp"
 
 #include <mfbe/clipboard_provider.hpp>

@@ -5,6 +5,7 @@
 #include "clipboard_bridge.h"
 #include "dialog_provider.h"
 #include "keyboard_layout_bridge.h"
+#include "print_service_cef.h"
 
 #include <atomic>
 #include <cstdio>
@@ -178,6 +179,12 @@ public:
             server_->set_dialog_provider(std::move(provider));
         } catch (const std::exception& e) {
             std::fprintf(stderr, "mfbe: failed to register the dialog provider: %s\n", e.what());
+        }
+        try {
+            // Feature 014: the PDF export prints in a hidden browser of the shell's own.
+            server_->set_print_service(cefPrintService());
+        } catch (const std::exception& e) {
+            std::fprintf(stderr, "mfbe: failed to register the print service: %s\n", e.what());
         }
         try {
             if (std::shared_ptr<mfbe::ClipboardProvider> clipboard = makeCoreClipboardProvider()) {

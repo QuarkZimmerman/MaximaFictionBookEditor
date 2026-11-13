@@ -2,9 +2,8 @@
 // request until the journeys answer it, writes the uploaded bytes to the request's file, and
 // reports failures and cancellations to the export.
 
+#include "print/queued_print_service.hpp"
 #include "test_support.hpp"
-
-#include <mfbe/print_service.hpp>
 
 #include <catch2/catch_test_macros.hpp>
 #include <fstream>
