@@ -9,6 +9,7 @@
 // Everything of an export lives in its own folder of the data folder until finish or abort, or
 // ten minutes without a call.
 
+#include "pdf/check.hpp"
 #include "pdf/finish.hpp"
 #include "pdf/fonts.hpp"
 #include "server/loopback_server.hpp"
@@ -382,6 +383,14 @@ void register_pdf_handlers(rpc::RpcRouter& router, Services& services) {
             input.lang = params["pageMap"].value("language", std::string());
         }
         input.creator_tool = std::string(version::kProductName) + " " + version::kVersion;
+        // DP-18: the text each page shows, for the check of the finished file.
+        std::vector<std::string> page_texts;
+        if (params.contains("pageMap") && params["pageMap"].is_object() &&
+            params["pageMap"].contains("text") && params["pageMap"]["text"].is_array()) {
+            for (const json& t : params["pageMap"]["text"]) {
+                page_texts.push_back(t.is_string() ? t.get<std::string>() : std::string());
+            }
+        }
         // R4: the picture boxes of the page map, and the bytes of their binaries, taken here on
         // the server's thread from the book's session.
         if (params.contains("pageMap") && params["pageMap"].is_object() &&
@@ -405,8 +414,8 @@ void register_pdf_handlers(rpc::RpcRouter& router, Services& services) {
                 input.pictures.push_back(std::move(placed));
             }
         }
-        const std::string job_id = ctx.jobs.start([&services, token, e,
-                                                   input](rpc::JobControl& control) -> json {
+        const std::string job_id = ctx.jobs.start([&services, token, e, input,
+                                                   page_texts](rpc::JobControl& control) -> json {
             control.progress("finish", 0, 1);
             // R3: the printed file finished as PDF/A-2 level U (finish.cpp); the pictures, the
             // bookmarks, the whole description and the checks come with tasks T026 to T040.
@@ -420,13 +429,22 @@ void register_pdf_handlers(rpc::RpcRouter& router, Services& services) {
                 throw failed("pdf.noPart", json{{"part", 0}});
             }
             control.check_cancelled();
+            std::vector<char> finished;
             try {
-                const std::vector<char> finished =
-                    pdf::finish(std::vector<char>(bytes.begin(), bytes.end()), input);
-                bytes.assign(finished.begin(), finished.end());
+                finished = pdf::finish(std::vector<char>(bytes.begin(), bytes.end()), input);
             } catch (const std::runtime_error& error) {
                 throw failed("pdf.checkFailed", json{{"message", error.what()}});
             }
+            // DP-18: the finished file is read back before anything is written.
+            const std::vector<std::string> faults = pdf::check_finished(finished, page_texts);
+            if (!faults.empty()) {
+                std::string message;
+                for (std::size_t i = 0; i < faults.size() && i < 5; ++i) {
+                    message += (i ? "; " : "") + faults[i];
+                }
+                throw failed("pdf.checkFailed", json{{"message", message}});
+            }
+            bytes.assign(finished.begin(), finished.end());
             control.check_cancelled();
             try {
                 atomic_file::write_atomic(e.target, bytes);
