@@ -225,7 +225,8 @@ test.describe('US1: export a searchable PDF in a chosen page size (feature 014)'
           encodingLabel?: string;
         }[]
       >('test.dialogRequests');
-      const save = requests.filter((r) => r.method === 'dialog.saveFile').pop();
+      // The first export proposes A4; later ones the size kept for the book (D25).
+      const save = requests.filter((r) => r.method === 'dialog.saveFile')[0];
       expect(save?.encodingChoices).toEqual(SIZES.map((s) => s.label));
       expect(save?.selectedEncoding).toBe('A4 (210 × 297 mm)');
       expect(save?.encodingLabel).toBe('Page size:');

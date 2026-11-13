@@ -17,6 +17,7 @@ import type { PdfPageSizeId } from '@/rpc/types';
 import { commitPendingSource } from '@/views/source/sourceSession';
 
 import { DEFAULT_PDF_PAGE_SIZE, PDF_PAGE_SIZES, pdfPageSize } from './pageSizes';
+import { keepPageSize, keptPageSize } from './keptPageSize';
 import { showPageSizeDialog } from './showPageSizeDialog';
 
 export const EXPORT_PDF_COMMAND = 'file.exportPdf';
@@ -38,10 +39,15 @@ function folderOf(path: string | null | undefined): string {
   return at >= 0 ? path.slice(0, at + 1) : '';
 }
 
-/** The size the dialog proposes: the settings' default, a4 out of the box (D25). */
-function proposedSize(ctx: CommandContext): PdfPageSizeId {
-  return pdfPageSize(ctx.store.getState().settings?.pdf?.defaultPageSize ?? DEFAULT_PDF_PAGE_SIZE)
-    .id;
+/**
+ * The size the dialog proposes (D25): the one kept for the open book, else the settings' default,
+ * A4 out of the box.
+ */
+function proposedSize(ctx: CommandContext, docId: string): PdfPageSizeId {
+  return (
+    keptPageSize(docId) ??
+    pdfPageSize(ctx.store.getState().settings?.pdf?.defaultPageSize ?? DEFAULT_PDF_PAGE_SIZE).id
+  );
 }
 
 const connectedWithDocument = (ctx: CommandContext): boolean =>
@@ -63,7 +69,7 @@ export function registerPdfFeature(commands: CommandRegistry): void {
       if (!state.document || !state.docId) return;
       const docId = state.docId;
       const stem = proposedStem(state.document.description, ctx.t('app.untitled'));
-      const proposed = proposedSize(ctx);
+      const proposed = proposedSize(ctx, docId);
       const labels = PDF_PAGE_SIZES.map((size) => ctx.t(`pdf.sizes.${size.id}`));
       const { path, encoding } = await rpc.call('dialog.saveFile', {
         title: ctx.t('cmd.file.exportPdf.tooltip'),
@@ -84,6 +90,8 @@ export function registerPdfFeature(commands: CommandRegistry): void {
           ? PDF_PAGE_SIZES[chosen].id
           : await showPageSizeDialog(ctx.dialogs, { defaultSize: proposed, path });
       if (!pageSize || store.getState().docId !== docId) return;
+      // D25: kept for the book from here on, even if the export is cancelled (analysis C7).
+      keepPageSize(docId, pageSize);
       let cancelled = false;
       const modal = startModalJob(ctx.t('pdf.exporting'), () => {
         cancelled = true;
