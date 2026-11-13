@@ -67,7 +67,7 @@ export async function exportPdf(ctx: CommandContext, docId: string, run: PdfRun)
       modal.progress(++done, total);
     }
     if (run.cancelled()) throw new Cancelled();
-    await rpc.runJob('pdf.export.finish', {
+    const finished = await rpc.runJob('pdf.export.finish', {
       token,
       pageMap: paged.pageMap,
       title: current.document.description.titleInfo.bookTitle ?? '',
@@ -75,14 +75,32 @@ export async function exportPdf(ctx: CommandContext, docId: string, run: PdfRun)
     token = null;
     modal.progress(total, total);
     modal.end();
-    actions.setStatusMessage(
-      store,
-      ctx.t('pdf.exportDone', {
-        path,
-        pages: paged.pageMap.pages,
-        size: ctx.t(`pdf.sizes.${run.pageSize}`),
-      }),
-    );
+    const counts = ctx.t('pdf.exportDone', {
+      path,
+      pages: paged.pageMap.pages,
+      size: ctx.t(`pdf.sizes.${run.pageSize}`),
+      pictures: paged.counts.pictures,
+      tables: paged.counts.tables,
+      notes: paged.counts.notes,
+    });
+    // D23: what was not carried over as written, each with its reason; else the status line.
+    const lines = [
+      ...paged.leftOut.map((detail) => ctx.t('pdf.summary.pictureLeftOut', { detail })),
+      ...paged.replacedFonts.map((detail) => ctx.t('pdf.summary.fontReplaced', { detail })),
+      ...(finished.uncovered
+        ? [ctx.t('pdf.summary.systemFont', { detail: [...finished.uncovered].join(' ') })]
+        : []),
+    ];
+    if (lines.length === 0) {
+      actions.setStatusMessage(store, counts);
+    } else {
+      await ctx.dialogs.showMessage({
+        text: `${counts}\n\n${ctx.t('pdf.exportSummaryIntro')}\n${lines.join('\n')}`,
+        caption: ctx.t('pdf.exportCaption'),
+        icon: 'info',
+        testId: 'dialog-pdf-export-summary',
+      });
+    }
     return true;
   } catch (error) {
     modal.end();

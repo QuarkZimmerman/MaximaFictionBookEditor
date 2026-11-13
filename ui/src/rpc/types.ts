@@ -1368,7 +1368,8 @@ export interface RpcMethods {
   /** Job: the finished file, written atomically. */
   'pdf.export.finish': {
     params: { token: string; pageMap: unknown; title?: string };
-    result: { path: string; bytes: number };
+    /** `uncovered`: the characters no shipped font draws (D7), drawn with a system font. */
+    result: { path: string; bytes: number; uncovered?: string };
   };
   'pdf.export.abort': { params: { token: string }; result: { known: boolean } };
   /**

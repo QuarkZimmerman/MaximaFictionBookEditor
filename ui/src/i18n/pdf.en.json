@@ -33,9 +33,15 @@
     },
     "exporting": "Exporting as PDF…",
     "exportCaption": "PDF export",
-    "exportDone": "Exported to {{path}}: {{pages}} pages, page size {{size}}.",
+    "exportDone": "Exported to {{path}}: {{pages}} pages in {{size}}, {{pictures}} pictures, {{tables}} tables, {{notes}} notes.",
     "exportCancelled": "The export was cancelled; no file was written.",
     "exportFailed": "The PDF {{path}} was not written:\n{{detail}}",
+    "exportSummaryIntro": "Not everything was carried over as written:",
+    "summary": {
+      "pictureLeftOut": "Picture {{detail}} left out: it has no data, or it is not a picture",
+      "fontReplaced": "Font “{{detail}}” replaced by the editor's own font of its kind",
+      "systemFont": "Drawn with a system font, as no font the editor ships has them: {{detail}}"
+    },
     "reason": {
       "noPrinter": "printing needs the editor's window",
       "printFailed": "the browser engine could not print the pages ({{message}})",

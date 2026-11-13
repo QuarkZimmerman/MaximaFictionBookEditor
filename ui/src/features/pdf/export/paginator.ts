@@ -57,6 +57,8 @@ export interface Paginated {
   leftOut: string[];
   /** The book's font names replaced by D7's families, for the summary. */
   replacedFonts: string[];
+  /** D23 / FR-042: what the status line counts. */
+  counts: { pictures: number; tables: number; notes: number };
 }
 
 class PaginationCancelled extends Error {}
@@ -438,6 +440,14 @@ export async function paginate(
       parts,
       leftOut: frame.leftOut,
       replacedFonts: frame.replacedFonts,
+      counts: {
+        pictures: new Set(pictures.map((picture) => picture.binaryId)).size,
+        tables: root.getElementsByTagNameNS(XHTML_NS, 'table').length,
+        // The notes are the sections of the notes and comments bodies, as the EPUB export counts them.
+        notes: book.bodies
+          .filter((body) => /^(notes|comments)$/i.test(body.attrs.name ?? ''))
+          .reduce((sum, body) => sum + body.content.filter((n) => n.type === 'section').length, 0),
+      },
       pageMap: {
         pages: serialised.length,
         bookmarks,
