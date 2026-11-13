@@ -47,9 +47,15 @@ export async function exportPdf(ctx: CommandContext, docId: string, run: PdfRun)
     const begun = await rpc.call('pdf.export.begin', { path, pageSize: run.pageSize, docId });
     token = begun.token;
     const size = pdfPageSize(run.pageSize);
+    // D7(c): a text font the user added, looked up by its id (gone: Noto Serif).
+    const textFont = current.settings?.pdf?.textFont ?? 'noto-serif';
+    const added = /^[0-9a-f]{64}(-\d+)?$/.test(textFont)
+      ? (await rpc.call('pdf.fonts.list', {})).added.find((font) => font.id === textFont)
+      : undefined;
     const paged = await paginate(ctx, current.document, {
       pageSize: size,
       settings: current.settings?.pdf,
+      addedFont: added ? { id: added.id, kind: added.kind } : undefined,
       cancelled: run.cancelled,
       limits: begun.limits,
       progress: (done, total) => modal.progress(done, total * 3),

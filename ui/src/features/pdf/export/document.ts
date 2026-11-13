@@ -8,7 +8,7 @@
  * text area (D12). The box keeps the alternative text for the PDF's structure (D20).
  */
 import { buildPreview, FB2_NS, XHTML_NS } from '@/features/preview/buildPreview';
-import { pdfFontUrl } from '@/model/binaryUrls';
+import { pdfAddedFontUrl, pdfFontUrl } from '@/model/binaryUrls';
 import type { BinaryMeta, Document } from '@/model/document';
 
 import { replaceBookFonts, type TextFont } from './fontKinds';
@@ -174,7 +174,8 @@ export async function createPrintFrame(
     // whose families the print stylesheet below overrides).
     const textFont: TextFont = {
       id: layout.fontId,
-      kind: layout.fontId === 'noto-sans' ? 'sans-serif' : 'serif',
+      kind: layout.addedFont?.kind ?? (layout.fontId === 'noto-sans' ? 'sans-serif' : 'serif'),
+      added: !!layout.addedFont,
     };
     const replaced = new Set<string>();
     for (const sheet of [...doc.head.querySelectorAll('style')].slice(1)) {
@@ -183,8 +184,10 @@ export async function createPrintFrame(
     const style = doc.createElement('style');
     // Absolute addresses: the interface is built with a relative base ('./'), and the paged
     // document is printed from another path of the same core (/pdf/{token}/print/{n}).
-    style.textContent = printCss(layout, (id, fontStyle) =>
-      new URL(pdfFontUrl(id, fontStyle), window.location.href).toString(),
+    style.textContent = printCss(
+      layout,
+      (id, fontStyle) => new URL(pdfFontUrl(id, fontStyle), window.location.href).toString(),
+      (id) => new URL(pdfAddedFontUrl(id), window.location.href).toString(),
     );
     doc.head.append(style);
     const css = [...doc.head.querySelectorAll('style')].map((element) => element.textContent ?? '');

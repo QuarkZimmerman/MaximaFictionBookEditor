@@ -27,6 +27,8 @@ const STANDARD: Record<string, { textPt: number; marginMm: number }> = {
   a6: { textPt: 9, marginMm: 8 },
 };
 
+import type { FontKind } from './fontKinds';
+
 export interface PrintLayout {
   /** The page, in CSS pixels (96 per inch). */
   pageWidth: number;
@@ -39,12 +41,18 @@ export interface PrintLayout {
   textPt: number;
   /** The text font family's id (a shipped family or an added font). */
   fontId: string;
+  /** D7(c): the text font when the user added it, with its kind. */
+  addedFont?: { id: string; kind: FontKind };
 }
 
 const PX_PER_IN = 96;
 const PX_PER_MM = 96 / 25.4;
 
-export function layoutFor(size: PdfPageSize, settings: PdfSettings | undefined): PrintLayout {
+export function layoutFor(
+  size: PdfPageSize,
+  settings: PdfSettings | undefined,
+  addedFont?: { id: string; kind: FontKind },
+): PrintLayout {
   const standard = STANDARD[size.id] ?? STANDARD.a4;
   const textPt =
     standard.textPt +
@@ -60,7 +68,11 @@ export function layoutFor(size: PdfPageSize, settings: PdfSettings | undefined):
     contentWidth: pageWidth - 2 * margin,
     contentHeight: pageHeight - 2 * margin,
     textPt,
-    fontId: settings?.textFont || 'noto-serif',
+    // An unknown text font reads as Noto Serif (contracts/settings).
+    fontId:
+      addedFont?.id ??
+      (SHIPPED_STYLES[settings?.textFont ?? ''] ? settings!.textFont : 'noto-serif'),
+    addedFont,
   };
 }
 
@@ -104,13 +116,22 @@ function fontFaces(fontUrl: (id: string, style: string) => string): string {
 export function printCss(
   layout: PrintLayout,
   fontUrl: (id: string, style: string) => string,
+  addedFontUrl?: (id: string) => string,
 ): string {
-  const text = familyName(layout.fontId);
-  const sans = layout.fontId === 'noto-sans';
+  const added = layout.addedFont;
+  // An added font is followed by the shipped family of its kind, for what it does not draw.
+  const text = added
+    ? `${familyName(added.id)}', '${familyName(added.kind === 'sans-serif' ? 'noto-sans' : added.kind === 'monospace' ? 'dejavu-sans-mono' : 'noto-serif')}`
+    : familyName(layout.fontId);
+  const sans = added ? added.kind === 'sans-serif' : layout.fontId === 'noto-sans';
   const georgian = familyName(sans ? 'noto-sans-georgian' : 'noto-serif-georgian');
   const armenian = familyName(sans ? 'noto-sans-armenian' : 'noto-serif-armenian');
   const mono = familyName('dejavu-sans-mono');
-  return `${fontFaces(fontUrl)}
+  const addedFace =
+    added && addedFontUrl
+      ? `\n@font-face { font-family: '${familyName(added.id)}'; src: url('${addedFontUrl(added.id)}'); }`
+      : '';
+  return `${fontFaces(fontUrl)}${addedFace}
 @page { size: ${layout.pageWidth}px ${layout.pageHeight}px; margin: 0; }
 html, body { margin: 0; padding: 0; background: #fff; color: #000; }
 body { font-family: '${text}', '${georgian}', '${armenian}', '${mono}'; font-size: ${layout.textPt}pt;

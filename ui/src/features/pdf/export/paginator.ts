@@ -62,6 +62,8 @@ export interface PaginateOptions {
   limits?: { pages: number; notes: number; nesting: number; pixels?: number };
   pageSize: PdfPageSize;
   settings: Settings['pdf'];
+  /** D7(c): the text font, when it is one the user added. */
+  addedFont?: { id: string; kind: 'serif' | 'sans-serif' | 'monospace' };
   cancelled: () => boolean;
   progress: (done: number, total: number) => void;
 }
@@ -300,7 +302,7 @@ export async function paginate(
   book: Document,
   options: PaginateOptions,
 ): Promise<Paginated> {
-  const layout: PrintLayout = layoutFor(options.pageSize, options.settings);
+  const layout: PrintLayout = layoutFor(options.pageSize, options.settings, options.addedFont);
   const docId = ctx.store.getState().docId ?? '';
   const frame = await createPrintFrame(book, docId, layout, options.limits?.pixels);
   try {

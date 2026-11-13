@@ -123,6 +123,8 @@ export function kindOf(value: string): FontKind {
 export interface TextFont {
   id: string;
   kind: FontKind;
+  /** D7(c): a font the user added, followed by the shipped family of its kind. */
+  added?: boolean;
 }
 
 /** The family list a declaration of `kind` gets: the font of that kind, then the scripts' families. */
@@ -136,8 +138,11 @@ export function replacementFamilies(kind: FontKind, text: TextFont): string {
         : sans
           ? 'noto-sans'
           : 'noto-serif';
+  const shippedOfKind =
+    kind === 'monospace' ? 'dejavu-sans-mono' : sans ? 'noto-sans' : 'noto-serif';
   const families = [
     main,
+    ...(text.added && main === text.id ? [shippedOfKind] : []),
     sans ? 'noto-sans-georgian' : 'noto-serif-georgian',
     sans ? 'noto-sans-armenian' : 'noto-serif-armenian',
     kind === 'monospace' ? 'noto-sans' : 'dejavu-sans-mono',
