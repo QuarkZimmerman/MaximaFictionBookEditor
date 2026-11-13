@@ -4,6 +4,7 @@
 
 #include "pdf/document.hpp"
 #include "pdf/tounicode.hpp"
+#include "pdf/xmp.hpp"
 
 #include <Array.h>
 #include <Dict.h>
@@ -16,6 +17,7 @@
 #include <ctime>
 #include <goo/GooString.h>
 #include <lcms2.h>
+#include <random>
 #include <set>
 #include <stdexcept>
 #include <string_view>
@@ -59,31 +61,6 @@ std::string text_string(const std::string& utf8) {
             unit(0xDC00 + (cp & 0x3FF));
         } else {
             unit(cp);
-        }
-    }
-    return out;
-}
-
-std::string xml_escape(const std::string& text) {
-    std::string out;
-    for (char c : text) {
-        switch (c) {
-            case '<':
-                out += "&lt;";
-                break;
-            case '>':
-                out += "&gt;";
-                break;
-            case '&':
-                out += "&amp;";
-                break;
-            case '"':
-                out += "&quot;";
-                break;
-            default:
-                // Characters XML forbids are left out (D22).
-                if (static_cast<unsigned char>(c) >= 0x20 || c == '\t' || c == '\n')
-                    out += c;
         }
     }
     return out;
@@ -171,32 +148,22 @@ void mend_ligatures(PDFDoc& doc) {
     }
 }
 
-std::string xmp_packet(const FinishInput& input, const Stamp& stamp) {
-    const std::string lang = input.lang.empty() ? "x-default" : xml_escape(input.lang);
-    std::string out = "<?xpacket begin=\"\xEF\xBB\xBF\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?>\n";
-    out +=
-        "<x:xmpmeta xmlns:x=\"adobe:ns:meta/\"><rdf:RDF "
-        "xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n";
-    out +=
-        "<rdf:Description rdf:about=\"\" xmlns:pdfaid=\"http://www.aiim.org/pdfa/ns/id/\" "
-        "xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:xmp=\"http://ns.adobe.com/xap/1.0/\" "
-        "xmlns:pdf=\"http://ns.adobe.com/pdf/1.3/\">\n";
-    out += "<pdfaid:part>2</pdfaid:part><pdfaid:conformance>U</pdfaid:conformance>\n";
-    out += "<dc:format>application/pdf</dc:format>\n";
-    out += "<dc:title><rdf:Alt><rdf:li xml:lang=\"x-default\">" + xml_escape(input.title) +
-           "</rdf:li>";
-    if (!input.lang.empty()) {
-        out += "<rdf:li xml:lang=\"" + lang + "\">" + xml_escape(input.title) + "</rdf:li>";
+// A random UUID (version 4), for this export's xmpMM:InstanceID.
+std::string random_uuid() {
+    std::random_device rd;
+    std::uniform_int_distribution<int> nibble(0, 15);
+    static const char* kHex = "0123456789abcdef";
+    std::string out;
+    for (int i = 0; i < 32; ++i) {
+        int v = nibble(rd);
+        if (i == 12)
+            v = 4;
+        if (i == 16)
+            v = 8 + (v & 3);
+        out.push_back(kHex[v]);
+        if (i == 7 || i == 11 || i == 15 || i == 19)
+            out.push_back('-');
     }
-    out += "</rdf:Alt></dc:title>\n";
-    if (!input.lang.empty()) {
-        out += "<dc:language><rdf:Bag><rdf:li>" + lang + "</rdf:li></rdf:Bag></dc:language>\n";
-    }
-    out += "<xmp:CreatorTool>" + xml_escape(input.creator_tool) + "</xmp:CreatorTool>\n";
-    out += "<xmp:CreateDate>" + stamp.xmp + "</xmp:CreateDate><xmp:ModifyDate>" + stamp.xmp +
-           "</xmp:ModifyDate><xmp:MetadataDate>" + stamp.xmp + "</xmp:MetadataDate>\n";
-    out += "<pdf:Producer>" + xml_escape(input.creator_tool) + "</pdf:Producer>\n";
-    out += "</rdf:Description></rdf:RDF></x:xmpmeta>\n<?xpacket end=\"w\"?>";
     return out;
 }
 
@@ -242,11 +209,34 @@ std::vector<char> finish(std::vector<char> printed, const FinishInput& input,
     const Ref intent_ref = xref->addIndirectObject(Object(std::move(intent)));
 
     // R3 step 4: the XMP metadata with the PDF/A declaration, and the Info dictionary matching it.
+    // D14-D16: the description's values (contracts/pdf-file.md), with the editor's record (DP-10).
+    XmpInput xmp;
+    if (input.description) {
+        xmp.description = *input.description;
+    } else {
+        xmp.description.titleInfo.bookTitle = input.title;
+        xmp.description.titleInfo.lang = input.lang;
+    }
+    xmp.description_xml = input.description_xml;
+    xmp.genre_names = input.genre_names;
+    xmp.hints = input.hints;
+    xmp.creator_tool = input.creator_tool;
+    xmp.instance_id = "uuid:" + random_uuid();
+    xmp.date = stamp.xmp;
     auto meta = std::make_unique<Dict>(xref);
     meta->set("Type", Object(objName, "Metadata"));
     meta->set("Subtype", Object(objName, "XML"));
-    const Ref metadata = add_stream(xref, xmp_packet(input, stamp), std::move(meta));
-    doc.setDocInfoTitle(std::make_unique<GooString>(text_string(input.title)));
+    // DP-10: compressed; Poppler compresses a stream held in memory itself under /FlateDecode.
+    meta->set("Filter", Object(objName, "FlateDecode"));
+    const Ref metadata = add_stream(xref, xmp_packet(xmp), std::move(meta));
+    const InfoValues info = info_values(xmp.description);
+    doc.setDocInfoTitle(std::make_unique<GooString>(text_string(info.title)));
+    if (!info.author.empty())
+        doc.setDocInfoAuthor(std::make_unique<GooString>(text_string(info.author)));
+    if (!info.subject.empty())
+        doc.setDocInfoSubject(std::make_unique<GooString>(text_string(info.subject)));
+    if (!info.keywords.empty())
+        doc.setDocInfoKeywords(std::make_unique<GooString>(text_string(info.keywords)));
     doc.setDocInfoCreator(std::make_unique<GooString>(text_string(input.creator_tool)));
     doc.setDocInfoProducer(std::make_unique<GooString>(text_string(input.creator_tool)));
     doc.setDocInfoCreatDate(std::make_unique<GooString>(stamp.pdf));

@@ -18,6 +18,8 @@
 #include "server/services.hpp"
 
 #include <mfbe/atomic_file.hpp>
+#include <mfbe/fb2_writer.hpp>
+#include <mfbe/json_codec.hpp>
 #include <mfbe/log.hpp>
 #include <mfbe/platform.hpp>
 #include <mfbe/print_service.hpp>
@@ -385,6 +387,26 @@ void register_pdf_handlers(rpc::RpcRouter& router, Services& services) {
             input.lang = params["pageMap"].value("language", std::string());
         }
         input.creator_tool = std::string(version::kProductName) + " " + version::kVersion;
+        // D14-D16: the description the window has, its <description> element written by the
+        // core's FB2 writer (D15), and the genres as the interface named them (012 D6).
+        if (params.contains("description") && params["description"].is_object()) {
+            try {
+                input.description = model::description_from_json(params["description"]);
+                model::Document only;
+                only.description = *input.description;
+                const std::string xml = fb2::write_document(only, nullptr).text;
+                const auto from = xml.find("<description");
+                const auto to = xml.find("</description>");
+                if (from != std::string::npos && to != std::string::npos) {
+                    input.description_xml = xml.substr(from, to + 14 - from);
+                }
+            } catch (const std::exception& error) {
+                throw failed("pdf.checkFailed",
+                             json{{"message", std::string("the description: ") + error.what()}});
+            }
+        }
+        input.genre_names = rpc::params::string_array_or(params, "genreNames");
+        input.hints = rpc::params::string_or(params, "hints", "");
         // DP-18: the text each page shows, for the check of the finished file.
         std::vector<std::string> page_texts;
         if (params.contains("pageMap") && params["pageMap"].is_object() &&

@@ -7,7 +7,10 @@
 
 #include "pdf/pictures.hpp"
 
+#include <mfbe/document.hpp>
+
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -21,6 +24,13 @@ struct FinishInput {
     std::string creator_tool;                     // the editor's name and version
     std::vector<PlacedPicture> pictures;          // the page map's picture boxes (R4)
     std::map<std::string, std::string> binaries;  // their bytes, by binary id
+    // D14-D16: the book's description for the metadata (absent: the title and language only),
+    // the <description> element as FB2 XML, the genres named in the book's language, and the
+    // editor's hints (R10, JSON).
+    std::optional<model::Description> description;
+    std::string description_xml;
+    std::vector<std::string> genre_names;
+    std::string hints;
 };
 
 /// What the finishing left out, for the summary (D23).

@@ -7,6 +7,7 @@
 #include "pdf/finish.hpp"
 #include "pdf/join.hpp"
 #include "pdf/tounicode.hpp"
+#include "pdf_test_support.hpp"
 #include "test_support.hpp"
 
 #include <mfbe/atomic_file.hpp>
@@ -91,9 +92,10 @@ TEST_CASE("pdf finish: exact page sizes, letters for ligatures, the PDF/A-2U ess
     const std::string text = doc->page_text(0);
     CHECK(text.find("Ligature fi fl ffi") != std::string::npos);
     CHECK(text.find("\xEF\xAC\x81") == std::string::npos);  // U+FB01 is gone
-    CHECK(bytes.find("<pdfaid:part>2</pdfaid:part>") != std::string::npos);
-    CHECK(bytes.find("<pdfaid:conformance>U</pdfaid:conformance>") != std::string::npos);
-    CHECK(bytes.find("<rdf:li xml:lang=\"ru\">Проба</rdf:li>") != std::string::npos);
+    const std::string xmp = test::pdf_xmp(finished);        // compressed in the file (DP-10)
+    CHECK(xmp.find("<pdfaid:part>2</pdfaid:part>") != std::string::npos);
+    CHECK(xmp.find("<pdfaid:conformance>U</pdfaid:conformance>") != std::string::npos);
+    CHECK(xmp.find("<rdf:li xml:lang=\"ru\">Проба</rdf:li>") != std::string::npos);
     CHECK(bytes.find("/GTS_PDFA1") != std::string::npos);
     CHECK(bytes.find("/OutputIntents") != std::string::npos);
     CHECK(bytes.find("/DisplayDocTitle true") != std::string::npos);

@@ -1,6 +1,7 @@
 // Feature 014 (contracts/rpc-api.md, contracts/print-service.md, tasks T014): the PDF export's
 // methods and routes end to end in the core, the test acting as the journeys' print seam.
 
+#include "pdf_test_support.hpp"
 #include "test_support.hpp"
 #include "ws_test_client.hpp"
 
@@ -126,7 +127,7 @@ TEST_CASE("pdf export rpc: a part is uploaded, printed through the seam and writ
     // The printed file was finished (finish.cpp): a PDF with the PDF/A-2 level U declaration.
     const std::string written = atomic_file::read_file(target);
     CHECK(written.rfind("%PDF-", 0) == 0);
-    CHECK(written.find("<pdfaid:part>2</pdfaid:part>") != std::string::npos);
+    CHECK(test::pdf_xmp(written).find("<pdfaid:part>2</pdfaid:part>") != std::string::npos);
     CHECK(written.find("/OutputIntents") != std::string::npos);
     // The export's folder is gone, and its token with it.
     CHECK_FALSE(std::filesystem::exists(f.data.path() / "pdf-export" / token));
