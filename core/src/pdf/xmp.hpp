@@ -13,6 +13,10 @@ namespace mfbe::pdf {
 /// The editor's namespace for its record (DP-10).
 inline constexpr const char* kMfbeNamespace =
     "https://github.com/QuarkZimmerman/MaximaFictionBookEditor/ns/pdf/1/";
+/// Calibre's namespaces for the series (DP-11; calibre/ebooks/metadata/xmp.py, NS_MAP).
+inline constexpr const char* kCalibreNamespace = "http://calibre-ebook.com/xmp-namespace";
+inline constexpr const char* kCalibreSeriesIndexNamespace =
+    "http://calibre-ebook.com/xmp-namespace-series-index";
 
 struct XmpInput {
     model::Description description;

@@ -4,6 +4,8 @@
 
 #include <cctype>
 #include <cstdint>
+#include <cstdio>
+#include <initializer_list>
 #include <sstream>
 
 namespace mfbe::pdf {
@@ -214,7 +216,9 @@ std::string xmp_packet(const XmpInput& input) {
         "xmlns:pdfaExtension=\"http://www.aiim.org/pdfa/ns/extension/\" "
         "xmlns:pdfaSchema=\"http://www.aiim.org/pdfa/ns/schema#\" "
         "xmlns:pdfaProperty=\"http://www.aiim.org/pdfa/ns/property#\" "
-        "xmlns:mfbe=\"" +
+        "xmlns:calibre=\"" +
+        std::string(kCalibreNamespace) + "\" xmlns:calibreSI=\"" +
+        std::string(kCalibreSeriesIndexNamespace) + "\" xmlns:mfbe=\"" +
         std::string(kMfbeNamespace) + "\">\n";
     out += "<pdfaid:part>2</pdfaid:part><pdfaid:conformance>U</pdfaid:conformance>\n";
     out += "<dc:format>application/pdf</dc:format>\n";
@@ -283,31 +287,55 @@ std::string xmp_packet(const XmpInput& input) {
     }
     if (!input.hints.empty())
         out += "<mfbe:fb2Hints>" + xml_text(input.hints) + "</mfbe:fb2Hints>\n";
-    out +=
-        "<pdfaExtension:schemas><rdf:Bag><rdf:li rdf:parseType=\"Resource\">"
-        "<pdfaSchema:schema>Maxima Fiction Book Editor record</pdfaSchema:schema>"
-        "<pdfaSchema:namespaceURI>" +
-        std::string(kMfbeNamespace) +
-        "</pdfaSchema:namespaceURI>"
-        "<pdfaSchema:prefix>mfbe</pdfaSchema:prefix><pdfaSchema:property><rdf:Seq>";
-    const struct {
+    // DP-11: the series as Calibre reads it from a PDF's XMP (calibre/ebooks/metadata/xmp.py,
+    // read_series: calibre:series, its rdf:value and its calibreSI:series_index qualifier).
+    const model::Sequence* series = t.sequences.empty() ? nullptr : &t.sequences.front();
+    if (series != nullptr && squeeze(series->name).empty())
+        series = nullptr;
+    if (series != nullptr) {
+        char index[32];
+        std::snprintf(index, sizeof index, "%.2f", series->number ? double(*series->number) : 1.0);
+        out += "<calibre:series rdf:parseType=\"Resource\"><rdf:value>" +
+               xml_text(squeeze(series->name)) + "</rdf:value><calibreSI:series_index>" + index +
+               "</calibreSI:series_index></calibre:series>\n";
+    }
+    // PDF/A declares every schema outside its predefined ones (ISO 19005-2, 6.6.2.3).
+    struct Property {
         const char* name;
         const char* type;
+        const char* category;
         const char* description;
-    } properties[] = {
-        {"recordVersion", "Integer",
-         "Version of the editor's record; marks a PDF the editor wrote"},
-        {"fb2Description", "Text", "The book's FictionBook description element, as FB2 XML"},
-        {"fb2Hints", "Text", "What the PDF cannot give back of the FictionBook structure, as JSON"},
     };
-    for (const auto& p : properties) {
-        out += std::string("<rdf:li rdf:parseType=\"Resource\"><pdfaProperty:name>") + p.name +
-               "</pdfaProperty:name><pdfaProperty:valueType>" + p.type +
-               "</pdfaProperty:valueType><pdfaProperty:category>internal</pdfaProperty:category>"
-               "<pdfaProperty:description>" +
-               p.description + "</pdfaProperty:description></rdf:li>";
+    const auto schema = [](const char* title, const char* uri, const char* prefix,
+                           std::initializer_list<Property> properties) {
+        std::string entry = std::string("<rdf:li rdf:parseType=\"Resource\"><pdfaSchema:schema>") +
+                            title + "</pdfaSchema:schema><pdfaSchema:namespaceURI>" + uri +
+                            "</pdfaSchema:namespaceURI><pdfaSchema:prefix>" + prefix +
+                            "</pdfaSchema:prefix><pdfaSchema:property><rdf:Seq>";
+        for (const Property& p : properties) {
+            entry += std::string("<rdf:li rdf:parseType=\"Resource\"><pdfaProperty:name>") +
+                     p.name + "</pdfaProperty:name><pdfaProperty:valueType>" + p.type +
+                     "</pdfaProperty:valueType><pdfaProperty:category>" + p.category +
+                     "</pdfaProperty:category><pdfaProperty:description>" + p.description +
+                     "</pdfaProperty:description></rdf:li>";
+        }
+        return entry + "</rdf:Seq></pdfaSchema:property></rdf:li>";
+    };
+    out += "<pdfaExtension:schemas><rdf:Bag>";
+    out += schema("Maxima Fiction Book Editor record", kMfbeNamespace, "mfbe",
+                  {{"recordVersion", "Integer", "internal",
+                    "Version of the editor's record; marks a PDF the editor wrote"},
+                   {"fb2Description", "Text", "internal",
+                    "The book's FictionBook description element, as FB2 XML"},
+                   {"fb2Hints", "Text", "internal",
+                    "What the PDF cannot give back of the FictionBook structure, as JSON"}});
+    if (series != nullptr) {
+        out += schema("calibre", kCalibreNamespace, "calibre",
+                      {{"series", "Text", "external", "The series the book belongs to"}});
+        out += schema("calibre series index", kCalibreSeriesIndexNamespace, "calibreSI",
+                      {{"series_index", "Real", "external", "The book's number in its series"}});
     }
-    out += "</rdf:Seq></pdfaSchema:property></rdf:li></rdf:Bag></pdfaExtension:schemas>\n";
+    out += "</rdf:Bag></pdfaExtension:schemas>\n";
     out += "</rdf:Description></rdf:RDF></x:xmpmeta>\n<?xpacket end=\"w\"?>";
     return out;
 }

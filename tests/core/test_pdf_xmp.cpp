@@ -181,3 +181,35 @@ TEST_CASE("pdf xmp: the finished file's Info equals its XMP, which is compressed
     CHECK(xmp.find("<rdf:li>Лев Николаевич Толстой</rdf:li>") != std::string::npos);
     CHECK(xmp.find("<xmpMM:InstanceID>uuid:") != std::string::npos);
 }
+
+TEST_CASE("pdf xmp: the series as Calibre reads it, its schemas declared (DP-11)", "[pdf]") {
+    pdf::XmpInput input;
+    input.description = description();
+    model::Sequence series;
+    series.name = "Эпопея & Co";
+    series.number = 3;
+    input.description.titleInfo.sequences = {series};
+    input.creator_tool = "test";
+    input.instance_id = "uuid:x";
+    input.date = "2026-11-13T00:00:00Z";
+    const std::string xmp = pdf::xmp_packet(input);
+    CHECK(
+        xmp.find("<calibre:series rdf:parseType=\"Resource\"><rdf:value>Эпопея &amp; Co</rdf:value>"
+                 "<calibreSI:series_index>3.00</calibreSI:series_index></calibre:series>") !=
+        std::string::npos);
+    CHECK(xmp.find("<pdfaSchema:namespaceURI>http://calibre-ebook.com/xmp-namespace</"
+                   "pdfaSchema:namespaceURI>") != std::string::npos);
+    CHECK(xmp.find(
+              "<pdfaProperty:name>series_index</pdfaProperty:name><pdfaProperty:valueType>Real") !=
+          std::string::npos);
+    xmlDocPtr doc = xmlReadMemory(xmp.data(), static_cast<int>(xmp.size()), "xmp.xml", nullptr,
+                                  XML_PARSE_NONET);
+    REQUIRE(doc != nullptr);
+    xmlFreeDoc(doc);
+
+    // Without a series, nothing of Calibre's.
+    input.description.titleInfo.sequences.clear();
+    CHECK(pdf::xmp_packet(input).find("<calibre:series") == std::string::npos);
+    CHECK(pdf::xmp_packet(input).find("<pdfaSchema:prefix>calibre</pdfaSchema:prefix>") ==
+          std::string::npos);
+}
