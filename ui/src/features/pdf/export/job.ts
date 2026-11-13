@@ -53,7 +53,8 @@ export async function exportPdf(ctx: CommandContext, docId: string, run: PdfRun)
     });
     if (run.cancelled()) throw new Cancelled();
     const parts = paged.parts.length;
-    const total = parts * 3 + 1;
+    // Paginate, upload and print each part, then the core's three steps: join, write, check.
+    const total = parts * 3 + 3;
     let done = parts;
     await rpc.call('pdf.export.document', { token, parts });
     for (let part = 0; part < parts; part++) {
@@ -67,11 +68,23 @@ export async function exportPdf(ctx: CommandContext, docId: string, run: PdfRun)
       modal.progress(++done, total);
     }
     if (run.cancelled()) throw new Cancelled();
-    const finished = await rpc.runJob('pdf.export.finish', {
-      token,
-      pageMap: paged.pageMap,
-      title: current.document.description.titleInfo.bookTitle ?? '',
-    });
+    const base = done;
+    const finished = await rpc.runJob(
+      'pdf.export.finish',
+      {
+        token,
+        pageMap: paged.pageMap,
+        title: current.document.description.titleInfo.bookTitle ?? '',
+      },
+      {
+        // SC-010: the bar moves at least once a second; the writing, which the core does in one
+        // go, shows as busy.
+        onProgress: ({ phase, done: stepDone, total: stepTotal }) => {
+          if (stepTotal <= 0) modal.progress(0, 0);
+          else modal.progress(base + (phase === 'check' ? 2 : 0) + stepDone / stepTotal, total);
+        },
+      },
+    );
     token = null;
     modal.progress(total, total);
     modal.end();

@@ -9,11 +9,14 @@
 // moved past the first's; and their named destinations are added to its own. The text, the tags and
 // the links within the book stay as the engine wrote them.
 
+#include <functional>
 #include <vector>
 
 namespace mfbe::pdf {
 
-/// The parts, in order, as one file; throws std::runtime_error naming the fault.
-std::vector<char> join_parts(std::vector<std::vector<char>> parts);
+/// The parts, in order, as one file; throws std::runtime_error naming the fault. `progress` is
+/// told the parts joined so far and their number.
+std::vector<char> join_parts(std::vector<std::vector<char>> parts,
+                             const std::function<void(int done, int total)>& progress = {});
 
 }  // namespace mfbe::pdf

@@ -281,7 +281,8 @@ void append_part(PDFDoc& a, PDFDoc& b) {
 
 }  // namespace
 
-std::vector<char> join_parts(std::vector<std::vector<char>> parts) {
+std::vector<char> join_parts(std::vector<std::vector<char>> parts,
+                             const std::function<void(int done, int total)>& progress) {
     if (parts.empty())
         throw std::runtime_error("no part was printed");
     if (parts.size() == 1)
@@ -296,6 +297,8 @@ std::vector<char> join_parts(std::vector<std::vector<char>> parts) {
             throw std::runtime_error("part " + std::to_string(i + 1) +
                                      " is not readable: " + error);
         append_part(*first->impl().doc, *next->impl().doc);
+        if (progress)
+            progress(static_cast<int>(i), static_cast<int>(parts.size()) - 1);
     }
     std::vector<char> joined = first->save();
     if (joined.empty())

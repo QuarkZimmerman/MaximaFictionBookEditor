@@ -28,7 +28,8 @@ std::string comparable(const std::string& text) {
 }
 
 std::vector<std::string> check_finished(const std::vector<char>& finished,
-                                        const std::vector<std::string>& page_texts) {
+                                        const std::vector<std::string>& page_texts,
+                                        const std::function<void(int done, int total)>& progress) {
     std::vector<std::string> faults;
     std::string error;
     auto doc = Document::open_bytes(finished, &error);
@@ -74,6 +75,9 @@ std::vector<std::string> check_finished(const std::vector<char>& finished,
             faults.push_back("page " + std::to_string(i + 1) +
                              ": its text differs from the page at \"" + expected.substr(at, 80) +
                              "\" (read: \"" + read.substr(at, 80) + "\")");
+        }
+        if (progress) {
+            progress(i + 1, doc->page_count());
         }
         if (faults.size() > 20)
             break;
