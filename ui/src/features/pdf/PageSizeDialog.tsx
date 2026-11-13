@@ -11,6 +11,7 @@ import { Dialog, type DialogButton } from '@/dialogs/Dialog';
 import type { PdfPageSizeId } from '@/rpc/types';
 
 import { PDF_PAGE_SIZE_GROUPS, PDF_PAGE_SIZES } from './pageSizes';
+import { tip } from '@/app/tooltips';
 
 const GROUPS = PDF_PAGE_SIZE_GROUPS;
 
@@ -54,6 +55,7 @@ export function PageSizeDialog({ defaultSize, path, onClose }: PageSizeDialogPro
         value={size}
         onChange={(event) => setSize(event.target.value as PdfPageSizeId)}
         onDoubleClick={() => onClose(size)}
+        {...tip(t('tip.pdf.pageSize'))}
         data-testid="dialog-pdf-page-size-select"
       >
         {GROUPS.map((group) => (

@@ -132,6 +132,9 @@
         "resetAll": "Puts every value of this page back to its default",
         "installed": "The installed font to add"
       }
+    },
+    "pdf": {
+      "pageSize": "The page size of this PDF: the ISO sizes first, then the North American ones"
     }
   }
 }
