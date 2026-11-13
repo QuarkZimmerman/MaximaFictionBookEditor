@@ -94,6 +94,7 @@ export async function exportPdf(ctx: CommandContext, docId: string, run: PdfRun)
         // D14-D16: the description as the window has it; the core writes it into the metadata.
         description: current.document.description,
         genreNames: titleInfo.genres.map((genre) => named.get(genre.code) ?? genre.code),
+        hints: paged.hints,
       },
       {
         // SC-010: the bar moves at least once a second; the writing, which the core does in one

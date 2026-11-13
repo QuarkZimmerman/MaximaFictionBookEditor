@@ -213,3 +213,19 @@ TEST_CASE("pdf xmp: the series as Calibre reads it, its schemas declared (DP-11)
     CHECK(pdf::xmp_packet(input).find("<pdfaSchema:prefix>calibre</pdfaSchema:prefix>") ==
           std::string::npos);
 }
+
+TEST_CASE("pdf xmp: the editor's hints are checked before they go in (R10)", "[pdf]") {
+    const std::vector<std::string> pages = {"The Reference Book", "Глава первая\nТекст главы."};
+    CHECK(pdf::validate_hints(
+              R"({"v":1,"blocks":2,"sections":[[0,1]],"anchors":{"0":"Глава первая"}})", pages)
+              .empty());
+    CHECK(pdf::validate_hints("not json", pages) == "not JSON");
+    CHECK(pdf::validate_hints(R"({"v":2,"blocks":1})", pages) == "not version 1");
+    CHECK(pdf::validate_hints(R"({"v":1,"blocks":2,"kinds":[[5,1,"v"]]})", pages) ==
+          "kinds names block 5");
+    CHECK(pdf::validate_hints(R"({"v":1,"blocks":2,"anchors":{"1":"Нет такого"}})", pages) ==
+          "anchor 1 is not in the pages");
+    CHECK(pdf::validate_hints(
+              R"({"v":1,"blocks":2,"pictures":[{"src":"data:image/png;base64,AAAA"}]})", pages) ==
+          "picture data");
+}

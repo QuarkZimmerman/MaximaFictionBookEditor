@@ -14,6 +14,7 @@
 #include "pdf/finish.hpp"
 #include "pdf/fonts.hpp"
 #include "pdf/join.hpp"
+#include "pdf/xmp.hpp"
 #include "server/loopback_server.hpp"
 #include "server/services.hpp"
 
@@ -441,6 +442,13 @@ void register_pdf_handlers(rpc::RpcRouter& router, Services& services) {
                     }
                 }
                 input.pictures.push_back(std::move(placed));
+            }
+        }
+        // R10: the hints go into the file only when they are sound.
+        if (!input.hints.empty()) {
+            if (const std::string fault = pdf::validate_hints(input.hints, page_texts);
+                !fault.empty()) {
+                throw failed("pdf.checkFailed", json{{"message", "the editor's hints: " + fault}});
             }
         }
         const std::string job_id = ctx.jobs.start([&services, token, e, input,

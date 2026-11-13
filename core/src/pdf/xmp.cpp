@@ -2,9 +2,14 @@
 
 #include "pdf/xmp.hpp"
 
+#include "pdf/check.hpp"
+
+#include <nlohmann/json.hpp>
+
 #include <cctype>
 #include <cstdint>
 #include <cstdio>
+#include <functional>
 #include <initializer_list>
 #include <sstream>
 
@@ -338,6 +343,57 @@ std::string xmp_packet(const XmpInput& input) {
     out += "</rdf:Bag></pdfaExtension:schemas>\n";
     out += "</rdf:Description></rdf:RDF></x:xmpmeta>\n<?xpacket end=\"w\"?>";
     return out;
+}
+
+std::string validate_hints(const std::string& hints, const std::vector<std::string>& page_texts) {
+    const nlohmann::json j = nlohmann::json::parse(hints, nullptr, false);
+    if (j.is_discarded() || !j.is_object())
+        return "not JSON";
+    if (j.value("v", 0) != 1)
+        return "not version 1";
+    if (!j.contains("blocks") || !j["blocks"].is_number_integer())
+        return "no block count";
+    const auto blocks = j["blocks"].get<long long>();
+    for (const char* list : {"sections", "kinds", "styles", "marks", "langs", "ids", "tables"}) {
+        if (!j.contains(list))
+            continue;
+        if (!j[list].is_array())
+            return std::string(list) + " is not a list";
+        for (const auto& entry : j[list]) {
+            if (!entry.is_array() || entry.empty() || !entry[0].is_number_integer()) {
+                return std::string(list) + " has an entry without its block";
+            }
+            const auto b = entry[0].get<long long>();
+            if (b < 0 || b >= blocks)
+                return std::string(list) + " names block " + std::to_string(b);
+        }
+    }
+    // The anchors are the blocks' own text: each is found in the pages (whitespace aside).
+    std::string paged;
+    for (const std::string& page : page_texts)
+        paged += comparable(page);
+    if (j.contains("anchors") && j["anchors"].is_object()) {
+        for (const auto& [b, anchor] : j["anchors"].items()) {
+            if (!anchor.is_string())
+                return "anchor " + b + " is not text";
+            const std::string wanted = comparable(anchor.get<std::string>());
+            if (!wanted.empty() && paged.find(wanted) == std::string::npos) {
+                return "anchor " + b + " is not in the pages";
+            }
+        }
+    }
+    // No picture data: the pictures are in the file already (R4).
+    std::string data_found;
+    const std::function<void(const nlohmann::json&)> scan = [&](const nlohmann::json& v) {
+        if (v.is_string() && v.get<std::string>().rfind("data:", 0) == 0)
+            data_found = "picture data";
+        if (v.is_structured()) {
+            for (const auto& item : v)
+                scan(item);
+        }
+    };
+    scan(j);
+    return data_found;
 }
 
 }  // namespace mfbe::pdf

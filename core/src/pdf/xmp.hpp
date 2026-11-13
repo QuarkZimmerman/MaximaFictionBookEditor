@@ -53,4 +53,9 @@ std::string document_id(const std::string& fb2_id);
 /// `text` escaped for XML, without the characters XML forbids (D22).
 std::string xml_text(const std::string& text);
 
+/// The fault of the editor's hints (R10, contracts/pdf-file.md), "" when they are sound: valid
+/// JSON of version 1, every block key within the paginator's block count, every anchor found in
+/// the pages' text, and no picture data.
+std::string validate_hints(const std::string& hints, const std::vector<std::string>& page_texts);
+
 }  // namespace mfbe::pdf

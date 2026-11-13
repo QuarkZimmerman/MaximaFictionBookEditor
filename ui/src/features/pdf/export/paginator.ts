@@ -25,6 +25,7 @@ import type { PdfPageSize } from '../pageSizes';
 import { createPrintFrame, pictureBox, pictureElement } from './document';
 import { layoutFor, type PrintLayout } from './layout';
 import { PX_TO_PT, type PageMap, type PageMapBookmark, type PageMapPicture } from './pageMap';
+import { buildHints } from './hints';
 import { planPages, type PlanBlock } from './plan';
 import { pdfWords, wordsLanguage } from './words';
 
@@ -60,6 +61,8 @@ export interface Paginated {
   replacedFonts: string[];
   /** D23 / FR-042: what the status line counts. */
   counts: { pictures: number; tables: number; notes: number };
+  /** R10: the editor's hints (mfbe:fb2Hints, JSON). */
+  hints: string;
 }
 
 class PaginationCancelled extends Error {}
@@ -272,6 +275,7 @@ export async function paginate(
     const bookmarks: PageMapBookmark[] = [];
     const stack: { depth: number; mark: PageMapBookmark }[] = [];
     const serializer = new XMLSerializer();
+    const blockPage: number[] = [];
 
     const finishPage = (page: HTMLElement, numbered: boolean): void => {
       const index = serialised.length;
@@ -410,6 +414,7 @@ export async function paginate(
       }
       const { page } = composed;
       for (const piece of planned[p]) {
+        if (piece.fromLine === 0) blockPage[piece.block] = serialised.length;
         const block = blocks[piece.block];
         if (!block.titleOf || piece.fromLine !== 0) continue;
         const mark: PageMapBookmark = {
@@ -426,6 +431,26 @@ export async function paginate(
       await breath(blocks.length + p, blocks.length + planned.length);
     }
 
+    const pageMap: PageMap = {
+      pages: serialised.length,
+      bookmarks,
+      pictures,
+      cover,
+      text,
+      language: lang,
+      addedWords: wordsLanguage(lang),
+    };
+    const hints = buildHints({
+      blocks: blocks.map((block, index) => ({
+        element: block.element,
+        chain: block.chain,
+        page: blockPage[index] ?? 0,
+      })),
+      book,
+      pageMap,
+      coverPage: cover ? 1 : null,
+      titlePage: cover ? 2 : 1,
+    });
     const parts: string[] = [];
     for (let at = 0; at < serialised.length; at += PAGES_PER_PART) {
       parts.push(partDocument(css, lang, title, serialised.slice(at, at + PAGES_PER_PART)));
@@ -442,15 +467,8 @@ export async function paginate(
           .filter((body) => /^(notes|comments)$/i.test(body.attrs.name ?? ''))
           .reduce((sum, body) => sum + body.content.filter((n) => n.type === 'section').length, 0),
       },
-      pageMap: {
-        pages: serialised.length,
-        bookmarks,
-        pictures,
-        cover,
-        text,
-        language: lang,
-        addedWords: wordsLanguage(lang),
-      },
+      pageMap,
+      hints,
     };
   } finally {
     frame.dispose();
