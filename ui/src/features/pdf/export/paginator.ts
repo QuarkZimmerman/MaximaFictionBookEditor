@@ -348,10 +348,15 @@ export async function paginate(
       finishPage(page, false);
     }
 
-    for (let p = 0; p < planned.length; p++) {
+    // A page is composed, then measured as composed: the containers cloned onto it (a poem's or a
+    // cite's spacing) are not in the blocks' measured heights, so a page that overflows its text
+    // area hands its last piece to the next page (the composed page is the one source of truth).
+    const compose = (
+      pieces: (typeof planned)[number],
+    ): { page: HTMLElement; content: HTMLElement } => {
       const { page, content } = newPage();
       const open: { original: Element; clone: Element }[] = [];
-      for (const piece of planned[p]) {
+      for (const piece of pieces) {
         const block = blocks[piece.block];
         // The containers of the block, cloned once per page (shallow).
         let shared = 0;
@@ -384,17 +389,40 @@ export async function paginate(
           if (piece.fromLine > 0) node.classList.add('mfbe-continued');
         }
         parent.append(node);
-        if (block.titleOf && piece.fromLine === 0) {
-          const mark: PageMapBookmark = {
-            title: (block.titleOf.querySelector('title')?.textContent ?? '').trim(),
-            page: serialised.length,
-            y: 0,
-            children: [],
-          };
-          while (stack.length && stack[stack.length - 1].depth >= block.depth) stack.pop();
-          (stack.length ? stack[stack.length - 1].mark.children : bookmarks).push(mark);
-          stack.push({ depth: block.depth, mark });
+      }
+      return { page, content };
+    };
+    const overflows = (page: HTMLElement, content: HTMLElement): boolean => {
+      pagesHost.append(page);
+      const tall = content.scrollHeight > layout.contentHeight + 0.5;
+      page.remove();
+      return tall;
+    };
+
+    for (let p = 0; p < planned.length; p++) {
+      let composed = compose(planned[p]);
+      while (planned[p].length > 1 && overflows(composed.page, composed.content)) {
+        const carried = planned[p].pop()!;
+        if (p + 1 < planned.length && !blocks[planned[p + 1][0].block].plan.breakBefore) {
+          planned[p + 1].unshift(carried);
+        } else {
+          planned.splice(p + 1, 0, [carried]);
         }
+        composed = compose(planned[p]);
+      }
+      const { page } = composed;
+      for (const piece of planned[p]) {
+        const block = blocks[piece.block];
+        if (!block.titleOf || piece.fromLine !== 0) continue;
+        const mark: PageMapBookmark = {
+          title: (block.titleOf.querySelector('title')?.textContent ?? '').trim(),
+          page: serialised.length,
+          y: 0,
+          children: [],
+        };
+        while (stack.length && stack[stack.length - 1].depth >= block.depth) stack.pop();
+        (stack.length ? stack[stack.length - 1].mark.children : bookmarks).push(mark);
+        stack.push({ depth: block.depth, mark });
       }
       finishPage(page, true);
       await breath(blocks.length + p, blocks.length + planned.length);
