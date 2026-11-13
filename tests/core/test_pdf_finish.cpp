@@ -1,13 +1,23 @@
 // Feature 014 (research R3, tasks T018): the finishing step on the browser engine's own print
 // (tests/fixtures/pdf/chromium-sample.pdf), and the ligature maps.
 
+#include "pdf/check.hpp"
+#include "pdf/coverage.hpp"
+#include "pdf/document.hpp"
 #include "pdf/finish.hpp"
+#include "pdf/join.hpp"
 #include "pdf/tounicode.hpp"
 #include "test_support.hpp"
 
 #include <mfbe/atomic_file.hpp>
 #include <mfbe/pdf.hpp>
 
+#include <Catalog.h>
+#include <Object.h>
+#include <PDFDoc.h>
+#include <Page.h>
+#include <Stream.h>
+#include <XRef.h>
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <filesystem>
@@ -124,4 +134,94 @@ TEST_CASE("pdf finish: pictures are drawn from the book's own bytes into their b
     REQUIRE(doc);
     CHECK(doc->page_count() == 2);
     CHECK(doc->page_text(0).find("Глава первая") != std::string::npos);
+
+    // The images decode: the JPEG keeps its /DCTDecode, the PNG's pixels and mask are whole.
+    PDFDoc& d = *doc->impl().doc;
+    int jpegs = 0;
+    int pixels = 0;
+    for (int n = 1; n <= d.getNumPages(); ++n) {
+        const Object xobjects = d.getPage(n)->getResourceDictObject()->dictLookup("XObject");
+        if (!xobjects.isDict())
+            continue;
+        for (int i = 0; i < xobjects.dictGetLength(); ++i) {
+            if (std::string(xobjects.dictGetKey(i)).rfind("MfbeIm", 0) != 0)
+                continue;
+            Object image = xobjects.dictGetVal(i);
+            REQUIRE(image.isStream());
+            const Object filter = image.streamGetDict()->lookup("Filter");
+            const int w = image.streamGetDict()->lookup("Width").getInt();
+            const int h = image.streamGetDict()->lookup("Height").getInt();
+            if (filter.isName("DCTDecode")) {
+                ++jpegs;
+                continue;
+            }
+            REQUIRE(filter.isName("FlateDecode"));
+            Stream* stream = image.getStream();
+            REQUIRE(stream->rewind());
+            CHECK(stream->toUnsignedChars().size() == static_cast<std::size_t>(w) * h * 3);
+            stream->close();
+            Object mask = image.streamGetDict()->lookup("SMask");
+            REQUIRE(mask.isStream());
+            REQUIRE(mask.getStream()->rewind());
+            CHECK(mask.getStream()->toUnsignedChars().size() == static_cast<std::size_t>(w) * h);
+            ++pixels;
+        }
+    }
+    CHECK(jpegs == 2);  // one object, drawn on two pages
+    CHECK(pixels == 1);
+}
+
+TEST_CASE("pdf fonts: the shipped fonts' coverage, and the characters they lack", "[pdf]") {
+    const auto fonts = test::fixtures_dir().parent_path().parent_path() / "resources" / "fonts";
+    const auto serif = pdf::font_coverage(fonts / "NotoSerif-Regular.ttf");
+    REQUIRE(serif.size() > 1000);
+    for (char32_t c : std::u32string(U"AzÄßŁřЖжЁёЇїҐґΩωάὰ€№«»—…")) {
+        CHECK(serif.contains(c));
+    }
+    CHECK(pdf::font_coverage(fonts / "NotoSerifGeorgian-Regular.ttf").contains(U'ა'));
+    CHECK(pdf::font_coverage(fonts / "NotoSerifArmenian-Regular.ttf").contains(U'Ա'));
+    CHECK(pdf::font_coverage(fonts / "fonts.json").empty());
+
+    // Hebrew and Chinese are not shipped (D7): listed once each, in order of appearance.
+    const std::vector<std::string> pages = {"Глава 1. Text ა Ա", "שלום 中文 שלום", "\t \xC2\xA0"};
+    CHECK(pdf::utf8(pdf::uncovered_characters(pages, fonts)) == "שלום中文");
+    CHECK(pdf::uncovered_characters(pages, fonts, 2).size() == 2);
+}
+
+TEST_CASE("pdf join: printed parts become one file, with their tags and destinations", "[pdf]") {
+    const std::vector<char> joined = pdf::join_parts({sample(), sample(), sample()});
+    std::string error;
+    auto doc = pdf::Document::open_bytes(joined, &error);
+    REQUIRE(doc);
+    REQUIRE(doc->page_count() == 6);
+    CHECK(doc->page_text(2) == doc->page_text(0));
+    CHECK(doc->page_text(5) == doc->page_text(1));
+
+    // The parent tree keys of the later parts move past the earlier ones' (5 keys a part).
+    PDFDoc& d = *doc->impl().doc;
+    const auto struct_parents = [&d](int page) {
+        const Object o = d.getXRef()->fetch(*d.getCatalog()->getPageRef(page));
+        return o.dictLookup("StructParents").getInt();
+    };
+    CHECK(struct_parents(1) == 0);
+    CHECK(struct_parents(3) == 5);
+    CHECK(struct_parents(5) == 10);
+    const Object catalog = d.getXRef()->getCatalog();
+    const Object tree = catalog.dictLookup("StructTreeRoot");
+    REQUIRE(tree.isDict());
+    CHECK(tree.dictLookup("ParentTreeNextKey").getInt() == 15);
+    const Object nums = tree.dictLookup("ParentTree").dictLookup("Nums");
+    REQUIRE(nums.isArray());
+    CHECK(nums.arrayGetLength() == 30);
+    const Object document = tree.dictLookup("K");
+    REQUIRE(document.isDict());
+    CHECK(document.dictLookup("K").arrayGetLength() % 3 == 0);
+    CHECK(catalog.dictLookup("Dests").isDict());
+
+    // Finished and checked like one printed part.
+    const std::vector<char> finished = pdf::finish(joined, a5("Части"));
+    std::vector<std::string> texts;
+    for (int i = 0; i < 6; ++i)
+        texts.push_back(doc->page_text(i));
+    CHECK(pdf::check_finished(finished, texts).empty());
 }

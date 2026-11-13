@@ -14,7 +14,6 @@
 #include <XRef.h>
 #include <cstdio>
 #include <optional>
-#include <zlib.h>
 
 namespace mfbe::pdf {
 namespace {
@@ -62,21 +61,13 @@ std::optional<JpegInfo> jpeg_info(const std::string& b) {
     return std::nullopt;
 }
 
-std::string deflate(const std::vector<std::uint8_t>& data) {
-    uLongf size = compressBound(static_cast<uLong>(data.size()));
-    std::string out(size, '\0');
-    if (compress2(reinterpret_cast<Bytef*>(out.data()), &size, data.data(),
-                  static_cast<uLong>(data.size()), 6) != Z_OK) {
-        return {};
-    }
-    out.resize(size);
-    return out;
-}
-
-Ref add_stream(XRef* xref, const std::string& data, std::unique_ptr<Dict> dict) {
+// Poppler writes a stream held in memory unencoded (PDFDoc::writeObject): under /FlateDecode it
+// compresses the bytes itself, and any other filter it drops unless the stream forbids that. So
+// pixels go in decoded under /FlateDecode, and a JPEG goes in as it is with its /DCTDecode kept.
+Ref add_stream(XRef* xref, std::vector<char> data, std::unique_ptr<Dict> dict, bool keep_filter) {
     dict->set("Length", Object(static_cast<int>(data.size())));
-    auto stream = std::make_unique<AutoFreeMemStream>(std::vector<char>(data.begin(), data.end()),
-                                                      Object(std::move(dict)));
+    auto stream = std::make_unique<AutoFreeMemStream>(std::move(data), Object(std::move(dict)));
+    stream->setFilterRemovalForbidden(keep_filter);
     return xref->addIndirectObject(Object(std::move(stream)));
 }
 
@@ -102,9 +93,10 @@ std::optional<Ref> image_object(XRef* xref, const std::string& bytes) {
             return std::nullopt;
         }
         return add_stream(
-            xref, bytes,
+            xref, std::vector<char>(bytes.begin(), bytes.end()),
             image_dict(xref, jpeg->width, jpeg->height,
-                       jpeg->components == 1 ? "DeviceGray" : "DeviceRGB", "DCTDecode"));
+                       jpeg->components == 1 ? "DeviceGray" : "DeviceRGB", "DCTDecode"),
+            true);
     }
     const auto bitmap = images::try_decode(bytes);
     if (!bitmap || bitmap->width <= 0 || bitmap->height <= 0 ||
@@ -112,24 +104,24 @@ std::optional<Ref> image_object(XRef* xref, const std::string& bytes) {
         return std::nullopt;
     }
     const std::size_t pixels = static_cast<std::size_t>(bitmap->width) * bitmap->height;
-    std::vector<std::uint8_t> rgb(pixels * 3);
-    std::vector<std::uint8_t> alpha(pixels);
+    std::vector<char> rgb(pixels * 3);
+    std::vector<char> alpha(pixels);
     bool transparent = false;
     for (std::size_t i = 0; i < pixels; ++i) {
-        rgb[i * 3] = bitmap->rgba[i * 4];
-        rgb[i * 3 + 1] = bitmap->rgba[i * 4 + 1];
-        rgb[i * 3 + 2] = bitmap->rgba[i * 4 + 2];
-        alpha[i] = bitmap->rgba[i * 4 + 3];
-        transparent = transparent || alpha[i] != 255;
+        rgb[i * 3] = static_cast<char>(bitmap->rgba[i * 4]);
+        rgb[i * 3 + 1] = static_cast<char>(bitmap->rgba[i * 4 + 1]);
+        rgb[i * 3 + 2] = static_cast<char>(bitmap->rgba[i * 4 + 2]);
+        alpha[i] = static_cast<char>(bitmap->rgba[i * 4 + 3]);
+        transparent = transparent || bitmap->rgba[i * 4 + 3] != 255;
     }
     auto dict = image_dict(xref, bitmap->width, bitmap->height, "DeviceRGB", "FlateDecode");
     if (transparent) {
         const Ref mask = add_stream(
-            xref, deflate(alpha),
-            image_dict(xref, bitmap->width, bitmap->height, "DeviceGray", "FlateDecode"));
+            xref, std::move(alpha),
+            image_dict(xref, bitmap->width, bitmap->height, "DeviceGray", "FlateDecode"), false);
         dict->set("SMask", Object(mask));
     }
-    return add_stream(xref, deflate(rgb), std::move(dict));
+    return add_stream(xref, std::move(rgb), std::move(dict), false);
 }
 
 // The object a page entry stands for, and the reference to write it back to (none: direct).
@@ -195,7 +187,8 @@ std::vector<std::string> draw_pictures(Document& document,
         const Ref page_ref = page->getRef();
         Object page_dict = xref->fetch(page_ref);
         // The drawing goes after the page's own content.
-        const Ref drawing = add_stream(xref, content, std::make_unique<Dict>(xref));
+        const Ref drawing = add_stream(xref, std::vector<char>(content.begin(), content.end()),
+                                       std::make_unique<Dict>(xref), false);
         auto contents = std::make_unique<Array>(xref);
         const Object& old = page_dict.dictLookupNF("Contents");
         if (old.isArray()) {

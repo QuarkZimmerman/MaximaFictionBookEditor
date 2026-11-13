@@ -20,7 +20,8 @@ find_package(GIF REQUIRED)
 find_package(Stb REQUIRED)
 # Feature 014 (PD2): Poppler finishes the PDF export and reads PDFs; vcpkg ships it for pkg-config.
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(POPPLER REQUIRED IMPORTED_TARGET poppler)
+# GLOBAL: the core tests read Poppler's objects too (the PDF export's structure checks).
+pkg_check_modules(POPPLER REQUIRED IMPORTED_TARGET GLOBAL poppler)
 # Little CMS (Poppler's cms feature) makes the sRGB profile of the PDF/A output intent.
 pkg_check_modules(LCMS2 REQUIRED IMPORTED_TARGET lcms2)
 # ZIP archives (feature 009, PD1): the ZIP reader and writer only; built with the bzip2, lzma and

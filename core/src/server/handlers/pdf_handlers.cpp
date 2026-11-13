@@ -10,8 +10,10 @@
 // ten minutes without a call.
 
 #include "pdf/check.hpp"
+#include "pdf/coverage.hpp"
 #include "pdf/finish.hpp"
 #include "pdf/fonts.hpp"
+#include "pdf/join.hpp"
 #include "server/loopback_server.hpp"
 #include "server/services.hpp"
 
@@ -414,51 +416,58 @@ void register_pdf_handlers(rpc::RpcRouter& router, Services& services) {
                 input.pictures.push_back(std::move(placed));
             }
         }
-        const std::string job_id = ctx.jobs.start([&services, token, e, input,
-                                                   page_texts](rpc::JobControl& control) -> json {
-            control.progress("finish", 0, 1);
-            // R3: the printed file finished as PDF/A-2 level U (finish.cpp); the pictures, the
-            // bookmarks, the whole description and the checks come with tasks T026 to T040.
-            if (e.parts != 1) {
-                throw failed("pdf.checkFailed", json{{"message", "several parts not joined yet"}});
-            }
-            std::string bytes;
-            try {
-                bytes = atomic_file::read_file(part_pdf(e, 0));
-            } catch (const std::exception&) {
-                throw failed("pdf.noPart", json{{"part", 0}});
-            }
-            control.check_cancelled();
-            std::vector<char> finished;
-            try {
-                finished = pdf::finish(std::vector<char>(bytes.begin(), bytes.end()), input);
-            } catch (const std::runtime_error& error) {
-                throw failed("pdf.checkFailed", json{{"message", error.what()}});
-            }
-            // DP-18: the finished file is read back before anything is written.
-            const std::vector<std::string> faults = pdf::check_finished(finished, page_texts);
-            if (!faults.empty()) {
-                std::string message;
-                for (std::size_t i = 0; i < faults.size() && i < 5; ++i) {
-                    message += (i ? "; " : "") + faults[i];
+        const std::string job_id = ctx.jobs.start(
+            [&services, token, e, input, page_texts](rpc::JobControl& control) -> json {
+                control.progress("finish", 0, 1);
+                // DP-3: the printed parts, joined into one file; then R3: finished as PDF/A-2 level
+                // U.
+                std::vector<std::vector<char>> printed;
+                for (int part = 0; part < e.parts; ++part) {
+                    try {
+                        const std::string part_bytes = atomic_file::read_file(part_pdf(e, part));
+                        printed.emplace_back(part_bytes.begin(), part_bytes.end());
+                    } catch (const std::exception&) {
+                        throw failed("pdf.noPart", json{{"part", part}});
+                    }
+                    control.check_cancelled();
                 }
-                throw failed("pdf.checkFailed", json{{"message", message}});
-            }
-            bytes.assign(finished.begin(), finished.end());
-            control.check_cancelled();
-            try {
-                atomic_file::write_atomic(e.target, bytes);
-            } catch (const std::exception& error) {
-                throw failed("pdf.ioError", json{{"message", error.what()}});
-            }
-            {
-                std::lock_guard lock(services.pdf.mutex);
-                services.pdf.exports.erase(token);
-            }
-            remove_work(e.work);
-            control.progress("finish", 1, 1);
-            return json{{"path", platform::utf8_from_path(e.target)}, {"bytes", bytes.size()}};
-        });
+                std::string bytes;
+                std::vector<char> finished;
+                try {
+                    finished = pdf::finish(pdf::join_parts(std::move(printed)), input);
+                } catch (const std::runtime_error& error) {
+                    throw failed("pdf.checkFailed", json{{"message", error.what()}});
+                }
+                // DP-18: the finished file is read back before anything is written.
+                const std::vector<std::string> faults = pdf::check_finished(finished, page_texts);
+                if (!faults.empty()) {
+                    std::string message;
+                    for (std::size_t i = 0; i < faults.size() && i < 5; ++i) {
+                        message += (i ? "; " : "") + faults[i];
+                    }
+                    throw failed("pdf.checkFailed", json{{"message", message}});
+                }
+                bytes.assign(finished.begin(), finished.end());
+                control.check_cancelled();
+                try {
+                    atomic_file::write_atomic(e.target, bytes);
+                } catch (const std::exception& error) {
+                    throw failed("pdf.ioError", json{{"message", error.what()}});
+                }
+                {
+                    std::lock_guard lock(services.pdf.mutex);
+                    services.pdf.exports.erase(token);
+                }
+                remove_work(e.work);
+                control.progress("finish", 1, 1);
+                // D7: the characters no shipped font draws (drawn with a system font, or as a
+                // replacement mark), for the summary.
+                const std::u32string uncovered =
+                    pdf::uncovered_characters(page_texts, services.resources_dir / "fonts");
+                return json{{"path", platform::utf8_from_path(e.target)},
+                            {"bytes", bytes.size()},
+                            {"uncovered", pdf::utf8(uncovered)}};
+            });
         return json{{"jobId", job_id}};
     });
 

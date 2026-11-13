@@ -19,7 +19,7 @@ if(MFBE_CORE_TEST_SOURCES)
   add_executable(mfbe_core_tests ${MFBE_CORE_TEST_SOURCES})
   target_link_libraries(mfbe_core_tests PRIVATE
     mfbe::core Catch2::Catch2WithMain unofficial::uwebsockets::uwebsockets LibXml2::LibXml2
-    LibArchive::LibArchive)
+    LibArchive::LibArchive PkgConfig::POPPLER)
   # Internal helpers without a public header (core/src/util/sha256.hpp) are included as the
   # core's own sources include them ("util/sha256.hpp").
   target_include_directories(mfbe_core_tests PRIVATE "${CMAKE_SOURCE_DIR}/core/src")
