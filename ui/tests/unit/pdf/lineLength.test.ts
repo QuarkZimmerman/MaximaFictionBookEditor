@@ -91,3 +91,22 @@ describe('line length at the standard settings (SC-014)', () => {
     });
   }
 });
+
+describe('larger text and narrow margins (US7 scenario 6, D9, D25)', () => {
+  it('give larger text in a wider text area than the standard settings, on each of the nine sizes', () => {
+    for (const size of PDF_PAGE_SIZES) {
+      const standard = layoutFor(size, undefined);
+      const changed = layoutFor(size, {
+        defaultPageSize: 'a4',
+        textFont: 'noto-serif',
+        textSize: 'larger',
+        margins: 'narrow',
+      });
+      expect(changed.textPt, size.id).toBeGreaterThan(standard.textPt);
+      expect(changed.contentWidth, size.id).toBeGreaterThan(standard.contentWidth);
+      expect(changed.contentHeight, size.id).toBeGreaterThan(standard.contentHeight);
+      // The page itself is the size's, whatever the settings.
+      expect(changed.pageWidth, size.id).toBe(standard.pageWidth);
+    }
+  });
+});
