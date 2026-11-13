@@ -80,7 +80,7 @@ export async function createPrintFrame(
     const binaries = new Map(book.binaries.map((binary) => [binary.id, binary]));
     const leftOut: string[] = [];
     for (const image of [...root.getElementsByTagNameNS(FB2_NS, 'image')]) {
-      const href = String(image.getAttribute('href') ?? '');
+      const href = String(image.getAttribute('data-href') ?? '');
       const img = image.querySelector('img');
       const id = href.startsWith('#') ? href.slice(1) : '';
       const meta = binaries.get(id);

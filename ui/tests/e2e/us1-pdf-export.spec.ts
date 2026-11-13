@@ -63,4 +63,28 @@ test.describe('US1: export a searchable PDF in a chosen page size (feature 014)'
       await seam.stop();
     }
   });
+
+  test('a book with pictures in A4: the core draws each picture from the book (R4)', async ({
+    core,
+    page,
+    context,
+  }) => {
+    test.skip(!core.hasCore, 'needs the core');
+    test.setTimeout(600_000);
+    mkdirSync(OUT, { recursive: true });
+    await core.openApp(page);
+    const seam = startPrintSeam(core, context);
+    try {
+      await openFixtureBook(core, page, 'pictures-alt.fb2');
+      const target = path.join(OUT, 'pictures-alt-a4.pdf');
+      await exportPdfTo(core, page, target, 'A4 (210 × 297 mm)');
+      const text = readFileSync(target).toString('latin1');
+      expect(text.startsWith('%PDF-')).toBe(true);
+      // The pictures are the core's own image objects, not the browser engine's.
+      expect(text).toContain('/MfbeIm');
+      expect(seam.printed[0].paperWidthIn).toBeCloseTo(210 / 25.4, 6);
+    } finally {
+      await seam.stop();
+    }
+  });
 });

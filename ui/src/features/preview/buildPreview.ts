@@ -84,6 +84,8 @@ class Builder {
   picture(node: ModelNodeJson): Element {
     const element = this.element('image', node);
     const href = String(node.attrs?.href ?? '');
+    // The picture's reference, for the PDF export's boxes (feature 014, R4); no selector reads it.
+    if (href) element.setAttribute('data-href', href);
     const url = binaryPreviewUrl(this.docId, href, 1600);
     if (url) {
       const img = this.doc.createElementNS(XHTML_NS, 'img') as HTMLImageElement;
