@@ -10,17 +10,21 @@ import type { PdfPageSize } from '../pageSizes';
 
 type PdfSettings = NonNullable<Settings['pdf']>;
 
-/** DP-2: the standard text size (pt) and margin (mm) of each page size. */
+/**
+ * DP-2: the standard text size (pt) and margin (mm) of each page size. Letter and Legal have wider
+ * margins than A4, and A6 a smaller text, so that a line holds 50 to 90 characters of English and
+ * Russian text in every size (SC-014, checked by tests/unit/pdf/lineLength.test.ts).
+ */
 const STANDARD: Record<string, { textPt: number; marginMm: number }> = {
   a4: { textPt: 11.5, marginMm: 22 },
-  letter: { textPt: 11.5, marginMm: 22 },
-  legal: { textPt: 11.5, marginMm: 22 },
+  letter: { textPt: 11.5, marginMm: 24 },
+  legal: { textPt: 11.5, marginMm: 24 },
   b5: { textPt: 11, marginMm: 18 },
   executive: { textPt: 11, marginMm: 18 },
   a5: { textPt: 10.5, marginMm: 15 },
   statement: { textPt: 10.5, marginMm: 15 },
   b6: { textPt: 10, marginMm: 12 },
-  a6: { textPt: 9.5, marginMm: 9 },
+  a6: { textPt: 9, marginMm: 8 },
 };
 
 export interface PrintLayout {
