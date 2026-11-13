@@ -95,3 +95,33 @@ TEST_CASE("pdf finish: what is not a printed PDF is refused with the fault", "[p
     CHECK_THROWS_AS(pdf::finish(std::vector<char>(junk.begin(), junk.end()), a5("x")),
                     std::runtime_error);
 }
+
+TEST_CASE("pdf finish: pictures are drawn from the book's own bytes into their boxes", "[pdf]") {
+    pdf::FinishInput input = a5("Проба");
+    const std::string jpeg = atomic_file::read_file(test::fixtures_dir() / "images" / "tiny.jpg");
+    const std::string png = atomic_file::read_file(test::fixtures_dir() / "images" / "alpha.png");
+    input.binaries = {{"cover.jpg", jpeg}, {"alpha.png", png}};
+    input.pictures = {{0, 40, 60, 120, 90, "cover.jpg"},
+                      {1, 40, 60, 80, 60, "alpha.png"},
+                      {1, 40, 200, 120, 90, "cover.jpg"},
+                      {1, 40, 320, 50, 50, "missing"}};
+    const std::vector<char> finished = pdf::finish(sample(), input);
+    const std::string bytes(finished.begin(), finished.end());
+    // The JPEG goes in as its own bytes, once for its two places (D12); the PNG with a soft mask.
+    // The sample print holds the same JPEG already (Chromium kept it), so it is counted against it.
+    const auto count = [&jpeg](const std::string& in) {
+        int n = 0;
+        for (auto at = in.find(jpeg); at != std::string::npos; at = in.find(jpeg, at + 1))
+            ++n;
+        return n;
+    };
+    const std::vector<char> printed = sample();
+    CHECK(count(bytes) == count(std::string(printed.begin(), printed.end())) + 1);
+    CHECK(bytes.find("/SMask") != std::string::npos);
+    CHECK(bytes.find("/MfbeIm") != std::string::npos);
+    std::string error;
+    auto doc = pdf::Document::open_bytes(finished, &error);
+    REQUIRE(doc);
+    CHECK(doc->page_count() == 2);
+    CHECK(doc->page_text(0).find("Глава первая") != std::string::npos);
+}

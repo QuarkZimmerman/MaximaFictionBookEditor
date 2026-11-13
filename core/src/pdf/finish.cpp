@@ -215,6 +215,8 @@ std::vector<char> finish(std::vector<char> printed, const FinishInput& input) {
     for (int i = 0; i < document->page_count(); ++i) {
         document->set_page_size(i, input.width_pt, input.height_pt);
     }
+    // R4: the pictures, from the book's own bytes, into the boxes the paginator left.
+    draw_pictures(*document, input.pictures, input.binaries);
     // R3 step 3: ligatures read as their letters (D5).
     mend_ligatures(doc);
 

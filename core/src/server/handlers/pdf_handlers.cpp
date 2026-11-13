@@ -382,6 +382,29 @@ void register_pdf_handlers(rpc::RpcRouter& router, Services& services) {
             input.lang = params["pageMap"].value("language", std::string());
         }
         input.creator_tool = std::string(version::kProductName) + " " + version::kVersion;
+        // R4: the picture boxes of the page map, and the bytes of their binaries, taken here on
+        // the server's thread from the book's session.
+        if (params.contains("pageMap") && params["pageMap"].is_object() &&
+            params["pageMap"].contains("pictures") && params["pageMap"]["pictures"].is_array()) {
+            const session::DocumentSession* s = services.documents.find(e.doc_id);
+            for (const json& p : params["pageMap"]["pictures"]) {
+                if (!p.is_object())
+                    continue;
+                pdf::PlacedPicture placed;
+                placed.page = p.value("page", 0);
+                placed.x = p.value("x", 0.0);
+                placed.y = p.value("y", 0.0);
+                placed.width = p.value("width", 0.0);
+                placed.height = p.value("height", 0.0);
+                placed.binary_id = p.value("binaryId", std::string());
+                if (s != nullptr && !input.binaries.contains(placed.binary_id)) {
+                    if (const auto bytes = s->binaries->bytes(placed.binary_id)) {
+                        input.binaries.emplace(placed.binary_id, std::string(*bytes));
+                    }
+                }
+                input.pictures.push_back(std::move(placed));
+            }
+        }
         const std::string job_id = ctx.jobs.start([&services, token, e,
                                                    input](rpc::JobControl& control) -> json {
             control.progress("finish", 0, 1);
