@@ -119,6 +119,8 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")
   add_executable(mfbe-core main.cpp)
   target_link_libraries(mfbe-core PRIVATE mfbe::core CLI11::CLI11)
+  # The fonts subcommand reads the PDF export's added fonts (core/src/pdf/fonts.hpp), as the tests do.
+  target_include_directories(mfbe-core PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
   set_target_properties(mfbe-core PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
   install(TARGETS mfbe-core RUNTIME DESTINATION bin COMPONENT core)

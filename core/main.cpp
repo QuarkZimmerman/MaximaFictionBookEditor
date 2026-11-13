@@ -5,7 +5,8 @@
 //   mfbe-core validate FILE... [--json] [--resources DIR]
 //                       exit 0 = every file well-formed and valid (warnings allowed),
 //                       1 = parse errors or validation errors, 2 = usage
-//   mfbe-core roundtrip FILE --out DIR [--encoding utf-8] [--json] [--resources DIR] [--fixed-details]
+//   mfbe-core roundtrip FILE --out DIR [--encoding utf-8] [--json] [--resources DIR]
+//   [--fixed-details]
 //                       open -> save unchanged -> re-open -> structural comparison -> validate;
 //                       exit 0 = identical and valid, 1 = identical but invalid,
 //                       3 = structural differences, 4 = could not open, 2 = usage
@@ -15,6 +16,8 @@
 //                       prints one line per converted binary; exit 0 ok, 4 could not open
 //   mfbe-core --version | --help
 // Exit codes (serve): 0 normal, 1 fatal error at start-up, 2 command-line error.
+#include "pdf/fonts.hpp"
+
 #include <mfbe/atomic_file.hpp>
 #include <mfbe/binary_store.hpp>
 #include <mfbe/core_server.hpp>
@@ -129,6 +132,51 @@ void apply_resources_override(const std::string& resources) {
     const mfbe::resources::ResourceLayers layers(roots);
     mfbe::genres::install_genre_validator(std::make_shared<const mfbe::genres::GenreCatalog>(
         mfbe::genres::load_catalog(mfbe::validation::schema_genres(), root / "genres", layers)));
+}
+
+// Feature 014 (T054, analysis C3): the fonts Settings > PDF export adds, from the command line,
+// kept where the editor keeps them (the data folder `serve` resolves: a portable copy's user
+// folder, else the per-user one). The packaging smoke checks that place for an installed and a
+// portable editor.
+int run_fonts(const std::string& action, const std::string& file, int face) {
+    const mfbe::platform::Dirs dirs = mfbe::platform::resolve_dirs();
+    const std::filesystem::path folder = dirs.data / "fonts";
+    nlohmann::json out{{"folder", mfbe::platform::utf8_from_path(folder)}};
+    int status = kExitOk;
+    try {
+        if (action == "add") {
+            const std::filesystem::path path = mfbe::platform::path_from_utf8(file);
+            std::string ext = mfbe::platform::utf8_from_path(path.extension());
+            if (!ext.empty() && ext.front() == '.')
+                ext.erase(0, 1);
+            const mfbe::pdf::AddResult result =
+                mfbe::pdf::add_font(folder, mfbe::atomic_file::read_file(path), ext, face, "file",
+                                    mfbe::platform::utf8_from_path(path.filename()));
+            if (result.font) {
+                out["font"] = {
+                    {"id", result.font->id},
+                    {"family", result.font->family},
+                    {"file", mfbe::platform::utf8_from_path(folder / result.font->file)}};
+            }
+            if (!result.refused.empty())
+                out["refused"] = result.refused;
+            if (!result.font)
+                status = kExitFatal;
+        } else {
+            nlohmann::json fonts = nlohmann::json::array();
+            for (const mfbe::pdf::AddedFont& font : mfbe::pdf::added_fonts(folder)) {
+                fonts.push_back({{"id", font.id},
+                                 {"family", font.family},
+                                 {"file", mfbe::platform::utf8_from_path(folder / font.file)}});
+            }
+            out["fonts"] = fonts;
+        }
+    } catch (const std::exception& e) {
+        std::fprintf(stderr, "%s\n", e.what());
+        return kExitFatal;
+    }
+    std::printf("%s\n", out.dump(2).c_str());
+    return status;
 }
 
 int run_convert_images(const std::string& file, const std::string& out, const std::string& format,
@@ -428,6 +476,18 @@ int run_command_line(int argc, const Char* const* argv) {
         ->check(CLI::Range(1, 100));
     convert->add_flag("--json", convert_json, "JSON output (one object)");
 
+    std::string fonts_action;
+    std::string fonts_file;
+    int fonts_face = 0;
+    CLI::App* fonts =
+        app.add_subcommand("fonts", "The fonts added for the PDF export (JSON output)");
+    fonts->add_option("action", fonts_action, "list | add")
+        ->required()
+        ->check(CLI::IsMember({"list", "add"}));
+    fonts->add_option("file", fonts_file, "the font file to add (.ttf, .otf, .ttc, .otc)");
+    fonts->add_option("--face", fonts_face, "the face of a collection (default 0)")
+        ->check(CLI::NonNegativeNumber);
+
     try {
         app.parse(argc, argv);
     } catch (const CLI::CallForHelp& e) {
@@ -459,6 +519,13 @@ int run_command_line(int argc, const Char* const* argv) {
     if (*convert) {
         return run_convert_images(convert_file, convert_out, convert_format, convert_quality,
                                   convert_json);
+    }
+    if (*fonts) {
+        if (fonts_action == "add" && fonts_file.empty()) {
+            std::fprintf(stderr, "fonts add: name the font file\n");
+            return kExitUsage;
+        }
+        return run_fonts(fonts_action, fonts_file, fonts_face);
     }
     std::fprintf(stderr, "%s", app.help().c_str());
     return kExitUsage;

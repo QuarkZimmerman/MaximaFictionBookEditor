@@ -940,6 +940,17 @@ jobs:
           $zipDefault = (Get-ItemProperty HKLM:\Software\Classes\.zip -ErrorAction SilentlyContinue).'(default)'
           if ($zipDefault -eq 'MaximaFBE.fb2zip') { throw "the editor became the default program of .zip" }
           tools/ci/windows-start-smoke.ps1 -Exe $exe
+          # Feature 014 (T054, analysis C3): a font the installed editor adds for the PDF export is
+          # kept in the per-user data folder, never under the program's folder.
+          $core = Join-Path (Split-Path -Parent $exe) 'mfbe-core.exe'
+          $font = (Resolve-Path -LiteralPath resources\fonts\DejaVuSansMono.ttf).Path
+          $added = ((& $core fonts add $font) -join "`n") | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or -not $added.font) { throw "mfbe-core fonts add failed: $($added | ConvertTo-Json -Compress)" }
+          Write-Host "The installed editor keeps an added font at $($added.font.file)"
+          if ($added.font.file.StartsWith($env:ProgramFiles, [System.StringComparison]::OrdinalIgnoreCase)) { throw "the installed editor keeps an added font under the program folder: $($added.font.file)" }
+          if (-not $added.font.file.StartsWith($env:APPDATA + '\', [System.StringComparison]::OrdinalIgnoreCase)) { throw "the installed editor keeps an added font at $($added.font.file), not in the per-user data folder under $env:APPDATA" }
+          if (-not (Test-Path -LiteralPath $added.font.file)) { throw "the added font is not at $($added.font.file)" }
+          Remove-Item -LiteralPath (Split-Path -Parent $added.font.file) -Recurse -Force
           # Feature 002: mfbe.exe carries the editor's manifest (UTF-8 process code page), and the
           # editor starts for standard users whose names hold non-English letters - 0.0.1 ended
           # at start-up for them (heap corruption 0xC0000374 for "Pröbe").
@@ -1054,6 +1065,16 @@ jobs:
           Write-Host "Portable copy: $exe"
           & $exe --version
           tools/ci/windows-start-smoke.ps1 -Exe $exe
+          # Feature 014 (T054, analysis C3): a font the portable copy adds for the PDF export stays
+          # in its own user folder.
+          $core = Join-Path (Split-Path -Parent $exe) 'mfbe-core.exe'
+          $font = (Resolve-Path -LiteralPath resources\fonts\DejaVuSansMono.ttf).Path
+          $added = ((& $core fonts add $font) -join "`n") | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or -not $added.font) { throw "mfbe-core fonts add failed: $($added | ConvertTo-Json -Compress)" }
+          $userFonts = Join-Path (Split-Path -Parent $exe) 'user\fonts'
+          Write-Host "The portable copy keeps an added font at $($added.font.file)"
+          if (-not $added.font.file.StartsWith($userFonts + '\', [System.StringComparison]::OrdinalIgnoreCase)) { throw "the portable copy keeps an added font at $($added.font.file), not in $userFonts" }
+          if (-not (Test-Path -LiteralPath $added.font.file)) { throw "the added font is not at $($added.font.file)" }
           # Feature 002: standard users with non-English names (their copy lives outside the
           # runner's profile, which they cannot read), and the program in a folder with Cyrillic
           # letters ("Книги"; 0.0.1 ended with 0xC0000005 in mfbe.dll there).
