@@ -206,6 +206,12 @@ describe('AboutDialog', () => {
     expect(contributors).toHaveAttribute('readonly');
     expect(CONTRIBUTORS).toContain('Copyright © 2003 Mike Matsnev');
     expect(screen.getByTestId('dialog-about').textContent ?? '').not.toMatch(/\bMIT\b/);
+    // Feature 014: the notices of the fonts the PDF export embeds.
+    expect(screen.getByTestId('about-pdf-fonts-caption')).toHaveTextContent('DejaVu Sans Mono');
+    const pdfFonts = screen.getByTestId('about-pdf-fonts-notice');
+    expect(pdfFonts).toHaveTextContent('Copyright 2022 The Noto Project Authors');
+    expect(pdfFonts).toHaveTextContent('SIL Open Font License, Version 1.1');
+    expect(pdfFonts).toHaveTextContent('Fonts are (c) Bitstream');
   });
 
   it('opens the log folder through app.openLogFolder and closes with Close / Escape', async () => {

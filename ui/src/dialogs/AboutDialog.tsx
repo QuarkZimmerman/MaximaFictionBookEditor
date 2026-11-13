@@ -36,6 +36,8 @@ import contributorsNotice from '../../../CONTRIBUTORS.txt?raw';
 import caBundleNotice from '../../../resources/certs/cacert.NOTICE.txt?raw';
 // Feature 010 (PD2): the Noto fonts the Markdown import draws special characters from.
 import fontsNotice from '../../public/fonts/OFL-1.1.txt?raw';
+import pdfDejaVuNotice from '../../../resources/fonts/DejaVu-LICENSE.txt?raw';
+import pdfNotoNotice from '../../../resources/fonts/OFL.txt?raw';
 import { tip } from '@/app/tooltips';
 
 export const REPOSITORY_URL = 'https://github.com/QuarkZimmerman/MaximaFictionBookEditor';
@@ -52,6 +54,8 @@ const CONTRIBUTORS_TEXT = noticeText(contributorsNotice);
  */
 const CA_BUNDLE_TEXT = noticeText(caBundleNotice);
 const FONTS_TEXT = noticeText(fontsNotice);
+/** Feature 014: the notices of the fonts the PDF export embeds (resources/fonts/). */
+const PDF_FONTS_TEXT = `${noticeText(pdfNotoNotice)}\n\n${noticeText(pdfDejaVuNotice)}`;
 
 /** The platforms whose packages ship `resources/certs/` (resource-formats §C "Shipping rule"). */
 const CA_BUNDLE_PLATFORMS: ReadonlySet<string> = new Set(['linux']);
@@ -128,6 +132,7 @@ export function AboutDialog({ ctx, onClose }: AboutDialogProps) {
   const dictionariesCaptionId = useId();
   const caBundleCaptionId = useId();
   const fontsCaptionId = useId();
+  const pdfFontsCaptionId = useId();
 
   useEffect(() => {
     if (!rpc) return;
@@ -373,6 +378,20 @@ export function AboutDialog({ ctx, onClose }: AboutDialogProps) {
         >
           <pre className="mfbe-about-notice-text" data-testid="about-fonts-notice">
             {FONTS_TEXT}
+          </pre>
+        </div>
+        <p className="mfbe-about-note" id={pdfFontsCaptionId} data-testid="about-pdf-fonts-caption">
+          {t('dialog.about.pdfFonts.caption')}
+        </p>
+        <div
+          className="mfbe-about-notices"
+          role="region"
+          tabIndex={0}
+          aria-labelledby={pdfFontsCaptionId}
+          data-testid="about-pdf-fonts"
+        >
+          <pre className="mfbe-about-notice-text" data-testid="about-pdf-fonts-notice">
+            {PDF_FONTS_TEXT}
           </pre>
         </div>
         <div className="mfbe-about-log">
