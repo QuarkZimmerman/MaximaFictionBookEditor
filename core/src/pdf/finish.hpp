@@ -5,6 +5,7 @@
 // Later tasks add the pictures (R4), the bookmarks (D17), the whole description (D14, D15) and the
 // checks (DP-18).
 
+#include "pdf/outline.hpp"
 #include "pdf/pictures.hpp"
 
 #include <mfbe/document.hpp>
@@ -31,6 +32,8 @@ struct FinishInput {
     std::string description_xml;
     std::vector<std::string> genre_names;
     std::string hints;
+    // D17: the bookmarks, from the page map.
+    std::vector<Bookmark> bookmarks;
 };
 
 /// What the finishing left out, for the summary (D23).

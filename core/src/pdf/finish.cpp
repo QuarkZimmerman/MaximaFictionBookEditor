@@ -222,6 +222,8 @@ std::vector<char> finish(std::vector<char> printed, const FinishInput& input,
     mend_ligatures(doc);
     // D18, PDF/A-2 6.3.2: every annotation (the engine's links) printed and shown.
     print_annotations(doc);
+    // D17: the bookmarks (before the catalog's other entries below, which keep them).
+    write_outline(*document, input.bookmarks, input.height_pt);
 
     const Stamp stamp = now();
     // R3 step 5: the output intent, an sRGB profile made by Little CMS.

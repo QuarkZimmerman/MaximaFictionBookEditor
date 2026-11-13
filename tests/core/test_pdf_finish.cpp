@@ -288,3 +288,33 @@ TEST_CASE("pdf finish: the engine's link annotations carry the Print flag (PDF/A
     }
     CHECK(links == 3);
 }
+
+TEST_CASE("pdf outline: the bookmarks, nested, each to its page and height (D17)", "[pdf]") {
+    pdf::FinishInput input = a5("Закладки");
+    pdf::Bookmark cover{"Обложка", 0, 0, {}};
+    pdf::Bookmark chapter{"Глава первая", 0, 100, {pdf::Bookmark{"Раздел", 1, 50, {}}}};
+    input.bookmarks = {cover, chapter};
+    const std::vector<char> finished = pdf::finish(sample(), input);
+    std::string error;
+    auto doc = pdf::Document::open_bytes(finished, &error);
+    REQUIRE(doc);
+    PDFDoc& d = *doc->impl().doc;
+    const Object catalog = d.getXRef()->getCatalog();
+    CHECK(catalog.dictLookup("PageMode").isName("UseOutlines"));
+    const Object outlines = catalog.dictLookup("Outlines");
+    REQUIRE(outlines.isDict());
+    CHECK(outlines.dictLookup("Count").getInt() == 3);
+    const Object first = outlines.dictLookup("First");
+    REQUIRE(first.isDict());
+    const Object second = first.dictLookup("Next");
+    REQUIRE(second.isDict());
+    const Object child = second.dictLookup("First");
+    REQUIRE(child.isDict());
+    const Object dest = child.dictLookup("Dest");
+    REQUIRE(dest.isArray());
+    CHECK(dest.arrayGet(1).isName("XYZ"));
+    CHECK(dest.arrayGet(3).getNum() == Catch::Approx(210.0 * 72.0 / 25.4 - 50).margin(0.01));
+    CHECK(d.getCatalog()->findPage(dest.arrayGetNF(0).getRef()) == 2);
+    // The check of the finished file still passes with the outline in.
+    CHECK(pdf::check_finished(finished, {doc->page_text(0), doc->page_text(1)}).empty());
+}

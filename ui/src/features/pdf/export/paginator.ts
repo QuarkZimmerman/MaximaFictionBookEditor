@@ -279,6 +279,8 @@ export async function paginate(
     const serializer = new XMLSerializer();
     const blockPage: number[] = [];
 
+    // D17: a bookmark's height is its title's on the composed page.
+    const pendingMarks = new Map<number, PageMapBookmark>();
     const finishPage = (page: HTMLElement, numbered: boolean): void => {
       const index = serialised.length;
       if (numbered) {
@@ -290,6 +292,11 @@ export async function paginate(
       }
       pagesHost.append(page);
       const pageRect = page.getBoundingClientRect();
+      for (const marked of page.querySelectorAll('[data-mfbe-mark]')) {
+        const mark = pendingMarks.get(Number(marked.getAttribute('data-mfbe-mark')));
+        if (mark) mark.y = (marked.getBoundingClientRect().top - pageRect.top) * PX_TO_PT;
+        marked.removeAttribute('data-mfbe-mark');
+      }
       for (const box of page.querySelectorAll<HTMLElement>('.mfbe-picture')) {
         const r = box.getBoundingClientRect();
         pictures.push({
@@ -333,6 +340,7 @@ export async function paginate(
       content.append(box);
       finishPage(page, false);
       cover = coverMeta.id;
+      bookmarks.push({ title: pdfWords(lang).cover, page: 0, y: 0, children: [] });
     }
     // D11: the title page - the title and the authors, as the description gives them.
     {
@@ -350,6 +358,12 @@ export async function paginate(
         if (line.textContent) content.append(line);
       }
       finishPage(page, false);
+      bookmarks.push({
+        title: pdfWords(lang).titlePage,
+        page: serialised.length - 1,
+        y: 0,
+        children: [],
+      });
     }
 
     // A page is composed, then measured as composed: the containers cloned onto it (a poem's or a
@@ -392,6 +406,9 @@ export async function paginate(
           node = cloneText(block.element, from, to);
           if (piece.fromLine > 0) node.classList.add('mfbe-continued');
         }
+        if (block.titleOf && piece.fromLine === 0) {
+          node.setAttribute('data-mfbe-mark', String(piece.block));
+        }
         parent.append(node);
       }
       return { page, content };
@@ -420,11 +437,16 @@ export async function paginate(
         const block = blocks[piece.block];
         if (!block.titleOf || piece.fromLine !== 0) continue;
         const mark: PageMapBookmark = {
-          title: (block.titleOf.querySelector('title')?.textContent ?? '').trim(),
+          // The title's lines, each a paragraph, joined by a space.
+          title: [...(block.titleOf.querySelector('title')?.children ?? [])]
+            .map((line) => (line.textContent ?? '').replace(/\s+/g, ' ').trim())
+            .filter(Boolean)
+            .join(' '),
           page: serialised.length,
           y: 0,
           children: [],
         };
+        pendingMarks.set(piece.block, mark);
         while (stack.length && stack[stack.length - 1].depth >= block.depth) stack.pop();
         (stack.length ? stack[stack.length - 1].mark.children : bookmarks).push(mark);
         stack.push({ depth: block.depth, mark });

@@ -413,6 +413,28 @@ void register_pdf_handlers(rpc::RpcRouter& router, Services& services) {
         }
         input.genre_names = rpc::params::string_array_or(params, "genreNames");
         input.hints = rpc::params::string_or(params, "hints", "");
+        // D17: the bookmarks of the page map, nested.
+        if (params.contains("pageMap") && params["pageMap"].is_object() &&
+            params["pageMap"].contains("bookmarks") && params["pageMap"]["bookmarks"].is_array()) {
+            const std::function<std::vector<pdf::Bookmark>(const json&, int)> marks =
+                [&marks](const json& list, int depth) {
+                    std::vector<pdf::Bookmark> out;
+                    for (const json& item : list) {
+                        if (!item.is_object() || depth > 64)
+                            continue;
+                        pdf::Bookmark mark;
+                        mark.title = item.value("title", std::string());
+                        mark.page = item.value("page", 0);
+                        mark.y = item.value("y", 0.0);
+                        if (item.contains("children") && item["children"].is_array()) {
+                            mark.children = marks(item["children"], depth + 1);
+                        }
+                        out.push_back(std::move(mark));
+                    }
+                    return out;
+                };
+            input.bookmarks = marks(params["pageMap"]["bookmarks"], 0);
+        }
         // DP-18: the text each page shows, for the check of the finished file.
         std::vector<std::string> page_texts;
         if (params.contains("pageMap") && params["pageMap"].is_object() &&
