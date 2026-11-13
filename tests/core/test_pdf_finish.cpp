@@ -225,3 +225,31 @@ TEST_CASE("pdf join: printed parts become one file, with their tags and destinat
         texts.push_back(doc->page_text(i));
     CHECK(pdf::check_finished(finished, texts).empty());
 }
+
+TEST_CASE("pdf finish: a PDF 1.7 file whose links all lead somewhere", "[pdf]") {
+    const std::vector<char> finished = pdf::finish(sample(), a5("Ссылки"));
+    CHECK(std::string(finished.data(), 8) == "%PDF-1.7");
+    std::string error;
+    auto doc = pdf::Document::open_bytes(finished, &error);
+    REQUIRE(doc);
+    std::vector<std::string> texts = {doc->page_text(0), doc->page_text(1)};
+    CHECK(pdf::check_finished(finished, texts).empty());
+
+    // A named destination taken away: the link to it is a fault.
+    PDFDoc& d = *doc->impl().doc;
+    Object catalog = d.getXRef()->getCatalog();
+    const Object& dests_ref = catalog.dictLookupNF("Dests");
+    Object dests = dests_ref.isRef() ? d.getXRef()->fetch(dests_ref.getRef()) : dests_ref.copy();
+    REQUIRE(dests.isDict());
+    dests.dictRemove("n1");
+    if (dests_ref.isRef()) {
+        d.getXRef()->setModifiedObject(&dests, dests_ref.getRef());
+    } else {
+        catalog.dictSet("Dests", std::move(dests));
+        d.getXRef()->setModifiedObject(&catalog, d.getXRef()->getRoot());
+    }
+    const std::vector<char> broken = doc->save();
+    const auto faults = pdf::check_finished(broken, texts);
+    REQUIRE(faults.size() == 1);
+    CHECK(faults[0] == "page 1: a link leads nowhere (n1)");
+}

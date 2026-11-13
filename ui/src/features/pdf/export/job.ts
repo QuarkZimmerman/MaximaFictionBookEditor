@@ -98,7 +98,9 @@ export async function exportPdf(ctx: CommandContext, docId: string, run: PdfRun)
     });
     // D23: what was not carried over as written, each with its reason; else the status line.
     const lines = [
-      ...paged.leftOut.map((detail) => ctx.t('pdf.summary.pictureLeftOut', { detail })),
+      ...[...paged.leftOut, ...(finished.picturesLeftOut ?? []).map((id) => `#${id}`)].map(
+        (detail) => ctx.t('pdf.summary.pictureLeftOut', { detail }),
+      ),
       ...paged.replacedFonts.map((detail) => ctx.t('pdf.summary.fontReplaced', { detail })),
       ...(finished.uncovered
         ? [ctx.t('pdf.summary.systemFont', { detail: [...finished.uncovered].join(' ') })]

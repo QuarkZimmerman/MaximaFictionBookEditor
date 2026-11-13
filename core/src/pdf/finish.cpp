@@ -18,6 +18,7 @@
 #include <lcms2.h>
 #include <set>
 #include <stdexcept>
+#include <string_view>
 
 namespace mfbe::pdf {
 namespace {
@@ -201,7 +202,8 @@ std::string xmp_packet(const FinishInput& input, const Stamp& stamp) {
 
 }  // namespace
 
-std::vector<char> finish(std::vector<char> printed, const FinishInput& input) {
+std::vector<char> finish(std::vector<char> printed, const FinishInput& input,
+                         FinishReport* report) {
     std::string error;
     auto document = Document::open_bytes(std::move(printed), &error);
     if (!document)
@@ -216,7 +218,13 @@ std::vector<char> finish(std::vector<char> printed, const FinishInput& input) {
         document->set_page_size(i, input.width_pt, input.height_pt);
     }
     // R4: the pictures, from the book's own bytes, into the boxes the paginator left.
-    draw_pictures(*document, input.pictures, input.binaries);
+    const DrawnPictures drawn = draw_pictures(*document, input.pictures, input.binaries);
+    // T028: every picture box is filled, unless its binary was left out (and listed).
+    if (drawn.drawn + drawn.skipped != static_cast<int>(input.pictures.size())) {
+        throw std::runtime_error("a picture box was not filled");
+    }
+    if (report)
+        report->pictures_left_out = drawn.left_out;
     // R3 step 3: ligatures read as their letters (D5).
     mend_ligatures(doc);
 
@@ -255,11 +263,19 @@ std::vector<char> finish(std::vector<char> printed, const FinishInput& input) {
     auto preferences = std::make_unique<Dict>(xref);
     preferences->set("DisplayDocTitle", Object(true));
     catalog.dictSet("ViewerPreferences", Object(std::move(preferences)));
+    // contracts/pdf-file.md: a PDF 1.7 file, as PDF/A-2 builds on ISO 32000-1 (PDF 1.7).
+    catalog.dictSet("Version", Object(objName, "1.7"));
     xref->setModifiedObject(&catalog, xref->getRoot());
 
     std::vector<char> finished = document->save();
     if (finished.empty())
         throw std::runtime_error("the finished file could not be written");
+    // Poppler writes the header the file was opened with (Chromium's %PDF-1.4); the version is
+    // one digit at byte 7, so it is set in place without moving anything after it.
+    if (finished.size() > 8 && std::string_view(finished.data(), 7) == "%PDF-1." &&
+        finished[7] < '7') {
+        finished[7] = '7';
+    }
     return finished;
 }
 

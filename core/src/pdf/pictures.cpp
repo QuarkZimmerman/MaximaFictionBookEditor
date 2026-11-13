@@ -143,10 +143,9 @@ Holder resolve(XRef* xref, const Object& entry) {
 
 }  // namespace
 
-std::vector<std::string> draw_pictures(Document& document,
-                                       const std::vector<PlacedPicture>& pictures,
-                                       const std::map<std::string, std::string>& binaries) {
-    std::vector<std::string> left_out;
+DrawnPictures draw_pictures(Document& document, const std::vector<PlacedPicture>& pictures,
+                            const std::map<std::string, std::string>& binaries) {
+    DrawnPictures result;
     PDFDoc& doc = *document.impl().doc;
     XRef* xref = doc.getXRef();
     std::map<std::string, std::optional<Ref>> objects;
@@ -169,11 +168,14 @@ std::vector<std::string> draw_pictures(Document& document,
                 if (bytes != binaries.end())
                     ref = image_object(xref, bytes->second);
                 if (!ref)
-                    left_out.push_back(p->binary_id);
+                    result.left_out.push_back(p->binary_id);
                 found = objects.emplace(p->binary_id, ref).first;
             }
-            if (!found->second)
+            if (!found->second) {
+                ++result.skipped;
                 continue;
+            }
+            ++result.drawn;
             const std::string name = "MfbeIm" + std::to_string(found->second->num);
             names.emplace(name, *found->second);
             char line[256];
@@ -221,7 +223,7 @@ std::vector<std::string> draw_pictures(Document& document,
         }
         xref->setModifiedObject(&page_dict, page_ref);
     }
-    return left_out;
+    return result;
 }
 
 }  // namespace mfbe::pdf

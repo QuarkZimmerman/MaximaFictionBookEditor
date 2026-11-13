@@ -23,7 +23,14 @@ struct FinishInput {
     std::map<std::string, std::string> binaries;  // their bytes, by binary id
 };
 
-/// Finishes `printed`; throws std::runtime_error naming the fault.
-std::vector<char> finish(std::vector<char> printed, const FinishInput& input);
+/// What the finishing left out, for the summary (D23).
+struct FinishReport {
+    std::vector<std::string> pictures_left_out;  // binary ids, once each
+};
+
+/// Finishes `printed`; throws std::runtime_error naming the fault. `report`, when given, gets what
+/// was left out.
+std::vector<char> finish(std::vector<char> printed, const FinishInput& input,
+                         FinishReport* report = nullptr);
 
 }  // namespace mfbe::pdf

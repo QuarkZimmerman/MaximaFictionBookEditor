@@ -2,11 +2,61 @@
 
 #include "pdf/check.hpp"
 
+#include "pdf/document.hpp"
+
 #include <mfbe/pdf.hpp>
 
+#include <Catalog.h>
+#include <Link.h>
+#include <Object.h>
+#include <PDFDoc.h>
+#include <XRef.h>
 #include <cctype>
+#include <goo/GooString.h>
 
 namespace mfbe::pdf {
+
+namespace {
+
+// R3 step 9: every link of a page leads to a destination the file has (a named one in its
+// dictionary, or one of its pages). Links to addresses outside the file are not checked.
+void check_links(PDFDoc& doc, int page, std::vector<std::string>& faults) {
+    Catalog* catalog = doc.getCatalog();
+    const Ref* ref = catalog->getPageRef(page);
+    if (ref == nullptr)
+        return;
+    const Object page_dict = doc.getXRef()->fetch(*ref);
+    const Object annots = page_dict.dictLookup("Annots");
+    if (!annots.isArray())
+        return;
+    for (int i = 0; i < annots.arrayGetLength(); ++i) {
+        const Object annot = annots.arrayGet(i);
+        if (!annot.isDict() || !annot.dictLookup("Subtype").isName("Link"))
+            continue;
+        Object dest = annot.dictLookup("Dest");
+        if (dest.isNull()) {
+            const Object action = annot.dictLookup("A");
+            if (!action.isDict() || !action.dictLookup("S").isName("GoTo"))
+                continue;
+            dest = action.dictLookup("D");
+        }
+        bool found = false;
+        std::string name;
+        if (dest.isName() || dest.isString()) {
+            name = dest.isName() ? std::string(dest.getName()) : dest.getString();
+            const GooString key(name);
+            found = catalog->findDest(&key) != nullptr;
+        } else if (dest.isArray() && dest.arrayGetLength() > 0 && dest.arrayGetNF(0).isRef()) {
+            found = catalog->findPage(dest.arrayGetNF(0).getRef()) > 0;
+        }
+        if (!found) {
+            faults.push_back("page " + std::to_string(page) + ": a link leads nowhere" +
+                             (name.empty() ? std::string() : " (" + name + ")"));
+        }
+    }
+}
+
+}  // namespace
 
 std::string comparable(const std::string& text) {
     std::string out;
@@ -42,6 +92,7 @@ std::vector<std::string> check_finished(const std::vector<char>& finished,
                          " pages, the page map " + std::to_string(page_texts.size()));
     }
     for (int i = 0; i < doc->page_count(); ++i) {
+        check_links(*doc->impl().doc, i + 1, faults);
         for (const FontInfo& font : doc->page_info(i).fonts) {
             if (!font.embedded || !font.to_unicode) {
                 faults.push_back("page " + std::to_string(i + 1) + ": font " + font.base_font +

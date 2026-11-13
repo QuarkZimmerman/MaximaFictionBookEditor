@@ -450,8 +450,9 @@ void register_pdf_handlers(rpc::RpcRouter& router, Services& services) {
             });
             control.check_cancelled();
             control.progress("write", 0, 0);
+            pdf::FinishReport report;
             std::vector<char> finished =
-                library([&] { return pdf::finish(std::move(joined), input); });
+                library([&] { return pdf::finish(std::move(joined), input, &report); });
             control.check_cancelled();
             std::string bytes;
             // DP-18: the finished file is read back before anything is written.
@@ -490,7 +491,8 @@ void register_pdf_handlers(rpc::RpcRouter& router, Services& services) {
                 pdf::uncovered_characters(page_texts, services.resources_dir / "fonts");
             return json{{"path", platform::utf8_from_path(e.target)},
                         {"bytes", bytes.size()},
-                        {"uncovered", pdf::utf8(uncovered)}};
+                        {"uncovered", pdf::utf8(uncovered)},
+                        {"picturesLeftOut", report.pictures_left_out}};
         });
         return json{{"jobId", job_id}};
     });
