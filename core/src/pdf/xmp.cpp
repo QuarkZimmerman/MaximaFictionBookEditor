@@ -4,6 +4,8 @@
 
 #include "pdf/check.hpp"
 
+#include <mfbe/fb2_writer.hpp>
+
 #include <nlohmann/json.hpp>
 
 #include <cctype>
@@ -394,6 +396,20 @@ std::string validate_hints(const std::string& hints, const std::vector<std::stri
     };
     scan(j);
     return data_found;
+}
+
+std::string description_record(const model::Description& description) {
+    model::Document only;
+    only.description = description;
+    const std::string xml = fb2::write_document(only, nullptr).text;
+    const auto from = xml.find("<description");
+    const auto to = xml.find("</description>");
+    if (from == std::string::npos || to == std::string::npos)
+        return {};
+    // A standalone element: the namespaces its document's root declared go on it (a later import).
+    return "<description xmlns=\"http://www.gribuser.ru/xml/fictionbook/2.0\" "
+           "xmlns:l=\"http://www.w3.org/1999/xlink\"" +
+           xml.substr(from + 12, to + 14 - from - 12);
 }
 
 }  // namespace mfbe::pdf

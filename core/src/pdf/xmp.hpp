@@ -53,6 +53,10 @@ std::string document_id(const std::string& fb2_id);
 /// `text` escaped for XML, without the characters XML forbids (D22).
 std::string xml_text(const std::string& text);
 
+/// D15: the editor's record of the book's <description> element, as FB2 XML written by the core's
+/// own FB2 writer, declaring the FB2 and XLink namespaces on itself so that it reads back alone.
+std::string description_record(const model::Description& description);
+
 /// The fault of the editor's hints (R10, contracts/pdf-file.md), "" when they are sound: valid
 /// JSON of version 1, every block key within the paginator's block count, every anchor found in
 /// the pages' text, and no picture data.

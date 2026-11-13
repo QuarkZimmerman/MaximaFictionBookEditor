@@ -639,19 +639,7 @@ void register_pdf_handlers(rpc::RpcRouter& router, Services& services) {
         if (params.contains("description") && params["description"].is_object()) {
             try {
                 input.description = model::description_from_json(params["description"]);
-                model::Document only;
-                only.description = *input.description;
-                const std::string xml = fb2::write_document(only, nullptr).text;
-                const auto from = xml.find("<description");
-                const auto to = xml.find("</description>");
-                if (from != std::string::npos && to != std::string::npos) {
-                    // A standalone element: the namespaces its document's root declared go on it,
-                    // so that the record reads back on its own (a later import, D15).
-                    input.description_xml =
-                        "<description xmlns=\"http://www.gribuser.ru/xml/fictionbook/2.0\" "
-                        "xmlns:l=\"http://www.w3.org/1999/xlink\"" +
-                        xml.substr(from + 12, to + 14 - from - 12);
-                }
+                input.description_xml = pdf::description_record(*input.description);
             } catch (const std::exception& error) {
                 throw failed("pdf.checkFailed",
                              json{{"message", std::string("the description: ") + error.what()}});
