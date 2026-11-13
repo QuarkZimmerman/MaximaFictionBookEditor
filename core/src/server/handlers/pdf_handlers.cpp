@@ -20,6 +20,7 @@
 #include "server/services.hpp"
 
 #include <mfbe/atomic_file.hpp>
+#include <mfbe/dialog_provider.hpp>
 #include <mfbe/fb2_writer.hpp>
 #include <mfbe/json_codec.hpp>
 #include <mfbe/log.hpp>
@@ -265,6 +266,120 @@ void serve_font(LoopbackServer& server, Services& services, uWS::HttpResponse<fa
     res->end(bytes);
 }
 
+// Feature 014 (D7(c), DP-4, DP-6, DP-7; tasks T050): the fonts the user adds.
+fs::path added_fonts_dir(const Services& services) {
+    return services.dirs.data / "fonts";
+}
+
+json added_json(const pdf::AddedFont& f) {
+    return json{{"id", f.id},
+                {"face", f.face},
+                {"family", f.family},
+                {"style", f.style},
+                {"kind", f.kind},
+                {"fsType", f.fs_type},
+                {"wholeFont", f.whole_font},
+                {"source", f.source},
+                {"name", f.source_name}};
+}
+
+json add_result_json(const pdf::AddResult& result) {
+    json out = json::object();
+    if (result.font)
+        out["font"] = added_json(*result.font);
+    if (!result.refused.empty())
+        out["refused"] = result.refused;
+    if (result.faces.size() > 1)
+        out["faces"] = result.faces;
+    return out;
+}
+
+std::string extension_of(const std::string& name) {
+    const auto dot = name.rfind('.');
+    std::string ext = dot == std::string::npos ? std::string() : name.substr(dot + 1);
+    for (char& c : ext)
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    return ext;
+}
+
+bool plain_id(const std::string& id) {
+    if (id.empty() || id.size() > 80)
+        return false;
+    for (const char c : id) {
+        if (!std::isalnum(static_cast<unsigned char>(c)) && c != '-')
+            return false;
+    }
+    return true;
+}
+
+void serve_added_font(LoopbackServer& server, Services& services, uWS::HttpResponse<false>* res,
+                      uWS::HttpRequest* req) {
+    if (!server.check_auth(res, req))
+        return;
+    const std::string id = LoopbackServer::url_decode(req->getParameter(0));
+    std::string bytes;
+    std::string ext;
+    if (plain_id(id)) {
+        for (const pdf::AddedFont& font : pdf::added_fonts(added_fonts_dir(services))) {
+            if (font.id != id)
+                continue;
+            try {
+                bytes = atomic_file::read_file(added_fonts_dir(services) / font.file);
+                ext = extension_of(font.file);
+            } catch (const std::exception&) {
+            }
+        }
+    }
+    if (bytes.empty()) {
+        end_plain(res, "404 Not Found", "no such font");
+        return;
+    }
+    res->writeStatus("200 OK");
+    res->writeHeader("Content-Type", ext == "otf"                   ? "font/otf"
+                                     : ext == "ttc" || ext == "otc" ? "font/collection"
+                                                                    : "font/ttf");
+    res->writeHeader("Cache-Control", "private, max-age=3600");
+    res->writeHeader("X-Content-Type-Options", "nosniff");
+    res->end(bytes);
+}
+
+void upload_font(LoopbackServer& server, Services& services, uWS::HttpResponse<false>* res,
+                 uWS::HttpRequest* req) {
+    if (!server.check_auth(res, req))
+        return;
+    const std::string id = LoopbackServer::url_decode(req->getParameter(0));
+    if (!plain_id(id)) {
+        end_plain(res, "404 Not Found", "no such upload");
+        return;
+    }
+    auto buffer = std::make_shared<std::string>();
+    auto aborted = std::make_shared<bool>(false);
+    res->onAborted([aborted] { *aborted = true; });
+    res->onData([res, buffer, aborted, &services, id](std::string_view chunk, bool last) {
+        if (*aborted)
+            return;
+        if (buffer->size() + chunk.size() > pdf::kMaxAddedFontBytes) {
+            *aborted = true;
+            end_plain(res, "413 Payload Too Large", "a font of more than 64 MB");
+            return;
+        }
+        buffer->append(chunk);
+        if (!last)
+            return;
+        {
+            std::lock_guard lock(services.pdf.mutex);
+            // One font at a time is added; a few uploads left behind are dropped, oldest first.
+            while (services.pdf.font_uploads.size() >= 4) {
+                services.pdf.font_uploads.erase(services.pdf.font_uploads.begin());
+            }
+            services.pdf.font_uploads[id] = std::move(*buffer);
+        }
+        res->writeStatus("201 Created");
+        res->writeHeader("Cache-Control", "no-store");
+        res->end();
+    });
+}
+
 }  // namespace
 
 void register_pdf_http(LoopbackServer& server, Services& services) {
@@ -278,9 +393,131 @@ void register_pdf_http(LoopbackServer& server, Services& services) {
     app.get("/pdf/:token/print/:n", [&server, &services](auto* res, auto* req) {
         serve_print(server, services, res, req);
     });
+    // T050: the added fonts, and installed fonts' data for pdf.fonts.addData (DP-4).
+    app.get("/pdf/fonts/added/:id", [&server, &services](auto* res, auto* req) {
+        serve_added_font(server, services, res, req);
+    });
+    app.put("/pdf/fonts/upload/:id", [&server, &services](auto* res, auto* req) {
+        upload_font(server, services, res, req);
+    });
 }
 
 void register_pdf_handlers(rpc::RpcRouter& router, Services& services) {
+    // T050: the fonts of Settings > PDF export (contracts/rpc-api.md).
+    router.add_method("pdf.fonts.list", [&services](const json&, rpc::RpcContext&) {
+        json shipped = json::array();
+        for (const pdf::ShippedFamily& family :
+             pdf::shipped_families(services.resources_dir / "fonts")) {
+            json styles = json::array();
+            for (const auto& [style, file] : family.styles)
+                styles.push_back(style);
+            shipped.push_back(json{{"id", family.id},
+                                   {"kind", family.kind},
+                                   {"scripts", family.scripts},
+                                   {"textFont", family.text_font},
+                                   {"styles", styles}});
+        }
+        json added = json::array();
+        for (const pdf::AddedFont& font : pdf::added_fonts(added_fonts_dir(services))) {
+            added.push_back(added_json(font));
+        }
+        return json{{"shipped", shipped}, {"added", added}};
+    });
+    // A font file the user picks (or, with `path`, the one picked before, for another face of a
+    // collection).
+    router.add_async_method("pdf.fonts.addFile", [&services](const json& params, rpc::RpcContext&,
+                                                             rpc::Responder respond) {
+        const int face = rpc::params::integer_or(params, "face", 0);
+        const auto add = [&services, face, respond](const std::string& path) {
+            try {
+                const fs::path file = platform::path_from_utf8(path);
+                std::error_code ec;
+                const auto size = fs::file_size(file, ec);
+                if (ec) {
+                    respond.ok(json{{"refused", "unreadable"}, {"path", path}});
+                    return;
+                }
+                if (size > pdf::kMaxAddedFontBytes) {
+                    respond.ok(json{{"refused", "tooLarge"}, {"path", path}});
+                    return;
+                }
+                json out = add_result_json(pdf::add_font(
+                    added_fonts_dir(services), atomic_file::read_file(file), extension_of(path),
+                    face, "file", platform::utf8_from_path(file.filename())));
+                out["path"] = path;
+                respond.ok(out);
+            } catch (const std::exception& error) {
+                respond.fail(failed("pdf.fontFailed", json{{"message", error.what()}}));
+            }
+        };
+        if (const auto path = rpc::params::opt_string(params, "path"); path && !path->empty()) {
+            add(*path);
+            return;
+        }
+        const auto provider = services.dialog_provider();
+        if (!provider) {
+            respond.fail(
+                rpc::RpcError(rpc::codes::kDialogUnavailable, "", json{{"reason", "no shell"}}));
+            return;
+        }
+        OpenFileRequest request;
+        request.title = rpc::params::opt_string(params, "title").value_or("Add font");
+        request.filters = {
+            FileFilter{rpc::params::opt_string(params, "filterName").value_or("Fonts"),
+                       {"ttf", "otf", "ttc", "otc"}}};
+        try {
+            provider->open_file(request, [add, respond](OpenFileResult result) {
+                if (result.paths.empty()) {
+                    respond.ok(json{{"cancelled", true}});
+                    return;
+                }
+                add(result.paths.front());
+            });
+        } catch (const DialogUnavailable& e) {
+            respond.fail(
+                rpc::RpcError(rpc::codes::kDialogUnavailable, "", json{{"reason", e.what()}}));
+        }
+    });
+    // DP-4: an installed font's data, uploaded by the interface to PUT
+    // /pdf/fonts/upload/{uploadId}.
+    router.add_method("pdf.fonts.addData", [&services](const json& params, rpc::RpcContext&) {
+        const std::string upload = rpc::params::string(params, "uploadId");
+        const std::string name = rpc::params::string(params, "name");
+        const int face = rpc::params::integer_or(params, "face", 0);
+        std::string bytes;
+        {
+            std::lock_guard lock(services.pdf.mutex);
+            const auto it = services.pdf.font_uploads.find(upload);
+            if (it == services.pdf.font_uploads.end()) {
+                throw rpc::invalid_params("no such upload", json{{"field", "uploadId"}});
+            }
+            bytes = std::move(it->second);
+            services.pdf.font_uploads.erase(it);
+        }
+        std::string ext = extension_of(name);
+        if (ext.empty())
+            ext = bytes.rfind("ttcf", 0) == 0 ? "ttc" : bytes.rfind("OTTO", 0) == 0 ? "otf" : "ttf";
+        try {
+            return add_result_json(
+                pdf::add_font(added_fonts_dir(services), bytes, ext, face, "installed", name));
+        } catch (const std::exception& error) {
+            throw failed("pdf.fontFailed", json{{"message", error.what()}});
+        }
+    });
+    // DP-7: removing the text font sets the setting back to Noto Serif.
+    router.add_method("pdf.fonts.remove", [&services](const json& params, rpc::RpcContext& ctx) {
+        const std::string id = rpc::params::string(params, "id");
+        if (!plain_id(id) || !pdf::remove_font(added_fonts_dir(services), id)) {
+            throw rpc::invalid_params("no such font", json{{"field", "id"}});
+        }
+        if (services.settings.get_string("pdf.textFont") == id) {
+            const settings::ApplyResult result =
+                services.settings.apply_patch(json{{"pdf", {{"textFont", "noto-serif"}}}});
+            ctx.notifier.notify("settings.changed", json{{"settings", result.settings}});
+        }
+        return json::object();
+    });
+
     router.add_method("pdf.export.begin", [&services](const json& params, rpc::RpcContext&) {
         purge_idle(services);
         const std::string path = rpc::params::string(params, "path");

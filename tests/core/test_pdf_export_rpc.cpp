@@ -182,3 +182,63 @@ TEST_CASE("pdf export rpc: the shipped fonts are served to the paged document", 
           404);
     CHECK(test::http_get(f.server->port(), "/pdf/fonts/shipped/noto-serif/Regular").status == 401);
 }
+
+TEST_CASE("pdf fonts rpc: an installed font added, served, used and removed (T050)", "[pdf][rpc]") {
+    Fixture f;
+    const json listed = f.ws.call("pdf.fonts.list", json::object());
+    REQUIRE(listed.contains("result"));
+    bool serif_offered = false;
+    for (const json& family : listed["result"]["shipped"]) {
+        serif_offered =
+            serif_offered || (family["id"] == "noto-serif" && family["textFont"] == true);
+    }
+    CHECK(serif_offered);
+    CHECK(listed["result"]["added"].empty());
+
+    // DP-4: the interface uploads the installed font's data, then adds it.
+    const auto repo = test::fixtures_dir().parent_path().parent_path();
+    const std::string mono =
+        atomic_file::read_file(repo / "resources" / "fonts" / "DejaVuSansMono.ttf");
+    CHECK(test::http_request(f.server->port(), "PUT", "/pdf/fonts/upload/u1", {}, mono).status ==
+          401);
+    REQUIRE(test::http_request(f.server->port(), "PUT", "/pdf/fonts/upload/u1", f.auth(), mono)
+                .status == 201);
+    const json added =
+        f.ws.call("pdf.fonts.addData", json{{"uploadId", "u1"}, {"name", "DejaVu Sans Mono"}});
+    REQUIRE(added.contains("result"));
+    REQUIRE(added["result"].contains("font"));
+    const json font = added["result"]["font"];
+    CHECK(font["kind"] == "monospace");
+    CHECK(font["source"] == "installed");
+    CHECK(font["family"] == "DejaVu Sans Mono");
+    const std::string id = font["id"];
+    CHECK(std::filesystem::exists(f.data.path() / "fonts" / (id + ".ttf")));
+    // The same upload id is used once.
+    CHECK(
+        f.ws.call("pdf.fonts.addData", json{{"uploadId", "u1"}, {"name", "x"}}).contains("error"));
+
+    const auto served =
+        test::http_get(f.server->port(), "/pdf/fonts/added/" + id + "?token=" + f.server->token());
+    REQUIRE(served.status == 200);
+    CHECK(served.headers.at("content-type") == "font/ttf");
+    CHECK(served.body == mono);
+    CHECK(test::http_get(f.server->port(),
+                         "/pdf/fonts/added/../fonts.json?token=" + f.server->token())
+              .status == 404);
+
+    // Added again from its file: kept once.
+    const auto copy = f.data.path() / "DejaVuSansMono.ttf";
+    atomic_file::write_atomic(copy, mono);
+    const json again = f.ws.call("pdf.fonts.addFile", json{{"path", copy.string()}});
+    REQUIRE(again.contains("result"));
+    CHECK(again["result"]["refused"] == "duplicate");
+
+    // DP-7: removing the text font sets the setting back to Noto Serif.
+    REQUIRE(f.ws.call("settings.set", json{{"patch", {{"pdf", {{"textFont", id}}}}}})
+                .contains("result"));
+    REQUIRE(f.ws.call("pdf.fonts.remove", json{{"id", id}}).contains("result"));
+    const json settings = f.ws.call("settings.get", json::object());
+    CHECK(settings["result"]["pdf"]["textFont"] == "noto-serif");
+    CHECK_FALSE(std::filesystem::exists(f.data.path() / "fonts" / (id + ".ttf")));
+    CHECK(f.ws.call("pdf.fonts.remove", json{{"id", id}}).contains("error"));
+}

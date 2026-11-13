@@ -81,6 +81,8 @@ struct Services {
     struct PdfState {
         std::mutex mutex;
         std::map<std::string, PdfExport> exports;
+        // Feature 014 (DP-4): installed fonts' data uploaded for pdf.fonts.addData, by upload id.
+        std::map<std::string, std::string> font_uploads;
     } pdf;
 
     rpc::Notifier& notifier;
