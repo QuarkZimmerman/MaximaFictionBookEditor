@@ -309,6 +309,7 @@ ship with the Linux packages only (resources/certs/, refreshed by tools/refresh-
 | boost-uninstall | 1.91.0 | MIT | (the port installs no copyright file on this platform) | vcpkg build helper of the Boost ports (feature 014: Poppler's boost-container) |
 | catch2 | 3.15.3 | BSL-1.0 | `build/vcpkg_installed/<triplet>/share/catch2/copyright` | test suite only (vcpkg feature "tests") |
 | libiconv | 1.19 | LGPL-2.1-or-later | (the port installs no copyright file on this platform) | pulled in by the hunspell port for its optional command-line tools; the hunspell library itself does not call iconv and the editor links hunspell only. On Linux and macOS the port installs no library (the C runtime's iconv satisfies it); on Windows it builds a static library that nothing in the editor links |
+| pkgconf | 3.0.3 | ISC | `build/vcpkg_installed/<triplet>/share/pkgconf/copyright` | vcpkg host tool: reads the pkg-config files of Poppler and Little CMS while the build is configured (feature 014; Windows has no pkg-config of its own); never shipped |
 | vcpkg-cmake | 2024-04-23 | MIT | `build/vcpkg_installed/<triplet>/share/vcpkg-cmake/copyright` | vcpkg build helper |
 | vcpkg-cmake-config | 2026-07-21 | MIT | `build/vcpkg_installed/<triplet>/share/vcpkg-cmake-config/copyright` | vcpkg build helper |
 | vcpkg-cmake-get-vars | 2025-05-29 | MIT | `build/vcpkg_installed/<triplet>/share/vcpkg-cmake-get-vars/copyright` | vcpkg build helper |

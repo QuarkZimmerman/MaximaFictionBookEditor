@@ -141,6 +141,10 @@ BUILD_ONLY_PORTS = {
         "builds a static library that nothing in the editor links"
     ),
     "boost-uninstall": "vcpkg build helper of the Boost ports (feature 014: Poppler's boost-container)",
+    "pkgconf": (
+        "vcpkg host tool: reads the pkg-config files of Poppler and Little CMS while the build is "
+        "configured (feature 014; Windows has no pkg-config of its own); never shipped"
+    ),
     "vcpkg-cmake": "vcpkg build helper",
     "vcpkg-cmake-config": "vcpkg build helper",
     "vcpkg-cmake-get-vars": "vcpkg build helper",
@@ -153,6 +157,8 @@ BUILD_ONLY_PORTS = {
 # Licences of build-only ports whose vcpkg metadata declares none (LicenseRef-vcpkg-null).
 KNOWN_LICENCES = {
     "libiconv": "LGPL-2.1-or-later",
+    # pkgconf's own declaration (meson.build `license : 'ISC'`) and its COPYING text.
+    "pkgconf": "ISC",
     "vcpkg-make": "MIT AND GPL-2.0-or-later",
 }
 

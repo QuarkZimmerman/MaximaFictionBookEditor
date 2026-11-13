@@ -19,6 +19,13 @@ find_package(TIFF REQUIRED)
 find_package(GIF REQUIRED)
 find_package(Stb REQUIRED)
 # Feature 014 (PD2): Poppler finishes the PDF export and reads PDFs; vcpkg ships it for pkg-config.
+# Windows has no pkg-config of its own and the macOS builds take nothing from Homebrew, so vcpkg's
+# own pkgconf (a host tool of vcpkg.json) reads the .pc files on every system. It is installed for
+# the host triplet, which on Windows is not the target one (x64-windows, x64-windows-static).
+if(NOT PKG_CONFIG_EXECUTABLE AND DEFINED VCPKG_INSTALLED_DIR)
+  file(GLOB _mfbe_pkgconf_dirs LIST_DIRECTORIES true "${VCPKG_INSTALLED_DIR}/*/tools/pkgconf")
+  find_program(PKG_CONFIG_EXECUTABLE NAMES pkgconf PATHS ${_mfbe_pkgconf_dirs} NO_DEFAULT_PATH)
+endif()
 find_package(PkgConfig REQUIRED)
 # GLOBAL: the core tests read Poppler's objects too (the PDF export's structure checks).
 pkg_check_modules(POPPLER REQUIRED IMPORTED_TARGET GLOBAL poppler)
