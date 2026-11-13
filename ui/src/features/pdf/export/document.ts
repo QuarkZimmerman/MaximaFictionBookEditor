@@ -26,6 +26,8 @@ export interface PrintFrame {
   leftOut: string[];
   /** The font names of the book's stylesheets that were replaced (D7), for the summary. */
   replacedFonts: string[];
+  /** D18: links to ids the book does not have, written as text, for the summary. */
+  linksAsText: string[];
   dispose(): void;
 }
 
@@ -107,6 +109,38 @@ function addRoles(root: Element): void {
   walk(root, 0, false);
 }
 
+/**
+ * D18: the book's links as the engine's print makes PDF links of them - HTML anchors (Preview's
+ * links are FB2 elements that only name their target). A link inside the book goes to its target's
+ * id (a named destination of the file); a link to an id the book does not have keeps its text and is
+ * listed; a link outside the book keeps its address as written. Returns the links written as text.
+ */
+function makeLinks(doc: globalThis.Document, root: Element): string[] {
+  const ids = new Set([...root.querySelectorAll('[id]')].map((e) => e.getAttribute('id') ?? ''));
+  const asText: string[] = [];
+  for (const link of [...root.getElementsByTagNameNS(FB2_NS, 'a')]) {
+    const href = link.getAttribute('data-href') ?? '';
+    if (href.startsWith('#') && !ids.has(href.slice(1))) {
+      asText.push(href);
+      link.replaceWith(...link.childNodes);
+      continue;
+    }
+    if (!href) {
+      link.replaceWith(...link.childNodes);
+      continue;
+    }
+    const anchor = doc.createElementNS(XHTML_NS, 'a') as HTMLAnchorElement;
+    anchor.setAttribute('href', href);
+    for (const name of ['data-note', 'title']) {
+      const value = link.getAttribute(name);
+      if (value !== null) anchor.setAttribute(name, value);
+    }
+    anchor.append(...link.childNodes);
+    link.replaceWith(anchor);
+  }
+  return asText;
+}
+
 export async function createPrintFrame(
   book: Document,
   docId: string,
@@ -176,8 +210,18 @@ export async function createPrintFrame(
       else image.append(box);
     }
     addRoles(root);
+    const linksAsText = makeLinks(doc, root);
     await doc.fonts.ready;
-    return { doc, root, flow, css, leftOut, replacedFonts: [...replaced], dispose };
+    return {
+      doc,
+      root,
+      flow,
+      css,
+      leftOut,
+      replacedFonts: [...replaced],
+      linksAsText,
+      dispose,
+    };
   } catch (error) {
     dispose();
     throw error;

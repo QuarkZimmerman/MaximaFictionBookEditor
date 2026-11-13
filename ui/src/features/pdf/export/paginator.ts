@@ -59,6 +59,8 @@ export interface Paginated {
   leftOut: string[];
   /** The book's font names replaced by D7's families, for the summary. */
   replacedFonts: string[];
+  /** D18: links to ids the book does not have, written as text. */
+  linksAsText: string[];
   /** D23 / FR-042: what the status line counts. */
   counts: { pictures: number; tables: number; notes: number };
   /** R10: the editor's hints (mfbe:fb2Hints, JSON). */
@@ -459,6 +461,7 @@ export async function paginate(
       parts,
       leftOut: frame.leftOut,
       replacedFonts: frame.replacedFonts,
+      linksAsText: frame.linksAsText,
       counts: {
         pictures: new Set(pictures.map((picture) => picture.binaryId)).size,
         tables: root.getElementsByTagNameNS(XHTML_NS, 'table').length,

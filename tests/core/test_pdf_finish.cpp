@@ -266,3 +266,25 @@ TEST_CASE("pdf check: the bidirectional marks Poppler adds to right-to-left text
                           "b\xE2\x81\xA9\xE2\x80\x8F"
                           "c\xD8\x9C") == "abc");
 }
+
+TEST_CASE("pdf finish: the engine's link annotations carry the Print flag (PDF/A)", "[pdf]") {
+    const std::vector<char> finished = pdf::finish(sample(), a5("Ссылки"));
+    std::string error;
+    auto doc = pdf::Document::open_bytes(finished, &error);
+    REQUIRE(doc);
+    PDFDoc& d = *doc->impl().doc;
+    int links = 0;
+    for (int n = 1; n <= d.getNumPages(); ++n) {
+        const Object page = d.getXRef()->fetch(*d.getCatalog()->getPageRef(n));
+        const Object annots = page.dictLookup("Annots");
+        if (!annots.isArray())
+            continue;
+        for (int i = 0; i < annots.arrayGetLength(); ++i) {
+            const Object annot = annots.arrayGet(i);
+            CHECK(annot.dictLookup("F").isInt());
+            CHECK(annot.dictLookup("F").getInt() == 4);
+            ++links;
+        }
+    }
+    CHECK(links == 3);
+}

@@ -122,6 +122,7 @@ export async function exportPdf(ctx: CommandContext, docId: string, run: PdfRun)
         (detail) => ctx.t('pdf.summary.pictureLeftOut', { detail }),
       ),
       ...paged.replacedFonts.map((detail) => ctx.t('pdf.summary.fontReplaced', { detail })),
+      ...paged.linksAsText.map((detail) => ctx.t('pdf.summary.linkAsText', { detail })),
       ...(finished.uncovered
         ? [ctx.t('pdf.summary.systemFont', { detail: [...finished.uncovered].join(' ') })]
         : []),

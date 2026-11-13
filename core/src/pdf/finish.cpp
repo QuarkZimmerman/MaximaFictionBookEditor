@@ -7,6 +7,7 @@
 #include "pdf/xmp.hpp"
 
 #include <Array.h>
+#include <Catalog.h>
 #include <Dict.h>
 #include <Object.h>
 #include <Page.h>
@@ -148,6 +149,31 @@ void mend_ligatures(PDFDoc& doc) {
     }
 }
 
+// Sets the Print flag (F 4) on every annotation of every page, as PDF/A asks (ISO 19005-2, 6.3.2).
+void print_annotations(PDFDoc& doc) {
+    XRef* xref = doc.getXRef();
+    for (int n = 1; n <= doc.getNumPages(); ++n) {
+        const Ref* ref = doc.getCatalog()->getPageRef(n);
+        if (ref == nullptr)
+            continue;
+        const Object page = xref->fetch(*ref);
+        const Object& annots = page.dictLookupNF("Annots");
+        const Object list = annots.isRef() ? xref->fetch(annots.getRef()) : annots.copy();
+        if (!list.isArray())
+            continue;
+        for (int i = 0; i < list.arrayGetLength(); ++i) {
+            const Object& entry = list.arrayGetNF(i);
+            if (!entry.isRef())
+                continue;
+            Object annot = xref->fetch(entry.getRef());
+            if (!annot.isDict())
+                continue;
+            annot.dictSet("F", Object(4));
+            xref->setModifiedObject(&annot, entry.getRef());
+        }
+    }
+}
+
 // A random UUID (version 4), for this export's xmpMM:InstanceID.
 std::string random_uuid() {
     std::random_device rd;
@@ -194,6 +220,8 @@ std::vector<char> finish(std::vector<char> printed, const FinishInput& input,
         report->pictures_left_out = drawn.left_out;
     // R3 step 3: ligatures read as their letters (D5).
     mend_ligatures(doc);
+    // D18, PDF/A-2 6.3.2: every annotation (the engine's links) printed and shown.
+    print_annotations(doc);
 
     const Stamp stamp = now();
     // R3 step 5: the output intent, an sRGB profile made by Little CMS.
