@@ -5,12 +5,13 @@
  * to after the text; a reference to a missing note kept as text and listed; and the structure the
  * engine tagged (D20): headings, paragraphs, figures with their text, tables and links.
  */
+import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { expect, fixtureBook, test } from './fixtures/core';
-import { exportPdfTo, openFixtureBook } from './fixtures/pdfExport';
+import { expectedText, exportPdfTo, openFixtureBook } from './fixtures/pdfExport';
 import { startPrintSeam } from './fixtures/printSeam';
 import { scratchDir } from './fixtures/scratch';
 
@@ -178,6 +179,62 @@ test.describe('US3: bookmarks, links and notes (feature 014)', () => {
       } finally {
         await close();
       }
+    } finally {
+      await seam.stop();
+    }
+  });
+
+  test('a note longer than the room at its page foot continues at the next one (D19)', async ({
+    core,
+    page,
+    context,
+  }) => {
+    test.skip(!core.hasCore, 'needs the core');
+    test.setTimeout(600_000);
+    await core.openApp(page);
+    const seam = startPrintSeam(core, context);
+    try {
+      const sentence = 'This long note goes on at the foot of the next page. ';
+      const book = path.join(scratchDir('pdf-us3-long-'), 'long-note.fb2');
+      writeFileSync(
+        book,
+        readFileSync(fixtureBook('reference-all-elements.fb2'), 'utf8').replace(
+          '<section id="n2">',
+          `<section id="n2"><p>The start of the long note. ${sentence.repeat(60)}The end of the long note.</p>`,
+        ),
+        'utf8',
+      );
+      await openFixtureBook(core, page, book);
+      const expected = path.join(OUT, 'navigation-long-note-a6.expected.json');
+      writeFileSync(expected, JSON.stringify(await expectedText(page, book)));
+      const target = path.join(OUT, 'navigation-long-note-a6.pdf');
+      await exportPdfTo(core, page, target, 'A6 (105 × 148 mm)');
+      const { pdf, close } = await open(target);
+      try {
+        const texts: string[] = [];
+        for (let n = 1; n <= pdf.numPages; n++) {
+          const items = (
+            await (await pdf.getPage(n)).getTextContent({ disableNormalization: true })
+          ).items;
+          texts.push(items.map((item) => item.str ?? '').join(' '));
+        }
+        const first = texts.findIndex((t) => t.includes('The start of the long note.'));
+        const last = texts.findIndex((t) => t.includes('The end of the long note.'));
+        expect(first).toBeGreaterThanOrEqual(0);
+        // Its start at the foot of the page that refers to it, its end at a later page's foot.
+        expect(last).toBeGreaterThan(first);
+      } finally {
+        await close();
+      }
+      // The whole text reads back, the long note's parts joined across the pages.
+      const compare = spawnSync(
+        'node',
+        [path.join(ROOT, 'tests', 'pdf', 'text-compare.mjs'), target, expected],
+        {
+          encoding: 'utf8',
+        },
+      );
+      expect(compare.stdout + compare.stderr).toContain('in order, words whole');
     } finally {
       await seam.stop();
     }

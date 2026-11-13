@@ -121,4 +121,10 @@ describe('planPages with a repeated header (tables)', () => {
       [{ block: 0, fromLine: 18, toLine: 25 }],
     ]);
   });
+
+  it('takes a long note at half the page at most: its paragraph still starts there (D19)', () => {
+    // A note taller than the page continues at the next page's foot (the paginator cuts it).
+    const pages = planPages([paragraph(3, { foot: 400 }), paragraph(3)], 100, 10);
+    expect(pages[0][0]).toEqual({ block: 0, fromLine: 0, toLine: 3 });
+  });
 });

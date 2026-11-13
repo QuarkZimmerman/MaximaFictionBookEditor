@@ -27,7 +27,7 @@ import { layoutFor, type PrintLayout } from './layout';
 import { PX_TO_PT, type PageMap, type PageMapBookmark, type PageMapPicture } from './pageMap';
 import { footnoteElement, isNotesBody, noteRefs, noteSections, referenceId } from './footnotes';
 import { buildHints } from './hints';
-import { planPage, type PlanBlock, type PlanCursor, type PlannedPage } from './plan';
+import { FOOT_SHARE, planPage, type PlanBlock, type PlanCursor, type PlannedPage } from './plan';
 import { pdfWords, wordsLanguage } from './words';
 
 export const PAGES_PER_PART = 1000;
@@ -523,13 +523,19 @@ export async function paginate(
       area: HTMLElement;
       foot: HTMLElement;
     }
+    // D19: the part of a long note that did not fit at the foot of the page before, first at the
+    // foot of this one; `carryNext` is the part this page passes on.
+    let carriedNote: Element | null = null;
+    let carryNext: Element | null = null;
     const compose = (pieces: PlannedPage): Composed => {
+      carryNext = null;
       const { page, content } = newPage();
       // The text above, the page's footnotes at the foot under their rule (D19).
       const area = doc.createElementNS(XHTML_NS, 'div') as HTMLElement;
       area.className = 'mfbe-area';
       const foot = doc.createElementNS(XHTML_NS, 'div') as HTMLElement;
       foot.className = 'mfbe-notes';
+      if (carriedNote) foot.append(carriedNote.cloneNode(true));
       content.append(area);
       const open: { original: Element; clone: Element }[] = [];
       for (const piece of pieces) {
@@ -577,6 +583,42 @@ export async function paginate(
       if (foot.childElementCount > 0) content.append(foot);
       return { page, area, foot };
     };
+    // D19: when the foot takes more than its share and does not fit, its last note is cut after its
+    // last whole line there, and the rest goes to the foot of the next page (without the note's id,
+    // which links lead to: the first part keeps it).
+    const cutFoot = ({ page, area, foot }: Composed): boolean => {
+      const note = foot.lastElementChild as HTMLElement | null;
+      if (!note) return false;
+      pagesHost.append(page);
+      try {
+        const footBox = foot.getBoundingClientRect();
+        if (footBox.height <= layout.contentHeight * FOOT_SHARE) return false;
+        const noteTop = note.getBoundingClientRect().top;
+        const room = layout.contentHeight - area.scrollHeight - (noteTop - footBox.top);
+        const range = doc.createRange();
+        range.selectNodeContents(note);
+        const tops: number[] = [];
+        for (const r of range.getClientRects()) {
+          if (r.width === 0 && r.height === 0) continue;
+          const top = r.top - noteTop;
+          if (!tops.some((t) => Math.abs(t - top) < 1)) tops.push(top);
+        }
+        tops.sort((a, b) => a - b);
+        let keep = 0;
+        while (keep + 1 < tops.length && tops[keep + 1] <= room) keep++;
+        if (keep < 1) return false;
+        const offset = lineStart({ element: note, tops } as unknown as Block, keep);
+        const rest = cloneText(note, offset, Number.MAX_SAFE_INTEGER);
+        rest.removeAttribute('id');
+        for (const marked of rest.querySelectorAll('[id]')) marked.removeAttribute('id');
+        rest.classList.add('mfbe-continued');
+        note.replaceWith(cloneText(note, 0, offset));
+        carryNext = rest;
+        return true;
+      } finally {
+        page.remove();
+      }
+    };
     const overflows = ({ page, area, foot }: Composed): boolean => {
       pagesHost.append(page);
       const footHeight = foot.isConnected ? foot.getBoundingClientRect().height : 0;
@@ -598,6 +640,7 @@ export async function paginate(
       }
       let composed = compose(pieces);
       while (overflows(composed)) {
+        if (cutFoot(composed) && !overflows(composed)) break;
         if (pieces.length > 1) {
           const carried = pieces.pop()!;
           next = { block: carried.block, fromLine: carried.fromLine };
@@ -634,8 +677,19 @@ export async function paginate(
         stack.push({ depth: block.depth, mark });
       }
       finishPage(page, true);
+      carriedNote = carryNext;
       cursor = next;
       await breath(blocks.length + (cursor?.block ?? blocks.length), blocks.length * 2);
+    }
+    // D19: the rest of a long note at the end of the text, on pages of their own.
+    while (carriedNote) {
+      const composed = compose([]);
+      if (overflows(composed)) cutFoot(composed);
+      if (serialised.length + 1 > limits.pages) {
+        throw new PdfLimitError('pages', serialised.length + 1, limits.pages);
+      }
+      finishPage(composed.page, true);
+      carriedNote = carryNext;
     }
 
     const pageMap: PageMap = {

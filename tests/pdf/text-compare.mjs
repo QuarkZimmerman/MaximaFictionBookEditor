@@ -160,8 +160,44 @@ export function compareText(pageTexts, expected) {
     const needle = squeeze(block.text);
     if (!needle) continue;
     const at = findFree(needle, 0);
-    if (at < 0) missing.push(block.text);
-    else cover(at, needle.length);
+    if (at >= 0) {
+      cover(at, needle.length);
+      continue;
+    }
+    // D19: a long note continues at the foot of the next page - its parts, each on a page and the
+    // next anywhere on the page after it (at that page's foot).
+    const parts = [];
+    let rest = needle;
+    let pos = 0;
+    while (rest) {
+      const end = pageAfter(pos) < 0 || parts.length === 0 ? all.length : pageAfter(pos);
+      const whole = findFree(rest, pos);
+      if (whole >= 0 && whole < end) {
+        parts.push([whole, rest.length]);
+        rest = "";
+        break;
+      }
+      let lo = 16;
+      let hi = rest.length - 1;
+      let best = -1;
+      let bestAt = -1;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        const found = findFree(rest.slice(0, mid), pos);
+        if (found >= 0 && found < end) {
+          best = mid;
+          bestAt = found;
+          lo = mid + 1;
+        } else hi = mid - 1;
+      }
+      const next = best < 0 ? -1 : pageAfter(bestAt + best - 1);
+      if (best < 0 || next < 0) break;
+      parts.push([bestAt, best]);
+      rest = rest.slice(best);
+      pos = next;
+    }
+    if (rest) missing.push(block.text);
+    else for (const [start, length] of parts) cover(start, length);
   }
   const allowed = new Set((expected.addedWords ?? []).map(squeeze));
   const extra = [];

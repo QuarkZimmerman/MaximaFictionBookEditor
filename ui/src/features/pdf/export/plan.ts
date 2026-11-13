@@ -65,6 +65,9 @@ export interface PlanCursor {
   fromLine: number;
 }
 
+/** D19: the share of a page its text's footnotes may take; a longer note continues on the next. */
+export const FOOT_SHARE = 0.5;
+
 /**
  * One page from `start`, and where the next page starts (null after the last block). The paginator
  * plans a page, composes and measures it, and plans the next from where that page really ended, so
@@ -81,9 +84,11 @@ export function planPage(
   let used = 0;
   let footUsed = 0;
   const room = (): number => pageHeight - used - (footUsed > 0 ? footUsed + footGap : 0);
-  // The room a block's own footnotes take when its first lines go on the current page.
+  // The room a block's own footnotes take when its first lines go on the current page: at most
+  // FOOT_SHARE of the page - a longer note continues at the foot of the next page (D19).
+  const footOf = (block: PlanBlock): number => Math.min(block.foot ?? 0, pageHeight * FOOT_SHARE);
   const footFor = (block: PlanBlock, from: number): number =>
-    from === 0 && (block.foot ?? 0) > 0 ? (block.foot ?? 0) + (footUsed > 0 ? 0 : footGap) : 0;
+    from === 0 && footOf(block) > 0 ? footOf(block) + (footUsed > 0 ? 0 : footGap) : 0;
   const stop = (block: number, fromLine: number) => ({ page, next: { block, fromLine } });
 
   for (let index = start.block; index < blocks.length; index++) {
@@ -108,7 +113,7 @@ export function planPage(
       if (needed + foot <= room()) {
         page.push({ block: index, fromLine: from, toLine: lines.length });
         used += space + rest;
-        if (from === 0) footUsed += block.foot ?? 0;
+        if (from === 0) footUsed += footOf(block);
         break;
       }
       if (block.keepWithNext && from === 0 && page.length > 0 && space + rest <= pageHeight) {
