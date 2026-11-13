@@ -39,6 +39,74 @@ export function pictureBox(
   return { width: meta.width * scale, height: meta.height * scale };
 }
 
+// A white pixel the picture boxes show to the browser engine: its print then tags the box as a
+// Figure with the picture's alternative text (an empty box gets no tag), and the core draws the
+// real picture over it.
+const PLACEHOLDER =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mP4//8/AAX+Av4zEpUUAAAAAElFTkSuQmCC';
+
+/** A picture box (R4): its size, its binary, and its alternative text for the structure (D20). */
+export function pictureElement(
+  doc: globalThis.Document,
+  binaryId: string,
+  alt: string,
+  size: { width: number; height: number },
+): HTMLElement {
+  const box = doc.createElementNS(XHTML_NS, 'div') as HTMLElement;
+  box.className = 'mfbe-picture';
+  box.setAttribute('data-binary-id', binaryId);
+  box.setAttribute('data-alt', alt);
+  box.style.width = `${size.width}px`;
+  box.style.height = `${size.height}px`;
+  const img = doc.createElementNS(XHTML_NS, 'img') as HTMLImageElement;
+  img.src = PLACEHOLDER;
+  img.alt = alt;
+  img.style.cssText = 'display:block;width:100%;height:100%';
+  box.append(img);
+  return box;
+}
+
+/**
+ * D20: the structure the browser engine tags. It tags the book's FB2 elements as plain text only, so
+ * they get the ARIA roles it maps to PDF tags: titles become headings (H1 for a body's title, one
+ * level deeper per section, H6 at most), paragraphs and verses paragraphs, and emphasis, strong and
+ * code text the like. Tables are HTML already. Probed on Playwright's Chromium (m156): with these
+ * roles its tagged print gives H1-H6, P, Em, Strong, Code, Figure with Alt, and Table, TR, TH, TD.
+ */
+function addRoles(root: Element): void {
+  const fb2 = (element: Element | null, name: string): boolean =>
+    element?.namespaceURI === FB2_NS && element.localName === name;
+  const INLINE: Readonly<Record<string, string>> = {
+    emphasis: 'emphasis',
+    strong: 'strong',
+    code: 'code',
+    sub: 'subscript',
+    sup: 'superscript',
+  };
+  const PARAGRAPHS = new Set(['p', 'v', 'subtitle', 'text-author', 'date']);
+  const walk = (element: Element, depth: number, inTitle: boolean): void => {
+    for (const child of element.children) {
+      if (child.namespaceURI !== FB2_NS) continue;
+      const name = child.localName;
+      if (name === 'title') {
+        // A body's title is H1, a section's one level below its section's depth, and a poem's or a
+        // stanza's one level below the section it stands in.
+        const level = fb2(element, 'body')
+          ? 1
+          : Math.min(6, fb2(element, 'section') ? depth + 1 : depth + 2);
+        child.setAttribute('role', 'heading');
+        child.setAttribute('aria-level', String(level));
+        walk(child, depth, true);
+        continue;
+      }
+      if (!inTitle && PARAGRAPHS.has(name)) child.setAttribute('role', 'paragraph');
+      else if (INLINE[name]) child.setAttribute('role', INLINE[name]);
+      walk(child, name === 'section' ? depth + 1 : depth, inTitle);
+    }
+  };
+  walk(root, 0, false);
+}
+
 export async function createPrintFrame(
   book: Document,
   docId: string,
@@ -103,16 +171,11 @@ export async function createPrintFrame(
         image.remove();
         continue;
       }
-      const box = doc.createElementNS(XHTML_NS, 'div') as HTMLElement;
-      box.className = 'mfbe-picture';
-      box.setAttribute('data-binary-id', id);
-      box.setAttribute('role', 'img');
-      box.setAttribute('aria-label', img?.alt ?? '');
-      box.style.width = `${size.width}px`;
-      box.style.height = `${size.height}px`;
+      const box = pictureElement(doc, id, img?.alt ?? '', size);
       if (img) img.replaceWith(box);
       else image.append(box);
     }
+    addRoles(root);
     await doc.fonts.ready;
     return { doc, root, flow, css, leftOut, replacedFonts: [...replaced], dispose };
   } catch (error) {

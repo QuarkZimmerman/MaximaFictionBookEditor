@@ -65,6 +65,22 @@ std::string comparable(const std::string& text) {
         const unsigned char c = static_cast<unsigned char>(text[i]);
         if (std::isspace(c))
             continue;
+        // Bidirectional formatting marks, which Poppler wraps around right-to-left text (U+200E,
+        // U+200F, U+202A to U+202E, U+2066 to U+2069) and the Arabic letter mark (U+061C), are
+        // not text of the page.
+        if (c == 0xE2 && i + 2 < text.size()) {
+            const unsigned char b1 = static_cast<unsigned char>(text[i + 1]);
+            const unsigned char b2 = static_cast<unsigned char>(text[i + 2]);
+            if ((b1 == 0x80 && (b2 == 0x8E || b2 == 0x8F || (b2 >= 0xAA && b2 <= 0xAE))) ||
+                (b1 == 0x81 && b2 >= 0xA6 && b2 <= 0xA9)) {
+                i += 2;
+                continue;
+            }
+        }
+        if (c == 0xD8 && i + 1 < text.size() && static_cast<unsigned char>(text[i + 1]) == 0x9C) {
+            ++i;
+            continue;
+        }
         // No-break spaces (U+00A0) and the soft hyphen (U+00AD) count as whitespace too.
         if (c == 0xC2 && i + 1 < text.size() &&
             (static_cast<unsigned char>(text[i + 1]) == 0xA0 ||

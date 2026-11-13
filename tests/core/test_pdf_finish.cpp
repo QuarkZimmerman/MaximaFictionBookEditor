@@ -253,3 +253,14 @@ TEST_CASE("pdf finish: a PDF 1.7 file whose links all lead somewhere", "[pdf]") 
     REQUIRE(faults.size() == 1);
     CHECK(faults[0] == "page 1: a link leads nowhere (n1)");
 }
+
+TEST_CASE("pdf check: the bidirectional marks Poppler adds to right-to-left text are not text",
+          "[pdf]") {
+    CHECK(pdf::comparable("\xE2\x80\xAB\xD7\xA9\xD7\x9C\xD7\x95\xD7\x9D\xE2\x80\xAC \xE2\x80\xAA"
+                          "4\xE2\x80\xAC") ==
+          "\xD7\xA9\xD7\x9C\xD7\x95\xD7\x9D"
+          "4");
+    CHECK(pdf::comparable("a\xE2\x81\xA6"
+                          "b\xE2\x81\xA9\xE2\x80\x8F"
+                          "c\xD8\x9C") == "abc");
+}

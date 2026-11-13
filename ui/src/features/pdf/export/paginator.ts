@@ -22,7 +22,7 @@ import type { Document } from '@/model/document';
 import type { Settings } from '@/rpc/types';
 
 import type { PdfPageSize } from '../pageSizes';
-import { createPrintFrame, pictureBox } from './document';
+import { createPrintFrame, pictureBox, pictureElement } from './document';
 import { layoutFor, type PrintLayout } from './layout';
 import { PX_TO_PT, type PageMap, type PageMapBookmark, type PageMapPicture } from './pageMap';
 import { planPages, type PlanBlock } from './plan';
@@ -293,7 +293,7 @@ export async function paginate(
           width: r.width * PX_TO_PT,
           height: r.height * PX_TO_PT,
           binaryId: box.getAttribute('data-binary-id') ?? '',
-          alt: box.getAttribute('aria-label') ?? '',
+          alt: box.getAttribute('data-alt') ?? '',
         });
       }
       text.push(page.querySelector('.mfbe-content')?.textContent ?? '');
@@ -319,14 +319,11 @@ export async function paginate(
         layout.contentWidth / coverMeta.width,
         layout.contentHeight / coverMeta.height,
       );
-      const box = doc.createElementNS(XHTML_NS, 'div') as HTMLElement;
-      box.className = 'mfbe-picture';
-      box.setAttribute('data-binary-id', coverMeta.id);
-      box.setAttribute('role', 'img');
       // FR-010: the cover picture's alternative text, in the book's language.
-      box.setAttribute('aria-label', pdfWords(lang).cover);
-      box.style.width = `${coverMeta.width * scale}px`;
-      box.style.height = `${coverMeta.height * scale}px`;
+      const box = pictureElement(doc, coverMeta.id, pdfWords(lang).cover, {
+        width: coverMeta.width * scale,
+        height: coverMeta.height * scale,
+      });
       content.append(box);
       finishPage(page, false);
       cover = coverMeta.id;
