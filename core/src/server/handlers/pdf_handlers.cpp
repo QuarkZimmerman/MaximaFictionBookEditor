@@ -765,6 +765,10 @@ void register_pdf_handlers(rpc::RpcRouter& router, Services& services) {
                 std::vector<char> joined = library([&] {
                     return pdf::join_parts(std::move(printed), [&control](int done, int total) {
                         control.progress("join", done, total);
+                        // SC-010: the joined file is then written in one go - shown as busy, as
+                        // the writing that follows it.
+                        if (done == total)
+                            control.progress("write", 0, 0);
                     });
                 });
                 control.check_cancelled();

@@ -35,22 +35,36 @@ function generate(dir: string, name: string, megabytes: number): string | null {
 }
 
 /** The longest time the progress bar's value stood still while `running` held, in ms. */
-async function longestStill(page: Page, running: () => boolean): Promise<number> {
-  const bar = page.getByTestId('modal-job-progress');
+async function longestStill(
+  page: Page,
+  running: () => boolean,
+): Promise<{ longest: number; at: string }> {
   let last = '';
   let since = Date.now();
   let longest = 0;
+  let at = '';
   while (running()) {
+    // Read without waiting: a locator would wait for the bar once the window has closed.
+    const value = await page
+      .evaluate(
+        `document.querySelector('[data-testid="modal-job-progress"]')?.getAttribute('value') ?? null`,
+      )
+      .catch(() => null);
     // A bar without a value is indeterminate (the core's writing step): it moves by itself.
-    const value = await bar.getAttribute('value').catch(() => null);
     if (value === null || value !== last) {
-      last = value ?? '';
+      last = (value as string | null) ?? '';
       since = Date.now();
     }
-    longest = Math.max(longest, Date.now() - since);
+    if (Date.now() - since > longest) {
+      longest = Date.now() - since;
+      // Where it stood: the bar's value and the window's text (the step).
+      at = `${last} ${await page
+        .evaluate(`document.querySelector('[data-testid="modal-job"]')?.textContent ?? ''`)
+        .catch(() => '')}`;
+    }
     await page.waitForTimeout(100);
   }
-  return longest;
+  return { longest, at };
 }
 
 function checkMemory(core: CoreHandle, what: string): void {
@@ -122,11 +136,10 @@ test.describe('performance - the PDF export (SC-010)', () => {
         );
         const elapsed = Date.now() - started;
         running = false;
-        const longest = await still;
-        test.info().annotations.push({
-          type: 'perf',
-          description: `10 MB in A6: ${elapsed} ms; the progress stood still ${longest} ms at most`,
-        });
+        const { longest, at } = await still;
+        const measured = `10 MB in A6: ${elapsed} ms; the progress stood still ${longest} ms at most (at ${at})`;
+        console.log(measured);
+        test.info().annotations.push({ type: 'perf', description: measured });
         expect(elapsed).toBeLessThan(300_000 * FACTOR);
         expect(longest).toBeLessThanOrEqual(1_000 * FACTOR);
         checkMemory(core, '10 MB');
