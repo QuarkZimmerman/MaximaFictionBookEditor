@@ -119,7 +119,9 @@ INCOMPATIBLE = {"GPL-1.0-only", "GPL-2.0-only", "GPL-2.0", "MPL-1.0", "MPL-1.1",
 # their notice - every ALLOWED licence plus the ones below (Constitution VI, D16). Licences
 # forbidding redistribution or commercial use (CC BY-NC-*, "no redistribution") are not here
 # and fail like any other licence outside the lists.
-AGGREGATE_ALLOWED = {"MPL-1.1", "OFL-1.1"}
+# Bitstream-Vera (feature 014): DejaVu Sans Mono's licence (the Bitstream Vera terms, with the Arev
+# terms for DejaVu's additions); it allows redistribution with its notice, not sale of the fonts alone.
+AGGREGATE_ALLOWED = {"MPL-1.1", "OFL-1.1", "Bitstream-Vera"}
 
 # The project's own licence (Constitution VI) and the SHA-256 of the FSF text of the GNU GPL
 # version 3 (https://www.gnu.org/licenses/gpl-3.0.txt) that LICENSE must hold.
@@ -138,6 +140,7 @@ BUILD_ONLY_PORTS = {
         "macOS the port installs no library (the C runtime's iconv satisfies it); on Windows it "
         "builds a static library that nothing in the editor links"
     ),
+    "boost-uninstall": "vcpkg build helper of the Boost ports (feature 014: Poppler's boost-container)",
     "vcpkg-cmake": "vcpkg build helper",
     "vcpkg-cmake-config": "vcpkg build helper",
     "vcpkg-cmake-get-vars": "vcpkg build helper",
@@ -764,7 +767,33 @@ def collect_data(problems: list[str]) -> list[Component]:
         ca_bundle.text_paths.append(mpl_text)
     else:
         ca_bundle.problems.append("resources/certs/MPL-2.0.txt (the licence text) missing")
-    components = [schema, en_us, ru_ru, uk_ua, fbe, ca_bundle]
+    # The PDF export's fonts (feature 014, plan DP-1): read at run time by the export and embedded,
+    # as subsets, in the files it writes; never combined into the program. Their sources and
+    # SHA-256 sums are pinned in tools/fonts/fetch-fonts.py.
+    fonts = REPO / "resources" / "fonts"
+    noto_commit = read_commit(REPO / "tools" / "fonts" / "fetch-fonts.py",
+                              r"notofonts\.github\.io/'\s*'?([0-9a-f]{40})")
+    noto = component(
+        "Noto fonts (Noto Serif, Noto Sans, and their Georgian and Armenian families), static instances",
+        f"notofonts.github.io commit {noto_commit}",
+        "OFL-1.1",
+        fonts / "OFL.txt",
+        "read at run time by the PDF export and embedded as subsets in the PDF files it writes; not "
+        "combined into the program (aggregate, GPLv3 section 5); installed as "
+        "share/mfbe/resources/fonts/ with OFL.txt",
+        group="aggregate",
+    )
+    dejavu = component(
+        "DejaVu Sans Mono (book, oblique, bold, bold oblique)",
+        "DejaVu fonts 2.37",
+        "Bitstream-Vera",
+        fonts / "DejaVu-LICENSE.txt",
+        "read at run time by the PDF export for code and embedded as subsets in its files; not combined "
+        "into the program (aggregate); the notice holds the Bitstream Vera and Arev terms and DejaVu's "
+        "public-domain changes; installed as share/mfbe/resources/fonts/DejaVu-LICENSE.txt",
+        group="aggregate",
+    )
+    components = [schema, en_us, ru_ru, uk_ua, fbe, ca_bundle, noto, dejavu]
 
     # Every README row with a licence must be covered by one of the components above (substring
     # match on the licence cell - keep the keys distinct: "MPL-2.0" is the CA bundle, "MPL-1.1"
@@ -772,6 +801,7 @@ def collect_data(problems: list[str]) -> list[Component]:
     covered = {
         "BSD 2-clause": schema, "SCOWL": en_us, "BSD-style": ru_ru, "MPL-1.1": uk_ua,
         "MPL-2.0": ca_bundle, "GPL-3.0-only (original editor)": fbe, "project licence": fbe,
+        "OFL-1.1": noto, "Bitstream-Vera": dejavu,
     }
     for path_cell, licence_cell in rows:
         if licence_cell in ("-", ""):

@@ -22,12 +22,24 @@ each copyright file) and in the npm registry; they are not repeated here.
 
 | Component | Version | Licence | Full text | Notes |
 |---|---|---|---|---|
+| boost-assert | 1.91.0 | BSL-1.0 | `build/vcpkg_installed/<triplet>/share/boost-assert/copyright` | transitive dependency |
+| boost-cmake | 1.91.0 | BSL-1.0 | `build/vcpkg_installed/<triplet>/share/boost-cmake/copyright` | transitive dependency |
+| boost-config | 1.91.0 | BSL-1.0 | `build/vcpkg_installed/<triplet>/share/boost-config/copyright` | transitive dependency |
+| boost-container | 1.91.0 | BSL-1.0 | `build/vcpkg_installed/<triplet>/share/boost-container/copyright` | transitive dependency |
+| boost-core | 1.91.0 | BSL-1.0 | `build/vcpkg_installed/<triplet>/share/boost-core/copyright` | transitive dependency |
+| boost-headers | 1.91.0 | BSL-1.0 | `build/vcpkg_installed/<triplet>/share/boost-headers/copyright` | transitive dependency |
+| boost-intrusive | 1.91.0 | BSL-1.0 | `build/vcpkg_installed/<triplet>/share/boost-intrusive/copyright` | transitive dependency |
+| boost-move | 1.91.0 | BSL-1.0 | `build/vcpkg_installed/<triplet>/share/boost-move/copyright` | transitive dependency |
+| boost-throw-exception | 1.91.0 | BSL-1.0 | `build/vcpkg_installed/<triplet>/share/boost-throw-exception/copyright` | transitive dependency |
+| brotli | 1.2.0 | MIT | `build/vcpkg_installed/<triplet>/share/brotli/copyright` | transitive dependency |
 | bzip2 | 1.0.8 | bzip2-1.0.6 | `build/vcpkg_installed/<triplet>/share/bzip2/copyright` | transitive dependency |
 | cli11 | 2.6.2 | BSD-3-Clause | `build/vcpkg_installed/<triplet>/share/cli11/copyright` |  |
 | curl | 8.21.0 | BSD-3-Clause AND ISC AND curl | `build/vcpkg_installed/<triplet>/share/curl/copyright` |  |
 | fmt | 12.2.0 | MIT | `build/vcpkg_installed/<triplet>/share/fmt/copyright` | transitive dependency |
+| freetype | 2.14.3 | GPL-2.0-or-later | `build/vcpkg_installed/<triplet>/share/freetype/copyright` | dual licence (GPL-2.0-or-later chosen; alternative: FTL); transitive dependency |
 | giflib | 6.1.3 | MIT | `build/vcpkg_installed/<triplet>/share/giflib/copyright` |  |
 | hunspell | 1.7.3 | LGPL-2.1-or-later | `build/vcpkg_installed/<triplet>/share/hunspell/copyright` | MPL-1.1/GPL-2.0-or-later/LGPL-2.1-or-later tri-licence (LGPL-2.1-or-later used; MPL-1.1 alone is not compatible with GPL-3.0) |
+| lcms | 2.19.1 | MIT | `build/vcpkg_installed/<triplet>/share/lcms/copyright` | transitive dependency |
 | libarchive | 3.8.7 | BSD-2-Clause | `build/vcpkg_installed/<triplet>/share/libarchive/copyright` |  |
 | libjpeg-turbo | 3.2.0 | BSD-3-Clause AND IJG | `build/vcpkg_installed/<triplet>/share/libjpeg-turbo/copyright` |  |
 | liblzma | 5.8.3 | LGPL-2.1-or-later | `build/vcpkg_installed/<triplet>/share/liblzma/copyright` | transitive dependency |
@@ -35,14 +47,18 @@ each copyright file) and in the npm registry; they are not repeated here.
 | libwebp | 1.6.0 | BSD-3-Clause | `build/vcpkg_installed/<triplet>/share/libwebp/copyright` |  |
 | libxml2 | 2.15.3 | MIT | `build/vcpkg_installed/<triplet>/share/libxml2/copyright` |  |
 | nlohmann-json | 3.12.0 | MIT | `build/vcpkg_installed/<triplet>/share/nlohmann-json/copyright` |  |
+| openjpeg | 2.5.4 | BSD-2-Clause | `build/vcpkg_installed/<triplet>/share/openjpeg/copyright` | transitive dependency |
 | openssl | 3.6.3 | Apache-2.0 | `build/vcpkg_installed/<triplet>/share/openssl/copyright` | transitive dependency |
 | platform-folders | 4.3.0 | MIT | `build/vcpkg_installed/<triplet>/share/platform-folders/copyright` |  |
+| poppler | 26.4.0 | GPL-2.0-or-later | `build/vcpkg_installed/<triplet>/share/poppler/copyright` | copyleft: used under GPL-3.0 |
 | spdlog | 1.17.0 | MIT | `build/vcpkg_installed/<triplet>/share/spdlog/copyright` |  |
 | stb | 2024-07-29 | MIT | `build/vcpkg_installed/<triplet>/share/stb/copyright` | dual licence (MIT chosen; alternative: CC-PDDC) |
 | stduuid | 1.2.3 | MIT | `build/vcpkg_installed/<triplet>/share/stduuid/copyright` |  |
 | tiff | 4.7.2 | libtiff | `build/vcpkg_installed/<triplet>/share/tiff/copyright` |  |
 | usockets | 0.8.8 | Apache-2.0 | `build/vcpkg_installed/<triplet>/share/usockets/copyright` | transitive dependency |
 | uwebsockets | 20.79.0 | Apache-2.0 AND MIT | `build/vcpkg_installed/<triplet>/share/uwebsockets/copyright` |  |
+| vcpkg-boost | 2025-03-29 | MIT | `build/vcpkg_installed/<triplet>/share/vcpkg-boost/copyright` | transitive dependency |
+| vcpkg-tool-meson | 1.9.0 | Apache-2.0 | `build/vcpkg_installed/<triplet>/share/vcpkg-tool-meson/copyright` | transitive dependency |
 | zlib | 1.3.2 | Zlib | `build/vcpkg_installed/<triplet>/share/zlib/copyright` |  |
 | zstd | 1.5.7 | BSD-3-Clause | `build/vcpkg_installed/<triplet>/share/zstd/copyright` | dual licence (BSD-3-Clause chosen; alternative: GPL-2.0-only); transitive dependency |
 
@@ -273,8 +289,10 @@ distributed and are therefore not listed.
 | @fontsource/noto-sans-math | 5.3.0 | OFL-1.1 | `ui/public/fonts/OFL-1.1.txt` | font files shipped as separate files of the interface and read at run time by the Markdown import to draw pictures of special characters; not combined into the program (aggregate, GPLv3 section 5; feature 010, PD2); the OFL text ships as ui/public/fonts/OFL-1.1.txt |
 | @fontsource/noto-sans-symbols | 5.3.0 | OFL-1.1 | `ui/public/fonts/OFL-1.1.txt` | font files shipped as separate files of the interface and read at run time by the Markdown import to draw pictures of special characters; not combined into the program (aggregate, GPLv3 section 5; feature 010, PD2); the OFL text ships as ui/public/fonts/OFL-1.1.txt |
 | @fontsource/noto-sans-symbols-2 | 5.3.0 | OFL-1.1 | `ui/public/fonts/OFL-1.1.txt` | font files shipped as separate files of the interface and read at run time by the Markdown import to draw pictures of special characters; not combined into the program (aggregate, GPLv3 section 5; feature 010, PD2); the OFL text ships as ui/public/fonts/OFL-1.1.txt |
+| DejaVu Sans Mono (book, oblique, bold, bold oblique) | DejaVu fonts 2.37 | Bitstream-Vera | `resources/fonts/DejaVu-LICENSE.txt` | read at run time by the PDF export for code and embedded as subsets in its files; not combined into the program (aggregate); the notice holds the Bitstream Vera and Arev terms and DejaVu's public-domain changes; installed as share/mfbe/resources/fonts/DejaVu-LICENSE.txt |
 | Hunspell dictionary uk_UA (dict_uk) | dict_uk release v6.8.6 | MPL-1.1 | `resources/dictionaries/uk_UA.txt` | uk_UA.aff and uk_UA.dic are read at run time by Hunspell and not combined into the program (aggregate, GPLv3 section 5; decision D16); the upstream generator notice also names GPL-3.0-or-later and LGPL-2.1-or-later; notice installed as share/mfbe/resources/dictionaries/uk_UA.txt and shown in About |
 | Mozilla CA certificate bundle (cacert.pem, as published by the curl project) | Mozilla root store as of 2026-10-20; SHA-256 796f1389bfea | MPL-2.0 | `resources/certs/cacert.NOTICE.txt` | cacert.pem is read at run time by libcurl, on Linux only and only when neither the environment nor the distribution provides a CA bundle, and is not combined into the program (aggregate, GPLv3 section 5; decision D16); the Linux packages ship it with its notice as share/mfbe/resources/certs/, Windows and macOS use the system stores and carry nothing of it; the notice is shown in About on Linux; the MPL-2.0 text is resources/certs/MPL-2.0.txt, exported next to the notice |
+| Noto fonts (Noto Serif, Noto Sans, and their Georgian and Armenian families), static instances | notofonts.github.io commit 4cf78353cd16 | OFL-1.1 | `resources/fonts/OFL.txt` | read at run time by the PDF export and embedded as subsets in the PDF files it writes; not combined into the program (aggregate, GPLv3 section 5); installed as share/mfbe/resources/fonts/ with OFL.txt |
 
 Data files the editor's libraries read at run time and that are never combined into the
 program: aggregates in the sense of GPLv3 section 5 (constitution principle VI, decision
@@ -288,6 +306,7 @@ ship with the Linux packages only (resources/certs/, refreshed by tools/refresh-
 
 | Component | Version | Licence | Full text | Notes |
 |---|---|---|---|---|
+| boost-uninstall | 1.91.0 | MIT | (the port installs no copyright file on this platform) | vcpkg build helper of the Boost ports (feature 014: Poppler's boost-container) |
 | catch2 | 3.15.3 | BSL-1.0 | `build/vcpkg_installed/<triplet>/share/catch2/copyright` | test suite only (vcpkg feature "tests") |
 | libiconv | 1.19 | LGPL-2.1-or-later | (the port installs no copyright file on this platform) | pulled in by the hunspell port for its optional command-line tools; the hunspell library itself does not call iconv and the editor links hunspell only. On Linux and macOS the port installs no library (the C runtime's iconv satisfies it); on Windows it builds a static library that nothing in the editor links |
 | vcpkg-cmake | 2024-04-23 | MIT | `build/vcpkg_installed/<triplet>/share/vcpkg-cmake/copyright` | vcpkg build helper |
@@ -299,17 +318,20 @@ ship with the Linux packages only (resources/certs/, refreshed by tools/refresh-
 
 | Licence | Components |
 |---|---|
-| MIT | 136 |
+| MIT | 139 |
 | ISC | 36 |
-| Apache-2.0 | 16 |
+| Apache-2.0 | 17 |
 | BSD-3-Clause | 12 |
-| OFL-1.1 | 4 |
-| BSD-2-Clause | 3 |
+| BSL-1.0 | 9 |
+| OFL-1.1 | 5 |
+| BSD-2-Clause | 4 |
+| GPL-2.0-or-later | 2 |
 | LGPL-2.1-or-later | 2 |
 | Apache-2.0 AND MIT | 1 |
 | BSD-3-Clause AND IJG | 1 |
 | BSD-3-Clause AND ISC AND curl | 1 |
 | BSD-style | 1 |
+| Bitstream-Vera | 1 |
 | CC0-1.0 | 1 |
 | GPL-3.0-only | 1 |
 | MPL-1.1 | 1 |
