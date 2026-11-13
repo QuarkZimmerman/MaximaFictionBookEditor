@@ -67,7 +67,11 @@ export async function exportPdf(ctx: CommandContext, docId: string, run: PdfRun)
       modal.progress(++done, total);
     }
     if (run.cancelled()) throw new Cancelled();
-    await rpc.runJob('pdf.export.finish', { token, pageMap: paged.pageMap });
+    await rpc.runJob('pdf.export.finish', {
+      token,
+      pageMap: paged.pageMap,
+      title: current.document.description.titleInfo.bookTitle ?? '',
+    });
     token = null;
     modal.progress(total, total);
     modal.end();

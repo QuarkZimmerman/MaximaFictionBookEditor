@@ -1367,7 +1367,7 @@ export interface RpcMethods {
   'pdf.export.print': { params: { token: string; part: number }; result: { part: number } };
   /** Job: the finished file, written atomically. */
   'pdf.export.finish': {
-    params: { token: string; pageMap: unknown };
+    params: { token: string; pageMap: unknown; title?: string };
     result: { path: string; bytes: number };
   };
   'pdf.export.abort': { params: { token: string }; result: { known: boolean } };
