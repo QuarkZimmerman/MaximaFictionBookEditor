@@ -25,6 +25,9 @@
     "ai.bundled.pollinations.name",
     "ai.bundled.pollinations.model",
     "dialog.settings.ai.custom.exampleHosted",
-    "dialog.settings.ai.custom.exampleLocal"
+    "dialog.settings.ai.custom.exampleLocal",
+    "pdf.settings.fonts.noto-serif",
+    "pdf.settings.fonts.noto-sans",
+    "pdf.settings.fonts.dejavu-sans-mono"
   ]
 }

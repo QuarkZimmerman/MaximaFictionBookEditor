@@ -10,12 +10,9 @@ import { useTranslation } from 'react-i18next';
 import { Dialog, type DialogButton } from '@/dialogs/Dialog';
 import type { PdfPageSizeId } from '@/rpc/types';
 
-import { PDF_PAGE_SIZES } from './pageSizes';
+import { PDF_PAGE_SIZE_GROUPS, PDF_PAGE_SIZES } from './pageSizes';
 
-const GROUPS: { key: 'iso' | 'american'; ids: PdfPageSizeId[] }[] = [
-  { key: 'iso', ids: ['a4', 'b5', 'a5', 'b6', 'a6'] },
-  { key: 'american', ids: ['legal', 'letter', 'executive', 'statement'] },
-];
+const GROUPS = PDF_PAGE_SIZE_GROUPS;
 
 export interface PageSizeDialogProps {
   defaultSize: PdfPageSizeId;

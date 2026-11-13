@@ -60,6 +60,76 @@
     "limit": {
       "pages": "the book would take {{count}} pages; a PDF the editor writes has at most {{max}}",
       "notes": "the book has {{count}} notes; a PDF the editor writes holds at most {{max}}"
+    },
+    "settings": {
+      "group": "PDF export",
+      "pageSize": "Default &page size:",
+      "textFont": "&Text font:",
+      "textSize": "Text si&ze:",
+      "margins": "&Margins:",
+      "default": "Default: {{value}}",
+      "reset": "Reset",
+      "resetAll": "Reset &all",
+      "addFile": "Add font from &file...",
+      "addInstalled": "Add &installed font...",
+      "remove": "&Remove",
+      "addedFonts": "Added fonts",
+      "face": "Fa&ce:",
+      "chooseFace": "Choose a face of the collection",
+      "addFileTitle": "Add Font",
+      "fontFiles": "Font files",
+      "fonts": {
+        "noto-serif": "Noto Serif",
+        "noto-sans": "Noto Sans",
+        "dejavu-sans-mono": "DejaVu Sans Mono"
+      },
+      "textSizes": {
+        "smaller": "Smaller",
+        "standard": "Standard",
+        "larger": "Larger"
+      },
+      "marginSizes": {
+        "narrow": "Narrow",
+        "standard": "Standard",
+        "wide": "Wide"
+      },
+      "refused": {
+        "unreadable": "The file is not a font the editor can read.",
+        "restricted": "The font’s licence forbids embedding it in a document.",
+        "bitmapOnly": "The font allows only its bitmaps to be embedded, and it has none.",
+        "tooLarge": "The font file is larger than 64 MB.",
+        "duplicate": "The font has been added already.",
+        "noInstalledFonts": "The fonts installed on this computer cannot be listed here."
+      },
+      "installed": "I&nstalled font:",
+      "chooseInstalled": "Choose a font installed on this computer"
+    }
+  },
+  "dialog": {
+    "settings": {
+      "pages": {
+        "pdf": "PDF export"
+      }
+    }
+  },
+  "tip": {
+    "settings": {
+      "tabs": {
+        "pdf": "The PDF export: its default page size, text font, text size and margins"
+      },
+      "pdf": {
+        "pageSize": "The size the Save dialog proposes for a book exported for the first time",
+        "textFont": "The font the book’s text is printed in, unless the book names its own",
+        "textSize": "The size of the book’s text in the PDF",
+        "margins": "The margins of the PDF’s pages",
+        "addFile": "Adds a TrueType or OpenType font file; it is kept with the editor’s data",
+        "addInstalled": "Adds a font installed on this computer",
+        "remove": "Removes the added font chosen as the text font",
+        "face": "The face of the font collection to add",
+        "reset": "Puts the default back: {{value}}",
+        "resetAll": "Puts every value of this page back to its default",
+        "installed": "The installed font to add"
+      }
     }
   }
 }

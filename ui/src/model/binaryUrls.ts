@@ -195,6 +195,22 @@ export function pdfPartUrl(
   return withToken(`${baseUrl}pdf/${encodeURIComponent(token)}/part/${part}`, '?');
 }
 
+/** Feature 014 (D7(c)): an added font, for the paged document's @font-face rule. */
+export function pdfAddedFontUrl(
+  id: string,
+  baseUrl: string = import.meta.env.BASE_URL ?? '/',
+): string {
+  return withToken(`${baseUrl}pdf/fonts/added/${encodeURIComponent(id)}`, '?');
+}
+
+/** Feature 014 (DP-4): where an installed font's data goes before pdf.fonts.addData. */
+export function pdfFontUploadUrl(
+  uploadId: string,
+  baseUrl: string = import.meta.env.BASE_URL ?? '/',
+): string {
+  return withToken(`${baseUrl}pdf/fonts/upload/${encodeURIComponent(uploadId)}`, '?');
+}
+
 /**
  * Feature 014 (contracts/rpc-api.md): a font file the PDF export ships, as the paged document's
  * `@font-face` rules name it (`GET /pdf/fonts/shipped/{id}/{style}`; style Regular, Italic, Bold or

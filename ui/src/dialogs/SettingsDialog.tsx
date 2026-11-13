@@ -40,17 +40,18 @@ import { createScratchHotkeys, sameUserBindings } from './settings/hotkeysModel'
 import { validateSettings, type SettingsValidationError } from './settings/model';
 import { OtherPage } from './settings/OtherPage';
 import { ViewPage } from './settings/ViewPage';
+import { PdfPage } from './settings/PdfPage';
 import { WordsPage } from './settings/WordsPage';
 
 import './settings/settings.css';
 import { tip } from '@/app/tooltips';
 
-export type SettingsPageId = 'view' | 'other' | 'hotkeys' | 'words' | 'ai';
+export type SettingsPageId = 'view' | 'other' | 'hotkeys' | 'words' | 'pdf' | 'ai';
 
-const PAGES: readonly SettingsPageId[] = ['view', 'other', 'hotkeys', 'words', 'ai'];
+const PAGES: readonly SettingsPageId[] = ['view', 'other', 'hotkeys', 'words', 'pdf', 'ai'];
 
 /** The sections of the draft the pages edit (`session` is never part of the dialog). */
-type DraftSection = 'view' | 'other' | 'words' | 'ai';
+type DraftSection = 'view' | 'other' | 'words' | 'pdf' | 'ai';
 
 /**
  * The pre-apply hook (feature 005 R8.8): asked with the validated draft before anything is
@@ -387,6 +388,9 @@ export function SettingsDialog({
           </div>
           <div role="tabpanel" id="settings-page-words" hidden={page !== 'words'}>
             <WordsPage draft={draft} onChange={(patch) => update('words', patch)} ctx={ctx} />
+          </div>
+          <div role="tabpanel" id="settings-page-pdf" hidden={page !== 'pdf'}>
+            <PdfPage draft={draft} onChange={(patch) => update('pdf', patch)} ctx={ctx} />
           </div>
           <div role="tabpanel" id="settings-page-ai" hidden={page !== 'ai'}>
             <AiPage

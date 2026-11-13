@@ -1147,6 +1147,39 @@ export interface LoadReport {
   templateIssue?: TemplateIssue;
 }
 
+/** A shipped family (resources/fonts/fonts.json), without paths. */
+export interface PdfShippedFont {
+  id: string;
+  kind: 'serif' | 'sans-serif' | 'monospace';
+  scripts: string[];
+  textFont: boolean;
+  styles: string[];
+}
+
+/** A font the user added (data-model AddedFont), without paths. */
+export interface PdfAddedFont {
+  id: string;
+  face: number;
+  family: string;
+  style: string;
+  kind: 'serif' | 'sans-serif' | 'monospace';
+  fsType: number;
+  wholeFont: boolean;
+  source: 'file' | 'installed';
+  name: string;
+}
+
+/**
+ * What adding a font gives: the font, or a refusal (unreadable, restricted, bitmapOnly, tooLarge,
+ * duplicate - with the font already there), and a collection's faces to choose from.
+ */
+export interface PdfFontAnswer {
+  font?: PdfAddedFont;
+  refused?: 'unreadable' | 'restricted' | 'bitmapOnly' | 'tooLarge' | 'duplicate';
+  faces?: string[];
+  path?: string;
+}
+
 export interface RpcMethods {
   // §3.1 app
   'app.info': { params: void; result: AppInfo };
@@ -1390,6 +1423,22 @@ export interface RpcMethods {
     result: { path: string; bytes: number; uncovered?: string; picturesLeftOut?: string[] };
   };
   'pdf.export.abort': { params: { token: string }; result: { known: boolean } };
+  /** Feature 014 (T050, DP-4..DP-7): the fonts of Settings > PDF export. */
+  'pdf.fonts.list': {
+    params: Record<string, never>;
+    result: { shipped: PdfShippedFont[]; added: PdfAddedFont[] };
+  };
+  /** The Open dialog for a font file, or (`path`) the file picked before, another face of it. */
+  'pdf.fonts.addFile': {
+    params: { path?: string; face?: number; title?: string; filterName?: string };
+    result: PdfFontAnswer | { cancelled: true };
+  };
+  /** An installed font's data, uploaded first to PUT /pdf/fonts/upload/{uploadId}. */
+  'pdf.fonts.addData': {
+    params: { uploadId: string; name: string; face?: number };
+    result: PdfFontAnswer;
+  };
+  'pdf.fonts.remove': { params: { id: string }; result: Record<string, never> };
   /**
    * Feature 010 (US8): a new untitled, modified document from FB2 text, tied to no file. Feature 012
    * (SC-010): text of 2 MB or more is read as a job, with its progress, as `doc.open` reads a big book.

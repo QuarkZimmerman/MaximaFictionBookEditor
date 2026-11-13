@@ -27,6 +27,12 @@ export const PDF_PAGE_SIZES: readonly PdfPageSize[] = [
 
 export const DEFAULT_PDF_PAGE_SIZE: PdfPageSizeId = 'a4';
 
+/** D3: the sizes as the lists show them, ISO first, then the American ones. */
+export const PDF_PAGE_SIZE_GROUPS: readonly { key: 'iso' | 'american'; ids: PdfPageSizeId[] }[] = [
+  { key: 'iso', ids: ['a4', 'b5', 'a5', 'b6', 'a6'] },
+  { key: 'american', ids: ['legal', 'letter', 'executive', 'statement'] },
+];
+
 export function pdfPageSize(id: string | undefined): PdfPageSize {
   return PDF_PAGE_SIZES.find((size) => size.id === id) ?? PDF_PAGE_SIZES[0];
 }
