@@ -89,19 +89,71 @@ export function compareText(pageTexts, expected) {
     }
     return -1;
   };
+  // Where each page's text starts in `all`: a paragraph that continues on the next page has the
+  // first page's footnotes (and its number) between its two parts in the reading order.
+  const pageStarts = [];
+  for (let off = 0, i = 0; i < pages.length; i++) {
+    pageStarts.push(off);
+    off += squeeze(pages[i]).length;
+  }
+  const pageAfter = (pos) => pageStarts.find((start) => start > pos) ?? -1;
+  // The block's parts, each ending on a page and the next beginning on the following one.
+  const splitMatch = (needle, from) => {
+    const parts = [];
+    let rest = needle;
+    let pos = from;
+    while (rest) {
+      const whole = findFree(rest, pos);
+      if (whole >= 0 && (parts.length === 0 || whole < (pageAfter(pos) < 0 ? all.length : pageAfter(pos)))) {
+        parts.push([whole, rest.length]);
+        return parts;
+      }
+      let lo = 16;
+      let hi = rest.length - 1;
+      let best = -1;
+      let bestAt = -1;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        const at = findFree(rest.slice(0, mid), pos);
+        if (at >= 0 && (parts.length === 0 || at === pos)) {
+          best = mid;
+          bestAt = at;
+          lo = mid + 1;
+        } else hi = mid - 1;
+      }
+      if (best < 0) return null;
+      const next = pageAfter(bestAt + best - 1);
+      if (next < 0) return null;
+      parts.push([bestAt, best]);
+      rest = rest.slice(best);
+      // The rest resumes at the next page's start.
+      pos = next;
+      if (findFree(rest.slice(0, Math.min(16, rest.length)), pos) !== pos) return null;
+    }
+    return parts;
+  };
   for (const block of expected.blocks.filter((b) => !b.note)) {
     const needle = squeeze(block.text);
     if (!needle) continue;
     let at = findFree(needle, cursor);
     if (at >= 0) {
       cursor = at + needle.length;
-    } else if ((at = findFree(needle, 0)) >= 0) {
-      outOfOrder.push(block.text);
-    } else {
-      missing.push(block.text);
+      cover(at, needle.length);
       continue;
     }
-    cover(at, needle.length);
+    const parts = splitMatch(needle, cursor);
+    if (parts) {
+      for (const [start, length] of parts) cover(start, length);
+      const [lastStart, lastLength] = parts[parts.length - 1];
+      cursor = lastStart + lastLength;
+      continue;
+    }
+    if ((at = findFree(needle, 0)) >= 0) {
+      outOfOrder.push(block.text);
+      cover(at, needle.length);
+    } else {
+      missing.push(block.text);
+    }
   }
   for (const block of expected.blocks.filter((b) => b.note)) {
     const needle = squeeze(block.text);
