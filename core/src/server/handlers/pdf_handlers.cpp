@@ -9,6 +9,7 @@
 // Everything of an export lives in its own folder of the data folder until finish or abort, or
 // ten minutes without a call.
 
+#include "pdf/finish.hpp"
 #include "pdf/fonts.hpp"
 #include "server/loopback_server.hpp"
 #include "server/services.hpp"
@@ -18,6 +19,7 @@
 #include <mfbe/platform.hpp>
 #include <mfbe/print_service.hpp>
 #include <mfbe/rpc.hpp>
+#include <mfbe/version.hpp>
 
 #include <chrono>
 #include <fstream>
@@ -372,11 +374,19 @@ void register_pdf_handlers(rpc::RpcRouter& router, Services& services) {
     router.add_method("pdf.export.finish", [&services](const json& params, rpc::RpcContext& ctx) {
         const std::string token = rpc::params::string(params, "token");
         const Services::PdfExport e = require_export(services, token);
-        const std::string job_id = ctx.jobs.start([&services, token,
-                                                   e](rpc::JobControl& control) -> json {
+        pdf::FinishInput input;
+        input.width_pt = e.width_in * 72.0;
+        input.height_pt = e.height_in * 72.0;
+        input.title = rpc::params::string_or(params, "title", "");
+        if (params.contains("pageMap") && params["pageMap"].is_object()) {
+            input.lang = params["pageMap"].value("language", std::string());
+        }
+        input.creator_tool = std::string(version::kProductName) + " " + version::kVersion;
+        const std::string job_id = ctx.jobs.start([&services, token, e,
+                                                   input](rpc::JobControl& control) -> json {
             control.progress("finish", 0, 1);
-            // Tasks T025 onwards finish the file (pictures, metadata, bookmarks, PDF/A,
-            // checks); until then the printed parts are written as they are.
+            // R3: the printed file finished as PDF/A-2 level U (finish.cpp); the pictures, the
+            // bookmarks, the whole description and the checks come with tasks T026 to T040.
             if (e.parts != 1) {
                 throw failed("pdf.checkFailed", json{{"message", "several parts not joined yet"}});
             }
@@ -385,6 +395,14 @@ void register_pdf_handlers(rpc::RpcRouter& router, Services& services) {
                 bytes = atomic_file::read_file(part_pdf(e, 0));
             } catch (const std::exception&) {
                 throw failed("pdf.noPart", json{{"part", 0}});
+            }
+            control.check_cancelled();
+            try {
+                const std::vector<char> finished =
+                    pdf::finish(std::vector<char>(bytes.begin(), bytes.end()), input);
+                bytes.assign(finished.begin(), finished.end());
+            } catch (const std::runtime_error& error) {
+                throw failed("pdf.checkFailed", json{{"message", error.what()}});
             }
             control.check_cancelled();
             try {

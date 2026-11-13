@@ -123,7 +123,11 @@ TEST_CASE("pdf export rpc: a part is uploaded, printed through the seam and writ
     REQUIRE(finishing.contains("result"));
     const json finish_done = f.wait_job(finishing["result"]["jobId"]);
     REQUIRE(finish_done["event"] == "job.done");
-    CHECK(atomic_file::read_file(target) == printed);
+    // The printed file was finished (finish.cpp): a PDF with the PDF/A-2 level U declaration.
+    const std::string written = atomic_file::read_file(target);
+    CHECK(written.rfind("%PDF-", 0) == 0);
+    CHECK(written.find("<pdfaid:part>2</pdfaid:part>") != std::string::npos);
+    CHECK(written.find("/OutputIntents") != std::string::npos);
     // The export's folder is gone, and its token with it.
     CHECK_FALSE(std::filesystem::exists(f.data.path() / "pdf-export" / token));
     const json again = f.ws.call("pdf.export.print", json{{"token", token}, {"part", 0}});
