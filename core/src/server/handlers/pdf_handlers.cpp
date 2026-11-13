@@ -34,6 +34,7 @@
 #include <future>
 #include <iterator>
 #include <random>
+#include <set>
 #include <string>
 #include <thread>
 
@@ -658,18 +659,26 @@ void register_pdf_handlers(rpc::RpcRouter& router, Services& services) {
         }
         input.genre_names = rpc::params::string_array_or(params, "genreNames");
         input.hints = rpc::params::string_or(params, "hints", "");
-        // R6: the text font, when the user added it and its licence forbids subsetting, whole.
+        // The text font, when the user added it: embedded whole when its licence forbids subsetting
+        // (R6), and what it does not draw listed (D7: the shipped fonts draw those characters).
         const std::string text_font = services.settings.get_string("pdf.textFont");
+        std::set<char32_t> added_coverage;
+        std::string added_name;
         for (const pdf::AddedFont& font : pdf::added_fonts(added_fonts_dir(services))) {
-            if (font.id != text_font || !font.whole_font || font.postscript.empty())
+            if (font.id != text_font)
                 continue;
             try {
                 std::string program = pdf::font_program(
                     atomic_file::read_file(added_fonts_dir(services) / font.file), font.face);
-                if (!program.empty())
+                if (program.empty())
+                    continue;
+                added_coverage = pdf::font_coverage_of(program);
+                added_name = font.family;
+                if (font.whole_font && !font.postscript.empty()) {
                     input.whole_fonts.push_back({font.postscript, std::move(program)});
+                }
             } catch (const std::exception&) {
-                // The file is gone: the engine's subset stays.
+                // The file is gone: the export prints as if the text font were Noto Serif.
             }
         }
         // D17: the bookmarks of the page map, nested.
@@ -737,84 +746,98 @@ void register_pdf_handlers(rpc::RpcRouter& router, Services& services) {
                 throw failed("pdf.checkFailed", json{{"message", "the editor's hints: " + fault}});
             }
         }
-        const std::string job_id = ctx.jobs.start([&services, token, e, input,
-                                                   page_texts](rpc::JobControl& control) -> json {
-            control.progress("finish", 0, 1);
-            // DP-3: the printed parts, joined into one file; then R3: finished as PDF/A-2 level
-            // U.
-            std::vector<std::vector<char>> printed;
-            for (int part = 0; part < e.parts; ++part) {
-                try {
-                    const std::string part_bytes = atomic_file::read_file(part_pdf(e, part));
-                    printed.emplace_back(part_bytes.begin(), part_bytes.end());
-                } catch (const std::exception&) {
-                    throw failed("pdf.noPart", json{{"part", part}});
-                }
-                control.check_cancelled();
-            }
-            // Progress at least once a second (SC-010): each part joined, then the writing
-            // (which Poppler does in one go, shown as busy), then each page checked. A fault
-            // of the PDF library is reported as the check's; a cancellation stays one.
-            const auto library = [](auto&& step) {
-                try {
-                    return step();
-                } catch (const rpc::RpcError&) {
-                    throw;
-                } catch (const std::runtime_error& error) {
-                    throw failed("pdf.checkFailed", json{{"message", error.what()}});
-                }
-            };
-            std::vector<char> joined = library([&] {
-                return pdf::join_parts(std::move(printed), [&control](int done, int total) {
-                    control.progress("join", done, total);
-                });
-            });
-            control.check_cancelled();
-            control.progress("write", 0, 0);
-            pdf::FinishReport report;
-            std::vector<char> finished =
-                library([&] { return pdf::finish(std::move(joined), input, &report); });
-            control.check_cancelled();
-            std::string bytes;
-            // DP-18: the finished file is read back before anything is written.
-            auto last = std::chrono::steady_clock::now();
-            const std::vector<std::string> faults =
-                pdf::check_finished(finished, page_texts, [&control, &last](int done, int total) {
-                    const auto now = std::chrono::steady_clock::now();
-                    if (done == total || now - last > std::chrono::milliseconds(200)) {
-                        control.progress("check", done, total);
-                        last = now;
+        const std::string job_id =
+            ctx.jobs.start([&services, token, e, input, added_coverage, added_name,
+                            page_texts](rpc::JobControl& control) -> json {
+                control.progress("finish", 0, 1);
+                // DP-3: the printed parts, joined into one file; then R3: finished as PDF/A-2 level
+                // U.
+                std::vector<std::vector<char>> printed;
+                for (int part = 0; part < e.parts; ++part) {
+                    try {
+                        const std::string part_bytes = atomic_file::read_file(part_pdf(e, part));
+                        printed.emplace_back(part_bytes.begin(), part_bytes.end());
+                    } catch (const std::exception&) {
+                        throw failed("pdf.noPart", json{{"part", part}});
                     }
-                });
-            if (!faults.empty()) {
-                std::string message;
-                for (std::size_t i = 0; i < faults.size() && i < 5; ++i) {
-                    message += (i ? "; " : "") + faults[i];
+                    control.check_cancelled();
                 }
-                throw failed("pdf.checkFailed", json{{"message", message}});
-            }
-            bytes.assign(finished.begin(), finished.end());
-            control.check_cancelled();
-            try {
-                atomic_file::write_atomic(e.target, bytes);
-            } catch (const std::exception& error) {
-                throw failed("pdf.ioError", json{{"message", error.what()}});
-            }
-            {
-                std::lock_guard lock(services.pdf.mutex);
-                services.pdf.exports.erase(token);
-            }
-            remove_work(e.work);
-            control.progress("finish", 1, 1);
-            // D7: the characters no shipped font draws (drawn with a system font, or as a
-            // replacement mark), for the summary.
-            const std::u32string uncovered =
-                pdf::uncovered_characters(page_texts, services.resources_dir / "fonts");
-            return json{{"path", platform::utf8_from_path(e.target)},
-                        {"bytes", bytes.size()},
-                        {"uncovered", pdf::utf8(uncovered)},
-                        {"picturesLeftOut", report.pictures_left_out}};
-        });
+                // Progress at least once a second (SC-010): each part joined, then the writing
+                // (which Poppler does in one go, shown as busy), then each page checked. A fault
+                // of the PDF library is reported as the check's; a cancellation stays one.
+                const auto library = [](auto&& step) {
+                    try {
+                        return step();
+                    } catch (const rpc::RpcError&) {
+                        throw;
+                    } catch (const std::runtime_error& error) {
+                        throw failed("pdf.checkFailed", json{{"message", error.what()}});
+                    }
+                };
+                std::vector<char> joined = library([&] {
+                    return pdf::join_parts(std::move(printed), [&control](int done, int total) {
+                        control.progress("join", done, total);
+                    });
+                });
+                control.check_cancelled();
+                control.progress("write", 0, 0);
+                pdf::FinishReport report;
+                std::vector<char> finished =
+                    library([&] { return pdf::finish(std::move(joined), input, &report); });
+                control.check_cancelled();
+                std::string bytes;
+                // DP-18: the finished file is read back before anything is written.
+                auto last = std::chrono::steady_clock::now();
+                const std::vector<std::string> faults = pdf::check_finished(
+                    finished, page_texts, [&control, &last](int done, int total) {
+                        const auto now = std::chrono::steady_clock::now();
+                        if (done == total || now - last > std::chrono::milliseconds(200)) {
+                            control.progress("check", done, total);
+                            last = now;
+                        }
+                    });
+                if (!faults.empty()) {
+                    std::string message;
+                    for (std::size_t i = 0; i < faults.size() && i < 5; ++i) {
+                        message += (i ? "; " : "") + faults[i];
+                    }
+                    throw failed("pdf.checkFailed", json{{"message", message}});
+                }
+                bytes.assign(finished.begin(), finished.end());
+                control.check_cancelled();
+                try {
+                    atomic_file::write_atomic(e.target, bytes);
+                } catch (const std::exception& error) {
+                    throw failed("pdf.ioError", json{{"message", error.what()}});
+                }
+                {
+                    std::lock_guard lock(services.pdf.mutex);
+                    services.pdf.exports.erase(token);
+                }
+                remove_work(e.work);
+                control.progress("finish", 1, 1);
+                // D7: the characters no shipped font draws (drawn with a system font, or as a
+                // replacement mark), for the summary.
+                const std::u32string uncovered =
+                    pdf::uncovered_characters(page_texts, services.resources_dir / "fonts");
+                json result{{"path", platform::utf8_from_path(e.target)},
+                            {"bytes", bytes.size()},
+                            {"uncovered", pdf::utf8(uncovered)},
+                            {"picturesLeftOut", report.pictures_left_out}};
+                if (!added_name.empty()) {
+                    // D7: the characters the added text font lacks that the shipped fonts draw.
+                    std::u32string fallback;
+                    for (char32_t c : pdf::characters_not_in(page_texts, added_coverage)) {
+                        if (uncovered.find(c) == std::u32string::npos)
+                            fallback.push_back(c);
+                    }
+                    if (!fallback.empty()) {
+                        result["fallback"] = pdf::utf8(fallback);
+                        result["fallbackFont"] = added_name;
+                    }
+                }
+                return result;
+            });
         return json{{"jobId", job_id}};
     });
 

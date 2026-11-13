@@ -137,6 +137,14 @@ export async function exportPdf(ctx: CommandContext, docId: string, run: PdfRun)
       // D22: no title - the file's name; no language the editor knows - English words.
       ...(titleInfo.bookTitle?.trim() ? [] : [ctx.t('pdf.summary.noTitle', { detail: fileTitle })]),
       ...(titleInfo.lang?.trim() ? [] : [ctx.t('pdf.summary.noLanguage')]),
+      ...(finished.fallback
+        ? [
+            ctx.t('pdf.summary.addedFontFallback', {
+              font: finished.fallbackFont ?? '',
+              detail: [...finished.fallback].join(' '),
+            }),
+          ]
+        : []),
       ...(finished.uncovered
         ? [ctx.t('pdf.summary.systemFont', { detail: [...finished.uncovered].join(' ') })]
         : []),

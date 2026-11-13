@@ -111,13 +111,15 @@ bool counted(char32_t c) {
 }  // namespace
 
 std::set<char32_t> font_coverage(const std::filesystem::path& font_file) {
-    std::set<char32_t> out;
-    std::string b;
     try {
-        b = atomic_file::read_file(font_file);
+        return font_coverage_of(atomic_file::read_file(font_file));
     } catch (const std::exception&) {
-        return out;
+        return {};
     }
+}
+
+std::set<char32_t> font_coverage_of(const std::string& b) {
+    std::set<char32_t> out;
     const std::size_t tables = u16(b, 4);
     std::size_t cmap = 0;
     for (std::size_t i = 0; i < tables && 12 + i * 16 + 16 <= b.size(); ++i) {
@@ -197,6 +199,22 @@ std::string utf8(const std::u32string& text) {
             out.push_back(static_cast<char>(0x80 | ((c >> 12) & 0x3F)));
             out.push_back(static_cast<char>(0x80 | ((c >> 6) & 0x3F)));
             out.push_back(static_cast<char>(0x80 | (c & 0x3F)));
+        }
+    }
+    return out;
+}
+
+std::u32string characters_not_in(const std::vector<std::string>& texts,
+                                 const std::set<char32_t>& font, std::size_t limit) {
+    std::u32string out;
+    std::set<char32_t> seen;
+    for (const std::string& text : texts) {
+        for (char32_t c : decode_utf8(text)) {
+            if (!counted(c) || font.contains(c) || !seen.insert(c).second)
+                continue;
+            out.push_back(c);
+            if (out.size() >= limit)
+                return out;
         }
     }
     return out;

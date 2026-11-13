@@ -1420,7 +1420,15 @@ export interface RpcMethods {
      * `uncovered`: the characters no shipped font draws (D7), drawn with a system font;
      * `picturesLeftOut`: the binaries the core could not draw (no data, not a picture, too large).
      */
-    result: { path: string; bytes: number; uncovered?: string; picturesLeftOut?: string[] };
+    /** `fallback`: what the added text font `fallbackFont` lacks, drawn with the shipped fonts (D7). */
+    result: {
+      path: string;
+      bytes: number;
+      uncovered?: string;
+      picturesLeftOut?: string[];
+      fallback?: string;
+      fallbackFont?: string;
+    };
   };
   'pdf.export.abort': { params: { token: string }; result: { known: boolean } };
   /** Feature 014 (T050, DP-4..DP-7): the fonts of Settings > PDF export. */

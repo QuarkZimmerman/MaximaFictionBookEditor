@@ -14,6 +14,14 @@ namespace mfbe::pdf {
 /// the file is not such a font.
 std::set<char32_t> font_coverage(const std::filesystem::path& font_file);
 
+/// The same, of a font program held in memory (a collection's face, written out by font_program).
+std::set<char32_t> font_coverage_of(const std::string& font_program);
+
+/// The characters of `texts` (UTF-8) that `font` does not map, in order of first appearance, at
+/// most `limit`; whitespace and control characters are not counted.
+std::u32string characters_not_in(const std::vector<std::string>& texts,
+                                 const std::set<char32_t>& font, std::size_t limit = 200);
+
 /// The characters of `texts` (UTF-8) that no font of `fonts_dir`/fonts.json maps, in order of first
 /// appearance, at most `limit`; whitespace and control characters are not counted.
 std::u32string uncovered_characters(const std::vector<std::string>& texts,

@@ -44,7 +44,8 @@
       "linkAsText": "Link to {{detail}} written as text: nothing in the book has that id",
       "idTwice": "The id {{detail}} is used more than once: only its first place keeps it",
       "noTitle": "The book has no title: the file’s name “{{detail}}” is its title in the PDF",
-      "noLanguage": "The book’s language is not given: the words the export adds are in English"
+      "noLanguage": "The book’s language is not given: the words the export adds are in English",
+      "addedFontFallback": "Not in {{font}}, drawn with the shipped fonts: {{detail}}"
     },
     "reason": {
       "noPrinter": "printing needs the editor's window",
