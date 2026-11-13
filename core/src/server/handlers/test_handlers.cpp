@@ -4,9 +4,11 @@
 // test.enqueueRelease; feature 003: test.requests, test.restartRequests, test.requestClose;
 // feature 004: test.setKeyboardLayouts, test.keyboardLayoutRequests; feature 005:
 // test.aiRequests, test.resetAiRequests, test.setAiResolve, test.setAiTimeouts; feature 007:
-// test.openedUrls; feature 011: test.slowJobs.
+// test.openedUrls; feature 011: test.slowJobs; feature 014: test.printRequests,
+// test.completePrint and the upload PUT /test/print/{jobId} (register_test_http).
 #ifdef MFBE_TEST_HOOKS
 
+#include "server/loopback_server.hpp"
 #include "server/services.hpp"
 
 #include <mfbe/atomic_file.hpp>
@@ -104,6 +106,20 @@ void register_test_handlers(rpc::RpcRouter& router, Services& services) {
                                 json{{"reason", "queued dialog provider not active"}});
         }
         return json(services.queued_dialogs->dialog_requests());
+    });
+
+    // Feature 014 (contracts/print-service.md): the PDF export's pending print requests, which the
+    // journeys' fixture prints with the test browser and uploads (PUT /test/print/{jobId}).
+    router.add_method("test.printRequests", [&services](const json&, rpc::RpcContext&) {
+        return services.queued_print ? services.queued_print->requests() : json::array();
+    });
+    // Reports a print request as failed: { jobId, message }.
+    router.add_method("test.completePrint", [&services](const json& params, rpc::RpcContext&) {
+        const std::string job = rpc::params::string(params, "jobId");
+        const std::string message =
+            rpc::params::opt_string(params, "message").value_or("the test browser could not print");
+        const bool known = services.queued_print && services.queued_print->fail(job, message);
+        return json{{"known", known}};
     });
 
     router.add_method("test.beeps", [&services](const json&, rpc::RpcContext&) {
@@ -406,6 +422,34 @@ void register_test_handlers(rpc::RpcRouter& router, Services& services) {
             image.contentType = rpc::params::string_or(params, "contentType", "");
             return json{{"queued", services.queued_clipboard->enqueue(std::move(image))}};
         });
+}
+
+void register_test_http(LoopbackServer& server, Services& services) {
+    // Feature 014 (contracts/print-service.md): the journeys' fixture uploads the PDF the test
+    // browser printed for a pending request; the request's file receives it and the export goes on.
+    server.app().put("/test/print/:jobId", [&server, &services](auto* res, auto* req) {
+        if (!server.check_auth(res, req)) {
+            return;
+        }
+        const std::string job = LoopbackServer::url_decode(req->getParameter(0));
+        auto buffer = std::make_shared<std::string>();
+        auto aborted = std::make_shared<bool>(false);
+        res->onAborted([aborted] { *aborted = true; });
+        res->onData([res, buffer, aborted, &services, job](std::string_view chunk, bool last) {
+            if (*aborted) {
+                return;
+            }
+            buffer->append(chunk);
+            if (!last) {
+                return;
+            }
+            const bool known =
+                services.queued_print && services.queued_print->complete(job, *buffer);
+            res->writeStatus(known ? "201 Created" : "404 Not Found");
+            res->writeHeader("Cache-Control", "no-store");
+            res->end();
+        });
+    });
 }
 
 }  // namespace mfbe::server

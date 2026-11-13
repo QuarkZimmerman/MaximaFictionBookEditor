@@ -17,6 +17,7 @@
 #include <mfbe/keyboard_layout_provider.hpp>
 #include <mfbe/platform.hpp>
 #include <mfbe/positions.hpp>
+#include <mfbe/print_service.hpp>
 #include <mfbe/recent_files.hpp>
 #include <mfbe/resource_tables.hpp>
 #include <mfbe/resources.hpp>
@@ -109,6 +110,12 @@ struct Services {
     std::shared_ptr<KeyboardLayoutProvider> keyboard_layouts() const;
     void set_keyboard_layout_provider(std::shared_ptr<KeyboardLayoutProvider> provider);
     std::shared_ptr<RecordingKeyboardLayoutProvider> recording_layouts;  // only with test hooks
+    // Print service (feature 014, contracts/print-service.md): the shell's hidden browser, or the
+    // journeys' seam under test hooks; null in a headless core without test hooks, whose PDF
+    // export then fails with "printing needs the editor's window".
+    std::shared_ptr<PrintService> print_service() const;
+    void set_print_service(std::shared_ptr<PrintService> service);
+    std::shared_ptr<QueuedPrintService> queued_print;  // only with test hooks
 
     Services(CoreServerOptions opts, platform::Dirs dirs_, std::filesystem::path resources,
              std::filesystem::path scripts, rpc::Notifier& notifier_);
@@ -135,6 +142,7 @@ private:
     std::shared_ptr<DialogProvider> dialogs_;
     std::shared_ptr<ClipboardProvider> clipboard_;
     std::shared_ptr<KeyboardLayoutProvider> keyboard_layouts_;
+    std::shared_ptr<PrintService> print_;
     mutable std::mutex genres_mutex_;
     std::shared_ptr<const genres::GenreCatalog> genres_;
     mutable std::mutex scripts_mutex_;

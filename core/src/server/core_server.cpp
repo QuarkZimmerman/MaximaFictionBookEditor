@@ -261,6 +261,16 @@ void Services::set_keyboard_layout_provider(std::shared_ptr<KeyboardLayoutProvid
     keyboard_layouts_ = std::move(provider);
 }
 
+std::shared_ptr<PrintService> Services::print_service() const {
+    std::lock_guard<std::mutex> lock(dialog_mutex_);
+    return print_;
+}
+
+void Services::set_print_service(std::shared_ptr<PrintService> service) {
+    std::lock_guard<std::mutex> lock(dialog_mutex_);
+    print_ = std::move(service);
+}
+
 std::int64_t Services::uptime_ms() const {
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
                                                                  started_at)
@@ -286,6 +296,11 @@ void Services::set_dialog_provider(std::shared_ptr<DialogProvider> provider) {
 struct CoreServer::Impl : rpc::Notifier {
     std::unique_ptr<server::Services> services;
     rpc::RpcRouter router;
+    // The schema folder is process-wide (validation::set_schema_dir); the server sets its own at
+    // start and gives the previous one back when it stops, so that a server run on a temporary
+    // resources folder leaves no deleted path behind for whatever runs next in the process.
+    std::filesystem::path previous_schema_dir;
+    bool schema_dir_set = false;
 
     std::thread thread;
     std::thread::id loop_thread_id;
@@ -413,6 +428,9 @@ CoreServer::~CoreServer() {
     // libcurl was initialised lazily by the first ai.* call, if ever (feature 005, FR-094):
     // the matching cleanup runs only when it ran, after every job thread has been joined.
     net::global_cleanup_if_ran();
+    if (impl_->schema_dir_set) {
+        validation::set_schema_dir(impl_->previous_schema_dir);
+    }
 }
 
 std::unique_ptr<CoreServer> CoreServer::start(const CoreServerOptions& options) {
@@ -436,6 +454,8 @@ std::unique_ptr<CoreServer> CoreServer::start(const CoreServerOptions& options) 
         resolve_scripts_dir(options.scripts_dir), impl);
     server::Services& services = *impl.services;
     services.token = options.token.empty() ? random_token_hex() : options.token;
+    impl.previous_schema_dir = validation::schema_dir();
+    impl.schema_dir_set = true;
     validation::set_schema_dir(services.resources_dir / "schema");
     services.refresh_genres();  // effective genre list -> validator (FR-054)
     if (options.own_copy_registry && options.copy_registry == nullptr) {
@@ -451,6 +471,8 @@ std::unique_ptr<CoreServer> CoreServer::start(const CoreServerOptions& options) 
         services.set_clipboard_provider(services.queued_clipboard);
         services.recording_layouts = std::make_shared<RecordingKeyboardLayoutProvider>();
         services.set_keyboard_layout_provider(services.recording_layouts);
+        services.queued_print = std::make_shared<QueuedPrintService>();
+        services.set_print_service(services.queued_print);
     }
 #else
     if (options.test_hooks) {
@@ -526,6 +548,12 @@ std::string CoreServer::url() const {
 void CoreServer::set_dialog_provider(std::shared_ptr<DialogProvider> provider) {
     if (impl_->services) {
         impl_->services->set_dialog_provider(std::move(provider));
+    }
+}
+
+void CoreServer::set_print_service(std::shared_ptr<PrintService> service) {
+    if (impl_->services) {
+        impl_->services->set_print_service(std::move(service));
     }
 }
 

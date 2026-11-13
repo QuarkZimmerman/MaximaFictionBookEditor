@@ -97,5 +97,10 @@ void register_binary_http(LoopbackServer& server, Services& services);
 void register_epub_http(LoopbackServer& server, Services& services);
 // Registers GET/HEAD /scripts/{scriptId}/{file} (scripts_handlers.cpp).
 void register_scripts_http(LoopbackServer& server, Services& services);
+#ifdef MFBE_TEST_HOOKS
+// Feature 014: PUT /test/print/{jobId}, the journeys' printed bytes (test_handlers.cpp); only
+// registered with --test-hooks.
+void register_test_http(LoopbackServer& server, Services& services);
+#endif
 
 }  // namespace mfbe::server
