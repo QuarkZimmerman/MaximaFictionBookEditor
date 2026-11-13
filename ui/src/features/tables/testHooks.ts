@@ -287,6 +287,10 @@ export function installTablesTestHooks(ctx: FeatureContext): void {
   // Feature 011 (SC-013, FR-006): the journeys' end-of-test check validates the shown book as the
   // Validate command does (tests/e2e/fixtures/core.ts, `bookValidity`).
   const book = {
+    /** Feature 014: the bodies as the model holds them, for the PDF journeys' expected text. */
+    bodies(): unknown[] {
+      return ctx.store.getState().document?.bodies ?? [];
+    },
     async validate(): Promise<{ errorCount: number; path: string | null; codes: string[] } | null> {
       const document = ctx.store.getState().document;
       const rpc = ctx.rpc;

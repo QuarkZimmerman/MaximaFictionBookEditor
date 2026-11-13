@@ -54,7 +54,8 @@ export async function pdfPageTexts(bytes) {
 }
 
 const SOFT_HYPHEN = /\u00ad/g;
-const SPACE = /[\s\u00a0\u2000-\u200b\u202f\u205f\u3000]+/g;
+// Whitespace and the bidirectional marks (pdf.js drops those; the core's own check ignores them too).
+const SPACE = /[\s\u00a0\u2000-\u200f\u202a-\u202f\u205f\u2066-\u2069\u3000\ufeff]+/g;
 const squeeze = (s) =>
   s.normalize("NFC").replace(SOFT_HYPHEN, "").replace(SPACE, "");
 
@@ -176,7 +177,8 @@ export function compareText(pageTexts, expected) {
     // title page's words in whatever order it shows them, a page number beside them.
     let rest = run;
     for (const word of allowed) if (word) rest = rest.replace(word, "");
-    if (!allowed.has(run) && !/^[\d[\]().*†‡§]*$/.test(rest)) extra.push(run);
+    const inAdded = [...allowed].some((word) => word && word.includes(run));
+    if (!allowed.has(run) && !inAdded && !/^[\d[\]().*†‡§]*$/.test(rest)) extra.push(run);
     at = end;
   }
   // "Each word whole" (D5): a letter, a hyphen at the end of a line, a letter, where the book has

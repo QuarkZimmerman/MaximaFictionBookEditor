@@ -45,7 +45,8 @@
       "idTwice": "The id {{detail}} is used more than once: only its first place keeps it",
       "noTitle": "The book has no title: the file’s name “{{detail}}” is its title in the PDF",
       "noLanguage": "The book’s language is not given: the words the export adds are in English",
-      "addedFontFallback": "Not in {{font}}, drawn with the shipped fonts: {{detail}}"
+      "addedFontFallback": "Not in {{font}}, drawn with the shipped fonts: {{detail}}",
+      "rawPart": "Not printed - kept as XML that is not valid FB2 there, which Preview does not show: {{detail}}"
     },
     "reason": {
       "noPrinter": "printing needs the editor's window",

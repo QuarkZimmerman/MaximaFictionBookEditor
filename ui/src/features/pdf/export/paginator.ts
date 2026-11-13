@@ -79,6 +79,11 @@ export interface Paginated {
   linksAsText: string[];
   /** D22: ids used twice, kept by the first. */
   idsTwice: string[];
+  /**
+   * D23: the parts of the bodies the editor keeps as XML it cannot show (not valid FB2 there,
+   * kept for the round trip): Preview draws them as nothing, so the PDF prints them as nothing.
+   */
+  rawParts: string[];
   /** D23 / FR-042: what the status line counts. */
   counts: { pictures: number; tables: number; notes: number };
   /** R10: the editor's hints (mfbe:fb2Hints, JSON). */
@@ -295,6 +300,28 @@ function partDocument(css: string[], lang: string, title: string, pages: string[
     `<html xmlns="${XHTML_NS}" lang="${escapeXml(lang)}"><head><meta charset="utf-8"/>` +
     `<title>${escapeXml(title)}</title>${styles}</head><body>${pages.join('')}</body></html>`
   );
+}
+
+/** The raw-XML parts of `bodies`, each as the start of its text (its tags' text when it has none). */
+function rawParts(bodies: readonly unknown[]): string[] {
+  const out: string[] = [];
+  const walk = (node: unknown): void => {
+    if (!node || typeof node !== 'object') return;
+    const n = node as { type?: string; attrs?: { xml?: string }; content?: unknown[] };
+    if (n.type === 'raw-xml' || n.type === 'raw-xml-inline') {
+      const xml = n.attrs?.xml ?? '';
+      const text = xml
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const shown = text || xml.replace(/\s+/g, ' ').trim();
+      out.push(shown.length > 60 ? `${shown.slice(0, 60)}…` : shown);
+      return;
+    }
+    for (const child of n.content ?? []) walk(child);
+  };
+  for (const body of bodies) walk(body);
+  return out;
 }
 
 export async function paginate(
@@ -641,6 +668,7 @@ export async function paginate(
       replacedFonts: frame.replacedFonts,
       linksAsText: frame.linksAsText,
       idsTwice: frame.idsTwice,
+      rawParts: rawParts(book.bodies),
       counts: {
         pictures: new Set(pictures.map((picture) => picture.binaryId)).size,
         tables: root.getElementsByTagNameNS(XHTML_NS, 'table').length,

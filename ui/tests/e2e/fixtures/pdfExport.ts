@@ -68,7 +68,7 @@ export interface Expected {
  * The book's own text, block by block, read from its FB2 file in the page (the e2e files have no
  * DOM types: the reader is a string evaluated there), with the title page's words (D11).
  */
-export async function expectedText(page: Page, file: string): Promise<Expected> {
+async function expectedTextAll(page: Page, file: string): Promise<Expected> {
   // The book as the window holds it (any encoding of its file), else the file as UTF-8.
   const held = await page
     .evaluate(
@@ -106,4 +106,54 @@ export async function expectedText(page: Page, file: string): Promise<Expected> 
     // The title page shows them together: its whole text is added too.
     return { blocks, addedWords: [...words, words.join(' ')] };
   })()`);
+}
+
+interface ModelJson {
+  type?: string;
+  text?: string;
+  attrs?: { name?: string };
+  content?: ModelJson[];
+}
+
+/**
+ * The bodies' blocks as Preview draws them, from the editor's model: the parts it keeps as raw XML
+ * (not valid FB2 there, kept for the round trip) are drawn as nothing, so they are left out by
+ * their type - the summary names them.
+ */
+function modelBlocks(bodies: ModelJson[]): Expected['blocks'] {
+  const BLOCKS = new Set(['p', 'v', 'subtitle', 'text-author', 'date', 'th', 'td']);
+  const raw = (node: ModelJson): boolean =>
+    node.type === 'raw-xml' || node.type === 'raw-xml-inline';
+  const clean = (text: string): string => text.replace(/\s+/g, ' ').trim();
+  const textOf = (node: ModelJson): string =>
+    node.type === 'text'
+      ? (node.text ?? '')
+      : raw(node)
+        ? ''
+        : (node.content ?? []).map(textOf).join('');
+  const blocks: Expected['blocks'] = [];
+  for (const body of bodies) {
+    const note = /^(notes|comments)$/i.test(body.attrs?.name ?? '');
+    const walk = (node: ModelJson, top: boolean): void => {
+      for (const child of node.content ?? []) {
+        // D19: the notes go to the feet of the pages; their body's own title is not printed.
+        if ((note && top && child.type === 'title') || raw(child)) continue;
+        if (BLOCKS.has(child.type ?? '')) blocks.push({ text: clean(textOf(child)), note });
+        else walk(child, false);
+      }
+    };
+    walk(body, true);
+  }
+  return blocks;
+}
+
+/** The book's text as the PDF must hold it: Preview's - from the model when the window holds it. */
+export async function expectedText(page: Page, file: string): Promise<Expected> {
+  const expected = await expectedTextAll(page, file);
+  const bodies = (await page
+    .evaluate(
+      `window.__mfbeTest && window.__mfbeTest.book && window.__mfbeTest.book.bodies ? window.__mfbeTest.book.bodies() : null`,
+    )
+    .catch(() => null)) as ModelJson[] | null;
+  return bodies ? { ...expected, blocks: modelBlocks(bodies) } : expected;
 }
