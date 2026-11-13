@@ -98,7 +98,8 @@ function fontFaces(fontUrl: (id: string, style: string) => string): string {
 /**
  * The print stylesheet, after Preview's base sheet and the book's stylesheets: white paper (D8), the
  * text font (D7: Georgian and Armenian from their families, code in the monospace one), page boxes of
- * the page's size, no margins of the engine's own.
+ * the page's size, no margins of the engine's own. A word wider than the line breaks where it must
+ * rather than running past the page's edge, where it would be cut off (and lost from the text).
  */
 export function printCss(
   layout: PrintLayout,
@@ -112,7 +113,8 @@ export function printCss(
   return `${fontFaces(fontUrl)}
 @page { size: ${layout.pageWidth}px ${layout.pageHeight}px; margin: 0; }
 html, body { margin: 0; padding: 0; background: #fff; color: #000; }
-body { font-family: '${text}', '${georgian}', '${armenian}', '${mono}'; font-size: ${layout.textPt}pt; }
+body { font-family: '${text}', '${georgian}', '${armenian}', '${mono}'; font-size: ${layout.textPt}pt;
+  overflow-wrap: anywhere; }
 .mfbe-page { position: relative; box-sizing: border-box; width: ${layout.pageWidth}px;
   height: ${layout.pageHeight}px; padding: ${layout.margin}px; overflow: hidden;
   break-after: page; page-break-after: always; }
