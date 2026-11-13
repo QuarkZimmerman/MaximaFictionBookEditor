@@ -339,7 +339,8 @@ def parse_status(installed: Path, triplet: str | None) -> dict[str, dict[str, st
 
 
 def manifest_dependencies() -> tuple[set[str], set[str]]:
-    """Direct dependencies of vcpkg.json: (runtime, test-only)."""
+    """Direct dependencies of vcpkg.json: (runtime, build- or test-only). A host dependency
+    (`"host": true`, feature 014's pkgconf) is a tool that runs while building, never shipped."""
     manifest = json.loads((REPO / "vcpkg.json").read_text(encoding="utf-8"))
 
     def names(entries: list) -> set[str]:
@@ -348,8 +349,10 @@ def manifest_dependencies() -> tuple[set[str], set[str]]:
             out.add(entry if isinstance(entry, str) else entry["name"])
         return out
 
-    runtime = names(manifest.get("dependencies", []))
-    tests: set[str] = set()
+    entries = manifest.get("dependencies", [])
+    host = {entry["name"] for entry in entries if isinstance(entry, dict) and entry.get("host")}
+    runtime = names(entries) - host
+    tests: set[str] = set(host)
     for feature in manifest.get("features", {}).values():
         tests |= names(feature.get("dependencies", []))
     return runtime, tests
