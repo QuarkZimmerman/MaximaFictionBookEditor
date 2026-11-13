@@ -13,6 +13,7 @@
 #include <XRef.h>
 #include <cctype>
 #include <goo/GooString.h>
+#include <map>
 
 namespace mfbe::pdf {
 
@@ -119,29 +120,43 @@ std::vector<std::string> check_finished(const std::vector<char>& finished,
             continue;
         // The page number at the foot is drawn but is not page map text: it may follow.
         const std::string expected = comparable(page_texts[static_cast<std::size_t>(i)]);
-        std::string read = comparable(doc->page_text(i));
-        // The page number at the foot is drawn but is not the page map's text; Poppler reads it in
-        // wherever its position falls in the page's reading order, so it is accepted once there.
-        const std::string number = std::to_string(i + 1);
-        if (read != expected && read.size() == expected.size() + number.size()) {
-            std::size_t at = 0;
-            while (at < expected.size() && read[at] == expected[at])
-                ++at;
-            if (read.compare(at, number.size(), number) == 0 &&
-                read.compare(at + number.size(), std::string::npos, expected, at) == 0) {
-                read = expected;
+        const std::string read = comparable(doc->page_text(i));
+        // Every character the page shows, in any order: Poppler reads a page in the order of
+        // its layout (a table beside the footnotes, the page number wherever it falls), so the
+        // check is that no character is lost or added - only the page number's digits may be.
+        std::map<std::string, long> count;
+        const auto each = [](const std::string& text, auto&& visit) {
+            for (std::size_t k = 0; k < text.size();) {
+                std::size_t n = 1;
+                const unsigned char c = static_cast<unsigned char>(text[k]);
+                if (c >= 0xF0)
+                    n = 4;
+                else if (c >= 0xE0)
+                    n = 3;
+                else if (c >= 0xC0)
+                    n = 2;
+                visit(text.substr(k, n));
+                k += n;
             }
+        };
+        each(expected, [&count](const std::string& ch) { ++count[ch]; });
+        each(read, [&count](const std::string& ch) { --count[ch]; });
+        each(std::to_string(i + 1), [&count](const std::string& digit) {
+            if (count[digit] < 0)
+                ++count[digit];
+        });
+        std::string missing;
+        std::string extra;
+        for (const auto& [ch, n] : count) {
+            if (n > 0 && missing.size() < 80)
+                missing += ch;
+            if (n < 0 && extra.size() < 80)
+                extra += ch;
         }
-        if (read != expected) {
-            std::size_t at = 0;
-            while (at < read.size() && at < expected.size() && read[at] == expected[at])
-                ++at;
-            // Back to the start of a UTF-8 character, then a short stretch of each.
-            while (at > 0 && (static_cast<unsigned char>(expected[at]) & 0xC0) == 0x80)
-                --at;
-            faults.push_back("page " + std::to_string(i + 1) +
-                             ": its text differs from the page at \"" + expected.substr(at, 80) +
-                             "\" (read: \"" + read.substr(at, 80) + "\")");
+        if (!missing.empty() || !extra.empty()) {
+            faults.push_back("page " + std::to_string(i + 1) + ": its text differs from the page" +
+                             (missing.empty() ? "" : ", missing \"" + missing + "\"") +
+                             (extra.empty() ? "" : ", added \"" + extra + "\""));
         }
         if (progress) {
             progress(i + 1, doc->page_count());

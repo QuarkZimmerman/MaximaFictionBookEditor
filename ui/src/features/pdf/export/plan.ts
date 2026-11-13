@@ -23,6 +23,11 @@ export interface PlanBlock {
   keepWithNext: boolean;
   /** Starts a new page (top-level sections, bodies). */
   breakBefore: boolean;
+  /**
+   * D19: the height of the footnotes this block refers to first, px. They go to the foot of the page
+   * of its first lines, and take that much of the page's text area.
+   */
+  foot?: number;
 }
 
 /** Lines [fromLine, toLine) of block `block`. */
@@ -49,16 +54,28 @@ function minimumStart(block: PlanBlock): number {
   return sum(block.lines);
 }
 
-export function planPages(blocks: readonly PlanBlock[], pageHeight: number): PlannedPage[] {
+/**
+ * `footGap` is the space between the text and the first footnote of a page (the short rule).
+ */
+export function planPages(
+  blocks: readonly PlanBlock[],
+  pageHeight: number,
+  footGap = 0,
+): PlannedPage[] {
   const pages: PlannedPage[] = [];
   let page: PlannedPage = [];
   let used = 0;
+  let footUsed = 0;
   const newPage = (): void => {
     if (page.length > 0) pages.push(page);
     page = [];
     used = 0;
+    footUsed = 0;
   };
-  const room = (): number => pageHeight - used;
+  const room = (): number => pageHeight - used - (footUsed > 0 ? footUsed + footGap : 0);
+  // The room a block's own footnotes take when its first lines go on the current page.
+  const footFor = (block: PlanBlock, from: number): number =>
+    from === 0 && (block.foot ?? 0) > 0 ? (block.foot ?? 0) + (footUsed > 0 ? 0 : footGap) : 0;
 
   for (let index = 0; index < blocks.length; index++) {
     const block = blocks[index];
@@ -76,9 +93,11 @@ export function planPages(blocks: readonly PlanBlock[], pageHeight: number): Pla
           if (!blocks[next].keepWithNext || blocks[next].breakBefore) break;
         }
       }
-      if (needed <= room()) {
+      const foot = footFor(block, from);
+      if (needed + foot <= room()) {
         page.push({ block: index, fromLine: from, toLine: lines.length });
         used += space + rest;
+        if (from === 0) footUsed += block.foot ?? 0;
         break;
       }
       if (block.keepWithNext && from === 0 && page.length > 0 && space + rest <= pageHeight) {
@@ -88,7 +107,7 @@ export function planPages(blocks: readonly PlanBlock[], pageHeight: number): Pla
       // Lines that fit in the room left.
       let fit = 0;
       let height = space;
-      while (from + fit < lines.length && height + lines[from + fit] <= room()) {
+      while (from + fit < lines.length && height + lines[from + fit] + foot <= room()) {
         height += lines[from + fit];
         fit++;
       }
@@ -96,6 +115,7 @@ export function planPages(blocks: readonly PlanBlock[], pageHeight: number): Pla
       const canSplit = block.splittable && lines.length >= SPLIT_FROM;
       if (canSplit && fit >= MIN_LINES && remaining - fit >= MIN_LINES) {
         page.push({ block: index, fromLine: from, toLine: from + fit });
+        if (from === 0) footUsed += block.foot ?? 0;
         from += fit;
         newPage();
         continue;
@@ -105,6 +125,7 @@ export function planPages(blocks: readonly PlanBlock[], pageHeight: number): Pla
         const keep = remaining - MIN_LINES;
         if (keep >= MIN_LINES) {
           page.push({ block: index, fromLine: from, toLine: from + keep });
+          if (from === 0) footUsed += block.foot ?? 0;
           from += keep;
           newPage();
           continue;
@@ -117,6 +138,7 @@ export function planPages(blocks: readonly PlanBlock[], pageHeight: number): Pla
       // An empty page and still too tall: cut where the page ends (at least one line).
       const cut = Math.max(1, fit);
       page.push({ block: index, fromLine: from, toLine: from + cut });
+      if (from === 0) footUsed += block.foot ?? 0;
       from += cut;
       if (from < lines.length) newPage();
       else used += height;

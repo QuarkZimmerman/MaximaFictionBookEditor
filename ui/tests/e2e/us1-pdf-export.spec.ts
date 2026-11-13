@@ -124,6 +124,8 @@ async function expectedText(page: Page, file: string): Promise<Expected> {
       const note = /^(notes|comments)$/i.test(body.getAttribute('name') || '');
       const walk = (el) => {
         for (const child of el.children) {
+          // D19: the notes go to the feet of the pages; their body's own title is not printed.
+          if (note && el === body && child.localName === 'title') continue;
           if (BLOCKS.has(child.localName)) blocks.push({ text: clean(child.textContent), note });
           else walk(child);
         }

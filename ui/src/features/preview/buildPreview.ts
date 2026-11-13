@@ -73,6 +73,9 @@ class Builder {
     // A named style of an element is its class, as readers apply it (contracts/styles.md §4).
     if (typeof attrs.style === 'string' && attrs.style) element.setAttribute('class', attrs.style);
     if (typeof attrs.lang === 'string' && attrs.lang) element.setAttribute('lang', attrs.lang);
+    // A body's name ("notes", "comments"), as readers match it (body[name="notes"]) and as the PDF
+    // export finds the notes (feature 014, D19).
+    if (typeof attrs.name === 'string' && attrs.name) element.setAttribute('name', attrs.name);
     for (const span of ['colspan', 'rowspan'] as const) {
       const value = Number(attrs[span] ?? 1);
       if (value > 1) element.setAttribute(span, String(value));

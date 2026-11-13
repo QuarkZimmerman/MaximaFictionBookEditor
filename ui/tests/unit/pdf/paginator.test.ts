@@ -89,3 +89,24 @@ describe('planPages (D10)', () => {
     expect(planPages([paragraph(2, { spaceBefore: 30 }), paragraph(8)], 100)).toHaveLength(1);
   });
 });
+
+describe('planPages with footnotes (D19)', () => {
+  it("keeps a block's footnotes on the page of its first lines, taking their room", () => {
+    // 6 lines of text plus a 30 px note and a 10 px rule fill the page: the next paragraph moves.
+    const pages = planPages([paragraph(6, { foot: 30 }), paragraph(3)], 100, 10);
+    expect(pages[0]).toEqual([{ block: 0, fromLine: 0, toLine: 6 }]);
+    expect(pages[1]).toEqual([{ block: 1, fromLine: 0, toLine: 3 }]);
+  });
+
+  it('moves a paragraph whose note would not fit with it', () => {
+    const pages = planPages([paragraph(5), paragraph(3, { foot: 30 })], 100, 10);
+    expect(pages[0]).toEqual([{ block: 0, fromLine: 0, toLine: 5 }]);
+    expect(pages[1]).toEqual([{ block: 1, fromLine: 0, toLine: 3 }]);
+  });
+
+  it('shares one rule between the notes of a page', () => {
+    const pages = planPages([paragraph(2, { foot: 20 }), paragraph(2, { foot: 20 })], 100, 10);
+    // 20 + 20 lines, 20 + 20 notes, one 10 px rule: 90 of 100.
+    expect(pages).toHaveLength(1);
+  });
+});

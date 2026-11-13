@@ -25,6 +25,7 @@ import type { PdfPageSize } from '../pageSizes';
 import { createPrintFrame, pictureBox, pictureElement } from './document';
 import { layoutFor, type PrintLayout } from './layout';
 import { PX_TO_PT, type PageMap, type PageMapBookmark, type PageMapPicture } from './pageMap';
+import { footnoteElement, isNotesBody, noteRefs, noteSections, referenceId } from './footnotes';
 import { buildHints } from './hints';
 import { planPages, type PlanBlock } from './plan';
 import { pdfWords, wordsLanguage } from './words';
@@ -95,6 +96,8 @@ function collectBlocks(root: Element): Block[] {
     for (const child of [...element.children]) {
       const name = child.localName;
       if (child.namespaceURI === FB2_NS && CONTAINERS.has(name)) {
+        // D19: the notes bodies are printed at the feet of the pages (footnotes.ts).
+        if (name === 'body' && isNotesBody(child)) continue;
         if (name === 'body') {
           bodyCount++;
           breakNext = bodyCount > 1;
@@ -250,6 +253,36 @@ export async function paginate(
     const { doc, root, css } = frame;
     const lang = book.description.titleInfo.lang ?? '';
     const title = book.description.titleInfo.bookTitle ?? '';
+    // D19: the notes, and which of them a reference points to.
+    const notes = noteSections(root);
+    const referenced = new Set<string>();
+    for (const body of root.getElementsByTagNameNS(FB2_NS, 'body')) {
+      if (isNotesBody(body)) continue;
+      for (const [id] of noteRefs(body, notes)) referenced.add(id);
+    }
+    // Notes nothing refers to are printed after the text, under the notes' title, else D11's word.
+    const unreferenced = [...notes].filter(([id]) => !referenced.has(id));
+    if (unreferenced.length > 0) {
+      const notesBody = [...root.getElementsByTagNameNS(FB2_NS, 'body')].find(isNotesBody);
+      const heading = notesBody
+        ? [...notesBody.children].find((c) => c.localName === 'title')
+        : undefined;
+      const body = doc.createElementNS(FB2_NS, 'body');
+      const section = doc.createElementNS(FB2_NS, 'section');
+      const title = heading
+        ? (heading.cloneNode(true) as Element)
+        : doc.createElementNS(FB2_NS, 'title');
+      if (!heading) {
+        const line = doc.createElementNS(FB2_NS, 'p');
+        line.textContent = pdfWords(lang).notes;
+        title.append(line);
+      }
+      title.setAttribute('role', 'heading');
+      title.setAttribute('aria-level', '2');
+      section.append(title, ...unreferenced.map(([, note]) => note.cloneNode(true)));
+      body.append(section);
+      root.append(body);
+    }
     const blocks = collectBlocks(root);
     let lastYield = performance.now();
     const breath = async (done: number, total: number): Promise<void> => {
@@ -264,9 +297,42 @@ export async function paginate(
       measure(blocks[i]);
       await breath(i, blocks.length * 2);
     }
+    // D19: each block carries the notes it refers to first; their footnotes are measured in the
+    // foot's own text size, at the text width.
+    const footMeasure = doc.createElementNS(XHTML_NS, 'div') as HTMLElement;
+    footMeasure.className = 'mfbe-notes-measure';
+    footMeasure.style.width = `${layout.contentWidth}px`;
+    doc.body.append(footMeasure);
+    const footnotes = new Map<string, HTMLElement>();
+    const blockNotes: string[][] = blocks.map(() => []);
+    blocks.forEach((block, index) => {
+      for (const [id, anchor] of noteRefs(block.element, notes)) {
+        if (footnotes.has(id)) continue;
+        anchor.setAttribute('id', referenceId(id));
+        const note = footnoteElement(doc, id, notes.get(id)!, anchor.textContent ?? '');
+        footMeasure.append(note);
+        footnotes.set(id, note);
+        blockNotes[index].push(id);
+      }
+    });
+    const footHeight = (id: string): number => {
+      const note = footnotes.get(id)!;
+      const style = doc.defaultView!.getComputedStyle(note);
+      return note.getBoundingClientRect().height + (Number.parseFloat(style.marginBottom) || 0);
+    };
+    blocks.forEach((block, index) => {
+      // The reference anchors got their ids after the blocks were cloned for measuring: the
+      // planner only needs the heights.
+      const foot = blockNotes[index].reduce((sum, id) => sum + footHeight(id), 0);
+      if (foot > 0) block.plan.foot = foot;
+    });
+    footMeasure.remove();
+    const notesPx = ((layout.textPt * 96) / 72) * 0.8;
+    const footGap = notesPx * 1.1 + 2;
     const planned = planPages(
       blocks.map((block) => block.plan),
       layout.contentHeight,
+      footGap,
     );
 
     const pagesHost = doc.createElement('div');
@@ -369,10 +435,19 @@ export async function paginate(
     // A page is composed, then measured as composed: the containers cloned onto it (a poem's or a
     // cite's spacing) are not in the blocks' measured heights, so a page that overflows its text
     // area hands its last piece to the next page (the composed page is the one source of truth).
-    const compose = (
-      pieces: (typeof planned)[number],
-    ): { page: HTMLElement; content: HTMLElement } => {
+    interface Composed {
+      page: HTMLElement;
+      area: HTMLElement;
+      foot: HTMLElement;
+    }
+    const compose = (pieces: (typeof planned)[number]): Composed => {
       const { page, content } = newPage();
+      // The text above, the page's footnotes at the foot under their rule (D19).
+      const area = doc.createElementNS(XHTML_NS, 'div') as HTMLElement;
+      area.className = 'mfbe-area';
+      const foot = doc.createElementNS(XHTML_NS, 'div') as HTMLElement;
+      foot.className = 'mfbe-notes';
+      content.append(area);
       const open: { original: Element; clone: Element }[] = [];
       for (const piece of pieces) {
         const block = blocks[piece.block];
@@ -386,7 +461,7 @@ export async function paginate(
           shared++;
         }
         open.length = shared;
-        let parent: Element = shared > 0 ? open[shared - 1].clone : content;
+        let parent: Element = shared > 0 ? open[shared - 1].clone : area;
         for (let c = shared + 1; c < block.chain.length; c++) {
           const clone = block.chain[c].cloneNode(false) as Element;
           parent.append(clone);
@@ -410,19 +485,24 @@ export async function paginate(
           node.setAttribute('data-mfbe-mark', String(piece.block));
         }
         parent.append(node);
+        if (piece.fromLine === 0) {
+          for (const id of blockNotes[piece.block]) foot.append(footnotes.get(id)!.cloneNode(true));
+        }
       }
-      return { page, content };
+      if (foot.childElementCount > 0) content.append(foot);
+      return { page, area, foot };
     };
-    const overflows = (page: HTMLElement, content: HTMLElement): boolean => {
+    const overflows = ({ page, area, foot }: Composed): boolean => {
       pagesHost.append(page);
-      const tall = content.scrollHeight > layout.contentHeight + 0.5;
+      const footHeight = foot.isConnected ? foot.getBoundingClientRect().height : 0;
+      const tall = area.scrollHeight + footHeight > layout.contentHeight + 0.5;
       page.remove();
       return tall;
     };
 
     for (let p = 0; p < planned.length; p++) {
       let composed = compose(planned[p]);
-      while (planned[p].length > 1 && overflows(composed.page, composed.content)) {
+      while (planned[p].length > 1 && overflows(composed)) {
         const carried = planned[p].pop()!;
         if (p + 1 < planned.length && !blocks[planned[p + 1][0].block].plan.breakBefore) {
           planned[p + 1].unshift(carried);

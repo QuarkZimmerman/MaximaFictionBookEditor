@@ -125,6 +125,17 @@ body { font-family: '${text}', '${georgian}', '${armenian}', '${mono}'; font-siz
   font-size: ${(layout.textPt * 0.85).toFixed(2)}pt; }
 .mfbe-picture { display: block; margin: 0 auto; }
 .mfbe-continued { text-indent: 0 !important; }
+/* The text area contains its blocks' margins (a block formatting context), so that its height as
+   measured is the height it takes on the page. */
+.mfbe-area { display: flow-root; }
+.mfbe-notes { position: absolute; left: 0; right: 0; bottom: 0; padding-top: 0.5em; }
+.mfbe-notes, .mfbe-notes-measure { font-size: 0.8em; line-height: 1.3; }
+.mfbe-notes::before { content: ''; display: block; width: 30%; border-top: 0.6pt solid #000;
+  margin-bottom: 0.5em; }
+.mfbe-footnote { margin: 0 0 0.25em 0; }
+.mfbe-footnote > * { margin: 0 !important; text-indent: 0 !important; }
+.mfbe-footnote > :nth-child(2) { display: inline; }
+.mfbe-footnote-label { font-weight: bold; text-decoration: none; color: inherit; }
 code, [lang|="x-code"] { font-family: '${mono}'; }
 `;
 }
