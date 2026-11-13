@@ -136,6 +136,10 @@ export function printCss(
 html, body { margin: 0; padding: 0; background: #fff; color: #000; }
 body { font-family: '${text}', '${georgian}', '${armenian}', '${mono}'; font-size: ${layout.textPt}pt;
   overflow-wrap: anywhere; }
+/* No hyphenation in the PDF (the requester's decision on DP-17): a hyphen the engine adds at a
+   line's end - or at one of the book's soft hyphens - would stay in the text layer and break the
+   word for search and copy. Lines break between words only, the same on every system. */
+*, *::before, *::after { hyphens: none !important; -webkit-hyphens: none !important; }
 .mfbe-page { position: relative; box-sizing: border-box; width: ${layout.pageWidth}px;
   height: ${layout.pageHeight}px; padding: ${layout.margin}px; overflow: hidden;
   break-after: page; page-break-after: always; }
