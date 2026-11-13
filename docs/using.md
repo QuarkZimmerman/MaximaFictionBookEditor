@@ -352,6 +352,65 @@ from these differences:
 - pictures nothing in the book shows are not exported, so they do not come back;
 - a link to a place the book does not hold comes back as its text.
 
+## PDF export
+
+*File > Export > Export as PDF…* writes the book as a PDF: the book as Preview shows it, on pages of the
+size chosen in the save dialog. Like an EPUB export it is a copy made once: the book stays as it was,
+and nothing but the chosen page size is remembered - for the open book only, until another book
+replaces it. The export is loaded the first time it is used, never at start-up. It shows its progress
+with *Cancel*; a cancelled export writes nothing.
+
+### The page size
+
+The save dialog lists nine sizes, *A4*, *B5*, *A5*, *B6* and *A6*, then *Legal*, *Letter*, *Executive*
+and *Statement*. It proposes the size the open book was last exported in, else the default of
+*Settings > PDF export* (A4 out of the box). Where the system's save dialog cannot show the list, the
+editor asks for the size in a window of its own after the dialog.
+
+### What the PDF holds
+
+- A cover page with the description's cover picture, a title page with the book's title and authors,
+  then the book's bodies, each body and top-level section on a new page, the page numbers at the foot.
+- Notes at the foot of the page that refers to them, under a short rule, each beginning with its title
+  and leading back to the reference. A note referred to twice is printed once. Notes nothing refers to
+  come after the text.
+- Bookmarks: the cover page, the title page and the titled sections, nested as the book nests them.
+  Links inside the book lead to their targets; links to the web stay as written.
+- Searchable text: every word can be found and copied, ligatures read as their letters. The structure
+  is tagged (headings, paragraphs, pictures with their alternative text, tables, links) for screen
+  readers.
+- The whole description in the PDF's metadata: title, authors, annotation, keywords, genres, language,
+  date, publisher, translators, ISBN, and the series as Calibre reads it. The editor also records the
+  description itself and a few hints, so that the book can be recreated from its PDF later.
+- The file is archival: PDF/A-2U, checked by the editor before it is written.
+
+The words the export adds - the cover's description, the notes' heading - are in the book's language
+(English, Russian or Ukrainian, else English).
+
+### Fonts
+
+The text is printed in the text font of *Settings > PDF export* (Noto Serif out of the box); code in
+DejaVu Sans Mono. A font the book's stylesheet names is replaced by the shipped family of the same kind,
+so titles set in a sans-serif font stay sans-serif. Characters no shipped font has are drawn with a
+system font, and the summary lists them.
+
+### When the export finishes
+
+A summary lists what the PDF could not keep as the book has it: pictures left out (no data, not a
+picture, more than 100 megapixels), links to ids the book does not have (written as text), ids used
+twice (kept by their first place), a missing title (the file's name is used) or language. A book of
+more than 20,000 pages, or more than 100,000 notes, is refused before printing.
+
+### Settings > PDF export
+
+- *Default page size*, *Text font*, *Text size* (smaller, standard, larger) and *Margins* (narrow,
+  standard, wide). Beside each its default is shown, with *Reset*; *Reset all* puts the page back.
+- *Add font from file…* adds a TrueType or OpenType font file (from a collection, the face you choose);
+  *Add installed font…* one of the computer's fonts. A font whose licence forbids embedding is refused
+  with the reason; one that forbids subsetting is embedded whole. The editor keeps its own copy, in its
+  data folder (a portable copy: in `user/fonts/`), so the original may be moved or deleted. *Remove*
+  removes an added font; Noto Serif then becomes the text font again.
+
 ## The Styles view
 
 *View > Styles*, after the Source view, shows the book's stylesheets - each a group with its type, the
