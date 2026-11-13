@@ -28,6 +28,11 @@ export interface PlanBlock {
    * of its first lines, and take that much of the page's text area.
    */
   foot?: number;
+  /**
+   * The height each continued part of the block adds at its top, px: a table's header row, which
+   * every page of the table repeats.
+   */
+  repeat?: number;
 }
 
 /** Lines [fromLine, toLine) of block `block`. */
@@ -54,36 +59,42 @@ function minimumStart(block: PlanBlock): number {
   return sum(block.lines);
 }
 
+/** Where a page starts: a block, and its first line there. */
+export interface PlanCursor {
+  block: number;
+  fromLine: number;
+}
+
 /**
+ * One page from `start`, and where the next page starts (null after the last block). The paginator
+ * plans a page, composes and measures it, and plans the next from where that page really ended, so
+ * that a page that ends earlier than planned never pushes its lines into a page planned already.
  * `footGap` is the space between the text and the first footnote of a page (the short rule).
  */
-export function planPages(
+export function planPage(
   blocks: readonly PlanBlock[],
+  start: PlanCursor,
   pageHeight: number,
   footGap = 0,
-): PlannedPage[] {
-  const pages: PlannedPage[] = [];
-  let page: PlannedPage = [];
+): { page: PlannedPage; next: PlanCursor | null } {
+  const page: PlannedPage = [];
   let used = 0;
   let footUsed = 0;
-  const newPage = (): void => {
-    if (page.length > 0) pages.push(page);
-    page = [];
-    used = 0;
-    footUsed = 0;
-  };
   const room = (): number => pageHeight - used - (footUsed > 0 ? footUsed + footGap : 0);
   // The room a block's own footnotes take when its first lines go on the current page.
   const footFor = (block: PlanBlock, from: number): number =>
     from === 0 && (block.foot ?? 0) > 0 ? (block.foot ?? 0) + (footUsed > 0 ? 0 : footGap) : 0;
+  const stop = (block: number, fromLine: number) => ({ page, next: { block, fromLine } });
 
-  for (let index = 0; index < blocks.length; index++) {
+  for (let index = start.block; index < blocks.length; index++) {
     const block = blocks[index];
-    if (block.breakBefore) newPage();
-    let from = 0;
+    const from = index === start.block ? start.fromLine : 0;
+    if (block.breakBefore && from === 0 && page.length > 0) return stop(index, 0);
     const lines = block.lines;
     while (from < lines.length) {
-      const space = page.length > 0 && from === 0 ? block.spaceBefore : 0;
+      const space =
+        (page.length > 0 && from === 0 ? block.spaceBefore : 0) +
+        (from > 0 ? (block.repeat ?? 0) : 0);
       const rest = sum(lines, from);
       // A title takes with it the start of the blocks that follow (titles of several lines too).
       let needed = space + rest;
@@ -101,8 +112,7 @@ export function planPages(
         break;
       }
       if (block.keepWithNext && from === 0 && page.length > 0 && space + rest <= pageHeight) {
-        newPage();
-        continue;
+        return stop(index, from);
       }
       // Lines that fit in the room left.
       let fit = 0;
@@ -115,35 +125,39 @@ export function planPages(
       const canSplit = block.splittable && lines.length >= SPLIT_FROM;
       if (canSplit && fit >= MIN_LINES && remaining - fit >= MIN_LINES) {
         page.push({ block: index, fromLine: from, toLine: from + fit });
-        if (from === 0) footUsed += block.foot ?? 0;
-        from += fit;
-        newPage();
-        continue;
+        return stop(index, from + fit);
       }
       if (canSplit && fit >= MIN_LINES && remaining - fit < MIN_LINES && fit - 1 >= MIN_LINES) {
         // Leave two lines for the next page.
         const keep = remaining - MIN_LINES;
         if (keep >= MIN_LINES) {
           page.push({ block: index, fromLine: from, toLine: from + keep });
-          if (from === 0) footUsed += block.foot ?? 0;
-          from += keep;
-          newPage();
-          continue;
+          return stop(index, from + keep);
         }
       }
-      if (page.length > 0) {
-        newPage();
-        continue;
-      }
+      if (page.length > 0) return stop(index, from);
       // An empty page and still too tall: cut where the page ends (at least one line).
       const cut = Math.max(1, fit);
       page.push({ block: index, fromLine: from, toLine: from + cut });
-      if (from === 0) footUsed += block.foot ?? 0;
-      from += cut;
-      if (from < lines.length) newPage();
-      else used += height;
+      if (from + cut < lines.length) return stop(index, from + cut);
+      used += height;
+      break;
     }
   }
-  if (page.length > 0) pages.push(page);
+  return { page, next: null };
+}
+
+/** The whole plan, page after page (the planner as the tests read it). */
+export function planPages(
+  blocks: readonly PlanBlock[],
+  pageHeight: number,
+  footGap = 0,
+): PlannedPage[] {
+  const pages: PlannedPage[] = [];
+  for (let cursor: PlanCursor | null = { block: 0, fromLine: 0 }; cursor;) {
+    const { page, next } = planPage(blocks, cursor, pageHeight, footGap);
+    if (page.length > 0) pages.push(page);
+    cursor = next;
+  }
   return pages;
 }

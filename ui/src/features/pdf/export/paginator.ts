@@ -27,7 +27,7 @@ import { layoutFor, type PrintLayout } from './layout';
 import { PX_TO_PT, type PageMap, type PageMapBookmark, type PageMapPicture } from './pageMap';
 import { footnoteElement, isNotesBody, noteRefs, noteSections, referenceId } from './footnotes';
 import { buildHints } from './hints';
-import { planPages, type PlanBlock } from './plan';
+import { planPage, type PlanBlock, type PlanCursor, type PlannedPage } from './plan';
 import { pdfWords, wordsLanguage } from './words';
 
 export const PAGES_PER_PART = 1000;
@@ -160,6 +160,21 @@ function measure(block: Block): void {
   const marginTop = Number.parseFloat(style.marginTop) || 0;
   const marginBottom = Number.parseFloat(style.marginBottom) || 0;
   block.plan.spaceBefore = marginTop;
+  // A table splits between its rows, which the planner takes as lines (DP-19's 10,000 rows).
+  if (isTable(element)) {
+    const rows = [...(element as HTMLTableElement).rows];
+    if (rows.length >= 4) {
+      const tops = rows.map((row) => row.getBoundingClientRect().top - rect.top);
+      block.tops = tops;
+      block.plan.splittable = true;
+      block.plan.lines = tops.map((top, i) =>
+        i + 1 < tops.length ? tops[i + 1] - (i === 0 ? 0 : top) : rect.height - top + marginBottom,
+      );
+      // Its header row is repeated on every page it continues on (tableRows).
+      if (headerRow(element as HTMLTableElement)) block.plan.repeat = block.plan.lines[0];
+      return;
+    }
+  }
   if (!block.plan.splittable) {
     block.plan.lines = [rect.height + marginBottom];
     return;
@@ -182,6 +197,30 @@ function measure(block: Block): void {
   block.plan.lines = tops.map((top, i) =>
     i + 1 < tops.length ? tops[i + 1] - (i === 0 ? 0 : top) : rect.height - top + marginBottom,
   );
+}
+
+const isTable = (element: Element): boolean =>
+  element.namespaceURI === XHTML_NS && element.localName === 'table';
+
+/** A table's first row is its header when all its cells are header cells. */
+const headerRow = (table: HTMLTableElement): boolean => {
+  const first = table.rows[0];
+  return (
+    !!first && first.cells.length > 0 && [...first.cells].every((cell) => cell.localName === 'th')
+  );
+};
+
+/**
+ * Rows [from, to) of a table, in a copy of the table; a continued part repeats the table's header
+ * row (a first row of header cells only), as printed tables do.
+ */
+function tableRows(table: HTMLTableElement, from: number, to: number): Element {
+  const copy = table.cloneNode(false) as HTMLTableElement;
+  const rows = [...table.rows];
+  if (from > 0 && headerRow(table)) copy.append(rows[0].cloneNode(true));
+  for (const row of rows.slice(from, to)) copy.append(row.cloneNode(true));
+  if (from > 0) copy.classList.add('mfbe-continued');
+  return copy;
 }
 
 /** The text nodes of `element` with their start offsets in its text. */
@@ -348,13 +387,7 @@ export async function paginate(
     footMeasure.remove();
     const notesPx = ((layout.textPt * 96) / 72) * 0.8;
     const footGap = notesPx * 1.1 + 2;
-    const planned = planPages(
-      blocks.map((block) => block.plan),
-      layout.contentHeight,
-      footGap,
-    );
-    const pageCount = planned.length + 2;
-    if (pageCount > limits.pages) throw new PdfLimitError('pages', pageCount, limits.pages);
+    const planBlocks = blocks.map((block) => block.plan);
 
     const pagesHost = doc.createElement('div');
     doc.body.append(pagesHost);
@@ -461,7 +494,7 @@ export async function paginate(
       area: HTMLElement;
       foot: HTMLElement;
     }
-    const compose = (pieces: (typeof planned)[number]): Composed => {
+    const compose = (pieces: PlannedPage): Composed => {
       const { page, content } = newPage();
       // The text above, the page's footnotes at the foot under their rule (D19).
       const area = doc.createElementNS(XHTML_NS, 'div') as HTMLElement;
@@ -491,7 +524,9 @@ export async function paginate(
         }
         const whole = piece.fromLine === 0 && piece.toLine === block.plan.lines.length;
         let node: Element;
-        if (whole || block.tops.length <= 1) {
+        if (!whole && isTable(block.element)) {
+          node = tableRows(block.element as HTMLTableElement, piece.fromLine, piece.toLine);
+        } else if (whole || block.tops.length <= 1) {
           node = block.element.cloneNode(true) as Element;
         } else {
           const from = piece.fromLine === 0 ? 0 : lineStart(block, piece.fromLine);
@@ -521,19 +556,36 @@ export async function paginate(
       return tall;
     };
 
-    for (let p = 0; p < planned.length; p++) {
-      let composed = compose(planned[p]);
-      while (planned[p].length > 1 && overflows(composed)) {
-        const carried = planned[p].pop()!;
-        if (p + 1 < planned.length && !blocks[planned[p + 1][0].block].plan.breakBefore) {
-          planned[p + 1].unshift(carried);
+    // A page at a time: planned from the measured heights, composed, and checked; when the composed
+    // page is taller than the text area, its last piece - or, alone, its last line - goes on, and
+    // the next page is planned from where this one really ends.
+    for (let cursor: PlanCursor | null = { block: 0, fromLine: 0 }; cursor;) {
+      const planned = planPage(planBlocks, cursor, layout.contentHeight, footGap);
+      const pieces = planned.page;
+      let next = planned.next;
+      if (pieces.length === 0) {
+        cursor = next;
+        continue;
+      }
+      let composed = compose(pieces);
+      while (overflows(composed)) {
+        if (pieces.length > 1) {
+          const carried = pieces.pop()!;
+          next = { block: carried.block, fromLine: carried.fromLine };
+        } else if (pieces[0].toLine - pieces[0].fromLine > 1) {
+          pieces[0].toLine--;
+          next = { block: pieces[0].block, fromLine: pieces[0].toLine };
         } else {
-          planned.splice(p + 1, 0, [carried]);
+          break; // one line taller than the page: the check of the finished file reports it
         }
-        composed = compose(planned[p]);
+        composed = compose(pieces);
+      }
+      // DP-19: refused before printing.
+      if (serialised.length + 1 > limits.pages) {
+        throw new PdfLimitError('pages', serialised.length + 1, limits.pages);
       }
       const { page } = composed;
-      for (const piece of planned[p]) {
+      for (const piece of pieces) {
         if (piece.fromLine === 0) blockPage[piece.block] = serialised.length;
         const block = blocks[piece.block];
         if (!block.titleOf || piece.fromLine !== 0) continue;
@@ -553,7 +605,8 @@ export async function paginate(
         stack.push({ depth: block.depth, mark });
       }
       finishPage(page, true);
-      await breath(blocks.length + p, blocks.length + planned.length);
+      cursor = next;
+      await breath(blocks.length + (cursor?.block ?? blocks.length), blocks.length * 2);
     }
 
     const pageMap: PageMap = {

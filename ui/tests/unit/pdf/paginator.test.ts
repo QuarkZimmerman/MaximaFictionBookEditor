@@ -110,3 +110,15 @@ describe('planPages with footnotes (D19)', () => {
     expect(pages).toHaveLength(1);
   });
 });
+
+describe('planPages with a repeated header (tables)', () => {
+  it('counts the header row each continued part repeats', () => {
+    // 25 rows of 10 px on 100 px pages: 10 rows, then the 20 px header and 8 rows, then the rest.
+    const pages = planPages([paragraph(25, { repeat: 20 })], 100);
+    expect(pages).toEqual([
+      [{ block: 0, fromLine: 0, toLine: 10 }],
+      [{ block: 0, fromLine: 10, toLine: 18 }],
+      [{ block: 0, fromLine: 18, toLine: 25 }],
+    ]);
+  });
+});
