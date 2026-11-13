@@ -36,7 +36,7 @@ each copyright file) and in the npm registry; they are not repeated here.
 | cli11 | 2.6.2 | BSD-3-Clause | `build/vcpkg_installed/<triplet>/share/cli11/copyright` |  |
 | curl | 8.21.0 | BSD-3-Clause AND ISC AND curl | `build/vcpkg_installed/<triplet>/share/curl/copyright` |  |
 | fmt | 12.2.0 | MIT | `build/vcpkg_installed/<triplet>/share/fmt/copyright` | transitive dependency |
-| freetype | 2.14.3 | GPL-2.0-or-later | `build/vcpkg_installed/<triplet>/share/freetype/copyright` | dual licence (GPL-2.0-or-later chosen; alternative: FTL); transitive dependency |
+| freetype | 2.14.3 | GPL-2.0-or-later | `build/vcpkg_installed/<triplet>/share/freetype/copyright` | dual licence (GPL-2.0-or-later chosen; alternative: FTL) |
 | giflib | 6.1.3 | MIT | `build/vcpkg_installed/<triplet>/share/giflib/copyright` |  |
 | hunspell | 1.7.3 | LGPL-2.1-or-later | `build/vcpkg_installed/<triplet>/share/hunspell/copyright` | MPL-1.1/GPL-2.0-or-later/LGPL-2.1-or-later tri-licence (LGPL-2.1-or-later used; MPL-1.1 alone is not compatible with GPL-3.0) |
 | lcms | 2.19.1 | MIT | `build/vcpkg_installed/<triplet>/share/lcms/copyright` | transitive dependency |

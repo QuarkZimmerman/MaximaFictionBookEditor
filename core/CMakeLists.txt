@@ -24,6 +24,9 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(POPPLER REQUIRED IMPORTED_TARGET GLOBAL poppler)
 # Little CMS (Poppler's cms feature) makes the sRGB profile of the PDF/A output intent.
 pkg_check_modules(LCMS2 REQUIRED IMPORTED_TARGET lcms2)
+# FreeType (Poppler's own dependency) reads the fonts the user adds: their faces, names, kind and
+# embedding permission (feature 014, D7(c), DP-6).
+find_package(Freetype REQUIRED)
 # ZIP archives (feature 009, PD1): the ZIP reader and writer only; built with the bzip2, lzma and
 # zstd features so every ZIP compression method libarchive reads is read (research DP-1, DP-3).
 find_package(LibArchive REQUIRED)
@@ -102,7 +105,7 @@ if(NOT WIN32)
   find_package(Iconv REQUIRED)
   target_link_libraries(mfbe_core PRIVATE Iconv::Iconv)
 endif()
-target_link_libraries(mfbe_core PRIVATE PkgConfig::POPPLER PkgConfig::LCMS2)
+target_link_libraries(mfbe_core PRIVATE PkgConfig::POPPLER PkgConfig::LCMS2 Freetype::Freetype)
 
 if(WIN32)
   target_link_libraries(mfbe_core PRIVATE ws2_32 shell32 ole32)
