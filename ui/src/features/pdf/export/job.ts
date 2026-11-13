@@ -74,6 +74,8 @@ export async function exportPdf(ctx: CommandContext, docId: string, run: PdfRun)
     const base = done;
     // D14: the genres by name in the book's language, as the EPUB export names them (012 D6).
     const titleInfo = current.document.description.titleInfo;
+    // D22: a book without a title is named by its file's name.
+    const fileTitle = path.replace(/^.*[\\/]/, '').replace(/\.pdf$/i, '');
     const language = wordsLanguage(titleInfo.lang);
     const named = await rpc
       .call('resources.genres')
@@ -92,7 +94,7 @@ export async function exportPdf(ctx: CommandContext, docId: string, run: PdfRun)
       {
         token,
         pageMap: paged.pageMap,
-        title: titleInfo.bookTitle ?? '',
+        title: titleInfo.bookTitle?.trim() || fileTitle,
         // D14-D16: the description as the window has it; the core writes it into the metadata.
         description: current.document.description,
         genreNames: titleInfo.genres.map((genre) => named.get(genre.code) ?? genre.code),
@@ -125,6 +127,10 @@ export async function exportPdf(ctx: CommandContext, docId: string, run: PdfRun)
       ),
       ...paged.replacedFonts.map((detail) => ctx.t('pdf.summary.fontReplaced', { detail })),
       ...paged.linksAsText.map((detail) => ctx.t('pdf.summary.linkAsText', { detail })),
+      ...paged.idsTwice.map((detail) => ctx.t('pdf.summary.idTwice', { detail })),
+      // D22: no title - the file's name; no language the editor knows - English words.
+      ...(titleInfo.bookTitle?.trim() ? [] : [ctx.t('pdf.summary.noTitle', { detail: fileTitle })]),
+      ...(titleInfo.lang?.trim() ? [] : [ctx.t('pdf.summary.noLanguage')]),
       ...(finished.uncovered
         ? [ctx.t('pdf.summary.systemFont', { detail: [...finished.uncovered].join(' ') })]
         : []),

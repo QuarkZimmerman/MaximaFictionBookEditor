@@ -75,6 +75,8 @@ export interface Paginated {
   replacedFonts: string[];
   /** D18: links to ids the book does not have, written as text. */
   linksAsText: string[];
+  /** D22: ids used twice, kept by the first. */
+  idsTwice: string[];
   /** D23 / FR-042: what the status line counts. */
   counts: { pictures: number; tables: number; notes: number };
   /** R10: the editor's hints (mfbe:fb2Hints, JSON). */
@@ -583,6 +585,7 @@ export async function paginate(
       leftOut: frame.leftOut,
       replacedFonts: frame.replacedFonts,
       linksAsText: frame.linksAsText,
+      idsTwice: frame.idsTwice,
       counts: {
         pictures: new Set(pictures.map((picture) => picture.binaryId)).size,
         tables: root.getElementsByTagNameNS(XHTML_NS, 'table').length,

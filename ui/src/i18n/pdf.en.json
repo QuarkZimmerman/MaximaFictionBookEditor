@@ -41,7 +41,10 @@
       "pictureLeftOut": "Picture {{detail}} left out: it has no data, or it is not a picture",
       "fontReplaced": "Font “{{detail}}” replaced by the editor's own font of its kind",
       "systemFont": "Drawn with a system font, as no font the editor ships has them: {{detail}}",
-      "linkAsText": "Link to {{detail}} written as text: nothing in the book has that id"
+      "linkAsText": "Link to {{detail}} written as text: nothing in the book has that id",
+      "idTwice": "The id {{detail}} is used more than once: only its first place keeps it",
+      "noTitle": "The book has no title: the file’s name “{{detail}}” is its title in the PDF",
+      "noLanguage": "The book’s language is not given: the words the export adds are in English"
     },
     "reason": {
       "noPrinter": "printing needs the editor's window",

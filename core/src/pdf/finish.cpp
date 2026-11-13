@@ -247,6 +247,10 @@ std::vector<char> finish(std::vector<char> printed, const FinishInput& input,
         xmp.description.titleInfo.bookTitle = input.title;
         xmp.description.titleInfo.lang = input.lang;
     }
+    // D22: a book without a title is named by its file (the interface sends that name).
+    if (xmp.description.titleInfo.bookTitle.find_first_not_of(" \t\r\n") == std::string::npos) {
+        xmp.description.titleInfo.bookTitle = input.title;
+    }
     xmp.description_xml = input.description_xml;
     xmp.genre_names = input.genre_names;
     xmp.hints = input.hints;

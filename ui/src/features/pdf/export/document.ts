@@ -28,6 +28,8 @@ export interface PrintFrame {
   replacedFonts: string[];
   /** D18: links to ids the book does not have, written as text, for the summary. */
   linksAsText: string[];
+  /** D22: ids used more than once, kept by their first element only. */
+  idsTwice: string[];
   dispose(): void;
 }
 
@@ -213,6 +215,18 @@ export async function createPrintFrame(
       else image.append(box);
     }
     addRoles(root);
+    // D22: an id used twice is kept by its first element (a destination must be one place).
+    const seenIds = new Set<string>();
+    const idsTwice: string[] = [];
+    for (const element of [...root.querySelectorAll('[id]')]) {
+      const id = element.getAttribute('id') ?? '';
+      if (!seenIds.has(id)) {
+        seenIds.add(id);
+        continue;
+      }
+      element.removeAttribute('id');
+      if (!idsTwice.includes(id)) idsTwice.push(id);
+    }
     const linksAsText = makeLinks(doc, root);
     await doc.fonts.ready;
     return {
@@ -223,6 +237,7 @@ export async function createPrintFrame(
       leftOut,
       replacedFonts: [...replaced],
       linksAsText,
+      idsTwice,
       dispose,
     };
   } catch (error) {
