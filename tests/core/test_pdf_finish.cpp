@@ -158,7 +158,10 @@ TEST_CASE("pdf finish: pictures are drawn from the book's own bytes into their b
                 ++jpegs;
                 continue;
             }
-            REQUIRE(filter.isName("FlateDecode"));
+            // The name, or the one-element array a PNG copied row by row is written with (DP-19).
+            REQUIRE((filter.isName("FlateDecode") ||
+                     (filter.isArray() && filter.arrayGetLength() == 1 &&
+                      filter.arrayGet(0).isName("FlateDecode"))));
             Stream* stream = image.getStream();
             REQUIRE(stream->rewind());
             CHECK(stream->toUnsignedChars().size() == static_cast<std::size_t>(w) * h * 3);

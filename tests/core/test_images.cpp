@@ -5,6 +5,7 @@
 #include "test_support.hpp"
 #include "ws_test_client.hpp"
 
+#include <mfbe/atomic_file.hpp>
 #include <mfbe/binary_store.hpp>
 #include <mfbe/core_server.hpp>
 #include <mfbe/fb2_reader.hpp>
@@ -98,8 +99,9 @@ TEST_CASE("images: every fixture format decodes to an 8x6 RGBA bitmap", "[images
     CHECK_FALSE(images::decode(fixture("opaque-rgb.png")).has_alpha);
 }
 
-TEST_CASE("images: a codec error in the middle of decoding is refused and leaks nothing (feature 011)",
-          "[images]") {
+TEST_CASE(
+    "images: a codec error in the middle of decoding is refused and leaks nothing (feature 011)",
+    "[images]") {
     // D48: libjpeg's and libpng's error jumps land in frames without C++ objects with destructors;
     // the repetitions let the sanitizer job see any leak of the codecs' state.
     std::string jpeg = fixture("tiny.jpg");
@@ -756,5 +758,30 @@ TEST_CASE("images: binary.add with imagesOnly refuses a file that is not a pictu
     if (list.contains("result")) {
         for (const json& meta : list["result"])
             CHECK(meta["id"] != "notes.png");
+    }
+}
+
+TEST_CASE("images: a PNG read row by row gives the rows of the whole decode (feature 014, DP-19)",
+          "[images][pdf]") {
+    for (const char* name : {"alpha.png", "opaque-rgb.png", "tiny.png", "alpha-interlaced.png"}) {
+        INFO(name);
+        const std::string bytes =
+            mfbe::atomic_file::read_file(mfbe::test::fixtures_dir() / "images" / name);
+        const mfbe::images::Bitmap whole = mfbe::images::decode(bytes);
+        std::vector<std::uint8_t> rows;
+        int width = 0;
+        int height = 0;
+        mfbe::images::decode_png_rows(
+            bytes,
+            [&](int w, int h) {
+                width = w;
+                height = h;
+            },
+            [&](const std::uint8_t* rgba) {
+                rows.insert(rows.end(), rgba, rgba + static_cast<std::size_t>(width) * 4);
+            });
+        CHECK(width == whole.width);
+        CHECK(height == whole.height);
+        CHECK(rows == whole.rgba);
     }
 }

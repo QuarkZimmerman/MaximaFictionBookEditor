@@ -15,6 +15,8 @@
 #include <XRef.h>
 #include <cstdio>
 #include <optional>
+#include <stdexcept>
+#include <zlib.h>
 
 namespace mfbe::pdf {
 namespace {
@@ -83,8 +85,99 @@ std::unique_ptr<Dict> image_dict(XRef* xref, int width, int height, const char* 
     return dict;
 }
 
-// One image object for `bytes`: a colour or greyscale JPEG as it is, anything else with its exact
-// pixels (RGB, and the alpha as a soft mask when a pixel is not opaque).
+// Deflates what it is given, as it comes (zlib, best compression).
+class Deflater {
+public:
+    Deflater() {
+        if (deflateInit(&z_, Z_BEST_COMPRESSION) != Z_OK)
+            throw std::runtime_error("zlib");
+    }
+    ~Deflater() { deflateEnd(&z_); }
+    Deflater(const Deflater&) = delete;
+    Deflater& operator=(const Deflater&) = delete;
+    void add(const std::vector<char>& data) { run(data.data(), data.size(), Z_NO_FLUSH); }
+    std::vector<char> finish() {
+        run(nullptr, 0, Z_FINISH);
+        return std::move(out_);
+    }
+
+private:
+    void run(const char* data, std::size_t size, int flush) {
+        z_.next_in = reinterpret_cast<Bytef*>(const_cast<char*>(data));
+        z_.avail_in = static_cast<uInt>(size);
+        char chunk[65536];
+        int status = Z_OK;
+        do {
+            z_.next_out = reinterpret_cast<Bytef*>(chunk);
+            z_.avail_out = sizeof chunk;
+            status = deflate(&z_, flush);
+            out_.insert(out_.end(), chunk, chunk + (sizeof chunk - z_.avail_out));
+        } while (z_.avail_out == 0 || (flush == Z_FINISH && status != Z_STREAM_END));
+    }
+    z_stream z_{};
+    std::vector<char> out_;
+};
+
+// DP-19: a PNG row by row - each row of the decoder's RGBA deflated at once into the colour and
+// the alpha streams - so the picture is never held whole. The streams are written as they are:
+// Poppler's writer compresses an in-memory stream again only when its Filter is the name
+// /FlateDecode (PDFDoc::writeObject, Poppler 26.04), so the filter is given as the array
+// [/FlateDecode], which means the same.
+std::optional<Ref> png_object(XRef* xref, const std::string& bytes) {
+    struct TooLarge {};
+    Deflater colour;
+    Deflater alpha;
+    int width = 0;
+    int height = 0;
+    bool transparent = false;
+    std::vector<char> rgb_row;
+    std::vector<char> alpha_row;
+    try {
+        images::decode_png_rows(
+            bytes,
+            [&](int w, int h) {
+                if (w <= 0 || h <= 0 || static_cast<std::uint64_t>(w) * h > kMaxPixels) {
+                    throw TooLarge{};
+                }
+                width = w;
+                height = h;
+                rgb_row.resize(static_cast<std::size_t>(w) * 3);
+                alpha_row.resize(static_cast<std::size_t>(w));
+            },
+            [&](const std::uint8_t* rgba) {
+                for (int x = 0; x < width; ++x) {
+                    rgb_row[x * 3] = static_cast<char>(rgba[x * 4]);
+                    rgb_row[x * 3 + 1] = static_cast<char>(rgba[x * 4 + 1]);
+                    rgb_row[x * 3 + 2] = static_cast<char>(rgba[x * 4 + 2]);
+                    alpha_row[x] = static_cast<char>(rgba[x * 4 + 3]);
+                    transparent = transparent || rgba[x * 4 + 3] != 255;
+                }
+                colour.add(rgb_row);
+                alpha.add(alpha_row);
+            });
+    } catch (const TooLarge&) {
+        return std::nullopt;
+    } catch (const std::exception&) {
+        return std::nullopt;
+    }
+    const auto flate = [xref]() {
+        auto filters = std::make_unique<Array>(xref);
+        filters->add(Object(objName, "FlateDecode"));
+        return Object(std::move(filters));
+    };
+    auto dict = image_dict(xref, width, height, "DeviceRGB", "FlateDecode");
+    dict->set("Filter", flate());
+    if (transparent) {
+        auto mask_dict = image_dict(xref, width, height, "DeviceGray", "FlateDecode");
+        mask_dict->set("Filter", flate());
+        const Ref mask = add_stream(xref, alpha.finish(), std::move(mask_dict), true);
+        dict->set("SMask", Object(mask));
+    }
+    return add_stream(xref, colour.finish(), std::move(dict), true);
+}
+
+// One image object for `bytes`: a colour or greyscale JPEG as it is, a PNG row by row, anything
+// else with its exact pixels (RGB, and the alpha as a soft mask when a pixel is not opaque).
 std::optional<Ref> image_object(XRef* xref, const std::string& bytes) {
     if (const auto jpeg = jpeg_info(bytes);
         jpeg && (jpeg->components == 1 || jpeg->components == 3)) {
@@ -97,6 +190,8 @@ std::optional<Ref> image_object(XRef* xref, const std::string& bytes) {
                        jpeg->components == 1 ? "DeviceGray" : "DeviceRGB", "DCTDecode"),
             true);
     }
+    if (bytes.rfind("\x89PNG\r\n\x1a\n", 0) == 0)
+        return png_object(xref, bytes);
     const auto bitmap = images::try_decode(bytes);
     if (!bitmap || bitmap->width <= 0 || bitmap->height <= 0 ||
         static_cast<std::uint64_t>(bitmap->width) * bitmap->height > kMaxPixels) {
