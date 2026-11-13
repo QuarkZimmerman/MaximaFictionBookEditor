@@ -378,6 +378,15 @@ jobs:
           MFBE_CORE_BIN: ${{ github.workspace }}/build/${{ matrix.preset }}/bin/${{ matrix.core_bin }}
           MFBE_UI_DIST: ${{ github.workspace }}/ui/dist
           MFBE_RESOURCES: ${{ github.workspace }}/resources
+      - name: The PDF export as this system prints it (feature 014, SC-009)
+        # build/pdf-systems/<platform>.json, written by systems-pdf.spec.ts (@platform): the Linux
+        # leg runs it with every journey, Windows and macOS with the platform journeys.
+        uses: actions/upload-artifact@v6
+        with:
+          name: pdf-systems-${{ runner.os }}
+          path: build/pdf-systems/*.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Russian environment (feature 002; ru_RU.UTF-8, Cyrillic home and temp)
         if: runner.os == 'Linux'
         # The start-up, open/save and Find journeys with the Russian system locale - the
@@ -449,6 +458,25 @@ jobs:
           name: playwright-report-${{ matrix.name }}
           path: ui/playwright-report/
           if-no-files-found: ignore
+
+  pdf-systems:
+    # Feature 014 (SC-009, T060): the same books exported on the three systems, compared - Windows
+    # and Linux page for page, macOS (whose engine hyphenates) by the text in order.
+    name: PDF export across systems
+    needs: e2e
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: pdf-systems-*
+          path: build/pdf-systems
+          merge-multiple: true
+      - name: Compare the systems
+        run: node tests/pdf/compare-systems.mjs build/pdf-systems/linux.json build/pdf-systems/win32.json build/pdf-systems/darwin.json
 
   app:
     name: app (CEF shell, ${{ matrix.name }})
