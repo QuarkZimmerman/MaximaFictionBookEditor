@@ -82,6 +82,25 @@ std::string comparable(const std::string& text) {
             ++i;
             continue;
         }
+        // The other Unicode spaces count as whitespace (U+1680, U+2000 to U+200B, U+202F, U+205F,
+        // U+3000, U+FEFF), as tests/pdf/text-compare.mjs counts them.
+        if (c == 0xE2 && i + 2 < text.size()) {
+            const unsigned char b1 = static_cast<unsigned char>(text[i + 1]);
+            const unsigned char b2 = static_cast<unsigned char>(text[i + 2]);
+            if ((b1 == 0x80 && (b2 <= 0x8B || b2 == 0xAF)) || (b1 == 0x81 && b2 == 0x9F)) {
+                i += 2;
+                continue;
+            }
+        }
+        if ((c == 0xE1 && i + 2 < text.size() && static_cast<unsigned char>(text[i + 1]) == 0x9A &&
+             static_cast<unsigned char>(text[i + 2]) == 0x80) ||
+            (c == 0xE3 && i + 2 < text.size() && static_cast<unsigned char>(text[i + 1]) == 0x80 &&
+             static_cast<unsigned char>(text[i + 2]) == 0x80) ||
+            (c == 0xEF && i + 2 < text.size() && static_cast<unsigned char>(text[i + 1]) == 0xBB &&
+             static_cast<unsigned char>(text[i + 2]) == 0xBF)) {
+            i += 2;
+            continue;
+        }
         // No-break spaces (U+00A0) and the soft hyphen (U+00AD) count as whitespace too.
         if (c == 0xC2 && i + 1 < text.size() &&
             (static_cast<unsigned char>(text[i + 1]) == 0xA0 ||
@@ -148,11 +167,12 @@ std::vector<std::string> check_finished(const std::vector<char>& finished,
         std::string missing;
         std::string extra;
         for (const auto& [ch, n] : count) {
-            if (n > 0 && missing.size() < 80)
-                missing += ch;
-            // A hyphen the engine adds where it breaks a word at a line's end (macOS hyphenates,
-            // plan DP-17) is drawn but is not the page map's text: an added hyphen is not a fault.
+            // Hyphens either way are no fault: the engine adds one where it breaks a word at a
+            // line's end (macOS hyphenates, plan DP-17), and Poppler's text drops a line-final
+            // hyphen when it joins the word broken there.
             const bool hyphen = ch == "-" || ch == "\xE2\x80\x90";
+            if (n > 0 && !hyphen && missing.size() < 80)
+                missing += ch;
             if (n < 0 && !hyphen && extra.size() < 80)
                 extra += ch;
         }

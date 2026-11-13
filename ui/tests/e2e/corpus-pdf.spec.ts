@@ -27,7 +27,8 @@ interface Result {
   failure?: string;
 }
 
-const firstLine = (error: unknown): string => String(error).split('\n')[0]!;
+// The whole message - the export's reason follows its first line - on one line.
+const message = (error: unknown): string => String(error).replace(/\s+/g, ' ').slice(0, 600);
 
 test.describe('corpus gate - PDF export (feature 014)', () => {
   test('the FB2 sample exports to PDF', async ({ core, page, context }) => {
@@ -56,7 +57,7 @@ test.describe('corpus gate - PDF export (feature 014)', () => {
           const summary = await exportPdfTo(core, page, pdf, 'A5 (148 × 210 mm)', BOOK_LIMIT_MS);
           results.push({ book, ms: Date.now() - started, pdf, expected, summary });
         } catch (error) {
-          results.push({ book, ms: Date.now() - started, failure: firstLine(error) });
+          results.push({ book, ms: Date.now() - started, failure: message(error) });
           await core.openApp(page);
         }
       }
