@@ -364,13 +364,17 @@ with *Cancel*; a cancelled export writes nothing.
 
 The save dialog lists nine sizes, *A4*, *B5*, *A5*, *B6* and *A6*, then *Legal*, *Letter*, *Executive*
 and *Statement*. It proposes the size the open book was last exported in, else the default of
-*Settings > PDF export* (A4 out of the box). Where the system's save dialog cannot show the list, the
+*Settings > Exports*, format PDF (A4 out of the box). Where the system's save dialog cannot show the list, the
 editor asks for the size in a window of its own after the dialog.
 
 ### What the PDF holds
 
-- A cover page with the description's cover picture, a title page with the book's title and authors,
-  then the book's bodies, each body and top-level section on a new page, the page numbers at the foot.
+- A cover page with the description's cover picture, and a title page as printed books set it: the
+  authors and the title large in its upper part, each series in brackets under the title, the
+  publisher and the year small at its foot. Then the book's bodies as the Body view shows them (the
+  cover Preview draws at the top is not printed again): each body and each top-level section after
+  a body's first on a new page, so a body's own title shares its page with the first section. The
+  page numbers are at the foot.
 - Notes at the foot of the page that refers to them, under a short rule, each beginning with its title
   and leading back to the reference. A note referred to twice is printed once. Notes nothing refers to
   come after the text.
@@ -389,7 +393,7 @@ The words the export adds - the cover's description, the notes' heading - are in
 
 ### Fonts
 
-The text is printed in the text font of *Settings > PDF export* (Noto Serif out of the box); code in
+The text is printed in the text font of *Settings > Exports* (PDF; Noto Serif out of the box); code in
 DejaVu Sans Mono. A font the book's stylesheet names is replaced by the shipped family of the same kind,
 so titles set in a sans-serif font stay sans-serif. Characters no shipped font has are drawn with a
 system font, and the summary lists them.
@@ -401,10 +405,16 @@ picture, more than 100 megapixels), links to ids the book does not have (written
 twice (kept by their first place), a missing title (the file's name is used) or language. A book of
 more than 20,000 pages, or more than 100,000 notes, is refused before printing.
 
-### Settings > PDF export
+### Settings > Exports
 
-- *Default page size*, *Text font*, *Text size* (smaller, standard, larger) and *Margins* (narrow,
-  standard, wide). Beside each its default is shown, with *Reset*; *Reset all* puts the page back.
+*Format* at the top chooses the export whose settings are shown: PDF, EPUB or Markdown. Only the PDF
+export has settings of its own for now.
+
+- *Default page size*, *Text font*, *Text size* (smaller, standard, larger, custom) and *Margins*
+  (narrow, standard, wide, custom). Beside the text size and the margins their value for the default
+  page size is shown, in points and millimetres; with *Custom* that value can be typed (6 to 24 pt,
+  5 to 50 mm) and holds for every page size. Beside each its default is shown, with *Reset*; *Reset
+  all* puts the page back.
 - *Add font from file…* adds a TrueType or OpenType font file (from a collection, the face you choose);
   *Add installed font…* one of the computer's fonts. A font whose licence forbids embedding is refused
   with the reason; one that forbids subsetting is embedded whole. The editor keeps its own copy, in its
