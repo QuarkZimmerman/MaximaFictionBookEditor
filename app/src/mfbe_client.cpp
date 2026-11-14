@@ -14,6 +14,7 @@
 #include "include/wrapper/cef_helpers.h"
 #include "native_actions.h"
 #include "permission_policy.h"
+#include "print_service_cef.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -278,8 +279,9 @@ void MfbeClient::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
         }
     }
     if (browser_list_.empty()) {
-        // All browser windows have closed. Quit the application message loop.
-        CefQuitMessageLoop();
+        // All browser windows have closed. The PDF export's hidden print browser closes too, then
+        // the application message loop quits: CefShutdown must find no browser open.
+        closePrintBrowser([] { CefQuitMessageLoop(); });
     }
 }
 

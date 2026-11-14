@@ -8,6 +8,7 @@
 
 #include <mfbe/print_service.hpp>
 
+#include <functional>
 #include <memory>
 
 namespace mfbe::shell {
@@ -18,5 +19,10 @@ std::shared_ptr<mfbe::PrintService> cefPrintService();
 /// The print browser's CefClient::GetPrintHandler: on Linux, PrintToPDF needs GetPdfPaperSize,
 /// which answers with the size of the job being printed.
 CefRefPtr<CefPrintHandler> printHandler();
+
+/// The editor is closing (its last window has gone): the print jobs left fail, and the hidden
+/// print browser closes; `done` runs once it has (at once when there is none). CefShutdown must
+/// find no browser open, else the process and its helpers stay (UI thread).
+void closePrintBrowser(std::function<void()> done);
 
 }  // namespace mfbe::shell

@@ -155,6 +155,12 @@ try {
   const out = path.join(folder, written[0]);
   if (statSync(out).size === 0) fail(`${out} is empty`);
   console.error(`shell-smoke-pdf: the shell printed ${out} (${statSync(out).size} bytes)`);
+  // The editor must end once its window closes, the PDF export's print browser with it: left
+  // open, it kept the process and its helpers alive (requester, Windows, rc.4). File > Exit; the
+  // book is unchanged, so nothing is asked. shell-smoke.sh then waits for the shell to end.
+  await page.getByTestId("menu-file").click({ timeout: 10000 });
+  await page.getByTestId("menu-file-exit").click({ timeout: 10000 });
+  console.error("shell-smoke-pdf: File > Exit");
   console.log(out);
 } catch (error) {
   fail(error instanceof Error ? error.message : String(error));

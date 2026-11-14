@@ -81,6 +81,7 @@ public:
         return true;  // the print browser opens nothing
     }
     void OnAfterCreated(CefRefPtr<CefBrowser> browser) override;
+    void OnBeforeClose(CefRefPtr<CefBrowser> browser) override;
     void OnLoadError(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, ErrorCode error_code,
                      const CefString& error_text, const CefString& failed_url) override;
     bool OnBeforeBrowse(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
@@ -133,6 +134,40 @@ private:
 
 class Printer final : public mfbe::PrintService {
 public:
+    /// The editor is closing, its last window gone: the jobs left fail, and the print browser
+    /// and its hidden window close, so that CefShutdown finds no browser. CEF requires that; with
+    /// the print browser left open, the process and its helpers stayed after the editor's
+    /// windows had closed (requester, Windows, rc.4). `done` runs once it has closed, or at once
+    /// when there is none.
+    void close(std::function<void()> done) {
+        CEF_REQUIRE_UI_THREAD();
+        while (!queue_.empty()) {
+            Job job = std::move(queue_.front());
+            queue_.pop_front();
+            job.done(false, "the editor is closing");
+        }
+        if (!view_ && !browser_) {
+            done();
+            return;
+        }
+        closed_ = std::move(done);
+        if (browser_)
+            browser_->GetHost()->CloseBrowser(true);  // else browser_created() closes it
+    }
+
+    void browser_closed() {
+        CefRefPtr<CefWindow> window = view_ ? view_->GetWindow() : nullptr;
+        browser_ = nullptr;
+        view_ = nullptr;
+        if (window)
+            window->Close();
+        if (closed_) {
+            std::function<void()> done = std::move(closed_);
+            closed_ = nullptr;
+            done();
+        }
+    }
+
     void print(const mfbe::PrintRequest& request, mfbe::PrintDone done) override {
         post_ui([this, request, done = std::move(done)]() mutable {
             queue_.push_back(Job{request, std::move(done)});
@@ -170,6 +205,10 @@ public:
 
     void browser_created(CefRefPtr<CefBrowser> browser) {
         browser_ = std::move(browser);
+        if (closed_) {  // the editor closed while the print browser was being created
+            browser_->GetHost()->CloseBrowser(true);
+            return;
+        }
         load_current();
     }
 
@@ -255,6 +294,7 @@ private:
     std::deque<Job> queue_;  // UI thread only
     CefRefPtr<CefBrowserView> view_;
     CefRefPtr<CefBrowser> browser_;
+    std::function<void()> closed_;  // the editor is closing: what to do once the browser has gone
     mutable std::mutex paper_mutex_;
     double paper_width_in_ = 8.27;
     double paper_height_in_ = 11.69;
@@ -268,6 +308,11 @@ void PrintClient::OnTitleChange(CefRefPtr<CefBrowser> browser, const CefString& 
 void PrintClient::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
     CEF_REQUIRE_UI_THREAD();
     owner_->browser_created(browser);
+}
+
+void PrintClient::OnBeforeClose(CefRefPtr<CefBrowser>) {
+    CEF_REQUIRE_UI_THREAD();
+    owner_->browser_closed();
 }
 
 void PrintClient::OnLoadError(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame> frame,
@@ -328,6 +373,10 @@ std::shared_ptr<mfbe::PrintService> cefPrintService() {
 CefRefPtr<CefPrintHandler> printHandler() {
     static CefRefPtr<CefPrintHandler> handler = new PrintHandler();
     return handler;
+}
+
+void closePrintBrowser(std::function<void()> done) {
+    printer_instance()->close(std::move(done));
 }
 
 }  // namespace mfbe::shell

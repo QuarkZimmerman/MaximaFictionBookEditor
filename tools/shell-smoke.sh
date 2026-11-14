@@ -983,7 +983,19 @@ if [[ "${MFBE_SMOKE_PDF:-0}" == "1" ]]; then
   mkdir -p "$(dirname "$PDF_OUT")"
   cp "$PROPOSED" "$PDF_OUT"
   "$ROOT/tools/ci/verapdf.sh" "$PDF_OUT" || exit 1
-  echo "shell-smoke: PDF export printed by the shell: OK"
+  # After File > Exit the shell must end: the print browser closes with the editor's last window
+  # (requester, Windows, rc.4: left open, it kept the process and its helpers alive).
+  for _ in $(seq 1 80); do
+    kill -0 "$APP_PID" 2>/dev/null || break
+    sleep 0.25
+  done
+  if kill -0 "$APP_PID" 2>/dev/null; then
+    echo "shell-smoke: the shell is still running 20 s after File > Exit following a PDF export" >&2
+    exit 1
+  fi
+  wait "$APP_PID" || true
+  APP_PID=""
+  echo "shell-smoke: PDF export printed by the shell, and the shell ended after File > Exit: OK"
 fi
 
 if [[ "$ENGINE_KEYS" == "1" ]]; then
