@@ -97,7 +97,9 @@ TEST_CASE("settings: defaults are exactly resource-formats.md section 6", "[sett
     CHECK(d["pdf"] == json{{"defaultPageSize", "a4"},
                            {"textFont", "noto-serif"},
                            {"textSize", "standard"},
-                           {"margins", "standard"}});
+                           {"margins", "standard"},
+                           {"customTextSize", 115},
+                           {"customMargin", 22}});
     CHECK(d.size() == 7);
 }
 

@@ -340,8 +340,12 @@ export interface Settings {
     defaultPageSize: PdfPageSizeId;
     /** A shipped family's id or an added font's id; an unknown one reads as `noto-serif`. */
     textFont: string;
-    textSize: 'smaller' | 'standard' | 'larger';
-    margins: 'narrow' | 'standard' | 'wide';
+    textSize: 'smaller' | 'standard' | 'larger' | 'custom';
+    margins: 'narrow' | 'standard' | 'wide' | 'custom';
+    /** The text size a `custom` choice uses, in tenths of a point (60 to 240); default 115. */
+    customTextSize: number;
+    /** The margins a `custom` choice uses, in millimetres (5 to 50); default 22. */
+    customMargin: number;
   };
   session: {
     /**

@@ -101,6 +101,8 @@ describe('an added text font (D7(c))', () => {
         textFont: 'gone',
         textSize: 'standard',
         margins: 'standard',
+        customTextSize: 115,
+        customMargin: 22,
       }).fontId,
     ).toBe('noto-serif');
   });

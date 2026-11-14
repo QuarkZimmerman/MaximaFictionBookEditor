@@ -4,28 +4,12 @@
  * larger) and margins (0.7 or 1.3 times); the line height is Preview's 1.5. Pages are fixed-size
  * boxes the paginator fills (research R7); the browser engine prints one box on each PDF page.
  */
+import { pdfValues } from '@/features/pdf/printValues';
 import type { Settings } from '@/rpc/types';
 
 import type { PdfPageSize } from '../pageSizes';
 
 type PdfSettings = NonNullable<Settings['pdf']>;
-
-/**
- * DP-2: the standard text size (pt) and margin (mm) of each page size. Letter and Legal have wider
- * margins than A4, and A6 a smaller text, so that a line holds 50 to 90 characters of English and
- * Russian text in every size (SC-014, checked by tests/unit/pdf/lineLength.test.ts).
- */
-const STANDARD: Record<string, { textPt: number; marginMm: number }> = {
-  a4: { textPt: 11.5, marginMm: 22 },
-  letter: { textPt: 11.5, marginMm: 24 },
-  legal: { textPt: 11.5, marginMm: 24 },
-  b5: { textPt: 11, marginMm: 18 },
-  executive: { textPt: 11, marginMm: 18 },
-  a5: { textPt: 10.5, marginMm: 15 },
-  statement: { textPt: 10.5, marginMm: 15 },
-  b6: { textPt: 10, marginMm: 12 },
-  a6: { textPt: 9, marginMm: 8 },
-};
 
 import type { FontKind } from './fontKinds';
 
@@ -53,14 +37,10 @@ export function layoutFor(
   settings: PdfSettings | undefined,
   addedFont?: { id: string; kind: FontKind },
 ): PrintLayout {
-  const standard = STANDARD[size.id] ?? STANDARD.a4;
-  const textPt =
-    standard.textPt +
-    (settings?.textSize === 'smaller' ? -1 : settings?.textSize === 'larger' ? 1 : 0);
-  const factor = settings?.margins === 'narrow' ? 0.7 : settings?.margins === 'wide' ? 1.3 : 1;
+  const { textPt, marginMm } = pdfValues(size.id, settings);
   const pageWidth = size.widthIn * PX_PER_IN;
   const pageHeight = size.heightIn * PX_PER_IN;
-  const margin = standard.marginMm * factor * PX_PER_MM;
+  const margin = marginMm * PX_PER_MM;
   return {
     pageWidth,
     pageHeight,

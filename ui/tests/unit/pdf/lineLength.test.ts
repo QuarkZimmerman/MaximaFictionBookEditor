@@ -101,6 +101,8 @@ describe('larger text and narrow margins (US7 scenario 6, D9, D25)', () => {
         textFont: 'noto-serif',
         textSize: 'larger',
         margins: 'narrow',
+        customTextSize: 115,
+        customMargin: 22,
       });
       expect(changed.textPt, size.id).toBeGreaterThan(standard.textPt);
       expect(changed.contentWidth, size.id).toBeGreaterThan(standard.contentWidth);

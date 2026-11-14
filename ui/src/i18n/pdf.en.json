@@ -88,12 +88,14 @@
       "textSizes": {
         "smaller": "Smaller",
         "standard": "Standard",
-        "larger": "Larger"
+        "larger": "Larger",
+        "custom": "Custom"
       },
       "marginSizes": {
         "narrow": "Narrow",
         "standard": "Standard",
-        "wide": "Wide"
+        "wide": "Wide",
+        "custom": "Custom"
       },
       "refused": {
         "unreadable": "The file is not a font the editor can read.",
@@ -104,7 +106,11 @@
         "noInstalledFonts": "The fonts installed on this computer cannot be listed here."
       },
       "installed": "I&nstalled font:",
-      "chooseInstalled": "Choose a font installed on this computer"
+      "chooseInstalled": "Choose a font installed on this computer",
+      "textSizeValue": "Text size, pt",
+      "marginValue": "Margins, mm",
+      "unitPt": "pt",
+      "unitMm": "mm"
     }
   },
   "dialog": {
@@ -130,7 +136,9 @@
         "face": "The face of the font collection to add",
         "reset": "Puts the default back: {{value}}",
         "resetAll": "Puts every value of this page back to its default",
-        "installed": "The installed font to add"
+        "installed": "The installed font to add",
+        "textSizeValue": "The text size this choice gives the default page size above; with Custom, type your own (6 to 24 pt)",
+        "marginValue": "The margins this choice gives the default page size above; with Custom, type your own (5 to 50 mm)"
       }
     },
     "pdf": {

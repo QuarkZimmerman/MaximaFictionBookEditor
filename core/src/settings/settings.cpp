@@ -113,8 +113,12 @@ const std::vector<Field>& schema() {
         enumeration("pdf.defaultPageSize",
                     {"a4", "b5", "a5", "b6", "a6", "legal", "letter", "executive", "statement"}),
         text("pdf.textFont", 1, 80),
-        enumeration("pdf.textSize", {"smaller", "standard", "larger"}),
-        enumeration("pdf.margins", {"narrow", "standard", "wide"}),
+        enumeration("pdf.textSize", {"smaller", "standard", "larger", "custom"}),
+        enumeration("pdf.margins", {"narrow", "standard", "wide", "custom"}),
+        // The values a "custom" choice uses (requester, rc.3): the text size in tenths of a point
+        // (6 to 24 pt), the margins in millimetres.
+        integer("pdf.customTextSize", 60, 240),
+        integer("pdf.customMargin", 5, 50),
         enumeration("other.defaultEncoding", supported_encodings()),
         field("other.keepEncoding", Kind::boolean),
         // A backup of the previous version beside the saved file (feature 009, FR-006).
@@ -635,7 +639,9 @@ json defaults() {
          {{"defaultPageSize", "a4"},
           {"textFont", "noto-serif"},
           {"textSize", "standard"},
-          {"margins", "standard"}}},
+          {"margins", "standard"},
+          {"customTextSize", 115},
+          {"customMargin", 22}}},
         {"session",
          {{"windowGeometry", nullptr},
           {"toolbars",

@@ -67,6 +67,8 @@ describe('Settings > PDF export (DP-5)', () => {
       textFont: 'noto-sans',
       textSize: 'larger',
       margins: 'wide',
+      customTextSize: 115,
+      customMargin: 22,
     });
     await waitFor(() =>
       expect(screen.getByTestId('settings-pdf-text-font')).toHaveValue('noto-sans'),
@@ -85,6 +87,8 @@ describe('Settings > PDF export (DP-5)', () => {
       textFont: 'noto-serif',
       textSize: 'standard',
       margins: 'standard',
+      customTextSize: 115,
+      customMargin: 22,
     });
     expect(screen.getByTestId('settings-pdf-reset-all')).toBeDisabled();
   });
@@ -95,6 +99,8 @@ describe('Settings > PDF export (DP-5)', () => {
       textFont: ADDED,
       textSize: 'standard',
       margins: 'standard',
+      customTextSize: 115,
+      customMargin: 22,
     });
     await waitFor(() => expect(screen.getByTestId('settings-pdf-text-font')).toHaveValue(ADDED));
     expect(screen.getByRole('option', { name: 'Added Family Regular' })).toBeInTheDocument();

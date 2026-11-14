@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 
 import type { CommandContext } from '@/app/commands';
 import { tip } from '@/app/tooltips';
+import { pdfValues } from '@/features/pdf/printValues';
 import { PDF_PAGE_SIZE_GROUPS } from '@/features/pdf/pageSizes';
 import { pdfFontUploadUrl } from '@/model/binaryUrls';
 import type { PdfAddedFont, PdfFontAnswer, PdfShippedFont, Settings } from '@/rpc/types';
@@ -35,6 +36,8 @@ const PDF_DEFAULTS: PdfSettings = {
   textFont: 'noto-serif',
   textSize: 'standard',
   margins: 'standard',
+  customTextSize: 115,
+  customMargin: 22,
 };
 
 export interface PdfPageProps {
@@ -351,12 +354,30 @@ export function PdfPage({ draft, onChange, ctx }: PdfPageProps) {
             }
             {...tip(t('tip.settings.pdf.textSize'))}
           >
-            {(['smaller', 'standard', 'larger'] as const).map((size) => (
+            {(['smaller', 'standard', 'larger', 'custom'] as const).map((size) => (
               <option key={size} value={size}>
                 {t(`pdf.settings.textSizes.${size}`)}
               </option>
             ))}
           </select>
+          {/* The value behind the choice, for the default page size; editable with Custom. */}
+          <input
+            type="number"
+            className="mfbe-settings-value"
+            data-testid="settings-pdf-text-size-value"
+            aria-label={t('pdf.settings.textSizeValue')}
+            min={6}
+            max={24}
+            step={0.5}
+            readOnly={values.textSize !== 'custom'}
+            value={pdfValues(values.defaultPageSize, values).textPt}
+            onChange={(event) => {
+              const pt = Number(event.target.value);
+              if (pt >= 6 && pt <= 24) onChange({ customTextSize: Math.round(pt * 10) });
+            }}
+            {...tip(t('tip.settings.pdf.textSizeValue'))}
+          />
+          <span className="mfbe-settings-unit">{t('pdf.settings.unitPt')}</span>
           {defaultNote(t(`pdf.settings.textSizes.${PDF_DEFAULTS.textSize}`))}
           {resetButton('textSize', t(`pdf.settings.textSizes.${PDF_DEFAULTS.textSize}`))}
         </FieldRow>
@@ -375,12 +396,29 @@ export function PdfPage({ draft, onChange, ctx }: PdfPageProps) {
             }
             {...tip(t('tip.settings.pdf.margins'))}
           >
-            {(['narrow', 'standard', 'wide'] as const).map((margin) => (
+            {(['narrow', 'standard', 'wide', 'custom'] as const).map((margin) => (
               <option key={margin} value={margin}>
                 {t(`pdf.settings.marginSizes.${margin}`)}
               </option>
             ))}
           </select>
+          <input
+            type="number"
+            className="mfbe-settings-value"
+            data-testid="settings-pdf-margins-value"
+            aria-label={t('pdf.settings.marginValue')}
+            min={5}
+            max={50}
+            step={1}
+            readOnly={values.margins !== 'custom'}
+            value={Math.round(pdfValues(values.defaultPageSize, values).marginMm * 10) / 10}
+            onChange={(event) => {
+              const mm = Math.round(Number(event.target.value));
+              if (mm >= 5 && mm <= 50) onChange({ customMargin: mm });
+            }}
+            {...tip(t('tip.settings.pdf.marginValue'))}
+          />
+          <span className="mfbe-settings-unit">{t('pdf.settings.unitMm')}</span>
           {defaultNote(t(`pdf.settings.marginSizes.${PDF_DEFAULTS.margins}`))}
           {resetButton('margins', t(`pdf.settings.marginSizes.${PDF_DEFAULTS.margins}`))}
         </FieldRow>
