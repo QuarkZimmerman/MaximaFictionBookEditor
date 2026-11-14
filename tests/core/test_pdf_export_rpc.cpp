@@ -200,8 +200,12 @@ TEST_CASE("pdf fonts rpc: an installed font added, served, used and removed (T05
     const auto repo = test::fixtures_dir().parent_path().parent_path();
     const std::string mono =
         atomic_file::read_file(repo / "resources" / "fonts" / "DejaVuSansMono.ttf");
-    CHECK(test::http_request(f.server->port(), "PUT", "/pdf/fonts/upload/u1", {}, mono).status ==
-          401);
+    // Without the token the upload is refused before its body is read. A small body: with the
+    // whole font, the core's 401 and close could come while the client was still sending, and
+    // macOS's send() then failed (CI on 92538c0) - the check is the refusal, not a large body.
+    CHECK(test::http_request(f.server->port(), "PUT", "/pdf/fonts/upload/u1", {},
+                             std::string(64, 'x'))
+              .status == 401);
     REQUIRE(test::http_request(f.server->port(), "PUT", "/pdf/fonts/upload/u1", f.auth(), mono)
                 .status == 201);
     const json added =
