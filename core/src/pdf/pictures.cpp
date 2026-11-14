@@ -282,10 +282,18 @@ DrawnPictures draw_pictures(Document& document, const std::vector<PlacedPicture>
 
         const Ref page_ref = page->getRef();
         Object page_dict = xref->fetch(page_ref);
-        // The drawing goes after the page's own content.
+        // The drawing goes after the page's own content, in the page's own space: the engine's
+        // content changes the transformation and does not restore it (Chromium begins with a
+        // flip and a scale), so that content is wrapped in q ... Q and the drawing starts after
+        // the Q - else the pictures came out small and upside down at the page's top left.
+        const std::string opening = "q\n";
+        const Ref wrap = add_stream(xref, std::vector<char>(opening.begin(), opening.end()),
+                                    std::make_unique<Dict>(xref), false);
+        content = "Q\n" + content;
         const Ref drawing = add_stream(xref, std::vector<char>(content.begin(), content.end()),
                                        std::make_unique<Dict>(xref), false);
         auto contents = std::make_unique<Array>(xref);
+        contents->add(Object(wrap));
         const Object& old = page_dict.dictLookupNF("Contents");
         if (old.isArray()) {
             for (int i = 0; i < old.arrayGetLength(); ++i)

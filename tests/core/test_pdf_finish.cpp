@@ -12,17 +12,23 @@
 #include "test_support.hpp"
 
 #include <mfbe/atomic_file.hpp>
+#include <mfbe/images.hpp>
 #include <mfbe/pdf.hpp>
 
 #include <Catalog.h>
 #include <Object.h>
 #include <PDFDoc.h>
 #include <Page.h>
+#include <SplashOutputDev.h>
 #include <Stream.h>
 #include <XRef.h>
+#include <algorithm>
+#include <array>
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <cstdlib>
 #include <filesystem>
+#include <splash/SplashBitmap.h>
 #include <string>
 
 using namespace mfbe;
@@ -424,4 +430,45 @@ TEST_CASE("pdf check: a hyphen the engine adds at a line's end is not a fault (D
     }
     texts[0] = page + "Ж";
     CHECK_FALSE(pdf::check_finished(finished, texts).empty());
+}
+
+TEST_CASE("pdf finish: a picture is drawn where its box is, the right way up", "[pdf]") {
+    // The engine's content leaves its own transformation in force (a flip and a scale): the
+    // picture must still fill its box, measured from the page's top left.
+    pdf::FinishInput input = a5("Обложка");
+    const std::string png =
+        atomic_file::read_file(test::fixtures_dir() / "images" / "opaque-rgb.png");
+    input.binaries = {{"cover.png", png}};
+    input.pictures = {{0, 40, 60, 120, 90, "cover.png"}};
+    const std::vector<char> finished = pdf::finish(sample(), input);
+    std::string error;
+    auto doc = pdf::Document::open_bytes(finished, &error);
+    REQUIRE(doc);
+    PDFDoc& d = *doc->impl().doc;
+    SplashColor paper = {255, 255, 255};
+    SplashOutputDev out(splashModeRGB8, 4, paper);
+    out.startDoc(&d);
+    d.displayPage(&out, 1, 72, 72, 0, true, false, false);
+    SplashBitmap* bitmap = out.getBitmap();
+    REQUIRE(bitmap != nullptr);
+    const auto at = [bitmap](int x, int y) {
+        const unsigned char* p = bitmap->getDataPtr() + y * bitmap->getRowSize() + x * 3;
+        return std::array<int, 3>{p[0], p[1], p[2]};
+    };
+    // The picture's own colours, at its centre and near two corners of the box.
+    const images::Bitmap picture = images::decode(png);
+    const auto colour = [&picture](double fx, double fy) {
+        const int px = std::clamp(static_cast<int>(fx * picture.width), 0, picture.width - 1);
+        const int py = std::clamp(static_cast<int>(fy * picture.height), 0, picture.height - 1);
+        const std::uint8_t* c =
+            &picture.rgba[(static_cast<std::size_t>(py) * picture.width + px) * 4];
+        return std::array<int, 3>{c[0], c[1], c[2]};
+    };
+    for (const auto& [fx, fy] : {std::pair{0.5, 0.5}, std::pair{0.2, 0.2}, std::pair{0.8, 0.8}}) {
+        const auto want = colour(fx, fy);
+        const auto got = at(static_cast<int>(40 + fx * 120), static_cast<int>(60 + fy * 90));
+        CAPTURE(fx, fy, want[0], want[1], want[2], got[0], got[1], got[2]);
+        for (int c = 0; c < 3; ++c)
+            CHECK(std::abs(got[c] - want[c]) <= 24);
+    }
 }
