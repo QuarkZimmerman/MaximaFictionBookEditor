@@ -117,6 +117,9 @@ function collectBlocks(root: Element): Block[] {
   const walk = (element: Element, chain: Element[]): void => {
     for (const child of [...element.children]) {
       const name = child.localName;
+      // D11: Preview draws the cover first, as readers show it; the export's own cover page
+      // stands for it, so that picture is not printed a second time on the body's first page.
+      if (element === root && !(child.namespaceURI === FB2_NS && name === 'body')) continue;
       if (child.namespaceURI === FB2_NS && CONTAINERS.has(name)) {
         // D19: the notes bodies are printed at the feet of the pages (footnotes.ts).
         if (name === 'body' && isNotesBody(child)) continue;

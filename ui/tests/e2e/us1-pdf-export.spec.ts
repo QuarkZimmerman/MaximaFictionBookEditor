@@ -54,12 +54,15 @@ interface TextTools {
   };
 }
 interface PdfJs {
+  OPS: Record<string, number>;
   getDocument(options: { data: Uint8Array; verbosity: number; isEvalSupported: boolean }): {
     promise: Promise<{
       numPages: number;
+      getMetadata(): Promise<{ metadata: { getRaw(): string } | null }>;
       getPage(n: number): Promise<{
         view: number[];
         getStructTree(): Promise<StructNode | null>;
+        getOperatorList(): Promise<{ fnArray: number[]; argsArray: unknown[][] }>;
       }>;
     }>;
     destroy(): Promise<void>;
@@ -79,9 +82,12 @@ const pdfJs = (): Promise<PdfJs> =>
       .href
   );
 
-/** The page sizes in points, and every Figure's alternative text, as pdf.js reads the file. */
-async function readPdf(file: string): Promise<{ sizes: number[][]; figures: string[] }> {
-  const { getDocument } = await pdfJs();
+/** The page sizes in points, every Figure's alternative text, and each page's drawn images
+ *  (their pixel sizes), as pdf.js reads the file. */
+async function readPdf(
+  file: string,
+): Promise<{ sizes: number[][]; figures: string[]; images: string[][]; xmp: string }> {
+  const { getDocument, OPS } = await pdfJs();
   const task = getDocument({
     data: new Uint8Array(readFileSync(file)),
     verbosity: 0,
@@ -90,6 +96,7 @@ async function readPdf(file: string): Promise<{ sizes: number[][]; figures: stri
   const pdf = await task.promise;
   const sizes: number[][] = [];
   const figures: string[] = [];
+  const images: string[][] = [];
   const visit = (node: StructNode | null | undefined): void => {
     if (!node) return;
     if (node.role === 'Figure' && node.alt) figures.push(node.alt);
@@ -99,9 +106,16 @@ async function readPdf(file: string): Promise<{ sizes: number[][]; figures: stri
     const pdfPage = await pdf.getPage(n);
     sizes.push([pdfPage.view[2] - pdfPage.view[0], pdfPage.view[3] - pdfPage.view[1]]);
     visit(await pdfPage.getStructTree());
+    const ops = await pdfPage.getOperatorList();
+    images.push(
+      ops.fnArray.flatMap((fn, i) =>
+        fn === OPS.paintImageXObject ? [`${ops.argsArray[i]![1]}x${ops.argsArray[i]![2]}`] : [],
+      ),
+    );
   }
+  const xmp = (await pdf.getMetadata()).metadata?.getRaw() ?? '';
   await task.destroy();
-  return { sizes, figures };
+  return { sizes, figures, images, xmp };
 }
 
 /** What the export must leave as it was: the book's text, file, title and undo state. */
@@ -152,13 +166,24 @@ test.describe('US1: export a searchable PDF in a chosen page size (feature 014)'
       for (const size of SIZES) {
         const target = path.join(OUT, `reference-${size.id}.pdf`);
         await exportPdfTo(core, page, target, size.label);
-        const { sizes, figures } = await readPdf(target);
+        const { sizes, figures, xmp } = await readPdf(target);
         for (const [width, height] of sizes) {
           expect(width).toBeCloseTo(size.width, 2);
           expect(height).toBeCloseTo(size.height, 2);
         }
         // FR-010: the cover's alternative text, in the book's language (English here).
         expect(figures[0]).toBe('Cover');
+        // D11: the cover is drawn on the cover page only - Preview's own cover at the top of the
+        // book is not printed again on the body's first page (requester, rc.3).
+        const hints = JSON.parse(
+          (/<mfbe:fb2Hints>([\s\S]*?)<\/mfbe:fb2Hints>/.exec(xmp)?.[1] ?? '{}')
+            .replaceAll('&quot;', '"')
+            .replaceAll('&lt;', '<')
+            .replaceAll('&gt;', '>')
+            .replaceAll('&amp;', '&'),
+        ) as { pictures?: { page: number; binaryId: string }[] };
+        const coverPages = (hints.pictures ?? []).filter((p) => p.binaryId === 'cover');
+        expect(coverPages.map((p) => p.page)).toEqual([1]);
         const result = compareText(
           await pdfPageTexts(new Uint8Array(readFileSync(target))),
           expected,
