@@ -995,6 +995,24 @@ if [[ "${MFBE_SMOKE_PDF:-0}" == "1" ]]; then
   fi
   wait "$APP_PID" || true
   APP_PID=""
+  # Every process of the editor's own executable must be gone, the engine's helpers (renderer,
+  # GPU, utility) included: the launcher ending proves only that the main process did (requester).
+  # Found by the executable each process runs, not by a name.
+  EXE_REAL=$(readlink -f "$MFBE_APP_BIN")
+  LEFT=""
+  for _ in $(seq 1 80); do
+    LEFT=""
+    for proc in /proc/[0-9]*; do
+      [[ "$(readlink "$proc/exe" 2>/dev/null)" == "$EXE_REAL" ]] && LEFT+="${proc#/proc/} "
+    done
+    [[ -z "$LEFT" ]] && break
+    sleep 0.25
+  done
+  if [[ -n "$LEFT" ]]; then
+    echo "shell-smoke: processes of $EXE_REAL still running 20 s after File > Exit: $LEFT" >&2
+    for pid in $LEFT; do tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | cut -c1-200 >&2; echo >&2; done
+    exit 1
+  fi
   echo "shell-smoke: PDF export printed by the shell, and the shell ended after File > Exit: OK"
 fi
 
