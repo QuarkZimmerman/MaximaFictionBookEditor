@@ -12,11 +12,12 @@
 //   node tools/shell-smoke-pdf.mjs <cdp port> <folder>     # prints the PDF's path, last line
 //
 // Exit 0 when the file is written, 1 with a message on stderr otherwise.
-import { execFileSync } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const { chromium } = createRequire(path.join(root, "ui", "package.json"))(
@@ -47,19 +48,18 @@ function displayEnv() {
 // Accepts the visible native window titled exactly `title` with Return.
 async function acceptDialog(title) {
   if (process.platform === "win32") {
-    execFileSync(
-      "powershell",
-      [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        path.join(root, "tools", "ci", "windows-accept-dialog.ps1"),
-        "-Title",
-        title,
-      ],
-      { stdio: ["ignore", "inherit", "inherit"] },
-    );
+    // Without blocking this process: the click that opened the dialog is still waiting for its
+    // answer (see below).
+    const { stdout } = await promisify(execFile)("powershell", [
+      "-NoProfile",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-File",
+      path.join(root, "tools", "ci", "windows-accept-dialog.ps1"),
+      "-Title",
+      title,
+    ]);
+    process.stderr.write(stdout);
     return;
   }
   const env = displayEnv();
@@ -113,9 +113,17 @@ try {
   console.log(
     `shell-smoke-pdf: Export as PDF... (aria-disabled=${await item.getAttribute("aria-disabled")})`,
   );
-  await item.click({ timeout: 10000 });
-  // The Save dialog is the shell's own (GTK): its proposal is accepted (D2, D3).
+  // The Save dialog is the shell's own: its proposal is accepted (D2, D3). The click and the
+  // acceptance go together: Windows' Save dialog is modal and holds the browser's main thread, so
+  // the click is answered only once the dialog has closed (CI on 3675f5c: "locator.click: Timeout
+  // 10000ms exceeded" while the dialog was up). GTK's dialog lets the click be answered at once.
+  const clicked = item.click({ timeout: 120000 }).then(
+    () => null,
+    (error) => error,
+  );
   await acceptDialog("Export as PDF");
+  const clickError = await clicked;
+  if (clickError) fail(`Export as PDF...: ${clickError.message}`);
   // The export starts with its progress window (D4). A short book can be finished before that
   // window is seen (CI on bdd3be4: "Exported to ..." already in the status line), so its result
   // in the status line or one of its closing dialogs shows that it started too; without any of

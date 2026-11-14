@@ -24,4 +24,7 @@ while ((Get-Date) -lt $deadline) {
     }
     Start-Sleep -Milliseconds 200
 }
+# What is there instead, for the log: every top-level window's title and class.
+$all = $element::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, [System.Windows.Automation.Condition]::TrueCondition)
+foreach ($window in $all) { Write-Host "windows-accept-dialog: top-level window '$($window.Current.Name)' ($($window.Current.ClassName))" }
 throw "no window titled '$Title' with a default button within $TimeoutSeconds s"
