@@ -12,7 +12,8 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 - macOS builds compile against the SDK and the project's own libraries only, never Homebrew's headers
 - Books export as searchable, archival PDF (PDF/A-2U) in nine page sizes, laid out as Preview shows
 - The PDF has bookmarks, links, notes at the foot of their pages, and the whole description
-- Settings > PDF export: page size, text font and size, margins; fonts added from files or the system
+- Settings > Exports: the PDF's page size, text font and size, margins; fonts from files or the system
+- A book is validated as soon as it has loaded, and every export asks before writing an invalid book
 
 ### Added
 
@@ -31,11 +32,30 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   own fonts are replaced by the shipped family of the same kind, and characters none of them has
   are drawn with a system font and listed. A summary lists what the PDF could not keep as the book
   has it.
-- Settings > PDF export: the default page size, the text font, the text size and the margins, each
-  with its default and a Reset. Fonts can be added from files or from the fonts installed on the
-  computer; a font whose licence forbids embedding is refused, one that forbids subsetting is
-  embedded whole. The page size chosen is kept for the open book.
+- The PDF's title page sets the authors and the title large, each series in brackets under the
+  title, and the publisher and year at its foot; the annotation follows on a page of its own, and
+  the document's revision history closes the book, both bookmarked.
+- Settings > Exports, with a list of the formats: for PDF the default page size, the text font, the
+  text size and the margins, each with its default and a Reset, the sizes shown in points and
+  millimetres, and *Custom* for sizes of one's own. Fonts can be added from files or from the fonts
+  installed on the computer; a font whose licence forbids embedding is refused, one that forbids
+  subsetting is embedded whole. The page size chosen is kept for the open book.
 - mfbe-core fonts list | add <file>: the fonts added for the PDF export, from the command line.
+
+### Changed
+
+- A book is validated as soon as it has loaded: the status bar shows *Valid* or the number of
+  errors at once, instead of *not checked* until a click.
+- Export as Markdown, Markdown ZIP, EPUB and PDF ask Save's question before writing a book with
+  validation errors; *No* ends the export before its save dialog.
+
+### Fixed
+
+- *Broken sentences* (*Разрыв предложения*) asks nothing more once the hyphen question is answered
+  *Yes*, as in FictionBook Editor 2.7.9: it only joins the words broken at line ends (issue #14).
+- After a PDF export the editor ended no more on Windows when its window closed: its processes
+  stayed in the background. The export's hidden print browser now closes with the editor, which
+  ends in any case.
 
 ## 0.0.10 - 2026-11-11
 

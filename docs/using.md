@@ -20,7 +20,10 @@ it off. When
 the backup cannot be made the book is still saved, and the status bar says so.
 
 A book with validation errors is saved only after a question; when saving opens *Save As*, the
-question comes first, so *No* ends the save without choosing a file.
+question comes first, so *No* ends the save without choosing a file. The exports ask the same
+question before their save dialog - *File > Export > Export as Markdown…*, *Export as Markdown
+ZIP…*, *Export as EPUB…* and *Export as PDF…* -, and *No* ends the export without choosing a file;
+*Export as FBD…* asks it about the description it writes.
 
 ## Books in ZIP archives
 
@@ -51,8 +54,10 @@ It is also in the context menus, next to *Paste*.
 Besides the message, the element path and INS/OVR, the status bar shows the line and column (in
 the Source view), the counts of the selection, the character before the caret - its code such as
 `U+00A0` and `&#160;` with its name or script (a double-click copies the code) -, the book's
-encoding and the result of the last validation, which says *not checked* after any change; a
-click on it validates. A right-click on the status bar chooses the panes shown.
+encoding and the result of the last validation. A book is validated as soon as it has loaded, so
+the pane shows *Valid* or the number of errors at once; after a change it says *not checked* until
+the next validation, and a click on it validates. A right-click on the status bar chooses the panes
+shown.
 
 ## Completion in the Source view
 
