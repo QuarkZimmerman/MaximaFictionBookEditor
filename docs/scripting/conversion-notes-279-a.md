@@ -2224,6 +2224,17 @@ Gained uk *Розрив речення*. Snapshots `broken-sentences.conv-b-06.x
 expressions keep ECMAScript's `\s` as converted in 0.0.1 (a difference only for U+00A0 typed as a
 character and the other Unicode spaces).
 
+**Fix (0.0.11, issue #14):** with *Yes* to the first question (line-end hyphens are hyphenation)
+nothing more is asked: the original's questions about pairs (the hyphenated end, variants 1, 2 and
+3, the full stop) all sit in the `else` of `if (Perenos)`, which the conversion had flattened into
+one chain. Run by the requester in FictionBook Editor 2.7.9 on three test books, the original asked
+once and made 5, 8 and 1 joins - the joins the conversion makes. Snapshots: `.conv-b-06.xml` (Yes:
+two dialogs, two joins fewer than before, those came from the questions the original never asked),
+`.conv-b-06.no.xml` and `.libru-hardwrap.no.xml` (No: the doubtful questions), `.libru-hardwrap.xml`
+and `.marks-006.xml` (Yes: two dialogs); each states its number of dialogs (`--expect-dialogs`).
+The other originals whose later questions depend on an earlier answer (13 *Почистить структуру*,
+05 *Слипшиеся слова*, 35 *Разночтения Ё-Е*) were checked: their conversions gate them the same way.
+
 ### 15 Точка, тире, буква в нижнем регистре...
 
 `scripts/06_cleanup/15_dot-dash-letter`, id `06/dot-dash-letter` (2.7beta1 *15_Точка, тире,
