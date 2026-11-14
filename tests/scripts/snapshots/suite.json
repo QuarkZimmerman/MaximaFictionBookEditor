@@ -423,9 +423,28 @@
       "--answer",
       "yes",
       "--answer",
+      "ok",
+      "--expect-dialogs",
+      "2"
+    ]
+  },
+  {
+    "snapshot": "06/broken-sentences.conv-b-06.no.xml",
+    "script": "scripts/06_cleanup/14_broken-sentences",
+    "book": "tests/scripts/fixtures/books/conv-b-06.fb2",
+    "args": [
+      "--answer",
+      "no",
+      "--answer",
       "yes",
       "--answer",
-      "yes"
+      "yes",
+      "--answer",
+      "yes",
+      "--answer",
+      "ok",
+      "--expect-dialogs",
+      "5"
     ]
   },
   {
@@ -434,7 +453,11 @@
     "book": "tests/scripts/fixtures/books/marks-006.fb2",
     "args": [
       "--answer",
-      "yes"
+      "yes",
+      "--answer",
+      "ok",
+      "--expect-dialogs",
+      "2"
     ]
   },
   {
@@ -445,13 +468,28 @@
       "--answer",
       "yes",
       "--answer",
+      "ok",
+      "--expect-dialogs",
+      "2"
+    ]
+  },
+  {
+    "snapshot": "06/broken-sentences.libru-hardwrap.no.xml",
+    "script": "scripts/06_cleanup/14_broken-sentences",
+    "book": "tests/scripts/fixtures/books/libru-hardwrap.fb2",
+    "args": [
+      "--answer",
+      "no",
+      "--answer",
+      "no",
+      "--answer",
       "no",
       "--answer",
       "no",
       "--answer",
       "ok",
       "--expect-dialogs",
-      "4"
+      "5"
     ]
   },
   {
