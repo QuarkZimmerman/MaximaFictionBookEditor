@@ -15,16 +15,31 @@ $scope = [System.Windows.Automation.TreeScope]
 $windowType = New-Object System.Windows.Automation.PropertyCondition($element::ControlTypeProperty, [System.Windows.Automation.ControlType]::Window)
 $titled = New-Object System.Windows.Automation.PropertyCondition($element::NameProperty, $Title)
 $byTitle = [System.Windows.Automation.AndCondition]::new([System.Windows.Automation.Condition[]]@($titled, $windowType))
-$byDefault = New-Object System.Windows.Automation.PropertyCondition($element::AutomationIdProperty, '1')
+# The default button is the Button with the dialog's IDOK as its automation id: other parts of the
+# dialog (items of its folder and navigation views) may carry the id 1 too (CI on 60a1a6b found one
+# that has no Invoke pattern).
+$idOk = New-Object System.Windows.Automation.PropertyCondition($element::AutomationIdProperty, '1')
+$isButton = New-Object System.Windows.Automation.PropertyCondition($element::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button)
+$byDefault = [System.Windows.Automation.AndCondition]::new([System.Windows.Automation.Condition[]]@($idOk, $isButton))
 $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+$seen = $null
 while ((Get-Date) -lt $deadline) {
     foreach ($top in $element::RootElement.FindAll($scope::Children, $windowType)) {
         $window = $top.FindFirst($scope::Subtree, $byTitle)
         if (-not $window) { continue }
-        $button = $window.FindFirst($scope::Descendants, $byDefault)
-        if ($button) {
-            $button.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
-            Write-Host "windows-accept-dialog: '$Title' accepted ('$($button.Current.Name)', in '$($top.Current.Name)')"
+        if (-not $seen) { $seen = Get-Date }
+        $ok = $window.FindFirst($scope::Descendants, $byDefault)
+        if ($ok) {
+            $ok.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+            Write-Host "windows-accept-dialog: '$Title' accepted with '$($ok.Current.Name)' (in '$($top.Current.Name)')"
+            exit 0
+        }
+        if (((Get-Date) - $seen).TotalSeconds -gt 5) {
+            # No such button after 5 s: Return to the dialog, as a user would press it.
+            Write-Host "windows-accept-dialog: '$Title' has no button with the id 1; pressing Return in it"
+            $window.SetFocus()
+            Add-Type -AssemblyName System.Windows.Forms
+            [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
             exit 0
         }
     }
