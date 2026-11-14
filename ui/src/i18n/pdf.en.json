@@ -107,9 +107,9 @@
       },
       "installed": "I&nstalled font:",
       "chooseInstalled": "Choose a font installed on this computer",
-      "textSizeValue": "Text size, pt",
+      "textSizeValue": "Text size, points",
       "marginValue": "Margins, mm",
-      "unitPt": "pt",
+      "unitPt": "points",
       "unitMm": "mm"
     }
   },
