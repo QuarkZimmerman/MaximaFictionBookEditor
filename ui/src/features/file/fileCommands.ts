@@ -491,8 +491,9 @@ export class FileFeature {
     if (options.template) actions.setNewDocumentBaseline(ctx.store, loaded.description);
     actions.setStatusMessage(ctx.store, null);
     // The validity pane shows the book's state at once, not "Not checked" until a click
-    // (requester, rc.5): the same check as Tools > Validate, without its status message.
-    void this.validateDocument(ctx, { quiet: true }).catch(() => undefined);
+    // (requester, rc.5): the same check as Tools > Validate, without its status message, of the
+    // core's own copy of the book just loaded.
+    void this.validateDocument(ctx, { quiet: true, asLoaded: true }).catch(() => undefined);
     if (ctx.store.getState().activeView === 'source') {
       // A new document always starts in the Body view unless it is Source-only.
       switchView(ctx, 'body');
@@ -1163,7 +1164,7 @@ export class FileFeature {
 
   validateDocument(
     ctx: CommandContext,
-    options: { quiet?: boolean } = {},
+    options: ValidateOptions = {},
   ): Promise<ValidationReport | null> {
     return validateBook(ctx, options);
   }
@@ -1400,15 +1401,28 @@ export function registerFileCommands(
 let inflight: { docId: string; revision: number; job: Promise<ValidationReport> } | null = null;
 
 /**
+/** How `validateBook` checks the book and what it shows. */
+export interface ValidateOptions {
+  /**
+   * The validity pane alone (the check after loading, the export's question): the problem list
+   * is refreshed only when it is open, as after a save, and the status line keeps what it says.
+   */
+  quiet?: boolean;
+  /**
+   * The book just loaded, unchanged: the core checks its own copy of it, so the window sends
+   * nothing - serialising a large book here held up its opening (CI on 7526837: the 10 MB book
+   * editable after 3.17 s instead of under 3 s).
+   */
+  asLoaded?: boolean;
+}
+
+/**
  * File > Validate's check of the book as the window has it (the Source text while it is the newer
- * one): the problem list, the validity pane and the status message. A `quiet` check (the one after
- * loading, the export's question) gives the validity pane its result and opens nothing: the
- * problem list is refreshed only when it is open, as after a save, and the status line keeps what
- * it says.
+ * one): the problem list, the validity pane and the status message; see ValidateOptions.
  */
 export async function validateBook(
   ctx: CommandContext,
-  options: { quiet?: boolean } = {},
+  options: ValidateOptions = {},
 ): Promise<ValidationReport | null> {
   const { store, rpc } = ctx;
   const state = store.getState();
@@ -1426,7 +1440,9 @@ export async function validateBook(
       'doc.validate',
       useText
         ? { docId: state.docId, text: session.text ?? '' }
-        : { docId: state.docId, document: state.document },
+        : options.asLoaded
+          ? { docId: state.docId }
+          : { docId: state.docId, document: state.document },
       { onProgress: (progress) => actions.setProgress(store, progress) },
     );
   if (!same && !useText) {
