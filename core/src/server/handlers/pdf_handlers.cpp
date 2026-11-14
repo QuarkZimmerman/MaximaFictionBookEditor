@@ -795,6 +795,18 @@ void register_pdf_handlers(rpc::RpcRouter& router, Services& services) {
                     }
                     throw failed("pdf.checkFailed", json{{"message", message}});
                 }
+                // DP-18: every picture the core drew is drawn in its box.
+                std::vector<pdf::PlacedPicture> drawn;
+                for (const pdf::PlacedPicture& picture : input.pictures) {
+                    const auto& out = report.pictures_left_out;
+                    if (std::find(out.begin(), out.end(), picture.binary_id) == out.end()) {
+                        drawn.push_back(picture);
+                    }
+                }
+                const std::vector<std::string> misplaced = pdf::check_pictures(finished, drawn);
+                if (!misplaced.empty()) {
+                    throw failed("pdf.checkFailed", json{{"message", misplaced.front()}});
+                }
                 bytes.assign(finished.begin(), finished.end());
                 control.check_cancelled();
                 try {

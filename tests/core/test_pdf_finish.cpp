@@ -464,6 +464,11 @@ TEST_CASE("pdf finish: a picture is drawn where its box is, the right way up", "
             &picture.rgba[(static_cast<std::size_t>(py) * picture.width + px) * 4];
         return std::array<int, 3>{c[0], c[1], c[2]};
     };
+    // The export's own check finds the picture drawn in its box, and a box it is not drawn in.
+    CHECK(pdf::check_pictures(finished, input.pictures).empty());
+    auto elsewhere = input.pictures;
+    elsewhere[0].y += 30;
+    CHECK(pdf::check_pictures(finished, elsewhere).size() == 1);
     for (const auto& [fx, fy] : {std::pair{0.5, 0.5}, std::pair{0.2, 0.2}, std::pair{0.8, 0.8}}) {
         const auto want = colour(fx, fy);
         const auto got = at(static_cast<int>(40 + fx * 120), static_cast<int>(60 + fy * 90));

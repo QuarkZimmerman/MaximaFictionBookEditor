@@ -7,10 +7,13 @@
 #include <mfbe/pdf.hpp>
 
 #include <Catalog.h>
+#include <GfxState.h>
 #include <Link.h>
 #include <Object.h>
+#include <OutputDev.h>
 #include <PDFDoc.h>
 #include <XRef.h>
+#include <algorithm>
 #include <cctype>
 #include <goo/GooString.h>
 #include <map>
@@ -186,6 +189,79 @@ std::vector<std::string> check_finished(const std::vector<char>& finished,
         }
         if (faults.size() > 20)
             break;
+    }
+    return faults;
+}
+
+namespace {
+
+// The boxes the page's images are drawn in, in points from the page's top left.
+class ImageBoxes : public OutputDev {
+public:
+    struct Box {
+        double x0, y0, x1, y1;
+    };
+    std::vector<Box> boxes;
+    bool upsideDown() override { return true; }
+    bool useDrawChar() override { return false; }
+    bool interpretType3Chars() override { return false; }
+    void drawImage(GfxState* state, Object*, Stream*, int, int, GfxImageColorMap*, bool, const int*,
+                   bool) override {
+        record(state);
+    }
+    void drawMaskedImage(GfxState* state, Object*, Stream*, int, int, GfxImageColorMap*, bool,
+                         Stream*, int, int, bool, bool) override {
+        record(state);
+    }
+    void drawSoftMaskedImage(GfxState* state, Object*, Stream*, int, int, GfxImageColorMap*, bool,
+                             Stream*, int, int, GfxImageColorMap*, bool) override {
+        record(state);
+    }
+
+private:
+    void record(GfxState* state) {
+        // The image's unit square through the current transformation, at 72 dpi.
+        Box box{1e9, 1e9, -1e9, -1e9};
+        for (const auto& [ux, uy] : {std::pair{0.0, 0.0}, {1.0, 0.0}, {0.0, 1.0}, {1.0, 1.0}}) {
+            double x = 0;
+            double y = 0;
+            state->transform(ux, uy, &x, &y);
+            box = {std::min(box.x0, x), std::min(box.y0, y), std::max(box.x1, x),
+                   std::max(box.y1, y)};
+        }
+        boxes.push_back(box);
+    }
+};
+
+}  // namespace
+
+std::vector<std::string> check_pictures(const std::vector<char>& finished,
+                                        const std::vector<PlacedPicture>& pictures) {
+    std::vector<std::string> faults;
+    if (pictures.empty())
+        return faults;
+    std::string error;
+    auto doc = Document::open_bytes(finished, &error);
+    if (!doc)
+        return {"the finished file is not readable: " + error};
+    PDFDoc& d = *doc->impl().doc;
+    std::map<int, ImageBoxes> drawn;
+    for (const PlacedPicture& picture : pictures) {
+        if (picture.page < 0 || picture.page >= d.getNumPages())
+            continue;
+        auto [it, first] = drawn.try_emplace(picture.page);
+        if (first)
+            d.displayPage(&it->second, picture.page + 1, 72, 72, 0, true, false, false);
+        const auto near = [](double a, double b) { return std::abs(a - b) <= 1.5; };
+        const bool found = std::any_of(
+            it->second.boxes.begin(), it->second.boxes.end(), [&](const ImageBoxes::Box& b) {
+                return near(b.x0, picture.x) && near(b.y0, picture.y) &&
+                       near(b.x1 - b.x0, picture.width) && near(b.y1 - b.y0, picture.height);
+            });
+        if (!found) {
+            faults.push_back("page " + std::to_string(picture.page + 1) + ": the picture " +
+                             picture.binary_id + " is not drawn in its box");
+        }
     }
     return faults;
 }
