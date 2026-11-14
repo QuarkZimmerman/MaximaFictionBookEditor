@@ -83,7 +83,7 @@ export function PdfPage({ draft, onChange, ctx }: PdfPageProps) {
       text: t(`pdf.settings.refused.${reason}`, {
         defaultValue: t('pdf.settings.refused.unreadable'),
       }),
-      caption: t('dialog.settings.pages.pdf'),
+      caption: t('exports.settings.formats.pdf'),
       icon: 'error',
       testId: 'dialog-pdf-font-refused',
     });

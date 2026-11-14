@@ -28,6 +28,9 @@
     "dialog.settings.ai.custom.exampleLocal",
     "pdf.settings.fonts.noto-serif",
     "pdf.settings.fonts.noto-sans",
-    "pdf.settings.fonts.dejavu-sans-mono"
+    "pdf.settings.fonts.dejavu-sans-mono",
+    "exports.settings.formats.pdf",
+    "exports.settings.formats.epub",
+    "exports.settings.formats.markdown"
   ]
 }

@@ -40,15 +40,15 @@ import { createScratchHotkeys, sameUserBindings } from './settings/hotkeysModel'
 import { validateSettings, type SettingsValidationError } from './settings/model';
 import { OtherPage } from './settings/OtherPage';
 import { ViewPage } from './settings/ViewPage';
-import { PdfPage } from './settings/PdfPage';
+import { ExportsPage } from './settings/ExportsPage';
 import { WordsPage } from './settings/WordsPage';
 
 import './settings/settings.css';
 import { tip } from '@/app/tooltips';
 
-export type SettingsPageId = 'view' | 'other' | 'hotkeys' | 'words' | 'pdf' | 'ai';
+export type SettingsPageId = 'view' | 'other' | 'hotkeys' | 'words' | 'exports' | 'ai';
 
-const PAGES: readonly SettingsPageId[] = ['view', 'other', 'hotkeys', 'words', 'pdf', 'ai'];
+const PAGES: readonly SettingsPageId[] = ['view', 'other', 'hotkeys', 'words', 'exports', 'ai'];
 
 /** The sections of the draft the pages edit (`session` is never part of the dialog). */
 type DraftSection = 'view' | 'other' | 'words' | 'pdf' | 'ai';
@@ -334,7 +334,7 @@ export function SettingsDialog({
             role="tab"
             id={`settings-tab-${id}`}
             aria-selected={page === id}
-            aria-controls={`settings-page-${id}`}
+            aria-controls={id === 'exports' ? 'settings-page-exports-panel' : `settings-page-${id}`}
             tabIndex={page === id ? 0 : -1}
             className="mfbe-settings-tab"
             data-testid={`settings-tab-${id}`}
@@ -389,8 +389,8 @@ export function SettingsDialog({
           <div role="tabpanel" id="settings-page-words" hidden={page !== 'words'}>
             <WordsPage draft={draft} onChange={(patch) => update('words', patch)} ctx={ctx} />
           </div>
-          <div role="tabpanel" id="settings-page-pdf" hidden={page !== 'pdf'}>
-            <PdfPage draft={draft} onChange={(patch) => update('pdf', patch)} ctx={ctx} />
+          <div role="tabpanel" id="settings-page-exports-panel" hidden={page !== 'exports'}>
+            <ExportsPage draft={draft} onChange={(patch) => update('pdf', patch)} ctx={ctx} />
           </div>
           <div role="tabpanel" id="settings-page-ai" hidden={page !== 'ai'}>
             <AiPage

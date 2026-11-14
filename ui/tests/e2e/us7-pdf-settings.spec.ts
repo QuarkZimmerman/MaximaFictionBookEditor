@@ -69,7 +69,7 @@ async function openSettingsPage(page: Page): Promise<void> {
   await page.getByTestId('menu-tools').click();
   await page.getByTestId('menu-tools-settings').click();
   await expect(page.getByTestId('dialog-settings')).toBeVisible();
-  await page.getByTestId('settings-tab-pdf').click();
+  await page.getByTestId('settings-tab-exports').click();
   await expect(page.getByTestId('settings-page-pdf')).toBeVisible();
 }
 

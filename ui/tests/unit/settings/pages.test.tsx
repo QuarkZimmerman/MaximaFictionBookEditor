@@ -168,14 +168,14 @@ function settingsSetCalls(rpc: FakeRpc): { patch: Record<string, unknown> }[] {
 describe('SettingsDialog - View / Other / Words mapping', () => {
   it('shows the six pages and sends one patch with the changed leaves on OK', async () => {
     const { rpc, user, onClose, ctx, root } = await setup();
-    for (const page of ['view', 'other', 'hotkeys', 'words', 'pdf', 'ai']) {
+    for (const page of ['view', 'other', 'hotkeys', 'words', 'exports', 'ai']) {
       expect(screen.getByTestId(`settings-tab-${page}`)).toBeInTheDocument();
     }
     // The PDF export's page (feature 014) before the AI assistant's (feature 005), which is last.
     expect(screen.getAllByRole('tab').map((tab) => tab.getAttribute('data-testid'))).toEqual(
-      ['view', 'other', 'hotkeys', 'words', 'pdf', 'ai'].map((id) => `settings-tab-${id}`),
+      ['view', 'other', 'hotkeys', 'words', 'exports', 'ai'].map((id) => `settings-tab-${id}`),
     );
-    expect(screen.getByTestId('settings-tab-pdf')).toHaveTextContent('PDF export');
+    expect(screen.getByTestId('settings-tab-exports')).toHaveTextContent('Exports');
     expect(screen.getByTestId('settings-tab-ai')).toHaveTextContent('AI assistant');
 
     // View page: body font / size / colour, a source option, spelling.

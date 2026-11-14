@@ -116,14 +116,14 @@
   "dialog": {
     "settings": {
       "pages": {
-        "pdf": "PDF export"
+        "exports": "Exports"
       }
     }
   },
   "tip": {
     "settings": {
       "tabs": {
-        "pdf": "The PDF export: its default page size, text font, text size and margins"
+        "exports": "The settings of each export format: PDF, EPUB, Markdown"
       },
       "pdf": {
         "pageSize": "The size the Save dialog proposes for a book exported for the first time",
@@ -139,10 +139,24 @@
         "installed": "The installed font to add",
         "textSizeValue": "The text size this choice gives the default page size above; with Custom, type your own (6 to 24 pt)",
         "marginValue": "The margins this choice gives the default page size above; with Custom, type your own (5 to 50 mm)"
+      },
+      "exports": {
+        "format": "The export format whose settings are shown below"
       }
     },
     "pdf": {
       "pageSize": "The page size of this PDF: the ISO sizes first, then the North American ones"
+    }
+  },
+  "exports": {
+    "settings": {
+      "format": "Format",
+      "formats": {
+        "pdf": "PDF",
+        "epub": "EPUB",
+        "markdown": "Markdown"
+      },
+      "none": "This format has no settings of its own yet."
     }
   }
 }
