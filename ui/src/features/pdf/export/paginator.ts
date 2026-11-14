@@ -382,7 +382,8 @@ export async function paginate(
     };
     for (let i = 0; i < blocks.length; i++) {
       measure(blocks[i]);
-      await breath(i, blocks.length * 2);
+      // SC-010: the bar's thirds of the pagination: measuring, the notes, the pages.
+      await breath(i, blocks.length * 3);
     }
     // D19: each block carries the notes it refers to first; their footnotes are measured in the
     // foot's own text size, at the text width.
@@ -392,7 +393,9 @@ export async function paginate(
     doc.body.append(footMeasure);
     const footnotes = new Map<string, HTMLElement>();
     const blockNotes: string[][] = blocks.map(() => []);
-    blocks.forEach((block, index) => {
+    for (let index = 0; index < blocks.length; index++) {
+      const block = blocks[index];
+      await breath(blocks.length + index / 2, blocks.length * 3);
       for (const [id, anchor] of noteRefs(block.element, notes)) {
         if (footnotes.has(id)) continue;
         anchor.setAttribute('id', referenceId(id));
@@ -401,18 +404,20 @@ export async function paginate(
         footnotes.set(id, note);
         blockNotes[index].push(id);
       }
-    });
+    }
     const footHeight = (id: string): number => {
       const note = footnotes.get(id)!;
       const style = doc.defaultView!.getComputedStyle(note);
       return note.getBoundingClientRect().height + (Number.parseFloat(style.marginBottom) || 0);
     };
-    blocks.forEach((block, index) => {
+    for (let index = 0; index < blocks.length; index++) {
+      const block = blocks[index];
+      await breath(blocks.length * 1.5 + index / 2, blocks.length * 3);
       // The reference anchors got their ids after the blocks were cloned for measuring: the
       // planner only needs the heights.
       const foot = blockNotes[index].reduce((sum, id) => sum + footHeight(id), 0);
       if (foot > 0) block.plan.foot = foot;
-    });
+    }
     footMeasure.remove();
     const notesPx = ((layout.textPt * 96) / 72) * 0.8;
     const footGap = notesPx * 1.1 + 2;
@@ -679,7 +684,14 @@ export async function paginate(
       finishPage(page, true);
       carriedNote = carryNext;
       cursor = next;
-      await breath(blocks.length + (cursor?.block ?? blocks.length), blocks.length * 2);
+      // A block may span many pages (a long table): its lines count too, so the bar moves on.
+      const lines = cursor ? Math.max(1, planBlocks[cursor.block]?.lines.length ?? 1) : 1;
+      await breath(
+        blocks.length * 2 +
+          (cursor?.block ?? blocks.length) +
+          (cursor ? cursor.fromLine / lines : 0),
+        blocks.length * 3,
+      );
     }
     // D19: the rest of a long note at the end of the text, on pages of their own.
     while (carriedNote) {

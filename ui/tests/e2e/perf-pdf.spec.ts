@@ -128,6 +128,12 @@ test.describe('performance - the PDF export (SC-010)', () => {
       test.skip(!book, 'python3 / the generator are not available');
       await core.openApp(page);
       const seam = startPrintSeam(core, context, { readyTimeoutMs: 600_000 * FACTOR });
+      // MFBE_PERF_CPU_THROTTLE=<n> slows the page n times (CDP), to stand for a slow runner here.
+      const throttle = Number(process.env.MFBE_PERF_CPU_THROTTLE ?? 1);
+      if (throttle > 1) {
+        const cdp = await context.newCDPSession(page);
+        await cdp.send('Emulation.setCPUThrottlingRate', { rate: throttle });
+      }
       try {
         await openFixtureBook(core, page, book!);
         let running = true;
