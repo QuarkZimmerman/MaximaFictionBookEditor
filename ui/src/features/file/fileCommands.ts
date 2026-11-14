@@ -490,6 +490,9 @@ export class FileFeature {
     actions.setDocument(ctx.store, loaded);
     if (options.template) actions.setNewDocumentBaseline(ctx.store, loaded.description);
     actions.setStatusMessage(ctx.store, null);
+    // The validity pane shows the book's state at once, not "Not checked" until a click
+    // (requester, rc.5): the same check as Tools > Validate, without its status message.
+    void this.validateDocument(ctx, { quiet: true }).catch(() => undefined);
     if (ctx.store.getState().activeView === 'source') {
       // A new document always starts in the Body view unless it is Source-only.
       switchView(ctx, 'body');
@@ -1158,7 +1161,10 @@ export class FileFeature {
 
   /* --------------------------------------------------------------- validate */
 
-  async validateDocument(ctx: CommandContext): Promise<ValidationReport | null> {
+  async validateDocument(
+    ctx: CommandContext,
+    options: { quiet?: boolean } = {},
+  ): Promise<ValidationReport | null> {
     const { store, rpc } = ctx;
     const state = store.getState();
     if (!rpc || !state.document || !state.docId) return null;
@@ -1175,6 +1181,7 @@ export class FileFeature {
     actions.setValidation(store, report);
     // Feature 009 (FR-055): the validity pane shows this result until the content changes.
     actions.setLastCheck(store, report.errorCount);
+    if (options.quiet) return report;
     actions.setStatusMessage(
       store,
       report.errorCount === 0

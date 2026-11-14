@@ -104,10 +104,11 @@ test.describe('US5 (feature 009) - more in the status bar', () => {
     await openBook(core, page, fixtureBook('notes-6.fb2'));
     await expect(page.getByTestId('status-encoding')).toHaveText('UTF-8');
     const validity = page.getByTestId('status-validity');
-    await expect(validity).toHaveText('Not checked');
-    await validity.click();
+    // The book is checked as soon as it has loaded (requester, rc.5): no click needed.
     await expect(validity).toHaveText(/^(Valid|Errors: \d+)$/);
     const checked = await validity.innerText();
+    await validity.click();
+    await expect(validity).toHaveText(checked);
     await caretAfter(page, 'Сед темпор');
     await page.keyboard.type(' more');
     await expect(validity).toHaveText('Not checked');
