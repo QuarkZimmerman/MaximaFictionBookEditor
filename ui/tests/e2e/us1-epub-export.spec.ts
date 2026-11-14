@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import type { Page } from '@playwright/test';
 
 import { expect, fixtureBook, test, waitForBook, type CoreHandle } from './fixtures/core';
+import { clickExport } from './fixtures/exportCheck';
 
 const OUT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -28,11 +29,10 @@ async function openBook(core: CoreHandle, page: Page, name: string): Promise<str
   return book;
 }
 
-async function exportEpub(core: CoreHandle, page: Page, target: string): Promise<void> {
+/** True when the export asked Save's question first (an invalid book, requester rc.5). */
+async function exportEpub(core: CoreHandle, page: Page, target: string): Promise<boolean> {
   await core.enqueueDialog('dialog.saveFile', { path: target });
-  await page.getByTestId('menu-file').click();
-  await page.getByTestId('menu-file-export').hover();
-  await page.getByTestId('menu-file-export-exportEpub').click();
+  return clickExport(core, page, 'exportEpub');
 }
 
 function entry(file: string, name: string): string {
@@ -60,7 +60,8 @@ test.describe('US1 (feature 012) - the EPUB export', () => {
     const book = await openBook(core, page, 'reference-all-elements.fb2');
     const recentBefore = await core.rpc('doc.recent');
     const target = path.join(OUT, 'reference-all-elements.epub');
-    await exportEpub(core, page, target);
+    // A valid book is exported without Save's question (requester, rc.5).
+    expect(await exportEpub(core, page, target)).toBe(false);
     await expect(page.getByTestId('status-message')).toContainText('Exported to', {
       timeout: 30_000,
     });
@@ -201,7 +202,8 @@ test.describe('US1 (feature 012) - the EPUB export', () => {
   }) => {
     await openBook(core, page, 'invalid-for-export.fb2');
     const target = path.join(OUT, 'invalid-for-export.epub');
-    await exportEpub(core, page, target);
+    // Save's question comes first (requester, rc.5); Yes exports the book as it is.
+    expect(await exportEpub(core, page, target)).toBe(true);
     const summary = page.getByTestId('dialog-epub-export-summary');
     await expect(summary).toBeVisible({ timeout: 30_000 });
     await expect(summary).toContainText('Link written as text: #nowhere');

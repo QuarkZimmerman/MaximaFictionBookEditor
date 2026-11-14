@@ -14,6 +14,7 @@ import path from 'node:path';
 import type { Page } from '@playwright/test';
 
 import { expect, fixtureBook, test, waitForBook, type CoreHandle } from './fixtures/core';
+import { clickExport } from './fixtures/exportCheck';
 import { epub, importDone, importViaMenu } from './fixtures/epubImport';
 import { scratchDir } from './fixtures/scratch';
 
@@ -55,10 +56,8 @@ async function openCopy(core: CoreHandle, page: Page, name: string): Promise<str
   return book;
 }
 
-async function exportEpub(page: Page): Promise<void> {
-  await page.getByTestId('menu-file').click();
-  await page.getByTestId('menu-file-export').hover();
-  await page.getByTestId('menu-file-export-exportEpub').click();
+async function exportEpub(core: CoreHandle, page: Page): Promise<void> {
+  await clickExport(core, page, 'exportEpub');
 }
 
 test.describe('US6 (feature 012) - one-time operations (D33)', () => {
@@ -83,7 +82,7 @@ test.describe('US6 (feature 012) - one-time operations (D33)', () => {
     const before = await trace(core, page, book);
     const target = path.join(path.dirname(book), 'out.epub');
     await core.enqueueDialog('dialog.saveFile', { path: target });
-    await exportEpub(page);
+    await exportEpub(core, page);
     await expect(page.getByTestId('status-message')).toContainText('Exported to', {
       timeout: 30_000,
     });
@@ -91,7 +90,7 @@ test.describe('US6 (feature 012) - one-time operations (D33)', () => {
     expect(await trace(core, page, book)).toEqual(before);
     // The next export proposes again from the book: the same name in the same folder.
     await core.enqueueDialog('dialog.saveFile', { path: null });
-    await exportEpub(page);
+    await exportEpub(core, page);
     await expect
       .poll(async () => {
         const saves = (await core.rpc<DialogRequest[]>('test.dialogRequests')).filter(
@@ -116,7 +115,7 @@ test.describe('US6 (feature 012) - one-time operations (D33)', () => {
     });
     const target = path.join(path.dirname(book), 'cancelled.epub');
     await core.enqueueDialog('dialog.saveFile', { path: target });
-    await exportEpub(page);
+    await exportEpub(core, page);
     await expect(page.getByTestId('modal-job')).toBeVisible();
     await page.getByTestId('modal-job-cancel').click();
     await expect(page.getByTestId('modal-job')).toHaveCount(0, { timeout: 20_000 });

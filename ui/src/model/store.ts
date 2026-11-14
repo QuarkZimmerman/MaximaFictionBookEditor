@@ -526,9 +526,12 @@ export const actions = {
     store.setState({ caretInfo });
   },
 
-  /** Feature 009 (FR-055): a validation of the current content found `problems`. */
-  setLastCheck(store: AppStore, problems: number): void {
-    store.setState((s) => ({ lastCheck: { problems, revision: s.contentRevision } }));
+  /**
+   * Feature 009 (FR-055): a validation found `problems` in the content of `revision` (the current
+   * content when omitted). A check that ran while the book changed stays stale.
+   */
+  setLastCheck(store: AppStore, problems: number, revision?: number): void {
+    store.setState((s) => ({ lastCheck: { problems, revision: revision ?? s.contentRevision } }));
   },
 
   setSourceParseError(store: AppStore, sourceParseError: DocParseErrorData | null): void {

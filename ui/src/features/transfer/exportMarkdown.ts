@@ -7,6 +7,7 @@
  */
 import type { CommandContext } from '@/app/commands';
 import { startModalJob } from '@/app/modalJob';
+import { confirmBookExport } from '@/features/file/exportCheck';
 import { proposedStem } from '@/features/file/proposedName';
 import { diagramSource, FORMULA_KEYWORD, SOURCE_KEYWORD } from '@/features/markdown/diagrams/files';
 import { serializeMarkdown } from '@/features/markdown/export/serialize';
@@ -60,6 +61,8 @@ export async function exportMarkdown(ctx: CommandContext, form: MarkdownForm): P
   const state = store.getState();
   if (!state.document || !state.docId) return false;
   const docId = state.docId;
+  // As Save asks before writing an invalid book (requester, rc.5).
+  if (!(await confirmBookExport(ctx)) || store.getState().docId !== docId) return false;
   const stem = proposedStem(state.document.description, ctx.t('app.untitled'));
   const one = form === 'md';
   const choice = await rpc.call('dialog.saveFile', {

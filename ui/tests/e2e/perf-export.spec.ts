@@ -15,6 +15,7 @@ import type { Page } from '@playwright/test';
 
 import { writeBigPictureBook } from './fixtures/bigPictureBook';
 import { expect, test, waitForBook, type CoreHandle } from './fixtures/core';
+import { clickExport } from './fixtures/exportCheck';
 import { MEMORY_BUDGET_BYTES, OWN_CORE, peakRssBytes } from './fixtures/memory';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -37,13 +38,7 @@ async function exportAs(
 ): Promise<number> {
   await core.enqueueDialog('dialog.saveFile', { path: target, zip: true });
   const started = Date.now();
-  await page.getByTestId('menu-file').click();
-  await page.getByTestId('menu-file-export').hover();
-  await page
-    .getByTestId(
-      form === 'md' ? 'menu-file-export-exportMarkdown' : 'menu-file-export-exportMarkdownZip',
-    )
-    .click();
+  await clickExport(core, page, form === 'md' ? 'exportMarkdown' : 'exportMarkdownZip');
   await expect(page.getByTestId('status-message')).toContainText(`Exported to ${target}:`, {
     timeout: 180_000,
   });

@@ -1161,34 +1161,11 @@ export class FileFeature {
 
   /* --------------------------------------------------------------- validate */
 
-  async validateDocument(
+  validateDocument(
     ctx: CommandContext,
     options: { quiet?: boolean } = {},
   ): Promise<ValidationReport | null> {
-    const { store, rpc } = ctx;
-    const state = store.getState();
-    if (!rpc || !state.document || !state.docId) return null;
-    const session = sourceSession(store);
-    const useText = (state.sourceOnly || state.sourceDirty) && session.text !== null;
-    const report = await rpc.runJob(
-      'doc.validate',
-      useText
-        ? { docId: state.docId, text: session.text ?? '' }
-        : { docId: state.docId, document: state.document },
-      { onProgress: (progress) => actions.setProgress(store, progress) },
-    );
-    actions.setProgress(store, null);
-    actions.setValidation(store, report);
-    // Feature 009 (FR-055): the validity pane shows this result until the content changes.
-    actions.setLastCheck(store, report.errorCount);
-    if (options.quiet) return report;
-    actions.setStatusMessage(
-      store,
-      report.errorCount === 0
-        ? ctx.t('status.noErrors')
-        : ctx.t('msg.errorsFound', { count: report.errorCount }),
-    );
-    return report;
+    return validateBook(ctx, options);
   }
 
   /* ------------------------------------------------------------------- exit */
@@ -1417,4 +1394,63 @@ export function registerFileCommands(
   options?: FileFeatureOptions,
 ): FileFeature {
   return new FileFeature(registry, options);
+}
+
+/** The check of the book's content in flight (not of a Source text): `validateBook` shares it. */
+let inflight: { docId: string; revision: number; job: Promise<ValidationReport> } | null = null;
+
+/**
+ * File > Validate's check of the book as the window has it (the Source text while it is the newer
+ * one): the problem list, the validity pane and the status message. A `quiet` check (the one after
+ * loading, the export's question) gives the validity pane its result and opens nothing: the
+ * problem list is refreshed only when it is open, as after a save, and the status line keeps what
+ * it says.
+ */
+export async function validateBook(
+  ctx: CommandContext,
+  options: { quiet?: boolean } = {},
+): Promise<ValidationReport | null> {
+  const { store, rpc } = ctx;
+  const state = store.getState();
+  if (!rpc || !state.document || !state.docId) return null;
+  const session = sourceSession(store);
+  const useText = (state.sourceOnly || state.sourceDirty) && session.text !== null;
+  const revision = state.contentRevision;
+  // A check of the same content already running (the one after loading, when an export follows at
+  // once) is waited for rather than run twice.
+  const same =
+    !useText && inflight?.docId === state.docId && inflight.revision === revision ? inflight : null;
+  const job =
+    same?.job ??
+    rpc.runJob(
+      'doc.validate',
+      useText
+        ? { docId: state.docId, text: session.text ?? '' }
+        : { docId: state.docId, document: state.document },
+      { onProgress: (progress) => actions.setProgress(store, progress) },
+    );
+  if (!same && !useText) {
+    const running = { docId: state.docId, revision, job };
+    inflight = running;
+    void job
+      .finally(() => {
+        if (inflight === running) inflight = null;
+      })
+      .catch(() => undefined);
+  }
+  const report = await job;
+  actions.setProgress(store, null);
+  if (store.getState().docId !== state.docId) return report;
+  if (!options.quiet || store.getState().validation) actions.setValidation(store, report);
+  // Feature 009 (FR-055): the validity pane shows this result until the content changes; a check
+  // of content that changed while it ran stays stale.
+  actions.setLastCheck(store, report.errorCount, revision);
+  if (options.quiet) return report;
+  actions.setStatusMessage(
+    store,
+    report.errorCount === 0
+      ? ctx.t('status.noErrors')
+      : ctx.t('msg.errorsFound', { count: report.errorCount }),
+  );
+  return report;
 }

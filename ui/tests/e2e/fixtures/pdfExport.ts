@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
 
 import { expect, fixtureBook, waitForBook, type CoreHandle } from './core';
+import { clickExport } from './exportCheck';
 
 /** File > Open for the fixture book `name` (tests/fixtures/books/ or a path). */
 export async function openFixtureBook(core: CoreHandle, page: Page, name: string): Promise<string> {
@@ -32,9 +33,7 @@ export async function exportPdfTo(
   timeout = 300_000,
 ): Promise<string> {
   await core.enqueueDialog('dialog.saveFile', { path: target, encoding: sizeLabel });
-  await page.getByTestId('menu-file').click();
-  await page.getByTestId('menu-file-export').hover();
-  await page.getByTestId('menu-file-export-exportPdf').click();
+  await clickExport(core, page, 'exportPdf');
   const status = page.getByTestId('status-message');
   const failed = page.getByTestId('dialog-pdf-export-failed');
   const summary = page.getByTestId('dialog-pdf-export-summary');

@@ -18,6 +18,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { Page } from '@playwright/test';
 
 import { expect, fixtureBook, recordOutside, test, type CoreHandle } from './fixtures/core';
+import { clickExport } from './fixtures/exportCheck';
 import { expectedText, exportPdfTo, openFixtureBook, type Expected } from './fixtures/pdfExport';
 import { startPrintSeam } from './fixtures/printSeam';
 import { scratchDir } from './fixtures/scratch';
@@ -264,9 +265,7 @@ test.describe('US1: export a searchable PDF in a chosen page size (feature 014)'
       const target = path.join(OUT, 'reference-letter-own-window.pdf');
       // The test hooks answer without `encoding`, as a dialog that cannot carry the list does.
       await core.enqueueDialog('dialog.saveFile', { path: target });
-      await page.getByTestId('menu-file').click();
-      await page.getByTestId('menu-file-export').hover();
-      await page.getByTestId('menu-file-export-exportPdf').click();
+      await clickExport(core, page, 'exportPdf');
       const window = page.getByTestId('dialog-pdf-page-size');
       await window.waitFor({ timeout: 30_000 });
       await expect(page.getByTestId('dialog-pdf-page-size-select')).toHaveValue('a4');
@@ -281,9 +280,7 @@ test.describe('US1: export a searchable PDF in a chosen page size (feature 014)'
       // Its Cancel writes nothing.
       const never = path.join(OUT, 'never-written.pdf');
       await core.enqueueDialog('dialog.saveFile', { path: never });
-      await page.getByTestId('menu-file').click();
-      await page.getByTestId('menu-file-export').hover();
-      await page.getByTestId('menu-file-export-exportPdf').click();
+      await clickExport(core, page, 'exportPdf');
       await window.waitFor({ timeout: 30_000 });
       await page.getByTestId('dialog-pdf-page-size-button-cancel').click();
       await expect(window).toBeHidden();
@@ -308,9 +305,7 @@ test.describe('US1: export a searchable PDF in a chosen page size (feature 014)'
       const before = await trace(core, page, book);
       const target = path.join(OUT, 'cancelled.pdf');
       await core.enqueueDialog('dialog.saveFile', { path: target, encoding: 'A6 (105 × 148 mm)' });
-      await page.getByTestId('menu-file').click();
-      await page.getByTestId('menu-file-export').hover();
-      await page.getByTestId('menu-file-export-exportPdf').click();
+      await clickExport(core, page, 'exportPdf');
       // D4: the progress, with Cancel.
       await page.getByTestId('modal-job').waitFor({ timeout: 30_000 });
       await page.getByTestId('modal-job-cancel').click({ timeout: 10_000 });

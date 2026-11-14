@@ -18,6 +18,7 @@ import type { Page } from '@playwright/test';
 
 import { writeBigPictureBook } from './fixtures/bigPictureBook';
 import { expect, test, type CoreHandle } from './fixtures/core';
+import { clickExport } from './fixtures/exportCheck';
 import { MEMORY_BUDGET_BYTES, OWN_CORE, peakRssBytes } from './fixtures/memory';
 import { exportPdfTo, openFixtureBook } from './fixtures/pdfExport';
 import { startPrintSeam } from './fixtures/printSeam';
@@ -213,9 +214,7 @@ test.describe('performance - the PDF export (SC-010)', () => {
           path: target,
           encoding: 'A6 (105 × 148 mm)',
         });
-        await page.getByTestId('menu-file').click();
-        await page.getByTestId('menu-file-export').hover();
-        await page.getByTestId('menu-file-export-exportPdf').click();
+        await clickExport(core, page, 'exportPdf');
         await page.getByTestId('modal-job').waitFor({ timeout: 30_000 });
         await page.waitForTimeout(2_000);
         const clicked = Date.now();
