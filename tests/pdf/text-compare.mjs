@@ -80,6 +80,24 @@ export function compareText(pageTexts, expected) {
   const outOfOrder = [];
   let cursor = 0;
   const cover = (at, length) => covered.fill(1, at, at + length);
+  // D11: the cover page and the title page hold only the export's own words. They are covered,
+  // and the book's text is looked for after them, so that a word of the title page (the title's
+  // first word, say) is not taken for the start of the body's first block.
+  const ownWords = (expected.addedWords ?? [])
+    .map(squeeze)
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length);
+  for (const page of pages) {
+    const text = squeeze(page);
+    let rest = text;
+    for (const word of ownWords) rest = rest.split(word).join("");
+    if (!/^[\d[\]().*†‡§]*$/.test(rest)) break;
+    cover(cursor, text.length);
+    cursor += text.length;
+    // Only the export's own pages: the cover (no text) and the title page, never a page of the
+    // book whose text happens to repeat them (a body's own title).
+    if (text) break;
+  }
   const findFree = (needle, from) => {
     for (
       let at = all.indexOf(needle, from);
