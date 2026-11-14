@@ -50,16 +50,22 @@ async function acceptDialog(title) {
   if (process.platform === "win32") {
     // Without blocking this process: the click that opened the dialog is still waiting for its
     // answer (see below).
-    const { stdout } = await promisify(execFile)("powershell", [
-      "-NoProfile",
-      "-ExecutionPolicy",
-      "Bypass",
-      "-File",
-      path.join(root, "tools", "ci", "windows-accept-dialog.ps1"),
-      "-Title",
-      title,
-    ]);
-    process.stderr.write(stdout);
+    try {
+      const { stdout } = await promisify(execFile)("powershell", [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        path.join(root, "tools", "ci", "windows-accept-dialog.ps1"),
+        "-Title",
+        title,
+      ]);
+      process.stderr.write(stdout);
+    } catch (error) {
+      // What the helper saw (the windows there are) goes to the log with the failure.
+      process.stderr.write(`${error.stdout ?? ""}${error.stderr ?? ""}`);
+      throw new Error(`the Save dialog "${title}" was not accepted`);
+    }
     return;
   }
   const env = displayEnv();
@@ -188,11 +194,17 @@ try {
   // open, it kept the process and its helpers alive (requester, Windows, rc.4). File > Exit; the
   // book is unchanged, so nothing is asked. shell-smoke.sh then waits for the shell to end.
   await page.getByTestId("menu-file").click({ timeout: 10000 });
-  await page.getByTestId("menu-file-exit").click({ timeout: 10000 });
+  await page
+    .getByTestId("menu-file-exit")
+    .click({ timeout: 10000 })
+    .catch((error) => {
+      // The editor may have closed before the click was answered: that is the point.
+      if (!/closed|disconnected/i.test(String(error))) throw error;
+    });
   console.error("shell-smoke-pdf: File > Exit");
   console.log(out);
 } catch (error) {
   fail(error instanceof Error ? error.message : String(error));
 } finally {
-  await browser.close();
+  await browser.close().catch(() => undefined);
 }
