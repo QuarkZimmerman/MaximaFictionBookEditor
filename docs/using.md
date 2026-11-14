@@ -371,14 +371,17 @@ editor asks for the size in a window of its own after the dialog.
 
 - A cover page with the description's cover picture, and a title page as printed books set it: the
   authors and the title large in its upper part, each series in brackets under the title, the
-  publisher and the year small at its foot. Then the book's bodies as the Body view shows them (the
-  cover Preview draws at the top is not printed again): each body and each top-level section after
-  a body's first on a new page, so a body's own title shares its page with the first section. The
-  page numbers are at the foot.
+  publisher and the year small at its foot. The annotation follows on a page of its own, without a
+  heading (bookmarked *Annotation*). Then the book's bodies as the Body view shows them (the cover
+  Preview draws at the top is not printed again): each body and each top-level section after a
+  body's first on a new page, so a body's own title shares its page with the first section. The
+  document's history ends the book (bookmarked *Revision history*). The page numbers are at the
+  foot.
 - Notes at the foot of the page that refers to them, under a short rule, each beginning with its title
   and leading back to the reference. A note referred to twice is printed once. Notes nothing refers to
   come after the text.
-- Bookmarks: the cover page, the title page and the titled sections, nested as the book nests them.
+- Bookmarks: the cover page, the title page, the annotation, the titled sections, nested as the book
+  nests them, and the revision history.
   Links inside the book lead to their targets; links to the web stay as written.
 - Searchable text: every word can be found and copied, ligatures read as their letters. The structure
   is tagged (headings, paragraphs, pictures with their alternative text, tables, links) for screen
