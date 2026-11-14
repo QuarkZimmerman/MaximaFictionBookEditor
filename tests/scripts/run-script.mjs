@@ -11,6 +11,8 @@
  *        [--ui-dist <dir>] [--keep] [--clipboard <text>] [--save-as <name|cancel>]...
  *        [--pick-folder <name|cancel>]... [--list-nodes]
  *
+ *   --expect-dialogs fails (exit code 1) unless the script showed exactly this many dialogs - a
+ *                   script that asks where the original did not is a regression (issue #14)
  *   --answer        pre-answers the script's dialogs in order: a button id for message boxes
  *                   (`ok`, `yes`, `no`, `cancel`...), text for prompts (`cancel` cancels) and a
  *                   JSON object for forms (`{"prefix":"n_"}`; `cancel` cancels)
@@ -94,6 +96,7 @@ function parseArgs(argv) {
   const options = {
     positional: [],
     answers: [],
+    expectDialogs: null,
     out: null,
     select: null,
     selectRange: null,
@@ -125,6 +128,9 @@ function parseArgs(argv) {
         break;
       case "--answer":
         options.answers.push(next());
+        break;
+      case "--expect-dialogs":
+        options.expectDialogs = Number(next());
         break;
       case "--select":
         options.select = next();
@@ -411,7 +417,11 @@ async function main() {
   const [scriptArg, bookArg] = options.positional;
   const book = path.resolve(bookArg);
   if (!existsSync(book)) usage(`book not found: ${book}`);
-  const log = (text) => console.error(`run-script: ${text}`);
+  let dialogsShown = 0;
+  const log = (text) => {
+    if (/^(message box |prompt ->|form )/.test(text)) dialogsShown += 1;
+    console.error(`run-script: ${text}`);
+  };
 
   const dataDir = mkdtempSync(path.join(tmpdir(), "mfbe-run-script-"));
   // Copies a package into the temporary user layer under its group folder (if any) and returns
@@ -773,6 +783,10 @@ async function main() {
     await core.stop();
     if (options.keep) log(`data dir kept: ${dataDir}`);
     else rmSync(dataDir, { recursive: true, force: true });
+  }
+  if (options.expectDialogs !== null && dialogsShown !== options.expectDialogs) {
+    log(`expected ${options.expectDialogs} dialog(s), the script showed ${dialogsShown}`);
+    exitCode = 1;
   }
   process.exit(exitCode);
 }

@@ -438,6 +438,23 @@
     ]
   },
   {
+    "snapshot": "06/broken-sentences.libru-hardwrap.xml",
+    "script": "scripts/06_cleanup/14_broken-sentences",
+    "book": "tests/scripts/fixtures/books/libru-hardwrap.fb2",
+    "args": [
+      "--answer",
+      "yes",
+      "--answer",
+      "no",
+      "--answer",
+      "no",
+      "--answer",
+      "ok",
+      "--expect-dialogs",
+      "4"
+    ]
+  },
+  {
     "snapshot": "06/dot-dash-letter-no-ellipsis.conv-b-06.xml",
     "script": "scripts/06_cleanup/16_dot-dash-letter-no-ellipsis",
     "book": "tests/scripts/fixtures/books/conv-b-06.fb2",
