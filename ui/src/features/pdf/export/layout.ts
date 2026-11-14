@@ -150,6 +150,13 @@ body { font-family: '${text}', '${georgian}', '${armenian}', '${mono}'; font-siz
 .mfbe-page:last-child { break-after: auto; page-break-after: auto; }
 .mfbe-content { position: relative; width: ${layout.contentWidth}px; height: ${layout.contentHeight}px;
   overflow: hidden; }
+.mfbe-titlepage { display: flex; flex-direction: column; justify-content: space-between;
+  height: 100%; text-align: center; text-indent: 0; }
+.mfbe-titlepage-top { margin-top: 18%; }
+.mfbe-titlepage-author { font-size: 1.45em; line-height: 1.3; }
+.mfbe-titlepage-title { font-size: 2.3em; font-weight: bold; line-height: 1.2; margin-top: 1.2em; }
+.mfbe-titlepage-series { font-size: 1.15em; margin-top: 0.7em; }
+.mfbe-titlepage-imprint { font-size: 1em; }
 .mfbe-number { position: absolute; left: 0; right: 0; bottom: ${layout.margin / 3}px; text-align: center;
   font-size: ${(layout.textPt * 0.85).toFixed(2)}pt; }
 .mfbe-picture { display: block; margin: 0 auto; }

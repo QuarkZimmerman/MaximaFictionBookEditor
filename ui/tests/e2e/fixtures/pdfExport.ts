@@ -94,17 +94,30 @@ async function expectedTextAll(page: Page, file: string): Promise<Expected> {
       };
       walk(body);
     }
+    // D11: the title page as the paginator sets it - the authors, the title, each series in
+    // brackets ("(Name #N)"), and the publisher and the year ("Publisher, Year") at its foot.
     const info = doc.getElementsByTagNameNS(NS, 'title-info')[0];
-    const words = [];
-    const title = info && info.getElementsByTagNameNS(NS, 'book-title')[0];
-    if (title) words.push(clean(title.textContent));
+    const authors = [];
     for (const author of info ? info.getElementsByTagNameNS(NS, 'author') : []) {
       const part = (name) => clean((author.getElementsByTagNameNS(NS, name)[0] || {}).textContent || '');
       const full = ['first-name', 'middle-name', 'last-name'].map(part).filter(Boolean).join(' ');
-      words.push(full || part('nickname'));
+      if (full || part('nickname')) authors.push(full || part('nickname'));
     }
+    const titleElement = info && info.getElementsByTagNameNS(NS, 'book-title')[0];
+    const title = titleElement ? clean(titleElement.textContent) : '';
+    const series = [];
+    for (const sequence of info ? info.getElementsByTagNameNS(NS, 'sequence') : []) {
+      const name = clean(sequence.getAttribute('name') || '');
+      const number = sequence.getAttribute('number');
+      if (name) series.push('(' + name + (number && Number(number) ? ' #' + Number(number) : '') + ')');
+    }
+    const publish = doc.getElementsByTagNameNS(NS, 'publish-info')[0];
+    const field = (name) =>
+      publish ? clean((publish.getElementsByTagNameNS(NS, name)[0] || {}).textContent || '') : '';
+    const imprint = [field('publisher'), field('year')].filter(Boolean).join(', ');
+    const lines = [...authors, title, ...series, imprint].filter(Boolean);
     // The title page shows them together: its whole text is added too.
-    return { blocks, addedWords: [...words, words.join(' ')] };
+    return { blocks, addedWords: [...lines, lines.join(' ')] };
   })()`);
 }
 

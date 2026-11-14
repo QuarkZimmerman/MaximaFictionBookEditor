@@ -499,21 +499,36 @@ export async function paginate(
       cover = coverMeta.id;
       bookmarks.push({ title: pdfWords(lang).cover, page: 0, y: 0, children: [] });
     }
-    // D11: the title page - the title and the authors, as the description gives them.
+    // D11: the title page, as printed books set it (requester, rc.3): the authors and the title
+    // large in the upper part, each series in brackets under the title, and the publisher and the
+    // year small at the foot.
     {
       const { page, content } = newPage();
-      const heading = doc.createElementNS(FB2_NS, 'title');
-      const p = doc.createElementNS(FB2_NS, 'p');
-      p.textContent = title;
-      heading.append(p);
-      content.append(heading);
+      const div = (className: string, text = ''): HTMLElement => {
+        const element = doc.createElementNS(XHTML_NS, 'div') as HTMLElement;
+        element.className = className;
+        if (text) element.textContent = text;
+        return element;
+      };
+      const sheet = div('mfbe-titlepage');
+      const top = div('mfbe-titlepage-top');
       for (const author of book.description.titleInfo.authors ?? []) {
-        const line = doc.createElementNS(FB2_NS, 'subtitle');
-        line.textContent =
+        const name =
           [author.firstName, author.middleName, author.lastName].filter(Boolean).join(' ') ||
           (author.nickname ?? '');
-        if (line.textContent) content.append(line);
+        if (name) top.append(div('mfbe-titlepage-author', name));
       }
+      top.append(div('mfbe-titlepage-title', title));
+      for (const sequence of book.description.titleInfo.sequences ?? []) {
+        if (!sequence.name) continue;
+        const number = sequence.number ? ` #${sequence.number}` : '';
+        top.append(div('mfbe-titlepage-series', `(${sequence.name}${number})`));
+      }
+      sheet.append(top);
+      const publish = book.description.publishInfo;
+      const imprint = [publish?.publisher, publish?.year].filter((part) => part?.trim()).join(', ');
+      if (imprint) sheet.append(div('mfbe-titlepage-imprint', imprint));
+      content.append(sheet);
       finishPage(page, false);
       bookmarks.push({
         title: pdfWords(lang).titlePage,
