@@ -114,6 +114,7 @@ function collectBlocks(root: Element): Block[] {
   const blocks: Block[] = [];
   let breakNext = false;
   let bodyCount = 0;
+  const bodiesWithSection = new Set<Element>();
   const walk = (element: Element, chain: Element[]): void => {
     for (const child of [...element.children]) {
       const name = child.localName;
@@ -127,7 +128,12 @@ function collectBlocks(root: Element): Block[] {
           bodyCount++;
           breakNext = bodyCount > 1;
         }
-        if (name === 'section' && isFb2(element, 'body')) breakNext = true;
+        // A body's sections start on new pages, but its first one follows the body's own title on
+        // the same page, as the Body view shows them (requester, rc.3).
+        if (name === 'section' && isFb2(element, 'body')) {
+          if (bodiesWithSection.has(element)) breakNext = true;
+          else bodiesWithSection.add(element);
+        }
         walk(child, [...chain, child]);
         continue;
       }

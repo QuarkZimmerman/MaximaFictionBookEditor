@@ -184,10 +184,15 @@ test.describe('US1: export a searchable PDF in a chosen page size (feature 014)'
         ) as { pictures?: { page: number; binaryId: string }[] };
         const coverPages = (hints.pictures ?? []).filter((p) => p.binaryId === 'cover');
         expect(coverPages.map((p) => p.page)).toEqual([1]);
-        const result = compareText(
-          await pdfPageTexts(new Uint8Array(readFileSync(target))),
-          expected,
-        );
+        const texts = await pdfPageTexts(new Uint8Array(readFileSync(target)));
+        const result = compareText(texts, expected);
+        // As the Body view shows it, the body's first section follows the body's own title, its
+        // picture and its epigraph on the same page (requester, rc.3) - where the page has room.
+        if (size.id === 'a4') {
+          const at = (words: string) =>
+            texts.findIndex((text) => text.replace(/\s+/g, ' ').includes(words));
+          expect(at('Chapter One')).toBe(at('An epigraph of the body.'));
+        }
         expect({ size: size.id, ...result }).toEqual({
           size: size.id,
           ok: true,
