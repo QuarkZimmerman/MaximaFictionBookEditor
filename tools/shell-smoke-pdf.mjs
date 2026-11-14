@@ -1,8 +1,11 @@
 #!/usr/bin/env node
-// CDP helper of the PDF export smoke (feature 014, T057; tools/shell-smoke.sh MFBE_SMOKE_PDF=1):
-// in the real shell, with the book open, File > Export > Export as PDF... writes the PDF the Save
-// dialog proposes in `folder` (the book's folder; the name from the description, the size A4). The shell's native GTK Save dialog is accepted with Return through xdotool on the
-// shell's display (MFBE_SMOKE_DISPLAY_FILE), and the pages are printed by the shell's own print
+// CDP helper of the PDF export smoke (feature 014, T057; tools/shell-smoke.sh MFBE_SMOKE_PDF=1 on
+// Linux, tools/ci/windows-pdf-exit-smoke.ps1 on Windows): in the real shell, with the book open,
+// File > Export > Export as PDF... writes the PDF the Save dialog proposes in `folder` (the book's
+// folder; the name from the description, the size A4). The shell's native Save dialog is accepted
+// with its proposal - on Linux the GTK dialog with Return through xdotool on the shell's display
+// (MFBE_SMOKE_DISPLAY_FILE), on Windows the system dialog through UI Automation
+// (tools/ci/windows-accept-dialog.ps1) - and the pages are printed by the shell's own print
 // service (CEF's PrintToPDF in a hidden browser) - the path the journeys' print seam stands in
 // for. tools/ci/verapdf.sh then checks the file.
 //
@@ -43,6 +46,22 @@ function displayEnv() {
 
 // Accepts the visible native window titled exactly `title` with Return.
 async function acceptDialog(title) {
+  if (process.platform === "win32") {
+    execFileSync(
+      "powershell",
+      [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        path.join(root, "tools", "ci", "windows-accept-dialog.ps1"),
+        "-Title",
+        title,
+      ],
+      { stdio: ["ignore", "inherit", "inherit"] },
+    );
+    return;
+  }
   const env = displayEnv();
   const deadline = Date.now() + 30000;
   while (Date.now() < deadline) {
@@ -123,8 +142,10 @@ try {
     // The whole display, native dialogs included, for the log (ImageMagick's import, when there).
     const shot = path.join(root, "build", "shell-smoke-pdf-failure.png");
     try {
-      execFileSync("import", ["-window", "root", shot], { env: displayEnv() });
-      console.error(`shell-smoke-pdf: the display: ${shot}`);
+      if (process.platform !== "win32") {
+        execFileSync("import", ["-window", "root", shot], { env: displayEnv() });
+        console.error(`shell-smoke-pdf: the display: ${shot}`);
+      }
     } catch {
       // no ImageMagick: the state alone
     }

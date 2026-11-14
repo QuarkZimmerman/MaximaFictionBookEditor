@@ -637,6 +637,18 @@ jobs:
         if: runner.os == 'Linux'
         run: tools/ci/shell-tests-xkb.sh ctest --preset ${{ matrix.preset }} -L shell --output-on-failure
 
+      # Feature 014 (requester, rc.4 and rc.5): after a PDF export, closing the editor ends every one
+      # of its processes, with no safety net acting. The editor of this build exports a book through
+      # its own Save dialog and print service, then File > Exit (tools/ci/windows-pdf-exit-smoke.ps1);
+      # Linux checks the same in its PDF shell smoke below. The job goes on after a failure, so that
+      # its other checks still run, and fails at its end (the result step).
+      - name: "Shell smoke (Windows): the editor ends after a PDF export (feature 014)"
+        id: pdf-exit
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        shell: pwsh
+        run: tools/ci/windows-pdf-exit-smoke.ps1 -Exe "build\${{ matrix.preset }}\bin\mfbe.exe" -Book tests\fixtures\books\reference-all-elements.fb2
+
       # Feature 006 (FR-055): the version forms of this build for the steps below - MFBE_VERSION
       # (the label, 0.0.6-rc), MFBE_VERSION_PACKAGE (0.0.6~rc), MFBE_VERSION_NUMERIC (0.0.6),
       # MFBE_VERSION_PRERELEASE, MFBE_APPIMAGE_CHANNEL, ... as KEY=value lines in $GITHUB_ENV.
@@ -1223,3 +1235,10 @@ jobs:
           name: shell-smoke
           path: build/shell-smoke*.png
           if-no-files-found: ignore
+
+      - name: "The editor ends after a PDF export (Windows, feature 014): result"
+        if: always() && steps.pdf-exit.outcome == 'failure'
+        shell: bash
+        run: |
+          echo "::error::after a PDF export the editor did not end with all its processes on Windows - see the step 'Shell smoke (Windows): the editor ends after a PDF export (feature 014)'"
+          exit 1

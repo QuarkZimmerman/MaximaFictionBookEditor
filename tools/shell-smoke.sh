@@ -1013,6 +1013,13 @@ if [[ "${MFBE_SMOKE_PDF:-0}" == "1" ]]; then
     for pid in $LEFT; do tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | cut -c1-200 >&2; echo >&2; done
     exit 1
   fi
+  # The close went as designed: neither safety net - the print browser's close time limit, the
+  # shutdown watchdog - had to act; each writes a warning to the errors log.
+  NETS=$(find "$TMP/home" -name 'mfbe-errors.log' -exec grep -h -E 'shell\.(printBrowserClose|shutdownTimeout)' {} + 2>/dev/null || true)
+  if [[ -n "$NETS" ]]; then
+    echo "shell-smoke: the editor's close needed its safety net: $NETS" >&2
+    exit 1
+  fi
   echo "shell-smoke: PDF export printed by the shell, and the shell ended after File > Exit: OK"
 fi
 

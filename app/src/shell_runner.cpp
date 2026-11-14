@@ -17,17 +17,22 @@
 
 #include "shell_runner.h"
 
+#include <mfbe/log.hpp>
 #include <mfbe/utf8_paths.hpp>
 
 #include <atomic>
+#include <chrono>
+#include <condition_variable>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <system_error>
+#include <thread>
 #include <vector>
 
 #if defined(MFBE_SHELL_TEST_HOOKS)
@@ -67,6 +72,49 @@
 #include <cctype>
 
 namespace {
+
+// Ends the process at once: no exit handlers, and on Windows no DLL detach notifications either,
+// which a library stuck in its own shutdown could block.
+[[noreturn]] void endProcessNow(int code) {
+#if defined(OS_WIN)
+    TerminateProcess(GetCurrentProcess(), static_cast<UINT>(code));
+#endif
+    std::_Exit(code);
+}
+
+// The editor ends once its windows have gone (requester: an exit is complete, nothing stays
+// behind). Should the core's stop or CefShutdown not return within the limit, the process ends
+// all the same, as Chrome's own shutdown watchdog does, with a warning in the errors log.
+class ShutdownWatchdog {
+public:
+    ShutdownWatchdog(std::chrono::seconds limit, int exit_code)
+        : thread_([this, limit, exit_code] {
+              std::unique_lock lock(mutex_);
+              if (stopped_.wait_for(lock, limit, [this] { return done_; }))
+                  return;
+              mfbe::log::warning("shell", "shell.shutdownTimeout",
+                                 "the editor had not shut down " + std::to_string(limit.count()) +
+                                     " s after its last window closed; the process ends now");
+              mfbe::log::shutdown();
+              endProcessNow(exit_code);
+          }) {}
+    ShutdownWatchdog(const ShutdownWatchdog&) = delete;
+    ShutdownWatchdog& operator=(const ShutdownWatchdog&) = delete;
+    ~ShutdownWatchdog() {
+        {
+            std::lock_guard lock(mutex_);
+            done_ = true;
+        }
+        stopped_.notify_one();
+        thread_.join();
+    }
+
+private:
+    std::mutex mutex_;
+    std::condition_variable stopped_;
+    bool done_ = false;
+    std::thread thread_;  // last: it starts once the members above exist
+};
 
 // Two-letter OS language code ("ru", "en", ...) from the user's locale; empty when unknown.
 std::string systemLanguageCode() {
@@ -608,6 +656,10 @@ int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const*
         // Run the CEF message loop. Blocks until CefQuitMessageLoop() is called (last window).
         CefRunMessageLoop();
     }
+    std::optional<ShutdownWatchdog> watchdog;
+    if (cef_initialized) {
+        watchdog.emplace(std::chrono::seconds(15), exit_code);
+    }
 
     // The window's last placement goes to settings.session.windowGeometry (feature 003 US3) -
     // the store outlives the core's own stop on app.quit, so this works in every quit path.
@@ -627,6 +679,7 @@ int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const*
     if (cef_initialized) {
         CefShutdown();
     }
+    watchdog.reset();
     if (hooks.after_shutdown != nullptr) {
         hooks.after_shutdown();
     }

@@ -13,8 +13,10 @@
 #include "include/views/cef_window_delegate.h"
 #include "include/wrapper/cef_helpers.h"
 
+#include <mfbe/log.hpp>
 #include <mfbe/utf8_paths.hpp>
 
+#include <cstdint>
 #include <deque>
 #include <filesystem>
 #include <functional>
@@ -31,6 +33,8 @@ namespace {
 // script; the journeys' fixture waits for the same title).
 constexpr const char* kReadyTitle = "mfbe-print-ready";
 constexpr const char* kBlank = "about:blank";
+// How long the editor's close waits for the print browser and its hidden window to go.
+constexpr int64_t kCloseTimeoutMs = 3000;
 
 class FunctionTask : public CefTask {
 public:
@@ -109,15 +113,22 @@ private:
 // The window holding the print browser; it is never shown.
 class HiddenWindowDelegate : public CefWindowDelegate {
 public:
-    explicit HiddenWindowDelegate(CefRefPtr<CefBrowserView> view) : view_(std::move(view)) {}
+    HiddenWindowDelegate(Printer* owner, CefRefPtr<CefBrowserView> view)
+        : owner_(owner), view_(std::move(view)) {}
     HiddenWindowDelegate(const HiddenWindowDelegate&) = delete;
     HiddenWindowDelegate& operator=(const HiddenWindowDelegate&) = delete;
-    void OnWindowCreated(CefRefPtr<CefWindow> window) override { window->AddChildView(view_); }
-    void OnWindowDestroyed(CefRefPtr<CefWindow>) override { view_ = nullptr; }
+    void OnWindowCreated(CefRefPtr<CefWindow> window) override;
+    void OnWindowDestroyed(CefRefPtr<CefWindow>) override;
     CefSize GetPreferredSize(CefRefPtr<CefView>) override { return CefSize(800, 1000); }
-    bool CanClose(CefRefPtr<CefWindow>) override { return true; }
+    // CEF's close sequence for a window holding a browser, as in its cefsimple sample: the
+    // browser closes first, then CEF asks again and the window goes (cef_life_span_handler.h).
+    bool CanClose(CefRefPtr<CefWindow>) override {
+        CefRefPtr<CefBrowser> browser = view_ ? view_->GetBrowser() : nullptr;
+        return !browser || browser->GetHost()->TryCloseBrowser();
+    }
 
 private:
+    Printer* owner_;
     CefRefPtr<CefBrowserView> view_;
     IMPLEMENT_REFCOUNTING(HiddenWindowDelegate);
 };
@@ -134,11 +145,11 @@ private:
 
 class Printer final : public mfbe::PrintService {
 public:
-    /// The editor is closing, its last window gone: the jobs left fail, and the print browser
-    /// and its hidden window close, so that CefShutdown finds no browser. CEF requires that; with
-    /// the print browser left open, the process and its helpers stayed after the editor's
-    /// windows had closed (requester, Windows, rc.4). `done` runs once it has closed, or at once
-    /// when there is none.
+    /// The editor is closing, its last window gone: the jobs left fail, and the hidden window
+    /// closes with its print browser, so that CefShutdown finds neither. CEF requires that; left
+    /// open, they kept the process and its helpers alive after the editor's windows had closed
+    /// (requester, Windows, rc.4 and rc.5). `done` runs once both have gone, at once when there
+    /// is none, and after kCloseTimeoutMs at the latest (with a warning in the errors log).
     void close(std::function<void()> done) {
         CEF_REQUIRE_UI_THREAD();
         while (!queue_.empty()) {
@@ -146,26 +157,36 @@ public:
             queue_.pop_front();
             job.done(false, "the editor is closing");
         }
-        if (!view_ && !browser_) {
+        if (!view_ && !browser_ && !window_) {
             done();
             return;
         }
         closed_ = std::move(done);
-        if (browser_)
-            browser_->GetHost()->CloseBrowser(true);  // else browser_created() closes it
+        // As any window holding a browser (HiddenWindowDelegate::CanClose); a window still being
+        // created is closed by window_created().
+        if (window_)
+            window_->Close();
+        else if (browser_)
+            browser_->GetHost()->CloseBrowser(true);
+        CefPostDelayedTask(TID_UI, new FunctionTask([this] { close_timed_out(); }),
+                           kCloseTimeoutMs);
+    }
+
+    void window_created(CefRefPtr<CefWindow> window) {
+        window_ = std::move(window);
+        if (closed_)
+            window_->Close();
+    }
+
+    void window_destroyed() {
+        window_ = nullptr;
+        view_ = nullptr;
+        closed_if_gone();
     }
 
     void browser_closed() {
-        CefRefPtr<CefWindow> window = view_ ? view_->GetWindow() : nullptr;
         browser_ = nullptr;
-        view_ = nullptr;
-        if (window)
-            window->Close();
-        if (closed_) {
-            std::function<void()> done = std::move(closed_);
-            closed_ = nullptr;
-            done();
-        }
+        closed_if_gone();
     }
 
     void print(const mfbe::PrintRequest& request, mfbe::PrintDone done) override {
@@ -206,7 +227,10 @@ public:
     void browser_created(CefRefPtr<CefBrowser> browser) {
         browser_ = std::move(browser);
         if (closed_) {  // the editor closed while the print browser was being created
-            browser_->GetHost()->CloseBrowser(true);
+            if (window_)
+                window_->Close();
+            else
+                browser_->GetHost()->CloseBrowser(true);
             return;
         }
         load_current();
@@ -258,6 +282,36 @@ public:
     }
 
 private:
+    // The editor's close goes on once the browser and its window have both gone.
+    void closed_if_gone() {
+        if (closed_ && !browser_ && !window_)
+            finish_close();
+    }
+
+    // Neither should take long; should one not go, the editor still ends (requester: an exit is
+    // complete), and the errors log tells which.
+    void close_timed_out() {
+        if (!closed_)
+            return;
+        mfbe::log::warning(
+            "shell", "shell.printBrowserClose",
+            std::string("the PDF export's print browser had not closed ") +
+                std::to_string(kCloseTimeoutMs) + " ms after the editor's last window: browser " +
+                (browser_ ? "open" : "closed") + ", window " + (window_ ? "open" : "destroyed"));
+        if (browser_)
+            browser_->GetHost()->CloseBrowser(true);
+        browser_ = nullptr;
+        view_ = nullptr;
+        window_ = nullptr;
+        finish_close();
+    }
+
+    void finish_close() {
+        std::function<void()> done = std::move(closed_);
+        closed_ = nullptr;
+        done();
+    }
+
     void start_next() {
         if (queue_.empty())
             return;
@@ -270,7 +324,7 @@ private:
                 finish(false, "the print browser could not be created");
                 return;
             }
-            CefWindow::CreateTopLevelWindow(new HiddenWindowDelegate(view_));
+            CefWindow::CreateTopLevelWindow(new HiddenWindowDelegate(this, view_));
             return;  // browser_created() loads the job
         }
         load_current();
@@ -293,8 +347,9 @@ private:
 
     std::deque<Job> queue_;  // UI thread only
     CefRefPtr<CefBrowserView> view_;
+    CefRefPtr<CefWindow> window_;  // the hidden window holding view_, once created
     CefRefPtr<CefBrowser> browser_;
-    std::function<void()> closed_;  // the editor is closing: what to do once the browser has gone
+    std::function<void()> closed_;  // the editor is closing: what to do once both have gone
     mutable std::mutex paper_mutex_;
     double paper_width_in_ = 8.27;
     double paper_height_in_ = 11.69;
@@ -308,6 +363,16 @@ void PrintClient::OnTitleChange(CefRefPtr<CefBrowser> browser, const CefString& 
 void PrintClient::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
     CEF_REQUIRE_UI_THREAD();
     owner_->browser_created(browser);
+}
+
+void HiddenWindowDelegate::OnWindowCreated(CefRefPtr<CefWindow> window) {
+    window->AddChildView(view_);
+    owner_->window_created(window);
+}
+
+void HiddenWindowDelegate::OnWindowDestroyed(CefRefPtr<CefWindow>) {
+    view_ = nullptr;
+    owner_->window_destroyed();
 }
 
 void PrintClient::OnBeforeClose(CefRefPtr<CefBrowser>) {
