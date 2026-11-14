@@ -128,6 +128,12 @@ TEST_CASE("pdf readback: Poppler alone gives the book back (SC-012)", "[pdf]") {
     CHECK(record == pdf::description_record(description));
     CHECK(record.find("<book-title>" + description.titleInfo.bookTitle + "</book-title>") !=
           std::string::npos);
+    // The annotation is printed on a page of its own, so the record leaves it out (requester,
+    // rc.4); the standard field other programs read keeps it.
+    REQUIRE(description.titleInfo.annotation.has_value());
+    CHECK(record.find("<annotation") == std::string::npos);
+    CHECK(element(xmp, "dc:description").find("The annotation of the reference book") !=
+          std::string::npos);
     const std::string hints = element(xmp, "mfbe:fb2Hints");
     CHECK(nlohmann::json::parse(hints)["v"] == 1);
     CHECK(pdf::validate_hints(hints, texts).empty());
@@ -181,4 +187,23 @@ TEST_CASE("pdf readback: Poppler alone gives the book back (SC-012)", "[pdf]") {
     }
     CHECK(jpeg_found);
     CHECK(png_found);
+}
+
+TEST_CASE("pdf readback: the record leaves out the annotation and the history (requester, rc.4)",
+          "[pdf]") {
+    // Both are printed on pages of their own (the hints' annotationPage and historyPage); a later
+    // import takes them from there. The rest of the description stays in the record.
+    BinaryStore store;
+    model::NodeIdAllocator ids;
+    const auto book =
+        fb2::read_file(test::fixtures_dir() / "books" / "modern-utf8.fb2", store, ids);
+    const model::Description& description = book.document.description;
+    REQUIRE(description.titleInfo.annotation.has_value());
+    REQUIRE(description.documentInfo.history.has_value());
+    const std::string record = pdf::description_record(description);
+    CHECK(record.find("<annotation") == std::string::npos);
+    CHECK(record.find("<history") == std::string::npos);
+    CHECK(record.find("<book-title>" + description.titleInfo.bookTitle + "</book-title>") !=
+          std::string::npos);
+    CHECK(record.find("<document-info>") != std::string::npos);
 }

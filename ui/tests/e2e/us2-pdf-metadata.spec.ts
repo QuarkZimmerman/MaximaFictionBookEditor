@@ -56,13 +56,15 @@ const unescape = (text: string): string =>
  * An element tree in a canonical form (names and namespaces, attributes sorted, text squeezed), read
  * in the page: the e2e files have no DOM types, so the reader is a string evaluated there.
  */
-function canonical(page: Page, xml: string, element: string): Promise<string> {
+function canonical(page: Page, xml: string, element: string, drop: string[] = []): Promise<string> {
   return page.evaluate(`(() => {
     const doc = new DOMParser().parseFromString(${JSON.stringify(xml)}, 'application/xml');
     const root = doc.getElementsByTagNameNS('*', ${JSON.stringify(element)})[0];
+    const drop = new Set(${JSON.stringify(drop)});
     const form = (node) => {
       if (node.nodeType === 3) return node.data.replace(/\\s+/g, ' ').trim();
       if (node.nodeType !== 1) return '';
+      if (node.parentNode && drop.has(node.parentNode.localName + '/' + node.localName)) return '';
       const attrs = [...node.attributes]
         .filter((a) => !a.name.startsWith('xmlns'))
         .map((a) => (a.namespaceURI || '') + ':' + a.localName + '=' + a.value)
@@ -108,8 +110,15 @@ test.describe('US2: the whole description in the PDF metadata (feature 014)', ()
       const record = /<mfbe:fb2Description>([\s\S]*?)<\/mfbe:fb2Description>/.exec(one.xmp)?.[1];
       expect(record).toBeTruthy();
       const windowXml = await page.evaluate(() => window.__mfbeTest!.scripts!.toXml());
+      // The annotation and the history are printed on pages of their own, so the record leaves
+      // them out (requester, rc.4): it equals the rest of the description.
+      expect(unescape(record!)).not.toContain('<annotation');
+      expect(unescape(record!)).not.toContain('<history');
       expect(await canonical(page, unescape(record!), 'description')).toBe(
-        await canonical(page, windowXml, 'description'),
+        await canonical(page, windowXml, 'description', [
+          'title-info/annotation',
+          'document-info/history',
+        ]),
       );
 
       // D16: one document id for the book, a new instance id for each export.

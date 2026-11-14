@@ -55,6 +55,7 @@ std::string xml_text(const std::string& text);
 
 /// D15: the editor's record of the book's <description> element, as FB2 XML written by the core's
 /// own FB2 writer, declaring the FB2 and XLink namespaces on itself so that it reads back alone.
+/// Without the annotation and the history, which the PDF prints on pages of their own.
 std::string description_record(const model::Description& description);
 
 /// The fault of the editor's hints (R10, contracts/pdf-file.md), "" when they are sound: valid

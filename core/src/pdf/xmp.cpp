@@ -401,6 +401,11 @@ std::string validate_hints(const std::string& hints, const std::vector<std::stri
 std::string description_record(const model::Description& description) {
     model::Document only;
     only.description = description;
+    // The annotation and the history are printed on pages of their own (the hints' annotationPage
+    // and historyPage), so a later import takes them from there, not from this record (requester,
+    // rc.4). The standard fields other programs read keep the annotation (dc:description).
+    only.description.titleInfo.annotation.reset();
+    only.description.documentInfo.history.reset();
     const std::string xml = fb2::write_document(only, nullptr).text;
     const auto from = xml.find("<description");
     const auto to = xml.find("</description>");
