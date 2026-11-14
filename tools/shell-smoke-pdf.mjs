@@ -97,12 +97,20 @@ try {
   await item.click({ timeout: 10000 });
   // The Save dialog is the shell's own (GTK): its proposal is accepted (D2, D3).
   await acceptDialog("Export as PDF");
-  // The export starts with its progress window (D4); without it, the state tells why.
-  const started = await page
-    .getByTestId("modal-job")
-    .waitFor({ timeout: 30000 })
-    .then(() => true)
-    .catch(() => false);
+  // The export starts with its progress window (D4). A short book can be finished before that
+  // window is seen (CI on bdd3be4: "Exported to ..." already in the status line), so its result
+  // in the status line or one of its closing dialogs shows that it started too; without any of
+  // them, the state tells why.
+  const startDeadline = Date.now() + 30000;
+  let started = false;
+  while (!started && Date.now() < startDeadline) {
+    started =
+      (await page.getByTestId("modal-job").isVisible()) ||
+      (await page.getByTestId("dialog-pdf-export-summary").isVisible()) ||
+      (await page.getByTestId("dialog-pdf-export-failed").isVisible()) ||
+      ((await page.getByTestId("status-message").textContent()) ?? "").includes("Exported to");
+    if (!started) await page.waitForTimeout(100);
+  }
   if (!started) {
     const state = await page.evaluate(() => ({
       status: document.querySelector('[data-testid="status-message"]')
