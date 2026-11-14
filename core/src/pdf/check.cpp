@@ -222,7 +222,9 @@ private:
     void record(GfxState* state) {
         // The image's unit square through the current transformation, at 72 dpi.
         Box box{1e9, 1e9, -1e9, -1e9};
-        for (const auto& [ux, uy] : {std::pair{0.0, 0.0}, {1.0, 0.0}, {0.0, 1.0}, {1.0, 1.0}}) {
+        const std::pair<double, double> corners[] = {
+            {0.0, 0.0}, {1.0, 0.0}, {0.0, 1.0}, {1.0, 1.0}};
+        for (const auto& [ux, uy] : corners) {
             double x = 0;
             double y = 0;
             state->transform(ux, uy, &x, &y);
@@ -252,11 +254,13 @@ std::vector<std::string> check_pictures(const std::vector<char>& finished,
         auto [it, first] = drawn.try_emplace(picture.page);
         if (first)
             d.displayPage(&it->second, picture.page + 1, 72, 72, 0, true, false, false);
-        const auto near = [](double a, double b) { return std::abs(a - b) <= 1.5; };
+        // (Not "near": Windows headers define near and far as empty macros.)
+        const auto close_to = [](double a, double b) { return std::abs(a - b) <= 1.5; };
         const bool found = std::any_of(
             it->second.boxes.begin(), it->second.boxes.end(), [&](const ImageBoxes::Box& b) {
-                return near(b.x0, picture.x) && near(b.y0, picture.y) &&
-                       near(b.x1 - b.x0, picture.width) && near(b.y1 - b.y0, picture.height);
+                return close_to(b.x0, picture.x) && close_to(b.y0, picture.y) &&
+                       close_to(b.x1 - b.x0, picture.width) &&
+                       close_to(b.y1 - b.y0, picture.height);
             });
         if (!found) {
             faults.push_back("page " + std::to_string(picture.page + 1) + ": the picture " +
