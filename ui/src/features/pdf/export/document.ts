@@ -169,7 +169,7 @@ export async function createPrintFrame(
   doc.close();
   const dispose = (): void => frame.remove();
   try {
-    await buildPreview(doc, book, { docId });
+    await buildPreview(doc, book, { docId, descriptionPages: true });
     // D7: the fonts the book's stylesheets name keep their kind (the first sheet is Preview's base,
     // whose families the print stylesheet below overrides).
     const textFont: TextFont = {

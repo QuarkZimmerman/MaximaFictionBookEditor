@@ -82,6 +82,24 @@ async function expectedTextAll(page: Page, file: string): Promise<Expected> {
     const clean = (s) => s.replace(/\\s+/g, ' ').trim();
     const blocks = [];
     const BLOCKS = new Set(['p', 'v', 'subtitle', 'text-author', 'date', 'th', 'td']);
+    // The description's annotation is printed on its own page after the title page, and the
+    // document's history on the last page (requester, rc.4): in that order around the bodies.
+    const descriptionBlocks = (parentName, name) => {
+      const found = [];
+      const parent = doc.getElementsByTagNameNS(NS, parentName)[0];
+      const container = parent && [...parent.children].find((c) => c.localName === name);
+      if (!container) return found;
+      const walk = (el) => {
+        for (const child of el.children) {
+          if (BLOCKS.has(child.localName)) found.push({ text: clean(child.textContent), note: false });
+          else walk(child);
+        }
+      };
+      walk(container);
+      return found;
+    };
+    const annotationBlocks = descriptionBlocks('title-info', 'annotation');
+    blocks.push(...annotationBlocks);
     for (const body of doc.getElementsByTagNameNS(NS, 'body')) {
       const note = /^(notes|comments)$/i.test(body.getAttribute('name') || '');
       const walk = (el) => {
@@ -94,6 +112,8 @@ async function expectedTextAll(page: Page, file: string): Promise<Expected> {
       };
       walk(body);
     }
+    const historyBlocks = descriptionBlocks('document-info', 'history');
+    blocks.push(...historyBlocks);
     // D11: the title page as the paginator sets it - the authors, the title, each series in
     // brackets ("(Name #N)"), and the publisher and the year ("Publisher, Year") at its foot.
     const info = doc.getElementsByTagNameNS(NS, 'title-info')[0];
@@ -117,7 +137,7 @@ async function expectedTextAll(page: Page, file: string): Promise<Expected> {
     const imprint = [field('publisher'), field('year')].filter(Boolean).join(', ');
     const lines = [...authors, title, ...series, imprint].filter(Boolean);
     // The title page shows them together: its whole text is added too.
-    return { blocks, addedWords: [...lines, lines.join(' ')] };
+    return { blocks, addedWords: [...lines, lines.join(' ')], annotationBlocks, historyBlocks };
   })()`);
 }
 
@@ -168,5 +188,18 @@ export async function expectedText(page: Page, file: string): Promise<Expected> 
       `window.__mfbeTest && window.__mfbeTest.book && window.__mfbeTest.book.bodies ? window.__mfbeTest.book.bodies() : null`,
     )
     .catch(() => null)) as ModelJson[] | null;
-  return bodies ? { ...expected, blocks: modelBlocks(bodies) } : expected;
+  if (!bodies) return expected;
+  // The annotation's page before the bodies and the history's page after them, as printed.
+  const around = expected as Expected & {
+    annotationBlocks?: Expected['blocks'];
+    historyBlocks?: Expected['blocks'];
+  };
+  return {
+    ...expected,
+    blocks: [
+      ...(around.annotationBlocks ?? []),
+      ...modelBlocks(bodies),
+      ...(around.historyBlocks ?? []),
+    ],
+  };
 }

@@ -39,6 +39,12 @@ export interface PreviewBuildOptions {
   signal?: AbortSignal;
   /** Called while building: the units (top-level elements of the bodies) done and in all. */
   onProgress?: (done: number, total: number) => void;
+  /**
+   * Feature 014 (the PDF export, requester rc.4): the description's annotation before the bodies
+   * and the document's history after them, each an `annotation` element marked
+   * `data-mfbe-page="annotation"` / `"history"`. Preview itself does not show them.
+   */
+  descriptionPages?: boolean;
 }
 
 export interface PreviewBuild {
@@ -195,12 +201,22 @@ export async function buildPreview(
     root.append(builder.picture({ type: 'image', attrs: { href: cover.href, alt: '' } }));
   }
   const units: { parent: Element; node: ModelNodeJson }[] = [];
+  const descriptionPage = (node: unknown, page: 'annotation' | 'history'): void => {
+    const json = node as ModelNodeJson | undefined;
+    if (!options.descriptionPages || !json?.content?.length) return;
+    const element = builder.element('annotation', json);
+    element.setAttribute('data-mfbe-page', page);
+    root.append(element);
+    for (const child of json.content) units.push({ parent: element, node: child });
+  };
+  descriptionPage(book.description.titleInfo.annotation, 'annotation');
   for (const body of book.bodies) {
     const json = body as unknown as ModelNodeJson;
     const element = builder.element('body', json);
     root.append(element);
     for (const child of json.content ?? []) units.push({ parent: element, node: child });
   }
+  descriptionPage(book.description.documentInfo.history, 'history');
   const total = units.length;
   let lastYield = performance.now();
   for (let done = 0; done < total; done += 1) {

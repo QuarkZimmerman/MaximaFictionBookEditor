@@ -24,6 +24,12 @@ export interface HintsInput {
   /** Page numbers (from 1) of the cover page (null when none) and the title page. */
   coverPage: number | null;
   titlePage: number;
+  /**
+   * The first pages (from 1) of the description's annotation and of the document's history, which
+   * the export prints after the title page and at the end (null when the book has none): a later
+   * import takes them from the description, not as text of the bodies.
+   */
+  descriptionPages?: { annotation: number | null; history: number | null };
 }
 
 const GENERIC_BLOCKS = new Set(['v', 'subtitle', 'text-author', 'date', 'empty-line']);
@@ -149,6 +155,8 @@ export function buildHints(input: HintsInput): string {
     generated: {
       cover: input.coverPage,
       titlePage: input.titlePage,
+      annotationPage: input.descriptionPages?.annotation ?? null,
+      historyPage: input.descriptionPages?.history ?? null,
       words: pageMap.addedWords,
       pageNumbers: 'foot',
     },

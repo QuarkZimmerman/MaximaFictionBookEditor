@@ -101,6 +101,8 @@ interface Block {
   /** The section whose title this block starts, for its bookmark. */
   titleOf: Element | null;
   depth: number;
+  /** The first block of the annotation's or the history's page (requester, rc.4), for its bookmark. */
+  pageMark?: 'annotation' | 'history';
 }
 
 const yieldToPage = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
@@ -115,18 +117,32 @@ function collectBlocks(root: Element): Block[] {
   let breakNext = false;
   let bodyCount = 0;
   const bodiesWithSection = new Set<Element>();
+  // The annotation's page and the history's page (buildPreview's descriptionPages): each begins a
+  // page, and the body after the annotation does too.
+  let pageMark: 'annotation' | 'history' | undefined;
+  let afterAnnotation = false;
   const walk = (element: Element, chain: Element[]): void => {
     for (const child of [...element.children]) {
       const name = child.localName;
       // D11: Preview draws the cover first, as readers show it; the export's own cover page
       // stands for it, so that picture is not printed a second time on the body's first page.
-      if (element === root && !(child.namespaceURI === FB2_NS && name === 'body')) continue;
+      const generated = element === root ? child.getAttribute('data-mfbe-page') : null;
+      if (element === root && !(child.namespaceURI === FB2_NS && name === 'body') && !generated)
+        continue;
+      if (generated === 'annotation' || generated === 'history') {
+        breakNext = true;
+        pageMark = generated;
+        walk(child, [...chain, child]);
+        if (generated === 'annotation') afterAnnotation = true;
+        continue;
+      }
       if (child.namespaceURI === FB2_NS && CONTAINERS.has(name)) {
         // D19: the notes bodies are printed at the feet of the pages (footnotes.ts).
         if (name === 'body' && isNotesBody(child)) continue;
         if (name === 'body') {
           bodyCount++;
-          breakNext = bodyCount > 1;
+          breakNext = bodyCount > 1 || afterAnnotation;
+          afterAnnotation = false;
         }
         // A body's sections start on new pages, but its first one follows the body's own title on
         // the same page, as the Body view shows them (requester, rc.3).
@@ -159,8 +175,10 @@ function collectBlocks(root: Element): Block[] {
         tops: [],
         titleOf: startsTitle ? section : null,
         depth: chain.filter((c) => isFb2(c, 'section')).length,
+        ...(pageMark ? { pageMark } : {}),
       });
       breakNext = false;
+      pageMark = undefined;
     }
   };
   walk(root, [root]);
@@ -438,6 +456,10 @@ export async function paginate(
     const pictures: PageMapPicture[] = [];
     const text: string[] = [];
     const bookmarks: PageMapBookmark[] = [];
+    const descriptionPages: { annotation: number | null; history: number | null } = {
+      annotation: null,
+      history: null,
+    };
     const stack: { depth: number; mark: PageMapBookmark }[] = [];
     const serializer = new XMLSerializer();
     const blockPage: number[] = [];
@@ -689,6 +711,21 @@ export async function paginate(
       for (const piece of pieces) {
         if (piece.fromLine === 0) blockPage[piece.block] = serialised.length;
         const block = blocks[piece.block];
+        // The annotation's and the history's pages are bookmarked by what they are; they have no
+        // heading of their own (requester, rc.4).
+        if (block.pageMark && piece.fromLine === 0) {
+          stack.length = 0;
+          bookmarks.push({
+            title:
+              block.pageMark === 'annotation'
+                ? pdfWords(lang).annotation
+                : pdfWords(lang).revisionHistory,
+            page: serialised.length,
+            y: 0,
+            children: [],
+          });
+          descriptionPages[block.pageMark] = serialised.length + 1;
+        }
         if (!block.titleOf || piece.fromLine !== 0) continue;
         const mark: PageMapBookmark = {
           // The title's lines, each a paragraph, joined by a space.
@@ -747,6 +784,7 @@ export async function paginate(
       pageMap,
       coverPage: cover ? 1 : null,
       titlePage: cover ? 2 : 1,
+      descriptionPages,
     });
     const parts: string[] = [];
     for (let at = 0; at < serialised.length; at += PAGES_PER_PART) {

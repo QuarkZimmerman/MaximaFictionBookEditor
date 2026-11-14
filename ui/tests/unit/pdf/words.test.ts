@@ -10,12 +10,24 @@ import { PDF_WORDS, pdfWords, wordsLanguage } from '@/features/pdf/export/words'
 describe('the words the PDF export adds (FR-010)', () => {
   it('are the EPUB export words, in each language', () => {
     for (const lang of ['en', 'ru', 'uk'] as const) {
-      expect(PDF_WORDS[lang]).toEqual({
+      expect(PDF_WORDS[lang]).toMatchObject({
         cover: BOOK_WORDS[lang].coverDescription,
         titlePage: BOOK_WORDS[lang].titlePage,
         notes: BOOK_WORDS[lang].notes,
       });
     }
+  });
+
+  it('name the annotation page and the revision history page (requester, rc.4)', () => {
+    expect(PDF_WORDS.en).toMatchObject({
+      annotation: 'Annotation',
+      revisionHistory: 'Revision history',
+    });
+    expect(PDF_WORDS.ru).toMatchObject({
+      annotation: 'Аннотация',
+      revisionHistory: 'История изменений',
+    });
+    expect(PDF_WORDS.uk).toMatchObject({ annotation: 'Анотація', revisionHistory: 'Історія змін' });
   });
 
   it("follow the book's language, else English", () => {

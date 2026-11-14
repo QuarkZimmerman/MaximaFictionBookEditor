@@ -60,6 +60,8 @@ describe('the editor hints (R10)', () => {
     expect(hints.generated).toEqual({
       cover: null,
       titlePage: 1,
+      annotationPage: null,
+      historyPage: null,
       words: 'ru',
       pageNumbers: 'foot',
     });

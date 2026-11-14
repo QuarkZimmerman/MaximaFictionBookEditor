@@ -138,6 +138,56 @@ test.describe('US3: bookmarks, links and notes (feature 014)', () => {
     }
   });
 
+  test('the annotation on its own page after the title page, the history on the last page', async ({
+    core,
+    page,
+    context,
+  }) => {
+    // Requester, rc.4: the annotation has a page of its own, without a heading, bookmarked as
+    // such; the document's history ends the book, bookmarked "Revision history" - in the book's
+    // language, here Russian.
+    test.skip(!core.hasCore, 'needs the core');
+    test.setTimeout(600_000);
+    await core.openApp(page);
+    const seam = startPrintSeam(core, context);
+    try {
+      await openFixtureBook(core, page, 'modern-utf8.fb2');
+      const target = path.join(OUT, 'annotation-history-a5.pdf');
+      await exportPdfTo(core, page, target, 'A5 (148 × 210 mm)');
+      const { pdf, close } = await open(target);
+      try {
+        const outline = (await pdf.getOutline()) ?? [];
+        const titles = outline.map((item) => item.title);
+        const at = titles.indexOf('Титульная страница');
+        expect(at).toBeGreaterThanOrEqual(0);
+        expect(titles[at + 1]).toBe('Аннотация');
+        expect(titles.at(-1)).toBe('История изменений');
+        const titlePage = await pageOf(pdf, outline[at]!.dest);
+        const annotationPage = await pageOf(pdf, outline[at + 1]!.dest);
+        const historyPage = await pageOf(pdf, outline.at(-1)!.dest);
+        expect(annotationPage).toBe(titlePage + 1);
+        expect(historyPage).toBe(pdf.numPages);
+        const textOf = async (n: number): Promise<string[]> =>
+          (await (await pdf.getPage(n)).getTextContent({ disableNormalization: false })).items
+            .map((item) => (item.str ?? '').trim())
+            .filter(Boolean);
+        // No heading: the page begins with the annotation's own first line.
+        const annotation = (await textOf(annotationPage)).join(' ');
+        expect(annotation.startsWith('Аннотация с')).toBe(true);
+        expect(annotation).toContain('Второй абзац аннотации.');
+        const history = (await textOf(historyPage)).join(' ');
+        expect(history).toContain('v1.0 — создание файла');
+        expect(history).toContain('v2.1 — вычитка');
+        // The first page of the body follows the annotation's page.
+        expect(await textOf(annotationPage + 1)).not.toContain('Второй абзац аннотации.');
+      } finally {
+        await close();
+      }
+    } finally {
+      await seam.stop();
+    }
+  });
+
   test('notes nothing refers to come after the text; a missing note is listed', async ({
     core,
     page,
