@@ -446,7 +446,14 @@ std::unique_ptr<CoreServer> CoreServer::start(const CoreServerOptions& options) 
     std::unique_ptr<CoreServer> server(new CoreServer());
     Impl& impl = *server->impl_;
 
-    platform::Dirs dirs = platform::resolve_dirs(options.data_dir);
+    // Feature 015: the journeys give the portable folder; otherwise it is detected (next to the
+    // program, or the AppImage's).
+    platform::Dirs dirs =
+        options.portable_dir.empty()
+            ? platform::resolve_dirs(options.data_dir)
+            : platform::resolve_dirs(options.data_dir,
+                                     std::optional<std::filesystem::path>(
+                                         platform::path_from_utf8(options.portable_dir)));
     platform::ensure_dirs(dirs);
     log::init(dirs.logs);
 

@@ -1,6 +1,7 @@
 // mfbe-core: headless core executable (T023) - contracts/cli.md §2.
 //
 //   mfbe-core serve [--port N] [--token HEX] [--ui DIR] [--open FILE]... [--data-dir DIR]
+//   [--portable-dir DIR]
 //                   [--resources DIR] [--test-hooks] [--log-level error|warn|info|debug]
 //   mfbe-core validate FILE... [--json] [--resources DIR]
 //                       exit 0 = every file well-formed and valid (warnings allowed),
@@ -60,6 +61,7 @@ struct ServeArgs {
     std::string ui;
     std::vector<std::string> open;
     std::string data_dir;
+    std::string portable_dir;
     std::string resources;
     std::string scripts;
     bool test_hooks = false;
@@ -84,6 +86,7 @@ int run_serve(const ServeArgs& args) {
     options.token = args.token;
     options.ui_dir = args.ui;
     options.data_dir = args.data_dir;
+    options.portable_dir = args.portable_dir;
     options.resources_dir = args.resources;
     options.scripts_dir = args.scripts;
     options.test_hooks = args.test_hooks;
@@ -423,6 +426,8 @@ int run_command_line(int argc, const Char* const* argv) {
         ->check(CLI::ExistingDirectory);
     serve->add_option("--open", serve_args.open, "pre-open a document")->allow_extra_args(false);
     serve->add_option("--data-dir", serve_args.data_dir, "override per-user data/config root");
+    serve->add_option("--portable-dir", serve_args.portable_dir,
+                      "the portable user folder (default: detected next to the program)");
     serve->add_option("--resources", serve_args.resources, "override bundled resources root")
         ->check(CLI::ExistingDirectory);
     // Feature 007: the script suite runs the packages of the tree it is in (a worktree's too),

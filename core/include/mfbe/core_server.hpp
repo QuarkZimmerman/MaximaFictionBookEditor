@@ -33,6 +33,7 @@ struct RestartOutcome {
 struct CoreServerOptions {
     std::string ui_dir;         // static UI bundle dir ("" = none)
     std::string data_dir;       // override per-user config/data root ("" = platform default)
+    std::string portable_dir;   // the portable user folder ("" = detected; journeys of feature 015)
     std::string resources_dir;  // bundled resources root ("" = auto: next to exe
                                 // ../share/mfbe/resources or MFBE_RESOURCES_SOURCE_DIR)
     std::string scripts_dir;    // bundled scripts root ("" = auto)
