@@ -399,3 +399,29 @@ TEST_CASE("genres: resources.genres / resources.openGenresFolder / resources.lay
     CHECK(layers[0]["path"] == (data / "custom-genres").string());
     CHECK(layers[0]["exists"] == true);
 }
+
+// Feature 015 (FR-008, Q1 = B): a genre line may give a Ukrainian name as its fifth field; a line
+// without it keeps today's meaning; more than five fields is a line problem.
+TEST_CASE("genres: an optional fifth field gives the Ukrainian name (feature 015)", "[genres][015]") {
+    const std::string text =
+        "\xEF\xBB\xBF"  // byte order mark
+        "five\tOther\tFive\tПять\tП'ять\r\n"
+        "four\tOther\tFour\tЧетыре\n"
+        "empty_uk\tOther\tEmpty\tПусто\t\n"
+        "# a comment\n"
+        "\n"
+        "six\tOther\tSix\tШесть\tШість\textra\n";
+    const auto parsed = genres::parse_genres_tsv(text, "uk.genres.tsv");
+    REQUIRE(parsed.entries.size() == 3);
+    CHECK(parsed.entries[0].code == "five");
+    CHECK(parsed.entries[0].names.at("uk") == "П'ять");
+    CHECK(parsed.entries[0].names.at("ru") == "Пять");
+    CHECK(parsed.entries[1].code == "four");
+    CHECK(parsed.entries[1].names.count("uk") == 0);  // filled in by the catalogue, as today
+    CHECK(parsed.entries[2].code == "empty_uk");
+    CHECK(parsed.entries[2].names.count("uk") == 0);  // an empty fifth field counts as absent
+    REQUIRE(parsed.issues.size() == 1);
+    CHECK(parsed.issues[0].line == 6);
+    CHECK(parsed.issues[0].reason == "tooManyFields");
+    CHECK(parsed.issues[0].code == "six");
+}

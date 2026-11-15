@@ -220,8 +220,9 @@ NameTables load_name_tables(const fs::path& dir) {
 }
 
 // Fills in the interface languages a `*.genres.tsv` line does not carry (the user format has
-// English and Russian columns only): the bundled name tables when they list the code - the
-// original's legacy codes have Ukrainian names there - else the English name.
+// English and Russian columns and, since feature 015, an optional Ukrainian one): the bundled name
+// tables when they list the code - the original's legacy codes have Ukrainian names there - else
+// the English name.
 void complete_names(GenreEntry& entry, const NameTables& tables) {
     auto it = tables.listings.find(entry.code);
     const Listing* listing = nullptr;
@@ -312,6 +313,10 @@ ParsedTsv parse_genres_tsv(const std::string& text, const fs::path& file) {
             parsed.issues.push_back({file, number, "invalidCode", fields[0]});
             continue;
         }
+        if (fields.size() > 5) {  // code, category, English, Russian, Ukrainian (feature 015)
+            parsed.issues.push_back({file, number, "tooManyFields", fields[0]});
+            continue;
+        }
         if (fields.size() < 3 || fields[2].empty()) {
             parsed.issues.push_back({file, number, "missingName", fields[0]});
             continue;
@@ -325,6 +330,11 @@ ParsedTsv parse_genres_tsv(const std::string& text, const fs::path& file) {
         entry.category = fields[1];
         entry.names["en"] = fields[2];
         entry.names["ru"] = fields.size() > 3 && !fields[3].empty() ? fields[3] : fields[2];
+        // Feature 015 (FR-008): the optional Ukrainian name; absent or empty, the catalogue fills
+        // it in as before (the standard Ukrainian name of the code, else the English name).
+        if (fields.size() > 4 && !fields[4].empty()) {
+            entry.names["uk"] = fields[4];
+        }
         parsed.entries.push_back(std::move(entry));
     }
     return parsed;

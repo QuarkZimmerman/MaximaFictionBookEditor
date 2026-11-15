@@ -4,7 +4,10 @@
 #include <mfbe/utf8_paths.hpp>
 
 #include <algorithm>
+#include <fstream>
+#include <iterator>
 #include <map>
+#include <string_view>
 #include <system_error>
 
 #ifdef _WIN32
@@ -155,6 +158,59 @@ IdFunction default_id_function(Kind kind) {
     return [](const fs::directory_entry&) { return std::nullopt; };
 }
 
+namespace {
+
+// True when `text` is well-formed UTF-8 (a genre file in another encoding would give garbled
+// names, so it is passed over instead; feature 015).
+bool valid_utf8(std::string_view text) {
+    std::size_t i = 0;
+    while (i < text.size()) {
+        const auto c = static_cast<unsigned char>(text[i]);
+        std::size_t extra = 0;
+        if (c < 0x80) {
+            extra = 0;
+        } else if (c >= 0xC2 && c <= 0xDF) {
+            extra = 1;
+        } else if (c >= 0xE0 && c <= 0xEF) {
+            extra = 2;
+        } else if (c >= 0xF0 && c <= 0xF4) {
+            extra = 3;
+        } else {
+            return false;
+        }
+        if (text.size() - i <= extra) {
+            return false;
+        }
+        for (std::size_t k = 1; k <= extra; ++k) {
+            if ((static_cast<unsigned char>(text[i + k]) & 0xC0) != 0x80) {
+                return false;
+            }
+        }
+        i += extra + 1;
+    }
+    return true;
+}
+
+std::vector<fs::directory_entry> sorted_children(const fs::path& folder) {
+    std::vector<fs::directory_entry> out;
+    std::error_code ec;
+    for (fs::directory_iterator it(folder, ec), end; !ec && it != end; it.increment(ec)) {
+        out.push_back(*it);
+    }
+    std::sort(out.begin(), out.end(),
+              [](const fs::directory_entry& a, const fs::directory_entry& b) {
+                  return a.path() < b.path();
+              });
+    return out;
+}
+
+bool hidden(const fs::path& p) {
+    const std::string name = platform::utf8_from_path(p.filename());
+    return name.empty() || name[0] == '.';
+}
+
+}  // namespace
+
 ResourceLayers::ResourceLayers(Roots roots) : roots_(std::move(roots)) {}
 
 void ResourceLayers::set_roots(Roots roots) {
@@ -198,6 +254,100 @@ std::vector<Layer> ResourceLayers::layers(Kind kind) const {
             roots_.bundled_resources.empty() ? fs::path() : roots_.bundled_resources / sub);
     }
     return result;
+}
+
+std::vector<PassedOver> ResourceLayers::passed_over(Kind kind) const {
+    std::vector<PassedOver> out;
+    for (const Layer& layer : layers(kind)) {
+        if (layer.layer == LayerName::bundled || !layer.exists || !layer.readable) {
+            continue;
+        }
+        auto add = [&](const fs::path& path, const char* reason) {
+            out.push_back(PassedOver{kind, layer.layer, path, reason});
+        };
+        for (const fs::directory_entry& e : sorted_children(layer.path)) {
+            if (hidden(e.path())) {
+                continue;
+            }
+            std::error_code ec;
+            const bool is_dir = e.is_directory(ec);
+            const std::string name = lower(platform::utf8_from_path(e.path().filename()));
+            switch (kind) {
+                case Kind::genres: {
+                    if (is_dir) {
+                        add(e.path(), "notAFile");
+                    } else if (!ends_with(name, ".genres.tsv")) {
+                        add(e.path(), "name");
+                    } else {
+                        std::ifstream in(e.path(), std::ios::binary);
+                        if (!in) {
+                            add(e.path(), "unreadable");
+                        } else {
+                            const std::string text((std::istreambuf_iterator<char>(in)),
+                                                   std::istreambuf_iterator<char>());
+                            if (!valid_utf8(text)) {
+                                add(e.path(), "encoding");
+                            }
+                        }
+                    }
+                    break;
+                }
+                case Kind::scripts: {
+                    if (!is_dir) {
+                        add(e.path(), "notAFolder");
+                        break;
+                    }
+                    if (fs::is_regular_file(e.path() / "script.json", ec)) {
+                        break;  // a package
+                    }
+                    // A folder without script.json is a group of packages (scripts.cpp): its own
+                    // files (group.json, its icon) are the group's; its folders must be packages.
+                    bool has_package = false;
+                    std::vector<fs::path> bare;
+                    for (const fs::directory_entry& sub : sorted_children(e.path())) {
+                        std::error_code sub_ec;
+                        if (hidden(sub.path()) || !sub.is_directory(sub_ec)) {
+                            continue;
+                        }
+                        if (fs::is_regular_file(sub.path() / "script.json", sub_ec)) {
+                            has_package = true;
+                        } else {
+                            bare.push_back(sub.path());
+                        }
+                    }
+                    if (!has_package && bare.empty()) {
+                        add(e.path(), "noDescription");
+                    }
+                    for (const fs::path& folder : bare) {
+                        add(folder, "noDescription");
+                    }
+                    break;
+                }
+                case Kind::dictionaries: {
+                    if (is_dir) {
+                        add(e.path(), "notAFile");
+                        break;
+                    }
+                    const std::string ext = lower(platform::utf8_from_path(e.path().extension()));
+                    fs::path aff = e.path();
+                    aff.replace_extension(".aff");
+                    fs::path dic = e.path();
+                    dic.replace_extension(".dic");
+                    const bool has_aff = fs::is_regular_file(aff, ec);
+                    const bool has_dic = fs::is_regular_file(dic, ec);
+                    if (ext == ".aff" || ext == ".dic") {
+                        if (!(has_aff && has_dic)) {
+                            add(e.path(), "partnerMissing");
+                        }
+                    } else if (!(ext == ".txt" && has_aff && has_dic)) {
+                        add(e.path(), "name");  // not a dictionary, nor a dictionary's notice
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    return out;
 }
 
 std::vector<Layer> ResourceLayers::all_layers() const {
