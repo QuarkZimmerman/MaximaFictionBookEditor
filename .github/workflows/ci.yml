@@ -681,6 +681,13 @@ jobs:
 
       # Feature 011 (D47, FR-086): no object built for a newer macOS than the editor targets, and
       # no Mach-O of the application bundle requiring more than macOS 13.0.
+      - name: "Shell smoke (macOS): the user's own genres, scripts and template (feature 015)"
+        # The user-folder fixtures in the per-user data folder and in a portable user folder next to
+        # a copy of the bundle; tools/user-folders-check.mjs checks them over DevTools.
+        if: runner.os == 'macOS'
+        shell: bash
+        run: tools/ci/macos-user-folders-smoke.sh "build/${{ matrix.preset }}/bin/mfbe.app"
+
       - name: macOS deployment target (feature 011)
         if: runner.os == 'macOS'
         shell: bash
