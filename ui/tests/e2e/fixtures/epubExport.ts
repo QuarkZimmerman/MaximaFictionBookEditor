@@ -36,6 +36,8 @@ export async function exportEpubTo(
   page: Page,
   target: string,
   timeout = 120_000,
+  /** The poll's intervals; a timed journey passes fine ones (see importDone, feature 015). */
+  intervals?: number[],
 ): Promise<void> {
   await core.enqueueDialog('dialog.saveFile', { path: target });
   await clickExport(core, page, 'exportEpub');
@@ -53,7 +55,7 @@ export async function exportEpubTo(
         }
         return (await status.textContent())?.includes(`Exported to ${target}`) ?? false;
       },
-      { timeout },
+      { timeout, intervals },
     )
     .toBe(true);
 }

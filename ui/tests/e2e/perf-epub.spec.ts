@@ -169,7 +169,7 @@ async function open(core: CoreHandle, page: Page, file: string): Promise<void> {
 async function timedExport(core: CoreHandle, page: Page, target: string) {
   await page.evaluate(WATCH_PROGRESS);
   const started = Date.now();
-  await exportEpubTo(core, page, target, 300_000);
+  await exportEpubTo(core, page, target, 300_000, [25]); // the clock stops within 25 ms
   const ms = Date.now() - started;
   return {
     ms,
@@ -184,7 +184,7 @@ async function timedImport(core: CoreHandle, page: Page, epub: string) {
   await page.evaluate(WATCH_PROGRESS);
   const started = Date.now();
   const before = await importViaMenu(core, page, epub, { question: false });
-  await importDone(page, before, 300_000);
+  await importDone(page, before, 300_000, [25]); // the clock stops within 25 ms of the end
   await expect(page.getByTestId('body-editor')).toBeVisible();
   const ms = Date.now() - started;
   return {

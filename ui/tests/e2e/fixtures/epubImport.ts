@@ -60,6 +60,12 @@ export async function importDone(
   page: Page,
   before: string | null,
   timeout = 30_000,
+  /**
+   * The poll's intervals: Playwright's default ends in 1 s steps, which a timed journey must not
+   * use - its clock would stop at the next step, up to a second late (the 10 MB import measured
+   * 5.07 s for an import of about 4; feature 015, the replay of 0.0.11).
+   */
+  intervals?: number[],
 ): Promise<string> {
   const summary = page.getByTestId('dialog-epub-import-summary');
   const failed = page.getByTestId('dialog-epub-import-failed');
@@ -73,7 +79,7 @@ export async function importDone(
         (await refused.isVisible()) ||
         (await protectedBook.isVisible()) ||
         ((await shownDocId(page)) !== before && !(await progress.isVisible())),
-      { timeout },
+      { timeout, intervals },
     )
     .toBe(true);
   for (const dialog of [refused, protectedBook]) {
