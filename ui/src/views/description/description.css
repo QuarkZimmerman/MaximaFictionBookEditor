@@ -603,3 +603,11 @@ textarea.mfbe-desc-input {
 .mfbe-desc-genre:focus-within .mfbe-desc-genre-add-own {
   visibility: visible;
 }
+
+/* Feature 015 (FR-016): the user's own genres in Choose a genre. */
+.mfbe-genrepicker-list option.mfbe-genre-own {
+  color: var(--mfbe-genre-own-color);
+}
+.mfbe-genrepicker-add-own {
+  margin-inline-start: 0.6em;
+}

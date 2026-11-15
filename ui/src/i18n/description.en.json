@@ -61,7 +61,8 @@
       "sourceBundled": "extension",
       "passedOver_one": "{{count}} file in your genres folders is not used (see Settings).",
       "passedOver_other": "{{count}} files in your genres folders are not used (see Settings).",
-      "invalidCode": "Not a genre code: only lowercase Latin letters, digits and _ - it cannot be added to your genres."
+      "invalidCode": "Not a genre code: only lowercase Latin letters, digits and _ - it cannot be added to your genres.",
+      "addOwn": "Add a genre of your own..."
     },
     "cover": {
       "title": "Coverpage",

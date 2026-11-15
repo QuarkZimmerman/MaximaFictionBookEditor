@@ -43,6 +43,8 @@
   --mfbe-color-border: #d0d0d0;
   --mfbe-color-border-strong: #8a8a8a;
   --mfbe-color-accent: #0078d4;
+  /* Feature 015 (FR-016): the user's own genres in Choose a genre (6.6:1 on the input background). */
+  --mfbe-genre-own-color: #00695c;
   --mfbe-color-accent-soft: #cce4f7;
   --mfbe-color-on-accent: #ffffff;
   --mfbe-color-highlight-bg: #0078d4;
@@ -187,6 +189,8 @@
   --mfbe-color-border: #414141;
   --mfbe-color-border-strong: #6e6e6e;
   --mfbe-color-accent: #4cc2ff;
+  /* Feature 015 (FR-016): the user's own genres in Choose a genre (9.6:1 on the input background). */
+  --mfbe-genre-own-color: #80cbc4;
   --mfbe-color-accent-soft: #1f3f5a;
   --mfbe-color-on-accent: #161616; /* glyphs on the (bright) accent / warning / danger fills */
   --mfbe-color-highlight-bg: #0a6ab8;

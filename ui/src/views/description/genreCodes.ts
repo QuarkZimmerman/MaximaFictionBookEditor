@@ -22,3 +22,17 @@ export function proposedCategory(catalog: GenreCatalog): string {
   if (keys.includes('other')) return 'other';
   return keys[0] ?? 'other';
 }
+
+/**
+ * Feature 015 (FR-016): how an entry of Choose a genre shows that it is one of the user's own
+ * genres - a class for its colour and, not relying on colour, its source file in the tooltip (the
+ * option's text carries the "[your file]" marker already).
+ */
+export function ownGenreMarks(entry: { source: string; file?: string }): {
+  className?: string;
+  title?: string;
+} {
+  if (!entry.source.startsWith('user')) return {};
+  const file = entry.file ?? entry.source.replace(/^user:/, '');
+  return { className: 'mfbe-genre-own', title: file };
+}

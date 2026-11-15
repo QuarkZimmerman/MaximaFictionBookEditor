@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next';
 
 import { AddGenreDialog } from './AddGenreDialog';
 import { GenreFileHelp } from './GenreFileHelp';
-import { isGenreCode } from './genreCodes';
+import { isGenreCode, ownGenreMarks } from './genreCodes';
 
 import { useAppServices } from '@/app/services';
 import { Dialog, type DialogButton } from '@/dialogs/Dialog';
@@ -254,6 +254,24 @@ export function GenrePickerDialog({
     () => groupGenres(catalog, language, filter.trim()),
     [catalog, language, filter],
   );
+  // Feature 015 (FR-014): a genre added here is in the list and chosen at once.
+  const { dialogs, rpc } = useAppServices();
+  const addOwn = async () => {
+    const typed = filter.trim();
+    const entry = await dialogs.openCustom<GenreEntry | null>((close) => (
+      <AddGenreDialog
+        catalog={catalog}
+        language={language}
+        initialCode={isGenreCode(typed) ? typed : undefined}
+        onClose={close}
+      />
+    ));
+    if (!entry) return;
+    const fresh = catalogs ? await catalogs.loadGenres(true).catch(() => null) : null;
+    if (fresh) setCatalog(fresh);
+    setFilter('');
+    setSelected(entry.code);
+  };
   const valid = selected !== '' && catalog.entries.some((e) => e.code === selected);
   const extensions = catalog.effectiveSources.filter((s) => s.source !== 'standard');
 
@@ -313,6 +331,7 @@ export function GenrePickerDialog({
                 value={entry.code}
                 data-testid={`genre-picker-option-${entry.code}`}
                 data-source={entry.source}
+                {...ownGenreMarks(entry)}
               >
                 {`${localName(entry.names, language, entry.code)} (${entry.code})${
                   entry.source === 'standard' ? '' : ` [${sourceLabel(entry.source, t)}]`
@@ -339,6 +358,15 @@ export function GenrePickerDialog({
             {t('descriptionForm.genres.passedOver', { count: catalog.passedOver })}
           </span>
         ) : null}
+        <button
+          type="button"
+          className="mfbe-genrepicker-add-own"
+          data-testid="genre-picker-add-own"
+          disabled={!rpc}
+          onClick={() => void addOwn()}
+        >
+          {t('descriptionForm.genres.addOwn')}
+        </button>
         <GenreFileHelp place="picker" />
       </div>
     </Dialog>
