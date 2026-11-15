@@ -48,6 +48,11 @@ export interface MenuBarProps {
   menus?: readonly MenuSpec[];
   /** Run-time items for dynamic menus (`recent`, `scripts`, `import`, `export`). */
   dynamicItems?: DynamicMenuItems;
+  /**
+   * Feature 015 (FR-003): told when a top menu with run-time items opens (`scripts`), so that the
+   * list can be read again from the folders before it is shown.
+   */
+  onOpenDynamic?: (dynamic: string) => void;
 }
 
 interface ResolvedItem {
@@ -209,7 +214,7 @@ export function AcceleratedLabel({ text, index }: { text: string; index: number 
   );
 }
 
-export function MenuBar({ menus = MAIN_MENU, dynamicItems = {} }: MenuBarProps) {
+export function MenuBar({ menus = MAIN_MENU, dynamicItems = {}, onOpenDynamic }: MenuBarProps) {
   const { t } = useTranslation();
   const services = useAppServices();
   const ctx = useCommandContext();
@@ -228,6 +233,10 @@ export function MenuBar({ menus = MAIN_MENU, dynamicItems = {} }: MenuBarProps) 
   const revealHighlight = useRef(false);
 
   const openMenu = menus.find((m) => m.id === openMenuId) ?? null;
+  const openDynamic = openMenu?.dynamic;
+  useEffect(() => {
+    if (openDynamic) onOpenDynamic?.(openDynamic);
+  }, [openDynamic, onOpenDynamic]);
   const resolveDeps: ResolveDeps = { services, ctx, t, dynamicItems };
   const openItems = openMenu
     ? resolveItems(openMenu.id, openMenu.items, openMenu.dynamic, resolveDeps)

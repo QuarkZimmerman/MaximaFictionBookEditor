@@ -467,6 +467,14 @@ function Shell({
   // Busy pointer over the document pane while a script computes - not while it waits for the
   // user in one of its own dialogs (feature 003, FR-011).
   const scriptsFeature = getScriptsFeature(store);
+  // Feature 015 (FR-003): the Scripts menu reads the folders again when it opens, so that a script
+  // put into a scripts folder while the editor runs is there without a restart.
+  const onOpenDynamic = useCallback(
+    (dynamic: string) => {
+      if (dynamic === 'scripts') void scriptsFeature?.refresh();
+    },
+    [scriptsFeature],
+  );
   // Feature 008 (FR-080 to FR-085): the atom pointer while an assistant's request computes -
   // not while a dialog of it waits for the user; it takes precedence over the script pointer.
   const runKind = useAppState((s) => s.runLock?.kind ?? null, store);
@@ -497,7 +505,7 @@ function Shell({
       data-startup={startupPhase}
       spellCheck={false}
     >
-      <MenuBar dynamicItems={menuItems} />
+      <MenuBar dynamicItems={menuItems} onOpenDynamic={onOpenDynamic} />
       <Toolbars scripts={scriptToolbarButtons} />
       <div className="mfbe-main" ref={mainRef}>
         {treeVisible ? (
