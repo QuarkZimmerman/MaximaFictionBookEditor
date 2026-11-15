@@ -682,11 +682,21 @@ jobs:
             build/${{ matrix.preset }}/packages/*.dmg
           if-no-files-found: error
 
+  replay:
+    name: build instructions
+    # Final releases only (no "-" in the tag): the documented build on all three systems, which
+    # the publish job waits for, so that nothing is published while it fails (requester,
+    # 2026-11-15; GitHub docs, "Reuse workflows"). An rc tag skips it.
+    if: ${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') }}
+    uses: ./.github/workflows/docs-build.yml
+
   release:
     name: publish GitHub Release
-    needs: [build]
+    needs: [build, replay]
     runs-on: ubuntu-22.04
-    if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.tag != ''
+    # Runs when the packages are built and the build instructions passed - or were skipped, as
+    # for an rc tag.
+    if: ${{ !cancelled() && needs.build.result == 'success' && (needs.replay.result == 'success' || needs.replay.result == 'skipped') && (startsWith(github.ref, 'refs/tags/v') || github.event.inputs.tag != '') }}
     env:
       # The tag of the build job, read the same way (feature 006).
       MFBE_RELEASE_TAG: ${{ github.event.inputs.tag || (startsWith(github.ref, 'refs/tags/') && github.ref_name || '') }}
