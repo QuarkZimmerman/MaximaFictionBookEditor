@@ -560,3 +560,36 @@ textarea.mfbe-desc-input {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Feature 015 (FR-007): the explanation of genre files behind a "?" button. */
+.mfbe-genre-help {
+  position: relative;
+  display: inline-block;
+  margin-inline-start: 0.4em;
+}
+.mfbe-genre-help-button {
+  min-width: 1.6em;
+  font-weight: bold;
+}
+.mfbe-genre-help-popover {
+  position: absolute;
+  z-index: 60;
+  inset-inline-end: 0;
+  width: 30em;
+  max-width: 80vw;
+  padding: 0.6em 0.8em;
+  border: 1px solid var(--mfbe-desc-input-border);
+  background: var(--mfbe-color-input-bg);
+  font-family: var(--mfbe-font-ui);
+  text-align: start;
+  white-space: normal;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 25%);
+}
+.mfbe-genre-help-popover p {
+  margin: 0.4em 0;
+}
+.mfbe-genre-help-popover code {
+  display: block;
+  margin: 0.2em 0 0.4em;
+  white-space: pre-wrap;
+}

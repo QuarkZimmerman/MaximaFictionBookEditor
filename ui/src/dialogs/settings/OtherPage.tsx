@@ -44,6 +44,7 @@ import {
   type GenresInfo,
 } from './model';
 import { tip } from '@/app/tooltips';
+import { GenreFileHelp } from '@/views/description/GenreFileHelp';
 
 /** `system.keyboardLayouts` of a core without the method or without a shell: no switch. */
 const NO_SHELL_LAYOUTS: KeyboardLayoutList = { supported: false, reason: 'noShell', layouts: [] };
@@ -325,6 +326,10 @@ export function OtherPage({ draft, onChange, ctx }: OtherPageProps) {
         onOpen={() => void openGenresFolder()}
         connected={rpc !== null}
       />
+      <div className="mfbe-settings-note" data-testid="settings-other-genre-help">
+        {t('genreFileHelp.button')}
+        <GenreFileHelp place="settings" />
+      </div>
       <div className="mfbe-settings-note" data-testid="settings-other-genre-sources">
         {genres
           ? t('dialog.settings.other.genreSources', {

@@ -10,6 +10,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { GenreFileHelp } from './GenreFileHelp';
+
 import { useAppServices } from '@/app/services';
 import { Dialog, type DialogButton } from '@/dialogs/Dialog';
 import type { GenreRef } from '@/model/document';
@@ -309,6 +311,7 @@ export function GenrePickerDialog({
             {t('descriptionForm.genres.passedOver', { count: catalog.passedOver })}
           </span>
         ) : null}
+        <GenreFileHelp place="picker" />
       </div>
     </Dialog>
   );

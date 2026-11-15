@@ -132,5 +132,16 @@
       "renamed": "«{{from}}» renamed to «{{to}}».",
       "renameUndo": "Rename binary object"
     }
+  },
+  "genreFileHelp": {
+    "button": "How to write a genre file",
+    "title": "Your own genre files",
+    "name": "A genre file is a text file in UTF-8 whose name ends in .genres.tsv - my.genres.tsv, for example - in the genres folder (Settings > Other > Open genres folder).",
+    "lines": "One genre per line, its fields separated by tabs: the code, the category, the English name, the Russian name and, if you like, the Ukrainian name. Empty lines and lines starting with # are skipped.",
+    "code": "The code consists of lowercase Latin letters, digits and _ only, and must not be a code the editor already knows. The category is the key of the group the genre is listed under, such as sf, det or prose.",
+    "languages": "The English interface shows the English name, the Russian interface the Russian name, the Ukrainian interface the Ukrainian name - or, without one, the standard Ukrainian name of the code, else the English name.",
+    "example": "Example (→ stands for a tab):",
+    "note": "Your files only add genres; the standard list always stays. Files the editor cannot use are listed in Settings > Other.",
+    "close": "Close"
   }
 }
