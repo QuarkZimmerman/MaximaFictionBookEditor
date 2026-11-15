@@ -286,13 +286,33 @@ GenreEntry standard_entry(const std::string& code, const NameTables& tables) {
 /* TSV parsing                                                                                */
 /* ----------------------------------------------------------------------------------------- */
 
+// Feature 015 (requester, 2026-11-15: anything the FB2 2.1 schema allows is allowed, no limitation
+// of the editor's own): a genre is the schema's xs:token, so its whitespace collapses - tabs and
+// line breaks become spaces, runs of spaces one, none at either end.
+std::string collapse_token(std::string_view text) {
+    std::string out;
+    bool space = false;
+    for (const char c : text) {
+        if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+            space = !out.empty();
+            continue;
+        }
+        if (space) {
+            out += ' ';
+            space = false;
+        }
+        out += c;
+    }
+    return out;
+}
+
+// Any non-empty xs:token in its collapsed form; control characters, which XML does not allow,
+// are refused.
 bool is_valid_genre_code(std::string_view code) {
-    if (code.empty()) {
+    if (code.empty() || code != collapse_token(code)) {
         return false;
     }
-    return std::all_of(code.begin(), code.end(), [](unsigned char c) {
-        return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_';
-    });
+    return std::none_of(code.begin(), code.end(), [](unsigned char c) { return c < 0x20; });
 }
 
 ParsedTsv parse_genres_tsv(const std::string& text, const fs::path& file) {
@@ -305,10 +325,11 @@ ParsedTsv parse_genres_tsv(const std::string& text, const fs::path& file) {
         if (is_comment_or_blank(line)) {
             continue;
         }
-        const auto fields = split_tabs(line);
+        auto fields = split_tabs(line);
         if (fields[0] == "code" && fields.size() > 1 && fields[1] == "category") {
             continue;  // header row without '#'
         }
+        fields[0] = collapse_token(fields[0]);  // the code, as the schema's xs:token reads it
         if (!is_valid_genre_code(fields[0])) {
             parsed.issues.push_back({file, number, "invalidCode", fields[0]});
             continue;

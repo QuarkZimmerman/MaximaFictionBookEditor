@@ -145,7 +145,7 @@ void register_resources_handlers(rpc::RpcRouter& router, Services& services) {
         const auto plain = [](const std::string& text) {
             return text.find_first_of("\t\r\n") == std::string::npos;
         };
-        const std::string code = text_field(params, "code");
+        const std::string code = genres::collapse_token(text_field(params, "code"));
         if (!genres::is_valid_genre_code(code)) {
             throw rpc::invalid_params("not a valid genre code",
                                       json{{"reason", "invalidCode"}, {"code", code}});

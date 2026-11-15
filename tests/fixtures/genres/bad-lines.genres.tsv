@@ -1,6 +1,6 @@
 # Fixture with broken lines: every bad line is skipped and reported, the good ones load.
-UPPER_case	sf	Bad code
-spaced code	sf	Bad code too
+UPPER_case	sf	Capitals are allowed (an xs:token)
+spaced code	sf	A single inner space is allowed too
 noname	sf
 	sf	Empty code
 sf	sf	Duplicate of a standard genre	Дубликат

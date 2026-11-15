@@ -190,29 +190,27 @@ TEST_CASE("genres: TSV parser accepts BOM/CRLF/header/comments and reports bad l
     const auto bad = genres::parse_genres_tsv(
         test::read_text(test::fixtures_dir() / "genres" / "bad-lines.genres.tsv"),
         "bad-lines.genres.tsv");
-    // Good lines survive: sf (duplicate of a standard code is decided by the catalogue, not the
-    // parser), sf_litrpg, ok_genre, whitespace_ok.
+    // Good lines survive: UPPER_case and "spaced code" (a genre code is the schema's xs:token -
+    // feature 015, the requester's rule), sf (a duplicate of a standard code is decided by the
+    // catalogue, not the parser), sf_litrpg, ok_genre, whitespace_ok.
     std::vector<std::string> codes;
     for (const auto& e : bad.entries) {
         codes.push_back(e.code);
     }
-    CHECK(codes == std::vector<std::string>{"sf", "sf_litrpg", "ok_genre", "whitespace_ok"});
-    CHECK(bad.entries[3].category == "det");
-    CHECK(bad.entries[3].names.at("en") == "Trimmed name");
-    CHECK(bad.entries[3].names.at("ru") == "Обрезанное имя");
-    REQUIRE(bad.issues.size() == 5);
-    CHECK(bad.issues[0].line == 2);
-    CHECK(bad.issues[0].reason == "invalidCode");
-    CHECK(bad.issues[1].line == 3);
+    CHECK(codes == std::vector<std::string>{"UPPER_case", "spaced code", "sf", "sf_litrpg",
+                                            "ok_genre", "whitespace_ok"});
+    CHECK(bad.entries[5].category == "det");
+    CHECK(bad.entries[5].names.at("en") == "Trimmed name");
+    CHECK(bad.entries[5].names.at("ru") == "Обрезанное имя");
+    REQUIRE(bad.issues.size() == 3);
+    CHECK(bad.issues[0].line == 4);
+    CHECK(bad.issues[0].reason == "missingName");
+    CHECK(bad.issues[1].line == 5);
     CHECK(bad.issues[1].reason == "invalidCode");
-    CHECK(bad.issues[2].line == 4);
-    CHECK(bad.issues[2].reason == "missingName");
-    CHECK(bad.issues[3].line == 5);
-    CHECK(bad.issues[3].reason == "invalidCode");
-    CHECK(bad.issues[4].line == 9);
-    CHECK(bad.issues[4].reason == "duplicate");
-    CHECK(bad.issues[4].code == "ok_genre");
-    CHECK(bad.issues[4].file == "bad-lines.genres.tsv");
+    CHECK(bad.issues[2].line == 9);
+    CHECK(bad.issues[2].reason == "duplicate");
+    CHECK(bad.issues[2].code == "ok_genre");
+    CHECK(bad.issues[2].file == "bad-lines.genres.tsv");
 }
 
 TEST_CASE("genres: user files add genres through the layers, never modify existing ones",
@@ -253,7 +251,9 @@ TEST_CASE("genres: user files add genres through the layers, never modify existi
     CHECK(catalog.category("fanfic")->titles.at("uk") == "fanfic");
     CHECK(catalog.find("ok_genre")->source == "user:bad-lines.genres.tsv");
     CHECK(catalog.find("mine")->source == "user:override.genres.tsv");
-    CHECK(catalog.size() == 186 + kLegacy.size() + 3 + 2 + 1);
+    // + 2: UPPER_case and "spaced code" of bad-lines are genre codes as the schema allows them
+    // (feature 015, the requester's rule).
+    CHECK(catalog.size() == 186 + kLegacy.size() + 3 + 2 + 1 + 2);
     // Issues: the parse errors of bad-lines plus the duplicates across files.
     std::set<std::string> duplicates;
     std::size_t parse_errors = 0;
@@ -264,7 +264,7 @@ TEST_CASE("genres: user files add genres through the layers, never modify existi
             ++parse_errors;
         }
     }
-    CHECK(parse_errors == 4);  // invalidCode x3 + missingName
+    CHECK(parse_errors == 2);  // the empty code (invalidCode) + missingName
     CHECK(duplicates == std::set<std::string>{"sf", "sf_litrpg", "ok_genre", "sf_epic"});
     // Sources list and userFiles in the JSON.
     const json j = catalog.to_json();
@@ -513,7 +513,10 @@ TEST_CASE("genres: resources.addGenre adds a genre to the user's my.genres.tsv (
                       [](const json& e) { return e["code"] == "my_second"; }));
 
     // Refusals, each with its reason; nothing is written.
-    CHECK(add("My Genre", "sf", json::object())["error"]["data"]["reason"] == "invalidCode");
+    // A genre code is the schema's xs:token: empty or with control characters it is refused.
+    CHECK(add("   ", "sf", json::object())["error"]["data"]["reason"] == "invalidCode");
+    CHECK(add(std::string("bad\x01code"), "sf", json::object())["error"]["data"]["reason"] ==
+          "invalidCode");
     const json standard = add("sf_fantasy", "sf", json::object());
     CHECK(standard["error"]["data"]["reason"] == "duplicate");
     CHECK(standard["error"]["data"]["source"] == "standard");
@@ -522,6 +525,21 @@ TEST_CASE("genres: resources.addGenre adds a genre to the user's my.genres.tsv (
     CHECK(add("my_third", "", json::object())["error"]["data"]["reason"] == "invalidText");
     CHECK(add("my_third", "sf\nx", json::object())["error"]["data"]["reason"] == "invalidText");
     CHECK(test::read_text(file).find("my_third") == std::string::npos);
+
+    // Anything the schema allows is allowed (the requester's rule): a hyphen, capitals, Cyrillic,
+    // a single inner space - its whitespace collapsed as the schema collapses it.
+    for (const auto& [typed, written] : std::vector<std::pair<std::string, std::string>>{
+             {"boyar-anime", "boyar-anime"},
+             {"Мой Жанр", "Мой Жанр"},
+             {"  my   spaced\tgenre ", "my spaced genre"}}) {
+        INFO(typed);
+        const json result = add(typed, "sf", json::object());
+        REQUIRE(result.contains("result"));
+        CHECK(result["result"]["entry"]["code"] == written);
+        CHECK(validation::is_known_genre(written));
+    }
+    CHECK(test::read_text(file).find("boyar-anime\tsf\tboyar-anime\tboyar-anime\n") !=
+          std::string::npos);
 }
 
 #ifndef _WIN32

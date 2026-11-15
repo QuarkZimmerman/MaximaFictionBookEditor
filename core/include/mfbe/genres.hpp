@@ -80,7 +80,10 @@ struct ParsedTsv {
 // Parses the text of one `*.genres.tsv` file (user format). `file` is used in the issues.
 ParsedTsv parse_genres_tsv(const std::string& text, const std::filesystem::path& file);
 
-// True for `[a-z0-9_]+`.
+// A genre code is the FB2 schema's xs:token (feature 015): `collapse_token` collapses its
+// whitespace as the schema does; `is_valid_genre_code` is true for any non-empty collapsed token
+// without control characters.
+std::string collapse_token(std::string_view text);
 bool is_valid_genre_code(std::string_view code);
 
 class GenreCatalog {
