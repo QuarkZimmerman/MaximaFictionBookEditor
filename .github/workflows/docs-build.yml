@@ -36,6 +36,11 @@ env:
 jobs:
   check:
     name: tags and fences
+    # A release's version commit ("Version 0.0.11") reaches master just before its final tag, and
+    # the tag replays the documented build on that same commit: the push run would only repeat it
+    # (requester, 2026-11-15; GitHub docs, "Using conditions to control job execution"). The
+    # replay job needs this one and is skipped with it.
+    if: ${{ github.event_name != 'push' || github.ref_type == 'tag' || !startsWith(github.event.head_commit.message, 'Version ') }}
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
