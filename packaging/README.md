@@ -214,7 +214,10 @@ the interface (`tools/ci/windows-start-smoke.ps1`), also by standard users with 
 names. Each copy then runs a journey in a Russian environment (`tools/ci/windows-russian-journey.ps1`):
 a user with a Cyrillic name and Russian regional formats opens a Cyrillic-named book from a
 Cyrillic folder, saves it, hides the status bar from the View menu and restarts; the installed
-copy keeps its data in the user's profile, the portable copy in its `bin\user` folder. A
+copy keeps its data in the user's profile, the portable copy in its `bin\user` folder. Each copy
+also adds a font for the PDF export with `mfbe-core fonts add` (feature 014): the installed copy
+keeps it in the per-user data folder under `%APPDATA%`, never under Program Files, and the portable
+copy in `bin\user\fonts`. A
 desktop-shortcut step (feature 003) installs `/qn` and checks
 `C:\Users\Public\Desktop\Maxima Fiction Book Editor.lnk` (target, icon, the editor started
 through it with `windows-start-smoke.ps1 -Shortcut`), upgrades with a second MSI built from

@@ -1,0 +1,115 @@
+{
+  "version": 1,
+  "families": [
+    {
+      "id": "noto-serif",
+      "kind": "serif",
+      "scripts": [
+        "Latin",
+        "Cyrillic",
+        "Greek"
+      ],
+      "textFont": true,
+      "licence": "OFL-1.1",
+      "notice": "OFL.txt",
+      "styles": {
+        "Regular": "NotoSerif-Regular.ttf",
+        "Italic": "NotoSerif-Italic.ttf",
+        "Bold": "NotoSerif-Bold.ttf",
+        "BoldItalic": "NotoSerif-BoldItalic.ttf"
+      }
+    },
+    {
+      "id": "noto-sans",
+      "kind": "sans-serif",
+      "scripts": [
+        "Latin",
+        "Cyrillic",
+        "Greek"
+      ],
+      "textFont": true,
+      "licence": "OFL-1.1",
+      "notice": "OFL.txt",
+      "styles": {
+        "Regular": "NotoSans-Regular.ttf",
+        "Italic": "NotoSans-Italic.ttf",
+        "Bold": "NotoSans-Bold.ttf",
+        "BoldItalic": "NotoSans-BoldItalic.ttf"
+      }
+    },
+    {
+      "id": "noto-serif-georgian",
+      "kind": "serif",
+      "scripts": [
+        "Georgian"
+      ],
+      "textFont": false,
+      "licence": "OFL-1.1",
+      "notice": "OFL.txt",
+      "styles": {
+        "Regular": "NotoSerifGeorgian-Regular.ttf",
+        "Bold": "NotoSerifGeorgian-Bold.ttf"
+      }
+    },
+    {
+      "id": "noto-sans-georgian",
+      "kind": "sans-serif",
+      "scripts": [
+        "Georgian"
+      ],
+      "textFont": false,
+      "licence": "OFL-1.1",
+      "notice": "OFL.txt",
+      "styles": {
+        "Regular": "NotoSansGeorgian-Regular.ttf",
+        "Bold": "NotoSansGeorgian-Bold.ttf"
+      }
+    },
+    {
+      "id": "noto-serif-armenian",
+      "kind": "serif",
+      "scripts": [
+        "Armenian"
+      ],
+      "textFont": false,
+      "licence": "OFL-1.1",
+      "notice": "OFL.txt",
+      "styles": {
+        "Regular": "NotoSerifArmenian-Regular.ttf",
+        "Bold": "NotoSerifArmenian-Bold.ttf"
+      }
+    },
+    {
+      "id": "noto-sans-armenian",
+      "kind": "sans-serif",
+      "scripts": [
+        "Armenian"
+      ],
+      "textFont": false,
+      "licence": "OFL-1.1",
+      "notice": "OFL.txt",
+      "styles": {
+        "Regular": "NotoSansArmenian-Regular.ttf",
+        "Bold": "NotoSansArmenian-Bold.ttf"
+      }
+    },
+    {
+      "id": "dejavu-sans-mono",
+      "kind": "monospace",
+      "scripts": [
+        "Latin",
+        "Cyrillic",
+        "Greek"
+      ],
+      "textFont": false,
+      "licence": "Bitstream-Vera",
+      "notice": "DejaVu-LICENSE.txt",
+      "styles": {
+        "Regular": "DejaVuSansMono.ttf",
+        "Italic": "DejaVuSansMono-Oblique.ttf",
+        "Bold": "DejaVuSansMono-Bold.ttf",
+        "BoldItalic": "DejaVuSansMono-BoldOblique.ttf"
+      }
+    }
+  ]
+}

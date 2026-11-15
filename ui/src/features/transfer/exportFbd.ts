@@ -25,9 +25,8 @@ import type { TFunction } from 'i18next';
 import type { CommandContext } from '@/app/commands';
 import { describeError, isClientSideError, logUiError } from '@/app/diagnostics';
 import { fileType } from '@/dialogs/fileTypes';
-import type { Dialogs } from '@/dialogs/types';
+import { confirmExportWithErrors } from '@/dialogs/validation';
 import { exportStem, proposedStem } from '@/features/file/proposedName';
-import type { ValidationReport } from '@/model/document';
 import { actions, type AppState } from '@/model/store';
 import { RpcError } from '@/rpc/client';
 import { RpcErrorCode, type FileFilter } from '@/rpc/types';
@@ -63,25 +62,6 @@ export function exportDefaultPath(
   return `${stem}.${EXPORT_EXTENSION}`;
 }
 
-/** Save's "Validation failed ... export anyway?" prompt; resolves true when the user insists. */
-async function confirmExportWithErrors(
-  dialogs: Dialogs,
-  t: TFunction,
-  report: ValidationReport,
-): Promise<boolean> {
-  const answer = await dialogs.showMessage({
-    text: t('transfer.export.validationFailed', {
-      errors: t('msg.errorsFound', { count: report.errorCount }),
-    }),
-    caption: t('msg.validationFailedCaption'),
-    buttons: 'yesNo',
-    icon: 'warning',
-    defaultButton: 'no',
-    testId: 'dialog-export-validation-failed',
-  });
-  return answer === 'yes';
-}
-
 /** The whole flow of the Export command; resolves true once the file is written. */
 export async function exportFbd(ctx: CommandContext): Promise<boolean> {
   const { store, rpc } = ctx;
@@ -114,7 +94,9 @@ export async function exportFbd(ctx: CommandContext): Promise<boolean> {
       );
       actions.setProgress(store, null);
       if (result.needsConfirmation) {
-        if (!(await confirmExportWithErrors(ctx.dialogs, ctx.t, result.validation))) return false;
+        if (!(await confirmExportWithErrors(ctx.dialogs, ctx.t, result.validation.errorCount))) {
+          return false;
+        }
         force = true;
         continue;
       }

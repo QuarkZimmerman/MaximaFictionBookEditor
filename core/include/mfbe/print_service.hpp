@@ -1,0 +1,33 @@
+#pragma once
+// Feature 014 (contracts/print-service.md, tasks T011): the core asks the shell to print the PDF
+// export's paged document, as it asks for native dialogs (mfbe/dialog_provider.hpp). The shell's
+// implementation prints in a hidden browser of its own (app/src/print_service_cef.*); under
+// --test-hooks the core's QueuedPrintService (core/src/print/queued_print_service.hpp) keeps the
+// request until the journeys' fixture prints it with the test browser and uploads the bytes.
+
+#include <filesystem>
+#include <functional>
+#include <string>
+
+namespace mfbe {
+
+struct PrintRequest {
+    std::string url;            // the core's /pdf/{token}/print/{n} address, with the session token
+    double paper_width_in = 0;  // the page size of D3, exactly, in inches
+    double paper_height_in = 0;
+    std::filesystem::path out;  // where the printed PDF goes (a temporary file of the core)
+};
+
+/// Called once per request, on any thread: ok, or the reason it failed ("cancelled" when
+/// cancelled).
+using PrintDone = std::function<void(bool ok, const std::string& message)>;
+
+class PrintService {
+public:
+    virtual ~PrintService() = default;
+    virtual void print(const PrintRequest& request, PrintDone done) = 0;
+    /// Stops the printing under way; its done(false, "cancelled") follows.
+    virtual void cancel() = 0;
+};
+
+}  // namespace mfbe

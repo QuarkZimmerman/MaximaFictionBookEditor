@@ -159,7 +159,9 @@ set(MFBE_BRIDGE_SRCS
   src/keyboard_layout_bridge.cpp
   src/keyboard_layout_bridge.h
   src/native_actions.cpp
-  src/native_actions.h)
+  src/native_actions.h
+  src/print_service_cef.cpp
+  src/print_service_cef.h)
 if(OS_WINDOWS)
   list(APPEND MFBE_BRIDGE_SRCS src/file_dialog_win.cpp)
 elseif(OS_MAC)

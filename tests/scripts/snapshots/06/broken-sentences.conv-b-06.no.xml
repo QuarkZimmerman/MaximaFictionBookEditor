@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Тестов</last-name>
+			</author>
+			<book-title>Чистка</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Книга для чистки.</p>
+		</title>
+		<section>
+			<title>
+				<p>Глава первая.</p>
+			</title>
+			<p>Текст  с   лишними пробелами , и пробелом перед запятой .</p>
+			<p>- Диалог с дефисом в начале и троеточием...</p>
+			<p>Дефис - вместо тире и короткое – тире между словами.</p>
+			<p>Сокращения: т. е. и т. д., н. э., рис. 5, № 7, 10 кг, 1941-1945 гг.</p>
+			<p>Слово<emphasis> с курсивом </emphasis>и пробелами внутри.</p>
+			<p>Конец абзаца с пробелом в конце.   </p>
+			<p>Мягкий перенос: пе­ре­нос.</p>
+			<p id="AutBody_0DocRoot">Абзац с мусорным идентификатором.</p>
+		</section>
+		<section>
+			<title>
+				<p>Латиница</p>
+			</title>
+			<p>Слово Пoлe содержит латинские буквы, а Mocква — латинские M и c.</p>
+			<p>Римские даты: ХIX век и XХ век.</p>
+			<p>Цифры вместо букв: 3амена и 6умага.</p>
+			<p>Предлог a между словами и предлог c тоже латинские.</p>
+		</section>
+		<section>
+			<title>
+				<p>Фамилии и числа</p>
+			</title>
+			<p>Писатели А.С.Пушкин и Л. Н. Толстой, а также Чехов А. П. и Пётр I.</p>
+			<p>Население 10 000 000 человек, бюджет 1.500.000 рублей.</p>
+			<p>Слипшиеся.Слова и словоСлово, и цифры5 после букв.</p>
+			<p>Какой-то диван-кровать стоял - сказал он - у окна.</p>
+			<p>Он ушёл домой Было поздно. Он увидел Александра и ушёл.</p>
+		</section>
+		<section>
+			<title>
+				<p>Разрывы</p>
+			</title>
+			<p>Это предложение разорвано на две части без точки.</p>
+			<p>Перенос слова через дефис.</p>
+			<p>Первый абзац без точки.</p>
+			<p>Второй с большой буквы.</p>
+			<p>Абзац с запятой, а дальше маленькая буква.</p>
+			<p>Он ушёл. - и всё стихло.</p>
+			<p>Привет, - Сказал он.</p>
+			<p>Пауза... - потом тишина.</p>
+			<p>Ещё… - и снова.</p>
+		</section>
+		<section>
+			<title>
+				<p>Кодировки и ссылки</p>
+			</title>
+			<p>Слова cafй и Zьrich набраны в неверной кодировке.</p>
+			<p id="_ftnref1">Внешняя <a l:href="http://example.com/">ссылка</a>, сноска<a l:href="#_ftn1" type="note">[1]</a>, файловая <a l:href="file:///tmp/x">файл</a>, <style name="x">стиль</style> и <code>код</code>.</p>
+		</section>
+	</body>
+	<body name="notes">
+		<title>
+			<p>Примечания</p>
+		</title>
+		<section id="_ftn1">
+			<p><a l:href="#_ftnref1">[1]</a> Текст сноски с возвратной ссылкой.</p>
+		</section>
+	</body>
+</FictionBook>

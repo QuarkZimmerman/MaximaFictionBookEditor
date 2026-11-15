@@ -52,6 +52,11 @@
 #                               2 s; the script checks the editor's Open types, "FictionBook
 #                               files (*.fb2)" active and the dialog on the screen. Exclusive
 #                               with MFBE_SMOKE_MESSAGEBOX and MFBE_SMOKE_CLIPBOARD
+#   MFBE_SMOKE_PDF              1 = the PDF export printed by the shell itself (feature 014, real UI
+#                               with MFBE_SMOKE_OPEN_FILE; needs openbox and xdotool): File > Export
+#                               > Export as PDF... on a copy of the book, the GTK Save dialog's
+#                               proposal accepted, the pages printed by the shell's print service;
+#                               tools/ci/verapdf.sh must pass build/pdf-export/shell-smoke.pdf
 #   MFBE_SMOKE_PORTABLE         1 = portable copy (real UI only, feature 002): a `user` folder
 #                               created next to the shell (and removed afterwards) must receive
 #                               the browser profile (cef/) and the logs (logs/), and no per-user
@@ -209,6 +214,13 @@ if [[ "${MFBE_SMOKE_ABOUT:-0}" == "1" ]] &&
 fi
 
 TMP=$(mktemp -d -t mfbe-smoke.XXXXXX)
+# MFBE_SMOKE_PDF: the book is opened from a copy, so that the PDF the Save dialog proposes beside it
+# lands in this run's folder.
+if [[ "${MFBE_SMOKE_PDF:-0}" == "1" && -n "${MFBE_SMOKE_OPEN_FILE:-}" ]]; then
+  mkdir -p "$TMP/books"
+  cp "$MFBE_SMOKE_OPEN_FILE" "$TMP/books/"
+  MFBE_SMOKE_OPEN_FILE="$TMP/books/$(basename "$MFBE_SMOKE_OPEN_FILE")"
+fi
 # Feature 009 (FR-037): Ctrl+click on a web link of the Body view opens it in the system's
 # browser through the core (app.openUrl -> xdg-open, looked up on PATH). A smoke run starts no
 # browser: this stand-in xdg-open, first on PATH for the shell and the core, records the address
@@ -550,11 +562,11 @@ SH
   chmod +x "$TMP/launch.sh"
   LAUNCHER="$TMP/launch.sh"
 fi
-# Close and Save As scenarios: a window manager must run on the display - to turn Alt+F4 into
-# the close request of the title-bar button (WM_DELETE_WINDOW), to give the GTK Save dialog the
-# focus; the wrapper starts openbox and writes the display's address (DISPLAY, XAUTHORITY of
-# xvfb-run) for shell-smoke.mjs, which drives xdotool.
-if [[ "$CLOSE" == "1" || "$SAVE_AS" == "1" || "$ENGINE_KEYS" == "1" ]]; then
+# Close, Save As and PDF export scenarios: a window manager must run on the display - to turn
+# Alt+F4 into the close request of the title-bar button (WM_DELETE_WINDOW), to give the GTK Save
+# dialog the focus; the wrapper starts openbox and writes the display's address (DISPLAY,
+# XAUTHORITY of xvfb-run) for shell-smoke.mjs and shell-smoke-pdf.mjs, which drive xdotool.
+if [[ "$CLOSE" == "1" || "$SAVE_AS" == "1" || "$ENGINE_KEYS" == "1" || "${MFBE_SMOKE_PDF:-0}" == "1" ]]; then
   export MFBE_SMOKE_DISPLAY_FILE="$TMP/display.env"
   cat >"$TMP/launch.sh" <<SH
 #!/bin/bash
@@ -958,6 +970,58 @@ start_shell
 # --- Playwright over CDP ----------------------------------------------------------------------
 node "$ROOT/tools/shell-smoke.mjs" "$CDP_PORT"
 check_spellcheck_engine
+
+if [[ "${MFBE_SMOKE_PDF:-0}" == "1" ]]; then
+  # --- the PDF export, printed by the shell itself (feature 014, T057) ------------------------
+  # With the book open (a copy of MFBE_SMOKE_OPEN_FILE), File > Export > Export as PDF...: the
+  # shell's GTK Save dialog accepted with Return (xdotool; the proposed name, A4), the pages
+  # printed by the shell's own print service (CEF's PrintToPDF in a hidden browser). veraPDF
+  # checks the file, copied to build/pdf-export/ for CI's veraPDF step.
+  PROPOSED=$(node "$ROOT/tools/shell-smoke-pdf.mjs" "$CDP_PORT" "$(dirname "$MFBE_SMOKE_OPEN_FILE")" | tail -1) || exit 1
+  [[ -s "$PROPOSED" ]] || { echo "shell-smoke: no PDF written" >&2; exit 1; }
+  PDF_OUT="$ROOT/build/pdf-export/shell-smoke.pdf"
+  mkdir -p "$(dirname "$PDF_OUT")"
+  cp "$PROPOSED" "$PDF_OUT"
+  "$ROOT/tools/ci/verapdf.sh" "$PDF_OUT" || exit 1
+  # After File > Exit the shell must end: the print browser closes with the editor's last window
+  # (requester, Windows, rc.4: left open, it kept the process and its helpers alive).
+  for _ in $(seq 1 80); do
+    kill -0 "$APP_PID" 2>/dev/null || break
+    sleep 0.25
+  done
+  if kill -0 "$APP_PID" 2>/dev/null; then
+    echo "shell-smoke: the shell is still running 20 s after File > Exit following a PDF export" >&2
+    exit 1
+  fi
+  wait "$APP_PID" || true
+  APP_PID=""
+  # Every process of the editor's own executable must be gone, the engine's helpers (renderer,
+  # GPU, utility) included: the launcher ending proves only that the main process did (requester).
+  # Found by the executable each process runs, not by a name.
+  EXE_REAL=$(readlink -f "$MFBE_APP_BIN")
+  LEFT=""
+  for _ in $(seq 1 80); do
+    LEFT=""
+    for proc in /proc/[0-9]*; do
+      [[ "$(readlink "$proc/exe" 2>/dev/null)" == "$EXE_REAL" ]] && LEFT+="${proc#/proc/} "
+    done
+    [[ -z "$LEFT" ]] && break
+    sleep 0.25
+  done
+  if [[ -n "$LEFT" ]]; then
+    echo "shell-smoke: processes of $EXE_REAL still running 20 s after File > Exit: $LEFT" >&2
+    for pid in $LEFT; do tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | cut -c1-200 >&2; echo >&2; done
+    exit 1
+  fi
+  # The close went as designed: neither safety net - the print browser's close time limit, the
+  # shutdown watchdog - had to act; each writes a warning to the errors log.
+  NETS=$(find "$TMP/home" -name 'mfbe-errors.log' -exec grep -h -E 'shell\.(printBrowserClose|shutdownTimeout)' {} + 2>/dev/null || true)
+  if [[ -n "$NETS" ]]; then
+    echo "shell-smoke: the editor's close needed its safety net: $NETS" >&2
+    exit 1
+  fi
+  echo "shell-smoke: PDF export printed by the shell, and the shell ended after File > Exit: OK"
+fi
 
 if [[ "$ENGINE_KEYS" == "1" ]]; then
   # --- the developer tools outside a developer run (feature 007, FR-006) ----------------------

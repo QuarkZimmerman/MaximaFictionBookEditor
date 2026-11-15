@@ -79,6 +79,8 @@ export const RpcErrorCode = {
    */
   epubRefused: 1110,
   epubWriteFailed: 1111,
+  /** Feature 014: a PDF export that cannot go on (reason pdf.*, contracts/rpc-api.md). */
+  pdfExportFailed: 1112,
   spellDictionaryUnavailable: 1020,
   scriptNotFound: 1030,
   scriptInvalidManifest: 1031,
@@ -249,6 +251,10 @@ export type StatusBarPane =
   'path' | 'position' | 'selection' | 'character' | 'encoding' | 'validity' | 'insmode';
 
 /** settings.json, resource-formats.md §6. */
+/** The PDF export's page sizes (feature 014, D3), portrait only. */
+export type PdfPageSizeId =
+  'a4' | 'b5' | 'a5' | 'b6' | 'a6' | 'legal' | 'letter' | 'executive' | 'statement';
+
 export interface Settings {
   schemaVersion: 1;
   view: {
@@ -324,6 +330,22 @@ export interface Settings {
   };
   words: {
     showExclusionsInWordsDialog: boolean;
+  };
+  /**
+   * The PDF export's settings (feature 014, D25, FR-070). Optional in the type: a core of an
+   * earlier API minor sends none, and every reader falls back to the defaults below.
+   */
+  pdf?: {
+    /** One of the nine sizes of D3; default `a4`. */
+    defaultPageSize: PdfPageSizeId;
+    /** A shipped family's id or an added font's id; an unknown one reads as `noto-serif`. */
+    textFont: string;
+    textSize: 'smaller' | 'standard' | 'larger' | 'custom';
+    margins: 'narrow' | 'standard' | 'wide' | 'custom';
+    /** The text size a `custom` choice uses, in tenths of a point (60 to 240); default 115. */
+    customTextSize: number;
+    /** The margins a `custom` choice uses, in millimetres (5 to 50); default 22. */
+    customMargin: number;
   };
   session: {
     /**
@@ -1129,6 +1151,39 @@ export interface LoadReport {
   templateIssue?: TemplateIssue;
 }
 
+/** A shipped family (resources/fonts/fonts.json), without paths. */
+export interface PdfShippedFont {
+  id: string;
+  kind: 'serif' | 'sans-serif' | 'monospace';
+  scripts: string[];
+  textFont: boolean;
+  styles: string[];
+}
+
+/** A font the user added (data-model AddedFont), without paths. */
+export interface PdfAddedFont {
+  id: string;
+  face: number;
+  family: string;
+  style: string;
+  kind: 'serif' | 'sans-serif' | 'monospace';
+  fsType: number;
+  wholeFont: boolean;
+  source: 'file' | 'installed';
+  name: string;
+}
+
+/**
+ * What adding a font gives: the font, or a refusal (unreadable, restricted, bitmapOnly, tooLarge,
+ * duplicate - with the font already there), and a collection's faces to choose from.
+ */
+export interface PdfFontAnswer {
+  font?: PdfAddedFont;
+  refused?: 'unreadable' | 'restricted' | 'bitmapOnly' | 'tooLarge' | 'duplicate';
+  faces?: string[];
+  path?: string;
+}
+
 export interface RpcMethods {
   // §3.1 app
   'app.info': { params: void; result: AppInfo };
@@ -1332,6 +1387,70 @@ export interface RpcMethods {
   };
   'epub.write.commit': { params: { token: string }; result: { bytes: number } };
   'epub.write.abort': { params: { token: string }; result: Record<string, never> };
+  /**
+   * Feature 014 (specs/014-pdf-export/contracts/rpc-api.md): a PDF export of the book `docId` to
+   * `path` (chosen with dialog.saveFile) in one of the nine page sizes; errors 1112 pdfExportFailed.
+   */
+  'pdf.export.begin': {
+    params: { path: string; pageSize: PdfPageSizeId; docId?: string };
+    /** `limits`: DP-19's, by which the export refuses a book before printing. */
+    result: {
+      token: string;
+      pageSize: PdfPageSizeId;
+      limits?: { pages: number; notes: number; nesting: number; pixels: number };
+    };
+  };
+  /** Declares how many parts the paged document has (each uploaded with PUT /pdf/{token}/part/{n}). */
+  'pdf.export.document': {
+    params: { token: string; parts: number };
+    result: Record<string, never>;
+  };
+  /** Job: the print service prints one part (contracts/print-service.md). */
+  'pdf.export.print': { params: { token: string; part: number }; result: { part: number } };
+  /** Job: the finished file, written atomically. */
+  'pdf.export.finish': {
+    params: {
+      token: string;
+      pageMap: unknown;
+      title?: string;
+      /** D14-D16: the book's description; the core writes it into the XMP and Info. */
+      description?: unknown;
+      /** The genres, named in the book's language. */
+      genreNames?: string[];
+      /** R10: the editor's hints (JSON). */
+      hints?: string;
+    };
+    /**
+     * `uncovered`: the characters no shipped font draws (D7), drawn with a system font;
+     * `picturesLeftOut`: the binaries the core could not draw (no data, not a picture, too large).
+     */
+    /** `fallback`: what the added text font `fallbackFont` lacks, drawn with the shipped fonts (D7). */
+    result: {
+      path: string;
+      bytes: number;
+      uncovered?: string;
+      picturesLeftOut?: string[];
+      fallback?: string;
+      fallbackFont?: string;
+    };
+  };
+  'pdf.export.abort': { params: { token: string }; result: { known: boolean } };
+  /** Feature 014 (T050, DP-4..DP-7): the fonts of Settings > PDF export. */
+  'pdf.fonts.list': {
+    params: Record<string, never>;
+    result: { shipped: PdfShippedFont[]; added: PdfAddedFont[] };
+  };
+  /** The Open dialog for a font file, or (`path`) the file picked before, another face of it. */
+  'pdf.fonts.addFile': {
+    params: { path?: string; face?: number; title?: string; filterName?: string };
+    result: PdfFontAnswer | { cancelled: true };
+  };
+  /** An installed font's data, uploaded first to PUT /pdf/fonts/upload/{uploadId}. */
+  'pdf.fonts.addData': {
+    params: { uploadId: string; name: string; face?: number };
+    result: PdfFontAnswer;
+  };
+  'pdf.fonts.remove': { params: { id: string }; result: Record<string, never> };
   /**
    * Feature 010 (US8): a new untitled, modified document from FB2 text, tied to no file. Feature 012
    * (SC-010): text of 2 MB or more is read as a job, with its progress, as `doc.open` reads a big book.

@@ -84,6 +84,28 @@ export async function confirmSaveWithErrors(
   return answer === 'yes';
 }
 
+/**
+ * Save's question before an export ("export anyway?"), for every export of the book: FBD, Markdown,
+ * EPUB and PDF (requester, rc.5). Resolves true when the user insists.
+ */
+export async function confirmExportWithErrors(
+  dialogs: Dialogs,
+  t: TFunction,
+  errorCount: number,
+): Promise<boolean> {
+  const answer = await dialogs.showMessage({
+    text: t('transfer.export.validationFailed', {
+      errors: t('msg.errorsFound', { count: errorCount }),
+    }),
+    caption: t('msg.validationFailedCaption'),
+    buttons: 'yesNo',
+    icon: 'warning',
+    defaultButton: 'no',
+    testId: 'dialog-export-validation-failed',
+  });
+  return answer === 'yes';
+}
+
 /* ------------------------------------------------------------------------ */
 /* Go to issue                                                              */
 /* ------------------------------------------------------------------------ */

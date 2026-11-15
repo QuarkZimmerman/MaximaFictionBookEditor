@@ -39,6 +39,12 @@ export interface PreviewBuildOptions {
   signal?: AbortSignal;
   /** Called while building: the units (top-level elements of the bodies) done and in all. */
   onProgress?: (done: number, total: number) => void;
+  /**
+   * Feature 014 (the PDF export, requester rc.4): the description's annotation before the bodies
+   * and the document's history after them, each an `annotation` element marked
+   * `data-mfbe-page="annotation"` / `"history"`. Preview itself does not show them.
+   */
+  descriptionPages?: boolean;
 }
 
 export interface PreviewBuild {
@@ -73,6 +79,9 @@ class Builder {
     // A named style of an element is its class, as readers apply it (contracts/styles.md §4).
     if (typeof attrs.style === 'string' && attrs.style) element.setAttribute('class', attrs.style);
     if (typeof attrs.lang === 'string' && attrs.lang) element.setAttribute('lang', attrs.lang);
+    // A body's name ("notes", "comments"), as readers match it (body[name="notes"]) and as the PDF
+    // export finds the notes (feature 014, D19).
+    if (typeof attrs.name === 'string' && attrs.name) element.setAttribute('name', attrs.name);
     for (const span of ['colspan', 'rowspan'] as const) {
       const value = Number(attrs[span] ?? 1);
       if (value > 1) element.setAttribute(span, String(value));
@@ -84,6 +93,8 @@ class Builder {
   picture(node: ModelNodeJson): Element {
     const element = this.element('image', node);
     const href = String(node.attrs?.href ?? '');
+    // The picture's reference, for the PDF export's boxes (feature 014, R4); no selector reads it.
+    if (href) element.setAttribute('data-href', href);
     const url = binaryPreviewUrl(this.docId, href, 1600);
     if (url) {
       const img = this.doc.createElementNS(XHTML_NS, 'img') as HTMLImageElement;
@@ -190,12 +201,22 @@ export async function buildPreview(
     root.append(builder.picture({ type: 'image', attrs: { href: cover.href, alt: '' } }));
   }
   const units: { parent: Element; node: ModelNodeJson }[] = [];
+  const descriptionPage = (node: unknown, page: 'annotation' | 'history'): void => {
+    const json = node as ModelNodeJson | undefined;
+    if (!options.descriptionPages || !json?.content?.length) return;
+    const element = builder.element('annotation', json);
+    element.setAttribute('data-mfbe-page', page);
+    root.append(element);
+    for (const child of json.content) units.push({ parent: element, node: child });
+  };
+  descriptionPage(book.description.titleInfo.annotation, 'annotation');
   for (const body of book.bodies) {
     const json = body as unknown as ModelNodeJson;
     const element = builder.element('body', json);
     root.append(element);
     for (const child of json.content ?? []) units.push({ parent: element, node: child });
   }
+  descriptionPage(book.description.documentInfo.history, 'history');
   const total = units.length;
   let lastYield = performance.now();
   for (let done = 0; done < total; done += 1) {

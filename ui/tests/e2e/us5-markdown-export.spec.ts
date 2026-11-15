@@ -12,6 +12,7 @@ import path from 'node:path';
 import type { Page } from '@playwright/test';
 
 import { expect, fixtureBook, test, waitForBook, type CoreHandle } from './fixtures/core';
+import { clickExport } from './fixtures/exportCheck';
 
 const BOOK = fixtureBook('modern-utf8.fb2');
 
@@ -23,10 +24,8 @@ async function openBook(core: CoreHandle, page: Page): Promise<void> {
 }
 
 /** File > Export > the entry of `id` (`menu-file-export-<command>`, as feature 004's FBD export). */
-async function runCommand(page: Page, id: string): Promise<void> {
-  await page.getByTestId('menu-file').click();
-  await page.getByTestId('menu-file-export').hover();
-  await page.getByTestId(`menu-file-export-${id.slice('file.'.length)}`).click();
+async function runCommand(core: CoreHandle, page: Page, id: string): Promise<void> {
+  await clickExport(core, page, id.slice('file.'.length));
 }
 
 test.describe('US5/US6 (feature 011) - the Markdown exports', () => {
@@ -53,7 +52,7 @@ test.describe('US5/US6 (feature 011) - the Markdown exports', () => {
     const recentBefore = await core.rpc('doc.recent');
     const target = path.join(dir, 'book.md');
     await core.enqueueDialog('dialog.saveFile', { path: target, zip: true });
-    await runCommand(page, 'file.exportMarkdown');
+    await runCommand(core, page, 'file.exportMarkdown');
     await expect(page.getByTestId('status-message')).toContainText('Exported to', {
       timeout: 30_000,
     });
@@ -75,7 +74,7 @@ test.describe('US5/US6 (feature 011) - the Markdown exports', () => {
   test('ZIP: the text and the pictures in images/', async ({ core, page }) => {
     const target = path.join(dir, 'book.md.zip');
     await core.enqueueDialog('dialog.saveFile', { path: target });
-    await runCommand(page, 'file.exportMarkdownZip');
+    await runCommand(core, page, 'file.exportMarkdownZip');
     await expect(page.getByTestId('status-message')).toContainText('Exported to', {
       timeout: 30_000,
     });
@@ -90,7 +89,7 @@ test.describe('US5/US6 (feature 011) - the Markdown exports', () => {
     try {
       const target = path.join(dir, 'cancelled.md');
       await core.enqueueDialog('dialog.saveFile', { path: target, zip: true });
-      await runCommand(page, 'file.exportMarkdown');
+      await runCommand(core, page, 'file.exportMarkdown');
       await expect(page.getByTestId('modal-job')).toBeVisible();
       await page.getByTestId('modal-job-cancel').click();
       await expect(page.getByTestId('modal-job')).toHaveCount(0, { timeout: 15_000 });

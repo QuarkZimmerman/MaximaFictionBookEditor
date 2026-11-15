@@ -9,6 +9,7 @@ import path from 'node:path';
 import type { Page } from '@playwright/test';
 
 import { expect, waitForBook, type CoreHandle } from './core';
+import { clickExport } from './exportCheck';
 
 /** Opens a copy of `book` made in `dir`, so that nothing the editor does touches the original. */
 export async function openBookCopy(
@@ -37,9 +38,7 @@ export async function exportEpubTo(
   timeout = 120_000,
 ): Promise<void> {
   await core.enqueueDialog('dialog.saveFile', { path: target });
-  await page.getByTestId('menu-file').click();
-  await page.getByTestId('menu-file-export').hover();
-  await page.getByTestId('menu-file-export-exportEpub').click();
+  await clickExport(core, page, 'exportEpub');
   const status = page.getByTestId('status-message');
   const summary = page.getByTestId('dialog-epub-export-summary');
   const failed = page.getByTestId('dialog-epub-export-failed');

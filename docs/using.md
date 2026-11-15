@@ -20,7 +20,10 @@ it off. When
 the backup cannot be made the book is still saved, and the status bar says so.
 
 A book with validation errors is saved only after a question; when saving opens *Save As*, the
-question comes first, so *No* ends the save without choosing a file.
+question comes first, so *No* ends the save without choosing a file. The exports ask the same
+question before their save dialog - *File > Export > Export as Markdown…*, *Export as Markdown
+ZIP…*, *Export as EPUB…* and *Export as PDF…* -, and *No* ends the export without choosing a file;
+*Export as FBD…* asks it about the description it writes.
 
 ## Books in ZIP archives
 
@@ -51,8 +54,10 @@ It is also in the context menus, next to *Paste*.
 Besides the message, the element path and INS/OVR, the status bar shows the line and column (in
 the Source view), the counts of the selection, the character before the caret - its code such as
 `U+00A0` and `&#160;` with its name or script (a double-click copies the code) -, the book's
-encoding and the result of the last validation, which says *not checked* after any change; a
-click on it validates. A right-click on the status bar chooses the panes shown.
+encoding and the result of the last validation. A book is validated as soon as it has loaded, so
+the pane shows *Valid* or the number of errors at once; after a change it says *not checked* until
+the next validation, and a click on it validates. A right-click on the status bar chooses the panes
+shown.
 
 ## Completion in the Source view
 
@@ -351,6 +356,78 @@ from these differences:
 - parts of a book that FB2's schema does not allow come back in a valid form;
 - pictures nothing in the book shows are not exported, so they do not come back;
 - a link to a place the book does not hold comes back as its text.
+
+## PDF export
+
+*File > Export > Export as PDF…* writes the book as a PDF: the book as Preview shows it, on pages of the
+size chosen in the save dialog. Like an EPUB export it is a copy made once: the book stays as it was,
+and nothing but the chosen page size is remembered - for the open book only, until another book
+replaces it. The export is loaded the first time it is used, never at start-up. It shows its progress
+with *Cancel*; a cancelled export writes nothing.
+
+### The page size
+
+The save dialog lists nine sizes, *A4*, *B5*, *A5*, *B6* and *A6*, then *Legal*, *Letter*, *Executive*
+and *Statement*. It proposes the size the open book was last exported in, else the default of
+*Settings > Exports*, format PDF (A4 out of the box). Where the system's save dialog cannot show the list, the
+editor asks for the size in a window of its own after the dialog.
+
+### What the PDF holds
+
+- A cover page with the description's cover picture, and a title page as printed books set it: the
+  authors and the title large in its upper part, each series in brackets under the title, the
+  publisher and the year small at its foot. The annotation follows on a page of its own, without a
+  heading (bookmarked *Annotation*). Then the book's bodies as the Body view shows them (the cover
+  Preview draws at the top is not printed again): each body and each top-level section after a
+  body's first on a new page, so a body's own title shares its page with the first section. The
+  document's history ends the book (bookmarked *Revision history*). The page numbers are at the
+  foot.
+- Notes at the foot of the page that refers to them, under a short rule, each beginning with its title
+  and leading back to the reference. A note referred to twice is printed once. Notes nothing refers to
+  come after the text.
+- Bookmarks: the cover page, the title page, the annotation, the titled sections, nested as the book
+  nests them, and the revision history.
+  Links inside the book lead to their targets; links to the web stay as written.
+- Searchable text: every word can be found and copied, ligatures read as their letters. The structure
+  is tagged (headings, paragraphs, pictures with their alternative text, tables, links) for screen
+  readers.
+- The whole description in the PDF's metadata: title, authors, annotation, keywords, genres, language,
+  date, publisher, translators, ISBN, and the series as Calibre reads it. The editor also records the
+  description itself and a few hints, so that the book can be recreated from its PDF later.
+- The file is archival: PDF/A-2U, checked by the editor before it is written.
+
+The words the export adds - the cover's description, the notes' heading - are in the book's language
+(English, Russian or Ukrainian, else English).
+
+### Fonts
+
+The text is printed in the text font of *Settings > Exports* (PDF; Noto Serif out of the box); code in
+DejaVu Sans Mono. A font the book's stylesheet names is replaced by the shipped family of the same kind,
+so titles set in a sans-serif font stay sans-serif. Characters no shipped font has are drawn with a
+system font, and the summary lists them.
+
+### When the export finishes
+
+A summary lists what the PDF could not keep as the book has it: pictures left out (no data, not a
+picture, more than 100 megapixels), links to ids the book does not have (written as text), ids used
+twice (kept by their first place), a missing title (the file's name is used) or language. A book of
+more than 20,000 pages, or more than 100,000 notes, is refused before printing.
+
+### Settings > Exports
+
+*Format* at the top chooses the export whose settings are shown: PDF, EPUB or Markdown. Only the PDF
+export has settings of its own for now.
+
+- *Default page size*, *Text font*, *Text size* (smaller, standard, larger, custom) and *Margins*
+  (narrow, standard, wide, custom). Beside the text size and the margins their value for the default
+  page size is shown, in points and millimetres; with *Custom* that value can be typed (6 to 24 pt,
+  5 to 50 mm) and holds for every page size. Beside each its default is shown, with *Reset*; *Reset
+  all* puts the page back.
+- *Add font from file…* adds a TrueType or OpenType font file (from a collection, the face you choose);
+  *Add installed font…* one of the computer's fonts. A font whose licence forbids embedding is refused
+  with the reason; one that forbids subsetting is embedded whole. The editor keeps its own copy, in its
+  data folder (a portable copy: in `user/fonts/`), so the original may be moved or deleted. *Remove*
+  removes an added font; Noto Serif then becomes the text font again.
 
 ## The Styles view
 

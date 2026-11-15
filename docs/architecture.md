@@ -305,6 +305,35 @@ book after an export or a cancelled import.
   and `ui/tests/e2e/us6-epub-lazy.spec.ts` (G15) records the bundle's requests through ordinary work
   and after each operation.
 
+**PDF export (feature 014).** A one-time operation like the EPUB export, split by what each side can
+do (PD1): only the browser engine lays out pages as Preview shows them, and only a PDF library
+finishes an archival file.
+* *The interface paginates.* `ui/src/features/pdf/export/` builds the book with Preview's own builder
+  in a hidden frame, measures every block's lines, and plans one page at a time from a cursor: it
+  composes the page, checks it is no taller than its text area, and plans the next page from where
+  that one really ended. Footnotes go to the foot of the page of their first reference; tables split
+  between rows. The pages, as fixed-size boxes, are uploaded in parts of 1,000 pages
+  (`PUT /pdf/{token}/part/{n}`) with a page map (picture boxes, bookmarks, each page's text) and the
+  editor's hints.
+* *The shell prints.* The core asks the print service (`core/include/mfbe/print_service.hpp`) to
+  print each part. The shell's implementation (`app/src/print_service_cef.{h,cpp}`) loads it in a
+  hidden browser of its own and calls CEF's `PrintToPDF`, a print job whose output is a file - no
+  printer and no dialog. The journeys use a test seam instead (`test.printRequests`,
+  `ui/tests/e2e/fixtures/printSeam.ts`), which prints with Playwright's Chromium.
+* *The core finishes* with Poppler, in `core/src/pdf/`: `join.cpp` joins the parts, `pictures.cpp`
+  draws each picture from the book's own bytes into its box (a JPEG as it is, other pictures as
+  pixels), `finish.cpp` sets the exact page size, mends the ligatures' text, embeds a font whole where
+  its licence forbids subsetting, and adds the output intent, the XMP and Info metadata (`xmp.cpp`,
+  with the editor's record) and the outline (`outline.cpp`). `check.cpp` then reads the finished file
+  back - each page's text against the page map, every link's destination, every picture box filled -
+  and nothing is written unless the check passes. `fonts.cpp` keeps the fonts the user adds
+  (`<Data>/fonts/`, checked with FreeType), `limits.hpp` holds DP-19's limits.
+* *The chunk rule.* `ui/src/features/pdf/index.ts` is the static entry: it registers File > Export >
+  Export as PDF..., asks for the target and the page size, starts the progress, and only then imports
+  the `pdf-export` chunk (`src/features/pdf/export/`, the rule in `ui/vite.config.ts`). The guard
+  `ui/tests/unit/pdf/chunk.test.ts` (G20) reads the built output; `ui/tests/e2e/us5-pdf-lazy.spec.ts`
+  checks that no request for the chunk or the export's fonts goes out before the first export.
+
 **Validate.** `doc.validate` accepts either the model or Source text; the report lists
 severity, line, column, element path and message per issue. The Validation panel jumps to
 issues; `edit.gotoWrongTag` uses the same locations in the Source view.

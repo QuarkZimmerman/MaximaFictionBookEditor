@@ -166,6 +166,12 @@ test.describe('G17 (feature 012) - Show Book Styles off draws as 0.0.9 did', () 
     for (const theme of ['light', 'dark'] as const) {
       await core.rpc('settings.set', { patch: { view: { theme } } });
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+      // The editor's focus is a state, not the look compared: it comes or not with the timing of
+      // the book's opening, and the 0.0.9 snapshot was taken unfocused (ProseMirror-focused).
+      await page.evaluate(
+        'document.activeElement instanceof HTMLElement && document.activeElement.blur()',
+      );
+      await expect(page.locator('.ProseMirror-focused')).toHaveCount(0);
       taken[theme] = await bodySnapshot(page);
     }
     if (process.env.MFBE_WRITE_BODY_SNAPSHOT === '1') {

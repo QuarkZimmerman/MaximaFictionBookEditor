@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+<description>
+<title-info>
+<genre>sf_fantasy</genre>
+<author><first-name>Ivan</first-name><last-name>Testov</last-name></author>
+<book-title>Untitled sections</book-title>
+<lang>en</lang>
+</title-info>
+<document-info>
+<author><nickname>mfbe-tests</nickname></author>
+<date value="2026-11-12">12 November 2026</date>
+<id>mfbe-pdf-untitled-0001</id>
+<version>1.0</version>
+</document-info>
+</description>
+<body>
+<title><p>Untitled sections</p></title>
+<epigraph><p>An epigraph of the body.</p><text-author>Someone</text-author></epigraph>
+<section>
+<section><title><p>A titled section inside</p></title>
+<annotation><p>The section's annotation.</p></annotation>
+<p>Text of the titled inner section.</p>
+</section>
+<section><p>An untitled section inside an untitled one.</p>
+<poem><title><p>A poem</p></title><epigraph><p>The poem's epigraph.</p></epigraph>
+<stanza><title><p>First stanza</p></title><subtitle>its subtitle</subtitle><v>The first verse,</v><v>the second verse.</v></stanza>
+<text-author>The poet</text-author><date value="1901-01-01">1901</date></poem>
+<cite><p>A quotation.</p><text-author>Its author</text-author></cite>
+<subtitle>A subtitle</subtitle>
+<empty-line/>
+<p>A paragraph with <strikethrough>struck</strikethrough>, H<sub>2</sub>O, x<sup>2</sup> and <style name="whisper">a named style</style>, and <code>code</code>.</p>
+<p xml:lang="de">Ein deutscher Absatz.</p>
+<p id="unlinked-id">A paragraph whose id no link targets.</p>
+</section>
+</section>
+<section><title><p>A titled top-level section</p></title><p>The end.</p></section>
+</body>
+</FictionBook>

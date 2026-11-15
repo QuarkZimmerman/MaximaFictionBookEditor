@@ -62,6 +62,7 @@ struct CoreServerOptions {
 class DialogProvider;          // mfbe/dialog_provider.hpp
 class ClipboardProvider;       // mfbe/clipboard_provider.hpp
 class KeyboardLayoutProvider;  // mfbe/keyboard_layout_provider.hpp
+class PrintService;            // mfbe/print_service.hpp (feature 014)
 
 class CoreServer {
 public:
@@ -78,6 +79,8 @@ public:
     void set_dialog_provider(std::shared_ptr<DialogProvider> provider);
     // Shell hook for binary.addFromClipboard (headless: none -> 1050 dialog.unavailable).
     void set_clipboard_provider(std::shared_ptr<ClipboardProvider> provider);
+    // Feature 014: the shell's print service for the PDF export (contracts/print-service.md).
+    void set_print_service(std::shared_ptr<PrintService> service);
     // Shell hook for system.keyboardLayouts / system.activateKeyboardLayout (feature 004 US11;
     // headless: none -> the "noShell" / "unsupported" results, never an error).
     void set_keyboard_layout_provider(std::shared_ptr<KeyboardLayoutProvider> provider);

@@ -1,0 +1,191 @@
+/**
+ * Feature 014 (D4, D23; plan PD1, research R1, R7): the PDF export's job, the first module of the
+ * lazy chunk `pdf-export`. The command chose the file and the page size and started the progress
+ * (../index.ts); this part:
+ * 1. lays the book out in pages (paginator.ts on Preview's look, document.ts);
+ * 2. uploads each part of the paged document (`PUT /pdf/{token}/part/{n}`);
+ * 3. has the core print each part (`pdf.export.print`, the shell's hidden browser or the journeys'
+ *    seam);
+ * 4. has the core finish and write the file (`pdf.export.finish`, with the page map).
+ *
+ * It is modal, with progress and *Cancel*, and leaves no trace but the file (D4, D25): nothing of
+ * the book changes and no setting is written.
+ */
+import type { CommandContext } from '@/app/commands';
+import { pdfPartUrl } from '@/model/binaryUrls';
+import { actions } from '@/model/store';
+import { isRpcError } from '@/rpc/client';
+import { RpcErrorCode } from '@/rpc/types';
+
+import type { PdfRun } from '../index';
+import { pdfPageSize } from '../pageSizes';
+import { paginate, PdfLimitError } from './paginator';
+import { wordsLanguage } from './words';
+
+class Cancelled extends Error {}
+
+async function put(token: string, part: number, html: string): Promise<void> {
+  const response = await fetch(pdfPartUrl(token, part), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    body: new TextEncoder().encode(html),
+  });
+  if (!response.ok) throw new Error(`part ${part}: ${response.status}`);
+}
+
+/** The export of the book `docId` under `run`; resolves true once the file is written. */
+export async function exportPdf(ctx: CommandContext, docId: string, run: PdfRun): Promise<boolean> {
+  const { store, rpc } = ctx;
+  const { path, modal } = run;
+  const current = store.getState();
+  if (!rpc || !current.document || current.docId !== docId) {
+    modal.end();
+    return false;
+  }
+  let token: string | null = null;
+  try {
+    const begun = await rpc.call('pdf.export.begin', { path, pageSize: run.pageSize, docId });
+    token = begun.token;
+    const size = pdfPageSize(run.pageSize);
+    // D7(c): a text font the user added, looked up by its id (gone: Noto Serif).
+    const textFont = current.settings?.pdf?.textFont ?? 'noto-serif';
+    const added = /^[0-9a-f]{64}(-\d+)?$/.test(textFont)
+      ? (await rpc.call('pdf.fonts.list', {})).added.find((font) => font.id === textFont)
+      : undefined;
+    const paged = await paginate(ctx, current.document, {
+      pageSize: size,
+      settings: current.settings?.pdf,
+      addedFont: added ? { id: added.id, kind: added.kind } : undefined,
+      cancelled: run.cancelled,
+      limits: begun.limits,
+      progress: (done, total) => modal.progress(done, total * 3),
+    });
+    if (run.cancelled()) throw new Cancelled();
+    const parts = paged.parts.length;
+    // Paginate, upload and print each part, then the core's three steps: join, write, check.
+    const total = parts * 3 + 3;
+    let done = parts;
+    await rpc.call('pdf.export.document', { token, parts });
+    for (let part = 0; part < parts; part++) {
+      if (run.cancelled()) throw new Cancelled();
+      await put(token, part, paged.parts[part]);
+      modal.progress(++done, total);
+    }
+    // SC-010: the browser prints a part in one go, with no progress of its own: the bar shows busy
+    // while the parts print.
+    modal.progress(0, 0);
+    for (let part = 0; part < parts; part++) {
+      if (run.cancelled()) throw new Cancelled();
+      await rpc.runJob('pdf.export.print', { token, part });
+      ++done;
+    }
+    if (run.cancelled()) throw new Cancelled();
+    const base = done;
+    // D14: the genres by name in the book's language, as the EPUB export names them (012 D6).
+    const titleInfo = current.document.description.titleInfo;
+    // D22: a book without a title is named by its file's name.
+    const fileTitle = path.replace(/^.*[\\/]/, '').replace(/\.pdf$/i, '');
+    const language = wordsLanguage(titleInfo.lang);
+    const named = await rpc
+      .call('resources.genres')
+      .then(
+        (list) =>
+          new Map(
+            list.entries.map((entry) => [
+              entry.code,
+              entry.names[language] ?? entry.names.en ?? entry.code,
+            ]),
+          ),
+      )
+      .catch(() => new Map<string, string>());
+    const finished = await rpc.runJob(
+      'pdf.export.finish',
+      {
+        token,
+        pageMap: paged.pageMap,
+        title: titleInfo.bookTitle?.trim() || fileTitle,
+        // D14-D16: the description as the window has it; the core writes it into the metadata.
+        description: current.document.description,
+        genreNames: titleInfo.genres.map((genre) => named.get(genre.code) ?? genre.code),
+        hints: paged.hints,
+      },
+      {
+        // SC-010: the bar moves at least once a second. The joining (a part at a time, each in
+        // one go) and the writing show as busy; the check counts its pages.
+        onProgress: ({ phase, done: stepDone, total: stepTotal }) => {
+          if (stepTotal <= 0 || phase !== 'check') modal.progress(0, 0);
+          else modal.progress(base + 2 + stepDone / stepTotal, total);
+        },
+      },
+    );
+    token = null;
+    modal.progress(total, total);
+    modal.end();
+    const counts = ctx.t('pdf.exportDone', {
+      path,
+      pages: paged.pageMap.pages,
+      size: ctx.t(`pdf.sizes.${run.pageSize}`),
+      pictures: paged.counts.pictures,
+      tables: paged.counts.tables,
+      notes: paged.counts.notes,
+    });
+    // D23: what was not carried over as written, each with its reason; else the status line.
+    const lines = [
+      ...[...paged.leftOut, ...(finished.picturesLeftOut ?? []).map((id) => `#${id}`)].map(
+        (detail) => ctx.t('pdf.summary.pictureLeftOut', { detail }),
+      ),
+      ...paged.replacedFonts.map((detail) => ctx.t('pdf.summary.fontReplaced', { detail })),
+      ...paged.linksAsText.map((detail) => ctx.t('pdf.summary.linkAsText', { detail })),
+      ...paged.idsTwice.map((detail) => ctx.t('pdf.summary.idTwice', { detail })),
+      ...paged.rawParts.map((detail) => ctx.t('pdf.summary.rawPart', { detail })),
+      // D22: no title - the file's name; no language the editor knows - English words.
+      ...(titleInfo.bookTitle?.trim() ? [] : [ctx.t('pdf.summary.noTitle', { detail: fileTitle })]),
+      ...(titleInfo.lang?.trim() ? [] : [ctx.t('pdf.summary.noLanguage')]),
+      ...(finished.fallback
+        ? [
+            ctx.t('pdf.summary.addedFontFallback', {
+              font: finished.fallbackFont ?? '',
+              detail: [...finished.fallback].join(' '),
+            }),
+          ]
+        : []),
+      ...(finished.uncovered
+        ? [ctx.t('pdf.summary.systemFont', { detail: [...finished.uncovered].join(' ') })]
+        : []),
+    ];
+    if (lines.length === 0) {
+      actions.setStatusMessage(store, counts);
+    } else {
+      await ctx.dialogs.showMessage({
+        text: `${counts}\n\n${ctx.t('pdf.exportSummaryIntro')}\n${lines.join('\n')}`,
+        caption: ctx.t('pdf.exportCaption'),
+        icon: 'info',
+        testId: 'dialog-pdf-export-summary',
+      });
+    }
+    return true;
+  } catch (error) {
+    modal.end();
+    if (token) await rpc.call('pdf.export.abort', { token }).catch(() => undefined);
+    if (run.cancelled() || error instanceof Cancelled) {
+      actions.setStatusMessage(store, ctx.t('pdf.exportCancelled'));
+      return false;
+    }
+    let detail = error instanceof Error ? error.message : String(error);
+    if (error instanceof PdfLimitError) {
+      detail = ctx.t(`pdf.limit.${error.limit}`, { count: error.count, max: error.max });
+    }
+    if (isRpcError(error) && error.code === RpcErrorCode.pdfExportFailed) {
+      const data = (error.data ?? {}) as { reason?: string; message?: string };
+      const reason = (data.reason ?? 'pdf.ioError').replace(/^pdf\./, '');
+      detail = ctx.t(`pdf.reason.${reason}`, { message: data.message ?? '' });
+    }
+    await ctx.dialogs.showMessage({
+      text: ctx.t('pdf.exportFailed', { path, detail }),
+      caption: ctx.t('pdf.exportCaption'),
+      icon: 'error',
+      testId: 'dialog-pdf-export-failed',
+    });
+    return false;
+  }
+}

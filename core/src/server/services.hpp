@@ -1,6 +1,7 @@
 // Internal: everything RPC handlers need, bundled (not part of the public API).
 #pragma once
 
+#include "print/queued_print_service.hpp"
 #include "server/ai_state.hpp"
 
 #include <mfbe/clipboard_provider.hpp>
@@ -17,6 +18,7 @@
 #include <mfbe/keyboard_layout_provider.hpp>
 #include <mfbe/platform.hpp>
 #include <mfbe/positions.hpp>
+#include <mfbe/print_service.hpp>
 #include <mfbe/recent_files.hpp>
 #include <mfbe/resource_tables.hpp>
 #include <mfbe/resources.hpp>
@@ -62,6 +64,26 @@ struct Services {
         std::map<std::string, epub::Source> sources;
         std::map<std::string, std::unique_ptr<epub::Writer>> writers;
     } epub;
+
+    // Feature 014 (pdf.export.*, contracts/rpc-api.md): the PDF exports under way, by token. Each
+    // keeps its paged parts and printed parts in its own folder of the data folder, removed by
+    // pdf.export.finish, pdf.export.abort, or after ten minutes without a call.
+    struct PdfExport {
+        std::filesystem::path target;
+        std::string doc_id;
+        std::string page_size;
+        double width_in = 0;
+        double height_in = 0;
+        std::filesystem::path work;
+        int parts = 1;
+        std::chrono::steady_clock::time_point touched;
+    };
+    struct PdfState {
+        std::mutex mutex;
+        std::map<std::string, PdfExport> exports;
+        // Feature 014 (DP-4): installed fonts' data uploaded for pdf.fonts.addData, by upload id.
+        std::map<std::string, std::string> font_uploads;
+    } pdf;
 
     rpc::Notifier& notifier;
     rpc::JobManager jobs;
@@ -109,6 +131,12 @@ struct Services {
     std::shared_ptr<KeyboardLayoutProvider> keyboard_layouts() const;
     void set_keyboard_layout_provider(std::shared_ptr<KeyboardLayoutProvider> provider);
     std::shared_ptr<RecordingKeyboardLayoutProvider> recording_layouts;  // only with test hooks
+    // Print service (feature 014, contracts/print-service.md): the shell's hidden browser, or the
+    // journeys' seam under test hooks; null in a headless core without test hooks, whose PDF
+    // export then fails with "printing needs the editor's window".
+    std::shared_ptr<PrintService> print_service() const;
+    void set_print_service(std::shared_ptr<PrintService> service);
+    std::shared_ptr<QueuedPrintService> queued_print;  // only with test hooks
 
     Services(CoreServerOptions opts, platform::Dirs dirs_, std::filesystem::path resources,
              std::filesystem::path scripts, rpc::Notifier& notifier_);
@@ -135,6 +163,7 @@ private:
     std::shared_ptr<DialogProvider> dialogs_;
     std::shared_ptr<ClipboardProvider> clipboard_;
     std::shared_ptr<KeyboardLayoutProvider> keyboard_layouts_;
+    std::shared_ptr<PrintService> print_;
     mutable std::mutex genres_mutex_;
     std::shared_ptr<const genres::GenreCatalog> genres_;
     mutable std::mutex scripts_mutex_;
@@ -145,6 +174,8 @@ private:
 
 void register_app_handlers(rpc::RpcRouter& router, Services& services);
 void register_epub_handlers(rpc::RpcRouter& router, Services& services);
+// Feature 014: pdf.export.* (pdf_handlers.cpp).
+void register_pdf_handlers(rpc::RpcRouter& router, Services& services);
 void register_log_handlers(rpc::RpcRouter& router, Services& services);
 void register_settings_handlers(rpc::RpcRouter& router, Services& services);
 void register_dialog_handlers(rpc::RpcRouter& router, Services& services);

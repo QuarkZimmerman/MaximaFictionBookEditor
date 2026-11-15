@@ -32,6 +32,9 @@
       },
       "fonts": {
         "caption": "Noto Color Emoji, Noto Sans Symbols, Noto Sans Symbols 2 and Noto Sans Math (pictures of special characters in imported Markdown), SIL Open Font License 1.1:"
+      },
+      "pdfFonts": {
+        "caption": "Noto Serif, Noto Sans and their Georgian and Armenian families (SIL Open Font License 1.1), and DejaVu Sans Mono (Bitstream Vera licence) - the fonts the PDF export embeds:"
       }
     }
   }

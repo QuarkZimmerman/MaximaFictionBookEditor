@@ -351,6 +351,20 @@ jobs:
             exit 1
           fi
           tools/ci/epubcheck.sh "${books[@]}"
+      # Feature 014 (D21, FR-040, SC-001): every PDF the export journeys wrote passes veraPDF
+      # 1.30.3 against the PDF/A-2 level U profile with no failed rule (tools/ci/verapdf.sh pins the
+      # release and its SHA-256; same Java as EPUBCheck).
+      - name: veraPDF over the exported reference books (feature 014)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          shopt -s nullglob
+          books=(build/pdf-export/*.pdf)
+          if [ "${#books[@]}" -lt 9 ]; then
+            echo "::error::the export journeys (us1-pdf-export) wrote ${#books[@]} PDFs, expected at least 9"
+            exit 1
+          fi
+          tools/ci/verapdf.sh "${books[@]}"
       - name: Platform journeys (feature 004, SC-006 / SC-009; Windows and macOS)
         # Only the journeys tagged `@platform`; `--pass-with-no-tests` keeps the leg green on
         # a branch that has not written one yet. The hooks core of this system comes from the
@@ -364,6 +378,15 @@ jobs:
           MFBE_CORE_BIN: ${{ github.workspace }}/build/${{ matrix.preset }}/bin/${{ matrix.core_bin }}
           MFBE_UI_DIST: ${{ github.workspace }}/ui/dist
           MFBE_RESOURCES: ${{ github.workspace }}/resources
+      - name: The PDF export as this system prints it (feature 014, SC-009)
+        # build/pdf-systems/<platform>.json, written by systems-pdf.spec.ts (@platform): the Linux
+        # leg runs it with every journey, Windows and macOS with the platform journeys.
+        uses: actions/upload-artifact@v6
+        with:
+          name: pdf-systems-${{ runner.os }}
+          path: build/pdf-systems/*.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Russian environment (feature 002; ru_RU.UTF-8, Cyrillic home and temp)
         if: runner.os == 'Linux'
         # The start-up, open/save and Find journeys with the Russian system locale - the
@@ -435,6 +458,25 @@ jobs:
           name: playwright-report-${{ matrix.name }}
           path: ui/playwright-report/
           if-no-files-found: ignore
+
+  pdf-systems:
+    # Feature 014 (SC-009, T060): the same books exported on the three systems, compared - Windows
+    # and Linux page for page, macOS (whose engine hyphenates) by the text in order.
+    name: PDF export across systems
+    needs: e2e
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: pdf-systems-*
+          path: build/pdf-systems
+          merge-multiple: true
+      - name: Compare the systems
+        run: node tests/pdf/compare-systems.mjs build/pdf-systems/linux.json build/pdf-systems/win32.json build/pdf-systems/darwin.json
 
   app:
     name: app (CEF shell, ${{ matrix.name }})
@@ -595,6 +637,18 @@ jobs:
         if: runner.os == 'Linux'
         run: tools/ci/shell-tests-xkb.sh ctest --preset ${{ matrix.preset }} -L shell --output-on-failure
 
+      # Feature 014 (requester, rc.4 and rc.5): after a PDF export, closing the editor ends every one
+      # of its processes, with no safety net acting. The editor of this build exports a book through
+      # its own Save dialog and print service, then File > Exit (tools/ci/windows-pdf-exit-smoke.ps1);
+      # Linux checks the same in its PDF shell smoke below. The job goes on after a failure, so that
+      # its other checks still run, and fails at its end (the result step).
+      - name: "Shell smoke (Windows): the editor ends after a PDF export (feature 014)"
+        id: pdf-exit
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        shell: pwsh
+        run: tools/ci/windows-pdf-exit-smoke.ps1 -Exe "build\${{ matrix.preset }}\bin\mfbe.exe" -Book tests\fixtures\books\reference-all-elements.fb2
+
       # Feature 006 (FR-055): the version forms of this build for the steps below - MFBE_VERSION
       # (the label, 0.0.6-rc), MFBE_VERSION_PACKAGE (0.0.6~rc), MFBE_VERSION_NUMERIC (0.0.6),
       # MFBE_VERSION_PRERELEASE, MFBE_APPIMAGE_CHANNEL, ... as KEY=value lines in $GITHUB_ENV.
@@ -680,6 +734,20 @@ jobs:
           MFBE_SMOKE_OPEN_FILE: tests/fixtures/books/tables.fb2
           MFBE_SMOKE_TABLE_MARKS: "1"
           MFBE_SMOKE_SCREENSHOT: build/shell-smoke-table-marks.png
+
+      - name: "Shell smoke: the PDF export printed by the shell (feature 014, T057)"
+        # The real shell exports the reference book: its GTK Save dialog accepted (xdotool), the
+        # pages printed by its own print service (CEF's PrintToPDF in a hidden browser), and
+        # veraPDF passes the file (build/pdf-export/shell-smoke.pdf). Linux only, as the shell
+        # smoke is.
+        if: runner.os == 'Linux'
+        run: tools/shell-smoke.sh
+        env:
+          MFBE_APP_BIN: ${{ github.workspace }}/build/${{ matrix.preset }}/bin/mfbe
+          MFBE_SMOKE_REAL_UI: "1"
+          MFBE_SMOKE_OPEN_FILE: tests/fixtures/books/reference-all-elements.fb2
+          MFBE_SMOKE_PDF: "1"
+          MFBE_SMOKE_SCREENSHOT: build/shell-smoke-pdf.png
 
       - name: Shell smoke, copies of the editor (feature 008)
         # Two copies, a book relayed through the engine to the untouched copy, the open book not
@@ -926,6 +994,17 @@ jobs:
           $zipDefault = (Get-ItemProperty HKLM:\Software\Classes\.zip -ErrorAction SilentlyContinue).'(default)'
           if ($zipDefault -eq 'MaximaFBE.fb2zip') { throw "the editor became the default program of .zip" }
           tools/ci/windows-start-smoke.ps1 -Exe $exe
+          # Feature 014 (T054, analysis C3): a font the installed editor adds for the PDF export is
+          # kept in the per-user data folder, never under the program's folder.
+          $core = Join-Path (Split-Path -Parent $exe) 'mfbe-core.exe'
+          $font = (Resolve-Path -LiteralPath resources\fonts\DejaVuSansMono.ttf).Path
+          $added = ((& $core fonts add $font) -join "`n") | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or -not $added.font) { throw "mfbe-core fonts add failed: $($added | ConvertTo-Json -Compress)" }
+          Write-Host "The installed editor keeps an added font at $($added.font.file)"
+          if ($added.font.file.StartsWith($env:ProgramFiles, [System.StringComparison]::OrdinalIgnoreCase)) { throw "the installed editor keeps an added font under the program folder: $($added.font.file)" }
+          if (-not $added.font.file.StartsWith($env:APPDATA + '\', [System.StringComparison]::OrdinalIgnoreCase)) { throw "the installed editor keeps an added font at $($added.font.file), not in the per-user data folder under $env:APPDATA" }
+          if (-not (Test-Path -LiteralPath $added.font.file)) { throw "the added font is not at $($added.font.file)" }
+          Remove-Item -LiteralPath (Split-Path -Parent $added.font.file) -Recurse -Force
           # Feature 002: mfbe.exe carries the editor's manifest (UTF-8 process code page), and the
           # editor starts for standard users whose names hold non-English letters - 0.0.1 ended
           # at start-up for them (heap corruption 0xC0000374 for "Pröbe").
@@ -1040,6 +1119,16 @@ jobs:
           Write-Host "Portable copy: $exe"
           & $exe --version
           tools/ci/windows-start-smoke.ps1 -Exe $exe
+          # Feature 014 (T054, analysis C3): a font the portable copy adds for the PDF export stays
+          # in its own user folder.
+          $core = Join-Path (Split-Path -Parent $exe) 'mfbe-core.exe'
+          $font = (Resolve-Path -LiteralPath resources\fonts\DejaVuSansMono.ttf).Path
+          $added = ((& $core fonts add $font) -join "`n") | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or -not $added.font) { throw "mfbe-core fonts add failed: $($added | ConvertTo-Json -Compress)" }
+          $userFonts = Join-Path (Split-Path -Parent $exe) 'user\fonts'
+          Write-Host "The portable copy keeps an added font at $($added.font.file)"
+          if (-not $added.font.file.StartsWith($userFonts + '\', [System.StringComparison]::OrdinalIgnoreCase)) { throw "the portable copy keeps an added font at $($added.font.file), not in $userFonts" }
+          if (-not (Test-Path -LiteralPath $added.font.file)) { throw "the added font is not at $($added.font.file)" }
           # Feature 002: standard users with non-English names (their copy lives outside the
           # runner's profile, which they cannot read), and the program in a folder with Cyrillic
           # letters ("Книги"; 0.0.1 ended with 0xC0000005 in mfbe.dll there).
@@ -1114,7 +1203,7 @@ jobs:
           out=$("$app/Contents/MacOS/mfbe" --version); echo "$out"
           [[ "$out" == *"Maxima Fiction Book Editor $MFBE_VERSION (build $MFBE_VERSION+"* ]] ||
             { echo "::error::mfbe --version does not name the version label $MFBE_VERSION"; exit 1; }
-          hdiutil detach "$RUNNER_TEMP/dmg"
+          tools/ci/detach-dmg.sh "$RUNNER_TEMP/dmg"
 
       - name: Russian environment (macOS, best effort)
         if: runner.os == 'macOS'
@@ -1146,3 +1235,10 @@ jobs:
           name: shell-smoke
           path: build/shell-smoke*.png
           if-no-files-found: ignore
+
+      - name: "The editor ends after a PDF export (Windows, feature 014): result"
+        if: always() && steps.pdf-exit.outcome == 'failure'
+        shell: bash
+        run: |
+          echo "::error::after a PDF export the editor did not end with all its processes on Windows - see the step 'Shell smoke (Windows): the editor ends after a PDF export (feature 014)'"
+          exit 1

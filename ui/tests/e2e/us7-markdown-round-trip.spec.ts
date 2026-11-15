@@ -11,6 +11,7 @@ import path from 'node:path';
 import type { Page } from '@playwright/test';
 
 import { expect, test, waitForBook, type CoreHandle } from './fixtures/core';
+import { clickExport } from './fixtures/exportCheck';
 
 declare const window: { __mfbeTest?: { scripts?: { toXml(): Promise<string> } } };
 
@@ -57,9 +58,7 @@ test.describe('US7 (feature 011) - export and import again', () => {
     await open(core, page, file);
     const target = path.join(dir, 'trip.md');
     await core.enqueueDialog('dialog.saveFile', { path: target, zip: true });
-    await page.getByTestId('menu-file').click();
-    await page.getByTestId('menu-file-export').hover();
-    await page.getByTestId('menu-file-export-exportMarkdown').click();
+    await clickExport(core, page, 'exportMarkdown');
     await expect(page.getByTestId('status-message')).toContainText(`Exported to ${target}:`, {
       timeout: 30_000,
     });

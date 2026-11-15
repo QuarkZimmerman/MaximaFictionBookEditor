@@ -2,9 +2,10 @@
 // предложений". Looks at every pair of consecutive paragraphs of a section (titles, epigraphs,
 // annotations, text-author lines, the first paragraph of a stanza/cite and subtitles are
 // skipped): a first paragraph without final punctuation followed by a lower-case start is
-// merged automatically, a hyphenated line end is merged when the user treats line-end hyphens
-// as hyphenation, and the doubtful patterns (no final dot, question/exclamation/quote at the
-// end, capital letter next) are offered one by one (Yes = merge / add the dot, No = skip).
+// merged automatically. When the user treats line-end hyphens as hyphenation, a hyphenated
+// line end is merged too and nothing else is asked, as in the original. Otherwise the hyphenated
+// ends and the doubtful patterns (no final dot, question/exclamation/quote at the end, capital
+// letter next) are offered one by one (Yes = merge / add the dot, No = skip).
 // The pair is processed in the legacy notation "<P>…</P>\r\n<P>…</P>" the original worked on.
 // Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
 //======================================
@@ -115,12 +116,14 @@ export default async function run(ctx) {
         if (await merge(RE0, '$1 $5')) counta += 1;
         continue;
       }
+      // As the original: with "Yes" to the hyphenation question only the hyphenated breaks are
+      // joined, and nothing more is asked - its questions about doubtful pairs are all in the
+      // else of `if (Perenos)` (issue #14; FBE 2.7.9 asks once).
       if (hyphenation) {
-        if (ss.search(RE00) !== -1) {
-          if (await merge(RE00, '$1$3')) counta += 1;
-          continue;
-        }
-      } else if (ss.search(RE00) !== -1) {
+        if (ss.search(RE00) !== -1 && (await merge(RE00, '$1$3'))) counta += 1;
+        continue;
+      }
+      if (ss.search(RE00) !== -1) {
         if (await ask(ru ? ' 1. Объединить параграфы, перенос?' : ' 1. Join the paragraphs (hyphenation)?', b1, b2)) {
           if (await merge(RE00, '$1$3')) countr += 1;
         }

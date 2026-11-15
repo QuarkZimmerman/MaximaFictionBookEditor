@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+<stylesheet type="text/css">title p { font-family: "Arial", sans-serif; }
+epigraph { font-family: Georgia; }
+code { font-family: 'Courier New', monospace; }
+.plain { font-family: Verdana; }
+.unknown { font-family: 'Some Unknown Face'; }
+</stylesheet>
+<description>
+<title-info>
+<genre>sf_fantasy</genre>
+<author><first-name>Ivan</first-name><last-name>Testov</last-name></author>
+<book-title>Font kinds</book-title>
+<lang>en</lang>
+</title-info>
+<document-info>
+<author><nickname>mfbe-tests</nickname></author>
+<date value="2026-11-12">12 November 2026</date>
+<id>mfbe-pdf-kinds-0001</id>
+<version>1.0</version>
+</document-info>
+</description>
+<body>
+<title><p>Font kinds</p></title>
+<section><title><p>Titles in a sans-serif</p></title>
+<epigraph><p>An epigraph in Georgia, a serif.</p></epigraph>
+<p>Body text, then <code>code in Courier New</code>, <style name="plain">Verdana by name</style> and <style name="unknown">an unknown face</style>.</p>
+</section>
+</body>
+</FictionBook>

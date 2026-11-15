@@ -17,7 +17,10 @@ export function ModalJobOverlay() {
     if (job) cancelRef.current?.focus({ preventScroll: true });
   }, [job !== null]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!job) return null;
-  const percent = job.total > 0 ? Math.min(100, Math.round((job.done / job.total) * 100)) : null;
+  // In tenths of a thousandth: a long job's bar moves with every report, not only at each hundredth
+  // (feature 014, SC-010).
+  const permille =
+    job.total > 0 ? Math.min(1000, Math.round((job.done / job.total) * 10000) / 10) : null;
   return (
     <div
       className="mfbe-modal-job"
@@ -31,8 +34,8 @@ export function ModalJobOverlay() {
         <progress
           className="mfbe-modal-job-bar"
           data-testid="modal-job-progress"
-          max={100}
-          {...(percent === null ? {} : { value: percent })}
+          max={1000}
+          {...(permille === null ? {} : { value: permille })}
         />
         <button
           ref={cancelRef}

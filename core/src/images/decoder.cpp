@@ -7,6 +7,7 @@
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
+#include <functional>
 #include <gif_lib.h>
 #include <memory>
 #include <mutex>
@@ -209,6 +210,10 @@ struct PngState {
     std::string error;
     Bitmap bitmap;
     std::vector<png_bytep> rows;
+    // decode_png_rows: the row buffer, and where the rows go.
+    std::vector<std::uint8_t> row;
+    const std::function<void(int, int)>* start = nullptr;
+    const std::function<void(const std::uint8_t*)>* emit = nullptr;
 };
 
 void png_read_from_memory(png_structp png, png_bytep out, png_size_t length) {
@@ -230,7 +235,8 @@ void png_on_error(png_structp png, png_const_charp message) {
 
 void png_on_warning(png_structp, png_const_charp) {}
 
-void png_decode_body(PngState& st, png_structp png, png_infop info) {
+// The transformations every PNG gets: 8-bit RGBA rows. Returns the size.
+std::pair<png_uint_32, png_uint_32> png_setup(PngState& st, png_structp png, png_infop info) {
     png_set_read_fn(png, &st, png_read_from_memory);
     png_set_user_limits(png, kMaxDimension, kMaxDimension);
     png_read_info(png, info);
@@ -260,6 +266,10 @@ void png_decode_body(PngState& st, png_structp png, png_infop info) {
     if (png_get_rowbytes(png, info) != static_cast<std::size_t>(width) * 4) {
         throw DecodeError("corrupt", "PNG: unexpected row layout");
     }
+    return {width, height};
+}
+
+void png_read_whole(PngState& st, png_structp png, png_uint_32 width, png_uint_32 height) {
     st.bitmap = make_bitmap(static_cast<int>(width), static_cast<int>(height), "image/png");
     st.rows.resize(height);
     for (png_uint_32 y = 0; y < height; ++y) {
@@ -268,6 +278,28 @@ void png_decode_body(PngState& st, png_structp png, png_infop info) {
     png_read_image(png, st.rows.data());
     png_read_end(png, nullptr);
     st.bitmap.update_alpha_flag();
+}
+
+void png_decode_body(PngState& st, png_structp png, png_infop info) {
+    const auto [width, height] = png_setup(st, png, info);
+    png_read_whole(st, png, width, height);
+}
+
+void png_rows_body(PngState& st, png_structp png, png_infop info) {
+    const auto [width, height] = png_setup(st, png, info);
+    (*st.start)(static_cast<int>(width), static_cast<int>(height));
+    if (png_get_interlace_type(png, info) != PNG_INTERLACE_NONE) {
+        png_read_whole(st, png, width, height);
+        for (png_uint_32 y = 0; y < height; ++y)
+            (*st.emit)(st.rows[y]);
+        return;
+    }
+    st.row.resize(static_cast<std::size_t>(width) * 4);
+    for (png_uint_32 y = 0; y < height; ++y) {
+        png_read_row(png, st.row.data(), nullptr);
+        (*st.emit)(st.row.data());
+    }
+    png_read_end(png, nullptr);
 }
 
 // As jpeg_run, for libpng: false after a libpng error (the message in st->error).
@@ -281,7 +313,11 @@ static MFBE_SETJMP_FRAME bool png_run(PngState* st, png_structp png, png_infop i
     if (setjmp(png_jmpbuf(png))) {
         return false;
     }
-    png_decode_body(*st, png, info);
+    if (st->emit != nullptr) {
+        png_rows_body(*st, png, info);
+    } else {
+        png_decode_body(*st, png, info);
+    }
     return true;
 }
 #if defined(_MSC_VER)
@@ -313,6 +349,35 @@ Bitmap decode_png(std::string_view bytes) {
         throw DecodeError("corrupt", "PNG: " + st->error);
     }
     return std::move(st->bitmap);
+}
+
+void decode_png_rows_impl(std::string_view bytes, const std::function<void(int, int)>& start,
+                          const std::function<void(const std::uint8_t*)>& emit) {
+    auto st = std::make_unique<PngState>();
+    st->data = bytes;
+    st->start = &start;
+    st->emit = &emit;
+    png_structp png =
+        png_create_read_struct(PNG_LIBPNG_VER_STRING, st.get(), png_on_error, png_on_warning);
+    if (png == nullptr) {
+        throw DecodeError("corrupt", "PNG: cannot create reader");
+    }
+    png_infop info = png_create_info_struct(png);
+    if (info == nullptr) {
+        png_destroy_read_struct(&png, nullptr, nullptr);
+        throw DecodeError("corrupt", "PNG: cannot create info");
+    }
+    bool ok = false;
+    try {
+        ok = png_run(st.get(), png, info);
+    } catch (...) {
+        png_destroy_read_struct(&png, &info, nullptr);
+        throw;
+    }
+    png_destroy_read_struct(&png, &info, nullptr);
+    if (!ok) {
+        throw DecodeError("corrupt", "PNG: " + st->error);
+    }
 }
 
 /* ----------------------------------------------------------------------------------------- */
@@ -616,6 +681,12 @@ std::optional<Bitmap> try_decode(std::string_view bytes, std::string* error) {
         }
         return std::nullopt;
     }
+}
+
+void decode_png_rows(std::string_view bytes,
+                     const std::function<void(int width, int height)>& start,
+                     const std::function<void(const std::uint8_t* rgba)>& row) {
+    decode_png_rows_impl(bytes, start, row);
 }
 
 }  // namespace mfbe::images

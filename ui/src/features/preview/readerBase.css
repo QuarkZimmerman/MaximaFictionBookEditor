@@ -24,7 +24,19 @@ FictionBook {
   hyphens: auto;
 }
 
-body, section, title, subtitle, epigraph, cite, annotation, poem, stanza, v, p, text-author, date,
+body,
+section,
+title,
+subtitle,
+epigraph,
+cite,
+annotation,
+poem,
+stanza,
+v,
+p,
+text-author,
+date,
 empty-line {
   display: block;
 }

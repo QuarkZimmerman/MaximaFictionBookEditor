@@ -13,6 +13,7 @@
 import type { CommandContext, CommandRegistry } from '@/app/commands';
 import { startModalJob, type ModalJobHandle } from '@/app/modalJob';
 import { cmdKeys } from '@/features/editing/common';
+import { confirmBookExport } from '@/features/file/exportCheck';
 import type { FileFeature } from '@/features/file/fileCommands';
 import { proposedStem } from '@/features/file/proposedName';
 import { commitPendingSource } from '@/views/source/sourceSession';
@@ -92,6 +93,8 @@ export function registerEpubFeature(commands: CommandRegistry, files: FileFeatur
       const state = store.getState();
       if (!state.document || !state.docId) return;
       const docId = state.docId;
+      // As Save asks before writing an invalid book (requester, rc.5).
+      if (!(await confirmBookExport(ctx)) || store.getState().docId !== docId) return;
       const stem = proposedStem(state.document.description, ctx.t('app.untitled'));
       const { path } = await rpc.call('dialog.saveFile', {
         title: ctx.t('cmd.file.exportEpub.tooltip'),

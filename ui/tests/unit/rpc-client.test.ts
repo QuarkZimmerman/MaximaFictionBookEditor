@@ -126,7 +126,7 @@ describe('RpcClient', () => {
     // as it is, and the features that need a newer answer (the `serial` of the position map, the
     // AI assistant's `ai.*` family) degrade or stay unregistered on their own.
     expect(RPC_API_VERSION).toBe(1);
-    expect(RPC_API_MINOR).toBe(11);
+    expect(RPC_API_MINOR).toBe(12);
     const { client, socket } = setup();
     client.connect();
     socket().open();

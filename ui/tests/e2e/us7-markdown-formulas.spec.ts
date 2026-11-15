@@ -12,6 +12,7 @@ import path from 'node:path';
 import type { Page } from '@playwright/test';
 
 import { expect, test } from './fixtures/core';
+import { clickExport } from './fixtures/exportCheck';
 
 interface Binary {
   id: string;
@@ -101,9 +102,7 @@ test.describe('US7 (feature 011) - formulas on import', () => {
 
     const target = path.join(dir, 'again.md');
     await core.enqueueDialog('dialog.saveFile', { path: target });
-    await page.getByTestId('menu-file').click();
-    await page.getByTestId('menu-file-export').hover();
-    await page.getByTestId('menu-file-export-exportMarkdown').click();
+    await clickExport(core, page, 'exportMarkdown');
     const question = page.getByTestId('dialog-markdown-pictures');
     await expect(question).toBeVisible({ timeout: 15_000 });
     await question.getByTestId('dialog-markdown-pictures-button-yes').click();

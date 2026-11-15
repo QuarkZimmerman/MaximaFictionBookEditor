@@ -12,6 +12,7 @@ import path from 'node:path';
 import type { Page } from '@playwright/test';
 
 import { expect, test } from './fixtures/core';
+import { clickExport } from './fixtures/exportCheck';
 
 interface Binary {
   id: string;
@@ -119,9 +120,7 @@ test.describe('US7 (feature 011) - Mermaid diagrams on import', () => {
     // Exported again, the three diagrams are Mermaid blocks, not pictures.
     const target = path.join(dir, 'again.md');
     await core.enqueueDialog('dialog.saveFile', { path: target });
-    await page.getByTestId('menu-file').click();
-    await page.getByTestId('menu-file-export').hover();
-    await page.getByTestId('menu-file-export-exportMarkdown').click();
+    await clickExport(core, page, 'exportMarkdown');
     // The book has pictures: the export asks whether to include them (the test dialog has no
     // checkbox); the diagrams are written as Mermaid either way.
     const question = page.getByTestId('dialog-markdown-pictures');

@@ -1,0 +1,162 @@
+{
+  "$comment": "PDF export (feature 014): the File > Export entry, the Save dialog's page sizes, the export's progress, messages and reasons. Feature catalogue merged by i18n/index.ts.",
+  "menu": {
+    "file": {
+      "exportPdf": "Expor&t as PDF..."
+    }
+  },
+  "cmd": {
+    "file": {
+      "exportPdf": {
+        "tooltip": "Export as PDF",
+        "description": "Write the book as a searchable PDF/A file in a page size you choose, with bookmarks, links, footnotes and the whole description in its metadata"
+      }
+    }
+  },
+  "pdf": {
+    "filter": "PDF documents (*.pdf)",
+    "pageSizeLabel": "Page size:",
+    "sizes": {
+      "a4": "A4 (210 × 297 mm)",
+      "b5": "B5 (176 × 250 mm)",
+      "a5": "A5 (148 × 210 mm)",
+      "b6": "B6 (125 × 176 mm)",
+      "a6": "A6 (105 × 148 mm)",
+      "legal": "Legal (8.5 × 14 in)",
+      "letter": "Letter (8.5 × 11 in)",
+      "executive": "Executive (7.25 × 10.5 in)",
+      "statement": "Statement (5.5 × 8.5 in)"
+    },
+    "sizeGroups": {
+      "iso": "ISO sizes",
+      "american": "North American sizes"
+    },
+    "exporting": "Exporting as PDF…",
+    "exportCaption": "PDF export",
+    "exportDone": "Exported to {{path}}: {{pages}} pages in {{size}}, {{pictures}} pictures, {{tables}} tables, {{notes}} notes.",
+    "exportCancelled": "The export was cancelled; no file was written.",
+    "exportFailed": "The PDF {{path}} was not written:\n{{detail}}",
+    "exportSummaryIntro": "Not everything was carried over as written:",
+    "summary": {
+      "pictureLeftOut": "Picture {{detail}} left out: it has no data, or it is not a picture",
+      "fontReplaced": "Font “{{detail}}” replaced by the editor's own font of its kind",
+      "systemFont": "Drawn with a system font, as no font the editor ships has them: {{detail}}",
+      "linkAsText": "Link to {{detail}} written as text: nothing in the book has that id",
+      "idTwice": "The id {{detail}} is used more than once: only its first place keeps it",
+      "noTitle": "The book has no title: the file’s name “{{detail}}” is its title in the PDF",
+      "noLanguage": "The book’s language is not given: the words the export adds are in English",
+      "addedFontFallback": "Not in {{font}}, drawn with the shipped fonts: {{detail}}",
+      "rawPart": "Not printed - kept as XML that is not valid FB2 there, which Preview does not show: {{detail}}"
+    },
+    "reason": {
+      "noPrinter": "printing needs the editor's window",
+      "printFailed": "the browser engine could not print the pages ({{message}})",
+      "targetIsSource": "the file chosen is the book itself, or the archive it was opened from",
+      "badPageSize": "the page size is not one of the nine",
+      "ioError": "the file could not be written ({{message}})",
+      "checkFailed": "the finished file failed its own check ({{message}})",
+      "unknownToken": "the export was no longer known to the core",
+      "noPart": "a part of the pages is missing",
+      "tooManyPages": "the book has more pages than a PDF the editor writes may have"
+    },
+    "limit": {
+      "pages": "the book would take {{count}} pages; a PDF the editor writes has at most {{max}}",
+      "notes": "the book has {{count}} notes; a PDF the editor writes holds at most {{max}}"
+    },
+    "settings": {
+      "group": "PDF export",
+      "pageSize": "Default &page size:",
+      "textFont": "&Text font:",
+      "textSize": "Text si&ze:",
+      "margins": "&Margins:",
+      "default": "Default: {{value}}",
+      "reset": "Reset",
+      "resetAll": "Reset all",
+      "addFile": "Add font from file...",
+      "addInstalled": "Add installed font...",
+      "remove": "Remove",
+      "addedFonts": "Added fonts",
+      "face": "Fa&ce:",
+      "chooseFace": "Choose a face of the collection",
+      "addFileTitle": "Add Font",
+      "fontFiles": "Font files",
+      "fonts": {
+        "noto-serif": "Noto Serif",
+        "noto-sans": "Noto Sans",
+        "dejavu-sans-mono": "DejaVu Sans Mono"
+      },
+      "textSizes": {
+        "smaller": "Smaller",
+        "standard": "Standard",
+        "larger": "Larger",
+        "custom": "Custom"
+      },
+      "marginSizes": {
+        "narrow": "Narrow",
+        "standard": "Standard",
+        "wide": "Wide",
+        "custom": "Custom"
+      },
+      "refused": {
+        "unreadable": "The file is not a font the editor can read.",
+        "restricted": "The font’s licence forbids embedding it in a document.",
+        "bitmapOnly": "The font allows only its bitmaps to be embedded, and it has none.",
+        "tooLarge": "The font file is larger than 64 MB.",
+        "duplicate": "The font has been added already.",
+        "noInstalledFonts": "The fonts installed on this computer cannot be listed here."
+      },
+      "installed": "I&nstalled font:",
+      "chooseInstalled": "Choose a font installed on this computer",
+      "textSizeValue": "Text size, points",
+      "marginValue": "Margins, mm",
+      "unitPt": "points",
+      "unitMm": "mm"
+    }
+  },
+  "dialog": {
+    "settings": {
+      "pages": {
+        "exports": "Exports"
+      }
+    }
+  },
+  "tip": {
+    "settings": {
+      "tabs": {
+        "exports": "The settings of each export format: PDF, EPUB, Markdown"
+      },
+      "pdf": {
+        "pageSize": "The size the Save dialog proposes for a book exported for the first time",
+        "textFont": "The font the book’s text is printed in, unless the book names its own",
+        "textSize": "The size of the book’s text in the PDF",
+        "margins": "The margins of the PDF’s pages",
+        "addFile": "Adds a TrueType or OpenType font file; it is kept with the editor’s data",
+        "addInstalled": "Adds a font installed on this computer",
+        "remove": "Removes the added font chosen as the text font",
+        "face": "The face of the font collection to add",
+        "reset": "Puts the default back: {{value}}",
+        "resetAll": "Puts every value of this page back to its default",
+        "installed": "The installed font to add",
+        "textSizeValue": "The text size this choice gives the default page size above; with Custom, type your own (6 to 24 pt)",
+        "marginValue": "The margins this choice gives the default page size above; with Custom, type your own (5 to 50 mm)"
+      },
+      "exports": {
+        "format": "The export format whose settings are shown below"
+      }
+    },
+    "pdf": {
+      "pageSize": "The page size of this PDF: the ISO sizes first, then the North American ones"
+    }
+  },
+  "exports": {
+    "settings": {
+      "format": "Format",
+      "formats": {
+        "pdf": "PDF",
+        "epub": "EPUB",
+        "markdown": "Markdown"
+      },
+      "none": "This format has no settings of its own yet."
+    }
+  }
+}

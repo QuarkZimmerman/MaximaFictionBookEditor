@@ -65,6 +65,14 @@ Bitmap decode(std::string_view bytes);
 Bitmap decode_for_preview(std::string_view bytes, int min_width, int min_height);
 std::optional<Bitmap> try_decode(std::string_view bytes, std::string* error = nullptr);
 
+// Feature 014 (DP-19): a PNG one row at a time, each row RGBA as decode() gives it (the same
+// transformations), so that a large picture is never held whole. `start` gets the size before the
+// first row (it may throw to stop); an interlaced PNG, whose rows come in passes, is read whole
+// first. Throws DecodeError.
+void decode_png_rows(std::string_view bytes,
+                     const std::function<void(int width, int height)>& start,
+                     const std::function<void(const std::uint8_t* rgba)>& row);
+
 std::string encode_jpeg(const Bitmap& bitmap, int quality);
 std::string encode_png(const Bitmap& bitmap);
 

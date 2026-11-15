@@ -107,6 +107,18 @@ const std::vector<Field>& schema() {
         field("view.showIds", Kind::boolean),
         // Feature 012 (D36, DP-17): whether the Body view draws the book's own stylesheets.
         field("view.showBookStyles", Kind::boolean),
+        // Feature 014 (D25, FR-070): the PDF export's settings. The text font is a shipped
+        // family's id or an added font's id (the SHA-256 of its file); one that no longer exists
+        // reads as noto-serif wherever it is used (plan DP-7), so only its form is checked here.
+        enumeration("pdf.defaultPageSize",
+                    {"a4", "b5", "a5", "b6", "a6", "legal", "letter", "executive", "statement"}),
+        text("pdf.textFont", 1, 80),
+        enumeration("pdf.textSize", {"smaller", "standard", "larger", "custom"}),
+        enumeration("pdf.margins", {"narrow", "standard", "wide", "custom"}),
+        // The values a "custom" choice uses (requester, rc.3): the text size in tenths of a point
+        // (6 to 24 pt), the margins in millimetres.
+        integer("pdf.customTextSize", 60, 240),
+        integer("pdf.customMargin", 5, 50),
         enumeration("other.defaultEncoding", supported_encodings()),
         field("other.keepEncoding", Kind::boolean),
         // A backup of the previous version beside the saved file (feature 009, FR-006).
@@ -623,6 +635,13 @@ json defaults() {
           {"keyboardLayoutName", ""},
           {"openFromOutside", "ask"}}},
         {"words", {{"showExclusionsInWordsDialog", false}}},
+        {"pdf",
+         {{"defaultPageSize", "a4"},
+          {"textFont", "noto-serif"},
+          {"textSize", "standard"},
+          {"margins", "standard"},
+          {"customTextSize", 115},
+          {"customMargin", 22}}},
         {"session",
          {{"windowGeometry", nullptr},
           {"toolbars",

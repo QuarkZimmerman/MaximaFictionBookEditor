@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 import type { Page } from '@playwright/test';
 
 import { expect, test, waitForBook, type CoreHandle } from './fixtures/core';
+import { clickExport } from './fixtures/exportCheck';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const JPEG = readFileSync(path.join(REPO_ROOT, 'tests', 'fixtures', 'images', 'tiny.jpg'));
@@ -60,10 +61,8 @@ async function open(core: CoreHandle, page: Page, file: string): Promise<void> {
   await waitForBook(page, file);
 }
 
-async function exportZip(page: Page): Promise<void> {
-  await page.getByTestId('menu-file').click();
-  await page.getByTestId('menu-file-export').hover();
-  await page.getByTestId('menu-file-export-exportMarkdownZip').click();
+async function exportZip(core: CoreHandle, page: Page): Promise<void> {
+  await clickExport(core, page, 'exportMarkdownZip');
 }
 
 test.describe('US6 (feature 011) - the Markdown ZIP', () => {
@@ -89,7 +88,7 @@ test.describe('US6 (feature 011) - the Markdown ZIP', () => {
     await open(core, page, book);
     const target = path.join(dir, 'pictures.md.zip');
     await core.enqueueDialog('dialog.saveFile', { path: target });
-    await exportZip(page);
+    await exportZip(core, page);
     await expect(page.getByTestId('status-message')).toContainText(`Exported to ${target}:`, {
       timeout: 30_000,
     });
@@ -137,7 +136,7 @@ test.describe('US6 (feature 011) - the Markdown ZIP', () => {
     await page.getByTestId('menu-file-open').click();
     await expect(page).toHaveTitle(/^pictures\.fb2 \(book\.zip\) - /, { timeout: 30_000 });
     await core.enqueueDialog('dialog.saveFile', { path: archive });
-    await exportZip(page);
+    await exportZip(core, page);
     await expect(page.getByTestId('command-error')).toBeVisible({ timeout: 30_000 });
     expect(readFileSync(archive).equals(before)).toBe(true);
   });

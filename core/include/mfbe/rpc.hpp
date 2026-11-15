@@ -84,6 +84,10 @@ inline constexpr int kImportTooLarge = 1101;
 // {reason: epub.badName | epub.targetIsSource | epub.unknownToken | epub.ioError, name?, path?}.
 inline constexpr int kEpubRefused = 1110;
 inline constexpr int kEpubWriteFailed = 1111;
+// Feature 014 (pdf.export.*, contracts/rpc-api.md): a PDF export that cannot go on -
+// {reason: pdf.badPageSize | pdf.targetIsSource | pdf.unknownToken | pdf.noPrinter |
+// pdf.printFailed | pdf.noPart | pdf.ioError | pdf.checkFailed, message?, part?}.
+inline constexpr int kPdfExportFailed = 1112;
 // Feature 005 (ai.*): the target cannot be resolved to a service the call may contact -
 // {reason: disabled | unknownService | emptyAddress | noModel | noAgreement, id?, service?}.
 inline constexpr int kAiNoService = 1200;

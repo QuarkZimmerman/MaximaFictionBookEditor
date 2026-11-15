@@ -130,6 +130,11 @@
       "tooltip": "Export as Markdown ZIP",
       "description": "Write the book as a ZIP archive holding a Markdown file and its pictures"
     },
+    "file.exportPdf": {
+      "label": "Expor&t as PDF...",
+      "tooltip": "Export as PDF",
+      "description": "Write the book as a searchable PDF/A file in a page size you choose, with bookmarks, links, footnotes and the whole description in its metadata"
+    },
     "file.importDescription": {
       "label": "&Description from FictionBook file...",
       "tooltip": "Import description",
@@ -852,6 +857,11 @@
       "tooltip": "Экспорт в Markdown ZIP",
       "description": "Записать книгу ZIP-архивом с файлом Markdown и его картинками"
     },
+    "file.exportPdf": {
+      "label": "Экспор&т в PDF...",
+      "tooltip": "Экспорт в PDF",
+      "description": "Записать книгу в файл PDF/A выбранного размера страницы, с поиском по тексту, закладками, ссылками, сносками и полным описанием в метаданных"
+    },
     "file.importDescription": {
       "label": "Опис&ание из файла FictionBook...",
       "tooltip": "Импорт описания",
@@ -1573,6 +1583,11 @@
       "label": "Експорт у Markdown &ZIP...",
       "tooltip": "Експорт у Markdown ZIP",
       "description": "Записати книгу ZIP-архівом із файлом Markdown і його зображеннями"
+    },
+    "file.exportPdf": {
+      "label": "Експор&т у PDF...",
+      "tooltip": "Експорт у PDF",
+      "description": "Записати книжку у файл PDF/A вибраного розміру сторінки, з пошуком у тексті, закладками, посиланнями, виносками й повним описом у метаданих"
     },
     "file.importDescription": {
       "label": "Оп&ис із файлу FictionBook...",

@@ -166,7 +166,7 @@ export function cloneSettings(settings: Settings): Settings {
 }
 
 /** The sections the Settings dialog edits; `ai` since feature 005 (rpc-api §3.7). */
-const PATCH_SECTIONS = ['view', 'other', 'words', 'ai'] as const;
+const PATCH_SECTIONS = ['view', 'other', 'words', 'pdf', 'ai'] as const;
 
 /** Leaves equal by value: primitives by `Object.is`, the object leaves of `ai` by their JSON. */
 function sameLeaf(a: unknown, b: unknown): boolean {

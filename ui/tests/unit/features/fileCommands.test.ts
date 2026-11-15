@@ -161,10 +161,15 @@ describe('file flows (T052)', () => {
       'dialog.openFile',
       'app.bookHolder', // feature 008: a book open in another copy is shown there (FR-017)
       'doc.open',
+      'doc.validate', // the book is checked as soon as it has loaded (requester, rc.5)
       'doc.watch',
       'doc.recent',
       'doc.position',
     ]);
+    // ... in the core's own copy: the window sends no document (a large one held up its opening).
+    expect(flowCalls(rpc).find((c) => c.method === 'doc.validate')!.params).toEqual({
+      docId: expect.any(String),
+    });
     expect(flowCalls(rpc)[0]!.params).toEqual({
       title: 'Open',
       filters: [

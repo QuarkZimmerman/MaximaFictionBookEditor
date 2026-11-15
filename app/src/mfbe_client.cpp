@@ -14,6 +14,7 @@
 #include "include/wrapper/cef_helpers.h"
 #include "native_actions.h"
 #include "permission_policy.h"
+#include "print_service_cef.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -278,8 +279,9 @@ void MfbeClient::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
         }
     }
     if (browser_list_.empty()) {
-        // All browser windows have closed. Quit the application message loop.
-        CefQuitMessageLoop();
+        // All browser windows have closed. The PDF export's hidden print browser closes too, then
+        // the application message loop quits: CefShutdown must find no browser open.
+        closePrintBrowser([] { CefQuitMessageLoop(); });
     }
 }
 
@@ -334,9 +336,12 @@ bool MfbeClient::OnShowPermissionPrompt(CefRefPtr<CefBrowser> /*browser*/, uint6
                                         const CefString& requesting_origin,
                                         uint32_t requested_permissions,
                                         CefRefPtr<CefPermissionPromptCallback> callback) {
-    const bool clipboard_only = requested_permissions == CEF_PERMISSION_TYPE_CLIPBOARD;
+    // The clipboard (Edit > Paste) and the installed fonts (Settings > PDF export, feature 014).
+    constexpr uint32_t kOwnKinds = CEF_PERMISSION_TYPE_CLIPBOARD | CEF_PERMISSION_TYPE_LOCAL_FONTS;
+    const bool own_kinds_only =
+        requested_permissions != 0 && (requested_permissions & ~kOwnKinds) == 0;
     callback->Continue(
-        allowPermission(requesting_origin.ToString(), config_.app_origin, clipboard_only)
+        allowPermission(requesting_origin.ToString(), config_.app_origin, own_kinds_only)
             ? CEF_PERMISSION_RESULT_ACCEPT
             : CEF_PERMISSION_RESULT_DENY);
     return true;

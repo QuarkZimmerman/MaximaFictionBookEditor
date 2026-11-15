@@ -23,7 +23,8 @@
             "file.exportFbd",
             "file.exportMarkdown",
             "file.exportMarkdownZip",
-            "file.exportEpub"
+            "file.exportEpub",
+            "file.exportPdf"
           ]
         },
         "---",

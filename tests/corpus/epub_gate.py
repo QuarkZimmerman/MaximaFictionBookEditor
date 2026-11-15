@@ -40,8 +40,9 @@ def arguments(description: str | None, default_out: str) -> argparse.Namespace:
     return args
 
 
-def run_journey(mode: str, books: Path, out: Path, core: Path) -> list[dict]:
-    """Runs the journey in `mode` (export or import) over `books`; the records it wrote."""
+def run_journey(mode: str, books: Path, out: Path, core: Path, spec: str = "corpus-epub") -> list[dict]:
+    """Runs the journey `spec` in `mode` (export, import; pdf with corpus-pdf, feature 014) over
+    `books`; the records it wrote."""
     out.mkdir(parents=True, exist_ok=True)
     results = out / "results.json"
     results.unlink(missing_ok=True)
@@ -54,9 +55,9 @@ def run_journey(mode: str, books: Path, out: Path, core: Path) -> list[dict]:
     }
     npx = "npx.cmd" if os.name == "nt" else "npx"
     # No shell: the arguments reach Playwright as they are.
-    run = subprocess.run([npx, "playwright", "test", "corpus-epub", "--reporter=line"], cwd=REPO / "ui", env=env)
+    run = subprocess.run([npx, "playwright", "test", spec, "--reporter=line"], cwd=REPO / "ui", env=env)
     if not results.is_file():
-        sys.exit(f"corpus-epub: the journey wrote no results (exit {run.returncode})")
+        sys.exit(f"{spec}: the journey wrote no results (exit {run.returncode})")
     return json.loads(results.read_text(encoding="utf-8"))
 
 

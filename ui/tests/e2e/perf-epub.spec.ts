@@ -20,6 +20,7 @@ import type { Page } from '@playwright/test';
 
 import { writeBigPictureBook } from './fixtures/bigPictureBook';
 import { expect, shownDocId, test, waitForBook, type CoreHandle } from './fixtures/core';
+import { clickExport } from './fixtures/exportCheck';
 import { exportEpubTo } from './fixtures/epubExport';
 import { importDone, importViaMenu } from './fixtures/epubImport';
 import { MEMORY_BUDGET_BYTES, OWN_CORE, peakRssBytes, rendererPeakBytes } from './fixtures/memory';
@@ -332,9 +333,7 @@ test.describe('performance - the EPUB export and import, the book styles (SC-010
       const target = path.join(many, 'cancelled.epub');
       await core.enqueueDialog('dialog.saveFile', { path: target });
       await page.evaluate(ARM_CANCEL);
-      await page.getByTestId('menu-file').click();
-      await page.getByTestId('menu-file-export').hover();
-      await page.getByTestId('menu-file-export-exportEpub').click();
+      await clickExport(core, page, 'exportEpub');
       const exportCancel = await cancelMs(page);
       note(`export Cancel: ${exportCancel.toFixed(0)} ms`);
       expect(exportCancel, 'the export ended before Cancel').toBeGreaterThanOrEqual(0);

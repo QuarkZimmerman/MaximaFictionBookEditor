@@ -490,6 +490,10 @@ export class FileFeature {
     actions.setDocument(ctx.store, loaded);
     if (options.template) actions.setNewDocumentBaseline(ctx.store, loaded.description);
     actions.setStatusMessage(ctx.store, null);
+    // The validity pane shows the book's state at once, not "Not checked" until a click
+    // (requester, rc.5): the same check as Tools > Validate, without its status message, of the
+    // core's own copy of the book just loaded.
+    void this.validateDocument(ctx, { quiet: true, asLoaded: true }).catch(() => undefined);
     if (ctx.store.getState().activeView === 'source') {
       // A new document always starts in the Body view unless it is Source-only.
       switchView(ctx, 'body');
@@ -1158,30 +1162,11 @@ export class FileFeature {
 
   /* --------------------------------------------------------------- validate */
 
-  async validateDocument(ctx: CommandContext): Promise<ValidationReport | null> {
-    const { store, rpc } = ctx;
-    const state = store.getState();
-    if (!rpc || !state.document || !state.docId) return null;
-    const session = sourceSession(store);
-    const useText = (state.sourceOnly || state.sourceDirty) && session.text !== null;
-    const report = await rpc.runJob(
-      'doc.validate',
-      useText
-        ? { docId: state.docId, text: session.text ?? '' }
-        : { docId: state.docId, document: state.document },
-      { onProgress: (progress) => actions.setProgress(store, progress) },
-    );
-    actions.setProgress(store, null);
-    actions.setValidation(store, report);
-    // Feature 009 (FR-055): the validity pane shows this result until the content changes.
-    actions.setLastCheck(store, report.errorCount);
-    actions.setStatusMessage(
-      store,
-      report.errorCount === 0
-        ? ctx.t('status.noErrors')
-        : ctx.t('msg.errorsFound', { count: report.errorCount }),
-    );
-    return report;
+  validateDocument(
+    ctx: CommandContext,
+    options: ValidateOptions = {},
+  ): Promise<ValidationReport | null> {
+    return validateBook(ctx, options);
   }
 
   /* ------------------------------------------------------------------- exit */
@@ -1410,4 +1395,78 @@ export function registerFileCommands(
   options?: FileFeatureOptions,
 ): FileFeature {
   return new FileFeature(registry, options);
+}
+
+/** The check of the book's content in flight (not of a Source text): `validateBook` shares it. */
+let inflight: { docId: string; revision: number; job: Promise<ValidationReport> } | null = null;
+
+/**
+/** How `validateBook` checks the book and what it shows. */
+export interface ValidateOptions {
+  /**
+   * The validity pane alone (the check after loading, the export's question): the problem list
+   * is refreshed only when it is open, as after a save, and the status line keeps what it says.
+   */
+  quiet?: boolean;
+  /**
+   * The book just loaded, unchanged: the core checks its own copy of it, so the window sends
+   * nothing - serialising a large book here held up its opening (CI on 7526837: the 10 MB book
+   * editable after 3.17 s instead of under 3 s).
+   */
+  asLoaded?: boolean;
+}
+
+/**
+ * File > Validate's check of the book as the window has it (the Source text while it is the newer
+ * one): the problem list, the validity pane and the status message; see ValidateOptions.
+ */
+export async function validateBook(
+  ctx: CommandContext,
+  options: ValidateOptions = {},
+): Promise<ValidationReport | null> {
+  const { store, rpc } = ctx;
+  const state = store.getState();
+  if (!rpc || !state.document || !state.docId) return null;
+  const session = sourceSession(store);
+  const useText = (state.sourceOnly || state.sourceDirty) && session.text !== null;
+  const revision = state.contentRevision;
+  // A check of the same content already running (the one after loading, when an export follows at
+  // once) is waited for rather than run twice.
+  const same =
+    !useText && inflight?.docId === state.docId && inflight.revision === revision ? inflight : null;
+  const job =
+    same?.job ??
+    rpc.runJob(
+      'doc.validate',
+      useText
+        ? { docId: state.docId, text: session.text ?? '' }
+        : options.asLoaded
+          ? { docId: state.docId }
+          : { docId: state.docId, document: state.document },
+      { onProgress: (progress) => actions.setProgress(store, progress) },
+    );
+  if (!same && !useText) {
+    const running = { docId: state.docId, revision, job };
+    inflight = running;
+    void job
+      .finally(() => {
+        if (inflight === running) inflight = null;
+      })
+      .catch(() => undefined);
+  }
+  const report = await job;
+  actions.setProgress(store, null);
+  if (store.getState().docId !== state.docId) return report;
+  if (!options.quiet || store.getState().validation) actions.setValidation(store, report);
+  // Feature 009 (FR-055): the validity pane shows this result until the content changes; a check
+  // of content that changed while it ran stays stale.
+  actions.setLastCheck(store, report.errorCount, revision);
+  if (options.quiet) return report;
+  actions.setStatusMessage(
+    store,
+    report.errorCount === 0
+      ? ctx.t('status.noErrors')
+      : ctx.t('msg.errorsFound', { count: report.errorCount }),
+  );
+  return report;
 }

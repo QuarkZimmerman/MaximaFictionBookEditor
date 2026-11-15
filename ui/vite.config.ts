@@ -101,6 +101,19 @@ export function isEpubImportModule(id: string): boolean {
   return id.split('?')[0].replace(/\\/g, '/').startsWith(epubImportFolder);
 }
 
+// The PDF export (feature 014, D24, plan DP-13) is the lazy chunk `pdf-export`: everything under
+// `src/features/pdf/export/`, loaded by `import()` on the first export and never at start-up. The
+// static entry (`src/features/pdf/index.ts`, `pageSizes.ts`) and the settings page stay in the main
+// bundle. `tests/unit/pdf/chunk.test.ts` checks the built output (guard G20).
+const pdfExportFolder = fileURLToPath(
+  new URL('./src/features/pdf/export/', import.meta.url),
+).replace(/\\/g, '/');
+
+/** True for a module of the `pdf-export` chunk (exported for the unit test of the rule). */
+export function isPdfExportModule(id: string): boolean {
+  return id.split('?')[0].replace(/\\/g, '/').startsWith(pdfExportFolder);
+}
+
 /** True for a module of the `epub-export` chunk (exported for the unit test of the rule). */
 export function isEpubExportModule(id: string): boolean {
   return id.split('?')[0].replace(/\\/g, '/').startsWith(epubExportFolder);
@@ -181,6 +194,11 @@ export default defineConfig({
             {
               name: 'epub-shared',
               test: isEpubSharedModule,
+              includeDependenciesRecursively: false,
+            },
+            {
+              name: 'pdf-export',
+              test: isPdfExportModule,
               includeDependenciesRecursively: false,
             },
           ],

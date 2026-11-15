@@ -661,7 +661,7 @@ jobs:
           out=$("$app/Contents/MacOS/mfbe" --version); echo "$out"
           [[ "$out" == *"Maxima Fiction Book Editor $MFBE_VERSION (build $MFBE_VERSION+"* ]] ||
             { echo "::error::mfbe --version does not name the version label $MFBE_VERSION"; exit 1; }
-          hdiutil detach "$RUNNER_TEMP/dmg"
+          tools/ci/detach-dmg.sh "$RUNNER_TEMP/dmg"
           } 2>&1 | tee "$RUNNER_TEMP/smoke.log"
       - name: Package smoke failure details
         if: failure() && runner.os == 'macOS'

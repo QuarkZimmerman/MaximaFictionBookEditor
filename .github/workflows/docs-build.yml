@@ -12,6 +12,11 @@ on:
   schedule:
     - cron: "17 4 * * 1"   # weekly, Monday 04:17 UTC
   push:
+    # GitHub does not read the paths below for a tag: every tag would start the replay. A final
+    # release tag replays the documented build on its commit; an rc tag (v0.0.11-rc.4) does not,
+    # its commit having passed CI already (requester, 2026-11-14).
+    branches: ["**"]
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
     paths:
       - docs/building.md
       - tools/extract-doc-commands.py

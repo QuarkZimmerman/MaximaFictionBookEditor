@@ -18,6 +18,22 @@ find_package(WebP CONFIG REQUIRED)
 find_package(TIFF REQUIRED)
 find_package(GIF REQUIRED)
 find_package(Stb REQUIRED)
+# Feature 014 (PD2): Poppler finishes the PDF export and reads PDFs; vcpkg ships it for pkg-config.
+# Windows has no pkg-config of its own and the macOS builds take nothing from Homebrew, so vcpkg's
+# own pkgconf (a host tool of vcpkg.json) reads the .pc files on every system. It is installed for
+# the host triplet, which on Windows is not the target one (x64-windows, x64-windows-static).
+if(NOT PKG_CONFIG_EXECUTABLE AND DEFINED VCPKG_INSTALLED_DIR)
+  file(GLOB _mfbe_pkgconf_dirs LIST_DIRECTORIES true "${VCPKG_INSTALLED_DIR}/*/tools/pkgconf")
+  find_program(PKG_CONFIG_EXECUTABLE NAMES pkgconf PATHS ${_mfbe_pkgconf_dirs} NO_DEFAULT_PATH)
+endif()
+find_package(PkgConfig REQUIRED)
+# GLOBAL: the core tests read Poppler's objects too (the PDF export's structure checks).
+pkg_check_modules(POPPLER REQUIRED IMPORTED_TARGET GLOBAL poppler)
+# Little CMS (Poppler's cms feature) makes the sRGB profile of the PDF/A output intent.
+pkg_check_modules(LCMS2 REQUIRED IMPORTED_TARGET lcms2)
+# FreeType (Poppler's own dependency) reads the fonts the user adds: their faces, names, kind and
+# embedding permission (feature 014, D7(c), DP-6).
+find_package(Freetype REQUIRED)
 # ZIP archives (feature 009, PD1): the ZIP reader and writer only; built with the bzip2, lzma and
 # zstd features so every ZIP compression method libarchive reads is read (research DP-1, DP-3).
 find_package(LibArchive REQUIRED)
@@ -96,6 +112,7 @@ if(NOT WIN32)
   find_package(Iconv REQUIRED)
   target_link_libraries(mfbe_core PRIVATE Iconv::Iconv)
 endif()
+target_link_libraries(mfbe_core PRIVATE PkgConfig::POPPLER PkgConfig::LCMS2 Freetype::Freetype)
 
 if(WIN32)
   target_link_libraries(mfbe_core PRIVATE ws2_32 shell32 ole32)
@@ -109,6 +126,8 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")
   add_executable(mfbe-core main.cpp)
   target_link_libraries(mfbe-core PRIVATE mfbe::core CLI11::CLI11)
+  # The fonts subcommand reads the PDF export's added fonts (core/src/pdf/fonts.hpp), as the tests do.
+  target_include_directories(mfbe-core PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
   set_target_properties(mfbe-core PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
   install(TARGETS mfbe-core RUNTIME DESTINATION bin COMPONENT core)
