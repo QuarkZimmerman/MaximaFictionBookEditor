@@ -63,6 +63,26 @@
           "weekly": "раз в неделю",
           "monthly": "раз в месяц",
           "never": "никогда"
+        },
+        "passedOver": {
+          "item": "{{name}} - {{reason}}",
+          "heading": "Не используются:",
+          "reason": {
+            "name": "имя не соответствует правилу ({{rule}})",
+            "notAFile": "папка там, где должен быть файл",
+            "notAFolder": "файл там, где должна быть папка сценария",
+            "noDescription": "папка сценария без script.json",
+            "unreadable": "файл не читается",
+            "encoding": "не UTF-8",
+            "partnerMissing": "нет парного файла .aff или .dic",
+            "invalid": "шаблон нельзя использовать"
+          },
+          "rule": {
+            "genres": "*.genres.tsv",
+            "scripts": "папка со script.json",
+            "dictionaries": "<тег>.aff вместе с <тег>.dic",
+            "template": "blank.fb2"
+          }
         }
       },
       "hotkeys": {

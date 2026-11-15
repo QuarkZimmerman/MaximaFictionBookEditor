@@ -61,6 +61,26 @@
           "weekly": "once a week",
           "monthly": "once a month",
           "never": "never"
+        },
+        "passedOver": {
+          "item": "{{name}} - {{reason}}",
+          "heading": "Not used:",
+          "reason": {
+            "name": "the name does not follow the rule ({{rule}})",
+            "notAFile": "a folder where a file belongs",
+            "notAFolder": "a file where a script folder belongs",
+            "noDescription": "a script folder without script.json",
+            "unreadable": "the file cannot be read",
+            "encoding": "not UTF-8",
+            "partnerMissing": "the .aff or .dic file of the pair is missing",
+            "invalid": "the template cannot be used"
+          },
+          "rule": {
+            "genres": "*.genres.tsv",
+            "scripts": "a folder with script.json",
+            "dictionaries": "<tag>.aff with <tag>.dic",
+            "template": "blank.fb2"
+          }
         }
       },
       "hotkeys": {

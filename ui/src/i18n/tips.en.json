@@ -77,7 +77,7 @@
           },
           "genres": {
             "default": "Read your own genre lists from the editor's own genres folder.",
-            "path": "The folder with your own genre lists, which add to or replace the standard one.",
+            "path": "The folder with your own genre lists, which add to the standard one.",
             "open": "Opens the genres folder in the file manager."
           },
           "template": {
