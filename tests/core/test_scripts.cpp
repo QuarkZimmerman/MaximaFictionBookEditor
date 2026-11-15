@@ -1239,3 +1239,30 @@ TEST_CASE(
     CHECK(get("/script-groups/..%2F01_Case/icon").status == 404);
     CHECK(test::http_get(server->port(), "/script-groups/01_Case/icon").status == 401);
 }
+
+// Feature 015 (FR-003, research R3): a script package put into the per-user folder while the editor
+// runs is in the next scripts.list - the Scripts menu asks for the list when it opens.
+TEST_CASE("scripts: a package added while running is in the next scripts.list (feature 015)",
+          "[scripts][server][015]") {
+    test::TempDir data{"mfbe-scripts-added"};
+    CoreServerOptions options;
+    options.data_dir = data.path().string();
+    options.scripts_dir = fixtures().string();
+    options.test_hooks = true;
+    auto server = CoreServer::start(options);
+    test::WsClient ws;
+    REQUIRE(ws.open(server->port(), "/rpc?token=" + server->token()) == 101);
+
+    const auto listed = [&ws] {
+        return ws.call("scripts.list")["result"].dump().find("99/my-test-script") !=
+               std::string::npos;
+    };
+    CHECK_FALSE(listed());
+    std::filesystem::create_directories(data.path() / "scripts");
+    std::filesystem::copy(test::fixtures_dir() / "user-folders" / "my-test-script",
+                          data.path() / "scripts" / "my-test-script",
+                          std::filesystem::copy_options::recursive);
+    CHECK(listed());
+    std::filesystem::remove_all(data.path() / "scripts" / "my-test-script");
+    CHECK_FALSE(listed());
+}
