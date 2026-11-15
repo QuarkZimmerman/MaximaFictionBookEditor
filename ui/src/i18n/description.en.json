@@ -37,7 +37,11 @@
       "value": "Date value:",
       "invalid": "Use the form YYYY-MM-DD",
       "placeholder": "YYYY-MM-DD",
-      "today": "Today"
+      "today": "Today",
+      "fix": "Fix",
+      "fixTitle": "Write the value as {{day}}, the form FictionBook requires",
+      "fixChoose": "The value can be read two ways: choose the day",
+      "fixNone": "Fix is available when the value holds a date in another format"
     },
     "language": {
       "none": "(not set)",
@@ -165,5 +169,11 @@
       "other": "The genre could not be added: {{message}}"
     },
     "plus": "Add {{code}} to your own genres"
+  },
+  "dateFix": {
+    "choice": {
+      "title": "Which day is meant?",
+      "text": "The date value {{value}} can be read two ways. Choose the day to write; Cancel leaves the value as it is."
+    }
   }
 }
