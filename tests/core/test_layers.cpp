@@ -6,7 +6,6 @@
 #include <mfbe/resources.hpp>
 
 #include <catch2/catch_test_macros.hpp>
-
 #include <map>
 
 #ifndef _WIN32
@@ -352,9 +351,10 @@ TEST_CASE("layers: passed-over genre items are listed with their reasons (featur
     }
 }
 
-TEST_CASE("layers: passed-over script and dictionary items are listed with their reasons "
-          "(feature 015)",
-          "[layers][015]") {
+TEST_CASE(
+    "layers: passed-over script and dictionary items are listed with their reasons "
+    "(feature 015)",
+    "[layers][015]") {
     test::TempDir tmp;
     auto roots = make_roots(tmp);
     touch(tmp / "data" / "scripts" / "my-script" / "script.json", "{}");
@@ -389,9 +389,10 @@ TEST_CASE("layers: passed-over script and dictionary items are listed with their
     CHECK(dicts.count("xx_XX.txt") == 0);  // the notice of a usable pair
 }
 
-TEST_CASE("layers: a missing chosen folder contributes nothing; a linked folder is followed "
-          "(feature 015)",
-          "[layers][015]") {
+TEST_CASE(
+    "layers: a missing chosen folder contributes nothing; a linked folder is followed "
+    "(feature 015)",
+    "[layers][015]") {
     test::TempDir tmp;
     auto roots = make_roots(tmp);
     roots.settings_genres = tmp / "gone";
