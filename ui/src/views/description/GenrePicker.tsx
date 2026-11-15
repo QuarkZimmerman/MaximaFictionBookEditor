@@ -359,6 +359,7 @@ export function GenrePickerDialog({
           </span>
         ) : null}
         <button
+          {...tip(t('tip.description.genres.addOwn'))}
           type="button"
           className="mfbe-genrepicker-add-own"
           data-testid="genre-picker-add-own"

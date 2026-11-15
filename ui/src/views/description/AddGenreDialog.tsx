@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useAppServices } from '@/app/services';
+import { tip } from '@/app/tooltips';
 import { Dialog, type DialogButton } from '@/dialogs/Dialog';
 import { RpcError } from '@/rpc/client';
 import type { GenreEntry, UiLanguage } from '@/rpc/types';
@@ -79,6 +80,7 @@ export function AddGenreDialog({ catalog, language, initialCode, onClose }: AddG
     <label className="mfbe-field-row" key={key}>
       <span>{t(`addGenre.name.${key}`)}</span>
       <input
+        {...tip(t(`tip.addGenre.name.${key}`))}
         className="mfbe-inputdialog-input"
         type="text"
         id={`add-genre-name-${key}`}
@@ -104,6 +106,7 @@ export function AddGenreDialog({ catalog, language, initialCode, onClose }: AddG
       <label className="mfbe-field-row" htmlFor="add-genre-code">
         <span>{t('addGenre.code')}</span>
         <input
+          {...tip(t('tip.addGenre.code'))}
           id="add-genre-code"
           className="mfbe-inputdialog-input"
           type="text"
@@ -118,6 +121,7 @@ export function AddGenreDialog({ catalog, language, initialCode, onClose }: AddG
       <label className="mfbe-field-row">
         <span>{t('addGenre.category')}</span>
         <select
+          {...tip(t('tip.addGenre.category'))}
           className="mfbe-inputdialog-input"
           data-testid="add-genre-category"
           value={category}

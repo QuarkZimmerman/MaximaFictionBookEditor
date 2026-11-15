@@ -7,6 +7,8 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { tip } from '@/app/tooltips';
+
 /** The example line, fields separated by real tabs. */
 const GENRE_FILE_EXAMPLE = ['my_genre', 'sf', 'My genre', 'Мой жанр', 'Мій жанр'].join('\t');
 
@@ -64,6 +66,7 @@ export function GenreFileHelp({ place }: { place: 'settings' | 'picker' }) {
           </code>
           <p>{t('genreFileHelp.note')}</p>
           <button
+            {...tip(t('tip.genreFileHelp.close'))}
             type="button"
             onClick={() => {
               setOpen(false);
