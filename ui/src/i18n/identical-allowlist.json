@@ -31,6 +31,8 @@
     "pdf.settings.fonts.dejavu-sans-mono",
     "exports.settings.formats.pdf",
     "exports.settings.formats.epub",
-    "exports.settings.formats.markdown"
+    "exports.settings.formats.markdown",
+    "dialog.settings.other.passedOver.rule.genres",
+    "dialog.settings.other.passedOver.rule.template"
   ]
 }
