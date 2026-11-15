@@ -394,6 +394,15 @@ if [[ "${MFBE_SMOKE_PORTABLE:-0}" == "1" ]]; then
   printf '{ "schemaVersion": 1, "other": { "versionCheck": "never" } }\n' \
     >"$PORTABLE_DIR/settings.json"
 fi
+# MFBE_SMOKE_USER_FOLDERS_ROOT (feature 015): a portable user folder the editor uses - an AppImage's
+# <image>.d/user or <image>.home/user - keeps the run's settings and data, as MFBE_SMOKE_PORTABLE's
+# does, so the checks read them there and the per-user folders must stay untouched.
+if [[ -n "${MFBE_SMOKE_USER_FOLDERS_ROOT:-}" ]]; then
+  PORTABLE_DIR="$MFBE_SMOKE_USER_FOLDERS_ROOT"
+  mkdir -p "$PORTABLE_DIR"
+  printf '{ "schemaVersion": 1, "other": { "versionCheck": "never" } }\n' \
+    >"$PORTABLE_DIR/settings.json"
+fi
 SELFTEST=""
 if [[ "${MFBE_SMOKE_MESSAGEBOX:-0}" == "1" ]]; then
   SELFTEST="messagebox"
