@@ -955,6 +955,13 @@ jobs:
               MFBE_SMOKE_USER_FOLDERS_ROOT="$uf_image.$layout/user" \
               MFBE_SMOKE_SCREENSHOT="build/shell-smoke-appimage-$layout.png" tools/shell-smoke.sh
           done
+          # The deb, installed as a user installs it, with the user items in the per-user data folder.
+          sudo apt-get install -y "$(realpath "$deb")"
+          MFBE_APP_BIN=/usr/bin/mfbe MFBE_SMOKE_REAL_UI=1 MFBE_SMOKE_USER_FOLDERS=1 \
+            MFBE_SMOKE_SCREENSHOT=build/shell-smoke-deb-user.png tools/shell-smoke.sh
+          sudo apt-get remove -y mfbe
+          # The rpm, installed in a Fedora container (tools/ci/rpm-user-folders-smoke.sh).
+          tools/ci/rpm-user-folders-smoke.sh "$(realpath "$rpm")"
 
       - name: Package check (Windows - the launch option of the last page, feature 008)
         # The MSI tables of MfbeExitDlg: the ticked Launch checkbox, Finish's DoAction under its
