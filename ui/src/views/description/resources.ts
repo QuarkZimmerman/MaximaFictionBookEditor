@@ -37,6 +37,8 @@ export interface GenreCatalog {
   userFiles: string[];
   effectiveSources: { source: string; path?: string; layer?: string; entries: number }[];
   issues: { file: string; line?: number; reason: string; code?: string }[];
+  /** Feature 015: the genre items the editor passes over (listed in Settings > Other). */
+  passedOver: number;
 }
 
 export interface LanguageGroup {
@@ -55,6 +57,7 @@ export const EMPTY_GENRES: GenreCatalog = {
   userFiles: [],
   effectiveSources: [],
   issues: [],
+  passedOver: 0,
 };
 
 export const EMPTY_LANGUAGES: LanguageCatalog = { groups: [] };
@@ -298,6 +301,7 @@ export function normaliseGenres(raw: unknown): GenreCatalog {
           };
         })
       : [],
+    passedOver: typeof record.passedOver === 'number' ? record.passedOver : 0,
     issues: Array.isArray(record.issues)
       ? record.issues.map((i) => {
           const r = asRecord(i);

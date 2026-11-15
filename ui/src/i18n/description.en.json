@@ -58,7 +58,9 @@
       "fileIssues_one": "{{count}} problem in user genre files (see Settings).",
       "fileIssues_other": "{{count}} problems in user genre files (see Settings).",
       "sourceUser": "user",
-      "sourceBundled": "extension"
+      "sourceBundled": "extension",
+      "passedOver_one": "{{count}} file in your genres folders is not used (see Settings).",
+      "passedOver_other": "{{count}} files in your genres folders are not used (see Settings)."
     },
     "cover": {
       "title": "Coverpage",

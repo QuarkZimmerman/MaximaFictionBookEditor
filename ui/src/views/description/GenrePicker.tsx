@@ -303,6 +303,12 @@ export function GenrePickerDialog({
             {t('descriptionForm.genres.fileIssues', { count: catalog.issues.length })}
           </span>
         ) : null}
+        {catalog.passedOver > 0 ? (
+          <span className="mfbe-desc-warning" data-testid="genre-picker-passed-over">
+            {' '}
+            {t('descriptionForm.genres.passedOver', { count: catalog.passedOver })}
+          </span>
+        ) : null}
       </div>
     </Dialog>
   );
