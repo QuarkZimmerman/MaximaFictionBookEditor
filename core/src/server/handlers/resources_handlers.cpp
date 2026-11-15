@@ -23,9 +23,12 @@
 //                                                   <Data>/dictionaries, created on demand)
 #include "server/services.hpp"
 
+#include <mfbe/atomic_file.hpp>
 #include <mfbe/log.hpp>
 #include <mfbe/templates.hpp>
 
+#include <fstream>
+#include <iterator>
 #include <system_error>
 
 namespace mfbe::server {
@@ -122,6 +125,104 @@ void register_resources_handlers(rpc::RpcRouter& router, Services& services) {
             }
         }
         return json{{"items", items}};
+    });
+
+    // Feature 015 (FR-010..FR-015, research R5, contracts/rpc-api.md): adds one genre to the
+    // user's own genres - a line of my.genres.tsv in the first writable genres folder (the folder
+    // chosen in Settings when it is set and writable, else the per-user folder, which for a
+    // portable copy is its user folder) - and makes it known at once.
+    router.add_method("resources.addGenre", [&services](const json& params, rpc::RpcContext& ctx) {
+        const auto text_field = [&params](const json& holder, const char* key) {
+            if (!holder.is_object() || !holder.contains(key) || holder[key].is_null()) {
+                return std::string();
+            }
+            if (!holder[key].is_string()) {
+                throw rpc::invalid_params(std::string(key) + " must be a string",
+                                          json{{"reason", "invalidText"}, {"field", key}});
+            }
+            return holder[key].get<std::string>();
+        };
+        const auto plain = [](const std::string& text) {
+            return text.find_first_of("\t\r\n") == std::string::npos;
+        };
+        const std::string code = text_field(params, "code");
+        if (!genres::is_valid_genre_code(code)) {
+            throw rpc::invalid_params("not a valid genre code",
+                                      json{{"reason", "invalidCode"}, {"code", code}});
+        }
+        const std::string category = text_field(params, "category");
+        const json names =
+            params.is_object() && params.contains("names") ? params["names"] : json();
+        std::string en = text_field(names, "en");
+        std::string ru = text_field(names, "ru");
+        const std::string uk = text_field(names, "uk");
+        if (category.empty() || !plain(category) || !plain(en) || !plain(ru) || !plain(uk)) {
+            throw rpc::invalid_params(
+                "a name or the category holds a tab or a line break, or the "
+                "category is empty",
+                json{{"reason", "invalidText"}});
+        }
+        services.refresh_genres();
+        if (const genres::GenreEntry* known = services.genre_catalog()->find(code)) {
+            throw rpc::invalid_params("the genre is already listed",
+                                      json{{"reason", "duplicate"}, {"source", known->source}});
+        }
+        if (en.empty()) {
+            en = code;
+        }
+        if (ru.empty()) {
+            ru = code;
+        }
+        std::string line = code + "\t" + category + "\t" + en + "\t" + ru;
+        if (!uk.empty()) {
+            line += "\t" + uk;
+        }
+        line += "\n";
+
+        std::vector<std::filesystem::path> folders;
+        const std::filesystem::path chosen =
+            platform::path_from_utf8(services.settings.get_string("other.genresFolder"));
+        if (!chosen.empty()) {
+            folders.push_back(chosen);
+        }
+        folders.push_back(services.layers.user_folder(resources::Kind::genres));
+        json tried = json::array();
+        std::optional<std::filesystem::path> written;
+        for (const std::filesystem::path& folder : folders) {
+            std::error_code ec;
+            std::filesystem::create_directories(folder, ec);
+            const std::filesystem::path target = folder / "my.genres.tsv";
+            std::string bytes;
+            if (std::ifstream in(target, std::ios::binary); in) {
+                bytes.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+            }
+            if (!bytes.empty() && bytes.back() != '\n') {
+                bytes += '\n';
+            }
+            try {
+                atomic_file::write_atomic(target, bytes + line);
+                written = target;
+                break;
+            } catch (const atomic_file::WriteError& e) {
+                tried.push_back({{"path", platform::utf8_from_path(folder)}, {"reason", e.reason}});
+            }
+        }
+        if (!written) {
+            throw rpc::RpcError(rpc::codes::kDocIoError, "no genres folder can be written",
+                                json{{"reason", "notWritable"}, {"folders", tried}});
+        }
+        services.refresh_genres();
+        ctx.notifier.notify("resources.changed", json{{"what", "genres"}});
+        json entry;
+        // The list is kept in a variable: a range over a member of a temporary would dangle.
+        const json listed = services.genre_catalog()->to_json();
+        for (const json& e : listed["entries"]) {
+            if (e["code"] == code) {
+                entry = e;
+                break;
+            }
+        }
+        return json{{"file", platform::utf8_from_path(*written)}, {"entry", entry}};
     });
 
     router.add_method("resources.openTemplateFolder",
