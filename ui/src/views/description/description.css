@@ -593,3 +593,13 @@ textarea.mfbe-desc-input {
   margin: 0.2em 0 0.4em;
   white-space: pre-wrap;
 }
+
+/* Feature 015 (FR-009): the "+" of an unknown genre shows when the pointer is near its row or the
+   row has the keyboard focus. */
+.mfbe-desc-genre .mfbe-desc-genre-add-own {
+  visibility: hidden;
+}
+.mfbe-desc-genre:hover .mfbe-desc-genre-add-own,
+.mfbe-desc-genre:focus-within .mfbe-desc-genre-add-own {
+  visibility: visible;
+}

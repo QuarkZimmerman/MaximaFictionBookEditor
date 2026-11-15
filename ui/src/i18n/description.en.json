@@ -60,7 +60,8 @@
       "sourceUser": "user",
       "sourceBundled": "extension",
       "passedOver_one": "{{count}} file in your genres folders is not used (see Settings).",
-      "passedOver_other": "{{count}} files in your genres folders are not used (see Settings)."
+      "passedOver_other": "{{count}} files in your genres folders are not used (see Settings).",
+      "invalidCode": "Not a genre code: only lowercase Latin letters, digits and _ - it cannot be added to your genres."
     },
     "cover": {
       "title": "Coverpage",
@@ -143,5 +144,25 @@
     "example": "Example (→ stands for a tab):",
     "note": "Your files only add genres; the standard list always stays. Files the editor cannot use are listed in Settings > Other.",
     "close": "Close"
+  },
+  "addGenre": {
+    "title": "Add a genre of your own",
+    "code": "Code",
+    "name": {
+      "en": "English name",
+      "ru": "Russian name",
+      "uk": "Ukrainian name"
+    },
+    "category": "Category",
+    "add": "Add",
+    "hint": "Empty English and Russian names are written as the code; the Ukrainian name may stay empty. The genre goes into my.genres.tsv in your genres folder.",
+    "error": {
+      "invalidCode": "Not a genre code: use lowercase Latin letters, digits and _ only.",
+      "duplicate": "The genre {{code}} is already listed.",
+      "invalidText": "A name or the category holds a tab or a line break, or no category is chosen.",
+      "notWritable": "None of your genres folders can be written: {{folders}}",
+      "other": "The genre could not be added: {{message}}"
+    },
+    "plus": "Add {{code}} to your own genres"
   }
 }
