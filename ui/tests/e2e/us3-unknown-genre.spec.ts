@@ -106,17 +106,28 @@ test.describe('US3 (feature 015) - "+" adds a book\'s unknown genre to your own 
     }
   });
 
-  test('a value that is not a genre code gets no "+", and says why', async ({ core, page }) => {
-    const book = path.join(scratchDir('us3-invalid-code-'), 'invalid-code.fb2');
+  test('a code with a hyphen is a genre code as the schema allows it: "+" adds it', async ({
+    core,
+    page,
+  }) => {
+    // The requester's rule: anything the FB2 2.1 schema allows is allowed (boyar-anime).
+    const book = path.join(scratchDir('us3-hyphen-'), 'boyar-anime.fb2');
     const text = (await import('node:fs')).readFileSync(fixtureBook('unknown-genre.fb2'), 'utf8');
-    writeFileSync(book, text.replace('<genre>my_unknown_genre</genre>', '<genre>My Genre</genre>'));
+    writeFileSync(
+      book,
+      text.replace('<genre>my_unknown_genre</genre>', '<genre>boyar-anime</genre>'),
+    );
     await openBook(core, page, book);
     await page.getByTestId('description-genre-0').hover();
-    await expect(page.getByTestId('description-genre-0-add-own')).toHaveCount(0);
-    await expect(page.getByTestId('description-genre-0-code')).toHaveAttribute(
-      'title',
-      /genre code/i,
+    await page.getByTestId('description-genre-0-add-own').click();
+    await expect(page.getByTestId('add-genre-code')).toHaveValue('boyar-anime');
+    await page.getByTestId('add-genre-button-ok').click();
+    await expect(page.getByTestId('add-genre')).toBeHidden();
+    await expect(page.getByTestId('description-genre-0-code')).not.toHaveClass(
+      /mfbe-desc-genre-unknown/,
     );
+    const written = (await import('node:fs')).readFileSync(ownFile(core), 'utf8');
+    expect(written).toContain('boyar-anime\t');
   });
 
   test('a genres folder that cannot be written is named, and nothing changes', async ({

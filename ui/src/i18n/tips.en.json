@@ -289,7 +289,7 @@
       "cancel": "Stops the operation; nothing of it is kept."
     },
     "addGenre": {
-      "code": "The genre's code, as books carry it: lowercase Latin letters, digits and _.",
+      "code": "The genre’s code, as books carry it: any text; spaces at its ends are dropped.",
       "name": {
         "en": "The name the English interface shows; left empty, the code is written.",
         "ru": "The name the Russian interface shows; left empty, the code is written.",

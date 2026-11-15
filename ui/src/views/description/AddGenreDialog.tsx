@@ -13,7 +13,7 @@ import { Dialog, type DialogButton } from '@/dialogs/Dialog';
 import { RpcError } from '@/rpc/client';
 import type { GenreEntry, UiLanguage } from '@/rpc/types';
 
-import { isGenreCode, proposedCategory, rememberCategory } from './genreCodes';
+import { collapseToken, isGenreCode, proposedCategory, rememberCategory } from './genreCodes';
 import { categoryTitle, type GenreCatalog } from './resources';
 
 export interface AddGenreDialogProps {
@@ -32,11 +32,12 @@ export function AddGenreDialog({ catalog, language, initialCode, onClose }: AddG
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const known = catalog.entries.some((e) => e.code === code);
+  const token = collapseToken(code);
+  const known = catalog.entries.some((e) => e.code === token);
   const local = !isGenreCode(code)
     ? t('addGenre.error.invalidCode')
     : known
-      ? t('addGenre.error.duplicate', { code })
+      ? t('addGenre.error.duplicate', { code: token })
       : null;
 
   const submit = async () => {
@@ -44,7 +45,7 @@ export function AddGenreDialog({ catalog, language, initialCode, onClose }: AddG
     setBusy(true);
     setError(null);
     try {
-      const result = await rpc.call('resources.addGenre', { code, category, names });
+      const result = await rpc.call('resources.addGenre', { code: token, category, names });
       rememberCategory(category);
       onClose(result.entry);
     } catch (e) {
@@ -59,7 +60,7 @@ export function AddGenreDialog({ catalog, language, initialCode, onClose }: AddG
               folders: (data?.folders ?? []).map((f) => f.path).join(', '),
             })
           : reason === 'invalidCode' || reason === 'duplicate' || reason === 'invalidText'
-            ? t(`addGenre.error.${reason}`, { code })
+            ? t(`addGenre.error.${reason}`, { code: token })
             : t('addGenre.error.other', { message: e instanceof Error ? e.message : String(e) }),
       );
     } finally {
@@ -86,7 +87,7 @@ export function AddGenreDialog({ catalog, language, initialCode, onClose }: AddG
         id={`add-genre-name-${key}`}
         data-testid={`add-genre-name-${key}`}
         value={names[key]}
-        placeholder={key === 'uk' ? '' : code}
+        placeholder={key === 'uk' ? '' : token}
         onChange={(event) => setNames((current) => ({ ...current, [key]: event.target.value }))}
       />
     </label>
@@ -112,7 +113,7 @@ export function AddGenreDialog({ catalog, language, initialCode, onClose }: AddG
           type="text"
           data-testid="add-genre-code"
           value={code}
-          onChange={(event) => setCode(event.target.value.trim())}
+          onChange={(event) => setCode(event.target.value)}
         />
       </label>
       {field('en')}

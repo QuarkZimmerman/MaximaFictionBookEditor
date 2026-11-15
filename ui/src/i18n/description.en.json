@@ -65,7 +65,7 @@
       "sourceBundled": "extension",
       "passedOver_one": "{{count}} file in your genres folders is not used (see Settings).",
       "passedOver_other": "{{count}} files in your genres folders are not used (see Settings).",
-      "invalidCode": "Not a genre code: only lowercase Latin letters, digits and _ - it cannot be added to your genres.",
+      "invalidCode": "An empty genre code cannot be added to your genres.",
       "addOwn": "Add a genre of your own..."
     },
     "cover": {
@@ -144,7 +144,7 @@
     "title": "Your own genre files",
     "name": "A genre file is a text file in UTF-8 whose name ends in .genres.tsv - my.genres.tsv, for example - in the genres folder (Settings > Other > Open genres folder).",
     "lines": "One genre per line, its fields separated by tabs: the code, the category, the English name, the Russian name and, if you like, the Ukrainian name. Empty lines and lines starting with # are skipped.",
-    "code": "The code consists of lowercase Latin letters, digits and _ only, and must not be a code the editor already knows. The category is the key of the group the genre is listed under, such as sf, det or prose.",
+    "code": "The code is the genre’s code as books carry it: any text without tabs - spaces at its ends are dropped and runs of spaces become one - and not a code the editor already knows. The category is the key of the group the genre is listed under, such as sf, det or prose.",
     "languages": "The English interface shows the English name, the Russian interface the Russian name, the Ukrainian interface the Ukrainian name - or, without one, the standard Ukrainian name of the code, else the English name.",
     "example": "Example (→ stands for a tab):",
     "note": "Your files only add genres; the standard list always stays. Files the editor cannot use are listed in Settings > Other.",
@@ -162,7 +162,7 @@
     "add": "Add",
     "hint": "Empty English and Russian names are written as the code; the Ukrainian name may stay empty. The genre goes into my.genres.tsv in your genres folder.",
     "error": {
-      "invalidCode": "Not a genre code: use lowercase Latin letters, digits and _ only.",
+      "invalidCode": "A genre code cannot be empty or hold control characters.",
       "duplicate": "The genre {{code}} is already listed.",
       "invalidText": "A name or the category holds a tab or a line break, or no category is chosen.",
       "notWritable": "None of your genres folders can be written: {{folders}}",

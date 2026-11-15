@@ -5,9 +5,19 @@
  */
 import type { GenreCatalog } from './resources';
 
-/** Lowercase Latin letters, digits and `_` (the core's is_valid_genre_code). */
+/**
+ * A genre code is the FB2 schema's xs:token (the requester's rule: anything the schema allows is
+ * allowed): its whitespace collapses as the schema collapses it.
+ */
+export function collapseToken(text: string): string {
+  return text.replace(/[ \t\n\r]+/g, ' ').trim();
+}
+
+/** Any non-empty token without control characters (the core's is_valid_genre_code). */
 export function isGenreCode(code: string): boolean {
-  return /^[a-z0-9_]+$/.test(code);
+  const token = collapseToken(code);
+  // eslint-disable-next-line no-control-regex
+  return token !== '' && !/[\u0000-\u001f]/.test(token);
 }
 
 let lastCategory: string | null = null;

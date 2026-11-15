@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next';
 
 import { AddGenreDialog } from './AddGenreDialog';
 import { GenreFileHelp } from './GenreFileHelp';
-import { isGenreCode, ownGenreMarks } from './genreCodes';
+import { collapseToken, isGenreCode, ownGenreMarks } from './genreCodes';
 
 import { useAppServices } from '@/app/services';
 import { Dialog, type DialogButton } from '@/dialogs/Dialog';
@@ -262,7 +262,7 @@ export function GenrePickerDialog({
       <AddGenreDialog
         catalog={catalog}
         language={language}
-        initialCode={isGenreCode(typed) ? typed : undefined}
+        initialCode={isGenreCode(typed) ? collapseToken(typed) : undefined}
         onClose={close}
       />
     ));

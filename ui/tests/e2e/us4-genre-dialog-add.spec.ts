@@ -75,7 +75,7 @@ test.describe('US4 (feature 015) - adding a genre in Choose a genre; your own ge
     await page.getByTestId('description-genre-add').click();
     for (const [code, reason] of [
       ['sf_fantasy', /already listed/],
-      ['My Genre', /Not a genre code/],
+      ['   ', /cannot be empty/],
     ] as const) {
       await addInPicker(page, code);
       await expect(page.getByTestId('add-genre-problem')).toContainText(reason);
@@ -110,6 +110,14 @@ test.describe('US4 (feature 015) - adding a genre in Choose a genre; your own ge
         /mfbe-genre-own/,
       );
       expect(await page.evaluate<number>(CONTRAST)).toBeGreaterThanOrEqual(4.5);
+      // The add button and the "?" are buttons like Cancel, not in the footer's muted colour.
+      const colour = (testId: string) =>
+        page.evaluate<string>(
+          `getComputedStyle(document.querySelector('[data-testid="${testId}"]')).color`,
+        );
+      const cancel = await colour('genre-picker-button-cancel');
+      expect(await colour('genre-picker-add-own')).toBe(cancel);
+      expect(await colour('genre-file-help-picker')).toBe(cancel);
     });
   }
 });

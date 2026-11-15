@@ -4,7 +4,12 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { isGenreCode, ownGenreMarks, proposedCategory } from '@/views/description/genreCodes';
+import {
+  collapseToken,
+  isGenreCode,
+  ownGenreMarks,
+  proposedCategory,
+} from '@/views/description/genreCodes';
 import type { GenreCatalog } from '@/views/description/resources';
 
 describe('own-genre marks (feature 015)', () => {
@@ -26,10 +31,11 @@ describe('own-genre marks (feature 015)', () => {
 });
 
 describe('the add-genre form rules (feature 015)', () => {
-  it('accepts only lowercase Latin letters, digits and _ as a code', () => {
-    expect(isGenreCode('my_genre_2')).toBe(true);
-    for (const bad of ['', 'My Genre', 'genre-x', 'жанр', 'Sf'])
-      expect(isGenreCode(bad)).toBe(false);
+  it("takes a code as the schema does: any non-empty xs:token (the requester's rule)", () => {
+    for (const good of ['my_genre_2', 'boyar-anime', 'Мой жанр', 'Sf', 'My Genre', '  padded  '])
+      expect(isGenreCode(good)).toBe(true);
+    for (const bad of ['', '   ', '\t\n', 'bad\u0001code']) expect(isGenreCode(bad)).toBe(false);
+    expect(collapseToken('  my   spaced\tgenre ')).toBe('my spaced genre');
   });
 
   it('proposes Other the first time, else the first category', () => {

@@ -619,3 +619,15 @@ textarea.mfbe-desc-input {
 .mfbe-genrepicker-add-own {
   margin-inline-start: 0.6em;
 }
+
+/* Feature 015 (review of rc.7): the buttons in the picker's footer and beside the genres folder are
+   buttons like the others - not in the muted colour of the line they sit in, which made them look
+   disabled in the dark theme. */
+.mfbe-genre-help-button,
+.mfbe-genrepicker-add-own {
+  color: var(--mfbe-color-fg);
+}
+.mfbe-genre-help-button:disabled,
+.mfbe-genrepicker-add-own:disabled {
+  color: var(--mfbe-color-disabled);
+}
