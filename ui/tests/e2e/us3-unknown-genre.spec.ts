@@ -123,7 +123,11 @@ test.describe('US3 (feature 015) - "+" adds a book\'s unknown genre to your own 
     core,
     page,
   }) => {
-    test.skip(process.getuid?.() === 0, 'root writes into every folder');
+    // Windows has no read-only folders in this sense (the attribute is ignored for folders).
+    test.skip(
+      process.platform === 'win32' || process.getuid?.() === 0,
+      'needs a folder the user cannot write into (not Windows, not root)',
+    );
     const folder = path.join(core.dataDir!, 'genres');
     mkdirSync(folder, { recursive: true });
     chmodSync(folder, 0o500);
