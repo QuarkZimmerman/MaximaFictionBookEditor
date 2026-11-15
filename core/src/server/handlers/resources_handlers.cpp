@@ -132,7 +132,7 @@ void register_resources_handlers(rpc::RpcRouter& router, Services& services) {
     // chosen in Settings when it is set and writable, else the per-user folder, which for a
     // portable copy is its user folder) - and makes it known at once.
     router.add_method("resources.addGenre", [&services](const json& params, rpc::RpcContext& ctx) {
-        const auto text_field = [&params](const json& holder, const char* key) {
+        const auto text_field = [](const json& holder, const char* key) {
             if (!holder.is_object() || !holder.contains(key) || holder[key].is_null()) {
                 return std::string();
             }
