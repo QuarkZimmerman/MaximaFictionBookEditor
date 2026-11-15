@@ -38,6 +38,8 @@ run_check() {
     node "$root/tools/user-folders-check.mjs" "$port" || status=1
   fi
   kill "$pid" 2>/dev/null || true
+  # Reaped here, so that bash does not report the ended editor as "Terminated".
+  wait "$pid" 2>/dev/null || true
   pkill -f "$bundle/Contents/" 2>/dev/null || true
   sleep 2
   return "$status"
