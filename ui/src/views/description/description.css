@@ -604,7 +604,15 @@ textarea.mfbe-desc-input {
   visibility: visible;
 }
 
-/* Feature 015 (FR-016): the user's own genres in Choose a genre. */
+/* Feature 015 (FR-016): the user's own genres in Choose a genre - 6.6:1 against the list in the
+   light theme, 9.6:1 in the dark one. The colour belongs to the picker alone: defined on the
+   document root it would reach every element of the Body view (G17). */
+.mfbe-genrepicker {
+  --mfbe-genre-own-color: #00695c;
+}
+:root[data-theme='dark'] .mfbe-genrepicker {
+  --mfbe-genre-own-color: #80cbc4;
+}
 .mfbe-genrepicker-list option.mfbe-genre-own {
   color: var(--mfbe-genre-own-color);
 }
