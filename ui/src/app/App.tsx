@@ -469,11 +469,12 @@ function Shell({
   const scriptsFeature = getScriptsFeature(store);
   // Feature 015 (FR-003): the Scripts menu reads the folders again when it opens, so that a script
   // put into a scripts folder while the editor runs is there without a restart.
+  // The feature is looked up when the menu opens: it may be installed after the first render.
   const onOpenDynamic = useCallback(
     (dynamic: string) => {
-      if (dynamic === 'scripts') void scriptsFeature?.refresh();
+      if (dynamic === 'scripts') void getScriptsFeature(store)?.refresh();
     },
-    [scriptsFeature],
+    [store],
   );
   // Feature 008 (FR-080 to FR-085): the atom pointer while an assistant's request computes -
   // not while a dialog of it waits for the user; it takes precedence over the script pointer.

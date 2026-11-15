@@ -66,6 +66,7 @@ export class ScriptsFeature {
   private readonly listeners = new Set<() => void>();
   private detach: (() => void)[] = [];
   private refreshing: Promise<void> | null = null;
+  private refreshAgain: Promise<void> | null = null;
   private contextProvider: (() => CommandContext) | null = null;
   private lastContext: CommandContext | null = null;
   private testHooksInstalled = false;
@@ -193,11 +194,22 @@ export class ScriptsFeature {
     if (rpc.status === 'connected') onConnected();
   }
 
-  /** Reloads the catalogue from the core (idempotent while a load is in flight). */
+  /**
+   * Reloads the catalogue from the core. A call while a load is in flight is answered by one more
+   * load after it, since the folders may have changed after the load in flight read them (feature
+   * 015: a script put into a scripts folder just before the Scripts menu opens again); any number
+   * of such calls share that one load.
+   */
   refresh(): Promise<void> {
     const rpc = this.rpc;
     if (!rpc) return Promise.resolve();
-    if (this.refreshing) return this.refreshing;
+    if (this.refreshing) {
+      this.refreshAgain ??= this.refreshing.then(() => {
+        this.refreshAgain = null;
+        return this.refresh();
+      });
+      return this.refreshAgain;
+    }
     this.refreshing = (async () => {
       try {
         const result = (await rpc.request('scripts.list')) as ScriptsListResult;
