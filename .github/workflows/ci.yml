@@ -749,6 +749,18 @@ jobs:
           MFBE_SMOKE_PDF: "1"
           MFBE_SMOKE_SCREENSHOT: build/shell-smoke-pdf.png
 
+      - name: "Shell smoke: the user's own genres, scripts and template (feature 015)"
+        # The user-folder fixtures in the per-user data folder of an isolated home: the genre file's
+        # genre in Choose a genre, the script in the Scripts menu, the misnamed genre file listed in
+        # Settings > Other, the template used by File > New (tools/user-folders-check.mjs).
+        if: runner.os == 'Linux'
+        run: tools/shell-smoke.sh
+        env:
+          MFBE_APP_BIN: ${{ github.workspace }}/build/${{ matrix.preset }}/bin/mfbe
+          MFBE_SMOKE_REAL_UI: "1"
+          MFBE_SMOKE_USER_FOLDERS: "1"
+          MFBE_SMOKE_SCREENSHOT: build/shell-smoke-user-folders.png
+
       - name: Shell smoke, copies of the editor (feature 008)
         # Two copies, a book relayed through the engine to the untouched copy, the open book not
         # reopened, the question and New window, a frozen page's book to a new copy, a killed
@@ -927,6 +939,22 @@ jobs:
           rpm -qpi "$rpm" && rpm -qp --scripts "$rpm" | head -20
           APPIMAGE_EXTRACT_AND_RUN=1 MFBE_APP_BIN="$image" MFBE_SMOKE_REAL_UI=1 \
             MFBE_SMOKE_SCREENSHOT=build/shell-smoke-appimage.png tools/shell-smoke.sh
+          # Feature 015 (FR-001, FR-006): the user's genre file, script and template are in effect in
+          # the AppImage - in the per-user data folder, and in each portable layout of an image
+          # copied to a folder whose path holds a space and non-English letters (research R1.4).
+          APPIMAGE_EXTRACT_AND_RUN=1 MFBE_APP_BIN="$image" MFBE_SMOKE_REAL_UI=1 MFBE_SMOKE_USER_FOLDERS=1 \
+            MFBE_SMOKE_SCREENSHOT=build/shell-smoke-appimage-user.png tools/shell-smoke.sh
+          uf_dir="$RUNNER_TEMP/appimage test/Тест"
+          mkdir -p "$uf_dir"
+          cp "$image" "$uf_dir/"
+          uf_image="$uf_dir/$(basename "$image")"
+          for layout in d home; do
+            rm -rf "$uf_image.d" "$uf_image.home"
+            mkdir -p "$uf_image.$layout/user"
+            APPIMAGE_EXTRACT_AND_RUN=1 MFBE_APP_BIN="$uf_image" MFBE_SMOKE_REAL_UI=1 MFBE_SMOKE_USER_FOLDERS=1 \
+              MFBE_SMOKE_USER_FOLDERS_ROOT="$uf_image.$layout/user" \
+              MFBE_SMOKE_SCREENSHOT="build/shell-smoke-appimage-$layout.png" tools/shell-smoke.sh
+          done
 
       - name: Package check (Windows - the launch option of the last page, feature 008)
         # The MSI tables of MfbeExitDlg: the ticked Launch checkbox, Finish's DoAction under its
