@@ -51,6 +51,18 @@ struct Conflict {
     LayerName ignored_layer = LayerName::bundled;  // the layer of the shadowed entry
 };
 
+// Feature 015 (FR-004, research R2): an item of a user layer (settings, user, portable) that the
+// editor does not use, with the reason it is listed with: "name" (does not follow the kind's
+// naming rule), "notAFile", "notAFolder", "noDescription" (a script folder without script.json),
+// "unreadable", "encoding" (a genre file whose text is not UTF-8), "partnerMissing" (a .aff or a
+// .dic alone). Names starting with a dot are never listed, nor anything of the bundled layer.
+struct PassedOver {
+    Kind kind;
+    LayerName layer;
+    std::filesystem::path path;
+    std::string reason;
+};
+
 struct Roots {
     std::filesystem::path user_data;                // <Data>
     std::optional<std::filesystem::path> portable;  // portable user folder
@@ -89,6 +101,16 @@ public:
     std::vector<Entry> list(Kind kind, const IdFunction& id_of,
                             std::vector<Conflict>* conflicts = nullptr) const;
     std::vector<Entry> list(Kind kind, std::vector<Conflict>* conflicts = nullptr) const;
+
+    // The items of the user layers of `kind` that the editor passes over (feature 015).
+    std::vector<PassedOver> passed_over(Kind kind) const;
+
+    // Feature 015 (review of rc.7, R1): puts the shipped `readme.md` of each default user folder -
+    // the data folder (for the template) and its genres, scripts and dictionaries folders that
+    // exist - where none is yet; an existing readme is never replaced.
+    void place_readmes() const;
+    // The shipped readme of a kind's folder, or of the data folder itself (nullopt).
+    std::filesystem::path readme_source(std::optional<Kind> kind) const;
 
     // Writable per-user folder for a kind (<Data>/<kind>), created on demand.
     std::filesystem::path user_folder(Kind kind, bool create = false) const;

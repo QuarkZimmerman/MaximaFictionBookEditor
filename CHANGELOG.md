@@ -14,6 +14,7 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 - The PDF has bookmarks, links, notes at the foot of their pages, and the whole description
 - Settings > Exports: the PDF's page size, text font and size, margins; fonts from files or the system
 - A book is validated as soon as it has loaded, and every export asks before writing an invalid book
+- Own genre files, scripts and templates are found everywhere; own genres added; wrong dates fixed
 
 ### Added
 
@@ -41,6 +42,26 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   installed on the computer; a font whose licence forbids embedding is refused, one that forbids
   subsetting is embedded whole. The page size chosen is kept for the open book.
 - mfbe-core fonts list | add <file>: the fonts added for the PDF export, from the command line.
+- The "+" beside an unknown genre on the Description page adds it to your own genres; *Choose a
+  genre* adds genres of your own with *Add a genre of your own...*. They are written into
+  `my.genres.tsv` in your genres folder, known at once to validation and the exports, and shown in
+  their own colour with a *[your file]* marker.
+- Genre files may give a genre's Ukrainian name as a fifth field; the "?" beside the genres folder
+  and in *Choose a genre* explains the format with an example line.
+- *Settings > Other* lists the files of your genres, scripts and template folders that the editor
+  does not use, each with the reason (a misnamed file, a script folder without `script.json`, a
+  genre file that is not UTF-8...).
+- *Fix* beside each date of the description writes a value given in another format - with a time,
+  with dots or slashes, with a month name - as year-month-day; a value that reads two ways offers
+  both days.
+- mfbe-core serve --portable-dir <folder>: the portable user folder, otherwise detected next to the
+  program.
+- Each default folder for your own additions - the data folder (the template) and its genres,
+  scripts and dictionaries folders - holds a `readme.md` in English, Russian and Ukrainian that
+  explains its file names and format; the portable ZIP ships them, the editor puts them into the
+  other packages' folders and never replaces one already there.
+- Genre codes are anything the FB2 2.1 schema allows - `boyar-anime`, capitals, Cyrillic, a single
+  inner space - in genre files, the "+" of the Description page and *Add a genre of your own...*.
 
 ### Changed
 
@@ -56,6 +77,13 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 - After a PDF export the editor ended no more on Windows when its window closed: its processes
   stayed in the background. The export's hidden print browser now closes with the editor, which
   ends in any case.
+- Your own genre files and scripts looked as if they were not picked up: files with other names
+  than the editor reads were passed over without a word, and a script put into a scripts folder
+  while the editor ran stayed missing until a restart. Such files are now listed with the reason,
+  and the Scripts menu reads its folders when it opens. The genres folder's tooltip no longer says
+  your lists may replace the standard one: they only add to it.
+- In the dark theme *Add a genre of your own...* and the "?" beside it looked disabled: they took
+  the muted colour of the line they sit in.
 
 ## 0.0.10 - 2026-11-11
 

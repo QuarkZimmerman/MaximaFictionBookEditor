@@ -63,6 +63,26 @@
           "weekly": "щотижня",
           "monthly": "щомісяця",
           "never": "ніколи"
+        },
+        "passedOver": {
+          "item": "{{name}} - {{reason}}",
+          "heading": "Не використовуються:",
+          "reason": {
+            "name": "ім’я не відповідає правилу ({{rule}})",
+            "notAFile": "тека там, де має бути файл",
+            "notAFolder": "файл там, де має бути тека скрипту",
+            "noDescription": "тека скрипту без script.json",
+            "unreadable": "файл не читається",
+            "encoding": "не UTF-8",
+            "partnerMissing": "немає парного файлу .aff або .dic",
+            "invalid": "шаблон не можна використати"
+          },
+          "rule": {
+            "genres": "*.genres.tsv",
+            "scripts": "тека зі script.json",
+            "dictionaries": "<тег>.aff разом із <тег>.dic",
+            "template": "blank.fb2"
+          }
         }
       },
       "hotkeys": {

@@ -289,10 +289,33 @@ only add to them. *Settings > Other > Open genres folder / Open scripts folder*,
 View > Open dictionaries folder* (see *Spelling dictionaries* below) and the About dialog's
 *Open log folder* open the right place in the file manager.
 
-Genre files are `*.genres.tsv` text files in the `genres` folder (UTF-8, tab-separated:
-`code`, `category`, `name_en`, `name_ru`); the picker shows which file a genre comes from.
-Under the Ukrainian interface a genre of your own shows the bundled Ukrainian name of its code
-when there is one, else its English name.
+Genre files are `*.genres.tsv` text files in the `genres` folder (UTF-8, one genre per line,
+tab-separated: `code`, `category`, `name_en`, `name_ru` and, optionally, `name_uk`); the code is
+the genre's code as books carry it - anything the FB2 schema allows, such as `boyar-anime`, its
+spaces collapsed as the schema collapses them -, the category the key of the group the genre is
+listed under (`sf`, `det`, `prose`...), lines starting with `#` are comments. The picker shows which file
+a genre comes from. Under the Ukrainian interface a genre of your own shows its `name_uk`, else
+the bundled Ukrainian name of its code when there is one, else its English name. The "?" beside
+the genres folder in *Settings > Other* and in *Choose a genre* explains the format with an
+example line. Genres you add in the editor (the "+" beside an unknown genre of a book, or *Add a
+genre of your own...* in *Choose a genre*) are written into `my.genres.tsv` in the first genres
+folder that can be written: the folder chosen in *Settings*, else the per-user folder - for a
+portable copy its `user` folder.
+
+Scripts are folders holding a `script.json` (directly in the `scripts` folder, or in a group
+folder inside it); the template is a file named `blank.fb2`. Anything in these folders, and in the
+`genres` and `dictionaries` folders, that the editor does not use - a misnamed file, a bare `.js`
+file, a script folder without `script.json`, a genre file that is not UTF-8, a `.aff` without its
+`.dic` - is listed with the reason in *Settings > Other* (dictionaries in *Settings > View*).
+Genre files, scripts and templates added while the editor runs are used the next time their list
+is: when *Choose a genre* or the Scripts menu opens, or at *File > New*; dictionaries take effect
+on *Apply*.
+
+Each default folder - the data folder (for the template) and its `genres`, `scripts` and
+`dictionaries` folders - holds a `readme.md` in English, Russian and Ukrainian that explains its
+file names, format and structure. The portable ZIP ships them in its `user` folder; for the other
+packages the editor puts them into the folders when it starts or creates them, and never replaces
+a `readme.md` already there. The readme is not listed among the files the editor does not use.
 
 New documents start from `blank.fb2`, the original editor's blank document. A `blank.fb2` of
 your own - in the template folder chosen in *Settings > Other*, the per-user data folder or the

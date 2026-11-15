@@ -560,3 +560,74 @@ textarea.mfbe-desc-input {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Feature 015 (FR-007): the explanation of genre files behind a "?" button. */
+.mfbe-genre-help {
+  position: relative;
+  display: inline-block;
+  margin-inline-start: 0.4em;
+}
+.mfbe-genre-help-button {
+  min-width: 1.6em;
+  font-weight: bold;
+}
+.mfbe-genre-help-popover {
+  position: absolute;
+  z-index: 60;
+  inset-inline-end: 0;
+  width: 30em;
+  max-width: 80vw;
+  padding: 0.6em 0.8em;
+  border: 1px solid var(--mfbe-desc-input-border);
+  background: var(--mfbe-color-input-bg);
+  font-family: var(--mfbe-font-ui);
+  text-align: start;
+  white-space: normal;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 25%);
+}
+.mfbe-genre-help-popover p {
+  margin: 0.4em 0;
+}
+.mfbe-genre-help-popover code {
+  display: block;
+  margin: 0.2em 0 0.4em;
+  white-space: pre-wrap;
+}
+
+/* Feature 015 (FR-009): the "+" of an unknown genre shows when the pointer is near its row or the
+   row has the keyboard focus. */
+.mfbe-desc-genre .mfbe-desc-genre-add-own {
+  visibility: hidden;
+}
+.mfbe-desc-genre:hover .mfbe-desc-genre-add-own,
+.mfbe-desc-genre:focus-within .mfbe-desc-genre-add-own {
+  visibility: visible;
+}
+
+/* Feature 015 (FR-016): the user's own genres in Choose a genre - 6.6:1 against the list in the
+   light theme, 9.6:1 in the dark one. The colour belongs to the picker alone: defined on the
+   document root it would reach every element of the Body view (G17). */
+.mfbe-genrepicker {
+  --mfbe-genre-own-color: #00695c;
+}
+:root[data-theme='dark'] .mfbe-genrepicker {
+  --mfbe-genre-own-color: #80cbc4;
+}
+.mfbe-genrepicker-list option.mfbe-genre-own {
+  color: var(--mfbe-genre-own-color);
+}
+.mfbe-genrepicker-add-own {
+  margin-inline-start: 0.6em;
+}
+
+/* Feature 015 (review of rc.7): the buttons in the picker's footer and beside the genres folder are
+   buttons like the others - not in the muted colour of the line they sit in, which made them look
+   disabled in the dark theme. */
+.mfbe-genre-help-button,
+.mfbe-genrepicker-add-own {
+  color: var(--mfbe-color-fg);
+}
+.mfbe-genre-help-button:disabled,
+.mfbe-genrepicker-add-own:disabled {
+  color: var(--mfbe-color-disabled);
+}

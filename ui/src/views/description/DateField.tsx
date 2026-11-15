@@ -13,6 +13,8 @@
 import { useTranslation } from 'react-i18next';
 
 import { useAppServices } from '@/app/services';
+import { Dialog, type DialogButton } from '@/dialogs/Dialog';
+import { recogniseDate } from '@/features/description/dateFix';
 import type { RpcClient } from '@/rpc/client';
 
 import { Row, SmallButton, TextField } from './fields';
@@ -49,8 +51,22 @@ async function todayText(
 
 export function DateField({ fieldKey, testPrefix, required }: DateFieldProps) {
   const { t, i18n } = useTranslation();
-  const { rpc } = useAppServices();
-  const { controller, issues } = useDescriptionForm();
+  const { rpc, dialogs } = useAppServices();
+  const { controller, issues, form, readOnly } = useDescriptionForm();
+  // Feature 015 (FR-018..FR-022): Fix for a value in a wrong but meaningful format.
+  const value = (getAtPath(form, `${fieldKey}.value`) as string | undefined) ?? '';
+  const candidates = recogniseDate(value);
+  const fix = async () => {
+    if (readOnly) return;
+    if (candidates.kind === 'one') {
+      controller.setValue(`${fieldKey}.value`, candidates.day);
+    } else if (candidates.kind === 'two') {
+      const chosen = await dialogs.openCustom<string | null>((close) => (
+        <DateChoiceDialog value={value} days={candidates.days} onClose={close} />
+      ));
+      if (chosen) controller.setValue(`${fieldKey}.value`, chosen);
+    }
+  };
   const invalid = issues.invalidDates.has(`${fieldKey}.value`);
   const missing = required && issues.missing.has(fieldKey as never);
   const today = () => {
@@ -81,6 +97,20 @@ export function DateField({ fieldKey, testPrefix, required }: DateFieldProps) {
         invalid={invalid ? t('descriptionForm.date.invalid') : null}
       />
       <SmallButton
+        testId={`${testPrefix}-fix`}
+        onClick={() => void fix()}
+        disabled={candidates.kind === 'none' || readOnly}
+        title={
+          candidates.kind === 'one'
+            ? t('descriptionForm.date.fixTitle', { day: candidates.day })
+            : candidates.kind === 'two'
+              ? t('descriptionForm.date.fixChoose')
+              : t('descriptionForm.date.fixNone')
+        }
+      >
+        {t('descriptionForm.date.fix')}
+      </SmallButton>
+      <SmallButton
         testId={`${testPrefix}-today`}
         onClick={today}
         title={t('descriptionForm.date.today')}
@@ -88,5 +118,42 @@ export function DateField({ fieldKey, testPrefix, required }: DateFieldProps) {
         {t('descriptionForm.date.today')}
       </SmallButton>
     </Row>
+  );
+}
+
+/**
+ * Feature 015 (FR-022, Q2 = D): a value whose day and month can be read both ways - both days,
+ * written out in the interface's language, and the user chooses; Cancel leaves the value.
+ */
+function DateChoiceDialog({
+  value,
+  days,
+  onClose,
+}: {
+  value: string;
+  days: [string, string];
+  onClose: (day: string | null) => void;
+}) {
+  const { t, i18n } = useTranslation();
+  const written = (day: string) =>
+    new Intl.DateTimeFormat(i18n.language, { dateStyle: 'long', timeZone: 'UTC' }).format(
+      new Date(`${day}T00:00:00Z`),
+    );
+  const buttons: DialogButton[] = [
+    { id: 'a', label: written(days[0]), onClick: () => onClose(days[0]) },
+    { id: 'b', label: written(days[1]), onClick: () => onClose(days[1]) },
+    { id: 'cancel', label: t('dialog.buttons.cancel'), onClick: () => onClose(null) },
+  ];
+  return (
+    <Dialog
+      title={t('dateFix.choice.title')}
+      buttons={buttons}
+      defaultButtonId={null}
+      cancelButtonId="cancel"
+      testId="date-fix-choice"
+      closeLabel={t('dialog.buttons.close')}
+    >
+      <p>{t('dateFix.choice.text', { value })}</p>
+    </Dialog>
   );
 }

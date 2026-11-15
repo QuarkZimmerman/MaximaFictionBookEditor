@@ -10,10 +10,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { AddGenreDialog } from './AddGenreDialog';
+import { GenreFileHelp } from './GenreFileHelp';
+import { collapseToken, isGenreCode, ownGenreMarks } from './genreCodes';
+
 import { useAppServices } from '@/app/services';
 import { Dialog, type DialogButton } from '@/dialogs/Dialog';
 import type { GenreRef } from '@/model/document';
-import type { UiLanguage } from '@/rpc/types';
+import type { GenreEntry, UiLanguage } from '@/rpc/types';
 
 import { AddButton, EmptyHint, RemoveButton, SmallButton, SubSection } from './fields';
 import { useDescriptionForm } from './formContext';
@@ -81,6 +85,14 @@ export function GenreList({ fieldKey, testPrefix, testId, required }: GenreListP
       return setAtPath(current, `${fieldKey}.${index}`, { ...genre, code });
     });
   };
+  // Feature 015 (FR-009..FR-011): adds a book's unknown genre to the user's own genres; the
+  // catalogues are read again, so that the genre is known at once.
+  const addOwn = async (code: string) => {
+    const entry = await dialogs.openCustom<GenreEntry | null>((close) => (
+      <AddGenreDialog catalog={genres} language={language} initialCode={code} onClose={close} />
+    ));
+    if (entry && catalogs) await catalogs.loadGenres(true).catch(() => undefined);
+  };
   const remove = (index: number) =>
     controller.update((current) =>
       setAtPath(
@@ -126,7 +138,13 @@ export function GenreList({ fieldKey, testPrefix, testId, required }: GenreListP
                 type="button"
                 className={`mfbe-desc-genre-code${name ? '' : ' mfbe-desc-genre-unknown'}`}
                 data-testid={`${testPrefix}-${index}-code`}
-                title={name ? genre.code : t('descriptionForm.genres.unknown')}
+                title={
+                  name
+                    ? genre.code
+                    : isGenreCode(genre.code)
+                      ? t('descriptionForm.genres.unknown')
+                      : t('descriptionForm.genres.invalidCode')
+                }
                 aria-disabled={readOnly || undefined}
                 onClick={() => {
                   if (!readOnly) void change(index); // the quiet lock: the code stays readable
@@ -141,6 +159,18 @@ export function GenreList({ fieldKey, testPrefix, testId, required }: GenreListP
                   </span>
                 ) : null}
               </button>
+              {!name && !readOnly && genres.entries.length > 0 && isGenreCode(genre.code) ? (
+                // Feature 015 (FR-009): shown when the pointer is near the row or it has the focus.
+                <span className="mfbe-desc-genre-add-own">
+                  <SmallButton
+                    testId={`${testPrefix}-${index}-add-own`}
+                    onClick={() => void addOwn(genre.code)}
+                    title={t('addGenre.plus', { code: genre.code })}
+                  >
+                    +
+                  </SmallButton>
+                </span>
+              ) : null}
               <SmallButton
                 testId={`${testPrefix}-${index}-choose`}
                 onClick={() => void change(index)}
@@ -224,6 +254,24 @@ export function GenrePickerDialog({
     () => groupGenres(catalog, language, filter.trim()),
     [catalog, language, filter],
   );
+  // Feature 015 (FR-014): a genre added here is in the list and chosen at once.
+  const { dialogs, rpc } = useAppServices();
+  const addOwn = async () => {
+    const typed = filter.trim();
+    const entry = await dialogs.openCustom<GenreEntry | null>((close) => (
+      <AddGenreDialog
+        catalog={catalog}
+        language={language}
+        initialCode={isGenreCode(typed) ? collapseToken(typed) : undefined}
+        onClose={close}
+      />
+    ));
+    if (!entry) return;
+    const fresh = catalogs ? await catalogs.loadGenres(true).catch(() => null) : null;
+    if (fresh) setCatalog(fresh);
+    setFilter('');
+    setSelected(entry.code);
+  };
   const valid = selected !== '' && catalog.entries.some((e) => e.code === selected);
   const extensions = catalog.effectiveSources.filter((s) => s.source !== 'standard');
 
@@ -283,6 +331,7 @@ export function GenrePickerDialog({
                 value={entry.code}
                 data-testid={`genre-picker-option-${entry.code}`}
                 data-source={entry.source}
+                {...ownGenreMarks(entry)}
               >
                 {`${localName(entry.names, language, entry.code)} (${entry.code})${
                   entry.source === 'standard' ? '' : ` [${sourceLabel(entry.source, t)}]`
@@ -303,6 +352,23 @@ export function GenrePickerDialog({
             {t('descriptionForm.genres.fileIssues', { count: catalog.issues.length })}
           </span>
         ) : null}
+        {catalog.passedOver > 0 ? (
+          <span className="mfbe-desc-warning" data-testid="genre-picker-passed-over">
+            {' '}
+            {t('descriptionForm.genres.passedOver', { count: catalog.passedOver })}
+          </span>
+        ) : null}
+        <button
+          {...tip(t('tip.description.genres.addOwn'))}
+          type="button"
+          className="mfbe-genrepicker-add-own"
+          data-testid="genre-picker-add-own"
+          disabled={!rpc}
+          onClick={() => void addOwn()}
+        >
+          {t('descriptionForm.genres.addOwn')}
+        </button>
+        <GenreFileHelp place="picker" />
       </div>
     </Dialog>
   );

@@ -13,6 +13,7 @@
  * at start-up - at every start, once a day / week / month, never).
  */
 
+import type { TFunction } from 'i18next';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -22,6 +23,8 @@ import {
   RpcErrorCode,
   type ImageFormat,
   type KeyboardLayoutList,
+  type PassedOverItem,
+  type PassedOverKind,
   type Settings,
   type TemplateInfo,
   type VersionCheckSchedule,
@@ -41,6 +44,7 @@ import {
   type GenresInfo,
 } from './model';
 import { tip } from '@/app/tooltips';
+import { GenreFileHelp } from '@/views/description/GenreFileHelp';
 
 /** `system.keyboardLayouts` of a core without the method or without a shell: no switch. */
 const NO_SHELL_LAYOUTS: KeyboardLayoutList = { supported: false, reason: 'noShell', layouts: [] };
@@ -63,6 +67,8 @@ export function OtherPage({ draft, onChange, ctx }: OtherPageProps) {
   const [layouts, setLayouts] = useState<KeyboardLayoutList | null>(() =>
     rpc ? null : NO_SHELL_LAYOUTS,
   );
+  // Feature 015 (FR-004): the user items the editor passes over, with their reasons.
+  const [passedOver, setPassedOver] = useState<PassedOverItem[]>([]);
 
   // The effective genre-list sources (rebuilt by the core on every call).
   useEffect(() => {
@@ -75,6 +81,14 @@ export function OtherPage({ draft, onChange, ctx }: OtherPageProps) {
       })
       .catch(() => {
         if (!cancelled) setGenres(null);
+      });
+    rpc
+      .call('resources.passedOver')
+      .then((result) => {
+        if (!cancelled) setPassedOver(result.items);
+      })
+      .catch(() => {
+        if (!cancelled) setPassedOver([]);
       });
     // The template a new document uses (resolved by the core on every call).
     rpc
@@ -298,6 +312,7 @@ export function OtherPage({ draft, onChange, ctx }: OtherPageProps) {
         onOpen={() => void openScriptsFolder()}
         connected={rpc !== null}
       />
+      <PassedOverList kind="scripts" items={passedOver} t={t} />
 
       <FolderGroup
         kind="genres"
@@ -311,6 +326,10 @@ export function OtherPage({ draft, onChange, ctx }: OtherPageProps) {
         onOpen={() => void openGenresFolder()}
         connected={rpc !== null}
       />
+      <div className="mfbe-settings-note" data-testid="settings-other-genre-help">
+        {t('genreFileHelp.button')}
+        <GenreFileHelp place="settings" />
+      </div>
       <div className="mfbe-settings-note" data-testid="settings-other-genre-sources">
         {genres
           ? t('dialog.settings.other.genreSources', {
@@ -323,6 +342,7 @@ export function OtherPage({ draft, onChange, ctx }: OtherPageProps) {
           </div>
         ) : null}
       </div>
+      <PassedOverList kind="genres" items={passedOver} t={t} />
 
       <FolderGroup
         kind="template"
@@ -343,6 +363,7 @@ export function OtherPage({ draft, onChange, ctx }: OtherPageProps) {
       <div className="mfbe-settings-note" data-testid="settings-other-template-in-use">
         {templateNote}
       </div>
+      <PassedOverList kind="template" items={passedOver} t={t} />
 
       <div className="mfbe-settings-columns">
         <GroupBox title={t('dialog.settings.other.dialogs')}>
@@ -556,5 +577,39 @@ function FolderGroup({
         </button>
       </FieldRow>
     </GroupBox>
+  );
+}
+
+/**
+ * Feature 015 (FR-004): the items of one kind that the editor does not use, each with its reason,
+ * the full path in its title; nothing when there are none.
+ */
+function PassedOverList({
+  kind,
+  items,
+  t,
+}: {
+  kind: PassedOverKind;
+  items: PassedOverItem[];
+  t: TFunction;
+}) {
+  const own = items.filter((item) => item.kind === kind);
+  if (own.length === 0) return null;
+  return (
+    <div className="mfbe-settings-note" data-testid={`settings-passed-over-${kind}`}>
+      {t('dialog.settings.other.passedOver.heading')}
+      <ul>
+        {own.map((item) => (
+          <li key={item.path} title={item.path} data-reason={item.reason}>
+            {t('dialog.settings.other.passedOver.item', {
+              name: item.path.split(/[\\/]/).pop() ?? item.path,
+              reason: t(`dialog.settings.other.passedOver.reason.${item.reason}`, {
+                rule: t(`dialog.settings.other.passedOver.rule.${kind}`),
+              }),
+            })}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

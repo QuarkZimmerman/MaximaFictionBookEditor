@@ -8,10 +8,16 @@
 #include <mfbe/core_server.hpp>
 #include <mfbe/genres.hpp>
 #include <mfbe/resources.hpp>
+#include <mfbe/rpc.hpp>
 #include <mfbe/validator.hpp>
 
+#include <algorithm>
 #include <catch2/catch_test_macros.hpp>
 #include <set>
+
+#ifndef _WIN32
+#include <unistd.h>
+#endif
 
 using namespace mfbe;
 using nlohmann::json;
@@ -184,29 +190,27 @@ TEST_CASE("genres: TSV parser accepts BOM/CRLF/header/comments and reports bad l
     const auto bad = genres::parse_genres_tsv(
         test::read_text(test::fixtures_dir() / "genres" / "bad-lines.genres.tsv"),
         "bad-lines.genres.tsv");
-    // Good lines survive: sf (duplicate of a standard code is decided by the catalogue, not the
-    // parser), sf_litrpg, ok_genre, whitespace_ok.
+    // Good lines survive: UPPER_case and "spaced code" (a genre code is the schema's xs:token -
+    // feature 015, the requester's rule), sf (a duplicate of a standard code is decided by the
+    // catalogue, not the parser), sf_litrpg, ok_genre, whitespace_ok.
     std::vector<std::string> codes;
     for (const auto& e : bad.entries) {
         codes.push_back(e.code);
     }
-    CHECK(codes == std::vector<std::string>{"sf", "sf_litrpg", "ok_genre", "whitespace_ok"});
-    CHECK(bad.entries[3].category == "det");
-    CHECK(bad.entries[3].names.at("en") == "Trimmed name");
-    CHECK(bad.entries[3].names.at("ru") == "Обрезанное имя");
-    REQUIRE(bad.issues.size() == 5);
-    CHECK(bad.issues[0].line == 2);
-    CHECK(bad.issues[0].reason == "invalidCode");
-    CHECK(bad.issues[1].line == 3);
+    CHECK(codes == std::vector<std::string>{"UPPER_case", "spaced code", "sf", "sf_litrpg",
+                                            "ok_genre", "whitespace_ok"});
+    CHECK(bad.entries[5].category == "det");
+    CHECK(bad.entries[5].names.at("en") == "Trimmed name");
+    CHECK(bad.entries[5].names.at("ru") == "Обрезанное имя");
+    REQUIRE(bad.issues.size() == 3);
+    CHECK(bad.issues[0].line == 4);
+    CHECK(bad.issues[0].reason == "missingName");
+    CHECK(bad.issues[1].line == 5);
     CHECK(bad.issues[1].reason == "invalidCode");
-    CHECK(bad.issues[2].line == 4);
-    CHECK(bad.issues[2].reason == "missingName");
-    CHECK(bad.issues[3].line == 5);
-    CHECK(bad.issues[3].reason == "invalidCode");
-    CHECK(bad.issues[4].line == 9);
-    CHECK(bad.issues[4].reason == "duplicate");
-    CHECK(bad.issues[4].code == "ok_genre");
-    CHECK(bad.issues[4].file == "bad-lines.genres.tsv");
+    CHECK(bad.issues[2].line == 9);
+    CHECK(bad.issues[2].reason == "duplicate");
+    CHECK(bad.issues[2].code == "ok_genre");
+    CHECK(bad.issues[2].file == "bad-lines.genres.tsv");
 }
 
 TEST_CASE("genres: user files add genres through the layers, never modify existing ones",
@@ -247,7 +251,9 @@ TEST_CASE("genres: user files add genres through the layers, never modify existi
     CHECK(catalog.category("fanfic")->titles.at("uk") == "fanfic");
     CHECK(catalog.find("ok_genre")->source == "user:bad-lines.genres.tsv");
     CHECK(catalog.find("mine")->source == "user:override.genres.tsv");
-    CHECK(catalog.size() == 186 + kLegacy.size() + 3 + 2 + 1);
+    // + 2: UPPER_case and "spaced code" of bad-lines are genre codes as the schema allows them
+    // (feature 015, the requester's rule).
+    CHECK(catalog.size() == 186 + kLegacy.size() + 3 + 2 + 1 + 2);
     // Issues: the parse errors of bad-lines plus the duplicates across files.
     std::set<std::string> duplicates;
     std::size_t parse_errors = 0;
@@ -258,7 +264,7 @@ TEST_CASE("genres: user files add genres through the layers, never modify existi
             ++parse_errors;
         }
     }
-    CHECK(parse_errors == 4);  // invalidCode x3 + missingName
+    CHECK(parse_errors == 2);  // the empty code (invalidCode) + missingName
     CHECK(duplicates == std::set<std::string>{"sf", "sf_litrpg", "ok_genre", "sf_epic"});
     // Sources list and userFiles in the JSON.
     const json j = catalog.to_json();
@@ -398,4 +404,193 @@ TEST_CASE("genres: resources.genres / resources.openGenresFolder / resources.lay
     CHECK(layers[0]["layer"] == "settings");
     CHECK(layers[0]["path"] == (data / "custom-genres").string());
     CHECK(layers[0]["exists"] == true);
+}
+
+// Feature 015 (FR-008, Q1 = B): a genre line may give a Ukrainian name as its fifth field; a line
+// without it keeps today's meaning; more than five fields is a line problem.
+TEST_CASE("genres: an optional fifth field gives the Ukrainian name (feature 015)",
+          "[genres][015]") {
+    const std::string text =
+        "\xEF\xBB\xBF"  // byte order mark
+        "five\tOther\tFive\tПять\tП'ять\r\n"
+        "four\tOther\tFour\tЧетыре\n"
+        "empty_uk\tOther\tEmpty\tПусто\t\n"
+        "# a comment\n"
+        "\n"
+        "six\tOther\tSix\tШесть\tШість\textra\n";
+    const auto parsed = genres::parse_genres_tsv(text, "uk.genres.tsv");
+    REQUIRE(parsed.entries.size() == 3);
+    CHECK(parsed.entries[0].code == "five");
+    CHECK(parsed.entries[0].names.at("uk") == "П'ять");
+    CHECK(parsed.entries[0].names.at("ru") == "Пять");
+    CHECK(parsed.entries[1].code == "four");
+    CHECK(parsed.entries[1].names.count("uk") == 0);  // filled in by the catalogue, as today
+    CHECK(parsed.entries[2].code == "empty_uk");
+    CHECK(parsed.entries[2].names.count("uk") == 0);  // an empty fifth field counts as absent
+    REQUIRE(parsed.issues.size() == 1);
+    CHECK(parsed.issues[0].line == 6);
+    CHECK(parsed.issues[0].reason == "tooManyFields");
+    CHECK(parsed.issues[0].code == "six");
+}
+
+// Feature 015 (FR-004, contracts/rpc-api.md): the passed-over items over RPC, the template's
+// unusable user file among them, and their count in resources.genres.
+TEST_CASE(
+    "genres: resources.passedOver lists passed-over items; resources.genres counts them "
+    "(feature 015)",
+    "[genres][server][015]") {
+    test::TempDir data{"mfbe-passed-over"};
+    test::write_text(data.path() / "genres" / "genres.txt", "x\tOther\tX\tX\n");
+    test::write_text(data.path() / "genres" / "my.genres.tsv", "my_genre\tOther\tMine\tМой\n");
+    test::write_text(data.path() / "scripts" / "stray.js", "// a bare script file");
+    test::write_text(data.path() / "blank.fb2", "not a FictionBook document");
+    CoreServerOptions options;
+    options.data_dir = data.path().string();
+    options.test_hooks = true;
+    auto server = CoreServer::start(options);
+    test::WsClient ws;
+    REQUIRE(ws.open(server->port(), "/rpc?token=" + server->token()) == 101);
+
+    const json all = ws.call("resources.passedOver")["result"]["items"];
+    const auto find = [&all](const std::string& kind, const std::string& name) {
+        for (const json& item : all) {
+            if (item["kind"] == kind && item["path"].get<std::string>().ends_with(name)) {
+                return item;
+            }
+        }
+        return json();
+    };
+    CHECK(find("genres", "genres.txt")["reason"] == "name");
+    CHECK(find("genres", "genres.txt")["layer"] == "user");
+    CHECK(find("genres", "my.genres.tsv").is_null());
+    CHECK(find("scripts", "stray.js")["reason"] == "notAFolder");
+    const json tpl = find("template", "blank.fb2");
+    CHECK(tpl["reason"] == "invalid");
+    CHECK(tpl["layer"] == "user");
+    CHECK(tpl["detail"].is_string());
+
+    CHECK(ws.call("resources.passedOver", json{{"kind", "genres"}})["result"]["items"].size() == 1);
+    CHECK(ws.call("resources.passedOver", json{{"kind", "template"}})["result"]["items"].size() ==
+          1);
+    CHECK(ws.call("resources.passedOver", json{{"kind", "nope"}})["error"]["code"] == -32602);
+    CHECK(ws.call("resources.genres")["result"]["passedOver"] == 1);
+}
+
+// Feature 015 (FR-010..FR-013, research R5): resources.addGenre writes the user's my.genres.tsv in
+// the first writable genres folder and the genre is known at once.
+TEST_CASE("genres: resources.addGenre adds a genre to the user's my.genres.tsv (feature 015)",
+          "[genres][server][015]") {
+    test::TempDir data{"mfbe-add-genre"};
+    CoreServerOptions options;
+    options.data_dir = data.path().string();
+    options.test_hooks = true;
+    auto server = CoreServer::start(options);
+    test::WsClient ws;
+    REQUIRE(ws.open(server->port(), "/rpc?token=" + server->token()) == 101);
+    const auto add = [&ws](const std::string& code, const std::string& category,
+                           const json& names) {
+        return ws.call("resources.addGenre",
+                       json{{"code", code}, {"category", category}, {"names", names}});
+    };
+    const auto file = data.path() / "genres" / "my.genres.tsv";
+
+    const json added = add("my_added", "sf", json{{"en", "Added"}, {"ru", ""}, {"uk", "Додано"}});
+    REQUIRE(added.contains("result"));
+    CHECK(added["result"]["file"].get<std::string>().ends_with("my.genres.tsv"));
+    CHECK(added["result"]["entry"]["code"] == "my_added");
+    CHECK(added["result"]["entry"]["source"] == "user:my.genres.tsv");
+    CHECK(added["result"]["entry"]["names"]["uk"] == "Додано");
+    CHECK(test::read_text(file) == "my_added\tsf\tAdded\tmy_added\tДодано\n");
+    CHECK(validation::is_known_genre("my_added"));
+
+    // A second one is appended; the earlier line stays as it was.
+    REQUIRE(add("my_second", "det", json::object()).contains("result"));
+    CHECK(test::read_text(file) ==
+          "my_added\tsf\tAdded\tmy_added\tДодано\nmy_second\tdet\tmy_second\tmy_second\n");
+
+    const json listed = ws.call("resources.genres")["result"]["entries"];
+    CHECK(std::any_of(listed.begin(), listed.end(),
+                      [](const json& e) { return e["code"] == "my_second"; }));
+
+    // Refusals, each with its reason; nothing is written.
+    // A genre code is the schema's xs:token: empty or with control characters it is refused.
+    CHECK(add("   ", "sf", json::object())["error"]["data"]["reason"] == "invalidCode");
+    CHECK(add(std::string("bad\x01code"), "sf", json::object())["error"]["data"]["reason"] ==
+          "invalidCode");
+    const json standard = add("sf_fantasy", "sf", json::object());
+    CHECK(standard["error"]["data"]["reason"] == "duplicate");
+    CHECK(standard["error"]["data"]["source"] == "standard");
+    CHECK(add("my_added", "sf", json::object())["error"]["data"]["reason"] == "duplicate");
+    CHECK(add("my_third", "sf", json{{"en", "a\tb"}})["error"]["data"]["reason"] == "invalidText");
+    CHECK(add("my_third", "", json::object())["error"]["data"]["reason"] == "invalidText");
+    CHECK(add("my_third", "sf\nx", json::object())["error"]["data"]["reason"] == "invalidText");
+    CHECK(test::read_text(file).find("my_third") == std::string::npos);
+
+    // Anything the schema allows is allowed (the requester's rule): a hyphen, capitals, Cyrillic,
+    // a single inner space - its whitespace collapsed as the schema collapses it.
+    for (const auto& [typed, written] : std::vector<std::pair<std::string, std::string>>{
+             {"boyar-anime", "boyar-anime"},
+             {"Мой Жанр", "Мой Жанр"},
+             {"  my   spaced\tgenre ", "my spaced genre"}}) {
+        INFO(typed);
+        const json result = add(typed, "sf", json::object());
+        REQUIRE(result.contains("result"));
+        CHECK(result["result"]["entry"]["code"] == written);
+        CHECK(validation::is_known_genre(written));
+    }
+    CHECK(test::read_text(file).find("boyar-anime\tsf\tboyar-anime\tboyar-anime\n") !=
+          std::string::npos);
+}
+
+#ifndef _WIN32
+TEST_CASE("genres: resources.addGenre says why when no genres folder can be written (feature 015)",
+          "[genres][server][015]") {
+    if (::geteuid() == 0) {
+        SKIP("root writes into every folder");
+    }
+    test::TempDir data{"mfbe-add-genre-ro"};
+    CoreServerOptions options;
+    options.data_dir = data.path().string();
+    options.test_hooks = true;
+    auto server = CoreServer::start(options);
+    test::WsClient ws;
+    REQUIRE(ws.open(server->port(), "/rpc?token=" + server->token()) == 101);
+    std::filesystem::create_directories(data.path() / "genres");
+    std::filesystem::permissions(data.path() / "genres", std::filesystem::perms::owner_read |
+                                                             std::filesystem::perms::owner_exec);
+    const json refused =
+        ws.call("resources.addGenre",
+                json{{"code", "my_ro"}, {"category", "sf"}, {"names", json::object()}});
+    std::filesystem::permissions(data.path() / "genres", std::filesystem::perms::owner_all);
+    CHECK(refused["error"]["code"] == rpc::codes::kDocIoError);
+    CHECK(refused["error"]["data"]["reason"] == "notWritable");
+    CHECK(refused["error"]["data"]["folders"].size() >= 1);
+    CHECK_FALSE(std::filesystem::exists(data.path() / "genres" / "my.genres.tsv"));
+}
+#endif
+
+// Feature 015 (FR-017): the user's own genres from every designated folder are known to the
+// validator; a code in no list is not.
+TEST_CASE(
+    "genres: own genres from the chosen, the per-user and the portable folder validate "
+    "(feature 015)",
+    "[genres][validator][015]") {
+    test::TempDir tmp{"mfbe-genres-layers"};
+    resources::Roots roots = bundled_only_roots(tmp);
+    roots.settings_genres = tmp / "chosen";
+    roots.portable = tmp / "portable";
+    test::write_text(tmp / "chosen" / "a.genres.tsv", "chosen_genre\tsf\tChosen\tВыбранный\n");
+    test::write_text(tmp / "data" / "genres" / "b.genres.tsv",
+                     "user_genre\tsf\tUser\tПользователь\n");
+    test::write_text(tmp / "portable" / "genres" / "c.genres.tsv",
+                     "portable_genre\tsf\tPortable\tПереносной\tПереносний\n");
+    auto catalog = std::make_shared<const genres::GenreCatalog>(load_with(roots));
+    genres::install_genre_validator(catalog);
+    CHECK(validation::is_known_genre("chosen_genre"));
+    CHECK(validation::is_known_genre("user_genre"));
+    CHECK(validation::is_known_genre("portable_genre"));
+    CHECK_FALSE(validation::is_known_genre("nowhere_genre"));
+    const genres::GenreEntry* portable = catalog->find("portable_genre");
+    REQUIRE(portable != nullptr);
+    CHECK(portable->names.at("uk") == "Переносний");
 }

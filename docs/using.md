@@ -491,6 +491,27 @@ table cell a small `#` in its corner (the id in its tooltip). The tabs are not p
 take no clicks and are never typed into or saved. In the Document tree a section that has an id has a
 `#` badge at the right of its row. *View > Show Ids* switches the marks off and on.
 
+## Your own genres
+
+A genre the editor does not know is marked *unknown* on the Description page. Point at its row, or
+move the keyboard focus to it, and a "+" appears: it adds the genre to your own genres, with the
+code filled in, the names in English, Russian and Ukrainian (an empty English or Russian name is
+written as the code) and a category. From then on the genre is known: validation accepts it, and
+it stays known in later sessions and for other books. *Choose a genre* adds one the same way with
+*Add a genre of your own...*; the new genre is chosen at once. Your own genres show in their own
+colour, marked *[your file]*, with their file in the tooltip. The "?" beside the list explains how
+to write a genre file by hand (*Installing*, user folders).
+
+## Dates in another format
+
+A date's value must be written year-month-day (2026-10-30). When it holds a real date in another
+form - with a time (2026-10-30 23:46), with dots or slashes (30.10.2026), or with a month name in
+English, Russian or Ukrainian (30 October 2026, 30 октября 2026 г.) - the *Fix* button beside the
+date writes it in the required form, as one step that *Undo* takes back; the date's text stays as
+it was. When the day and the month can be read both ways (03/04/2026), *Fix* shows both days and
+writes the one you choose. *Fix* is unavailable for a value with no recognisable date, or with only
+a year or a year and a month.
+
 ## Persons in the description
 
 An author, translator or document author whose fields are all empty is written as FictionBook Editor

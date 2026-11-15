@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>my_unknown_genre</genre>
+			<author>
+				<first-name>Anna</first-name>
+				<last-name>Example</last-name>
+			</author>
+			<book-title>Unknown genre</book-title>
+			<lang>en</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<date value="2026-11-10">2026</date>
+			<id>f015-unknown-genre</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<section>
+			<p>Only text.</p>
+		</section>
+	</body>
+</FictionBook>

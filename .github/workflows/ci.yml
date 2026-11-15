@@ -681,6 +681,13 @@ jobs:
 
       # Feature 011 (D47, FR-086): no object built for a newer macOS than the editor targets, and
       # no Mach-O of the application bundle requiring more than macOS 13.0.
+      - name: "Shell smoke (macOS): the user's own genres, scripts and template (feature 015)"
+        # The user-folder fixtures in the per-user data folder and in a portable user folder next to
+        # a copy of the bundle; tools/user-folders-check.mjs checks them over DevTools.
+        if: runner.os == 'macOS'
+        shell: bash
+        run: tools/ci/macos-user-folders-smoke.sh "build/${{ matrix.preset }}/bin/mfbe.app"
+
       - name: macOS deployment target (feature 011)
         if: runner.os == 'macOS'
         shell: bash
@@ -748,6 +755,18 @@ jobs:
           MFBE_SMOKE_OPEN_FILE: tests/fixtures/books/reference-all-elements.fb2
           MFBE_SMOKE_PDF: "1"
           MFBE_SMOKE_SCREENSHOT: build/shell-smoke-pdf.png
+
+      - name: "Shell smoke: the user's own genres, scripts and template (feature 015)"
+        # The user-folder fixtures in the per-user data folder of an isolated home: the genre file's
+        # genre in Choose a genre, the script in the Scripts menu, the misnamed genre file listed in
+        # Settings > Other, the template used by File > New (tools/user-folders-check.mjs).
+        if: runner.os == 'Linux'
+        run: tools/shell-smoke.sh
+        env:
+          MFBE_APP_BIN: ${{ github.workspace }}/build/${{ matrix.preset }}/bin/mfbe
+          MFBE_SMOKE_REAL_UI: "1"
+          MFBE_SMOKE_USER_FOLDERS: "1"
+          MFBE_SMOKE_SCREENSHOT: build/shell-smoke-user-folders.png
 
       - name: Shell smoke, copies of the editor (feature 008)
         # Two copies, a book relayed through the engine to the untouched copy, the open book not
@@ -927,6 +946,29 @@ jobs:
           rpm -qpi "$rpm" && rpm -qp --scripts "$rpm" | head -20
           APPIMAGE_EXTRACT_AND_RUN=1 MFBE_APP_BIN="$image" MFBE_SMOKE_REAL_UI=1 \
             MFBE_SMOKE_SCREENSHOT=build/shell-smoke-appimage.png tools/shell-smoke.sh
+          # Feature 015 (FR-001, FR-006): the user's genre file, script and template are in effect in
+          # the AppImage - in the per-user data folder, and in each portable layout of an image
+          # copied to a folder whose path holds a space and non-English letters (research R1.4).
+          APPIMAGE_EXTRACT_AND_RUN=1 MFBE_APP_BIN="$image" MFBE_SMOKE_REAL_UI=1 MFBE_SMOKE_USER_FOLDERS=1 \
+            MFBE_SMOKE_SCREENSHOT=build/shell-smoke-appimage-user.png tools/shell-smoke.sh
+          uf_dir="$RUNNER_TEMP/appimage test/Тест"
+          mkdir -p "$uf_dir"
+          cp "$image" "$uf_dir/"
+          uf_image="$uf_dir/$(basename "$image")"
+          for layout in d home; do
+            rm -rf "$uf_image.d" "$uf_image.home"
+            mkdir -p "$uf_image.$layout/user"
+            APPIMAGE_EXTRACT_AND_RUN=1 MFBE_APP_BIN="$uf_image" MFBE_SMOKE_REAL_UI=1 MFBE_SMOKE_USER_FOLDERS=1 \
+              MFBE_SMOKE_USER_FOLDERS_ROOT="$uf_image.$layout/user" \
+              MFBE_SMOKE_SCREENSHOT="build/shell-smoke-appimage-$layout.png" tools/shell-smoke.sh
+          done
+          # The deb, installed as a user installs it, with the user items in the per-user data folder.
+          sudo apt-get install -y "$(realpath "$deb")"
+          MFBE_APP_BIN=/usr/bin/mfbe MFBE_SMOKE_REAL_UI=1 MFBE_SMOKE_USER_FOLDERS=1 \
+            MFBE_SMOKE_SCREENSHOT=build/shell-smoke-deb-user.png tools/shell-smoke.sh
+          sudo apt-get remove -y mfbe
+          # The rpm, installed in a Fedora container (tools/ci/rpm-user-folders-smoke.sh).
+          tools/ci/rpm-user-folders-smoke.sh "$(realpath "$rpm")"
 
       - name: Package check (Windows - the launch option of the last page, feature 008)
         # The MSI tables of MfbeExitDlg: the ticked Launch checkbox, Finish's DoAction under its
@@ -994,6 +1036,9 @@ jobs:
           $zipDefault = (Get-ItemProperty HKLM:\Software\Classes\.zip -ErrorAction SilentlyContinue).'(default)'
           if ($zipDefault -eq 'MaximaFBE.fb2zip') { throw "the editor became the default program of .zip" }
           tools/ci/windows-start-smoke.ps1 -Exe $exe
+          # Feature 015 (FR-001, FR-006): the user's genre file, script and template in the installed
+          # editor's per-user data folder are in effect.
+          tools/ci/windows-user-folders-smoke.ps1 -Exe $exe -DataRoot (Join-Path $env:APPDATA 'Maxima Fiction Book Editor')
           # Feature 014 (T054, analysis C3): a font the installed editor adds for the PDF export is
           # kept in the per-user data folder, never under the program's folder.
           $core = Join-Path (Split-Path -Parent $exe) 'mfbe-core.exe'
@@ -1116,9 +1161,16 @@ jobs:
           if (-not $exe) { throw "bin\mfbe.exe not found in $zip" }
           # Feature 002: the portable copy keeps all of its data in its `user` folder.
           if (-not (Test-Path (Join-Path (Split-Path -Parent $exe) 'user') -PathType Container)) { throw "bin\user not found in $zip" }
+          # Feature 015 (review of rc.7, R1): the copy's default folders come with their readme.
+          foreach ($readme in 'readme.md', 'genres\readme.md', 'scripts\readme.md', 'dictionaries\readme.md') {
+            if (-not (Test-Path (Join-Path (Split-Path -Parent $exe) "user\$readme") -PathType Leaf)) { throw "bin\user\$readme not found in $zip" }
+          }
           Write-Host "Portable copy: $exe"
           & $exe --version
           tools/ci/windows-start-smoke.ps1 -Exe $exe
+          # Feature 015 (FR-001, FR-006): the user's genre file, script and template in the portable
+          # copy's user folder are in effect.
+          tools/ci/windows-user-folders-smoke.ps1 -Exe $exe -DataRoot (Join-Path (Split-Path -Parent $exe) 'user')
           # Feature 014 (T054, analysis C3): a font the portable copy adds for the PDF export stays
           # in its own user folder.
           $core = Join-Path (Split-Path -Parent $exe) 'mfbe-core.exe'

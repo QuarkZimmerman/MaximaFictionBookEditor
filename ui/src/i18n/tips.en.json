@@ -77,7 +77,7 @@
           },
           "genres": {
             "default": "Read your own genre lists from the editor's own genres folder.",
-            "path": "The folder with your own genre lists, which add to or replace the standard one.",
+            "path": "The folder with your own genre lists, which add to the standard one.",
             "open": "Opens the genres folder in the file manager."
           },
           "template": {
@@ -251,7 +251,8 @@
       "name": "The name of the series the book belongs to, for example The Lord of the Rings.",
       "number": "The book's number in the series, for example 2.",
       "genres": {
-        "match": "How well the genre fits the book, in percent; empty means 100."
+        "match": "How well the genre fits the book, in percent; empty means 100.",
+        "addOwn": "Adds a genre of your own, written into my.genres.tsv in your genres folder, and chooses it."
       },
       "firstName": "The person's first name.",
       "middleName": "The person's middle name or patronymic.",
@@ -286,6 +287,18 @@
     },
     "modalJob": {
       "cancel": "Stops the operation; nothing of it is kept."
+    },
+    "addGenre": {
+      "code": "The genre’s code, as books carry it: any text; spaces at its ends are dropped.",
+      "name": {
+        "en": "The name the English interface shows; left empty, the code is written.",
+        "ru": "The name the Russian interface shows; left empty, the code is written.",
+        "uk": "The name the Ukrainian interface shows; it may stay empty."
+      },
+      "category": "The group of the genre list the genre is listed under."
+    },
+    "genreFileHelp": {
+      "close": "Closes the explanation."
     }
   }
 }

@@ -6,6 +6,7 @@
 #include <mfbe/resources.hpp>
 
 #include <catch2/catch_test_macros.hpp>
+#include <map>
 
 #ifndef _WIN32
 #include <unistd.h>
@@ -296,4 +297,185 @@ TEST_CASE("layers: names and kinds round-trip", "[layers]") {
     CHECK(resources::kind_from_string("dictionaries") == resources::Kind::dictionaries);
     CHECK_FALSE(resources::kind_from_string("fonts").has_value());
     CHECK(std::string(resources::to_string(resources::LayerName::portable)) == "portable");
+}
+
+// Feature 015 (FR-004, research R2): every item of a user layer that the editor does not use is
+// listed with its reason; nothing is passed over silently. Bundled layers are never listed.
+namespace {
+
+std::map<std::string, std::string> reasons_of(const std::vector<resources::PassedOver>& items) {
+    std::map<std::string, std::string> out;
+    for (const auto& item : items) {
+        out[item.path.filename().string()] = item.reason;
+    }
+    return out;
+}
+
+}  // namespace
+
+TEST_CASE("layers: passed-over genre items are listed with their reasons (feature 015)",
+          "[layers][015]") {
+    test::TempDir tmp;
+    auto roots = make_roots(tmp);
+    roots.settings_genres = tmp / "chosen-genres";
+    touch(tmp / "data" / "genres" / "my.genres.tsv", "my_genre\tOther\tMine\tМой\n");
+    touch(tmp / "data" / "genres" / "genres.txt", "x\tOther\tX\tX\n");
+    touch(tmp / "data" / "genres" / "genres.tsv", "x\tOther\tX\tX\n");
+    std::filesystem::create_directories(tmp / "data" / "genres" / "folder.genres.tsv");
+    touch(tmp / "data" / "genres" / ".hidden.txt");
+    // Windows-1251 text: not UTF-8, so not used (garbled names would be worse).
+    touch(tmp / "chosen-genres" / "cp1251.genres.tsv", std::string("x\tOther\tX\t\xcc\xee\xe9\n"));
+    touch(tmp / "portable" / "genres" / "notes.md", "a note");
+    touch(tmp / "bundled" / "genres" / "README.txt", "bundled files are never listed");
+    resources::ResourceLayers layers(roots);
+
+    const auto items = layers.passed_over(resources::Kind::genres);
+    const auto reasons = reasons_of(items);
+    CHECK(reasons.at("genres.txt") == "name");
+    CHECK(reasons.at("genres.tsv") == "name");
+    CHECK(reasons.at("folder.genres.tsv") == "notAFile");
+    CHECK(reasons.at("cp1251.genres.tsv") == "encoding");
+    CHECK(reasons.at("notes.md") == "name");
+    CHECK(reasons.count("my.genres.tsv") == 0);
+    CHECK(reasons.count(".hidden.txt") == 0);
+    CHECK(reasons.count("README.txt") == 0);
+    for (const auto& item : items) {
+        CHECK(item.kind == resources::Kind::genres);
+        CHECK(item.layer != resources::LayerName::bundled);
+        if (item.path.filename() == "cp1251.genres.tsv") {
+            CHECK(item.layer == resources::LayerName::settings);
+        }
+        if (item.path.filename() == "notes.md") {
+            CHECK(item.layer == resources::LayerName::portable);
+        }
+    }
+}
+
+TEST_CASE(
+    "layers: passed-over script and dictionary items are listed with their reasons "
+    "(feature 015)",
+    "[layers][015]") {
+    test::TempDir tmp;
+    auto roots = make_roots(tmp);
+    touch(tmp / "data" / "scripts" / "my-script" / "script.json", "{}");
+    touch(tmp / "data" / "scripts" / "stray.js", "// bare file");
+    touch(tmp / "data" / "scripts" / "no-description" / "index.js", "// no script.json");
+    touch(tmp / "data" / "scripts" / "20_group" / "good" / "script.json", "{}");
+    touch(tmp / "data" / "scripts" / "20_group" / "group.json", "{}");
+    touch(tmp / "data" / "scripts" / "20_group" / "broken" / "index.js", "// no script.json");
+    touch(tmp / "data" / "dictionaries" / "xx_XX.aff");
+    touch(tmp / "data" / "dictionaries" / "xx_XX.dic");
+    touch(tmp / "data" / "dictionaries" / "xx_XX.txt", "the dictionary's notice");
+    touch(tmp / "data" / "dictionaries" / "yy_YY.aff");
+    touch(tmp / "data" / "dictionaries" / "zz_ZZ.dic");
+    touch(tmp / "bundled-scripts" / "stray.txt", "bundled files are never listed");
+    resources::ResourceLayers layers(roots);
+
+    const auto scripts = reasons_of(layers.passed_over(resources::Kind::scripts));
+    CHECK(scripts.at("stray.js") == "notAFolder");
+    CHECK(scripts.at("no-description") == "noDescription");
+    CHECK(scripts.at("broken") == "noDescription");
+    CHECK(scripts.count("my-script") == 0);
+    CHECK(scripts.count("20_group") == 0);  // a group of packages
+    CHECK(scripts.count("good") == 0);
+    CHECK(scripts.count("group.json") == 0);  // the group's own file
+    CHECK(scripts.count("stray.txt") == 0);
+
+    const auto dicts = reasons_of(layers.passed_over(resources::Kind::dictionaries));
+    CHECK(dicts.at("yy_YY.aff") == "partnerMissing");
+    CHECK(dicts.at("zz_ZZ.dic") == "partnerMissing");
+    CHECK(dicts.count("xx_XX.aff") == 0);
+    CHECK(dicts.count("xx_XX.dic") == 0);
+    CHECK(dicts.count("xx_XX.txt") == 0);  // the notice of a usable pair
+}
+
+TEST_CASE(
+    "layers: a missing chosen folder contributes nothing; a linked folder is followed "
+    "(feature 015)",
+    "[layers][015]") {
+    test::TempDir tmp;
+    auto roots = make_roots(tmp);
+    roots.settings_genres = tmp / "gone";
+    touch(tmp / "real-genres" / "linked.genres.tsv", "linked_genre\tOther\tLinked\tСвязанный\n");
+    std::error_code ec;
+    std::filesystem::create_directories(tmp / "data", ec);
+    std::filesystem::create_directory_symlink(tmp / "real-genres", tmp / "data" / "genres", ec);
+    if (ec) {
+        SKIP("folder links are not available here: " << ec.message());
+    }
+    resources::ResourceLayers layers(roots);
+    const auto all = layers.layers(resources::Kind::genres);
+    CHECK_FALSE(all.front().exists);  // the chosen folder no longer exists
+    CHECK(layers.passed_over(resources::Kind::genres).empty());
+    const auto genres = layers.list(resources::Kind::genres);
+    REQUIRE(genres.size() == 1);
+    CHECK(genres[0].id == "linked.genres.tsv");
+}
+
+#ifndef _WIN32
+TEST_CASE("layers: a genre file that cannot be read is passed over as unreadable (feature 015)",
+          "[layers][015]") {
+    if (::geteuid() == 0) {
+        SKIP("root reads every file");
+    }
+    test::TempDir tmp;
+    auto roots = make_roots(tmp);
+    const auto file = tmp / "data" / "genres" / "locked.genres.tsv";
+    touch(file, "locked\tOther\tLocked\tЗаперт\n");
+    std::filesystem::permissions(file, std::filesystem::perms::none);
+    resources::ResourceLayers layers(roots);
+    const auto reasons = reasons_of(layers.passed_over(resources::Kind::genres));
+    std::filesystem::permissions(file, std::filesystem::perms::owner_all);
+    CHECK(reasons.at("locked.genres.tsv") == "unreadable");
+}
+#endif
+
+// Feature 015 (review of rc.7, R1): the shipped readme of each default user folder is put there
+// when the folder exists and has none; one already there is never replaced; it is never listed as
+// passed over.
+TEST_CASE("layers: the shipped readme goes into the default user folders (feature 015)",
+          "[layers][015]") {
+    test::TempDir tmp;
+    auto roots = make_roots(tmp);
+    for (const char* name : {"data", "genres", "scripts", "dictionaries"}) {
+        touch(tmp / "bundled" / "user-readme" / (std::string(name) + ".md"),
+              std::string("shipped ") + name);
+    }
+    std::filesystem::create_directories(tmp / "data" / "genres");
+    touch(tmp / "data" / "dictionaries" / "readme.md", "the user's own text");
+    resources::ResourceLayers layers(roots);
+
+    layers.place_readmes();
+    CHECK(test::read_text(tmp / "data" / "readme.md") == "shipped data");
+    CHECK(test::read_text(tmp / "data" / "genres" / "readme.md") == "shipped genres");
+    CHECK_FALSE(std::filesystem::exists(tmp / "data" / "scripts"));  // not created by this
+    CHECK(test::read_text(tmp / "data" / "dictionaries" / "readme.md") == "the user's own text");
+
+    // A folder the editor creates gets its readme at once.
+    layers.user_folder(resources::Kind::scripts, true);
+    CHECK(test::read_text(tmp / "data" / "scripts" / "readme.md") == "shipped scripts");
+
+    // Never listed as passed over, in any kind.
+    for (resources::Kind kind :
+         {resources::Kind::genres, resources::Kind::scripts, resources::Kind::dictionaries}) {
+        for (const auto& item : layers.passed_over(kind)) {
+            CHECK(item.path.filename() != "readme.md");
+        }
+    }
+    CHECK(layers.passed_over(resources::Kind::genres).empty());
+    CHECK(layers.passed_over(resources::Kind::scripts).empty());
+}
+
+TEST_CASE("layers: the editor ships a readme for each default user folder (feature 015)",
+          "[layers][015]") {
+    for (const char* name : {"data", "genres", "scripts", "dictionaries"}) {
+        INFO(name);
+        const auto file = test::fixtures_dir().parent_path().parent_path() / "resources" /
+                          "user-readme" / (std::string(name) + ".md");
+        REQUIRE(std::filesystem::is_regular_file(file));
+        const std::string text = test::read_text(file);
+        CHECK(text.find("## English") != std::string::npos);
+        CHECK(text.find("## Русский") != std::string::npos);
+        CHECK(text.find("## Українська") != std::string::npos);
+    }
 }

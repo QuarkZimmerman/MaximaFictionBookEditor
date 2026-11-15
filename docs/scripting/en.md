@@ -42,9 +42,11 @@ scripts/
     └── Пример 1/                      "treeRows" (the tree bar's Scripts menu, section 4.8)
 ```
 
-Use **Scripts > Reload scripts** after adding or editing a package (the list is also refreshed
-when the editor starts and when the folder changes). A folder without `script.json` or with
-an invalid manifest is skipped and reported in the error log and in **Settings > Other**.
+The Scripts menu reads the folders again each time it opens, so a package you add or edit is
+there the next time you open the menu (**Scripts > Reload scripts** does the same at once). A bare
+`.js` file, a folder without `script.json` or one with an invalid manifest is skipped and listed
+with the reason in **Settings > Other** (an invalid manifest also in the error log). Your scripts
+folder holds a `readme.md` with this summary.
 
 ### Customising a bundled script
 
