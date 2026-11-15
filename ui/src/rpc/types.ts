@@ -456,6 +456,32 @@ export interface GenreEntry {
   source: string; // 'standard' | 'user:<file>' | 'bundled:<file>'
 }
 
+/** Feature 015: a kind of user resource, as `resources.passedOver` lists it. */
+export type PassedOverKind = 'genres' | 'scripts' | 'dictionaries' | 'template';
+
+/**
+ * Feature 015 (data-model "Passed-over item"): an item of a user folder that the editor does not
+ * use, with its reason - `name` (does not follow the kind's naming rule), `notAFile`,
+ * `notAFolder`, `noDescription` (script folder without `script.json`), `unreadable`, `encoding`
+ * (a genre file that is not UTF-8), `partnerMissing` (`.aff` or `.dic` alone), `invalid` (the
+ * template could not be used; `detail` says why).
+ */
+export interface PassedOverItem {
+  kind: PassedOverKind;
+  layer: 'settings' | 'user' | 'portable';
+  path: string;
+  reason:
+    | 'name'
+    | 'notAFile'
+    | 'notAFolder'
+    | 'noDescription'
+    | 'unreadable'
+    | 'encoding'
+    | 'partnerMissing'
+    | 'invalid';
+  detail?: string;
+}
+
 export interface LanguageEntry {
   code: string; // ISO 639-1
   names: Record<string, string>;
@@ -1517,7 +1543,21 @@ export interface RpcMethods {
   'words.exclusions': { params: { add?: string[]; remove?: string[] } | void; result: string[] };
 
   // §3.6 resources
-  'resources.genres': { params: void; result: { entries: GenreEntry[]; userFiles: string[] } };
+  'resources.genres': {
+    params: void;
+    /** `passedOver` (feature 015): the genre items the editor passes over (listed in Settings). */
+    result: { entries: GenreEntry[]; userFiles: string[]; passedOver?: number };
+  };
+  /** Feature 015 (FR-004): the user items the editor passes over, with their reasons. */
+  'resources.passedOver': {
+    params: { kind?: PassedOverKind } | void;
+    result: { items: PassedOverItem[] };
+  };
+  /** Feature 015 (FR-010): adds a genre to the user's own `my.genres.tsv`. */
+  'resources.addGenre': {
+    params: { code: string; category: string; names: { en?: string; ru?: string; uk?: string } };
+    result: { file: string; entry: GenreEntry };
+  };
   'resources.languages': { params: void; result: LanguageEntry[] };
   'resources.symbols': { params: void; result: SymbolEntry[] };
   'resources.layers': { params: void; result: ResourceLayer[] };

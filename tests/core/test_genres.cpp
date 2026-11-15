@@ -425,3 +425,45 @@ TEST_CASE("genres: an optional fifth field gives the Ukrainian name (feature 015
     CHECK(parsed.issues[0].reason == "tooManyFields");
     CHECK(parsed.issues[0].code == "six");
 }
+
+// Feature 015 (FR-004, contracts/rpc-api.md): the passed-over items over RPC, the template's
+// unusable user file among them, and their count in resources.genres.
+TEST_CASE("genres: resources.passedOver lists passed-over items; resources.genres counts them "
+          "(feature 015)",
+          "[genres][server][015]") {
+    test::TempDir data{"mfbe-passed-over"};
+    test::write_text(data.path() / "genres" / "genres.txt", "x\tOther\tX\tX\n");
+    test::write_text(data.path() / "genres" / "my.genres.tsv", "my_genre\tOther\tMine\tМой\n");
+    test::write_text(data.path() / "scripts" / "stray.js", "// a bare script file");
+    test::write_text(data.path() / "blank.fb2", "not a FictionBook document");
+    CoreServerOptions options;
+    options.data_dir = data.path().string();
+    options.test_hooks = true;
+    auto server = CoreServer::start(options);
+    test::WsClient ws;
+    REQUIRE(ws.open(server->port(), "/rpc?token=" + server->token()) == 101);
+
+    const json all = ws.call("resources.passedOver")["result"]["items"];
+    const auto find = [&all](const std::string& kind, const std::string& name) {
+        for (const json& item : all) {
+            if (item["kind"] == kind && item["path"].get<std::string>().ends_with(name)) {
+                return item;
+            }
+        }
+        return json();
+    };
+    CHECK(find("genres", "genres.txt")["reason"] == "name");
+    CHECK(find("genres", "genres.txt")["layer"] == "user");
+    CHECK(find("genres", "my.genres.tsv").is_null());
+    CHECK(find("scripts", "stray.js")["reason"] == "notAFolder");
+    const json tpl = find("template", "blank.fb2");
+    CHECK(tpl["reason"] == "invalid");
+    CHECK(tpl["layer"] == "user");
+    CHECK(tpl["detail"].is_string());
+
+    CHECK(ws.call("resources.passedOver", json{{"kind", "genres"}})["result"]["items"].size() == 1);
+    CHECK(ws.call("resources.passedOver", json{{"kind", "template"}})["result"]["items"].size() ==
+          1);
+    CHECK(ws.call("resources.passedOver", json{{"kind", "nope"}})["error"]["code"] == -32602);
+    CHECK(ws.call("resources.genres")["result"]["passedOver"] == 1);
+}
