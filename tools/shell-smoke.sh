@@ -643,6 +643,17 @@ if [[ "${MFBE_SMOKE_REAL_UI:-0}" == "1" ]]; then
 fi
 # GTK decodes this PNG while the shell starts, as it does for the images of many desktop themes.
 mkdir -p "$TMP/home/.config/gtk-3.0"
+# MFBE_SMOKE_USER_FOLDERS (feature 015): the user items of tests/fixtures/user-folders in the
+# per-user data folder of the isolated home - a genre file (and a misnamed one), a script package
+# and a template; tools/user-folders-check.mjs then checks them in the running editor.
+if [[ "${MFBE_SMOKE_USER_FOLDERS:-0}" == "1" ]]; then
+  UF_SRC="$ROOT/tests/fixtures/user-folders"
+  UF_DATA="${MFBE_SMOKE_USER_FOLDERS_ROOT:-$TMP/home/.local/share/maxfbeditor}"
+  mkdir -p "$UF_DATA/genres" "$UF_DATA/scripts"
+  cp "$UF_SRC/my.genres.tsv" "$UF_SRC/genres.txt" "$UF_DATA/genres/"
+  cp -r "$UF_SRC/my-test-script" "$UF_DATA/scripts/"
+  cp "$UF_SRC/blank.fb2" "$UF_DATA/"
+fi
 printf '* { background-image: url("%s"); }\n' "$ROOT/resources/icons/app/mfbe-64.png" \
   >"$TMP/home/.config/gtk-3.0/gtk.css"
 # The shell's log of this run, for shell-smoke.mjs: the "shelltest: argv" lines of the restart
@@ -970,6 +981,12 @@ start_shell
 # --- Playwright over CDP ----------------------------------------------------------------------
 node "$ROOT/tools/shell-smoke.mjs" "$CDP_PORT"
 check_spellcheck_engine
+
+if [[ "${MFBE_SMOKE_USER_FOLDERS:-0}" == "1" ]]; then
+  # --- the user's own genres, scripts and template (feature 015) -------------------------------
+  node "$ROOT/tools/user-folders-check.mjs" "$CDP_PORT" || exit 1
+  echo "shell-smoke: the user's genre file, script and template are in effect: OK"
+fi
 
 if [[ "${MFBE_SMOKE_PDF:-0}" == "1" ]]; then
   # --- the PDF export, printed by the shell itself (feature 014, T057) ------------------------
