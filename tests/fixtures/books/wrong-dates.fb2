@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>sf_fantasy</genre>
+			<author>
+				<first-name>Anna</first-name>
+				<last-name>Example</last-name>
+			</author>
+			<book-title>Wrong dates</book-title>
+			<date value="2026-10-30 23:46">30 October 2026</date>
+			<lang>en</lang>
+		</title-info>
+		<src-title-info>
+			<genre>sf_fantasy</genre>
+			<author>
+				<first-name>Anna</first-name>
+				<last-name>Example</last-name>
+			</author>
+			<book-title>Source title</book-title>
+			<date value="abc">some day</date>
+			<lang>en</lang>
+		</src-title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<date value="03/04/2026">3 April 2026</date>
+			<id>f015-wrong-dates</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<section>
+			<p>Only text.</p>
+		</section>
+	</body>
+</FictionBook>

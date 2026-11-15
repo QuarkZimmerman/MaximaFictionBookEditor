@@ -7,7 +7,8 @@
 export const RPC_API_VERSION = 1;
 /**
  * Additive contract revision within RPC_API_VERSION (`app.info().apiMinor`; absent = 0). The
- * revision this UI was written for (12 since feature 014: the `pdf.export.*` and `pdf.fonts.*` methods,
+ * revision this UI was written for (13 since feature 015: `resources.addGenre`,
+ * `resources.passedOver`, `scripts.list` scanning again after a change; 12 since feature 014: the `pdf.export.*` and `pdf.fonts.*` methods,
  * the routes `/pdf/{token}/part/{n}`, `/pdf/{token}/print/{n}` and `/pdf/fonts/...`, the settings `pdf.*`,
  * `test.printRequests` and `test.completePrint`; 11 since feature 012: `epub.open`, `epub.close`, the
  * `epub.write.*` methods, the binary routes `/epub/{token}/{entry}` and `/epub-write/{token}/{name}`,
@@ -31,4 +32,4 @@ export const RPC_API_VERSION = 1;
  * and requires >= 5 since feature 006 (`AI_REQUIRED_API_MINOR` in `ui/src/ai/index.ts`; 4
  * before).
  */
-export const RPC_API_MINOR = 12;
+export const RPC_API_MINOR = 13;

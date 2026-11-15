@@ -1,0 +1,22 @@
+{
+  "manifestVersion": 1,
+  "id": "99/my-test-script",
+  "name": {
+    "en": "My test script",
+    "ru": "Мой тестовый сценарий",
+    "uk": "Мій тестовий сценарій"
+  },
+  "description": {
+    "en": "A user's script for the tests of feature 015.",
+    "ru": "Сценарий пользователя для тестов функции 015.",
+    "uk": "Сценарій користувача для тестів функції 015."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "My test script",
+    "ru": "Мой тестовый сценарий"
+  }
+}
