@@ -56,6 +56,12 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   both days.
 - mfbe-core serve --portable-dir <folder>: the portable user folder, otherwise detected next to the
   program.
+- Each default folder for your own additions - the data folder (the template) and its genres,
+  scripts and dictionaries folders - holds a `readme.md` in English, Russian and Ukrainian that
+  explains its file names and format; the portable ZIP ships them, the editor puts them into the
+  other packages' folders and never replaces one already there.
+- Genre codes are anything the FB2 2.1 schema allows - `boyar-anime`, capitals, Cyrillic, a single
+  inner space - in genre files, the "+" of the Description page and *Add a genre of your own...*.
 
 ### Changed
 
@@ -76,6 +82,8 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   while the editor ran stayed missing until a restart. Such files are now listed with the reason,
   and the Scripts menu reads its folders when it opens. The genres folder's tooltip no longer says
   your lists may replace the standard one: they only add to it.
+- In the dark theme *Add a genre of your own...* and the "?" beside it looked disabled: they took
+  the muted colour of the line they sit in.
 
 ## 0.0.10 - 2026-11-11
 

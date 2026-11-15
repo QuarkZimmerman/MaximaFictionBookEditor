@@ -429,3 +429,53 @@ TEST_CASE("layers: a genre file that cannot be read is passed over as unreadable
     CHECK(reasons.at("locked.genres.tsv") == "unreadable");
 }
 #endif
+
+// Feature 015 (review of rc.7, R1): the shipped readme of each default user folder is put there
+// when the folder exists and has none; one already there is never replaced; it is never listed as
+// passed over.
+TEST_CASE("layers: the shipped readme goes into the default user folders (feature 015)",
+          "[layers][015]") {
+    test::TempDir tmp;
+    auto roots = make_roots(tmp);
+    for (const char* name : {"data", "genres", "scripts", "dictionaries"}) {
+        touch(tmp / "bundled" / "user-readme" / (std::string(name) + ".md"),
+              std::string("shipped ") + name);
+    }
+    std::filesystem::create_directories(tmp / "data" / "genres");
+    touch(tmp / "data" / "dictionaries" / "readme.md", "the user's own text");
+    resources::ResourceLayers layers(roots);
+
+    layers.place_readmes();
+    CHECK(test::read_text(tmp / "data" / "readme.md") == "shipped data");
+    CHECK(test::read_text(tmp / "data" / "genres" / "readme.md") == "shipped genres");
+    CHECK_FALSE(std::filesystem::exists(tmp / "data" / "scripts"));  // not created by this
+    CHECK(test::read_text(tmp / "data" / "dictionaries" / "readme.md") == "the user's own text");
+
+    // A folder the editor creates gets its readme at once.
+    layers.user_folder(resources::Kind::scripts, true);
+    CHECK(test::read_text(tmp / "data" / "scripts" / "readme.md") == "shipped scripts");
+
+    // Never listed as passed over, in any kind.
+    for (resources::Kind kind :
+         {resources::Kind::genres, resources::Kind::scripts, resources::Kind::dictionaries}) {
+        for (const auto& item : layers.passed_over(kind)) {
+            CHECK(item.path.filename() != "readme.md");
+        }
+    }
+    CHECK(layers.passed_over(resources::Kind::genres).empty());
+    CHECK(layers.passed_over(resources::Kind::scripts).empty());
+}
+
+TEST_CASE("layers: the editor ships a readme for each default user folder (feature 015)",
+          "[layers][015]") {
+    for (const char* name : {"data", "genres", "scripts", "dictionaries"}) {
+        INFO(name);
+        const auto file = test::fixtures_dir().parent_path().parent_path() / "resources" /
+                          "user-readme" / (std::string(name) + ".md");
+        REQUIRE(std::filesystem::is_regular_file(file));
+        const std::string text = test::read_text(file);
+        CHECK(text.find("## English") != std::string::npos);
+        CHECK(text.find("## Русский") != std::string::npos);
+        CHECK(text.find("## Українська") != std::string::npos);
+    }
+}

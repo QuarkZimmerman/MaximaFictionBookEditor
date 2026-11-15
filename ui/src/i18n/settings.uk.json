@@ -70,8 +70,8 @@
           "reason": {
             "name": "ім’я не відповідає правилу ({{rule}})",
             "notAFile": "тека там, де має бути файл",
-            "notAFolder": "файл там, де має бути тека сценарію",
-            "noDescription": "тека сценарію без script.json",
+            "notAFolder": "файл там, де має бути тека скрипту",
+            "noDescription": "тека скрипту без script.json",
             "unreadable": "файл не читається",
             "encoding": "не UTF-8",
             "partnerMissing": "немає парного файлу .aff або .dic",

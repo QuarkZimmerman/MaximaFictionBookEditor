@@ -187,6 +187,8 @@ void Services::refresh_layers() {
     roots.settings_dictionaries =
         platform::path_from_utf8(settings.get_string("other.dictionariesFolder"));
     layers.set_roots(std::move(roots));
+    // Feature 015 (review of rc.7, R1): the shipped readme in each default user folder.
+    layers.place_readmes();
 }
 
 void Services::refresh_genres() {

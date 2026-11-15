@@ -70,8 +70,8 @@
           "reason": {
             "name": "имя не соответствует правилу ({{rule}})",
             "notAFile": "папка там, где должен быть файл",
-            "notAFolder": "файл там, где должна быть папка сценария",
-            "noDescription": "папка сценария без script.json",
+            "notAFolder": "файл там, где должна быть папка скрипта",
+            "noDescription": "папка скрипта без script.json",
             "unreadable": "файл не читается",
             "encoding": "не UTF-8",
             "partnerMissing": "нет парного файла .aff или .dic",

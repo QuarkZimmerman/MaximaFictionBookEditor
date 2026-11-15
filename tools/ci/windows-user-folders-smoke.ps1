@@ -42,6 +42,11 @@ try {
     $ErrorActionPreference = 'Stop'
     if ($checkExit -ne 0) { throw "the user's genre file, script or template is not in effect (exit $checkExit)" }
     Write-Host "The user's genre file, script and template are in effect"
+    # Feature 015 (review of rc.7, R1): the editor put its readme into the default folders.
+    foreach ($readme in 'readme.md', 'genres\readme.md', 'scripts\readme.md') {
+        if (-not (Test-Path (Join-Path $DataRoot $readme) -PathType Leaf)) { throw "$DataRoot\$readme was not put there" }
+    }
+    Write-Host "The default folders have their readme"
 } finally {
     Get-EditorProcesses | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 }

@@ -291,8 +291,9 @@ View > Open dictionaries folder* (see *Spelling dictionaries* below) and the Abo
 
 Genre files are `*.genres.tsv` text files in the `genres` folder (UTF-8, one genre per line,
 tab-separated: `code`, `category`, `name_en`, `name_ru` and, optionally, `name_uk`); the code is
-lowercase Latin letters, digits and `_`, the category the key of the group the genre is listed
-under (`sf`, `det`, `prose`...), lines starting with `#` are comments. The picker shows which file
+the genre's code as books carry it - anything the FB2 schema allows, such as `boyar-anime`, its
+spaces collapsed as the schema collapses them -, the category the key of the group the genre is
+listed under (`sf`, `det`, `prose`...), lines starting with `#` are comments. The picker shows which file
 a genre comes from. Under the Ukrainian interface a genre of your own shows its `name_uk`, else
 the bundled Ukrainian name of its code when there is one, else its English name. The "?" beside
 the genres folder in *Settings > Other* and in *Choose a genre* explains the format with an
@@ -309,6 +310,12 @@ file, a script folder without `script.json`, a genre file that is not UTF-8, a `
 Genre files, scripts and templates added while the editor runs are used the next time their list
 is: when *Choose a genre* or the Scripts menu opens, or at *File > New*; dictionaries take effect
 on *Apply*.
+
+Each default folder - the data folder (for the template) and its `genres`, `scripts` and
+`dictionaries` folders - holds a `readme.md` in English, Russian and Ukrainian that explains its
+file names, format and structure. The portable ZIP ships them in its `user` folder; for the other
+packages the editor puts them into the folders when it starts or creates them, and never replaces
+a `readme.md` already there. The readme is not listed among the files the editor does not use.
 
 New documents start from `blank.fb2`, the original editor's blank document. A `blank.fb2` of
 your own - in the template folder chosen in *Settings > Other*, the per-user data folder or the

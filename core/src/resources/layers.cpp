@@ -209,6 +209,27 @@ bool hidden(const fs::path& p) {
     return name.empty() || name[0] == '.';
 }
 
+// The readme the editor ships for the folder (feature 015, R1): never listed as passed over.
+bool is_readme(const fs::path& p) {
+    const std::string name = lower(platform::utf8_from_path(p.filename()));
+    return name == "readme.md" || name == "readme.txt";
+}
+
+// Copies `source` to `folder`/readme.md when the folder exists and has no readme yet.
+void place_readme(const fs::path& folder, const fs::path& source) {
+    std::error_code ec;
+    if (folder.empty() || !fs::is_directory(folder, ec) || fs::exists(folder / "readme.md", ec) ||
+        !fs::is_regular_file(source, ec)) {
+        return;
+    }
+    fs::copy_file(source, folder / "readme.md", fs::copy_options::skip_existing, ec);
+    if (ec) {
+        log::warning("core", "resources.readmeFailed", "the folder's readme could not be written",
+                     log::extras({{"path", platform::utf8_from_path(folder)},
+                                  {"reason", platform::utf8_error_message(ec)}}));
+    }
+}
+
 }  // namespace
 
 ResourceLayers::ResourceLayers(Roots roots) : roots_(std::move(roots)) {}
@@ -266,7 +287,7 @@ std::vector<PassedOver> ResourceLayers::passed_over(Kind kind) const {
             out.push_back(PassedOver{kind, layer.layer, path, reason});
         };
         for (const fs::directory_entry& e : sorted_children(layer.path)) {
-            if (hidden(e.path())) {
+            if (hidden(e.path()) || is_readme(e.path())) {
                 continue;
             }
             std::error_code ec;
@@ -442,8 +463,27 @@ fs::path ResourceLayers::user_folder(Kind kind, bool create) const {
     if (create) {
         std::error_code ec;
         fs::create_directories(folder, ec);
+        place_readme(folder, readme_source(kind));
     }
     return folder;
+}
+
+fs::path ResourceLayers::readme_source(std::optional<Kind> kind) const {
+    if (roots_.bundled_resources.empty()) {
+        return {};
+    }
+    return roots_.bundled_resources / "user-readme" /
+           (kind ? std::string(to_string(*kind)) + ".md" : std::string("data.md"));
+}
+
+void ResourceLayers::place_readmes() const {
+    if (roots_.user_data.empty()) {
+        return;
+    }
+    place_readme(roots_.user_data, readme_source(std::nullopt));
+    for (Kind kind : {Kind::genres, Kind::scripts, Kind::dictionaries}) {
+        place_readme(roots_.user_data / to_string(kind), readme_source(kind));
+    }
 }
 
 }  // namespace mfbe::resources

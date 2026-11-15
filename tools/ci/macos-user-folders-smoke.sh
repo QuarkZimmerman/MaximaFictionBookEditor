@@ -48,6 +48,13 @@ run_check() {
 # 1. The per-user data folder of the installed application.
 seed "$HOME/Library/Application Support/Maxima Fiction Book Editor"
 run_check "$app"
+# Feature 015 (review of rc.7, R1): the editor put its readme into the default folders.
+for readme in readme.md genres/readme.md scripts/readme.md; do
+  if [[ ! -f "$HOME/Library/Application Support/Maxima Fiction Book Editor/$readme" ]]; then
+    echo "macos-user-folders-smoke: $readme was not put into the data folder" >&2
+    exit 1
+  fi
+done
 rm -rf "$HOME/Library/Application Support/Maxima Fiction Book Editor/genres" \
   "$HOME/Library/Application Support/Maxima Fiction Book Editor/scripts" \
   "$HOME/Library/Application Support/Maxima Fiction Book Editor/blank.fb2"

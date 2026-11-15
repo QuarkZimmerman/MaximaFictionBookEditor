@@ -105,6 +105,13 @@ public:
     // The items of the user layers of `kind` that the editor passes over (feature 015).
     std::vector<PassedOver> passed_over(Kind kind) const;
 
+    // Feature 015 (review of rc.7, R1): puts the shipped `readme.md` of each default user folder -
+    // the data folder (for the template) and its genres, scripts and dictionaries folders that
+    // exist - where none is yet; an existing readme is never replaced.
+    void place_readmes() const;
+    // The shipped readme of a kind's folder, or of the data folder itself (nullopt).
+    std::filesystem::path readme_source(std::optional<Kind> kind) const;
+
     // Writable per-user folder for a kind (<Data>/<kind>), created on demand.
     std::filesystem::path user_folder(Kind kind, bool create = false) const;
 

@@ -995,6 +995,14 @@ if [[ "${MFBE_SMOKE_USER_FOLDERS:-0}" == "1" ]]; then
   # --- the user's own genres, scripts and template (feature 015) -------------------------------
   node "$ROOT/tools/user-folders-check.mjs" "$CDP_PORT" || exit 1
   echo "shell-smoke: the user's genre file, script and template are in effect: OK"
+  # Feature 015 (review of rc.7, R1): the editor put its readme into the default folders.
+  for readme in readme.md genres/readme.md scripts/readme.md; do
+    if [[ ! -f "$UF_DATA/$readme" ]]; then
+      echo "SHELL SMOKE FAILED: $UF_DATA/$readme was not put there" >&2
+      exit 1
+    fi
+  done
+  echo "shell-smoke: the default folders have their readme: OK"
 fi
 
 if [[ "${MFBE_SMOKE_PDF:-0}" == "1" ]]; then
