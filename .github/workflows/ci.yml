@@ -1022,6 +1022,9 @@ jobs:
           $zipDefault = (Get-ItemProperty HKLM:\Software\Classes\.zip -ErrorAction SilentlyContinue).'(default)'
           if ($zipDefault -eq 'MaximaFBE.fb2zip') { throw "the editor became the default program of .zip" }
           tools/ci/windows-start-smoke.ps1 -Exe $exe
+          # Feature 015 (FR-001, FR-006): the user's genre file, script and template in the installed
+          # editor's per-user data folder are in effect.
+          tools/ci/windows-user-folders-smoke.ps1 -Exe $exe -DataRoot (Join-Path $env:APPDATA 'Maxima Fiction Book Editor')
           # Feature 014 (T054, analysis C3): a font the installed editor adds for the PDF export is
           # kept in the per-user data folder, never under the program's folder.
           $core = Join-Path (Split-Path -Parent $exe) 'mfbe-core.exe'
