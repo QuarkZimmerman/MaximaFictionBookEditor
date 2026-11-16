@@ -60,6 +60,8 @@ const DASHES = new Set(['-', '\u2010', '\u2012', '\u2013', '\u2014']);
 /** Closing punctuation, before which the import puts no space at a line's start. */
 const CLOSING = /[.,;:!?)\]}»”’…%]/u;
 
+/** The spaces CSS does not collapse: the no-break space and the typographic spaces. */
+const SPACES_OF_TEXT = /[\u00a0\u1680\u2000-\u200a\u202f\u205f\u3000]/;
 /** Whitespace as CSS collapses it in printed text (not the no-break space). */
 const WHITESPACE = /[ \t\n\r\f]/;
 /**
@@ -129,11 +131,25 @@ function boundarySpaces(block: Element): number[] {
     for (const child of node.childNodes) walk(child);
   };
   walk(block);
+  // A run of spaces touching the node's edge, a no-break space among them ("Xn \u00a0функции"): the engine
+  // drew none of them (D32's library run), so each is named.
+  const spaceLike = (char: string): boolean => char === ' ' || SPACES_OF_TEXT.test(char);
   const out: number[] = [];
-  for (let i = 1; i + 1 < units.length; i++) {
-    const unit = units[i];
-    if (unit.char !== ' ') continue;
-    if (units[i - 1].node !== unit.node || units[i + 1].node !== unit.node) out.push(unit.offset);
+  for (let i = 1; i + 1 < units.length;) {
+    if (!spaceLike(units[i].char)) {
+      i++;
+      continue;
+    }
+    let end = i;
+    while (
+      end + 1 < units.length &&
+      units[end + 1].node === units[i].node &&
+      spaceLike(units[end + 1].char)
+    )
+      end++;
+    const edge = units[i - 1].node !== units[i].node || units[end + 1]?.node !== units[i].node;
+    if (edge && end + 1 < units.length) for (let k = i; k <= end; k++) out.push(units[k].offset);
+    i = end + 1;
   }
   return out;
 }
@@ -233,19 +249,19 @@ function lineBreakJoins(block: Element): number[] {
   for (let i = 1; i < units.length; i++) {
     const before = units[i - 1];
     const unit = units[i];
-    // A dash attached to its word: the import joins there itself. A dash standing alone ("уравнения —") the
-    // import follows with a space at a line's end, which the book may not have (D32's library run).
-    if (
-      before.char === ' ' ||
-      unit.char === ' ' ||
-      (DASHES.has(before.char) && units[i - 2]?.char !== ' ')
-    )
-      continue;
-    // Where a line may break with no space: where two text nodes meet, after an ellipsis or a slash, before an
-    // em dash (Unicode's line breaking, UAX #14).
+    // A dash attached to its word in one text node: the import joins there itself. A dash standing alone
+    // ("уравнения —"), or after a word in another node ("[emphasis]n[/emphasis]-ную", the PDF's run beginning
+    // with the dash), the import follows with a space at a line's end, which the book may not have (D32).
+    const word = units[i - 2];
+    const attached =
+      DASHES.has(before.char) && !!word && word.char !== ' ' && word.node === before.node;
+    if (before.char === ' ' || unit.char === ' ' || attached) continue;
+    // Where a line may break with no space: where two text nodes meet, after an ellipsis, a slash or a dash,
+    // before an em dash (Unicode's line breaking, UAX #14).
     if (
       before.node === unit.node &&
       !/[\u2026/\u2014]/.test(before.char) &&
+      !DASHES.has(before.char) &&
       !/[\u2014\u2e3a\u2e3b]/.test(unit.char)
     )
       continue;

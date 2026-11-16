@@ -582,6 +582,7 @@ export function convertOurs(
   ): Run[] => {
     if (!fixes?.length) return [...runs];
     const out = runs.map((run) => ({ ...run }));
+    const named = new Set(fixes.filter((fix) => fix.space).map((fix) => fix.offset));
     for (const fix of [...fixes].sort((x, y) => x.offset - y.offset)) {
       if (fix.inner !== undefined) {
         // A mark's own space at a line's end: from outside the mark, where the space was put, into it.
@@ -615,7 +616,14 @@ export function convertOurs(
           const next = out[index + 1];
           // The characters on both sides of the place, across the runs: a space already there is kept.
           const after = local < run.text.length ? run.text[local] : next?.text[0];
-          if (after !== ' ' && local > 0 && run.text[local - 1] !== ' ') {
+          // Any space there is the one named (a no-break space the PDF drew); a space before it is one
+          // only when the record does not name that place too (a run of spaces, D32's library run).
+          const spaced = (char: string | undefined): boolean => !!char && /\s/u.test(char);
+          if (
+            !spaced(after) &&
+            local > 0 &&
+            (!spaced(run.text[local - 1]) || named.has(fix.offset - 1))
+          ) {
             // Where a marked run ends, the space goes outside the mark (D32: "ru[/a] ,").
             if (local === run.text.length && next && styled(run) && !styled(next)) {
               if (!next.text.startsWith(' ')) next.text = ` ${next.text}`;
@@ -997,13 +1005,20 @@ function notesBody(
       const list = byId.get(current)!;
       const [first, ...rest] = footnote.paragraphs;
       // ... unless the record says the cut fell between two paragraphs.
-      if (first && list.length && !apart.has(footnote.page))
+      if (first && list.length && !apart.has(footnote.page)) {
+        const last = list[list.length - 1];
+        const tail = last[last.length - 1];
+        // A word's own hyphen at the cut: the word goes on, without a space (as at a line's end, D32).
+        const word = /\S[-\u2010\u2012\u2013\u2014]$/u.test(tail?.text ?? '');
+        if (tail?.text.endsWith('\u00ad'))
+          last[last.length - 1] = { ...tail, text: tail.text.slice(0, -1) };
+        const tight = word || !!tail?.text.endsWith('\u00ad');
         list[list.length - 1] = [
-          ...list[list.length - 1],
-          { ...first[0], text: ` ${first[0]?.text ?? ''}` },
+          ...last,
+          { ...first[0], text: `${tight ? '' : ' '}${first[0]?.text ?? ''}` },
           ...first.slice(1),
         ];
-      else if (first) list.push(first);
+      } else if (first) list.push(first);
       list.push(...rest);
     }
   }
