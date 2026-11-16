@@ -9,6 +9,7 @@
 #include <Error.h>
 #include <GlobalParams.h>
 #include <PDFDoc.h>
+#include <algorithm>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -27,7 +28,8 @@ namespace {
 int usage() {
     std::fputs(
         "usage: mfbe-pdf-reader --pdf <path> --out <folder> [--max-memory <MB>] [--quality <1-100>]"
-        " [--fonts <folder>]\n",
+        " [--fonts <folder>]\n"
+        "       mfbe-pdf-reader --pdf <path> --render <page> --dpi <18-600> --out <file.png>\n",
         stderr);
     return 2;
 }
@@ -49,12 +51,26 @@ int main(int argc, char** argv) {
     }
     std::string pdf;
     std::string out;
+    std::string fonts;
+    int quality = 85;
+    int render = 0;
+    int dpi = 0;
     for (int i = 1; i + 1 < argc; i += 2) {
+        const std::string value = argv[i + 1];
         if (std::strcmp(argv[i], "--pdf") == 0) {
-            pdf = argv[i + 1];
+            pdf = value;
         } else if (std::strcmp(argv[i], "--out") == 0) {
-            out = argv[i + 1];
+            out = value;
+        } else if (std::strcmp(argv[i], "--quality") == 0) {
+            quality = std::clamp(std::atoi(value.c_str()), 1, 100);
+        } else if (std::strcmp(argv[i], "--fonts") == 0) {
+            fonts = value;
+        } else if (std::strcmp(argv[i], "--render") == 0) {
+            render = std::atoi(value.c_str());
+        } else if (std::strcmp(argv[i], "--dpi") == 0) {
+            dpi = std::atoi(value.c_str());
         }
+        // --max-memory: the core caps the process itself (an address-space limit, a job object).
     }
     if (pdf.empty() || out.empty()) {
         return usage();
@@ -92,6 +108,10 @@ int main(int argc, char** argv) {
     mfbe::pdf_reader::Options options;
     options.pdf = mfbe::platform::path_from_utf8(pdf);
     options.out = mfbe::platform::path_from_utf8(out);
+    options.quality = quality;
+    if (!fonts.empty()) {
+        options.fonts = mfbe::platform::path_from_utf8(fonts);
+    }
     std::optional<GooString> user;
     std::unique_ptr<PDFDoc> doc;
     for (int attempt = 0;; ++attempt) {
@@ -128,6 +148,19 @@ int main(int argc, char** argv) {
         doc = std::move(owner);
     }
     const int pages = doc->getNumPages();
+    // D20: the render switch draws one page as a picture, for a later OCR, and ends.
+    if (render != 0) {
+        int width = 0;
+        int height = 0;
+        if (!mfbe::pdf_reader::render_page(*doc, render, dpi, options.out, width, height)) {
+            mfbe::pdf_reader::emit(R"({"event":"failed","reason":"damaged"})");
+            return 1;
+        }
+        mfbe::pdf_reader::emit("{\"event\":\"rendered\",\"n\":" + std::to_string(render) +
+                               ",\"width\":" + std::to_string(width) +
+                               ",\"height\":" + std::to_string(height) + "}");
+        return 0;
+    }
     std::string error;
     bool ours = false;
     if (!mfbe::pdf_reader::write_document(*doc, options, error, &ours)) {

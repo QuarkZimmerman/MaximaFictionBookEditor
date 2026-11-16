@@ -1,12 +1,17 @@
-// Feature 016 (D19, D20, DP-8; tasks T047): each page's kind. A page that is only a picture is
-// drawn at 50 dpi in grey: rows of dark pixels at a steady spacing (at least six) mean printed text
-// without a text layer; almost no dark pixels, a blank page. Nothing is read: the picture is
-// measured.
+// Feature 016 (D19, D20, DP-8; tasks T047, T062): each page's kind, and a page drawn as a picture.
+// A page that is only a picture is drawn at 72 dpi in grey: rows of dark pixels at a steady spacing
+// (at least six) mean printed text without a text layer; almost no dark pixels, a blank page.
+// Nothing is read: the picture is measured.
 #include "pdf/reader/reader.hpp"
+
+#include <mfbe/images.hpp>
 
 #include <PDFDoc.h>
 #include <SplashOutputDev.h>
 #include <algorithm>
+#include <cstdint>
+#include <filesystem>
+#include <fstream>
 #include <splash/SplashBitmap.h>
 #include <vector>
 
@@ -98,6 +103,46 @@ std::string page_kind(PDFDoc& doc, int n, const nlohmann::json& page) {
         default:
             return "pictureWithoutText";
     }
+}
+
+}  // namespace mfbe::pdf_reader
+
+namespace mfbe::pdf_reader {
+
+// Feature 016 (D20, FR-060; tasks T062): a page drawn as a picture, for a later OCR - the editor's
+// own PDF library draws it, nothing reads it.
+bool render_page(PDFDoc& doc, int n, int dpi, const std::filesystem::path& file, int& width,
+                 int& height) {
+    if (n < 1 || n > doc.getNumPages() || dpi < 18 || dpi > 600) {
+        return false;
+    }
+    SplashColor white = {255, 255, 255, 0};
+    SplashOutputDev device(splashModeRGB8, 4, white);
+    device.startDoc(&doc);
+    doc.displayPage(&device, n, dpi, dpi, 0, false, true, false);
+    SplashBitmap* splash = device.getBitmap();
+    if (splash == nullptr || splash->getWidth() <= 0 || splash->getHeight() <= 0) {
+        return false;
+    }
+    images::Bitmap bitmap;
+    bitmap.width = width = splash->getWidth();
+    bitmap.height = height = splash->getHeight();
+    bitmap.rgba.resize(bitmap.pixel_count() * 4);
+    const unsigned char* data = splash->getDataPtr();
+    for (int y = 0; y < height; ++y) {
+        const unsigned char* row = data + static_cast<std::size_t>(y) * splash->getRowSize();
+        for (int x = 0; x < width; ++x) {
+            std::uint8_t* px = &bitmap.rgba[(static_cast<std::size_t>(y) * width + x) * 4];
+            px[0] = row[x * 3];
+            px[1] = row[x * 3 + 1];
+            px[2] = row[x * 3 + 2];
+            px[3] = 255;
+        }
+    }
+    const std::string bytes = images::encode_png(bitmap);
+    std::ofstream out(file, std::ios::binary);
+    out.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+    return static_cast<bool>(out);
 }
 
 }  // namespace mfbe::pdf_reader

@@ -32,6 +32,8 @@ export interface LayoutResult {
   cover: string | null;
   /** Page pictures without text not imported (a scan's plates and blank pages, D17, D19). */
   skippedPictures: number;
+  /** Pages without text whose picture comes in (the plates of a PDF made from text, D11). */
+  platesImported: number;
   /** Lines of page furniture left out (running heads, page numbers). */
   furniture: number;
 }
@@ -285,6 +287,7 @@ export function layoutParts(
   // scan, whose page pictures are the pages themselves.
   let cover: string | null = null;
   let skippedPictures = 0;
+  let platesImported = 0;
   const scanned =
     pages.filter((p) => p.pictures.some((pic) => covers(pic.box, p))).length > pages.length / 2;
   const figures: Part[] = [];
@@ -298,18 +301,15 @@ export function layoutParts(
       const large = covers(picture.box, page);
       if (large && hasText) continue;
       if (large && !hasText) {
-        if (page.n === 1 && !cover) cover = picture.id;
-        else if (scanned) skippedPictures++;
-        else
-          figures.push({
-            kind: 'figure',
-            page: page.n,
-            runs: [],
-            alt: '',
-            readerId: picture.id,
-            top: picture.box[1],
-          } as Part & { top: number });
-        continue;
+        if (page.n === 1 && !cover) {
+          cover = picture.id;
+          continue;
+        }
+        if (scanned) {
+          skippedPictures++;
+          continue;
+        }
+        platesImported++;
       }
       figures.push({
         kind: 'figure',
@@ -331,7 +331,7 @@ export function layoutParts(
     if (at < 0) parts.push(figure);
     else parts.splice(at, 0, figure);
   }
-  return { parts, furniture: furniture.size, cover, skippedPictures };
+  return { parts, furniture: furniture.size, cover, skippedPictures, platesImported };
 }
 
 /** A picture covering most of its page. */
