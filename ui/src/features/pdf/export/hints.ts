@@ -208,6 +208,68 @@ function decomposed(block: Element): [number, string][] {
   return out;
 }
 
+/** FB2's inline marks, which a space may belong to. */
+const MARK_NAMES = new Set([
+  'strong',
+  'emphasis',
+  'style',
+  'a',
+  'strikethrough',
+  'sub',
+  'sup',
+  'code',
+]);
+
+/**
+ * Feature 016 (D6): a mark's own space where a line breaks at it ("[emphasis]что [/emphasis]" at a line's end).
+ * The PDF draws no space there; the import puts one outside the marks, and these go back in: [offset, side] -
+ * side 1 when the space is the mark's last character, 0 when its first. Offsets as `spans` counts them.
+ */
+function markSpaces(block: Element): [number, number][] {
+  const ranges = spans(block, (e) =>
+    isFb2(e) && MARK_NAMES.has(e.localName) ? e.localName : null,
+  );
+  if (ranges.length === 0) return [];
+  const units: { node: Text; index: number; char: string }[] = [];
+  let space = true;
+  const walk = (node: Node): void => {
+    if (node.nodeType === 3) {
+      const data = (node as Text).data;
+      for (let i = 0; i < data.length; i++) {
+        const white = WHITESPACE.test(data[i]);
+        if (white && space) continue;
+        units.push({ node: node as Text, index: i, char: white ? ' ' : data[i] });
+        space = white;
+      }
+      return;
+    }
+    for (const child of node.childNodes) walk(child);
+  };
+  walk(block);
+  const range = block.ownerDocument.createRange();
+  const top = (at: number): number | null => {
+    const unit = units[at];
+    if (!unit) return null;
+    range.setStart(unit.node, unit.index);
+    range.setEnd(unit.node, unit.index + 1);
+    const rects = range.getClientRects();
+    return rects.length ? rects[0].top : null;
+  };
+  const breaks = (before: number, after: number): boolean => {
+    const a = top(before);
+    const b = top(after);
+    return a !== null && b !== null && b > a + 1;
+  };
+  const out: [number, number][] = [];
+  for (const [from, to] of ranges) {
+    if (to - from < 2) continue;
+    if (units[to - 1]?.char === ' ' && to < units.length && breaks(to - 2, to))
+      out.push([to - 1, 1]);
+    if (units[from]?.char === ' ' && from > 0 && breaks(from - 1, from + 1)) out.push([from, 0]);
+  }
+  return out;
+}
+
 export function buildHints(input: HintsInput): string {
   const { blocks, book, pageMap } = input;
   const targets = new Set<string>();
@@ -227,12 +289,18 @@ export function buildHints(input: HintsInput): string {
   const joins: [number, number][] = [];
   // Feature 016 (D6): [block, offset, text] of each letter written with combining marks the PDF composes.
   const clusters: [number, number, string][] = [];
+  // Feature 016 (D6): [block, offset, side] of each mark's own space where a line breaks at it.
+  const inner: [number, number, number][] = [];
   const langs: [number, number, number, string][] = [];
   const ids: [number, string][] = [];
   const tables: [number, number, string][] = [];
   const bodies: { name: string; page: number }[] = [];
   const seenSections = new Set<Element>();
   const seenBodies = new Set<Element>();
+  // Feature 016 (D6): [block, depth] where a container begins anew under the same names (two epigraphs in a
+  // row), which the run-length paths cannot show.
+  const fresh: [number, number][] = [];
+  let previousContainers: Element[] = [];
   blocks.forEach(({ element, chain, page }, b) => {
     for (const container of chain) {
       if (isFb2(container, 'body') && !seenBodies.has(container)) {
@@ -247,9 +315,12 @@ export function buildHints(input: HintsInput): string {
       }
     }
     // The FB2 element of a block whose PDF tag is generic, with its containers (run-length).
-    const path = chain
-      .filter((c) => isFb2(c) && CONTAINERS.has(c.localName))
-      .map((c) => c.localName);
+    const containers = chain.filter((c) => isFb2(c) && CONTAINERS.has(c.localName));
+    const path = containers.map((c) => c.localName);
+    const depth = containers.findIndex((c, i) => previousContainers[i] !== c);
+    if (depth >= 0 && previousContainers[depth]?.localName === containers[depth].localName)
+      fresh.push([b, depth]);
+    previousContainers = containers;
     if (isFb2(element) && GENERIC_BLOCKS.has(element.localName)) {
       // Feature 016 (D6): an empty line draws nothing the import could see - inside a title its path says so.
       if (element.localName === 'empty-line' && chain.some((c) => isFb2(c, 'title')))
@@ -286,6 +357,7 @@ export function buildHints(input: HintsInput): string {
     for (const offset of lineEndSpaces(element)) spaces.push([b, offset]);
     for (const offset of lineBreakJoins(element)) joins.push([b, offset]);
     for (const [offset, text] of decomposed(element)) clusters.push([b, offset, clean(text)]);
+    for (const [offset, side] of markSpaces(element)) inner.push([b, offset, side]);
     const lang = element.getAttribute('lang');
     if (lang) langs.push([b, 0, element.textContent?.length ?? 0, clean(lang)]);
     for (const [from, to, value] of spans(element, (e) => e.getAttribute('lang')))
@@ -336,6 +408,8 @@ export function buildHints(input: HintsInput): string {
     ...(spaces.length ? { spaces } : {}),
     ...(joins.length ? { joins } : {}),
     ...(clusters.length ? { clusters } : {}),
+    ...(inner.length ? { inner } : {}),
+    ...(fresh.length ? { fresh } : {}),
     langs,
     ids,
     tables,

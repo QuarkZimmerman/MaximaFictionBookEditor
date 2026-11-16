@@ -51,7 +51,8 @@ function kindsOf(hints: HintsV1): string[] {
  * the run before on its line (an inline picture too); never before closing punctuation, never in a sub- or
  * superscript's step. A soft hyphen at a line's end is dropped and the word joined.
  */
-const styled = (run: Run): boolean => !!(run.bold || run.italic || run.mono || run.sub || run.sup);
+const styled = (run: Run): boolean =>
+  !!(run.bold || run.italic || run.mono || run.sub || run.sup || run.uri || run.dest);
 
 export function spaceRuns(runs: readonly Run[]): Run[] {
   const out = runs.map((run) => ({ ...run }));
@@ -321,20 +322,51 @@ export function convertOurs(
   }
   // The text as the book has it at its line breaks (D6): spaces after a hyphen put back, spaces at breaks the
   // text has none taken out - in the order of their places, before the spans, which count them.
-  const fixesAt = new Map<number, { offset: number; space: boolean; cluster?: string }[]>();
+  const fixesAt = new Map<
+    number,
+    { offset: number; space: boolean; cluster?: string; inner?: number }[]
+  >();
   for (const [b, offset] of hints.spaces ?? [])
     fixesAt.set(b, [...(fixesAt.get(b) ?? []), { offset, space: true }]);
   for (const [b, offset] of hints.joins ?? [])
     fixesAt.set(b, [...(fixesAt.get(b) ?? []), { offset, space: false }]);
   for (const [b, offset, cluster] of hints.clusters ?? [])
     fixesAt.set(b, [...(fixesAt.get(b) ?? []), { offset, space: false, cluster }]);
+  for (const [b, offset, side] of hints.inner ?? [])
+    fixesAt.set(b, [...(fixesAt.get(b) ?? []), { offset, space: false, inner: side }]);
   const withSpaces = (
     runs: readonly Run[],
-    fixes: readonly { offset: number; space: boolean; cluster?: string }[] | undefined,
+    fixes:
+      readonly { offset: number; space: boolean; cluster?: string; inner?: number }[] | undefined,
   ): Run[] => {
     if (!fixes?.length) return [...runs];
     const out = runs.map((run) => ({ ...run }));
     for (const fix of [...fixes].sort((x, y) => x.offset - y.offset)) {
+      if (fix.inner !== undefined) {
+        // A mark's own space at a line's end: from outside the mark, where the space was put, into it.
+        let start = 0;
+        for (let i = 0; i < out.length; i++) {
+          const run = out[i];
+          const local = fix.offset - start;
+          if (local >= 0 && local < run.text.length) {
+            if (run.text[local] === ' ' && fix.inner === 1 && local === 0 && i > 0) {
+              out[i - 1].text += ' ';
+              run.text = run.text.slice(1);
+            } else if (
+              run.text[local] === ' ' &&
+              fix.inner === 0 &&
+              local === run.text.length - 1 &&
+              i + 1 < out.length
+            ) {
+              run.text = run.text.slice(0, -1);
+              out[i + 1].text = ` ${out[i + 1].text}`;
+            }
+            break;
+          }
+          start += run.text.length;
+        }
+        continue;
+      }
       let at = 0;
       for (const run of out) {
         const local = fix.offset - at;
@@ -354,7 +386,7 @@ export function convertOurs(
               run.text.slice(0, local) + fix.cluster + run.text.slice(local + composed.length);
           break;
         }
-        if (!fix.space && !fix.cluster && local < run.text.length) {
+        if (!fix.space && !fix.cluster && fix.inner === undefined && local < run.text.length) {
           if (run.text[local] === ' ')
             run.text = run.text.slice(0, local) + run.text.slice(local + 1);
           break;
@@ -364,6 +396,7 @@ export function convertOurs(
     }
     return out;
   };
+  const freshAt = new Map(hints.fresh ?? []);
   const sectionAt = new Map(hints.sections);
   const idAt = new Map(hints.ids);
   const counts = { sections: 0, pictures: 0, tables: 0, notes: 0 };
@@ -466,6 +499,9 @@ export function convertOurs(
         open[shared] === containers[shared]
       )
         shared++;
+      // A container begun anew under the same names (D6): closed and opened again from its depth.
+      const again = freshAt.get(block.b);
+      if (again !== undefined) shared = Math.min(shared, Math.max(0, again - strip));
       // A new stanza: a title of its own, or a gap between verses wider than their lines (R4).
       const isVerse = last === 'v';
       const top = block.part?.runs.find((run) => run.text)?.top;

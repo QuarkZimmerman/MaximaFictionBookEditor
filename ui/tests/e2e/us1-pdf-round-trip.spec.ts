@@ -45,6 +45,40 @@ const ALLOWED_LINES: RegExp[] = [
   /^\s*- body name="(notes|comments)"\/title\/p:/,
 ];
 
+/**
+ * C3: spaces as the PDF shows them, applied to both books before they are compared - in every block a run of
+ * white space is one space, the first, across the inline elements between (as the engine collapses it), and none
+ * stands at the block's edges; code keeps its own. Evaluated in the page.
+ */
+const SPACES = `(text) => {
+  const FB = 'http://www.gribuser.ru/xml/fictionbook/2.0';
+  const doc = new DOMParser().parseFromString(text, 'application/xml');
+  for (const name of ['p', 'v', 'subtitle', 'text-author', 'date', 'td', 'th']) {
+    for (const block of [...doc.getElementsByTagNameNS(FB, name)]) {
+      const walker = doc.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+      const nodes = [];
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) nodes.push(node);
+      let space = true;
+      for (const node of nodes) {
+        if (node.parentElement && node.parentElement.closest('code')) { space = false; continue; }
+        let out = '';
+        for (const char of node.data) {
+          const white = /[ \\t\\n\\r]/.test(char);
+          if (white && space) continue;
+          out += white ? ' ' : char;
+          space = white;
+        }
+        node.data = out;
+      }
+      for (let i = nodes.length - 1; i >= 0; i--) {
+        nodes[i].data = nodes[i].data.replace(/ +$/, '');
+        if (nodes[i].data.length > 0) break;
+      }
+    }
+  }
+  return new XMLSerializer().serializeToString(doc);
+}`;
+
 /** The differences D6 does not allow. */
 export function outsideD6(differences: readonly string[]): string[] {
   const out: string[] = [];
@@ -125,7 +159,7 @@ test.describe('US1 (feature 016) - export to PDF and import again', () => {
           const againErrors = await bodyErrors(core, page);
           const again = await bookXml(core, page);
           const all = await page.evaluate<string[]>(
-            `(${COMPARE})(${JSON.stringify(original)}, ${JSON.stringify(again)})`,
+            `(${COMPARE})((${SPACES})(${JSON.stringify(original)}), (${SPACES})(${JSON.stringify(again)}))`,
           );
           const differences = outsideD6(all);
           results.push({

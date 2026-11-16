@@ -149,6 +149,10 @@ export interface HintsV1 {
   joins?: [number, number][];
   /** Feature 016 (D6): [block, offset, text] of the letters written with combining marks, which the PDF composes. */
   clusters?: [number, number, string][];
+  /** Feature 016 (D6): [block, offset, side] of a mark's own space at a line break: 1 its last character, 0 its first. */
+  inner?: [number, number, number][];
+  /** Feature 016 (D6): [block, depth] where a container begins anew under the same names (two epigraphs in a row). */
+  fresh?: [number, number][];
   langs: [number, number, number, string][];
   ids: [number, string][];
   tables: [number, number, string][];
