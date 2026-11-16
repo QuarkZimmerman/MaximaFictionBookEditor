@@ -396,7 +396,7 @@ export function buildHints(input: HintsInput): string {
   const langs: [number, number, number, string][] = [];
   const ids: [number, string][] = [];
   const tables: [number, number, string][] = [];
-  const bodies: { name: string; page: number }[] = [];
+  const bodies: { name: string; page: number; notes?: boolean }[] = [];
   const seenSections = new Set<Element>();
   const seenBodies = new Set<Element>();
   // Feature 016 (D6): [block, depth] where a container begins anew under the same names (two epigraphs in a
@@ -407,7 +407,12 @@ export function buildHints(input: HintsInput): string {
     for (const container of chain) {
       if (isFb2(container, 'body') && !seenBodies.has(container)) {
         seenBodies.add(container);
-        bodies.push({ name: clean(container.getAttribute('name') ?? ''), page });
+        const after = container.getAttribute('data-mfbe-after-notes');
+        bodies.push({
+          name: clean(after ?? container.getAttribute('name') ?? ''),
+          page,
+          ...(after ? { notes: true } : {}),
+        });
       }
       if (isFb2(container, 'section') && !seenSections.has(container)) {
         seenSections.add(container);

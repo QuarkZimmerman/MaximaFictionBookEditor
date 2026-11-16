@@ -138,7 +138,8 @@ export interface HintsV1 {
     historyPage: number | null;
     words?: string[];
   };
-  bodies: { name: string; page: number }[];
+  /** `notes`: the notes body's part printed after the text (notes nothing refers to, feature 016). */
+  bodies: { name: string; page: number; notes?: boolean }[];
   sections: [number, number][];
   kinds: [number, number, string][];
   styles: (number | string)[][];

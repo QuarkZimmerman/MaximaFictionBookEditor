@@ -380,6 +380,9 @@ export async function paginate(
         ? [...notesBody.children].find((c) => c.localName === 'title')
         : undefined;
       const body = doc.createElementNS(FB2_NS, 'body');
+      // Feature 016 (D6): marked, so that the record names it the notes body's part printed after the text and
+      // the import gives its notes back to that body (D32's library run made a body of its own of them).
+      body.setAttribute('data-mfbe-after-notes', notesBody?.getAttribute('name') || 'notes');
       const section = doc.createElementNS(FB2_NS, 'section');
       const title = heading
         ? (heading.cloneNode(true) as Element)

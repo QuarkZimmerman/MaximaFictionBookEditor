@@ -482,7 +482,20 @@ export function convertOurs(
   // The cover page's picture is the description's (D5); it comes before any part.
   if (hints.generated.cover) takePicture(hints.generated.cover);
 
-  const noteIds = new Set(footnotes.filter((f) => f.id).map((f) => f.id!));
+  // The notes printed after the text are notes too: links to them carry the note mark (D6).
+  const afterIds: string[] = [];
+  const afterEntry = hints.bodies.findIndex((entry) => entry.notes);
+  if (afterEntry >= 0) {
+    const from = hints.bodies[afterEntry].page + 1;
+    const to = hints.bodies[afterEntry + 1]
+      ? hints.bodies[afterEntry + 1].page + 1
+      : Number.POSITIVE_INFINITY;
+    const inAfter = new Set(
+      blocks.filter((block) => block.page >= from && block.page < to).map((block) => block.b),
+    );
+    for (const [b, id] of hints.ids) if (inAfter.has(b)) afterIds.push(id);
+  }
+  const noteIds = new Set([...footnotes.filter((f) => f.id).map((f) => f.id!), ...afterIds]);
   const link = (run: Run): { href: string; note: boolean } | null => {
     if (run.uri) return { href: run.uri, note: false };
     if (run.dest && !run.dest.startsWith('mfbe-ref-'))
@@ -829,6 +842,7 @@ export function convertOurs(
   // Bodies: each begins at the first block on its first page; sections as the hints number them.
   let bodiesXml = '';
   let bodyIndex = -1;
+  let afterNotes = '';
   let bodyList: Block[] = [];
   const sectionDepths: number[] = [];
   const flushBody = (): void => {
@@ -859,7 +873,13 @@ export function convertOurs(
       out += '</section>';
       sectionDepths.pop();
     }
-    const name = hints.bodies[bodyIndex]?.name;
+    const entry = hints.bodies[bodyIndex];
+    // The notes body's part printed after the text is no body of its own: its notes go to the notes (D6).
+    if (entry?.notes) {
+      afterNotes += out;
+      return;
+    }
+    const name = entry?.name;
     bodiesXml += `<body${name ? ` name="${attr(name)}"` : ''}>${out}</body>`;
   };
   for (const block of bodyBlocks) {
@@ -877,6 +897,19 @@ export function convertOurs(
   // The notes, from the feet of the pages: in the order of their first references (D6), then the rest.
   const notes = notesBody(footnotes, bodyBlocks, link, pictureFor);
   counts.notes = notes.count;
+  // The notes printed after the text, under the notes' title: their sections join the notes body, its title
+  // theirs when the feet gave none (C1).
+  if (afterNotes) {
+    const inner = afterNotes
+      .replace(/^<section>(<title>[\s\S]*?<\/title>)?/, '')
+      .replace(/<\/section>$/, '');
+    const heading = /^<section>(<title>[\s\S]*?<\/title>)/.exec(afterNotes)?.[1] ?? '';
+    const named = hints.bodies.find((entry) => entry.notes)?.name || 'notes';
+    notes.xml = notes.xml
+      ? notes.xml.replace(/<\/body>$/, `${inner}</body>`)
+      : `<body name="${attr(named)}">${heading}${inner}</body>`;
+    counts.notes += (inner.match(/<section[ >]/g) ?? []).length;
+  }
 
   const annotation =
     descriptionPages && annotationBlocks.length
