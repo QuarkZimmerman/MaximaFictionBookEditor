@@ -58,21 +58,28 @@ export function spaceRuns(runs: readonly Run[]): Run[] {
     if (!run.text && !run.picture) continue;
     if (previous) {
       const size = Math.max(run.size ?? 0, previous.size ?? 0) || 10;
-      const known = run.left !== undefined && previous.right !== undefined;
+      // Where the run before ends and this one begins: their last and first characters, not their boxes,
+      // which span every line of a run over several (D32's library run: a space before each note mark).
+      const left = run.startLeft ?? run.left;
+      const top = run.startTop ?? run.top;
+      const right = previous.endRight ?? previous.right;
+      const bottomTop = previous.endTop ?? previous.top;
+      const known = left !== undefined && right !== undefined;
       const newLine =
         run.page !== previous.page ||
         (!run.picture &&
           !previous.picture &&
-          run.top !== undefined &&
-          previous.top !== undefined &&
-          run.top - previous.top > 0.8 * size) ||
-        (known && run.left! < previous.right! - 2 * size);
-      const apart = known && run.left! - previous.right! > 0.15 * size;
+          top !== undefined &&
+          bottomTop !== undefined &&
+          top - bottomTop > 0.8 * size) ||
+        (known && left! < right! - 2 * size);
+      const apart = known && left! - right! > 0.15 * size;
       const before = !previous.picture && /\s$/.test(previous.text);
       const after = !run.picture && /^\s/.test(run.text);
       const closing = !run.picture && /^[.,;:!?)\]}»”’…%]/u.test(run.text);
       // A word's own hyphen at a line's end: the word goes on, without a space (D32).
-      const hyphen = newLine && !previous.picture && /\p{L}-$/u.test(previous.text);
+      const hyphen =
+        newLine && !previous.picture && /\S[-\u2010\u2012\u2013\u2014]$/u.test(previous.text);
       if ((newLine || apart) && !before && !after && !closing && !hyphen) {
         if (!previous.picture) {
           if (previous.text.endsWith('\u00ad')) previous.text = previous.text.slice(0, -1);
@@ -309,7 +316,10 @@ export function convertOurs(
       for (const run of out) {
         if (offset <= at + run.text.length && run.text) {
           const local = offset - at;
-          if (run.text[local] !== ' ' && run.text[local - 1] === '-') {
+          if (
+            run.text[local] !== ' ' &&
+            '-\u2010\u2012\u2013\u2014'.includes(run.text[local - 1] ?? ' ')
+          ) {
             run.text = `${run.text.slice(0, local)} ${run.text.slice(local)}`;
           }
           break;

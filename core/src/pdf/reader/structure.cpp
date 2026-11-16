@@ -15,6 +15,7 @@
 #include <XRef.h>
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <map>
 #include <set>
 #include <vector>
@@ -42,6 +43,21 @@ void append_utf8(std::string& out, Unicode u) {
 }
 
 /// One pass over a page: the text drawn inside each marked-content id, words spaced by their gaps.
+/// The text ends with a hyphen or a dash after a character that is no space ("Jakka-", "10–"): a
+/// line may break after it with no space to mark (D32's library run).
+bool ends_with_dash(const std::string& out) {
+    static const char* const dashes[] = {"-", "\xE2\x80\x90", "\xE2\x80\x92", "\xE2\x80\x93",
+                                         "\xE2\x80\x94"};
+    for (const char* dash : dashes) {
+        const std::size_t n = std::strlen(dash);
+        if (out.size() > n && out.compare(out.size() - n, n, dash) == 0 &&
+            out[out.size() - n - 1] != ' ') {
+            return true;
+        }
+    }
+    return false;
+}
+
 class McidText : public OutputDev {
 public:
     std::map<int, std::string> text;
@@ -125,7 +141,7 @@ public:
         // A word's own hyphen at a line's end goes on with the next line's letters
         // ("Jakka-Mongolen"): a line breaks after a hyphen with no space to mark (D32's library
         // run).
-        const bool hyphen = out.size() >= 2 && out.back() == '-' && out[out.size() - 2] != ' ';
+        const bool hyphen = ends_with_dash(out);
         if (!out.empty() && out.back() != ' ' &&
             ((new_line && !hyphen) || (!new_line && tx - last.x_end > size * 0.15))) {
             out += ' ';

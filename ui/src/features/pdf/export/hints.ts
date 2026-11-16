@@ -45,6 +45,9 @@ const squeeze = (text: string): string => clean(text).replace(/\s+/g, ' ').trim(
 const isFb2 = (element: Element | null | undefined, name?: string): boolean =>
   element?.namespaceURI === FB2_NS && (name === undefined || element.localName === name);
 
+/** A hyphen or a dash after which a line may break with no space to mark. */
+const DASHES = new Set(['-', '\u2010', '\u2012', '\u2013', '\u2014']);
+
 /** Whitespace as CSS collapses it in printed text (not the no-break space). */
 const WHITESPACE = /[ \t\n\r\f]/;
 
@@ -89,7 +92,7 @@ function spans(
  * block must be laid out (the measured book), else none are found.
  */
 function lineEndSpaces(block: Element): number[] {
-  if (!/\S-\s/.test(block.textContent ?? '')) return [];
+  if (!/\S[-\u2010\u2012\u2013\u2014]\s/.test(block.textContent ?? '')) return [];
   const units: { node: Text; index: number; char: string; offset: number }[] = [];
   let length = 0;
   let space = true;
@@ -117,7 +120,8 @@ function lineEndSpaces(block: Element): number[] {
   };
   const out: number[] = [];
   for (let i = 1; i + 2 < units.length; i++) {
-    if (units[i].char !== '-' || units[i - 1].char === ' ' || units[i + 1].char !== ' ') continue;
+    if (!DASHES.has(units[i].char) || units[i - 1].char === ' ' || units[i + 1].char !== ' ')
+      continue;
     const before = top(units[i]);
     const after = top(units[i + 2]);
     if (before !== null && after !== null && after > before + 1) out.push(units[i + 1].offset);

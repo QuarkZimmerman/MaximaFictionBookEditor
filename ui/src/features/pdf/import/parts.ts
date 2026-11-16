@@ -35,6 +35,9 @@ export interface Run {
   /** Its first character's left and its last character's right (the reader's startLeft, endRight). */
   startLeft?: number;
   endRight?: number;
+  /** Its first character's top and its last character's top (the reader's startTop, endTop). */
+  startTop?: number;
+  endTop?: number;
 }
 
 export interface TableCell {
@@ -137,6 +140,8 @@ export function flatten(
     ...(leaf.right !== undefined ? { right: leaf.right } : {}),
     ...(leaf.startLeft !== undefined ? { startLeft: leaf.startLeft } : {}),
     ...(leaf.endRight !== undefined ? { endRight: leaf.endRight } : {}),
+    ...(leaf.startTop !== undefined ? { startTop: leaf.startTop } : {}),
+    ...(leaf.endTop !== undefined ? { endTop: leaf.endTop } : {}),
   });
 
   const runsOf = (node: StructNode, list: Run[], context: Partial<Run>): void => {
