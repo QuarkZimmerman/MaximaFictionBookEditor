@@ -186,6 +186,28 @@ function collectBlocks(root: Element): Block[] {
   return blocks;
 }
 
+/**
+ * Feature 016 (D10): a block picture and the caption under it fit the text area together - the picture made
+ * smaller, its proportions kept. pictureBox() fits the picture alone; with its caption a tall one overflowed the
+ * page, and the print moved or cut it (D32's library run: pages refused by the export's own check).
+ */
+function fitCaptioned(element: Element, contentHeight: number): void {
+  const box = element.querySelector<HTMLElement>(':scope > .mfbe-picture');
+  if (!box || !element.querySelector(':scope > .mfbe-caption')) return;
+  const style = element.ownerDocument.defaultView!.getComputedStyle(element);
+  const total =
+    element.getBoundingClientRect().height +
+    (Number.parseFloat(style.marginTop) || 0) +
+    (Number.parseFloat(style.marginBottom) || 0);
+  // A point to spare, for the print's rounding.
+  const over = total + 1 - contentHeight;
+  if (over <= 0) return;
+  const { width, height } = box.getBoundingClientRect();
+  const scale = Math.max(0.1, (height - over) / height);
+  box.style.width = `${width * scale}px`;
+  box.style.height = `${height * scale}px`;
+}
+
 /** Measures a block's lines in the flow (the text width). */
 function measure(block: Block): void {
   const element = block.element as HTMLElement;
@@ -411,6 +433,7 @@ export async function paginate(
       }
     };
     for (let i = 0; i < blocks.length; i++) {
+      fitCaptioned(blocks[i].element, layout.contentHeight);
       measure(blocks[i]);
       // SC-010: the bar's thirds of the pagination: measuring, the notes, the pages.
       await breath(i, blocks.length * 3);
@@ -726,6 +749,15 @@ export async function paginate(
         } else if (pieces[0].toLine - pieces[0].fromLine > 1) {
           pieces[0].toLine--;
           next = { block: pieces[0].block, fromLine: pieces[0].toLine };
+        } else if (carriedNotes.length > 0) {
+          // Feature 016 (D19): a block that cannot be cut (a picture) does not fit beside the rest of a long
+          // note: this page holds the note alone, cut again where it must be, and the block goes on to the
+          // next page (D32's library run: a picture drawn over the note's text, refused by the check).
+          const [alone] = pieces.splice(0, 1);
+          next = { block: alone.block, fromLine: alone.fromLine };
+          composed = compose(pieces);
+          if (overflows(composed)) cutFoot(composed);
+          break;
         } else {
           break; // one line taller than the page: the check of the finished file reports it
         }

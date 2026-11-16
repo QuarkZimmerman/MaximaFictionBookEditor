@@ -3449,7 +3449,9 @@ def f008_spell_expected() -> str:
 def f016_long_notes() -> str:
     """Feature 016 (D10, research R11.3): notes far longer than a page's foot, referenced early, with
     grouped notes, a second notes body linked without type="note", and digits after numbers in the notes -
-    library book 50564 was refused for such notes."""
+    library book 50564 was refused for such notes. A picture as tall as a page, with its caption, comes right
+    after the long note's reference: library books 349462 and 402684 were refused where the note's rest and
+    such a picture met on a page."""
     long_note = "".join(
         f"<p>{n})\u00a0A paragraph of the very long note, number {n}, written so that the note needs many pages"
         " at the foot of the text before it ends.</p>" for n in range(1, 121))
@@ -3474,6 +3476,7 @@ def f016_long_notes() -> str:
 \t\t<section>
 \t\t\t<title><p>Chapter</p></title>
 \t\t\t<p>A reference to the long note<a l:href="#n_1" type="note">[1]</a>, to a grouped one<a l:href="#g_1" type="note">[2]</a> and to a comment<a l:href="#c_1"><sup>{{1}}</sup></a>.</p>
+\t\t\t<image l:href="#tall.png" title="A picture as tall as a page, with its caption, beside the long note."/>
 \t\t\t{text}
 \t\t</section>
 \t</body>
@@ -3487,6 +3490,7 @@ def f016_long_notes() -> str:
 \t\t\t<section id="g_1"><title><p>2</p></title><p>A note inside a group.</p></section>
 \t\t</section>
 \t</body>
+\t<binary id="tall.png" content-type="image/png">{b64_bytes(ti_png(300, 1200))}</binary>
 </FictionBook>
 """
 

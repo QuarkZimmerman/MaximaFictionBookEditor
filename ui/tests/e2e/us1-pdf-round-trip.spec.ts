@@ -308,7 +308,11 @@ test.describe('US1 (feature 016) - export to PDF and import again', () => {
               : {}),
           });
         } catch (error) {
-          results.push({ book, differences: [], failure: String(error).split('\n')[0] });
+          results.push({
+            book,
+            differences: [],
+            failure: String(error).replace(/\s+/g, ' ').slice(0, 800),
+          });
           await page.keyboard.press('Escape');
         }
       }
