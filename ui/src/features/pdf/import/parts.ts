@@ -347,26 +347,41 @@ export function flatten(
     // A container of the footnotes (the foot of a page): its children without a label are the rest of a
     // note cut on the page before.
     if (element.kids.some((kid) => isElement(kid) && footnoteLabel(kid))) {
+      // The children without a label before the first note are one rest, of one or more paragraphs.
+      let rest: Run[][] = [];
+      let restPage = 0;
+      const flush = (): void => {
+        if (rest.length) footnotes.push({ id: null, label: '', page: restPage, paragraphs: rest });
+        rest = [];
+      };
       for (const kid of element.kids) {
         if (!isElement(kid)) continue;
-        if (footnoteLabel(kid)) block(kid);
-        else {
-          const paragraphs: Run[][] = [];
-          const collect = (node: StructElement): void => {
-            for (const inner of node.kids) {
-              if (!isElement(inner)) continue;
-              if (inner.type === 'P') {
-                const runs: Run[] = [];
-                runsOf(inner, runs, {});
-                paragraphs.push(runs);
-              } else collect(inner);
-            }
-          };
-          collect(kid);
-          if (paragraphs.length)
-            footnotes.push({ id: null, label: '', page: firstPage(kid), paragraphs });
+        if (footnoteLabel(kid)) {
+          flush();
+          block(kid);
+          continue;
         }
+        const paragraphs: Run[][] = [];
+        const collect = (node: StructElement): void => {
+          for (const inner of node.kids) {
+            if (!isElement(inner)) continue;
+            if (inner.type === 'P') {
+              const runs: Run[] = [];
+              runsOf(inner, runs, {});
+              paragraphs.push(runs);
+            } else collect(inner);
+          }
+        };
+        // The rest may be a paragraph itself (D32's library run lost such rests).
+        if (kid.type === 'P') {
+          const runs: Run[] = [];
+          runsOf(kid, runs, {});
+          paragraphs.push(runs);
+        } else collect(kid);
+        if (paragraphs.length && !rest.length) restPage = firstPage(kid);
+        rest.push(...paragraphs);
       }
+      flush();
       return;
     }
     const kids = element.kids.filter(isElement);

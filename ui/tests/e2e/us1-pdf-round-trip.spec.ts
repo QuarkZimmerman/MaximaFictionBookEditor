@@ -179,6 +179,38 @@ const SPACES = `(text) => {
       group.replaceWith(...[...group.children].filter((child) => child.localName === 'section'));
     }
   }
+  // C4 (Q1: not in the record): inside the notes, block kinds, named styles, strikethrough, sub- and
+  // superscripts, languages and ids are not carried - each note's content as paragraphs, those marks unwrapped.
+  const XML_NS = 'http://www.w3.org/XML/1998/namespace';
+  for (const body of [...doc.getElementsByTagNameNS(FB, 'body')].slice(1)) {
+    const own = (element) => element.localName === 'section' && element.parentElement === body;
+    for (const element of [...body.getElementsByTagName('*')].reverse()) {
+      const name = element.localName;
+      const unwrap = ['sub', 'sup', 'strikethrough', 'style', 'poem', 'stanza', 'cite', 'epigraph'];
+      if (unwrap.includes(name) || (name === 'title' && element.parentElement !== body && !own(element.parentElement)))
+        element.replaceWith(...element.childNodes);
+      else if (['v', 'subtitle', 'text-author'].includes(name)) {
+        const paragraph = doc.createElementNS(FB, 'p');
+        paragraph.append(...element.childNodes);
+        element.replaceWith(paragraph);
+      } else if (name === 'empty-line') element.remove();
+      else {
+        element.removeAttributeNS(XML_NS, 'lang');
+        if (!own(element)) element.removeAttribute('id');
+      }
+    }
+  }
+  // C5: a link to a note carries the note mark, and no other link does - the mark left out of both books.
+  for (const link of [...doc.getElementsByTagNameNS(FB, 'a')]) link.removeAttribute('type');
+  // C5: which notes body a note belongs to, when a book has two, and the bodies' names - one body "notes".
+  const named = [...doc.getElementsByTagNameNS(FB, 'body')].slice(1).filter((body) => body.hasAttribute('name'));
+  if (named.length) {
+    named[0].setAttribute('name', 'notes');
+    for (const other of named.slice(1)) {
+      named[0].append(...[...other.children].filter((child) => child.localName === 'section'));
+      other.remove();
+    }
+  }
   // C5: the notes come in the order of their first references - each notes body's notes sorted by id.
   for (const body of [...doc.getElementsByTagNameNS(FB, 'body')].slice(1)) {
     const notes = [...body.children].filter((child) => child.localName === 'section');
@@ -239,7 +271,11 @@ function books(): string[] {
   const list = process.env.MFBE_ROUND_TRIP_BOOKS;
   // The reference book, and right-to-left text the engine draws in the order it stands on the line (D32).
   if (!list)
-    return [fixtureBook('reference-all-elements.fb2'), fixtureBook('pdf-round-trip-rtl.fb2')];
+    return [
+      fixtureBook('reference-all-elements.fb2'),
+      fixtureBook('pdf-round-trip-rtl.fb2'),
+      fixtureBook('long-notes.fb2'),
+    ];
   return readFileSync(list, 'utf8')
     .split('\n')
     .map((line) => line.trim())

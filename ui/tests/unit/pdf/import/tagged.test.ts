@@ -75,3 +75,35 @@ describe('a tagged PDF (US2)', () => {
     ]);
   });
 });
+
+describe("a page's foot (D19, D32)", () => {
+  it('keeps the rest of a note cut on the page before as one, when its paragraphs stand alone', () => {
+    const leaf = (mcid: number, text: string) => ({ page: 36, mcid, text });
+    const { footnotes } = flatten(
+      [
+        {
+          type: 'NonStruct',
+          kids: [
+            {
+              type: 'P',
+              kids: [{ type: 'NonStruct', kids: [leaf(0, 'the rest of the first note.')] }],
+            },
+            { type: 'P', kids: [leaf(3, 'Its last paragraph.')] },
+            {
+              type: 'NonStruct',
+              kids: [
+                { type: 'Link', kids: [leaf(1, '2'), { objr: true, dest: 'mfbe-ref-c_2' }] },
+                { type: 'P', kids: [leaf(2, 'The second note.')] },
+              ],
+            },
+          ],
+        },
+      ] as unknown as NonNullable<PdfDocumentModel['structure']>,
+      [],
+    );
+    expect(footnotes.map((note) => [note.id, note.paragraphs.map(partText)])).toEqual([
+      [null, ['the rest of the first note.', 'Its last paragraph.']],
+      ['c_2', ['The second note.']],
+    ]);
+  });
+});

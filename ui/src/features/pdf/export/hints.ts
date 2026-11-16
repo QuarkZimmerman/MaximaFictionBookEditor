@@ -34,6 +34,10 @@ export interface HintsInput {
   continued?: number[];
   /** Feature 016 (D19): the pages (from 1) whose foot begins with the rest of a note cut on the page before. */
   carriedPages?: number[];
+  /** Feature 016 (D19): of those, the pages whose rest begins with a whole paragraph of its note. */
+  carriedApart?: number[];
+  /** Feature 016 (D19): the text's size in points. */
+  textPt?: number;
 }
 
 const GENERIC_BLOCKS = new Set(['v', 'subtitle', 'text-author', 'date', 'empty-line']);
@@ -547,6 +551,8 @@ export function buildHints(input: HintsInput): string {
       historyPage: input.descriptionPages?.history ?? null,
       words: pageMap.addedWords,
       pageNumbers: 'foot',
+      // Feature 016 (D19): the text's size, by which the import tells a note's rest from the text above it.
+      ...(input.textPt ? { textPt: input.textPt } : {}),
     },
     bodies,
     sections,
@@ -563,6 +569,7 @@ export function buildHints(input: HintsInput): string {
     ...(fresh.length ? { fresh } : {}),
     ...(input.continued ? { continued: input.continued } : {}),
     ...(input.carriedPages ? { carried: input.carriedPages } : {}),
+    ...(input.carriedApart?.length ? { carriedApart: input.carriedApart } : {}),
     langs,
     ids,
     tables,

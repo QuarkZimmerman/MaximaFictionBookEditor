@@ -391,7 +391,10 @@ export function convertOurs(
           const size = Math.round(run.size * 10) / 10;
           sizes.set(size, (sizes.get(size) ?? 0) + run.text.length);
         }
-    const body = [...sizes.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 10;
+    // The text's size: from the record since feature 016 - in a book of long notes the notes' size is the
+    // commoner one (D32's library run) - else the commonest size.
+    const body =
+      hints.generated.textPt ?? [...sizes.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 10;
     const small = (part: Part): boolean =>
       part.kind === 'p' &&
       part.runs.some((run) => run.text.trim()) &&
@@ -923,7 +926,13 @@ export function convertOurs(
   flushBody();
 
   // The notes, from the feet of the pages: in the order of their first references (D6), then the rest.
-  const notes = notesBody(footnotes, bodyBlocks, link, pictureFor);
+  const notes = notesBody(
+    footnotes,
+    bodyBlocks,
+    link,
+    pictureFor,
+    new Set(hints.carriedApart ?? []),
+  );
   counts.notes = notes.count;
   // The notes printed after the text, under the notes' title: their sections join the notes body, its title
   // theirs when the feet gave none (C1).
@@ -972,6 +981,8 @@ function notesBody(
   blocks: readonly Block[],
   link: (run: Run) => { href: string; note: boolean } | null,
   picture: (run: Run) => string | null,
+  /** The pages whose rest of a cut note begins with a whole paragraph (D19). */
+  apart: ReadonlySet<number> = new Set(),
 ): { xml: string; count: number } {
   const byId = new Map<string, Run[][]>();
   const labels = new Map<string, string>();
@@ -985,7 +996,8 @@ function notesBody(
       // The rest of a note cut at the foot of the page before: its first paragraph goes on the last one.
       const list = byId.get(current)!;
       const [first, ...rest] = footnote.paragraphs;
-      if (first && list.length)
+      // ... unless the record says the cut fell between two paragraphs.
+      if (first && list.length && !apart.has(footnote.page))
         list[list.length - 1] = [
           ...list[list.length - 1],
           { ...first[0], text: ` ${first[0]?.text ?? ''}` },

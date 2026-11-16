@@ -139,6 +139,8 @@ export interface HintsV1 {
     annotationPage: number | null;
     historyPage: number | null;
     words?: string[];
+    /** Feature 016 (D19): the text's size in points. */
+    textPt?: number;
   };
   /** `notes`: the notes body's part printed after the text (notes nothing refers to, feature 016). */
   bodies: { name: string; page: number; notes?: boolean }[];
@@ -162,6 +164,8 @@ export interface HintsV1 {
   continued?: number[];
   /** Feature 016 (D19): the pages (from 1) whose foot begins with the rest of a note cut on the page before. */
   carried?: number[];
+  /** Feature 016 (D19): of those, the pages whose rest begins with a whole paragraph of its note. */
+  carriedApart?: number[];
   langs: [number, number, number, string][];
   ids: [number, string][];
   tables: [number, number, string][];

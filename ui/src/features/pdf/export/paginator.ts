@@ -494,6 +494,8 @@ export async function paginate(
     const continued: number[] = [];
     // Feature 016 (D19): the pages (from 1) whose foot begins with the rest of a note cut on the page before.
     const carriedPages: number[] = [];
+    // Feature 016 (D19): of those, the pages whose rest begins with a whole paragraph of its note.
+    const carriedApart: number[] = [];
 
     // D17: a bookmark's height is its title's on the composed page.
     const pendingMarks = new Map<number, PageMapBookmark>();
@@ -700,6 +702,17 @@ export async function paginate(
         if (keep >= 1) {
           const offset = lineStart({ element: note, tops } as unknown as Block, keep);
           const rest = cloneText(note, offset, Number.MAX_SAFE_INTEGER);
+          // Feature 016 (D19): cut between two of the note's paragraphs, the rest begins with a whole one -
+          // marked, so that the record names its page and the import does not join it to the paragraph before.
+          // By the offsets: the cut at the first character of one of the note's paragraphs (not by their text,
+          // which paragraphs may share).
+          const nodes = textNodes(note);
+          const starts = [...note.querySelectorAll('p')].flatMap((p) => {
+            const first = nodes.find(({ node }) => p.contains(node) && node.data.trim());
+            return first ? [first.start, first.start + first.node.data.search(/\S/)] : [];
+          });
+          if (starts.some((start) => start > 0 && start === offset))
+            rest.setAttribute('data-mfbe-apart', '');
           rest.removeAttribute('id');
           for (const marked of rest.querySelectorAll('[id]')) marked.removeAttribute('id');
           rest.classList.add('mfbe-continued');
@@ -804,6 +817,8 @@ export async function paginate(
         stack.push({ depth: block.depth, mark });
       }
       if (carriedNotes.length > 0) carriedPages.push(serialised.length + 1);
+      if (carriedNotes[0]?.hasAttribute('data-mfbe-apart'))
+        carriedApart.push(serialised.length + 1);
       finishPage(page, true);
       carriedNotes = carryNext;
       cursor = next;
@@ -826,6 +841,8 @@ export async function paginate(
         throw new PdfLimitError('pages', serialised.length + 1, limits.pages);
       }
       carriedPages.push(serialised.length + 1);
+      if (carriedNotes[0]?.hasAttribute('data-mfbe-apart'))
+        carriedApart.push(serialised.length + 1);
       finishPage(composed.page, true);
       carriedNotes = carryNext;
     }
@@ -852,6 +869,8 @@ export async function paginate(
       descriptionPages,
       continued,
       carriedPages,
+      carriedApart,
+      textPt: layout.textPt,
     });
     const parts: string[] = [];
     for (let at = 0; at < serialised.length; at += PAGES_PER_PART) {
