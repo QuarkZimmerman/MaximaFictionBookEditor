@@ -12,6 +12,7 @@
 #include <StructElement.h>
 #include <StructTreeRoot.h>
 #include <UTF.h>
+#include <XRef.h>
 #include <cmath>
 #include <map>
 #include <set>
@@ -46,6 +47,8 @@ public:
     /// Per marked-content id: characters drawn bold, italic, monospaced, and all characters.
     struct Style {
         int bold = 0, italic = 0, mono = 0, all = 0;
+        double size = 0;   // the sum of the characters' sizes, for their mean
+        double top = 1e9;  // the highest character's top, in points from the page's top
     };
     std::map<int, Style> styles;
 
@@ -98,6 +101,8 @@ public:
             };
             Style& style = styles[mcid];
             style.all += 1;
+            style.size += size;
+            style.top = std::min(style.top, ty - size);
             style.bold += font->isBold() || has("Bold") || has("Black") || has("Heavy") ? 1 : 0;
             style.italic += font->isItalic() || has("Italic") || has("Oblique") ? 1 : 0;
             style.mono += font->isFixedWidth() || has("Mono") || has("Courier") ? 1 : 0;
@@ -152,6 +157,8 @@ void mark_style(nlohmann::json& leaf, const McidText::Style& style) {
     if (style.all == 0) {
         return;
     }
+    leaf["size"] = std::round(style.size / style.all * 10) / 10;
+    leaf["top"] = std::round(style.top * 10) / 10;
     if (style.bold * 2 > style.all) {
         leaf["bold"] = true;
     }
@@ -170,6 +177,45 @@ struct Walker {
     std::set<std::pair<int, int>> referenced;
     int count = 0;
 
+    /// A link annotation's target, for the Link element that refers to it: an address, or a named
+    /// destination or a page of the document.
+    void link_target(nlohmann::json& out, Ref ref) {
+        Object annot = doc.getXRef()->fetch(ref);
+        if (!annot.isDict()) {
+            return;
+        }
+        Object action = annot.dictLookup("A");
+        if (action.isDict()) {
+            Object kind = action.dictLookup("S");
+            if (kind.isName("URI")) {
+                Object uri = action.dictLookup("URI");
+                if (uri.isString()) {
+                    out["uri"] = uri.getString();
+                }
+                return;
+            }
+            if (kind.isName("GoTo")) {
+                Object d = action.dictLookup("D");
+                dest_of(out, d);
+            }
+            return;
+        }
+        Object d = annot.dictLookup("Dest");
+        dest_of(out, d);
+    }
+    void dest_of(nlohmann::json& out, const Object& d) {
+        if (d.isName()) {
+            out["dest"] = d.getName();
+        } else if (d.isString()) {
+            out["dest"] = TextStringToUtf8(d.getString());
+        } else if (d.isArray() && d.arrayGetLength() > 0) {
+            const Object target = d.arrayGetNF(0).copy();
+            if (target.isRef()) {
+                out["destPage"] = doc.findPage(target.getRef());
+            }
+        }
+    }
+
     nlohmann::json element(const StructElement* e, int depth, int inherited_page) {
         if (++count > 2'000'000 || depth > 64) {
             return nullptr;
@@ -181,7 +227,9 @@ struct Walker {
                 page = doc.findPage(ref);
             }
             if (e->isObjectRef()) {
-                return {{"objr", true}, {"page", page}};
+                nlohmann::json objr{{"objr", true}, {"page", page}};
+                link_target(objr, e->getObjectRef());
+                return objr;
             }
             referenced.insert({page, e->getMCID()});
             const auto it = texts.find({page, e->getMCID()});
