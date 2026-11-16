@@ -8,9 +8,9 @@
 //        `entry` is listed first)
 //   pdfImport.inspect {token} -> {opened, pages} | {needsPassword} | {ownerPassword}; 1113 {reason}
 //   pdfImport.password {token, password} -> as inspect, {wrongPassword} after a wrong one
-//   pdfImport.read {token} -> job: progress per page -> {pages, kinds}; 1113 {reason}
-//   pdfImport.addPictures {token, docId, pictures: [{id, page, suggestedId?}]} -> {added: [{id,
-//   binary}],
+//   pdfImport.read {token} -> job: progress per page -> {pages, kinds, garbledShare}; 1113 {reason,
+//   pages?} pdfImport.addPictures {token, docId, pictures: [{id, page, suggestedId?}]} -> {added:
+//   [{id, binary}],
 //        failed: [id]}
 //   pdfImport.end {token} -> {}
 //   GET /pdf-import/{token}/document | /page/{n} | /picture/{file}
@@ -229,7 +229,7 @@ void register_pdf_import_handlers(rpc::RpcRouter& router, Services& services) {
         auto session = find(services, params);
         const std::string job_id = ctx.jobs.start([session](rpc::JobControl& control) -> json {
             std::lock_guard lock(session->mutex());
-            json kinds;
+            json read;
             int pages = 0;
             const std::string reason = session->read(
                 [&control, &pages](int n, int total) {
@@ -239,14 +239,18 @@ void register_pdf_import_handlers(rpc::RpcRouter& router, Services& services) {
                     }
                     return !control.cancelled();
                 },
-                kinds);
+                read);
             if (reason == "cancelled") {
                 control.check_cancelled();
             }
             if (!reason.empty()) {
-                throw failed(reason);
+                // D19: a refusal says how many pages it concerns (FR-032).
+                throw failed(reason, read.contains("pages") ? json{{"pages", read["pages"]}}
+                                                            : json::object());
             }
-            return json{{"pages", pages}, {"kinds", kinds}};
+            return json{{"pages", pages},
+                        {"kinds", read["kinds"]},
+                        {"garbledShare", read.value("garbledShare", 1.0)}};
         });
         return json{{"jobId", job_id}};
     });

@@ -38,7 +38,7 @@
       "copyForbidden": "the PDF does not allow copying its text, and its owner password was not given.",
       "noText": "the PDF holds pictures of its pages but no text ({{pages}} pages); the editor does not recognise text in pictures.",
       "pictureOfText": "{{pages}} pages show text but have no text layer; the editor imports only PDFs whose text is all there.",
-      "garbled": "the PDF's text layer reads mostly as garbage.",
+      "garbled": "the PDF's text layer reads mostly as garbage ({{pages}} pages).",
       "memory": "reading the PDF took more memory than the import allows.",
       "timeout": "reading the PDF stopped making progress.",
       "crashed": "the PDF could not be read: its reader stopped.",
@@ -49,7 +49,8 @@
     "summaryIntro": "Not everything came over as the PDF has it:",
     "summary": {
       "mismatches": "Parts of the editor's PDF that no longer fitted its hints, read as text: {{count}}",
-      "picturesLeftOut": "Pictures not added: {{count}}"
+      "picturesLeftOut": "Pictures not added: {{count}}",
+      "notImported": "Pages without text not imported (blank pages, plates of a scanned book): {{count}}"
     }
   }
 }

@@ -58,8 +58,9 @@ export async function importPdf(
     const watch = setInterval(() => {
       if (run.cancelled() && jobId) void rpc.call('job.cancel', { jobId }).catch(() => undefined);
     }, 200);
+    let kinds: Record<string, number> = {};
     try {
-      await rpc.runJob(
+      ({ kinds } = await rpc.runJob(
         'pdfImport.read',
         { token },
         {
@@ -71,10 +72,13 @@ export async function importPdf(
               modal.progress(Math.round((progress.done / progress.total) * pages * 2), total);
           },
         },
-      );
+      ));
     } finally {
       clearInterval(watch);
     }
+    // D17, D19: pages without text that the book does not get - blank pages, and a scan's plates (the
+    // first page's picture becomes the cover, not counted).
+    let notImported = 0;
     check();
     const document = await loadDocument(token);
     const models = await loadPages(
@@ -135,6 +139,7 @@ export async function importPdf(
         ? layout.parts
         : flatten(document.structure ?? [], document.orphans ?? []).parts;
       if (layout?.cover) wanted.push({ readerId: layout.cover, page: 1, binaryId: 'cover' });
+      notImported = (kinds.blank ?? 0) + (layout?.skippedPictures ?? 0);
       // D15: windows-1251 text read as Latin-1, mended when the mended words are mostly known.
       const sample = parts.flatMap((part) => part.runs.map((run) => run.text)).join(' ');
       if (looksLatin1Cyrillic(sample)) {
@@ -221,6 +226,7 @@ export async function importPdf(
     if (mismatches > 0) lines.push(ctx.t('pdfImport.summary.mismatches', { count: mismatches }));
     if (picturesLeftOut > 0)
       lines.push(ctx.t('pdfImport.summary.picturesLeftOut', { count: picturesLeftOut }));
+    if (notImported > 0) lines.push(ctx.t('pdfImport.summary.notImported', { count: notImported }));
     if (lines.length === 0) actions.setStatusMessage(ctx.store, done);
     else {
       await ctx.dialogs.showMessage({

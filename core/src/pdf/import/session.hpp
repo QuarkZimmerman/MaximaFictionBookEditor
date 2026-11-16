@@ -29,8 +29,9 @@ public:
     /// {wrongPassword} after a wrong one.
     nlohmann::json password(const std::string& password);
     /// Reads every page; `progress(n, pages)` after each, returning false to cancel. "" when done,
-    /// else the reason. `kinds` counts the pages of each kind.
-    std::string read(const std::function<bool(int, int)>& progress, nlohmann::json& kinds);
+    /// else the reason. `result` gets {kinds} (the pages of each kind) and, when done,
+    /// {garbledShare}; a refusal of D19 gives {pages}, the number of pages concerned.
+    std::string read(const std::function<bool(int, int)>& progress, nlohmann::json& result);
     /// Asks the reader for a picture; its event (contracts/pdf-reader.md).
     nlohmann::json picture(const std::string& id, int page);
     /// Ends the reader and removes the folder; safe to call more than once.

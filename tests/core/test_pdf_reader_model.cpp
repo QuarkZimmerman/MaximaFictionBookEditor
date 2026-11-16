@@ -115,11 +115,14 @@ TEST_CASE("the reader passes a JPEG on byte for byte and converts JBIG2, JPEG 20
     const json e = r.picture(id, 1);
     REQUIRE(e["event"] == "picture");
     CHECK(e["contentType"] == "image/jpeg");
-    for (const char* name : {"jbig2", "jpx", "ccitt"}) {
-        Read f = read(kFixtures / (std::string(name) + ".pdf"));
-        const std::string pid = f.page(1)["pictures"][0]["id"];
-        const json pe = f.picture(pid, 1);
-        INFO(name);
+    // A page of text with a JBIG2, a JPEG 2000 and a CCITT picture (D19 refuses a PDF without
+    // text).
+    Read f = read(kFixtures / "import" / "picture-formats.pdf");
+    const json pictures = f.page(1)["pictures"];
+    REQUIRE(pictures.size() == 3);
+    for (const auto& picture : pictures) {
+        const json pe = f.picture(picture["id"].get<std::string>(), 1);
+        INFO(picture.dump());
         REQUIRE(pe["event"] == "picture");
         CHECK(std::filesystem::file_size(f.folder / pe["file"].get<std::string>()) > 0);
     }
@@ -153,7 +156,8 @@ TEST_CASE("the reader gives the editor's record of its own PDF", "[pdf][import]"
     CHECK(doc["record"]["version"] == 1);
     CHECK_FALSE(doc["record"]["hints"].get<std::string>().empty());
     CHECK_FALSE(doc["record"]["description"].get<std::string>().empty());
-    // The record keeps FB2 XML and JSON as XML text: the reader gives them back with their entities read.
+    // The record keeps FB2 XML and JSON as XML text: the reader gives them back with their entities
+    // read.
     CHECK(json::parse(doc["record"]["hints"].get<std::string>())["v"] == 1);
     CHECK(doc["record"]["description"].get<std::string>().rfind("<description", 0) == 0);
 }

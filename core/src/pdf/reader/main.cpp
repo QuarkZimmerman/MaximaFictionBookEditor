@@ -129,23 +129,58 @@ int main(int argc, char** argv) {
     }
     const int pages = doc->getNumPages();
     std::string error;
-    if (!mfbe::pdf_reader::write_document(*doc, options, error)) {
+    bool ours = false;
+    if (!mfbe::pdf_reader::write_document(*doc, options, error, &ours)) {
         mfbe::pdf_reader::emit(R"({"event":"failed","reason":"damaged"})");
         return 1;
     }
     // "opened" means document.json is written: the import asks its questions from it (D23).
     mfbe::pdf_reader::emit("{\"event\":\"opened\",\"pages\":" + std::to_string(pages) + "}");
+    // D19, DP-9: what the pages hold, for the refusals at the end and the import's summary.
+    int text_pages = 0;
+    int showing_text = 0;
+    int garbled = 0;
+    mfbe::pdf_reader::Readability all;
     for (int n = 1; n <= pages; ++n) {
 #ifndef _WIN32
         if (getppid() == 1) {
             return 1;  // the core is gone (macOS has no parent-death signal): end with it
         }
 #endif
-        const std::string kind = mfbe::pdf_reader::write_page(*doc, n, options);
+        mfbe::pdf_reader::Readability readable;
+        const std::string kind = mfbe::pdf_reader::write_page(*doc, n, options, &readable);
+        all.tokens += readable.tokens;
+        all.plain += readable.plain;
+        text_pages += kind == "text" || kind == "pictureWithLayer" || kind == "garbled" ? 1 : 0;
+        showing_text += kind == "pictureShowingText" ? 1 : 0;
+        garbled += kind == "garbled" ? 1 : 0;
         mfbe::pdf_reader::emit("{\"event\":\"page\",\"n\":" + std::to_string(n) + ",\"kind\":\"" +
                                kind + "\"}");
     }
-    mfbe::pdf_reader::emit(R"({"event":"done"})");
+    const double share = all.tokens > 0 ? static_cast<double>(all.plain) / all.tokens : 1.0;
+    // D19: only clean text. The editor's own PDF always holds its text; any other is refused when
+    // it holds no text at all, when pages show text without a layer, or when its layer reads mostly
+    // as garbage - each refusal with the number of pages concerned (FR-032).
+    if (!ours) {
+        const auto refuse = [](const char* reason, int count) {
+            mfbe::pdf_reader::emit(std::string("{\"event\":\"failed\",\"reason\":\"") + reason +
+                                   "\",\"pages\":" + std::to_string(count) + "}");
+            return 1;
+        };
+        if (text_pages == 0) {
+            return refuse("noText", pages);
+        }
+        if (showing_text > 0) {
+            return refuse("pictureOfText", showing_text);
+        }
+        if (all.tokens >= mfbe::pdf_reader::kGarbledDocumentTokens &&
+            share < mfbe::pdf_reader::kGarbledShare) {
+            return refuse("garbled", garbled > 0 ? garbled : text_pages);
+        }
+    }
+    char done[64];
+    std::snprintf(done, sizeof done, R"({"event":"done","garbledShare":%.2f})", share);
+    mfbe::pdf_reader::emit(done);
     // The import now asks for the pictures it takes, one line each, until the core closes standard
     // input.
     for (std::string line; std::getline(std::cin, line);) {

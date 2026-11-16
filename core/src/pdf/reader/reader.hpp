@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <memory>
 #include <string>
+#include <string_view>
 
 class PDFDoc;
 
@@ -22,12 +23,33 @@ struct Options {
 /// One JSON event line on standard output (contracts/pdf-reader.md), flushed at once.
 void emit(const std::string& json);
 
-/// document.json: metadata, the editor's record, outline, forms, encryption (task T016).
-bool write_document(PDFDoc& doc, const Options& options, std::string& error);
+/// document.json: metadata, the editor's record, outline, forms, encryption (task T016). `ours` is
+/// set when the PDF holds the editor's record (014 R10).
+bool write_document(PDFDoc& doc, const Options& options, std::string& error, bool* ours = nullptr);
 
-/// page-<n>.json for page `n` (from 1): words, fonts, links (task T015); pictures and drawings come
-/// with tasks T018 and T037. Returns the page's kind.
-std::string write_page(PDFDoc& doc, int n, const Options& options);
+/// How readable a text layer is (DP-9): its tokens, and how many of them are plain words in one
+/// script.
+struct Readability {
+    int tokens = 0;
+    int plain = 0;
+};
+
+/// A token of a text layer is a plain word: letters of one script, between opening and closing
+/// marks.
+bool is_plain_word(std::string_view token);
+
+/// The readability of a page's words (page-model words: {"t": ...}).
+Readability readability(const nlohmann::json& words);
+
+/// A layer that reads mostly as garbage (DP-9): under 0.6 of its tokens words - a page's with at
+/// least 8 tokens (it is counted), the document's with at least 20 (it is refused).
+constexpr int kGarbledPageTokens = 8;
+constexpr int kGarbledDocumentTokens = 20;
+constexpr double kGarbledShare = 0.6;
+
+/// page-<n>.json for page `n` (from 1): words, fonts, links, pictures (tasks T015, T018). Returns
+/// the page's kind (DP-8; `garbled` for a layer that reads as garbage) and gives its readability.
+std::string write_page(PDFDoc& doc, int n, const Options& options, Readability* readable = nullptr);
 
 /// The pictures page `n` places (ids, boxes, sizes), without writing them (task T018).
 nlohmann::json record_pictures(PDFDoc& doc, int n);

@@ -163,7 +163,7 @@ nlohmann::json outline_of(PDFDoc& doc, const std::vector<OutlineItem*>* items, i
 
 }  // namespace
 
-bool write_document(PDFDoc& doc, const Options& options, std::string& error) {
+bool write_document(PDFDoc& doc, const Options& options, std::string& error, bool* ours) {
     nlohmann::json out{{"v", 1},
                        {"pages", doc.getNumPages()},
                        {"version", std::to_string(doc.getPDFMajorVersion()) + "." +
@@ -246,6 +246,9 @@ bool write_document(PDFDoc& doc, const Options& options, std::string& error) {
                       {"media", media},
                       {"scripts", catalog ? catalog->numJS() : 0}};
     const std::string version = xmp_value(xmp, "mfbe:recordVersion");
+    if (ours != nullptr) {
+        *ours = !version.empty();
+    }
     if (!version.empty()) {
         out["record"] = {{"version", std::atoi(version.c_str())},
                          {"description", xmp_value(xmp, "mfbe:fb2Description")},

@@ -33,6 +33,7 @@ PAGE_W, PAGE_H = 420, 595  # A5-ish, points
 SCAN_W, SCAN_H = 700, 992  # page pictures, pixels (120 dpi)
 FILE_ID = bytes.fromhex("0123456789abcdef0123456789abcdef")
 
+TITLE = "The Generated Book"
 PROSE = [
     "The first paragraph of the generated book tells a short story about a quiet",
     "harbour town, where the boats come in early and the market opens at dawn.",
@@ -178,12 +179,18 @@ def illustration() -> Image.Image:
 
 
 def scan_page(pdf: Pdf, parent: int, f: dict[str, int], picture: Image.Image, layer: list[str] | None,
-              under: bool = False) -> int:
+              under: bool = False, head: str | None = None, number: str | None = None) -> int:
     im = image_obj(pdf, picture)
     draw = f"q {PAGE_W} 0 0 {PAGE_H} 0 0 cm /Im1 Do Q\n".encode("latin-1")
     text = b""
+    mode = 0 if under else 3
     if layer is not None:
-        text = text_lines(layer, x0=54, top=PAGE_H - 92, size=12.6, lead=20.3, mode=0 if under else 3)
+        text = text_lines(layer, x0=54, top=PAGE_H - 92, size=12.6, lead=20.3, mode=mode)
+    # A running head and a page number, as a recognised book's layer has them (D12).
+    if head:
+        text += b"\n" + text_lines([head], x0=150, top=PAGE_H - 48, size=9, lead=11, mode=mode)
+    if number:
+        text += b"\n" + text_lines([number], x0=205, top=40, size=9, lead=11, mode=mode)
     content = (text + b"\n" + draw) if under else (draw + text)
     return page(pdf, parent, content, f"{font_res(f)} /XObject << /Im1 {im} 0 R >>")
 
@@ -274,13 +281,17 @@ def scan(layer_mode: str) -> tuple[bytes, dict]:
     layered = [line.replace("hyphen-", "hyphen\u00ad") for line in PROSE]
     kids = [scan_page(pdf, pages, f, illustration(), None)]
     under = layer_mode == "under"
-    kids.append(scan_page(pdf, pages, f, render_text_picture(PROSE), [l.replace("\u00ad", "\xad") for l in layered], under))
-    kids.append(scan_page(pdf, pages, f, render_text_picture(PROSE[:3]), PROSE[:3], under))
+    kids.append(scan_page(pdf, pages, f, render_text_picture(PROSE), [l.replace("\u00ad", "\xad") for l in layered], under,
+                          head=TITLE, number="2"))
+    # A recognition error ("earIy" for "early") comes in as the layer has it (D17).
+    ocr = [line.replace("early", "earIy") for line in PROSE[:3]]
+    kids.append(scan_page(pdf, pages, f, render_text_picture(PROSE[:3]), ocr, under, head=TITLE, number="3"))
     kids.append(scan_page(pdf, pages, f, render_text_picture([], blank=True), None))
     pages_tree(pdf, kids, pages)
     pdf.add(f"<< /Type /Catalog /Pages {pages} 0 R >>", catalog)
     kinds = ["pictureWithoutText", "pictureWithLayer", "pictureWithLayer", "blank"]
-    return pdf.write(catalog), {"kinds": kinds, "contains": ["harbour", "hyphenated"], "cover": 1}
+    return pdf.write(catalog), {"kinds": kinds, "contains": ["harbour", "hyphenated", "earIy"], "absent": [TITLE],
+                                "cover": 1, "notImported": 1}
 
 
 def picture_pages(with_first_layer: bool, garbled: bool = False) -> tuple[bytes, dict]:
@@ -295,7 +306,7 @@ def picture_pages(with_first_layer: bool, garbled: bool = False) -> tuple[bytes,
         kids.append(scan_page(pdf, pages, f, render_text_picture(PROSE[:3]), junk[:2]))
         pages_tree(pdf, kids, pages)
         pdf.add(f"<< /Type /Catalog /Pages {pages} 0 R >>", catalog)
-        return pdf.write(catalog), {"kinds": ["garbled", "garbled"], "reason": "garbled"}
+        return pdf.write(catalog), {"kinds": ["garbled", "garbled"], "reason": "garbled", "pages": 2}
     if with_first_layer:
         kids.append(scan_page(pdf, pages, f, render_text_picture(PROSE), PROSE))
     kids.append(scan_page(pdf, pages, f, render_text_picture(PROSE), None))
@@ -429,6 +440,38 @@ def tagged() -> tuple[bytes, dict] | None:
     return result.stdout, {"kinds": ["text"], "tagged": True, "contains": ["Heading", "item", "Cell"]}
 
 
+def picture_formats() -> tuple[bytes, dict]:
+    """A page of text with the three picture codings a printed book may use - JBIG2, JPEG 2000 and CCITT
+    Group 4 - made by feature 014's format generator, so that the import's pictures are converted from each
+    (D19 refuses a PDF without text, so the pictures stand on a page of text)."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("formats", HERE.parent / "make-format-fixtures.py")
+    formats = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(formats)
+    g4 = formats.group4(formats.bilevel().point(lambda v: 0 if v else 255))
+    one_bit = "/ColorSpace /DeviceGray /BitsPerComponent 1"
+    w, h = formats.WIDTH, formats.HEIGHT
+    pdf = Pdf()
+    catalog, pages = pdf.reserve(), pdf.reserve()
+    f = fonts(pdf)
+    images = {
+        "Im1": pdf.stream(formats.jbig2(g4), f"/Type /XObject /Subtype /Image /Width {w} /Height {h} {one_bit} "
+                                            "/Filter /JBIG2Decode ", compress=False),
+        "Im2": pdf.stream(formats.jpeg2000(), f"/Type /XObject /Subtype /Image /Width {formats.RGB_WIDTH} "
+                                              f"/Height {formats.RGB_HEIGHT} /Filter /JPXDecode ", compress=False),
+        "Im3": pdf.stream(g4, f"/Type /XObject /Subtype /Image /Width {w} /Height {h} {one_bit} /Filter "
+                              f"/CCITTFaxDecode /DecodeParms << /K -1 /Columns {w} /Rows {h} >> ", compress=False),
+    }
+    draw = (f"q {w * 2} 0 0 {h * 2} 60 300 cm /Im1 Do Q q {formats.RGB_WIDTH * 2} 0 0 {formats.RGB_HEIGHT * 2} "
+            f"200 300 cm /Im2 Do Q q {w * 2} 0 0 {h * 2} 60 180 cm /Im3 Do Q").encode()
+    content = text_lines(PROSE[:3], top=540) + b"\n" + draw
+    resources = font_res(f) + " /XObject << " + " ".join(f"/{k} {v} 0 R" for k, v in images.items()) + " >>"
+    kids = [page(pdf, pages, content, resources)]
+    pages_tree(pdf, kids, pages)
+    pdf.add(f"<< /Type /Catalog /Pages {pages} 0 R >>", catalog)
+    return pdf.write(catalog), {"kinds": ["text"], "pictures": ["jbig2", "jpx", "ccitt"], "contains": ["harbour"]}
+
+
 def build() -> dict[str, tuple[bytes, dict]]:
     files = {
         "text-untagged": text_untagged(),
@@ -439,6 +482,7 @@ def build() -> dict[str, tuple[bytes, dict]]:
         "garbled": picture_pages(False, garbled=True),
         "drawing": drawing(),
         "forms": forms(),
+        "picture-formats": picture_formats(),
         "password-user": protected("secret", -4),
         "copy-restricted": protected("", -20),
     }

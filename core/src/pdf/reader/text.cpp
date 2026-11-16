@@ -16,7 +16,7 @@ namespace mfbe::pdf_reader {
 
 nlohmann::json target_of(PDFDoc& doc, const LinkAction* action);
 
-std::string write_page(PDFDoc& doc, int n, const Options& options) {
+std::string write_page(PDFDoc& doc, int n, const Options& options, Readability* readable) {
     TextOutputDev device(nullptr, false, 0, false, false);
     doc.displayPage(&device, n, 72, 72, 0, true, false, false);
     std::unique_ptr<TextPage> text = device.takeText();
@@ -72,7 +72,15 @@ std::string write_page(PDFDoc& doc, int n, const Options& options) {
     page["fonts"] = std::move(fonts);
     page["words"] = std::move(words);
     page["pictures"] = record_pictures(doc, n);
-    const std::string kind = page_kind(doc, n, page);
+    std::string kind = page_kind(doc, n, page);
+    const Readability r = readability(page["words"]);
+    if ((kind == "text" || kind == "pictureWithLayer") && r.tokens >= kGarbledPageTokens &&
+        r.plain < kGarbledShare * r.tokens) {
+        kind = "garbled";
+    }
+    if (readable != nullptr) {
+        *readable = r;
+    }
     page["kind"] = kind;
     std::ofstream(options.out / ("page-" + std::to_string(n) + ".json")) << page.dump();
     return kind;

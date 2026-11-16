@@ -95,8 +95,9 @@ json Session::password(const std::string& password) {
     return wait_open();
 }
 
-std::string Session::read(const std::function<bool(int, int)>& progress, json& kinds) {
-    kinds = json::object();
+std::string Session::read(const std::function<bool(int, int)>& progress, json& result) {
+    result = json{{"kinds", json::object()}};
+    json& kinds = result["kinds"];
     std::string line;
     while (reader_ && (reader_->next_event(line, 1s) || reader_->end() == ReaderEnd::running)) {
         if (line.empty()) {
@@ -118,9 +119,13 @@ std::string Session::read(const std::function<bool(int, int)>& progress, json& k
             }
         } else if (event == "done") {
             done_ = true;
+            result["garbledShare"] = e.value("garbledShare", 1.0);
             reader_->set_silence_timeout(std::chrono::hours(24));
             return "";
         } else if (event == "failed") {
+            if (e.contains("pages")) {
+                result["pages"] = e.value("pages", 0);
+            }
             return e.value("reason", "damaged");
         }
     }

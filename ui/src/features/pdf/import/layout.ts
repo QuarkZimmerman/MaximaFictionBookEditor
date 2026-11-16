@@ -289,6 +289,8 @@ export function layoutParts(
     pages.filter((p) => p.pictures.some((pic) => covers(pic.box, p))).length > pages.length / 2;
   const figures: Part[] = [];
   for (const page of pages) {
+    // A blank page's picture is no plate (the reader called the page blank; the summary counts it).
+    if (page.kind === 'blank') continue;
     const hasText = page.words.some((w) => w.t.trim());
     for (const picture of page.pictures) {
       const [, , w, h] = picture.box;

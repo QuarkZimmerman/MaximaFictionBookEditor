@@ -1425,7 +1425,11 @@ export interface RpcMethods {
   'pdfImport.inspect': { params: { token: string }; result: PdfImportOpen };
   'pdfImport.password': { params: { token: string; password: string }; result: PdfImportOpen };
   /** A job: progress per page read; its result `{ pages, kinds }`. */
-  'pdfImport.read': { params: { token: string }; result: JobStart };
+  'pdfImport.read': {
+    params: { token: string };
+    /** The pages of each kind (DP-8) and the share of plain words of the text layer (DP-9). */
+    result: MaybeJob<{ pages: number; kinds: Record<string, number>; garbledShare: number }>;
+  };
   'pdfImport.addPictures': {
     params: {
       token: string;
