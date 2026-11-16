@@ -306,6 +306,8 @@ if(OS_LINUX)
   # Install (cmake/InstallLayout.cmake): the executable and every CEF file in lib/mfbe,
   # bin/mfbe as a symlink, desktop integration under share/.
   install(TARGETS ${MFBE_TARGET} RUNTIME DESTINATION "${MFBE_INSTALL_LIBDIR}" COMPONENT app)
+  # Feature 016 (DP-1): the PDF reader sits next to the shell, where the core looks for it.
+  install(TARGETS mfbe-pdf-reader RUNTIME DESTINATION "${MFBE_INSTALL_LIBDIR}" COMPONENT app)
   mfbe_install_bin_symlink(${MFBE_TARGET} "../${MFBE_INSTALL_LIBDIR}/${MFBE_TARGET}" app)
   set(_cef_binary_files ${CEF_BINARY_FILES})
   if(EXISTS "${CEF_BINARY_DIR}/libminigbm.so")
@@ -405,6 +407,17 @@ if(OS_MAC)
   # copied; POST_BUILD steps run in the order they were added). Apple Silicon refuses to start
   # unsigned code and `--deep` re-seals the nested helper bundles. The installed/packaged
   # bundle is signed again by cmake/MfbePackaging.cmake / packaging/macos (T145).
+  # Feature 016 (DP-1): the PDF reader is a helper tool of the bundle, in Contents/Helpers (Apple,
+  # "Placing Content in a Bundle"), copied before the bundle is signed so the signature seals it.
+  add_dependencies(${MFBE_TARGET} mfbe-pdf-reader)
+  add_custom_command(
+    TARGET ${MFBE_TARGET}
+    POST_BUILD
+    COMMAND "${CMAKE_COMMAND}" -E make_directory "${MFBE_APP}/Contents/Helpers"
+    COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:mfbe-pdf-reader>"
+            "${MFBE_APP}/Contents/Helpers/"
+    COMMENT "Copying mfbe-pdf-reader into ${MFBE_APP}"
+    VERBATIM)
   find_program(MFBE_CODESIGN_EXECUTABLE codesign)
   if(MFBE_CODESIGN_EXECUTABLE)
     add_custom_command(
@@ -467,6 +480,8 @@ if(OS_WINDOWS)
     set_target_properties(${MFBE_TARGET} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${MFBE_TARGET_OUT_DIR}")
     install(TARGETS ${MFBE_TARGET} RUNTIME DESTINATION bin COMPONENT app)
   endif()
+  # Feature 016 (DP-1): the PDF reader sits next to mfbe.exe, where the core looks for it.
+  install(TARGETS mfbe-pdf-reader RUNTIME DESTINATION bin COMPONENT app)
   mfbe_shell_configure_target(${MFBE_TARGET})
   target_include_directories(${MFBE_TARGET} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/win")
 
