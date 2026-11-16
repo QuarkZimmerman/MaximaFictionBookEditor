@@ -872,7 +872,11 @@ export class FileFeature {
               : ctx.t('msg.notFictionBook', { path }),
           caption: ctx.t('dialog.error.caption'),
           icon: 'error',
-          testId: epub ? 'dialog-epub-refused' : pdf ? 'dialog-pdf-refused' : 'dialog-not-fictionbook',
+          testId: epub
+            ? 'dialog-epub-refused'
+            : pdf
+              ? 'dialog-pdf-refused'
+              : 'dialog-not-fictionbook',
         });
         void this.recent.refresh(rpc);
         return false;

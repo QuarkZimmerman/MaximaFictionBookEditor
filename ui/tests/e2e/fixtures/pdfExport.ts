@@ -215,7 +215,12 @@ function modelBlocks(bodies: ModelJson[]): Expected['blocks'] {
         // D19: the notes go to the feet of the pages; their body's own title is not printed.
         if ((note && top && child.type === 'title') || raw(child)) continue;
         // Feature 016 (D10): a group of notes is printed as its notes only, without the group's title.
-        if (note && child.type === 'title' && (node.content ?? []).some((c) => c.type === 'section')) continue;
+        if (
+          note &&
+          child.type === 'title' &&
+          (node.content ?? []).some((c) => c.type === 'section')
+        )
+          continue;
         // Feature 016 (D10): a block picture's title is printed under it as its caption.
         if (child.type === 'image') {
           const title = typeof child.attrs?.title === 'string' ? clean(child.attrs.title) : '';

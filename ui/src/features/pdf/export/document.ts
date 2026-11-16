@@ -51,7 +51,9 @@ const PLACEHOLDER =
 
 /** An FB2 picture inside a line (a paragraph, a verse...), not a block of its own. */
 const isInline = (image: Element): boolean =>
-  !['section', 'body', 'cite', 'epigraph', 'annotation', 'td', 'th'].includes(image.parentElement?.localName ?? '');
+  !['section', 'body', 'cite', 'epigraph', 'annotation', 'td', 'th'].includes(
+    image.parentElement?.localName ?? '',
+  );
 
 /** A picture box (R4): its size, its binary, and its alternative text for the structure (D20). */
 export function pictureElement(
