@@ -25,10 +25,14 @@
 # bodies valid. Both drive the editor itself (build ui/dist first): epub-export.py, epub-import.py.
 # Feature 014 (DP-16): --pdf-export exports SAMPLE_FILE's books to PDF in A5 and checks each with
 # veraPDF (PDF/A-2U) and tests/pdf/text-compare.mjs: pdf-export.py.
+# Feature 016 (D32, SC-014), before every rc tag: --pdf-round-trip exports SAMPLE_FILE's books to PDF and
+# imports them again, each valid book equal apart from D6 (pdf-round-trip.py); --pdf-import LIST sorts the
+# library PDFs of LIST (sample.py --ext pdf) and imports 50 made from text, 50 scans with a text layer and 20
+# scans without usable text, judged as D32 says (pdf-import.py).
 set -u
 
 usage() {
-    echo "usage: $0 SAMPLE_FILE [-j N] [--out DIR] [--core PATH] [--encoding ENC] [--save-hashes FILE] [--check-hashes FILE] [--markdown] [--epub-export] [--pdf-export] [--epub-import LIST]" >&2
+    echo "usage: $0 SAMPLE_FILE [-j N] [--out DIR] [--core PATH] [--encoding ENC] [--save-hashes FILE] [--check-hashes FILE] [--markdown] [--epub-export] [--pdf-export] [--epub-import LIST] [--pdf-round-trip] [--pdf-import LIST]" >&2
     exit 2
 }
 
@@ -50,6 +54,8 @@ MARKDOWN=0
 EPUB_EXPORT=0
 PDF_EXPORT=0
 EPUB_IMPORT=""
+PDF_ROUND_TRIP=0
+PDF_IMPORT=""
 while [ $# -gt 0 ]; do
     case "$1" in
         -j) JOBS="$2"; shift 2 ;;
@@ -59,6 +65,8 @@ while [ $# -gt 0 ]; do
         --epub-export) EPUB_EXPORT=1; shift ;;
         --pdf-export) PDF_EXPORT=1; shift ;;
         --epub-import) EPUB_IMPORT="$2"; shift 2 ;;
+        --pdf-round-trip) PDF_ROUND_TRIP=1; shift ;;
+        --pdf-import) PDF_IMPORT="$2"; shift 2 ;;
         --encoding) ENCODING="$2"; shift 2 ;;
         --save-hashes) SAVE_HASHES="$2"; shift 2 ;;
         --check-hashes) CHECK_HASHES="$2"; shift 2 ;;
@@ -285,5 +293,12 @@ fi
 # Feature 014 (DP-16): the PDF run - A5, veraPDF and the text read back, no crash or hang.
 if [ "$PDF_EXPORT" = 1 ]; then
     python3 "$HERE/pdf-export.py" "$SAMPLE" --out "$OUT/pdf-export" --core "$CORE" || status=1
+fi
+# Feature 016 (D32): the PDF import runs.
+if [ "$PDF_ROUND_TRIP" = 1 ]; then
+    python3 "$HERE/pdf-round-trip.py" "$SAMPLE" --out "$OUT/pdf-round-trip" --core "$CORE" || status=1
+fi
+if [ -n "$PDF_IMPORT" ]; then
+    python3 "$HERE/pdf-import.py" "$PDF_IMPORT" --out "$OUT/pdf-import" --core "$CORE" || status=1
 fi
 exit $status

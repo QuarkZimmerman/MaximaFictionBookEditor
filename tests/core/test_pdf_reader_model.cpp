@@ -108,6 +108,21 @@ TEST_CASE("the reader gives a text PDF's words, fonts, links, bookmarks and info
     CHECK(p1["pictures"][0]["jpeg"] == true);
 }
 
+TEST_CASE(
+    "the reader gives document information in UTF-8, whatever encoding the PDF wrote it in (D32)",
+    "[pdf][import]") {
+    // PDFDocEncoding past ASCII, UTF-8 without its byte order mark, UTF-16 with it: two library
+    // PDFs written so ended the reader (its JSON refused the bytes).
+    Read r = read(kFixtures / "import" / "info-encodings.pdf");
+    REQUIRE(r.events.back()["event"] == "done");
+    const json info = r.document()["metadata"]["info"];
+    CHECK(info["Creator"] == "Microsoft\u00ae Office Word 2007");
+    CHECK(info["Author"] ==
+          "\u0421\u0435\u0440\u0433\u0435\u0439 "
+          "\u0421\u043f\u0438\u0440\u0438\u0434\u043e\u043d\u043e\u0432\u0438\u0447");
+    CHECK(info["Title"] == "\u0418\u043c\u043f\u0435\u0440\u0430\u0442\u043e\u0440");
+}
+
 TEST_CASE("the reader passes a JPEG on byte for byte and converts JBIG2, JPEG 2000 and CCITT",
           "[pdf][import]") {
     Read r = read(kFixtures / "import" / "text-untagged.pdf");

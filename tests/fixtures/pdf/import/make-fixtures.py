@@ -419,6 +419,24 @@ def two_columns() -> tuple[bytes, dict]:
     return pdf.write(catalog), {"kinds": ["text"], "contains": ["First column, line 14", "Second column, line 1 "]}
 
 
+def info_encodings() -> tuple[bytes, dict]:
+    """Document information in the encodings producers write it in: PDFDocEncoding past ASCII (Word's "®"),
+    UTF-8 without its byte order mark, UTF-16 with it - all given back as UTF-8 (D32's library run found the
+    first two ending the reader)."""
+    pdf = Pdf()
+    catalog, pages = pdf.reserve(), pdf.reserve()
+    f = fonts(pdf)
+    kids = [page(pdf, pages, text_lines(PROSE[:2], top=520), font_res(f))]
+    pages_tree(pdf, kids, pages)
+    pdf.add(f"<< /Type /Catalog /Pages {pages} 0 R >>", catalog)
+    info = pdf.add(b"<< /Creator (Microsoft\xae Office Word 2007) /Author ("
+                   + "Сергей Спиридонович".encode("utf-8") + b") /Title <FEFF"
+                   + "Император".encode("utf-16-be").hex().upper().encode("ascii") + b"> >>")
+    return pdf.write(catalog, info=info), {
+        "kinds": ["text"], "contains": ["harbour"],
+        "info": {"Creator": "Microsoft\u00ae Office Word 2007", "Author": "Сергей Спиридонович", "Title": "Император"}}
+
+
 def protected(user: str, permissions: int) -> tuple[bytes, dict]:
     pdf = Pdf()
     catalog, pages = pdf.reserve(), pdf.reserve()
@@ -651,6 +669,7 @@ def build() -> dict[str, tuple[bytes, dict]]:
         "form-free": form_free(),
         "latin1-cyrillic": latin1_cyrillic(),
         "two-columns": two_columns(),
+        "info-encodings": info_encodings(),
         "picture-formats": picture_formats(),
         "password-user": protected("secret", -4),
         "copy-restricted": protected("", -20),

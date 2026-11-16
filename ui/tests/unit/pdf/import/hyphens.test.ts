@@ -62,3 +62,70 @@ describe('words broken at the end of a line (D12)', () => {
     expect(text(['short line hy-', 'phenated words go on'], () => true)).not.toContain(' | ');
   });
 });
+
+describe('a drop cap (D11, D32)', () => {
+  it('begins the first word of the first line beside it, whatever line its baseline falls on', () => {
+    const word = (t: string, x: number, row: number): PdfWord => ({
+      t,
+      box: [x, 40 + row * 12, t.length * 5, 10],
+      f: 'f1',
+      s: 10,
+      c: '#000000',
+      base: 48 + row * 12,
+    });
+    const lines = [
+      [
+        'алеко-далеко,',
+        'рассекая',
+        'пространство,',
+        'как',
+        'огромная',
+        'резная',
+        'фигура',
+        'на',
+        'носу',
+        'корабля',
+      ],
+      [
+        'простирается',
+        'Край.',
+        'Со',
+        'скалы,',
+        'нависающей',
+        'над',
+        'бездной,',
+        'льётся',
+        'водопад',
+        'вниз',
+      ],
+      ['и', 'так', 'далее', 'до', 'самого', 'конца', 'этой', 'длинной', 'строки', 'текста'],
+    ];
+    const words: PdfWord[] = [];
+    lines.forEach((line, row) => {
+      let x = 70;
+      for (const t of line) {
+        words.push(word(t, x, row));
+        x += t.length * 5 + 3;
+      }
+    });
+    // The letter spans the first two lines; its baseline is the second line's.
+    // Its box starts above the first line's words, as the library's drop caps do.
+    words.push({ t: 'Д', box: [40, 36, 26, 30], f: 'f1', s: 26, c: '#000000', base: 62 });
+    const model: PdfPageModel = {
+      n: 1,
+      width: 420,
+      height: 595,
+      rotation: 0,
+      kind: 'text',
+      fonts: [],
+      words,
+      links: [],
+      pictures: [],
+    };
+    const text = layoutParts([model])
+      .parts.map((part) => partText(part.runs))
+      .join(' | ');
+    expect(text.startsWith('Далеко-далеко, рассекая')).toBe(true);
+    expect(text).not.toContain(' Д ');
+  });
+});

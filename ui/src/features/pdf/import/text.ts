@@ -28,53 +28,44 @@ export function textBody(
     if (id) counts.pictures++;
     return id;
   };
-  let out = '';
-  const depths: number[] = [];
+  // The sections as a tree first: FB2 lets a section hold either its own text or subsections after its
+  // title, never both, and a section must hold more than a title (the library's PDFs, D32).
+  interface Section {
+    level: number;
+    title: string[];
+    content: string[];
+    children: Section[];
+  }
+  const top: Section[] = [];
+  const open: Section[] = [];
   let inTitle = false;
-  let titleLevel = 0;
-  let sectionHasContent = false;
-  const closeTitle = (): void => {
-    if (inTitle) out += '</title>';
-    inTitle = false;
-  };
-  const openSection = (level: number): void => {
-    closeTitle();
-    // A section holds more than its title (FB2): one that got nothing else gets an empty line.
-    if (depths.length && !sectionHasContent && depths[depths.length - 1] >= level)
-      out += '<empty-line/>';
-    while (depths.length && depths[depths.length - 1] >= level) {
-      out += '</section>';
-      depths.pop();
-    }
-    if (depths.length && !sectionHasContent) sectionHasContent = true; // its subsection is its content
-    out += '<section>';
-    depths.push(level);
+  const openSection = (level: number): Section => {
+    while (open.length && open[open.length - 1].level >= level) open.pop();
+    const section: Section = { level, title: [], content: [], children: [] };
+    (open.length ? open[open.length - 1].children : top).push(section);
+    open.push(section);
     counts.sections++;
-    sectionHasContent = false;
+    return section;
   };
   for (const part of parts) {
     if (part.kind === 'title') {
       const level = part.level ?? 1;
+      const current = open[open.length - 1];
       // Consecutive title lines of one level make one title; a title after text opens a section.
-      if (!(inTitle && level === titleLevel)) {
-        openSection(level);
-        out += '<title>';
-        inTitle = true;
-        titleLevel = level;
-      }
+      const section = inTitle && current?.level === level ? current : openSection(level);
+      inTitle = true;
       // A title's bold or italic over the whole line is its look, not markup.
-      out += `<p>${inline(stripWhole(part.runs), [], link, pictureRun)}</p>`;
+      section.title.push(`<p>${inline(stripWhole(part.runs), [], link, pictureRun)}</p>`);
       continue;
     }
-    closeTitle();
-    if (depths.length === 0) openSection(1);
-    sectionHasContent = true;
+    inTitle = false;
+    const section = open[open.length - 1] ?? openSection(1);
     if (part.kind === 'figure') {
       const id = picture(part.page, part.alt ?? '', part.readerId);
       if (id) {
         counts.pictures++;
         const alt = part.alt ? ` alt="${attr(part.alt)}"` : '';
-        out += `<image l:href="#${attr(id)}"${alt}/>`;
+        section.content.push(`<image l:href="#${attr(id)}"${alt}/>`);
       }
       continue;
     }
@@ -90,18 +81,35 @@ export function textBody(
             })
             .join('')}</tr>`,
       );
-      out += `<table>${rows.join('')}</table>`;
+      section.content.push(`<table>${rows.join('')}</table>`);
       continue;
     }
     const lang = part.lang ? ` xml:lang="${attr(part.lang)}"` : '';
-    out += `<p${lang}>${inline(part.runs, [], link, pictureRun)}</p>`;
+    section.content.push(`<p${lang}>${inline(part.runs, [], link, pictureRun)}</p>`);
   }
-  closeTitle();
-  // A section must hold more than a title (FB2): an empty one gets an empty line.
-  if (!sectionHasContent && depths.length) out += '<empty-line/>';
-  while (depths.length) {
-    out += '</section>';
-    depths.pop();
-  }
+  // A section's text: one picture may stand at its top, but the text itself starts with a paragraph, a
+  // table or an empty line - never a picture (FB2's sectionType) - and is never empty.
+  const contentOf = (content: readonly string[]): string => {
+    if (content.length === 0) return '<empty-line/>';
+    if (!content[0].startsWith('<image')) return content.join('');
+    const [top, ...rest] = content;
+    return (
+      top +
+      (rest.length === 0 || rest[0].startsWith('<image') ? '<empty-line/>' : '') +
+      rest.join('')
+    );
+  };
+  const render = (section: Section): string => {
+    const title = section.title.length ? `<title>${section.title.join('')}</title>` : '';
+    let inner: string;
+    if (section.children.length === 0) inner = contentOf(section.content);
+    else {
+      // Its own text before its subsections goes into an untitled first subsection.
+      const own = section.content.length ? `<section>${contentOf(section.content)}</section>` : '';
+      inner = own + section.children.map(render).join('');
+    }
+    return `<section>${title}${inner}</section>`;
+  };
+  const out = top.map(render).join('');
   return { xml: `<body>${out || '<section><empty-line/></section>'}</body>`, counts };
 }

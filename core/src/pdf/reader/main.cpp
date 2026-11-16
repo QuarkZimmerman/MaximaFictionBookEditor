@@ -258,13 +258,13 @@ int main(int argc, char** argv) {
         if (!request.is_object() || !request.contains("picture") || !request.contains("page")) {
             continue;
         }
-        mfbe::pdf_reader::emit((request.value("picture", std::string()).rfind('d', 0) == 0
-                                    ? mfbe::pdf_reader::write_drawing(
-                                          *doc, request.value("picture", std::string()), options)
-                                    : mfbe::pdf_reader::write_picture(
-                                          *doc, request.value("page", 0),
-                                          request.value("picture", std::string()), options))
-                                   .dump());
+        mfbe::pdf_reader::emit(mfbe::pdf_reader::dumped(
+            request.value("picture", std::string()).rfind('d', 0) == 0
+                ? mfbe::pdf_reader::write_drawing(*doc, request.value("picture", std::string()),
+                                                  options)
+                : mfbe::pdf_reader::write_picture(*doc, request.value("page", 0),
+                                                  request.value("picture", std::string()),
+                                                  options)));
     }
     return 0;
 }

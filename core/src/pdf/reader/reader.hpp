@@ -62,6 +62,16 @@ nlohmann::json write_picture(PDFDoc& doc, int n, const std::string& id, const Op
 bool render_page(PDFDoc& doc, int n, int dpi, const std::filesystem::path& file, int& width,
                  int& height);
 
+/// A PDF text string (document information, a form's value, a structure element's text) as UTF-8.
+std::string text_string(std::string_view s);
+
+/// The JSON text of the reader's files and events. Text a PDF holds in an encoding other than UTF-8
+/// comes out with U+FFFD for its bad bytes instead of ending the reader (D32's library run: two
+/// PDFs ended it so).
+inline std::string dumped(const nlohmann::json& value) {
+    return value.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+}
+
 /// The page's drawings (DP-7): areas of lines and shapes, [{id, box}]; sets the page's `forms` when
 /// its fields stand in labelled rows, else draws them as one more drawing. Needs the page's words
 /// and pictures.

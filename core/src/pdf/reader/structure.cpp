@@ -158,7 +158,7 @@ std::string utf8_text(const GooString* s) {
     if (s == nullptr) {
         return {};
     }
-    std::string out = TextStringToUtf8(s->toStr());
+    std::string out = text_string(s->toStr());
     while (!out.empty() && out.back() == '\0') {
         out.pop_back();
     }
@@ -176,7 +176,7 @@ nlohmann::json value_of(const Object* value) {
         return value->getName();
     }
     if (value->isString()) {
-        std::string text = TextStringToUtf8(value->getString());
+        std::string text = text_string(value->getString());
         while (!text.empty() && text.back() == '\0') {
             text.pop_back();
         }
@@ -248,7 +248,7 @@ struct Walker {
         if (d.isName()) {
             out["dest"] = d.getName();
         } else if (d.isString()) {
-            out["dest"] = TextStringToUtf8(d.getString());
+            out["dest"] = text_string(d.getString());
         } else if (d.isArray() && d.arrayGetLength() > 0) {
             const Object target = d.arrayGetNF(0).copy();
             if (target.isRef()) {

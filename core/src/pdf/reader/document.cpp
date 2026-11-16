@@ -11,6 +11,7 @@
 #include <Link.h>
 #include <Outline.h>
 #include <PDFDoc.h>
+#include <PDFDocEncoding.h>
 #include <Page.h>
 #include <UTF.h>
 #include <cstdlib>
@@ -108,6 +109,41 @@ std::string utf8_of(const std::vector<Unicode>& text) {
 
 }  // namespace
 
+// A PDF text string as UTF-8 (D32's library run: Poppler's TextStringToUtf8 keeps PDFDocEncoding's
+// letters past ASCII as single bytes, not UTF-8, and producers write UTF-8 without its byte order
+// mark). UTF-16 after its byte order mark; UTF-8 after its mark (PDF 2.0) or when the bytes are
+// UTF-8 already; else PDFDocEncoding.
+std::string text_string(std::string_view s) {
+    if (hasUnicodeByteOrderMark(s) || hasUnicodeByteOrderMarkLE(s)) {
+        return TextStringToUtf8(s);
+    }
+    if (s.substr(0, 3) == "\xEF\xBB\xBF") {
+        s.remove_prefix(3);
+    }
+    bool utf8 = true;
+    for (std::size_t i = 0; i < s.size() && utf8; ++i) {
+        const auto c = static_cast<unsigned char>(s[i]);
+        const int extra = c < 0x80             ? 0
+                          : (c & 0xE0) == 0xC0 ? (c >= 0xC2 ? 1 : -1)
+                          : (c & 0xF0) == 0xE0 ? 2
+                          : (c & 0xF8) == 0xF0 ? 3
+                                               : -1;
+        utf8 = extra >= 0;
+        for (int k = 0; utf8 && k < extra; ++k) {
+            utf8 = ++i < s.size() && (static_cast<unsigned char>(s[i]) & 0xC0) == 0x80;
+        }
+    }
+    if (utf8) {
+        return std::string(s);
+    }
+    std::vector<Unicode> text;
+    text.reserve(s.size());
+    for (const char c : s) {
+        text.push_back(pdfDocEncoding[static_cast<unsigned char>(c)]);
+    }
+    return utf8_of(text);
+}
+
 /// Where a link action leads: page (from 1) and the top of the target (points from the page's top),
 /// or the address. Shared with text.cpp's links.
 nlohmann::json target_of(PDFDoc& doc, const LinkAction* action) {
@@ -179,7 +215,7 @@ bool write_document(PDFDoc& doc, const Options& options, std::string& error, boo
     nlohmann::json info = nlohmann::json::object();
     for (const char* key : {"Title", "Author", "Subject", "Keywords", "Creator", "Producer"}) {
         if (auto value = doc.getDocInfoStringEntry(key)) {
-            std::string text = TextStringToUtf8(value->toStr());
+            std::string text = text_string(value->toStr());
             while (!text.empty() && text.back() == '\0') {
                 text.pop_back();
             }
@@ -212,7 +248,7 @@ bool write_document(PDFDoc& doc, const Options& options, std::string& error, boo
                     if (field && field->getType() == formText) {
                         if (const GooString* content =
                                 static_cast<FormWidgetText*>(field)->getContent()) {
-                            value = TextStringToUtf8(content->toStr());
+                            value = text_string(content->toStr());
                             while (!value.empty() && value.back() == '\0') {
                                 value.pop_back();
                             }
@@ -277,7 +313,7 @@ bool write_document(PDFDoc& doc, const Options& options, std::string& error, boo
         error = "ioError";
         return false;
     }
-    file << out.dump();
+    file << dumped(out);
     return true;
 }
 

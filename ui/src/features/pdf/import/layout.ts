@@ -100,6 +100,46 @@ export function linesOf(page: PdfPageModel): Line[] {
     }
     flush();
   }
+  // A drop cap (D11): one letter set far larger than the page's text at a paragraph's start, beside its first
+  // lines. Its baseline falls on a later line, so it begins the first word of the first line beside its top
+  // (D32's library run found "алеко-далеко ... простран- Д ство").
+  const fit = (line: Line): void => {
+    line.words.sort((a, b) => a.box[0] - b.box[0]);
+    line.left = line.words[0].box[0];
+    line.right = Math.max(...line.words.map((w) => w.box[0] + w.box[2]));
+    line.top = Math.min(...line.words.map((w) => w.box[1]));
+    line.bottom = Math.max(...line.words.map((w) => w.box[1] + w.box[3]));
+    line.size = median(line.words.map((w) => w.s));
+    line.text = line.words.map((w) => w.t).join(' ');
+  };
+  for (const cap of words.filter((w) => /^\p{L}$/u.test(w.t.trim()) && w.s >= sizes * 1.8)) {
+    const own = lines.find((line) => line.words.includes(cap));
+    const capRight = cap.box[0] + cap.box[2];
+    const beside = lines
+      .filter((line) => line.words.some((w) => w !== cap && w.box[0] >= capRight - sizes * 0.5))
+      .filter((line) => {
+        const first = line.words.find((w) => w !== cap)!;
+        return first.box[1] + first.box[3] > cap.box[1] && first.box[1] < cap.box[1] + cap.box[3];
+      })
+      // By the tops of their own words: the letter's box would lift the top of the line it was put in.
+      .map((line) => ({
+        line,
+        top: Math.min(...line.words.filter((w) => w !== cap).map((w) => w.box[1])),
+      }))
+      .sort((a, b) => a.top - b.top)[0]?.line;
+    if (!own || !beside) continue;
+    own.words = own.words.filter((w) => w !== cap);
+    const index = beside.words.findIndex((w) => w.box[0] >= capRight - sizes * 0.5);
+    const first = beside.words[index];
+    beside.words[index] = {
+      ...first,
+      t: `${cap.t.trim()}${first.t}`,
+      box: [cap.box[0], first.box[1], first.box[0] + first.box[2] - cap.box[0], first.box[3]],
+    };
+    if (own.words.length === 0) lines.splice(lines.indexOf(own), 1);
+    else fit(own);
+    fit(beside);
+  }
   return lines;
 }
 

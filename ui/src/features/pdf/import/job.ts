@@ -175,17 +175,43 @@ export async function importPdf(
         });
       }
       const knownWords = new Set<string>();
+      // Every candidate is asked about, in batches the core takes (a long book has thousands; the first
+      // thousand alone left most of them broken in D32's library run).
       for (const code of ['en', 'ru', 'uk']) {
-        const list = [...candidates].filter((w) => !knownWords.has(w)).slice(0, 1000);
-        const wrong = new Set(await misspelled(list, code).catch(() => list));
-        for (const word of list) if (!wrong.has(word)) knownWords.add(word);
+        const list = [...candidates].filter((w) => !knownWords.has(w));
+        for (let at = 0; at < list.length; at += 20_000) {
+          const batch = list.slice(at, at + 20_000);
+          const wrong = new Set(await misspelled(batch, code).catch(() => batch));
+          for (const word of batch) if (!wrong.has(word)) knownWords.add(word);
+        }
       }
-      const layout = document.structure?.length
-        ? null
-        : layoutParts(models, { outline: document.outline, known: (word) => knownWords.has(word) });
-      const parts = layout
-        ? layout.parts
-        : flatten(document.structure ?? [], document.orphans ?? []).parts;
+      // A tag tree that holds only a part of the pages' words is not the book's structure (an OCR plug-in's
+      // tags gave an empty book in D32's library run): then the layout reads the pages.
+      const tagged = document.structure?.length
+        ? flatten(document.structure, document.orphans ?? []).parts
+        : null;
+      const wordsOf = (texts: string[]): number =>
+        texts.join(' ').split(/\s+/).filter(Boolean).length;
+      const taggedWords = (tagged ?? []).reduce(
+        (n, part) =>
+          n +
+          wordsOf(part.runs.map((run) => run.text)) +
+          wordsOf(
+            (part.rows ?? []).flatMap((row) =>
+              row.flatMap((cell) => cell.runs.map((run) => run.text)),
+            ),
+          ),
+        0,
+      );
+      const pageWords = models.reduce((n, model) => n + model.words.length, 0);
+      const layout =
+        tagged && taggedWords >= pageWords * 0.5
+          ? null
+          : layoutParts(models, {
+              outline: document.outline,
+              known: (word) => knownWords.has(word),
+            });
+      const parts = layout ? layout.parts : (tagged ?? []);
       if (layout?.cover && !fbd)
         wanted.push({ readerId: layout.cover, page: 1, binaryId: 'cover' });
       notImported = (kinds.blank ?? 0) + (layout?.skippedPictures ?? 0);

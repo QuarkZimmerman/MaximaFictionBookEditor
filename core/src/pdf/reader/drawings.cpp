@@ -169,7 +169,7 @@ nlohmann::json record_drawings(PDFDoc& doc, int n, nlohmann::json& page) {
             FormWidget* field = form ? form->findWidgetByRef(shared->getRef()) : nullptr;
             if (field && field->getType() == formText) {
                 if (const GooString* content = static_cast<FormWidgetText*>(field)->getContent()) {
-                    value = TextStringToUtf8(content->toStr());
+                    value = text_string(content->toStr());
                     while (!value.empty() && value.back() == '\0') {
                         value.pop_back();
                     }

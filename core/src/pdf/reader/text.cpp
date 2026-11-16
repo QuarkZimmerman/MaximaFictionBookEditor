@@ -84,7 +84,7 @@ std::string write_page(PDFDoc& doc, int n, const Options& options, Readability* 
         *readable = r;
     }
     page["kind"] = kind;
-    std::ofstream(options.out / ("page-" + std::to_string(n) + ".json")) << page.dump();
+    std::ofstream(options.out / ("page-" + std::to_string(n) + ".json")) << dumped(page);
     return kind;
 }
 
