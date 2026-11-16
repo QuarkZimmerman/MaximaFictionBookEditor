@@ -317,7 +317,18 @@ TEST_CASE("pdf export rpc: a ZIP archive with the PDF and the FBD (D25, contract
     CHECK(listing.entries[1].name == "книга.fbd");
     const std::string pdf = archive::read_entry(target, "книга.pdf");
     CHECK(pdf.rfind("%PDF-", 0) == 0);
-    CHECK(pdf.size() == atomic_file::read_file(plain).size());
+    // The PDF the export writes (two exports differ only in their dates): finished as PDF/A-2, its
+    // pages those of the plain export.
+    CHECK(test::pdf_xmp(pdf).find("<pdfaid:part>2</pdfaid:part>") != std::string::npos);
+    const auto pages = [](const std::string& bytes) {
+        std::size_t count = 0;
+        for (std::size_t at = bytes.find("/Type /Page"); at != std::string::npos;
+             at = bytes.find("/Type /Page", at + 1)) {
+            count += bytes.compare(at, 12, "/Type /Pages") != 0 ? 1 : 0;
+        }
+        return count;
+    };
+    CHECK(pages(pdf) == pages(atomic_file::read_file(plain)));
     CHECK(archive::read_entry(target, "книга.fbd") == fbd);
     // Without its FBD the archive is not written, and nothing is left at the target.
     const auto missing = out / "missing.zip";

@@ -50,10 +50,26 @@ bool ends_with_dash(const std::string& out) {
                                          "\xE2\x80\x94"};
     for (const char* dash : dashes) {
         const std::size_t n = std::strlen(dash);
-        if (out.size() > n && out.compare(out.size() - n, n, dash) == 0 &&
-            out[out.size() - n - 1] != ' ') {
-            return true;
+        if (out.size() <= n || out.compare(out.size() - n, n, dash) != 0) {
+            continue;
         }
+        // The character before it, decoded: a space of any kind (a no-break space before a dash, as
+        // typography sets it) makes the dash no part of a word.
+        std::size_t at = out.size() - n - 1;
+        while (at > 0 && (static_cast<unsigned char>(out[at]) & 0xC0) == 0x80) {
+            --at;
+        }
+        const auto lead = static_cast<unsigned char>(out[at]);
+        char32_t code = lead;
+        int extra = lead < 0x80 ? 0 : (lead & 0xE0) == 0xC0 ? 1 : (lead & 0xF0) == 0xE0 ? 2 : 3;
+        code = extra == 0 ? lead : lead & (0x3F >> extra);
+        for (int k = 1; k <= extra && at + k < out.size() - n; ++k) {
+            code = (code << 6) | (static_cast<unsigned char>(out[at + k]) & 0x3F);
+        }
+        const bool space = code == 0x20 || code == 0xA0 || code == 0x1680 ||
+                           (code >= 0x2000 && code <= 0x200A) || code == 0x202F || code == 0x205F ||
+                           code == 0x3000;
+        return !space;
     }
     return false;
 }
