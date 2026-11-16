@@ -134,11 +134,24 @@ def layer_pages(folder: Path) -> list[tuple[int, list[tuple[str, bool]]]]:
                 lines.append([word])
         pages.append((page["n"], lines))
     letters = lambda line: re.sub(r"[^\w]|\d|_", "", " ".join(w["t"] for w in line).lower())  # noqa: E731
-    edge = [(letters(lines[0]) if lines else "", letters(lines[-1]) if lines else "") for _, lines in pages]
+    # A page's first and last lines by their place on it - top and bottom - not by the order the PDF draws them in
+    # (a running head drawn after the text, D32's library run).
+    # Every group of words at that height is that line: a head drawn in two pieces (an author's name, then the
+    # page number, then the title) is one line.
+    def ends(lines: list[list[dict]]) -> tuple[list[int], list[int]]:
+        bases = [sum(w["base"] for w in line) / len(line) for line in lines]
+        top, bottom = min(bases), max(bases)
+        return ([k for k, b in enumerate(bases) if b - top <= 2.0], [k for k, b in enumerate(bases) if bottom - b <= 2.0])
+    edges = [ends(lines) if lines else ([], []) for _, lines in pages]
+
+    def edge_line(index: int, which: int) -> list[dict]:
+        lines = pages[index][1]
+        return [w for k in edges[index][which] for w in lines[k]]
+    edge = [(letters(edge_line(i, 0)) if lines else "", letters(edge_line(i, 1)) if lines else "")
+            for i, (_, lines) in enumerate(pages)]
 
     def furniture(index: int, which: int) -> bool:
-        lines = pages[index][1]
-        line = lines[0] if which == 0 else lines[-1]
+        line = edge_line(index, which)
         if len(line) <= 8:
             return True
         key = edge[index][which]
@@ -149,11 +162,12 @@ def layer_pages(folder: Path) -> list[tuple[int, list[tuple[str, bool]]]]:
 
     out: list[tuple[int, list[tuple[str, bool]]]] = []
     for index, (n, lines) in enumerate(pages):
-        keep = list(lines)
-        if keep and furniture(index, 0):
-            keep = keep[1:]
-        if keep and len(lines) > 1 and furniture(index, 1):
-            keep = keep[:-1]
+        drop: set[int] = set()
+        if lines and furniture(index, 0):
+            drop.update(edges[index][0])
+        if len(lines) > 1 and furniture(index, 1):
+            drop.update(edges[index][1])
+        keep = [line for k, line in enumerate(lines) if k not in drop]
         words: list[tuple[str, bool]] = []
         for line in keep:
             for i, word in enumerate(line):
