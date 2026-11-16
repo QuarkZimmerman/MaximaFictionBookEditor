@@ -223,7 +223,32 @@ function lineBreakJoins(block: Element): number[] {
     const b = top(unit);
     if (a !== null && b !== null && b > a + 1) out.push(unit.offset);
   }
-  return out;
+  // A word longer than its line - an address - breaks anywhere (overflow-wrap: anywhere): its breaks are looked
+  // for where its first and last letters stand on different lines (D32: "merrif ield-bio.html").
+  const recorded = new Set(out);
+  for (let i = 0; i < units.length;) {
+    if (units[i].char === ' ') {
+      i++;
+      continue;
+    }
+    let j = i;
+    while (j + 1 < units.length && units[j + 1].char !== ' ') j++;
+    const first = j - i >= 8 ? top(units[i]) : null;
+    const last = first !== null ? top(units[j]) : null;
+    if (first !== null && last !== null && last > first + 1) {
+      for (let k = i + 1; k <= j; k++) {
+        if (recorded.has(units[k].offset) || DASHES.has(units[k - 1].char)) continue;
+        const a = top(units[k - 1]);
+        const b = top(units[k]);
+        if (a !== null && b !== null && b > a + 1) {
+          out.push(units[k].offset);
+          recorded.add(units[k].offset);
+        }
+      }
+    }
+    i = j + 1;
+  }
+  return out.sort((x, y) => x - y);
 }
 
 /** The text of `block` as it prints: whitespace runs one space, none leading (as `spans` counts it). */
