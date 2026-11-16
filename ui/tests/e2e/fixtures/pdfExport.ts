@@ -105,6 +105,12 @@ async function expectedTextAll(page: Page, file: string): Promise<Expected> {
         for (const child of el.children) {
           // D19: the notes go to the feet of the pages; their body's own title is not printed.
           if (note && el === body && child.localName === 'title') continue;
+          // Feature 016 (D10): a block picture's title is printed under it as its caption.
+          if (child.localName === 'image') {
+            const title = clean(child.getAttribute('title') || '');
+            if (title) blocks.push({ text: title, note });
+            continue;
+          }
           if (BLOCKS.has(child.localName)) blocks.push({ text: clean(child.textContent), note });
           else walk(child);
         }
@@ -143,7 +149,7 @@ async function expectedTextAll(page: Page, file: string): Promise<Expected> {
 interface ModelJson {
   type?: string;
   text?: string;
-  attrs?: { name?: string };
+  attrs?: { name?: string; title?: string };
   content?: ModelJson[];
 }
 
@@ -170,6 +176,12 @@ function modelBlocks(bodies: ModelJson[]): Expected['blocks'] {
       for (const child of node.content ?? []) {
         // D19: the notes go to the feet of the pages; their body's own title is not printed.
         if ((note && top && child.type === 'title') || raw(child)) continue;
+        // Feature 016 (D10): a block picture's title is printed under it as its caption.
+        if (child.type === 'image') {
+          const title = typeof child.attrs?.title === 'string' ? clean(child.attrs.title) : '';
+          if (title) blocks.push({ text: title, note });
+          continue;
+        }
         if (BLOCKS.has(child.type ?? '')) blocks.push({ text: clean(textOf(child)), note });
         else walk(child, false);
       }

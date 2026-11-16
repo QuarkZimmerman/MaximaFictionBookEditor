@@ -49,6 +49,10 @@ export function pictureBox(
 const PLACEHOLDER =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mP4//8/AAX+Av4zEpUUAAAAAElFTkSuQmCC';
 
+/** An FB2 picture inside a line (a paragraph, a verse...), not a block of its own. */
+const isInline = (image: Element): boolean =>
+  !['section', 'body', 'cite', 'epigraph', 'annotation', 'td', 'th'].includes(image.parentElement?.localName ?? '');
+
 /** A picture box (R4): its size, its binary, and its alternative text for the structure (D20). */
 export function pictureElement(
   doc: globalThis.Document,
@@ -214,8 +218,18 @@ export async function createPrintFrame(
         continue;
       }
       const box = pictureElement(doc, id, img?.alt ?? '', size);
+      const title = img?.title ?? '';
       if (img) img.replaceWith(box);
       else image.append(box);
+      // Feature 016 (D10, research R11.4): a block picture's title is printed under it as its caption
+      // (014 D12, FR-011), and the hints mark it so the import gives it back as the title.
+      if (title.trim() && !isInline(image)) {
+        const caption = doc.createElementNS(XHTML_NS, 'p') as HTMLElement;
+        caption.className = 'mfbe-caption';
+        caption.setAttribute('role', 'caption');
+        caption.textContent = title;
+        image.append(caption);
+      }
     }
     addRoles(root);
     // D22: an id used twice is kept by its first element (a destination must be one place).

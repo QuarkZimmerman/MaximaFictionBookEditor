@@ -103,7 +103,7 @@ export function buildHints(input: HintsInput): string {
       .map((c) => c.localName);
     if (isFb2(element) && GENERIC_BLOCKS.has(element.localName)) path.push(element.localName);
     if (isFb2(element, 'image') && element.parentElement?.localName === 'section')
-      path.push('picture');
+      path.push(element.querySelector('.mfbe-caption') ? 'picture caption' : 'picture');
     const kind = path.join('/');
     const last = kinds[kinds.length - 1];
     if (kind && last && last[2] === kind && last[0] + last[1] === b) last[1]++;
