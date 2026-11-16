@@ -193,7 +193,10 @@ export function archiveErrorMessage(t: TFunction, error: unknown, path: string):
     case RpcErrorCode.archiveUnsupported:
       return t('archive.msg.unsupported', { path });
     case RpcErrorCode.archiveNoBook:
-      return t('archive.msg.noBook', { path });
+      // Feature 016 (D4): an archive holding a PDF but no book points to the PDF import.
+      return data.reason === 'pdfInArchive'
+        ? t('pdfImport.openRefusedInArchive', { path })
+        : t('archive.msg.noBook', { path });
     case RpcErrorCode.archiveEntryMissing:
       return t('archive.msg.missing', { path, entry: data.entry ?? '' });
     case RpcErrorCode.archiveEntryUnreadable: {
@@ -857,12 +860,19 @@ export class FileFeature {
       if (error instanceof RpcError && error.code === RpcErrorCode.docNotFictionBook) {
         // Feature 012 (D14): an EPUB is a book Open does not take; it comes in through
         // File > Import > EPUB File, and the message says so.
-        const epub = (error.data as { reason?: string } | undefined)?.reason === 'epub';
+        const reason = (error.data as { reason?: string } | undefined)?.reason;
+        // Feature 016 (D4): so is a PDF, through File > Import > PDF File.
+        const epub = reason === 'epub';
+        const pdf = reason === 'pdf';
         await ctx.dialogs.showMessage({
-          text: epub ? ctx.t('epub.openRefused', { path }) : ctx.t('msg.notFictionBook', { path }),
+          text: epub
+            ? ctx.t('epub.openRefused', { path })
+            : pdf
+              ? ctx.t('pdfImport.openRefused', { path })
+              : ctx.t('msg.notFictionBook', { path }),
           caption: ctx.t('dialog.error.caption'),
           icon: 'error',
-          testId: epub ? 'dialog-epub-refused' : 'dialog-not-fictionbook',
+          testId: epub ? 'dialog-epub-refused' : pdf ? 'dialog-pdf-refused' : 'dialog-not-fictionbook',
         });
         void this.recent.refresh(rpc);
         return false;

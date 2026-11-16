@@ -82,11 +82,13 @@
 #include <cstdint>
 #include <exception>
 #include <filesystem>
+#include <fstream>
 #include <functional>
 #include <future>
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <system_error>
 
 namespace mfbe::server {
@@ -348,8 +350,19 @@ ArchiveChoice choose_entry(const std::string& path, const std::optional<std::str
         return choice;
     }
     if (listing.books_total == 0) {
+        // Feature 016 (D4): an archive holding a PDF but no book points to the PDF import.
+        json data = json::object();
+        for (const archive::Entry& e : listing.entries) {
+            std::string name = e.name;
+            std::transform(name.begin(), name.end(), name.begin(),
+                           [](unsigned char c) { return std::tolower(c); });
+            if (name.size() > 4 && name.compare(name.size() - 4, 4, ".pdf") == 0) {
+                data["reason"] = "pdfInArchive";
+                break;
+            }
+        }
         throw rpc::RpcError(rpc::codes::kArchiveNoBook, "the archive holds no FictionBook book",
-                            json::object());
+                            data);
     }
     if (listing.books_total == 1) {
         choice.entry = listing.books.front().entry;
@@ -382,6 +395,16 @@ void refuse_other_archives(const fs::path& file) {
     }
     if (kind == archive::Kind::zip && epub::is_epub(file)) {
         throw not_fictionbook(platform::utf8_from_path(file), "epub");
+    }
+    // Feature 016 (D4): a PDF is not opened either; it comes in through File > Import > PDF File.
+    // Its header may follow some bytes of something else (PDF 32000-1 7.5.2): the first kilobyte is
+    // looked at.
+    std::ifstream in(file, std::ios::binary);
+    char head[1024] = {};
+    in.read(head, sizeof head);
+    if (std::string_view(head, static_cast<std::size_t>(in.gcount())).find("%PDF-") !=
+        std::string_view::npos) {
+        throw not_fictionbook(platform::utf8_from_path(file), "pdf");
     }
 }
 
