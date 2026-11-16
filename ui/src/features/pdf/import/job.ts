@@ -17,6 +17,7 @@ import { loadDocument, loadPages } from './pages';
 import { flatten } from './parts';
 import { guessLanguage, metadataDescription } from './describe';
 import { layoutParts } from './layout';
+import { fromLatin1, looksLatin1Cyrillic } from './mend';
 import { textBody } from './text';
 
 const nextTask = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
@@ -134,6 +135,18 @@ export async function importPdf(
         ? layout.parts
         : flatten(document.structure ?? [], document.orphans ?? []).parts;
       if (layout?.cover) wanted.push({ readerId: layout.cover, page: 1, binaryId: 'cover' });
+      // D15: windows-1251 text read as Latin-1, mended when the mended words are mostly known.
+      const sample = parts.flatMap((part) => part.runs.map((run) => run.text)).join(' ');
+      if (looksLatin1Cyrillic(sample)) {
+        const words = fromLatin1(sample)
+          .split(/\s+/)
+          .filter((w) => /^\p{L}{3,}$/u.test(w))
+          .slice(0, 500);
+        const wrong = (await misspelled(words, 'ru')).length;
+        if (words.length > 0 && wrong / words.length < 0.5) {
+          for (const part of parts) for (const run of part.runs) run.text = fromLatin1(run.text);
+        }
+      }
       // Pictures: on each page, the parts' pictures in order against the reader's, top to bottom.
       const pagePictures = new Map(
         models.map((m) => [m.n, [...m.pictures].sort((a, b) => a.box[1] - b.box[1])]),
