@@ -46,6 +46,10 @@
       "encrypted": "the archive is protected by a password.",
       "cancelled": "the import was cancelled."
     },
-    "summaryIntro": "Not everything came over as the PDF has it:"
+    "summaryIntro": "Not everything came over as the PDF has it:",
+    "summary": {
+      "mismatches": "Parts of the editor's PDF that no longer fitted its hints, read as text: {{count}}",
+      "picturesLeftOut": "Pictures not added: {{count}}"
+    }
   }
 }

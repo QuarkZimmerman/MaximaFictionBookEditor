@@ -453,7 +453,7 @@ export class FileFeature {
   private importedSaveName(docId: string | null): string | null {
     const origin = docId ? this.importOrigins.get(docId) : undefined;
     // Feature 012 (D15): an EPUB import proposes the EPUB's name with `.fb2` the same way.
-    return origin ? `${origin.replace(/\.(md|markdown|epub)$/i, '')}.fb2` : null;
+    return origin ? `${origin.replace(/\.(md|markdown|epub|pdf)$/i, '')}.fb2` : null;
   }
 
   async closeCurrentDocument(ctx: CommandContext): Promise<void> {
