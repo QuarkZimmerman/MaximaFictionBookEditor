@@ -78,6 +78,19 @@ export interface Flattened {
 }
 
 const HEADING = /^H([1-6])?$/;
+
+/** Whether an element holds blocks of its own (paragraphs, headings, lists, tables, pictures, sections). */
+function holdsBlocks(element: StructElement): boolean {
+  return element.kids.some(
+    (kid) =>
+      isElement(kid) &&
+      (HEADING.test(kid.type) ||
+        ['P', 'L', 'LI', 'Table', 'Figure', 'Sect', 'Div', 'Art', 'Part', 'BlockQuote'].includes(
+          kid.type,
+        ) ||
+        holdsBlocks(kid)),
+  );
+}
 const REF_PREFIX = 'mfbe-ref-';
 
 const linkTarget = (element: StructElement): { uri?: string; dest?: string } => {
@@ -363,7 +376,10 @@ export function flatten(
         !HEADING.test(kid.type) &&
         !['P', 'Figure', 'Table', 'Link', 'L'].includes(kid.type) &&
         textOf(kid).trim() &&
-        !footnoteLabel(kid)
+        !footnoteLabel(kid) &&
+        // A caption is a line or two of text: a section of paragraphs after a picture is no caption (D32's
+        // library run lost a book's imprint so).
+        !holdsBlocks(kid)
       ) {
         const runs: Run[] = [];
         runsOf(kid, runs, {});

@@ -67,6 +67,9 @@ export function textBody(
         const alt = part.alt ? ` alt="${attr(part.alt)}"` : '';
         section.content.push(`<image l:href="#${attr(id)}"${alt}/>`);
       }
+      // Its caption, a paragraph under it: its words are the book's (D32).
+      if (part.caption?.some((run) => run.text.trim()))
+        section.content.push(`<p>${inline(part.caption, [], link, pictureRun)}</p>`);
       continue;
     }
     if (part.kind === 'table') {
