@@ -5,6 +5,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <GfxFont.h>
 #include <GfxState.h>
 #include <OutputDev.h>
 #include <PDFDoc.h>
@@ -42,6 +43,11 @@ void append_utf8(std::string& out, Unicode u) {
 class McidText : public OutputDev {
 public:
     std::map<int, std::string> text;
+    /// Per marked-content id: characters drawn bold, italic, monospaced, and all characters.
+    struct Style {
+        int bold = 0, italic = 0, mono = 0, all = 0;
+    };
+    std::map<int, Style> styles;
 
     bool upsideDown() override { return true; }
     bool useDrawChar() override { return true; }
@@ -83,6 +89,19 @@ public:
             append_utf8(out, u[i]);
         }
         last = {tx + tdx, ty};
+        // The font's flags, or its name where a subset font carries none
+        // ("ABCDEF+Serif-BoldItalic").
+        if (const auto& font = state->getFont()) {
+            const std::string name = font->getName().value_or("");
+            const auto has = [&name](const char* part) {
+                return name.find(part) != std::string::npos;
+            };
+            Style& style = styles[mcid];
+            style.all += 1;
+            style.bold += font->isBold() || has("Bold") || has("Black") || has("Heavy") ? 1 : 0;
+            style.italic += font->isItalic() || has("Italic") || has("Oblique") ? 1 : 0;
+            style.mono += font->isFixedWidth() || has("Mono") || has("Courier") ? 1 : 0;
+        }
     }
 
 private:
@@ -128,9 +147,26 @@ nlohmann::json value_of(const Object* value) {
     return nullptr;
 }
 
+/// Most of a run's characters bold, italic or monospaced: the run is (DP-5).
+void mark_style(nlohmann::json& leaf, const McidText::Style& style) {
+    if (style.all == 0) {
+        return;
+    }
+    if (style.bold * 2 > style.all) {
+        leaf["bold"] = true;
+    }
+    if (style.italic * 2 > style.all) {
+        leaf["italic"] = true;
+    }
+    if (style.mono * 2 > style.all) {
+        leaf["mono"] = true;
+    }
+}
+
 struct Walker {
     PDFDoc& doc;
     std::map<std::pair<int, int>, std::string>& texts;
+    std::map<std::pair<int, int>, McidText::Style>& styles;
     std::set<std::pair<int, int>> referenced;
     int count = 0;
 
@@ -149,9 +185,11 @@ struct Walker {
             }
             referenced.insert({page, e->getMCID()});
             const auto it = texts.find({page, e->getMCID()});
-            return {{"page", page},
-                    {"mcid", e->getMCID()},
-                    {"text", it == texts.end() ? "" : it->second}};
+            nlohmann::json leaf{{"page", page},
+                                {"mcid", e->getMCID()},
+                                {"text", it == texts.end() ? "" : it->second}};
+            mark_style(leaf, styles[{page, e->getMCID()}]);
+            return leaf;
         }
         nlohmann::json out{{"type", e->getTypeName()}};
         int page = inherited_page;
@@ -195,6 +233,7 @@ nlohmann::json structure_of(PDFDoc& doc, nlohmann::json& orphans) {
         return nullptr;
     }
     std::map<std::pair<int, int>, std::string> texts;
+    std::map<std::pair<int, int>, McidText::Style> styles;
     for (int n = 1; n <= doc.getNumPages(); ++n) {
         emit("{\"event\":\"structure\",\"n\":" + std::to_string(n) + "}");
         McidText device;
@@ -202,8 +241,11 @@ nlohmann::json structure_of(PDFDoc& doc, nlohmann::json& orphans) {
         for (auto& [mcid, text] : device.text) {
             texts[{n, mcid}] = std::move(text);
         }
+        for (const auto& [mcid, style] : device.styles) {
+            styles[{n, mcid}] = style;
+        }
     }
-    Walker walker{doc, texts, {}, 0};
+    Walker walker{doc, texts, styles, {}, 0};
     nlohmann::json out = nlohmann::json::array();
     for (unsigned i = 0; i < root->getNumChildren(); ++i) {
         nlohmann::json e = walker.element(root->getChild(static_cast<int>(i)), 0, 0);
@@ -216,7 +258,9 @@ nlohmann::json structure_of(PDFDoc& doc, nlohmann::json& orphans) {
     orphans = nlohmann::json::array();
     for (const auto& [key, text] : texts) {
         if (!text.empty() && !walker.referenced.count(key)) {
-            orphans.push_back({{"page", key.first}, {"mcid", key.second}, {"text", text}});
+            nlohmann::json orphan{{"page", key.first}, {"mcid", key.second}, {"text", text}};
+            mark_style(orphan, styles[key]);
+            orphans.push_back(std::move(orphan));
         }
     }
     return out;
