@@ -914,6 +914,10 @@ jobs:
             { echo "::error::mfbe-core --version does not name the version label $MFBE_VERSION"; exit 1; }
           test -f "$RUNNER_TEMP/mfbe-prefix/share/mfbe/ui/index.html"
           test -f "$RUNNER_TEMP/mfbe-prefix/share/mfbe/resources/schema/FictionBook.xsd"
+          # Feature 016 (DP-1, FR-088): the PDF reader is installed beside the programs, and no test tool ships
+          # (pdf.js, pypdf, veraPDF, Playwright).
+          test -x "$RUNNER_TEMP/mfbe-prefix/bin/mfbe-pdf-reader"
+          python3 tools/package-contents-check.py "$RUNNER_TEMP/mfbe-prefix"
 
       - name: Package
         run: cpack --preset ${{ matrix.preset }}

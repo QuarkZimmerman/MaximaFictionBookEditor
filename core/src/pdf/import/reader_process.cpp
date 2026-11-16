@@ -52,7 +52,7 @@ std::filesystem::path own_executable() {
     std::wstring buffer(32768, L'\0');
     const DWORD n = GetModuleFileNameW(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
     buffer.resize(n);
-    return std::filesystem::path(buffer);
+    return std::filesystem::path(buffer);  // path-text: wide Windows API path
 #elif defined(__APPLE__)
     char buffer[4096];
     uint32_t size = sizeof buffer;

@@ -88,9 +88,9 @@ inline constexpr int kEpubWriteFailed = 1111;
 // {reason: pdf.badPageSize | pdf.targetIsSource | pdf.unknownToken | pdf.noPrinter |
 // pdf.printFailed | pdf.noPart | pdf.ioError | pdf.checkFailed, message?, part?}.
 inline constexpr int kPdfExportFailed = 1112;
-// Feature 016 (pdfImport.*, contracts/rpc-api.md): a PDF import that cannot go on - {reason} among the
-// reader's reasons (notPdf, damaged, tooLarge, tooManyPages, passwordCancelled, copyForbidden, noText,
-// pictureOfText, garbled, memory, timeout, crashed, cancelled), with {pages} where counted.
+// Feature 016 (pdfImport.*, contracts/rpc-api.md): a PDF import that cannot go on - {reason} among
+// the reader's reasons (notPdf, damaged, tooLarge, tooManyPages, passwordCancelled, copyForbidden,
+// noText, pictureOfText, garbled, memory, timeout, crashed, cancelled), with {pages} where counted.
 inline constexpr int kPdfImportFailed = 1113;
 // Feature 016: an unknown or ended pdfImport token.
 inline constexpr int kPdfImportUnknownToken = 1114;
