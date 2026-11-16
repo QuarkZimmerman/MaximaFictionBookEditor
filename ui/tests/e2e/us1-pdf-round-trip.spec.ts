@@ -223,6 +223,8 @@ interface Result {
   failure?: string;
   invalid?: string[];
   againInvalid?: string[];
+  /** The errors of the book imported again that its invalid original has not. */
+  againNew?: string[];
 }
 
 test.afterEach(async ({ core }) => {
@@ -263,6 +265,10 @@ test.describe('US1 (feature 016) - export to PDF and import again', () => {
               : {}),
             ...(invalid.length > 0 ? { invalid: invalid.slice(0, 3) } : {}),
             ...(againErrors.length > 0 ? { againInvalid: againErrors.slice(0, 3) } : {}),
+            // SC-002: an invalid original fails only by errors its original has not - all of them compared.
+            ...(invalid.length > 0 && againErrors.some((e) => !invalid.includes(e))
+              ? { againNew: againErrors.filter((e) => !invalid.includes(e)).slice(0, 3) }
+              : {}),
           });
         } catch (error) {
           results.push({ book, differences: [], failure: String(error).split('\n')[0] });

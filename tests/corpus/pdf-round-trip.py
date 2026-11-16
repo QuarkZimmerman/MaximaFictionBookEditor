@@ -40,7 +40,7 @@ def main() -> int:
     # SC-002, the requester's rule from 012: a valid book in and an invalid one out is a bug; an invalid book in
     # tests the invalid case, and fails only when it comes back with errors its original has not.
     again_invalid = [r for r in records if not r.get("failure") and r.get("againInvalid")
-                     and (not r.get("invalid") or set(r["againInvalid"]) - set(r["invalid"]))]
+                     and (not r.get("invalid") or r.get("againNew"))]
     invalid = [r for r in records if r.get("invalid")]
     differ = [r for r in records if not r.get("failure") and not r.get("invalid") and r["differences"]]
     equal = [r for r in records if not r.get("failure") and not r.get("invalid") and not r["differences"]
