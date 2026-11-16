@@ -61,7 +61,8 @@
         "attachments": "Attached files, left out: {{count}}",
         "media": "Sounds and videos, left out: {{count}}",
         "scripts": "Scripts, left out and never run: {{count}}"
-      }
+      },
+      "drawingsLeftOut": "Drawings past the 2,000 a book takes, left out: {{count}}"
     },
     "fbd": {
       "unreadable": "{{name}} could not be read: {{reason}}\nThe book takes the PDF's own description.",

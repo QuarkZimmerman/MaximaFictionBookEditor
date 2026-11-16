@@ -291,7 +291,8 @@ void register_pdf_import_handlers(rpc::RpcRouter& router, Services& services) {
             }
             return json{{"pages", pages},
                         {"kinds", read["kinds"]},
-                        {"garbledShare", read.value("garbledShare", 1.0)}};
+                        {"garbledShare", read.value("garbledShare", 1.0)},
+                        {"drawingsLeftOut", read.value("drawingsLeftOut", 0)}};
         });
         return json{{"jobId", job_id}};
     });

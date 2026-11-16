@@ -55,6 +55,7 @@ constexpr int kMaxDrawings = 2000;
 // The drawings found so far, by id, for the requests after the read (contracts/pdf-reader.md).
 std::map<std::string, std::pair<int, Box>> g_drawings;
 int g_count = 0;
+int g_left_out = 0;
 
 class PathBoxes : public OutputDev {
 public:
@@ -227,7 +228,11 @@ nlohmann::json record_drawings(PDFDoc& doc, int n, nlohmann::json& page) {
     const nlohmann::json pictures = page.value("pictures", nlohmann::json::array());
     int k = 0;
     for (const Box& area : areas) {
-        if (area.width() < kMinSide || area.height() < kMinSide || g_count >= kMaxDrawings) {
+        if (area.width() < kMinSide || area.height() < kMinSide) {
+            continue;
+        }
+        if (g_count >= kMaxDrawings) {
+            ++g_left_out;
             continue;
         }
         // Lines framing a picture belong to the picture.
@@ -257,6 +262,10 @@ nlohmann::json record_drawings(PDFDoc& doc, int n, nlohmann::json& page) {
                std::round(with.width() * 10) / 10, std::round(with.height() * 10) / 10}}});
     }
     return out;
+}
+
+int drawings_left_out() {
+    return g_left_out;
 }
 
 nlohmann::json write_drawing(PDFDoc& doc, const std::string& id, const Options& options) {

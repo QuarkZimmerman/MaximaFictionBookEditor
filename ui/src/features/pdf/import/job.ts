@@ -30,6 +30,9 @@ const folderOf = (path: string): string => path.slice(0, path.length - baseName(
 
 class Cancelled extends Error {}
 
+/** DP-3: the pictures a book takes at most. */
+const MAX_PICTURES = 10_000;
+
 export async function importPdf(
   ctx: CommandContext,
   files: FileFeature,
@@ -90,8 +93,9 @@ export async function importPdf(
       if (run.cancelled() && jobId) void rpc.call('job.cancel', { jobId }).catch(() => undefined);
     }, 200);
     let kinds: Record<string, number> = {};
+    let drawingsLeftOut = 0;
     try {
-      ({ kinds } = await rpc.runJob(
+      ({ kinds, drawingsLeftOut = 0 } = await rpc.runJob(
         'pdfImport.read',
         { token },
         {
@@ -250,6 +254,11 @@ export async function importPdf(
     // The pictures go into the new book before the window shows it (as the EPUB import does).
     const added: BinaryMeta[] = [];
     let picturesLeftOut = 0;
+    // DP-3: at most 10,000 pictures a book; the rest are left out and counted.
+    if (wanted.length > MAX_PICTURES) {
+      picturesLeftOut += wanted.length - MAX_PICTURES;
+      wanted = wanted.slice(0, MAX_PICTURES);
+    }
     if (wanted.length > 0) {
       const answer = await rpc.call('pdfImport.addPictures', {
         token,
@@ -257,7 +266,7 @@ export async function importPdf(
         pictures: wanted.map((w) => ({ id: w.readerId, page: w.page, suggestedId: w.binaryId })),
       });
       added.push(...answer.added.map((entry) => entry.binary));
-      picturesLeftOut = answer.failed.length;
+      picturesLeftOut += answer.failed.length;
     }
     check();
     const uploaded = new Set(added.map((binary) => binary.id));
@@ -296,6 +305,8 @@ export async function importPdf(
     if (picturesLeftOut > 0)
       lines.push(ctx.t('pdfImport.summary.picturesLeftOut', { count: picturesLeftOut }));
     if (notImported > 0) lines.push(ctx.t('pdfImport.summary.notImported', { count: notImported }));
+    if (drawingsLeftOut > 0)
+      lines.push(ctx.t('pdfImport.summary.drawingsLeftOut', { count: drawingsLeftOut }));
     if (platesImported > 0)
       lines.push(ctx.t('pdfImport.summary.platesImported', { count: platesImported }));
     if (garbledPages > 0)

@@ -67,6 +67,9 @@ bool render_page(PDFDoc& doc, int n, int dpi, const std::filesystem::path& file,
 /// and pictures.
 nlohmann::json record_drawings(PDFDoc& doc, int n, nlohmann::json& page);
 
+/// Drawings past the 2,000 a book takes (DP-3), left out and counted.
+int drawings_left_out();
+
 /// Draws drawing `id` at 200 dpi into pictures/ and returns its event, as write_picture does.
 nlohmann::json write_drawing(PDFDoc& doc, const std::string& id, const Options& options);
 

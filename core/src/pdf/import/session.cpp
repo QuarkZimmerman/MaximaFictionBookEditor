@@ -120,6 +120,7 @@ std::string Session::read(const std::function<bool(int, int)>& progress, json& r
         } else if (event == "done") {
             done_ = true;
             result["garbledShare"] = e.value("garbledShare", 1.0);
+            result["drawingsLeftOut"] = e.value("drawingsLeftOut", 0);
             reader_->set_silence_timeout(std::chrono::hours(24));
             return "";
         } else if (event == "failed") {

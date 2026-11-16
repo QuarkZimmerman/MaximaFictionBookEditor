@@ -173,6 +173,17 @@ int main(int argc, char** argv) {
         doc = std::move(owner);
     }
     const int pages = doc->getNumPages();
+    // DP-3: a PDF without pages is damaged; one past 25,000 pages is past what the import reads
+    // (the export writes up to 20,000).
+    if (pages <= 0) {
+        mfbe::pdf_reader::emit(R"({"event":"failed","reason":"damaged"})");
+        return 1;
+    }
+    if (pages > 25'000) {
+        mfbe::pdf_reader::emit("{\"event\":\"failed\",\"reason\":\"tooManyPages\",\"pages\":" +
+                               std::to_string(pages) + "}");
+        return 1;
+    }
     // D20: the render switch draws one page as a picture, for a later OCR, and ends.
     if (render != 0) {
         int width = 0;
@@ -236,8 +247,9 @@ int main(int argc, char** argv) {
             return refuse("pictureOfText", showing_text);
         }
     }
-    char done[64];
-    std::snprintf(done, sizeof done, R"({"event":"done","garbledShare":%.2f})", share);
+    char done[96];
+    std::snprintf(done, sizeof done, R"({"event":"done","garbledShare":%.2f,"drawingsLeftOut":%d})",
+                  share, mfbe::pdf_reader::drawings_left_out());
     mfbe::pdf_reader::emit(done);
     // The import now asks for the pictures it takes, one line each, until the core closes standard
     // input.
