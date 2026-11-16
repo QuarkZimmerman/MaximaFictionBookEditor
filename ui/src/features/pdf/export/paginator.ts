@@ -574,19 +574,21 @@ export async function paginate(
       area: HTMLElement;
       foot: HTMLElement;
     }
-    // D19: the part of a long note that did not fit at the foot of the page before, first at the
-    // foot of this one; `carryNext` is the part this page passes on.
-    let carriedNote: Element | null = null;
-    let carryNext: Element | null = null;
+    // D19: the part of a long note that did not fit at the foot of the page before - and the notes after
+    // it - first at the foot of this one; `carryNext` is what this page passes on. Feature 016 (D10,
+    // research R11.3): a note may need many pages, and a page's carried part may itself not fit, so
+    // whatever does not fit goes on, page after page (library book 50564 has notes of 13,000 letters).
+    let carriedNotes: Element[] = [];
+    let carryNext: Element[] = [];
     const compose = (pieces: PlannedPage): Composed => {
-      carryNext = null;
+      carryNext = [];
       const { page, content } = newPage();
       // The text above, the page's footnotes at the foot under their rule (D19).
       const area = doc.createElementNS(XHTML_NS, 'div') as HTMLElement;
       area.className = 'mfbe-area';
       const foot = doc.createElementNS(XHTML_NS, 'div') as HTMLElement;
       foot.className = 'mfbe-notes';
-      if (carriedNote) foot.append(carriedNote.cloneNode(true));
+      for (const carried of carriedNotes) foot.append(carried.cloneNode(true));
       content.append(area);
       const open: { original: Element; clone: Element }[] = [];
       for (const piece of pieces) {
@@ -638,14 +640,20 @@ export async function paginate(
     // last whole line there, and the rest goes to the foot of the next page (without the note's id,
     // which links lead to: the first part keeps it).
     const cutFoot = ({ page, area, foot }: Composed): boolean => {
-      const note = foot.lastElementChild as HTMLElement | null;
-      if (!note) return false;
+      const notes = [...foot.children] as HTMLElement[];
+      if (notes.length === 0) return false;
       pagesHost.append(page);
       try {
         const footBox = foot.getBoundingClientRect();
         if (footBox.height <= layout.contentHeight * FOOT_SHARE) return false;
+        // The foot may reach down to here; the first note crossing it is cut, and the notes after it go
+        // on whole.
+        const limit = footBox.top + layout.contentHeight - area.scrollHeight;
+        const first = notes.findIndex((n) => n.getBoundingClientRect().bottom > limit + 0.5);
+        if (first < 0) return false;
+        const note = notes[first];
         const noteTop = note.getBoundingClientRect().top;
-        const room = layout.contentHeight - area.scrollHeight - (noteTop - footBox.top);
+        const room = limit - noteTop;
         const range = doc.createRange();
         range.selectNodeContents(note);
         const tops: number[] = [];
@@ -657,14 +665,26 @@ export async function paginate(
         tops.sort((a, b) => a - b);
         let keep = 0;
         while (keep + 1 < tops.length && tops[keep + 1] <= room) keep++;
-        if (keep < 1) return false;
-        const offset = lineStart({ element: note, tops } as unknown as Block, keep);
-        const rest = cloneText(note, offset, Number.MAX_SAFE_INTEGER);
-        rest.removeAttribute('id');
-        for (const marked of rest.querySelectorAll('[id]')) marked.removeAttribute('id');
-        rest.classList.add('mfbe-continued');
-        note.replaceWith(cloneText(note, 0, offset));
-        carryNext = rest;
+        const carried: Element[] = [];
+        if (keep >= 1) {
+          const offset = lineStart({ element: note, tops } as unknown as Block, keep);
+          const rest = cloneText(note, offset, Number.MAX_SAFE_INTEGER);
+          rest.removeAttribute('id');
+          for (const marked of rest.querySelectorAll('[id]')) marked.removeAttribute('id');
+          rest.classList.add('mfbe-continued');
+          note.replaceWith(cloneText(note, 0, offset));
+          carried.push(rest);
+        } else if (first > 0) {
+          note.remove();
+          carried.push(note);
+        } else {
+          return false;
+        }
+        for (const after of notes.slice(first + 1)) {
+          after.remove();
+          carried.push(after);
+        }
+        carryNext = [...carried, ...carryNext];
         return true;
       } finally {
         page.remove();
@@ -743,7 +763,7 @@ export async function paginate(
         stack.push({ depth: block.depth, mark });
       }
       finishPage(page, true);
-      carriedNote = carryNext;
+      carriedNotes = carryNext;
       cursor = next;
       // A block may span many pages (a long table): its lines count too, so the bar moves on.
       const lines = cursor ? Math.max(1, planBlocks[cursor.block]?.lines.length ?? 1) : 1;
@@ -755,14 +775,16 @@ export async function paginate(
       );
     }
     // D19: the rest of a long note at the end of the text, on pages of their own.
-    while (carriedNote) {
+    while (carriedNotes.length > 0) {
       const composed = compose([]);
-      if (overflows(composed)) cutFoot(composed);
+      // A page of notes alone that cannot be cut (one line taller than the page) ends the carrying: the
+      // check of the finished file reports it.
+      if (overflows(composed) && !cutFoot(composed)) carryNext = [];
       if (serialised.length + 1 > limits.pages) {
         throw new PdfLimitError('pages', serialised.length + 1, limits.pages);
       }
       finishPage(composed.page, true);
-      carriedNote = carryNext;
+      carriedNotes = carryNext;
     }
 
     const pageMap: PageMap = {
