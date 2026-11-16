@@ -56,9 +56,10 @@ def read(reader: Path, pdf: Path, folder: Path, limit: float | None) -> dict:
     folder.mkdir(parents=True)
     last: dict = {}
     try:
+        # Bytes, decoded whole: a reader stopped at the limit may have cut a letter in two.
         run = subprocess.run([str(reader), "--pdf", str(pdf), "--out", str(folder)], stdin=subprocess.DEVNULL,
-                             capture_output=True, text=True, timeout=limit)
-        for line in run.stdout.splitlines():
+                             capture_output=True, timeout=limit)
+        for line in run.stdout.decode("utf-8", "replace").splitlines():
             try:
                 event = json.loads(line)
             except json.JSONDecodeError:
@@ -273,6 +274,7 @@ def main() -> int:
             lambda pdf: read(reader, Path(pdf), whole_dir / Path(pdf).stem, None), kept["text"] + kept["layer"])))
     records = run_journey("pdf-import", selected, args.out, args.core, spec="corpus-pdf-import")
     problems: list[str] = []
+    refused_whole: list[str] = []
     rows: list[dict] = []
     for record in records:
         book, kind = record["book"], kind_by_book.get(record["book"], "?")
@@ -283,8 +285,14 @@ def main() -> int:
             if not record.get("refused"):
                 problems.append(f"  imported, but it has no usable text: {book}")
         elif record.get("refused"):
-            # A protected PDF is refused for its password, not for its pages (D26): no fault.
-            if record["refused"] != "password":
+            # A protected PDF is refused for its password, not for its pages (D26): no fault. Nor is one the
+            # sorting judged by its first pages that the reader, reading it whole, refuses itself - pages further
+            # on show text without a layer (D19): the refusal is right, the first pages told wrong.
+            read_whole = whole.get(book, {})
+            if read_whole.get("event") == "failed" and read_whole.get("reason") in REFUSALS:
+                refused_whole.append(f"  refused when read whole, sorted by its first pages as {kind}: {book}:"
+                                     f" {read_whole['reason']}")
+            elif record["refused"] != "password":
                 problems.append(f"  refused, though its pages have text: {book}: {record['refused']}")
         else:
             if record.get("bodyErrors"):
@@ -306,6 +314,7 @@ def main() -> int:
              f"  makers: {len({row['maker'] for row in rows})}; sorted out: "
              + ", ".join(f"{kind} {len(books)}" for kind, books in sorted(groups.items()))]
     lines += problems
+    lines += refused_whole
     # What the sorting set aside - neither kind, nor refused for want of text (damaged, protected, a reader
     # stopped by the time limit with no page read): listed, so that none hides a fault.
     lines += [f"  set aside: {pdf}: {r['event']} {r['reason']}".rstrip()

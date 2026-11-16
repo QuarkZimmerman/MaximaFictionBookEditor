@@ -260,6 +260,35 @@ export function flatten(
           }
         };
         walkRows(element);
+        const loose: Run[] = [];
+        if (!rows.some((row) => row.some((cell) => cell.runs.some((run) => run.text.trim()))))
+          runsOf(element, loose, {});
+        if (loose.some((run) => run.text.trim())) {
+          // Cells that hold nothing while the table's text lies loose under it (D32's library run): its text,
+          // line by line, as paragraphs - no word of it lost. A table of empty cells stays a table.
+          const runs = loose;
+          let line: Run[] = [];
+          let top: number | undefined;
+          const flush = (): void => {
+            if (line.some((run) => run.text.trim()))
+              add({ kind: 'p', page: line[0].page, runs: line });
+            line = [];
+          };
+          for (const run of runs) {
+            const at = run.startTop ?? run.endTop;
+            if (line.length > 0 && at !== undefined && top !== undefined && Math.abs(at - top) > 1)
+              flush();
+            const last = line[line.length - 1];
+            line.push(
+              last && !/\s$/.test(last.text) && !/^\s/.test(run.text)
+                ? { ...run, text: ` ${run.text}` }
+                : run,
+            );
+            top = run.endTop ?? at ?? top;
+          }
+          flush();
+          return;
+        }
         add({ kind: 'table', page: firstPage(element), runs: [], rows });
         return;
       }

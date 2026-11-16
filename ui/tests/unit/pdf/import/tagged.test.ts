@@ -45,4 +45,33 @@ describe('a tagged PDF (US2)', () => {
         .querySelector('parsererror'),
     ).toBeNull();
   });
+
+  it('reads a table whose text lies loose under it, its cells empty, line by line (D32)', () => {
+    const leaf = (mcid: number, text: string, top: number) => ({
+      page: 3,
+      mcid,
+      text,
+      startTop: top,
+      endTop: top,
+    });
+    const { parts: loose } = flatten(
+      [
+        {
+          type: 'Table',
+          kids: [
+            leaf(0, 'AWE', 100),
+            leaf(1, 'Atomic Weapons Establishment', 100),
+            { type: 'TR', kids: [{ type: 'TD', kids: [] }] },
+            leaf(2, 'BA', 120),
+            leaf(3, 'British Airways', 120),
+          ],
+        },
+      ] as unknown as NonNullable<PdfDocumentModel['structure']>,
+      [],
+    );
+    expect(loose.map((part) => [part.kind, partText(part.runs)])).toEqual([
+      ['p', 'AWE Atomic Weapons Establishment'],
+      ['p', 'BA British Airways'],
+    ]);
+  });
 });

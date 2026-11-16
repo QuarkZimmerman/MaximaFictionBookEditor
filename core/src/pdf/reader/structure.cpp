@@ -186,6 +186,12 @@ public:
             ((new_line && !hyphen) || (gaps && !new_line && tx - last.x_end > size * 0.15))) {
             out += ' ';
         }
+        // A plain hyphen that ends a line, marked (U+2063, invisible): a word broken there is
+        // joined by the interface when a dictionary knows it, as the layout's words are (D12; D32's
+        // library run kept "огром-ный").
+        if (hyphen && !out.empty() && out.back() == '-') {
+            out += "\xE2\x81\xA3";
+        }
         for (int i = 0; i < uLen; ++i) {
             append_utf8(out, u[i]);
         }

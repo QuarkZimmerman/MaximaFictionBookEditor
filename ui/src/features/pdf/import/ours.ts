@@ -302,7 +302,10 @@ export function logicalOrder(text: string): string {
 }
 
 const inLogicalOrder = (runs: readonly Run[]): Run[] =>
-  runs.map((run) => (run.text ? { ...run, text: logicalOrder(run.text) } : run));
+  // The reader's mark of a hyphen ending a line goes: the editor's PDFs break no words (D12).
+  runs.map((run) =>
+    run.text ? { ...run, text: logicalOrder(run.text).replace(/\u2063/g, '') } : run,
+  );
 
 export function convertOurs(
   hints: HintsV1,

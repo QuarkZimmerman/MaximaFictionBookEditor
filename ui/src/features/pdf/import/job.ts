@@ -19,7 +19,7 @@ import { flatten } from './parts';
 import { askFbd, fbdUnreadable } from './questions';
 import { guessLanguage, metadataDescription } from './describe';
 import { applyFbd, closeRead, readDescriptionFile } from './fbd';
-import { layoutParts } from './layout';
+import { furnitureOf, layoutParts, linesOf } from './layout';
 import { fromLatin1, looksLatin1Cyrillic } from './mend';
 import { textBody } from './text';
 
@@ -165,8 +165,23 @@ export async function importPdf(
         if (!dictionary || list.length === 0) return list;
         return (await rpc.call('spell.check', { words: list, langs: [dictionary] })).misspelled;
       };
+      // A tag tree that holds only a part of the pages' words is not the book's structure (an OCR plug-in's
+      // tags gave an empty book in D32's library run): then the layout reads the pages.
+      const tagged = document.structure?.length
+        ? flatten(document.structure, document.orphans ?? []).parts
+        : null;
+      // The runs of the tags' text, cells and captions too.
+      const taggedRuns = (tagged ?? []).flatMap((part) => [
+        ...part.runs,
+        ...(part.rows ?? []).flatMap((row) => row.flatMap((cell) => cell.runs)),
+        ...(part.caption ?? []),
+      ]);
+      // The reader marks a plain hyphen that ends a line in the tags' text (U+2063 after it).
+      const BROKEN = /(\p{L}+)-\u2063(\p{L}+)/gu;
       // Words broken with a plain hyphen at a line's end, joined: kept when a dictionary knows them (D12).
       const candidates = new Set<string>();
+      for (const run of taggedRuns)
+        for (const match of run.text.matchAll(BROKEN)) candidates.add(`${match[1]}${match[2]}`);
       for (const model of models) {
         model.words.forEach((word, index) => {
           const next = model.words[index + 1];
@@ -185,11 +200,13 @@ export async function importPdf(
           for (const word of batch) if (!wrong.has(word)) knownWords.add(word);
         }
       }
-      // A tag tree that holds only a part of the pages' words is not the book's structure (an OCR plug-in's
-      // tags gave an empty book in D32's library run): then the layout reads the pages.
-      const tagged = document.structure?.length
-        ? flatten(document.structure, document.orphans ?? []).parts
-        : null;
+      // ... and in the tags' text as in the layout's: joined where known, else the hyphen stays (D12).
+      for (const run of taggedRuns)
+        run.text = run.text
+          .replace(BROKEN, (_all, head: string, tail: string) =>
+            knownWords.has(`${head}${tail}`) ? `${head}${tail}` : `${head}-${tail}`,
+          )
+          .replace(/\u2063/g, '');
       const wordsOf = (texts: string[]): number =>
         texts.join(' ').split(/\s+/).filter(Boolean).length;
       const taggedWords = (tagged ?? []).reduce(
@@ -203,9 +220,22 @@ export async function importPdf(
           ),
         0,
       );
-      const pageWords = models.reduce((n, model) => n + model.words.length, 0);
+      // The pages' words as the book's text: without the running heads and page numbers, which tags leave out.
+      const pageLines = models.map(linesOf);
+      const furniture = furnitureOf(pageLines);
+      const pageWords = pageLines
+        .flat()
+        .filter((line) => !furniture.has(line))
+        // A word broken at the line's end is one word in the tags' text.
+        .reduce(
+          (n, line) =>
+            n + line.words.length - (/\p{L}-$/u.test(line.words.at(-1)?.t ?? '') ? 1 : 0),
+          0,
+        );
+      // Tags are the book's structure only when they hold nearly all its words: text outside them (an OCR
+      // layer tagged in part - D32's library run) would be lost, and the layout reads every word.
       const layout =
-        tagged && taggedWords >= pageWords * 0.5
+        tagged && taggedWords >= pageWords * 0.97
           ? null
           : layoutParts(models, {
               outline: document.outline,

@@ -70,8 +70,12 @@ export function textBody(
       continue;
     }
     if (part.kind === 'table') {
+      // FB2 2.1 wants a cell in every row and a row in every table: a structure's table without them holds
+      // nothing to keep (D32's library run: tables of no rows made the book invalid).
+      const filled = (part.rows ?? []).filter((row) => row.length > 0);
+      if (filled.length === 0) continue;
       counts.tables++;
-      const rows = (part.rows ?? []).map(
+      const rows = filled.map(
         (row) =>
           `<tr>${row
             .map((cell) => {

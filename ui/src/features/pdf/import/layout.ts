@@ -399,8 +399,11 @@ export function layoutParts(
       const last = paragraph[paragraph.length - 1];
       const head = runs[0];
       if (last && head) {
-        const soft = last.text.endsWith('\u00ad');
-        const hard = /\p{L}-$/u.test(last.text);
+        // The line's last run may end with the space the reader set after it (D32's library run: no word
+        // broken there was joined): it is judged without it.
+        const end = last.text.replace(/\s+$/, '');
+        const soft = end.endsWith('\u00ad');
+        const hard = /\p{L}-$/u.test(end);
         const tail = last.text.trim().split(/\s+/).pop() ?? '';
         const joined =
           `${tail.replace(/[\u00ad-]$/, '')}${head.text.trim().split(/\s+/)[0] ?? ''}`.replace(
@@ -408,7 +411,7 @@ export function layoutParts(
             '',
           );
         if (soft || (hard && options.known?.(joined))) {
-          last.text = last.text.replace(/[\u00ad-]$/, '');
+          last.text = end.replace(/[\u00ad-]$/, '');
           head.text = head.text.replace(/^\s+/, '');
         } else head.text = head.text.startsWith(' ') ? head.text : ` ${head.text}`;
       }
