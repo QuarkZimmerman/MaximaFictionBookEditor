@@ -452,8 +452,10 @@ What comes back depends on where the PDF came from:
 - **A PDF the editor exported** gives its book back as it was: the description, every body, section,
   block, inline mark, id, link, note and stylesheet, JPEG pictures byte for byte and PNG pictures pixel for
   pixel. What a PDF cannot hold is listed in the summary - for instance notes that come back ungrouped.
-- **A PDF made from text** by another program gives its text: from its structure when it is tagged,
-  else from its layout - headings by the bookmarks and the type sizes, paragraphs by indents and spacing,
+- **A PDF made from text** by another program gives its text: from its structure when it is tagged and
+  its tags hold all its text in the order its pages read; else, and for the pages its tags leave out, from
+  its layout - columns one after the other (around pictures too), headings by the bookmarks and the type
+  sizes, paragraphs by indents and spacing,
   running heads and page numbers left out, words broken at a line's end joined (with a soft hyphen always,
   with a plain one when the dictionaries know the word), bold and italic, pictures, tables and drawings
   (as pictures). Its document information gives the description. Cyrillic written with Latin-1 letters is
