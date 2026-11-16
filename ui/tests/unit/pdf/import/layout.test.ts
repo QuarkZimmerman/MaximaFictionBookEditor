@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { layoutParts, linesOf } from '@/features/pdf/import/layout';
+import { furnitureOf, layoutParts, linesOf } from '@/features/pdf/import/layout';
 import type { PdfDocumentModel, PdfPageModel } from '@/features/pdf/import/model';
 import { partText, type Part } from '@/features/pdf/import/parts';
 
@@ -131,5 +131,38 @@ describe('two columns (D32)', () => {
     expect(lines[24]).toBe('Across');
     expect(lines[25]).toBe('l12a');
     expect(lines[37]).toBe('r12a');
+  });
+});
+
+describe('a note that cites one book on every page (D32)', () => {
+  // Pages of body text, a note of two lines at the foot citing the same book, and the page number below.
+  const line = (text: string, y: number, s: number, x = 40) =>
+    text
+      .split(' ')
+      .map((t, i) => ({ t, box: [x + i * 50, y - s, 45, s + 2], base: y, s, f: 0, c: 0 }));
+  const page = (n: number) =>
+    ({
+      n,
+      width: 400,
+      height: 600,
+      rotation: 0,
+      kind: 'text',
+      words: [
+        ...Array.from({ length: 20 }, (_, i) =>
+          line(`body ${n} line ${i} text`, 60 + i * 14, 10.5),
+        ).flat(),
+        ...line(`${n} Hist. eccl. book`, 520, 8),
+        ...line('Ed. Smith. Vol 1. 1999.', 529, 8),
+        ...line(`${n}`, 560, 10.5, 190),
+      ],
+    }) as unknown as PdfPageModel;
+
+  it('keeps the note, and leaves out the page number', () => {
+    const pages = [1, 2, 3, 4].map((n) => linesOf(page(n)));
+    const furniture = furnitureOf(pages);
+    const citation = pages[1].find((l) => l.text.startsWith('Ed.'))!;
+    const number = pages[1].find((l) => l.text === '2')!;
+    expect(furniture.has(citation)).toBe(false);
+    expect(furniture.has(number)).toBe(true);
   });
 });

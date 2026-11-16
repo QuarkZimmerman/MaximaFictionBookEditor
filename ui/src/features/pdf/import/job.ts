@@ -209,60 +209,97 @@ export async function importPdf(
           .replace(/\u2063/g, '');
       const wordsOf = (texts: string[]): number =>
         texts.join(' ').split(/\s+/).filter(Boolean).length;
-      const taggedWords = (tagged ?? []).reduce(
-        (n, part) =>
-          n +
-          wordsOf(part.runs.map((run) => run.text)) +
-          wordsOf(
-            (part.rows ?? []).flatMap((row) =>
-              row.flatMap((cell) => cell.runs.map((run) => run.text)),
-            ),
-          ),
-        0,
-      );
+      const lettersOf = (text: string): number => (text.match(/[\p{L}\p{N}]/gu) ?? []).length;
+      const sum = (values: Iterable<number>): number => [...values].reduce((a, b) => a + b, 0);
+      // The tags' letters and words, page by page (cells and captions too).
+      const taggedLetters = new Map<number, number>();
+      const taggedTokens = new Map<number, number>();
+      for (const run of taggedRuns) {
+        if (!run.text.trim()) continue;
+        taggedLetters.set(run.page, (taggedLetters.get(run.page) ?? 0) + lettersOf(run.text));
+        taggedTokens.set(run.page, (taggedTokens.get(run.page) ?? 0) + wordsOf([run.text]));
+      }
       // The pages' words as the book's text: without the running heads and page numbers, which tags leave out.
       const pageLines = models.map(linesOf);
       const furniture = furnitureOf(pageLines);
-      const pageWords = pageLines
-        .flat()
-        .filter((line) => !furniture.has(line))
-        // A word broken at the line's end is one word in the tags' text.
-        .reduce(
-          (n, line) =>
-            n + line.words.length - (/\p{L}-$/u.test(line.words.at(-1)?.t ?? '') ? 1 : 0),
-          0,
-        );
-      // Tags are the book's structure only when they hold nearly all its words: text outside them (an OCR
-      // layer tagged in part - D32's library run) would be lost, and the layout reads every word.
+      const pageText = pageLines.map((lines) =>
+        lines.filter((line) => !furniture.has(line)).flatMap((line) => line.words),
+      );
+      const pageLetters = pageText.map((words) => sum(words.map((word) => lettersOf(word.t))));
+      // Tags are the book's structure only when they hold nearly all its text: text outside them (an OCR layer
+      // tagged in part - D32's library run) would be lost, and the layout reads every word. Counted by letters:
+      // tags may set a word's letters apart.
+      // ... and when they read in the pages' order: of the tags' words side by side on a page, nearly all stand
+      // side by side in the order the page draws its words (D32's library run: tables read far from their place).
+      const token = (word: string): string => word.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+      const drawn = new Set<string>();
+      for (const model of models) {
+        let previous = '';
+        for (const word of model.words) {
+          const t = token(word.t);
+          if (!t) continue;
+          if (previous) drawn.add(`${model.n} ${previous} ${t}`);
+          previous = t;
+        }
+      }
+      let pairs = 0;
+      let inOrder = 0;
+      for (const part of tagged ?? []) {
+        let previous = '';
+        let page = -1;
+        for (const run of part.runs)
+          for (const word of run.text.split(/\s+/)) {
+            const t = token(word);
+            if (!t) continue;
+            if (previous && page === run.page) {
+              pairs++;
+              if (drawn.has(`${run.page} ${previous} ${t}`)) inOrder++;
+            }
+            previous = t;
+            page = run.page;
+          }
+      }
       const layout =
-        tagged && taggedWords >= pageWords * 0.97
+        tagged && sum(taggedLetters.values()) >= sum(pageLetters) * 0.97 && inOrder >= pairs * 0.97
           ? null
           : layoutParts(models, {
               outline: document.outline,
               known: (word) => knownWords.has(word),
             });
-      // Pages the tags leave out (a back cover's text layer, untagged - D32's library run): read by the layout
-      // and set among the tags' parts by their page.
+      // Pages the tags leave out, wholly or in part (a back cover's text layer, a contents page), or whose words
+      // their tags set apart letter by letter (D32's library run): read by the layout and set among the tags'
+      // parts by their page.
       let fromTags = tagged ?? [];
       if (!layout && tagged) {
-        const taggedOn = new Map<number, number>();
-        for (const run of taggedRuns)
-          if (run.text.trim())
-            taggedOn.set(run.page, (taggedOn.get(run.page) ?? 0) + wordsOf([run.text]));
         const untagged = models.filter((model, index) => {
-          const words = pageLines[index]
-            .filter((line) => !furniture.has(line))
-            .reduce((n, line) => n + line.words.length, 0);
-          return words >= 5 && (taggedOn.get(model.n) ?? 0) < words * 0.5;
+          const words = pageText[index].length;
+          return (
+            words >= 5 &&
+            ((taggedLetters.get(model.n) ?? 0) < pageLetters[index] * 0.9 ||
+              (taggedTokens.get(model.n) ?? 0) > words * 1.5)
+          );
         });
         if (untagged.length > 0) {
+          // Such a page is the layout's whole: the tags' runs on it go, and the parts they leave empty.
+          const replaced = new Set(untagged.map((model) => model.n));
+          const text = (part: (typeof tagged)[number]): boolean =>
+            part.kind === 'p' || part.kind === 'title';
+          const kept = tagged
+            .map((part) =>
+              text(part)
+                ? { ...part, runs: part.runs.filter((run) => !replaced.has(run.page)) }
+                : part,
+            )
+            .filter((part) =>
+              text(part) ? part.runs.some((run) => run.text.trim()) : !replaced.has(part.page),
+            );
           const extra = layoutParts(untagged, {
             outline: [],
             known: (word) => knownWords.has(word),
           }).parts;
           const merged: typeof tagged = [];
           let k = 0;
-          for (const part of tagged) {
+          for (const part of kept) {
             while (k < extra.length && extra[k].page < part.page) merged.push(extra[k++]);
             merged.push(part);
           }

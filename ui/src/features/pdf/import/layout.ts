@@ -104,8 +104,8 @@ export function linesOf(page: PdfPageModel): Line[] {
     set.filter((w) => w.box[0] + w.box[2] / 2 >= from && w.box[0] + w.box[2] / 2 < to);
   const columns = columnBands(words, page.width, sizes);
   // A line across the whole text - a heading, a sidebar's title - hides the gutter of columns beside it: the
-  // gutters are looked for again among the narrow lines, and the page is read in stretches between the wide
-  // lines, each column by column (D32's library run read two columns line by line, their words interleaved).
+  // gutters are looked for again among the narrow lines (D32's library run read two columns line by line, their
+  // words interleaved).
   // The page's lines, cut where a gap wider than half a character runs between words (two columns' lines at one
   // height are two lines).
   const rough = build(words).flatMap((line) => {
@@ -121,26 +121,50 @@ export function linesOf(page: PdfPageModel): Line[] {
   const textRight = Math.max(...words.map((w) => w.box[0] + w.box[2]));
   const wide = (line: Line): boolean => line.right - line.left > (textRight - textLeft) * 0.6;
   const narrow = rough.filter((line) => !wide(line));
-  const again =
-    columns.length === 1 && narrow.length >= rough.length * 0.5 && narrow.length >= 10
-      ? columnBands(
-          narrow.flatMap((line) => line.words),
-          page.width,
-          sizes,
-        )
-      : [];
-  if (again.length > 1) {
-    const wides = rough.filter(wide).sort((a, b) => a.top - b.top);
-    const narrowWords = narrow.flatMap((line) => line.words);
+  const bands =
+    columns.length > 1
+      ? columns
+      : narrow.length >= rough.length * 0.5 && narrow.length >= 10
+        ? columnBands(
+            narrow.flatMap((line) => line.words),
+            page.width,
+            sizes,
+          )
+        : columns;
+  if (bands.length > 1) {
+    // The lines across a gutter cut the page into stretches, and so does a blank band across the page (above
+    // and below an epigraph, a picture): each stretch is read column by column.
+    const gutters = bands.slice(1).map(([from]) => from);
+    const across = (line: Line): boolean =>
+      gutters.some((x) => line.left < x - 2 && line.right > x + 2);
+    const cuts = rough.filter(across).sort((a, b) => a.top - b.top);
+    const inColumns = rough.filter((line) => !across(line));
+    const stretches: { from: number; to: number; cut: Line | null }[] = [];
     let from = Number.NEGATIVE_INFINITY;
-    for (const cut of [...wides, null]) {
+    for (const cut of [...cuts, null]) {
       const to = cut ? cut.top : Number.POSITIVE_INFINITY;
-      const stretch = narrowWords.filter((w) => w.base > from && w.base <= to);
-      for (const band of again) lines.push(...build(inBand(stretch, band)));
-      if (cut) {
-        lines.push(cut);
-        from = cut.bottom;
+      // Blank bands across the page within the stretch.
+      const spans = inColumns
+        .filter((line) => line.base > from && line.base <= to)
+        .map((line) => [line.top, line.bottom] as [number, number])
+        .sort((a, b) => a[0] - b[0]);
+      let start = from;
+      let reach = Number.NEGATIVE_INFINITY;
+      for (const [top, bottom] of spans) {
+        if (reach > Number.NEGATIVE_INFINITY && top - reach > sizes * 2.5) {
+          stretches.push({ from: start, to: (reach + top) / 2, cut: null });
+          start = (reach + top) / 2;
+        }
+        reach = Math.max(reach, bottom);
       }
+      stretches.push({ from: start, to, cut });
+      if (cut) from = cut.bottom;
+    }
+    const columnWords = inColumns.flatMap((line) => line.words);
+    for (const stretch of stretches) {
+      const here = columnWords.filter((w) => w.base > stretch.from && w.base <= stretch.to);
+      for (const band of bands) lines.push(...build(inBand(here, band)));
+      if (stretch.cut) lines.push(stretch.cut);
     }
   } else for (const band of columns) lines.push(...build(inBand(words, band)));
   // A drop cap (D11): one letter set far larger than the page's text at a paragraph's start, beside its first
@@ -203,8 +227,11 @@ function columnBands(words: PdfWord[], width: number, size: number): [number, nu
   const bands: [number, number][] = [];
   let start = first * step;
   let gap = 0;
+  // A band that a word or two cross is still free: a stray word, a heading across both columns (D32's library
+  // run) - at most a twentieth of the busiest place's words.
+  const crossing = Math.floor(Math.max(...used) * 0.05);
   for (let x = first; x <= last; x++) {
-    if (used[x] === 0) gap++;
+    if (used[x] <= crossing) gap++;
     else {
       // A gutter: a free band wider than half a character with text on both sides, holding at least 20 lines,
       // each side a fifth of the text's width at least - a list's numbers are no column (D32's library run:
@@ -255,6 +282,24 @@ function alike(a: string, b: string): number {
  * running heads alternate between left and right pages and change with the chapter or the story, and a
  * scan's layer spells them a little differently on each page (the calibration of SC-007 found).
  */
+/** Whether a page's edge line is set close to the lines beside it, at their size: one of their block. */
+function inBlock(lines: Line[], line: Line, edge: 'head' | 'foot'): boolean {
+  const beside = lines.filter(
+    (other) =>
+      other !== line &&
+      other.right > line.left &&
+      other.left < line.right &&
+      (edge === 'foot' ? other.bottom <= line.top + 1 : other.top >= line.bottom - 1),
+  );
+  const next =
+    edge === 'foot'
+      ? beside.sort((a, b) => b.bottom - a.bottom)[0]
+      : beside.sort((a, b) => a.top - b.top)[0];
+  if (!next) return false;
+  const gap = edge === 'foot' ? line.top - next.bottom : next.top - line.bottom;
+  return gap < line.size * 0.6 && Math.abs(next.size - line.size) <= line.size * 0.1;
+}
+
 export function furnitureOf(pages: Line[][]): Set<Line> {
   const out = new Set<Line>();
   const lone = (line: Line): boolean =>
@@ -284,6 +329,10 @@ export function furnitureOf(pages: Line[][]): Set<Line> {
         const near = [index - 2, index - 1, index + 1, index + 2].filter(
           (i) => i >= 0 && i < pages.length,
         );
+        // ... and stands apart from the text: a line set close under (or over) lines of its own size belongs to
+        // them - a note's last line citing one book again and again (D32's library run lost such lines as a
+        // running foot).
+        if (inBlock(pages[index], line, edge)) continue;
         if (
           near.some((i) =>
             candidates[i].some((other) => !lone(other) && alike(key, letters(other.text)) >= 0.7),
