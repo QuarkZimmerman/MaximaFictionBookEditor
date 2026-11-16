@@ -299,7 +299,7 @@ def picture_pages(with_first_layer: bool, garbled: bool = False) -> tuple[bytes,
     if with_first_layer:
         kids.append(scan_page(pdf, pages, f, render_text_picture(PROSE), PROSE))
     kids.append(scan_page(pdf, pages, f, render_text_picture(PROSE), None))
-    kids.append(scan_page(pdf, pages, f, render_text_picture(PROSE[:4]), None))
+    kids.append(scan_page(pdf, pages, f, render_text_picture(PROSE), None))
     pages_tree(pdf, kids, pages)
     pdf.add(f"<< /Type /Catalog /Pages {pages} 0 R >>", catalog)
     if with_first_layer:

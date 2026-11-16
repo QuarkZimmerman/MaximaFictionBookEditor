@@ -35,4 +35,7 @@ nlohmann::json record_pictures(PDFDoc& doc, int n);
 /// Writes picture `id` of page `n` into pictures/ and returns its event (contracts/pdf-reader.md).
 nlohmann::json write_picture(PDFDoc& doc, int n, const std::string& id, const Options& options);
 
+/// The page's kind from its words and pictures, its look measured when it is only a picture (DP-8).
+std::string page_kind(PDFDoc& doc, int n, const nlohmann::json& page);
+
 }  // namespace mfbe::pdf_reader
