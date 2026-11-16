@@ -15,7 +15,9 @@ import type { HintsV1 } from './model';
 import { convertOurs, type PictureWanted } from './ours';
 import { loadDocument, loadPages } from './pages';
 import { flatten } from './parts';
-import { plainBody, templateDescription } from './plain';
+import { guessLanguage, metadataDescription } from './describe';
+import { layoutParts } from './layout';
+import { textBody } from './text';
 
 const nextTask = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 const baseName = (path: string): string =>
@@ -96,16 +98,38 @@ export async function importPdf(
       ({ xml, mismatches, counts } = result);
       wanted = result.pictures;
     } else {
+      // A PDF made from text, or a scan with a text layer (D11, D17): its structure when tagged, else its layout.
       const { xml: template } = await rpc.call('template.xml');
-      const title =
-        document.metadata.info?.Title?.trim() || baseName(originPath).replace(/\.pdf$/i, '');
-      const body = plainBody(models);
+      const parts = document.structure?.length
+        ? flatten(document.structure, document.orphans ?? []).parts
+        : layoutParts(models, { outline: document.outline }).parts;
+      // Pictures: on each page, the parts' pictures in order against the reader's, top to bottom.
+      const pagePictures = new Map(
+        models.map((m) => [m.n, [...m.pictures].sort((a, b) => a.box[1] - b.box[1])]),
+      );
+      const picture = (page: number): string | null => {
+        const next = pagePictures.get(page)?.shift();
+        if (!next) return null;
+        const binaryId = `picture-${wanted.length + 1}`;
+        wanted.push({ readerId: next.id, page, binaryId });
+        return binaryId;
+      };
+      const link = (run: { uri?: string }): { href: string; note: boolean } | null =>
+        run.uri ? { href: run.uri, note: false } : null;
+      const body = textBody(parts, link, picture);
+      const words = parts.flatMap((part) => part.runs.flatMap((run) => run.text.split(/\s+/)));
+      const language = await guessLanguage(
+        words,
+        async (list, lang) =>
+          (await rpc.call('spell.check', { words: list, langs: [lang] })).misspelled,
+      );
+      const stem = baseName(originPath).replace(/\.pdf$/i, '');
       xml =
         `<?xml version="1.0" encoding="UTF-8"?>\n<FictionBook xmlns="${FB2_NS}" xmlns:l="${XLINK_NS}">` +
-        templateDescription(template, title) +
+        metadataDescription(document.metadata.info, template, stem, language) +
         body.xml +
         '</FictionBook>';
-      counts = { sections: 1, pictures: 0, tables: 0, notes: 0 };
+      counts = body.counts;
     }
     check();
     const opened = await rpc.runJob(

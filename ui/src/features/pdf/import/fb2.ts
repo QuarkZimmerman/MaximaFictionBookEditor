@@ -97,6 +97,8 @@ export function inline(
           ...(run.bold ? { bold: true } : {}),
           ...(run.italic ? { italic: true } : {}),
           ...(run.mono ? { mono: true } : {}),
+          ...(run.sub ? { sub: true } : {}),
+          ...(run.sup ? { sup: true } : {}),
         },
       });
     }

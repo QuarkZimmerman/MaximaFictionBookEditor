@@ -20,6 +20,9 @@ export interface Run {
   bold?: boolean;
   italic?: boolean;
   mono?: boolean;
+  /** A smaller word raised or lowered against its line (PDFs without structure). */
+  sub?: boolean;
+  sup?: boolean;
   uri?: string;
   dest?: string;
   picture?: { alt: string };

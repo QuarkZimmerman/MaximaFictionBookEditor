@@ -166,8 +166,8 @@ function runsOfLine(
       ...(font?.mono ? { mono: true } : {}),
     };
     // A smaller word raised or lowered against the line's baseline: a superscript or a subscript (D11).
-    if (small && shift > word.s * 0.25) (run as Run & { sup?: boolean }).sup = true;
-    if (small && shift < -word.s * 0.15) (run as Run & { sub?: boolean }).sub = true;
+    if (small && shift > word.s * 0.25) run.sup = true;
+    if (small && shift < -word.s * 0.15) run.sub = true;
     runs.push(run);
     void bodySize;
   });
