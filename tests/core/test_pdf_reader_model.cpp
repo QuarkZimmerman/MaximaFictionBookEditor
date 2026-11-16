@@ -153,6 +153,9 @@ TEST_CASE("the reader gives the editor's record of its own PDF", "[pdf][import]"
     CHECK(doc["record"]["version"] == 1);
     CHECK_FALSE(doc["record"]["hints"].get<std::string>().empty());
     CHECK_FALSE(doc["record"]["description"].get<std::string>().empty());
+    // The record keeps FB2 XML and JSON as XML text: the reader gives them back with their entities read.
+    CHECK(json::parse(doc["record"]["hints"].get<std::string>())["v"] == 1);
+    CHECK(doc["record"]["description"].get<std::string>().rfind("<description", 0) == 0);
 }
 
 TEST_CASE("the reader opens protected PDFs with the passwords it is given", "[pdf][import]") {

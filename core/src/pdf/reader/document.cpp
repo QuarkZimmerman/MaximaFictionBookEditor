@@ -13,6 +13,7 @@
 #include <PDFDoc.h>
 #include <Page.h>
 #include <UTF.h>
+#include <cstdlib>
 #include <fstream>
 #include <regex>
 
@@ -22,10 +23,65 @@ nlohmann::json structure_of(PDFDoc& doc, nlohmann::json& orphans);
 
 namespace {
 
+/// The text of an XMP element, its XML entities read: the record keeps FB2 XML and JSON as text.
 std::string xmp_value(const std::string& xmp, const std::string& name) {
     const std::regex re("<" + name + ">([\\s\\S]*?)</" + name + ">");
     std::smatch m;
-    return std::regex_search(xmp, m, re) ? m[1].str() : std::string();
+    if (!std::regex_search(xmp, m, re)) {
+        return {};
+    }
+    const std::string raw = m[1].str();
+    std::string out;
+    out.reserve(raw.size());
+    for (std::size_t i = 0; i < raw.size(); ++i) {
+        if (raw[i] != '&') {
+            out += raw[i];
+            continue;
+        }
+        const std::size_t end = raw.find(';', i);
+        if (end == std::string::npos || end - i > 10) {
+            out += raw[i];
+            continue;
+        }
+        const std::string entity = raw.substr(i + 1, end - i - 1);
+        unsigned long code = 0;
+        if (entity == "lt") {
+            code = '<';
+        } else if (entity == "gt") {
+            code = '>';
+        } else if (entity == "amp") {
+            code = '&';
+        } else if (entity == "quot") {
+            code = '"';
+        } else if (entity == "apos") {
+            code = '\'';
+        } else if (entity.size() > 1 && entity[0] == '#') {
+            code = entity[1] == 'x' || entity[1] == 'X'
+                       ? std::strtoul(entity.c_str() + 2, nullptr, 16)
+                       : std::strtoul(entity.c_str() + 1, nullptr, 10);
+        }
+        if (code == 0 || code > 0x10FFFF) {
+            out += raw[i];
+            continue;
+        }
+        if (code < 0x80) {
+            out += static_cast<char>(code);
+        } else if (code < 0x800) {
+            out += static_cast<char>(0xC0 | (code >> 6));
+            out += static_cast<char>(0x80 | (code & 0x3F));
+        } else if (code < 0x10000) {
+            out += static_cast<char>(0xE0 | (code >> 12));
+            out += static_cast<char>(0x80 | ((code >> 6) & 0x3F));
+            out += static_cast<char>(0x80 | (code & 0x3F));
+        } else {
+            out += static_cast<char>(0xF0 | (code >> 18));
+            out += static_cast<char>(0x80 | ((code >> 12) & 0x3F));
+            out += static_cast<char>(0x80 | ((code >> 6) & 0x3F));
+            out += static_cast<char>(0x80 | (code & 0x3F));
+        }
+        i = end;
+    }
+    return out;
 }
 
 std::string utf8_of(const std::vector<Unicode>& text) {
