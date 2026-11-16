@@ -20,7 +20,7 @@ export interface TextBody {
 export function textBody(
   parts: readonly Part[],
   link: (run: Run) => { href: string; note: boolean } | null,
-  picture: (page: number, alt: string) => string | null,
+  picture: (page: number, alt: string, readerId?: string) => string | null,
 ): TextBody {
   const counts = { sections: 0, pictures: 0, tables: 0, notes: 0 };
   const pictureRun = (run: Run): string | null => {
@@ -70,7 +70,7 @@ export function textBody(
     if (depths.length === 0) openSection(1);
     sectionHasContent = true;
     if (part.kind === 'figure') {
-      const id = picture(part.page, part.alt ?? '');
+      const id = picture(part.page, part.alt ?? '', part.readerId);
       if (id) {
         counts.pictures++;
         const alt = part.alt ? ` alt="${attr(part.alt)}"` : '';

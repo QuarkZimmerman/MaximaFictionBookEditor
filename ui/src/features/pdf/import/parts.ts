@@ -52,6 +52,8 @@ export interface Part {
   lang?: string;
   /** A picture's caption: its title, printed under it (D10; tagged as text right after the figure). */
   caption?: Run[];
+  /** The reader's id of a picture the layout placed (PDFs without structure). */
+  readerId?: string;
 }
 
 export interface Footnote {

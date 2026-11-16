@@ -127,19 +127,22 @@ export async function importPdf(
         const wrong = new Set(await misspelled(list, code).catch(() => list));
         for (const word of list) if (!wrong.has(word)) knownWords.add(word);
       }
-      const parts = document.structure?.length
-        ? flatten(document.structure, document.orphans ?? []).parts
-        : layoutParts(models, { outline: document.outline, known: (word) => knownWords.has(word) })
-            .parts;
+      const layout = document.structure?.length
+        ? null
+        : layoutParts(models, { outline: document.outline, known: (word) => knownWords.has(word) });
+      const parts = layout
+        ? layout.parts
+        : flatten(document.structure ?? [], document.orphans ?? []).parts;
+      if (layout?.cover) wanted.push({ readerId: layout.cover, page: 1, binaryId: 'cover' });
       // Pictures: on each page, the parts' pictures in order against the reader's, top to bottom.
       const pagePictures = new Map(
         models.map((m) => [m.n, [...m.pictures].sort((a, b) => a.box[1] - b.box[1])]),
       );
-      const picture = (page: number): string | null => {
-        const next = pagePictures.get(page)?.shift();
-        if (!next) return null;
+      const picture = (page: number, _alt: string, readerId?: string): string | null => {
+        const id = readerId ?? pagePictures.get(page)?.shift()?.id;
+        if (!id) return null;
         const binaryId = `picture-${wanted.length + 1}`;
-        wanted.push({ readerId: next.id, page, binaryId });
+        wanted.push({ readerId: id, page, binaryId });
         return binaryId;
       };
       const link = (run: { uri?: string }): { href: string; note: boolean } | null =>
@@ -150,7 +153,13 @@ export async function importPdf(
       const stem = baseName(originPath).replace(/\.pdf$/i, '');
       xml =
         `<?xml version="1.0" encoding="UTF-8"?>\n<FictionBook xmlns="${FB2_NS}" xmlns:l="${XLINK_NS}">` +
-        metadataDescription(document.metadata.info, template, stem, language) +
+        metadataDescription(
+          document.metadata.info,
+          template,
+          stem,
+          language,
+          layout?.cover ? 'cover' : null,
+        ) +
         body.xml +
         '</FictionBook>';
       counts = body.counts;

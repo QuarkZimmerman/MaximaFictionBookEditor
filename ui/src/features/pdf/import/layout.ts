@@ -28,6 +28,10 @@ export interface LayoutOptions {
 
 export interface LayoutResult {
   parts: Part[];
+  /** The first page's one large picture without text: the cover (D14); its reader id. */
+  cover: string | null;
+  /** Page pictures without text not imported (a scan's plates and blank pages, D17, D19). */
+  skippedPictures: number;
   /** Lines of page furniture left out (running heads, page numbers). */
   furniture: number;
 }
@@ -276,5 +280,59 @@ export function layoutParts(
     previous = line;
   }
   flush();
-  return { parts, furniture: furniture.size };
+  // Pictures (D11, D14, D17): ornaments and pictures behind text are left out; a page that is only one large
+  // picture is the cover on the first page, and a plate elsewhere - imported in a PDF made from text, not in a
+  // scan, whose page pictures are the pages themselves.
+  let cover: string | null = null;
+  let skippedPictures = 0;
+  const scanned =
+    pages.filter((p) => p.pictures.some((pic) => covers(pic.box, p))).length > pages.length / 2;
+  const figures: Part[] = [];
+  for (const page of pages) {
+    const hasText = page.words.some((w) => w.t.trim());
+    for (const picture of page.pictures) {
+      const [, , w, h] = picture.box;
+      if (w < 6 || h < 6) continue;
+      const large = covers(picture.box, page);
+      if (large && hasText) continue;
+      if (large && !hasText) {
+        if (page.n === 1 && !cover) cover = picture.id;
+        else if (scanned) skippedPictures++;
+        else
+          figures.push({
+            kind: 'figure',
+            page: page.n,
+            runs: [],
+            alt: '',
+            readerId: picture.id,
+            top: picture.box[1],
+          } as Part & { top: number });
+        continue;
+      }
+      figures.push({
+        kind: 'figure',
+        page: page.n,
+        runs: [],
+        alt: '',
+        readerId: picture.id,
+        top: picture.box[1],
+      } as Part & { top: number });
+    }
+  }
+  // Each figure goes before the first part of its page that starts below it.
+  for (const figure of figures) {
+    const top = (figure as Part & { top?: number }).top ?? 0;
+    const at = parts.findIndex(
+      (part) =>
+        part.page > figure.page || (part.page === figure.page && (part.runs[0]?.top ?? 0) > top),
+    );
+    if (at < 0) parts.push(figure);
+    else parts.splice(at, 0, figure);
+  }
+  return { parts, furniture: furniture.size, cover, skippedPictures };
+}
+
+/** A picture covering most of its page. */
+function covers(box: [number, number, number, number], page: PdfPageModel): boolean {
+  return box[2] * box[3] > page.width * page.height * 0.6;
 }

@@ -24,6 +24,7 @@ export function metadataDescription(
   templateXml: string,
   fileStem: string,
   language: string | null,
+  coverId: string | null = null,
 ): string {
   const description =
     /<description[\s\S]*?<\/description>/.exec(templateXml)?.[0] ?? '<description/>';
@@ -47,6 +48,7 @@ export function metadataDescription(
     `<title-info>${genre}${authors || templateAuthor}<book-title>${text(title)}</book-title>` +
     (info?.Subject?.trim() ? `<annotation><p>${text(info.Subject.trim())}</p></annotation>` : '') +
     (info?.Keywords?.trim() ? `<keywords>${text(info.Keywords.trim())}</keywords>` : '') +
+    (coverId ? `<coverpage><image l:href="#${text(coverId)}"/></coverpage>` : '') +
     `<lang>${text(language ?? templateLang)}</lang></title-info>`;
   return templateInfo ? description.replace(templateInfo, titleInfo) : description;
 }
