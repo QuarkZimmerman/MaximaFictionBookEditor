@@ -643,7 +643,10 @@ export function convertOurs(
     return out;
   };
   const freshAt = new Map(hints.fresh ?? []);
-  const sectionAt = new Map(hints.sections);
+  // A block may begin several sections at once - a section and its first subsection (D32's library run): every
+  // depth kept, in order.
+  const sectionAt = new Map<number, number[]>();
+  for (const [b, depth] of hints.sections) sectionAt.set(b, [...(sectionAt.get(b) ?? []), depth]);
   const idAt = new Map(hints.ids);
   const counts = { sections: 0, pictures: 0, tables: 0, notes: 0 };
   const pictureFor = (run: Run): string | null => {
@@ -859,17 +862,20 @@ export function convertOurs(
       chunk = [];
     };
     for (const block of bodyList) {
-      const depth = sectionAt.get(block.b);
-      if (depth !== undefined) {
+      const depths = sectionAt.get(block.b);
+      if (depths) {
         flushChunk();
-        while (sectionDepths.length && sectionDepths[sectionDepths.length - 1] >= depth) {
-          out += '</section>';
-          sectionDepths.pop();
-        }
-        const id = idAt.get(block.b);
-        out += id ? `<section id="${attr(id)}">` : '<section>';
-        counts.sections++;
-        sectionDepths.push(depth);
+        depths.forEach((depth, index) => {
+          while (sectionDepths.length && sectionDepths[sectionDepths.length - 1] >= depth) {
+            out += '</section>';
+            sectionDepths.pop();
+          }
+          // The block's id goes on the innermost of the sections it begins.
+          const id = index === depths.length - 1 ? idAt.get(block.b) : undefined;
+          out += id ? `<section id="${attr(id)}">` : '<section>';
+          counts.sections++;
+          sectionDepths.push(depth);
+        });
       }
       chunk.push(block);
     }
