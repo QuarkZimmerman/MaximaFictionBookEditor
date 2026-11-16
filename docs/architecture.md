@@ -355,7 +355,10 @@ the PDF, and the interface makes the book.
   them as the new book's binaries, `extractFbd` and `recordFbd` give 004's description reader an archive's
   FBD and the editor's record.
 * *The interface makes the book* (`ui/src/features/pdf/import/`): its own PDFs from the record and the hints
-  (`ours.ts`: blocks numbered as the paginator numbered them, containers, sections, styles, ids, notes),
+  (`ours.ts`: blocks numbered as the paginator numbered them, containers, sections, styles, ids, notes; since
+  0.0.12 the export's hints also name what the pages cannot show - spaces at line ends and at marks' edges,
+  line breaks without a space, letters with combining marks, blocks that go on onto the next page, pages whose
+  foot begins with a note's rest - and a record of 0.0.11, without them, is read by the pages alone),
   tagged PDFs from their structure (`parts.ts`, `text.ts`), the rest from the layout (`layout.ts`: lines,
   columns, running heads, paragraphs, headings, broken words, drop caps), the description from the metadata
   or an FBD (`describe.ts`, `fbd.ts`, `questions.ts`). The new book is opened as an untouched new document.
