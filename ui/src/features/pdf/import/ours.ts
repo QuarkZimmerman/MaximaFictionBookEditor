@@ -916,10 +916,16 @@ export function convertOurs(
       .replace(/<\/section>$/, '');
     const heading = /^<section>(<title>[\s\S]*?<\/title>)/.exec(afterNotes)?.[1] ?? '';
     const named = hints.bodies.find((entry) => entry.notes)?.name || 'notes';
+    // A note the feet gave already is not given twice (D32's library run: an id twice).
+    const have = new Set([...notes.xml.matchAll(/<section id="([^"]+)"/g)].map((m) => m[1]));
+    const fresh = inner
+      .split(/(?=<section[ >])/)
+      .filter((piece) => !have.has(/^<section id="([^"]+)"/.exec(piece)?.[1] ?? ''))
+      .join('');
     notes.xml = notes.xml
-      ? notes.xml.replace(/<\/body>$/, `${inner}</body>`)
-      : `<body name="${attr(named)}">${heading}${inner}</body>`;
-    counts.notes += (inner.match(/<section[ >]/g) ?? []).length;
+      ? notes.xml.replace(/<\/body>$/, `${fresh}</body>`)
+      : `<body name="${attr(named)}">${heading}${fresh}</body>`;
+    counts.notes += (fresh.match(/<section[ >]/g) ?? []).length;
   }
 
   const annotation =
