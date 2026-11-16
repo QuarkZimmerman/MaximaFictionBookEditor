@@ -93,7 +93,8 @@ describe("the editor's own PDF (US1)", () => {
 });
 
 describe('the rules under it', () => {
-  it('puts the spaces the PDF does not draw: at a new line, between runs apart, around a picture', () => {
+  // The engine draws the book's spaces as characters; only a line's end hides one (D32's library run).
+  it('puts the spaces the PDF does not draw: at a new line, and beside an inline picture', () => {
     const runs = spaceRuns([
       { text: 'a web page', page: 1, top: 100, size: 10, left: 40, right: 100 },
       { text: '.', page: 1, top: 115, size: 10, left: 40, right: 43 },

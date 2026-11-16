@@ -381,6 +381,8 @@ export function flatten(
   }
   const sameLine = (a: { top?: number }, b: { top?: number }): boolean =>
     a.top !== undefined && b.top !== undefined && Math.abs(a.top - b.top) < 2;
+  const level = (a: number | undefined, b: number | undefined): boolean =>
+    a !== undefined && b !== undefined && Math.abs(a - b) < 2;
   for (const [slot, group] of orphansAt) {
     const empties = emptiesAt.get(slot) ?? [];
     if (empties.length > 0) {
@@ -405,8 +407,14 @@ export function flatten(
       const onNext =
         next &&
         next.page === orphan.page &&
-        sameLine(next.run, orphan) &&
-        !(previous && previous.page === orphan.page && sameLine(previous.run, orphan));
+        // Where it ends against where the next run begins, and where the previous run ends against where it
+        // begins: an orphan over several lines (a paragraph's first words in italic) is judged by its ends.
+        level(orphan.endTop ?? orphan.top, next.run.startTop ?? next.run.top) &&
+        !(
+          previous &&
+          previous.page === orphan.page &&
+          level(previous.run.endTop ?? previous.run.top, orphan.startTop ?? orphan.top)
+        );
       if (onNext) {
         const run = leafRun(orphan, {
           ...(next.run.uri ? { uri: next.run.uri } : {}),

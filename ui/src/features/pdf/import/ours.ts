@@ -73,7 +73,10 @@ export function spaceRuns(runs: readonly Run[]): Run[] {
           bottomTop !== undefined &&
           top - bottomTop > 0.8 * size) ||
         (known && left! < right! - 2 * size);
-      const apart = known && left! - right! > 0.15 * size;
+      // Between text runs on one line nothing is added: the engine draws the book's spaces as characters
+      // (D32's library run: a gap between two fonts was taken for a space). Beside an inline picture it
+      // draws none, so a gap there is one.
+      const apart = known && (!!run.picture || !!previous.picture) && left! - right! > 0.15 * size;
       const before = !previous.picture && /\s$/.test(previous.text);
       const after = !run.picture && /^\s/.test(run.text);
       const closing = !run.picture && /^[.,;:!?)\]}»”’…%]/u.test(run.text);
@@ -503,7 +506,14 @@ export function convertOurs(
           (block.kind === 'annotation' || block.kind.startsWith('annotation/')),
       )
     : [];
-  const historyBlocks = historyPage ? blocks.filter((block) => block.page >= historyPage) : [];
+  // The history's own blocks: on its pages, and an annotation's by the hints (FB2's history is one).
+  const historyBlocks = historyPage
+    ? blocks.filter(
+        (block) =>
+          block.page >= historyPage &&
+          (block.kind === 'annotation' || block.kind.startsWith('annotation/')),
+      )
+    : [];
   const bodyBlocks = blocks.filter(
     (block) => !annotationBlocks.includes(block) && !historyBlocks.includes(block),
   );
