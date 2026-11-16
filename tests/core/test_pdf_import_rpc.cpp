@@ -146,14 +146,17 @@ TEST_CASE("pdfImport adds the pictures the import takes to the new book", "[pdf]
     const auto page = json::parse(
         test::http_get(f.server->port(), "/pdf-import/" + token + "/page/1", f.auth()).body);
     const std::string id = page["pictures"][0]["id"];
-    const json added = f.ws.call(
+    // A job (D32): the core goes on serving while the reader gives the pictures.
+    const json done = f.wait_job(f.ws.call(
         "pdfImport.addPictures",
         json{{"token", token},
              {"docId", doc_id},
              {"pictures", json::array({{{"id", id}, {"page", 1}, {"suggestedId", "fig"}}})}},
-        30000);
-    REQUIRE(added["result"]["added"].size() == 1);
-    CHECK(added["result"]["added"][0]["binary"]["contentType"] == "image/jpeg");
+        30000)["result"]["jobId"]);
+    REQUIRE(done["event"] == "job.done");
+    const json& added = done["result"];
+    REQUIRE(added["added"].size() == 1);
+    CHECK(added["added"][0]["binary"]["contentType"] == "image/jpeg");
     f.ws.call("pdfImport.end", json{{"token", token}});
 }
 

@@ -286,7 +286,7 @@ export async function importPdf(
       wanted = wanted.slice(0, MAX_PICTURES);
     }
     if (wanted.length > 0) {
-      const answer = await rpc.call('pdfImport.addPictures', {
+      const answer = await rpc.runJob('pdfImport.addPictures', {
         token,
         docId,
         pictures: wanted.map((w) => ({ id: w.readerId, page: w.page, suggestedId: w.binaryId })),

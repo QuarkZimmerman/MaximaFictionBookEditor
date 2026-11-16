@@ -9,7 +9,8 @@
 //   pdfImport.inspect {token} -> {opened, pages} | {needsPassword} | {ownerPassword}; 1113 {reason}
 //   pdfImport.password {token, password} -> as inspect, {wrongPassword} after a wrong one
 //   pdfImport.read {token} -> job: progress per page -> {pages, kinds, garbledShare}; 1113 {reason,
-//   pages?} pdfImport.addPictures {token, docId, pictures: [{id, page, suggestedId?}]} -> {added:
+//   pages?} pdfImport.addPictures {token, docId, pictures: [{id, page, suggestedId?}]} -> job
+//   {added:
 //   [{id, binary}],
 //        failed: [id]}
 //   pdfImport.end {token} -> {}
@@ -296,33 +297,47 @@ void register_pdf_import_handlers(rpc::RpcRouter& router, Services& services) {
         });
         return json{{"jobId", job_id}};
     });
-    router.add_method("pdfImport.addPictures", [&services](const json& params, rpc::RpcContext&) {
-        auto session = find(services, params);
-        session::DocumentSession& doc =
-            services.documents.require(rpc::params::string(params, "docId"));
-        json added = json::array(), not_added = json::array();
-        std::lock_guard lock(session->mutex());
-        for (const auto& wanted : params.value("pictures", json::array())) {
-            const std::string id = wanted.value("id", "");
-            const json event = session->picture(id, wanted.value("page", 0));
-            if (event.value("event", "") != "picture") {
-                not_added.push_back(id);
-                continue;
-            }
-            std::ifstream in(session->folder() / event.value("file", ""), std::ios::binary);
-            std::string bytes{std::istreambuf_iterator<char>(in), {}};
-            const std::string suggested = wanted.value("suggestedId", "picture");
-            const std::string binary_id =
-                doc.binaries->unique_id(suggested.empty() ? "picture" : suggested);
-            const model::BinaryMeta meta = doc.binaries->put(
-                binary_id, event.value("contentType", "image/jpeg"), std::move(bytes));
-            added.push_back({{"id", id}, {"binary", model::to_json(meta)}});
-        }
-        if (doc.snapshot) {
-            sync_binaries(*doc.snapshot, *doc.binaries);
-        }
-        return json{{"added", added}, {"failed", not_added}};
-    });
+    router.add_method(
+        "pdfImport.addPictures", [&services](const json& params, rpc::RpcContext& ctx) {
+            auto session = find(services, params);
+            const std::string doc_id = rpc::params::string(params, "docId");
+            services.documents.require(doc_id);
+            const json pictures = params.value("pictures", json::array());
+            // A job: the reader is asked for each picture in turn, which takes long in a book of
+            // many - the core serves every other call meanwhile (D32's library run: the loop
+            // waited, and the next import with it).
+            const std::string job_id = ctx.jobs.start([session, &services, doc_id,
+                                                       pictures](rpc::JobControl& control) -> json {
+                session::DocumentSession& doc = services.documents.require(doc_id);
+                json added = json::array(), not_added = json::array();
+                std::lock_guard lock(session->mutex());
+                const int total = static_cast<int>(pictures.size());
+                int done = 0;
+                for (const auto& wanted : pictures) {
+                    control.check_cancelled();
+                    const std::string id = wanted.value("id", "");
+                    const json event = session->picture(id, wanted.value("page", 0));
+                    control.progress("pictures", ++done, total);
+                    if (event.value("event", "") != "picture") {
+                        not_added.push_back(id);
+                        continue;
+                    }
+                    std::ifstream in(session->folder() / event.value("file", ""), std::ios::binary);
+                    std::string bytes{std::istreambuf_iterator<char>(in), {}};
+                    const std::string suggested = wanted.value("suggestedId", "picture");
+                    const std::string binary_id =
+                        doc.binaries->unique_id(suggested.empty() ? "picture" : suggested);
+                    const model::BinaryMeta meta = doc.binaries->put(
+                        binary_id, event.value("contentType", "image/jpeg"), std::move(bytes));
+                    added.push_back({{"id", id}, {"binary", model::to_json(meta)}});
+                }
+                if (doc.snapshot) {
+                    sync_binaries(*doc.snapshot, *doc.binaries);
+                }
+                return json{{"added", added}, {"failed", not_added}};
+            });
+            return json{{"jobId", job_id}};
+        });
     router.add_method("pdfImport.end", [&services](const json& params, rpc::RpcContext&) {
         const std::string token = rpc::params::string(params, "token");
         std::shared_ptr<pdf_import::Session> session;

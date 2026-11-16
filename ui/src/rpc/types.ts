@@ -1442,7 +1442,8 @@ export interface RpcMethods {
       docId: string;
       pictures: { id: string; page: number; suggestedId?: string }[];
     };
-    result: { added: { id: string; binary: BinaryMeta }[]; failed: string[] };
+    /** A job (D32): the reader gives the pictures one by one. */
+    result: MaybeJob<{ added: { id: string; binary: BinaryMeta }[]; failed: string[] }>;
   };
   'pdfImport.end': { params: { token: string }; result: Record<string, never> };
   /** Feature 016 (D22, D23): an FBD of the archive, and the editor's record, as files 004's reader takes. */
