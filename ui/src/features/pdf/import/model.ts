@@ -1,0 +1,143 @@
+/**
+ * Feature 016 (contracts/page-model.md): what the reader process writes and the interface reads - the
+ * document (metadata, the editor's record, bookmarks, the structure of a tagged PDF) and each page (words,
+ * fonts, links, pictures).
+ */
+
+/** A marked-content run of a tagged PDF's structure, with its text and how it is drawn. */
+export interface StructLeaf {
+  page: number;
+  mcid: number;
+  text: string;
+  bold?: boolean;
+  italic?: boolean;
+  mono?: boolean;
+  /** The mean size of its characters, in points. */
+  size?: number;
+  /** Its highest character's top, in points from the page's top. */
+  top?: number;
+}
+
+/** An object of the structure (a link annotation), with the link's target. */
+export interface StructObjr {
+  objr: true;
+  page: number;
+  uri?: string;
+  dest?: string;
+  destPage?: number;
+}
+
+export interface StructElement {
+  type: string;
+  lang?: string;
+  alt?: string;
+  actualText?: string;
+  attributes?: Record<string, unknown>;
+  kids: StructNode[];
+}
+
+export type StructNode = StructElement | StructLeaf | StructObjr;
+
+export const isElement = (node: StructNode): node is StructElement => 'type' in node;
+export const isLeaf = (node: StructNode): node is StructLeaf => 'mcid' in node;
+export const isObjr = (node: StructNode): node is StructObjr => 'objr' in node;
+
+export interface OutlineNode {
+  title: string;
+  page?: number;
+  y?: number;
+  dest?: string;
+  uri?: string;
+  kids: OutlineNode[];
+}
+
+export interface PdfDocumentModel {
+  v: number;
+  pages: number;
+  version?: string;
+  encrypted?: boolean;
+  copyAllowed?: boolean;
+  metadata: { info?: Record<string, string>; xmp?: string };
+  /** The editor's record of its own PDFs (014 R10): the description and the hints, as written. */
+  record?: { version: number; description: string; hints: string };
+  outline: OutlineNode[];
+  forms: { page: number; box: number[]; value: string }[];
+  dropped?: { comments?: number; attachments?: number; media?: number; scripts?: number };
+  structure?: StructElement[];
+  orphans?: StructLeaf[];
+}
+
+export interface PdfWord {
+  t: string;
+  box: [number, number, number, number];
+  f: string;
+  s: number;
+  c: string;
+  base: number;
+}
+
+export interface PdfFont {
+  id: string;
+  name: string;
+  bold: boolean;
+  italic: boolean;
+  mono: boolean;
+}
+
+export interface PdfLink {
+  box: [number, number, number, number];
+  uri?: string;
+  page?: number;
+  y?: number;
+  dest?: string;
+}
+
+export interface PdfPicture {
+  id: string;
+  box: [number, number, number, number];
+  w: number;
+  h: number;
+  jpeg: boolean;
+}
+
+export interface PdfPageModel {
+  n: number;
+  width: number;
+  height: number;
+  rotation: number;
+  kind: string;
+  fonts: PdfFont[];
+  words: PdfWord[];
+  links: PdfLink[];
+  pictures: PdfPicture[];
+}
+
+/** The editor's hints (014 contracts/pdf-file.md `mfbe:fb2Hints`, version 1). */
+export interface HintsV1 {
+  v: number;
+  blocks: number;
+  generated: {
+    cover: number | null;
+    titlePage: number;
+    annotationPage: number | null;
+    historyPage: number | null;
+    words?: string[];
+  };
+  bodies: { name: string; page: number }[];
+  sections: [number, number][];
+  kinds: [number, number, string][];
+  styles: (number | string)[][];
+  marks: [number, number, number, string][];
+  langs: [number, number, number, string][];
+  ids: [number, string][];
+  tables: [number, number, string][];
+  pictures: {
+    page: number;
+    box: number[];
+    binaryId: string;
+    contentType: string;
+    inline: boolean;
+  }[];
+  stylesheets: { type: string; text: string }[];
+  anchors: Record<string, string>;
+}

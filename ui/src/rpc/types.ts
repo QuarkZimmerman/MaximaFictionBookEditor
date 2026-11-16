@@ -1526,7 +1526,7 @@ export interface RpcMethods {
    * (SC-010): text of 2 MB or more is read as a job, with its progress, as `doc.open` reads a big book.
    */
   'doc.newFromXml': {
-    params: { xml: string; origin?: { kind: 'markdown' | 'epub'; path: string } };
+    params: { xml: string; origin?: { kind: 'markdown' | 'epub' | 'pdf'; path: string } };
     result: MaybeJob<{ document: Document & LoadReport; warnings: ValidationIssue[] }>;
   };
   /** Feature 010 (US1, test hooks only): the core answers the next connection's requests after `ms`. */
