@@ -31,8 +31,6 @@ interface Block {
   /** The hints' path: containers and the generic element ('' for a paragraph). */
   kind: string;
   part: Part | null;
-  /** The caption under a block picture (exports from 0.0.12 on). */
-  caption?: Part;
   page: number;
 }
 
@@ -48,24 +46,36 @@ function kindsOf(hints: HintsV1): string[] {
   return kinds;
 }
 
-/** Spaces where a run starts a new line, as the book's text has them (the PDF draws no space there). */
+/**
+ * The spaces between runs, which the PDF does not draw: where a run begins a new line, or stands apart from
+ * the run before on its line (an inline picture too); never before closing punctuation, never in a sub- or
+ * superscript's step. A soft hyphen at a line's end is dropped and the word joined.
+ */
 export function spaceRuns(runs: readonly Run[]): Run[] {
   const out = runs.map((run) => ({ ...run }));
   let previous: Run | null = null;
   for (const run of out) {
-    if (!run.text) continue;
-    if (previous && !/\s$/.test(previous.text) && !/^\s/.test(run.text)) {
-      // A sub- or superscript moves a little; a new line moves a line's height. Closing punctuation
-      // never follows a space (a line may wrap after a link, before its full stop).
+    if (!run.text && !run.picture) continue;
+    if (previous) {
       const size = Math.max(run.size ?? 0, previous.size ?? 0) || 10;
+      const known = run.left !== undefined && previous.right !== undefined;
       const newLine =
         run.page !== previous.page ||
-        (run.top !== undefined &&
+        (!run.picture &&
+          !previous.picture &&
+          run.top !== undefined &&
           previous.top !== undefined &&
-          run.top - previous.top > 0.8 * size);
-      if (newLine && !/^[.,;:!?)\]}»”’…%]/u.test(run.text)) {
-        if (previous.text.endsWith('\u00ad')) previous.text = previous.text.slice(0, -1);
-        else previous.text += ' ';
+          run.top - previous.top > 0.8 * size) ||
+        (known && run.left! < previous.right! - 2 * size);
+      const apart = known && run.left! - previous.right! > 0.15 * size;
+      const before = !previous.picture && /\s$/.test(previous.text);
+      const after = !run.picture && /^\s/.test(run.text);
+      const closing = !run.picture && /^[.,;:!?)\]}»”’…%]/u.test(run.text);
+      if ((newLine || apart) && !before && !after && !closing) {
+        if (!previous.picture) {
+          if (previous.text.endsWith('\u00ad')) previous.text = previous.text.slice(0, -1);
+          else previous.text += ' ';
+        } else if (!run.picture) run.text = ` ${run.text}`;
       }
     }
     previous = run;
@@ -162,8 +172,7 @@ export function convertOurs(
         : {}),
     }));
   let needed = 0;
-  for (const kind of kinds)
-    needed += kind.endsWith('empty-line') ? 0 : kind.endsWith('picture caption') ? 2 : 1;
+  for (const kind of kinds) needed += kind.endsWith('empty-line') ? 0 : 1;
   const parts = joinSplit(spaced, needed);
 
   // The blocks, numbered as the paginator numbered them.
@@ -178,8 +187,6 @@ export function convertOurs(
     }
     const part = parts[cursor++] ?? null;
     const block: Block = { b, kind, part, page: part?.page ?? lastPage };
-    if (kind.endsWith('picture caption') && parts[cursor]?.kind === 'p')
-      block.caption = parts[cursor++];
     lastPage = block.page;
     blocks.push(block);
   }
@@ -311,7 +318,7 @@ export function convertOurs(
     if (!id) return '';
     counts.pictures++;
     const alt = block.part?.alt ? ` alt="${attr(block.part.alt)}"` : '';
-    const caption = block.caption ? squeeze(partText(block.caption.runs)) : '';
+    const caption = block.part?.caption ? squeeze(partText(block.part.caption)) : '';
     const title = caption ? ` title="${attr(caption)}"` : '';
     const own = idAt.get(block.b);
     return `<image l:href="#${attr(id)}"${alt}${title}${own ? ` id="${attr(own)}"` : ''}/>`;

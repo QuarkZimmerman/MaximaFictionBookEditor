@@ -64,7 +64,7 @@ describe("the editor's own PDF (US1)", () => {
 
   it('gives back the inline marks where the hints put them', () => {
     expect(xml).toContain(
-      '<p id="p1">Plain, <strong>strong</strong>, <emphasis>emphasis</emphasis>, <strikethrough>struck</strikethrough>, H<sub>2</sub>O, x<sup>2</sup>, <code>code()</code>, <style name="smallcaps">small caps</style> and an inline <image l:href="#pic-png" alt="inline"/>picture.</p>',
+      '<p id="p1">Plain, <strong>strong</strong>, <emphasis>emphasis</emphasis>, <strikethrough>struck</strikethrough>, H<sub>2</sub>O, x<sup>2</sup>, <code>code()</code>, <style name="smallcaps">small caps</style> and an inline <image l:href="#pic-png" alt="inline"/> picture.</p>',
     );
     expect(xml).toContain('<a l:href="#n1" type="note">[1]</a>');
     expect(xml).toContain(
@@ -93,15 +93,18 @@ describe("the editor's own PDF (US1)", () => {
 });
 
 describe('the rules under it', () => {
-  it('puts a space where a run begins a new line, not before a sub- or superscript or a full stop', () => {
+  it('puts the spaces the PDF does not draw: at a new line, between runs apart, around a picture', () => {
     const runs = spaceRuns([
-      { text: 'a web page', page: 1, top: 100, size: 10 },
-      { text: '.', page: 1, top: 115, size: 10 },
-      { text: 'H', page: 1, top: 130, size: 10 },
-      { text: '2', page: 1, top: 133, size: 7 },
-      { text: 'next', page: 1, top: 148, size: 10 },
+      { text: 'a web page', page: 1, top: 100, size: 10, left: 40, right: 100 },
+      { text: '.', page: 1, top: 115, size: 10, left: 40, right: 43 },
+      { text: 'H', page: 1, top: 130, size: 10, left: 40, right: 47 },
+      { text: '2', page: 1, top: 133, size: 7, left: 47, right: 51 },
+      { text: 'O, next', page: 1, top: 130, size: 10, left: 51, right: 90 },
+      { text: 'inline', page: 1, top: 145, size: 10, left: 40, right: 70 },
+      { text: '', page: 1, picture: { alt: 'x' }, top: 150, left: 120, right: 126 },
+      { text: 'picture.', page: 1, top: 160, size: 10, left: 40, right: 80 },
     ]);
-    expect(runs.map((r) => r.text).join('|')).toBe('a web page|. |H|2 |next');
+    expect(runs.map((r) => r.text).join('|')).toBe('a web page|. |H|2|O, next |inline || picture.');
   });
 
   it('drops the bold or italic every run of a block has, keeping the rest', () => {

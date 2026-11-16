@@ -16,6 +16,9 @@ export interface StructLeaf {
   size?: number;
   /** Its highest character's top, in points from the page's top. */
   top?: number;
+  /** Where it begins and ends on its line (a figure's picture too), in points. */
+  left?: number;
+  right?: number;
 }
 
 /** An object of the structure (a link annotation), with the link's target. */

@@ -26,6 +26,9 @@ export interface Run {
   lang?: string;
   size?: number;
   top?: number;
+  /** Where the run begins and ends on its line, in points: the spaces between runs are not drawn. */
+  left?: number;
+  right?: number;
 }
 
 export interface TableCell {
@@ -44,6 +47,8 @@ export interface Part {
   alt?: string;
   rows?: TableCell[][];
   lang?: string;
+  /** A picture's caption: its title, printed under it (D10; tagged as text right after the figure). */
+  caption?: Run[];
 }
 
 export interface Footnote {
@@ -112,6 +117,8 @@ export function flatten(
     ...(context.lang ? { lang: context.lang } : {}),
     ...(leaf.size !== undefined ? { size: leaf.size } : {}),
     ...(leaf.top !== undefined ? { top: leaf.top } : {}),
+    ...(leaf.left !== undefined ? { left: leaf.left } : {}),
+    ...(leaf.right !== undefined ? { right: leaf.right } : {}),
   });
 
   const runsOf = (node: StructNode, list: Run[], context: Partial<Run>): void => {
@@ -138,7 +145,15 @@ export function flatten(
         break;
       case 'Figure': {
         const page = firstPage(node);
-        list.push({ text: '', page, picture: { alt: node.alt ?? '' } });
+        const leaf = node.kids.find(isLeaf);
+        list.push({
+          text: '',
+          page,
+          picture: { alt: node.alt ?? '' },
+          ...(leaf?.top !== undefined ? { top: leaf.top } : {}),
+          ...(leaf?.left !== undefined ? { left: leaf.left } : {}),
+          ...(leaf?.right !== undefined ? { right: leaf.right } : {}),
+        });
         return;
       }
       default:
@@ -264,9 +279,27 @@ export function flatten(
       }
       return;
     }
-    for (const kid of element.kids) {
-      if (isElement(kid)) block(kid);
-    }
+    const kids = element.kids.filter(isElement);
+    kids.forEach((kid, index) => {
+      const previous = kids[index - 1];
+      const last = parts[parts.length - 1];
+      // A picture's caption: text, not a paragraph, right after the figure it belongs to.
+      if (
+        previous?.type === 'Figure' &&
+        last?.kind === 'figure' &&
+        !last.caption &&
+        !HEADING.test(kid.type) &&
+        !['P', 'Figure', 'Table', 'Link', 'L'].includes(kid.type) &&
+        textOf(kid).trim() &&
+        !footnoteLabel(kid)
+      ) {
+        const runs: Run[] = [];
+        runsOf(kid, runs, {});
+        last.caption = runs;
+        return;
+      }
+      block(kid);
+    });
   };
 
   for (const element of structure) block(element);

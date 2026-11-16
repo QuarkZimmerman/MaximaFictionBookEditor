@@ -110,7 +110,7 @@ export async function importPdf(
     check();
     const opened = await rpc.runJob(
       'doc.newFromXml',
-      { xml, origin: { kind: 'pdf', path: originPath } },
+      { xml, origin: { kind: 'pdf', path: originPath }, keepDetails: !!document.record },
       {
         onProgress: (progress) => {
           if (progress.total > 0)

@@ -13,6 +13,7 @@
 #include <StructTreeRoot.h>
 #include <UTF.h>
 #include <XRef.h>
+#include <algorithm>
 #include <cmath>
 #include <map>
 #include <set>
@@ -47,8 +48,11 @@ public:
     /// Per marked-content id: characters drawn bold, italic, monospaced, and all characters.
     struct Style {
         int bold = 0, italic = 0, mono = 0, all = 0;
-        double size = 0;   // the sum of the characters' sizes, for their mean
-        double top = 1e9;  // the highest character's top, in points from the page's top
+        double size = 0;    // the sum of the characters' sizes, for their mean
+        double top = 1e9;   // the highest character's top, in points from the page's top
+        double left = 1e9;  // where the run begins and ends on its line, in points
+        double right = -1e9;
+        bool image = false;  // a picture drawn inside it (an inline figure)
     };
     std::map<int, Style> styles;
 
@@ -56,6 +60,7 @@ public:
     bool useDrawChar() override { return true; }
     bool interpretType3Chars() override { return false; }
     bool needCharCount() override { return false; }
+    bool needNonText() override { return true; }
 
     void beginMarkedContent(const char*, Dict* properties) override {
         int mcid = stack_.empty() ? -1 : stack_.back();
@@ -66,6 +71,35 @@ public:
             }
         }
         stack_.push_back(mcid);
+    }
+    // A picture drawn inside a marked-content run (an inline figure): its box, for the spaces
+    // around it.
+    void drawImage(GfxState* state, Object*, Stream*, int, int, GfxImageColorMap*, bool, const int*,
+                   bool) override {
+        picture(state);
+    }
+    void drawSoftMaskedImage(GfxState* state, Object*, Stream*, int, int, GfxImageColorMap*, bool,
+                             Stream*, int, int, GfxImageColorMap*, bool) override {
+        picture(state);
+    }
+    void drawMaskedImage(GfxState* state, Object*, Stream*, int, int, GfxImageColorMap*, bool,
+                         Stream*, int, int, bool, bool) override {
+        picture(state);
+    }
+    void picture(GfxState* state) {
+        if (stack_.empty() || stack_.back() < 0) {
+            return;
+        }
+        double xs[4], ys[4];
+        const double corners[4][2] = {{0, 0}, {1, 0}, {0, 1}, {1, 1}};
+        for (int i = 0; i < 4; ++i) {
+            state->transform(corners[i][0], corners[i][1], &xs[i], &ys[i]);
+        }
+        Style& style = styles[stack_.back()];
+        style.image = true;
+        style.left = std::min(style.left, *std::min_element(xs, xs + 4));
+        style.right = std::max(style.right, *std::max_element(xs, xs + 4));
+        style.top = std::min(style.top, *std::min_element(ys, ys + 4));
     }
     void endMarkedContent(GfxState*) override {
         if (!stack_.empty()) {
@@ -103,6 +137,8 @@ public:
             style.all += 1;
             style.size += size;
             style.top = std::min(style.top, ty - size);
+            style.left = std::min(style.left, tx);
+            style.right = std::max(style.right, tx + tdx);
             style.bold += font->isBold() || has("Bold") || has("Black") || has("Heavy") ? 1 : 0;
             style.italic += font->isItalic() || has("Italic") || has("Oblique") ? 1 : 0;
             style.mono += font->isFixedWidth() || has("Mono") || has("Courier") ? 1 : 0;
@@ -154,11 +190,16 @@ nlohmann::json value_of(const Object* value) {
 
 /// Most of a run's characters bold, italic or monospaced: the run is (DP-5).
 void mark_style(nlohmann::json& leaf, const McidText::Style& style) {
+    if (style.all == 0 && !style.image) {
+        return;
+    }
+    leaf["top"] = std::round(style.top * 10) / 10;
+    leaf["left"] = std::round(style.left * 10) / 10;
+    leaf["right"] = std::round(style.right * 10) / 10;
     if (style.all == 0) {
         return;
     }
     leaf["size"] = std::round(style.size / style.all * 10) / 10;
-    leaf["top"] = std::round(style.top * 10) / 10;
     if (style.bold * 2 > style.all) {
         leaf["bold"] = true;
     }
