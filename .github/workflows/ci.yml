@@ -756,6 +756,18 @@ jobs:
           MFBE_SMOKE_PDF: "1"
           MFBE_SMOKE_SCREENSHOT: build/shell-smoke-pdf.png
 
+      - name: "Shell smoke: a PDF imported through the shell, then File > Exit (feature 016, T064)"
+        # The real shell imports a generated PDF through its GTK Open dialog (xdotool) with its own
+        # reader process; after File > Exit the shell and the reader must end within 20 s (D30).
+        # Linux only, as the shell smoke is.
+        if: runner.os == 'Linux'
+        run: tools/shell-smoke.sh
+        env:
+          MFBE_APP_BIN: ${{ github.workspace }}/build/${{ matrix.preset }}/bin/mfbe
+          MFBE_SMOKE_REAL_UI: "1"
+          MFBE_SMOKE_PDF_IMPORT: "1"
+          MFBE_SMOKE_SCREENSHOT: build/shell-smoke-pdf-import.png
+
       - name: "Shell smoke: the user's own genres, scripts and template (feature 015)"
         # The user-folder fixtures in the per-user data folder of an isolated home: the genre file's
         # genre in Choose a genre, the script in the Scripts menu, the misnamed genre file listed in
