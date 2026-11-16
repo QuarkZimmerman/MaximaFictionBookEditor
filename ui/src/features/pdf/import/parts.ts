@@ -392,7 +392,23 @@ export function flatten(
         if (line && line[0].page === orphan.page && sameLine(line[0], orphan)) line.push(orphan);
         else lines.push([orphan]);
       }
+      const next = sortedLeaves[slot];
       lines.forEach((line, index) => {
+        // More lines than empty elements: one that ends on the line where the next run begins is that run's
+        // paragraph's first words (D32: "Постой!" after a paragraph in italic); others join the last element.
+        const last = line[line.length - 1];
+        if (
+          index >= empties.length &&
+          next &&
+          next.page === last.page &&
+          level(last.endTop ?? last.top, next.run.startTop ?? next.run.top)
+        ) {
+          const runs = line.map((orphan) =>
+            leafRun(orphan, next.run.lang ? { lang: next.run.lang } : {}),
+          );
+          next.list.splice(next.list.indexOf(next.run), 0, ...runs);
+          return;
+        }
         const part = empties[Math.min(index, empties.length - 1)];
         if (!part.page) part.page = line[0].page;
         for (const orphan of line)
