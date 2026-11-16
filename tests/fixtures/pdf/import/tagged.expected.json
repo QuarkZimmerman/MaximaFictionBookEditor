@@ -1,0 +1,11 @@
+{
+ "kinds": [
+  "text"
+ ],
+ "tagged": true,
+ "contains": [
+  "Heading",
+  "item",
+  "Cell"
+ ]
+}

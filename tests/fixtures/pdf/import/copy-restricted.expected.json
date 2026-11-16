@@ -1,0 +1,11 @@
+{
+ "kinds": [
+  "text"
+ ],
+ "contains": [
+  "harbour"
+ ],
+ "userPassword": "",
+ "ownerPassword": "owner",
+ "copyForbidden": true
+}
