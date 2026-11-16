@@ -203,12 +203,12 @@ int main(int argc, char** argv) {
         if (text_pages == 0) {
             return refuse("noText", pages);
         }
-        if (showing_text > 0) {
-            return refuse("pictureOfText", showing_text);
-        }
         if (all.tokens >= mfbe::pdf_reader::kGarbledDocumentTokens &&
             share < mfbe::pdf_reader::kGarbledShare) {
             return refuse("garbled", garbled > 0 ? garbled : text_pages);
+        }
+        if (showing_text > 0) {
+            return refuse("pictureOfText", showing_text);
         }
     }
     char done[64];

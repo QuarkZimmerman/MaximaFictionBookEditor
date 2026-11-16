@@ -10,6 +10,7 @@
 #include <SplashOutputDev.h>
 #include <algorithm>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <splash/SplashBitmap.h>
@@ -33,11 +34,14 @@ Look look_of(PDFDoc& doc, int n) {
     const int width = bitmap->getWidth();
     const int height = bitmap->getHeight();
     const unsigned char* data = bitmap->getDataPtr();
+    // The page's edges - a scan's shadows, a frame - are left out of the measure.
+    const int left = width / 20;
+    const int right = width - width / 20;
     std::vector<int> rows(static_cast<std::size_t>(height), 0);
     long dark = 0;
     for (int y = 0; y < height; ++y) {
         const unsigned char* row = data + static_cast<std::size_t>(y) * bitmap->getRowSize();
-        for (int x = 0; x < width; ++x) {
+        for (int x = left; x < right; ++x) {
             if (row[x] < 128) {
                 ++rows[static_cast<std::size_t>(y)];
             }
@@ -47,34 +51,63 @@ Look look_of(PDFDoc& doc, int n) {
     if (dark < static_cast<long>(width) * height / 200) {
         return Look::blank;
     }
-    // Bands of rows with ink, separated by rows without: lines of print repeat at a steady spacing.
-    std::vector<int> starts;
+    // Bands of rows with ink, separated by rows without, and how far each reaches across the page.
+    struct Band {
+        int top = 0;
+        int from = 0;
+        int to = 0;
+    };
+    std::vector<Band> bands;
     bool inside = false;
     const int threshold = std::max(1, width / 200);
     for (int y = 0; y < height; ++y) {
         const bool inked = rows[static_cast<std::size_t>(y)] > threshold;
         if (inked && !inside) {
-            starts.push_back(y);
+            bands.push_back({y, right, left});
+        }
+        if (inked) {
+            const unsigned char* row = data + static_cast<std::size_t>(y) * bitmap->getRowSize();
+            Band& band = bands.back();
+            for (int x = left; x < right; ++x) {
+                if (row[x] < 128) {
+                    band.from = std::min(band.from, x);
+                    band.to = std::max(band.to, x);
+                }
+            }
         }
         inside = inked;
     }
-    if (starts.size() < 6) {
-        return Look::picture;
-    }
-    std::vector<int> gaps;
-    for (std::size_t i = 1; i < starts.size(); ++i) {
-        gaps.push_back(starts[i] - starts[i - 1]);
-    }
-    std::vector<int> sorted = gaps;
-    std::sort(sorted.begin(), sorted.end());
-    const int median = sorted[sorted.size() / 2];
-    int steady = 0;
-    for (int gap : gaps) {
-        if (median > 0 && gap >= median * 0.7 && gap <= median * 1.3) {
-            ++steady;
+    // Printed text: at least six lines one after another at a steady spacing, most of them reaching
+    // as far as the longest - a column of text. A title page's short centred lines and spaced
+    // blocks are not.
+    std::size_t best = 0;
+    for (std::size_t first = 0; first + 1 < bands.size(); ++first) {
+        std::size_t last = first + 1;
+        while (last + 1 < bands.size()) {
+            const int gap = bands[last].top - bands[last - 1].top;
+            const int next = bands[last + 1].top - bands[last].top;
+            if (gap < 4 || std::abs(next - gap) > 0.3 * std::max(next, gap)) {
+                break;
+            }
+            ++last;
+        }
+        const std::size_t lines = last - first + 1;
+        if (lines < 6 || lines <= best) {
+            continue;
+        }
+        int longest = 0;
+        for (std::size_t i = first; i <= last; ++i) {
+            longest = std::max(longest, bands[i].to - bands[i].from);
+        }
+        std::size_t full = 0;
+        for (std::size_t i = first; i <= last; ++i) {
+            full += bands[i].to - bands[i].from >= longest * 0.7 ? 1 : 0;
+        }
+        if (full * 10 >= lines * 6) {
+            best = lines;
         }
     }
-    return steady >= 5 && median >= 4 ? Look::text : Look::picture;
+    return best >= 6 ? Look::text : Look::picture;
 }
 
 }  // namespace
