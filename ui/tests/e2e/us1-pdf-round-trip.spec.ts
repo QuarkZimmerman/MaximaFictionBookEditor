@@ -43,7 +43,29 @@ const ALLOWED_LINES: RegExp[] = [
   /^a picture the original does not have came in$/,
   // C1: the notes' title when no note was printed after the text.
   /^\s*- body name="(notes|comments)"\/title\/p:/,
+  // C5: a note without a title of its own gets its printed label as its title.
+  /^\s*\+ body name="(notes|comments)"\/section\/title\/p:/,
 ];
+
+/**
+ * C5, where a link shows its note's text: the note's printed label, which it now begins with as its title, is
+ * taken from the start of that text (as often as it stands there), and the text is cut short, since the
+ * comparison shows its first characters only.
+ */
+function noteTexts(line: string): string {
+  return line.replace(
+    /\[a note -> "([^"]*)"\]([\s\S]*?)\[\/a\]/g,
+    (_all, target: string, inner: string) => {
+      // The link's text without the marks around it (a label such as "[1]" stays).
+      const label = inner
+        .replace(/\[\/?(?:strong|emphasis|style|strikethrough|sub|sup|code|a)\b[^\]]*\]/g, '')
+        .trim();
+      let text = target;
+      while (label && text.startsWith(`${label} `)) text = text.slice(label.length + 1);
+      return `[a note -> "${text.slice(0, 24)}"]${inner}[/a]`;
+    },
+  );
+}
 
 /**
  * C3: the text as the PDF holds it, applied to both books before they are compared - no soft hyphens and no
@@ -88,7 +110,7 @@ export function outsideD6(differences: readonly string[]): string[] {
     if (group.length === 0) return;
     const [heading, ...lines] = group;
     const norm = (line: string): string =>
-      NORMALISE.reduce((text, [re, by]) => text.replace(re, by), line.slice(4));
+      noteTexts(NORMALISE.reduce((text, [re, by]) => text.replace(re, by), line.slice(4)));
     const kept = lines.filter((line) => !ALLOWED_LINES.some((re) => re.test(line)));
     const minus = kept
       .filter((l) => l.startsWith('  - '))
