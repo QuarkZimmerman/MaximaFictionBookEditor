@@ -71,3 +71,18 @@ describe('footnotes (D19)', () => {
     expect(two.querySelector('.mfbe-footnote-label')!.textContent).toBe('[2]');
   });
 });
+
+describe('grouped notes (feature 016, D10)', () => {
+  it('takes the notes inside groups of the notes body, not the groups', () => {
+    const note = (id: string, text: string) => fb2('section', { id }, fb2('p', {}, text));
+    const body = fb2(
+      'body',
+      { name: 'notes' },
+      fb2('section', { id: 'footnotes' }, fb2('title', {}, fb2('p', {}, 'Footnotes')), note('f1', 'A footnote.')),
+      fb2('section', {}, fb2('title', {}, fb2('p', {}, 'Comments')), note('c1', 'A comment.'), note('c2', 'Another.')),
+      note('n9', 'A note at the top.'),
+    );
+    const root = fb2('FictionBook', {}, fb2('body', {}, fb2('section', {}, fb2('p', {}, 'Text'))), body);
+    expect([...noteSections(root).keys()].sort()).toEqual(['c1', 'c2', 'f1', 'n9']);
+  });
+});

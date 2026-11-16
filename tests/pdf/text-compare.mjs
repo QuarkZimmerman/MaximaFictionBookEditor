@@ -55,7 +55,9 @@ export async function pdfPageTexts(bytes) {
 
 const SOFT_HYPHEN = /\u00ad/g;
 // Whitespace and the bidirectional marks (pdf.js drops those; the core's own check ignores them too).
-const SPACE = /[\s\u00a0\u2000-\u200f\u202a-\u202f\u205f\u2066-\u2069\u3000\ufeff]+/g;
+// Feature 016 (D10): with the default-ignorable characters core/src/pdf/check.cpp leaves out.
+const SPACE =
+  /[\s\u00a0\u034f\u17b4\u17b5\u180b-\u180f\u2000-\u200f\u202a-\u202f\u205f-\u2064\u2066-\u2069\u3000\ufe00-\ufe0f\ufeff]+/g;
 const squeeze = (s) =>
   s.normalize("NFC").replace(SOFT_HYPHEN, "").replace(SPACE, "");
 
