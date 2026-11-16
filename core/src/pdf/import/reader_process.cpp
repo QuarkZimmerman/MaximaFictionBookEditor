@@ -1,0 +1,407 @@
+// Feature 016 (PD2, DP-2 to DP-4): see reader_process.hpp.
+#include "pdf/import/reader_process.hpp"
+
+#include "mfbe/utf8_paths.hpp"
+
+#include <cstdlib>
+#include <cstring>
+
+#ifdef _WIN32
+// clang-format off: windows.h must come first
+#include <windows.h>
+#include <psapi.h>
+// clang-format on
+#else
+#include <fcntl.h>
+#include <poll.h>
+#include <signal.h>
+#include <sys/resource.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#ifdef __linux__
+#include <fstream>
+#include <sys/prctl.h>
+#endif
+#ifdef __APPLE__
+#include <libproc.h>
+#include <mach-o/dyld.h>
+#endif
+#endif
+
+namespace mfbe::pdf_import {
+
+namespace {
+
+std::vector<std::string> arguments(const ReaderOptions& o) {
+    std::vector<std::string> args{platform::utf8_from_path(o.reader), "--pdf",
+                                  platform::utf8_from_path(o.pdf),    "--out",
+                                  platform::utf8_from_path(o.folder), "--max-memory",
+                                  std::to_string(o.max_memory_mb),    "--quality",
+                                  std::to_string(o.quality)};
+    if (!o.fonts.empty()) {
+        args.push_back("--fonts");
+        args.push_back(platform::utf8_from_path(o.fonts));
+    }
+    args.insert(args.end(), o.extra_args.begin(), o.extra_args.end());
+    return args;
+}
+
+std::filesystem::path own_executable() {
+#ifdef _WIN32
+    std::wstring buffer(32768, L'\0');
+    const DWORD n = GetModuleFileNameW(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
+    buffer.resize(n);
+    return std::filesystem::path(buffer);
+#elif defined(__APPLE__)
+    char buffer[4096];
+    uint32_t size = sizeof buffer;
+    if (_NSGetExecutablePath(buffer, &size) == 0) {
+        return platform::path_from_utf8(buffer);
+    }
+    return {};
+#else
+    std::error_code ec;
+    return std::filesystem::read_symlink("/proc/self/exe", ec);
+#endif
+}
+
+}  // namespace
+
+std::filesystem::path find_reader() {
+#ifdef _WIN32
+    const char* name = "mfbe-pdf-reader.exe";
+#else
+    const char* name = "mfbe-pdf-reader";
+#endif
+    std::vector<std::filesystem::path> candidates;
+    if (const char* env = std::getenv("MFBE_PDF_READER"); env != nullptr && *env != '\0') {
+        candidates.push_back(platform::path_from_utf8(env));
+    }
+    const std::filesystem::path dir = own_executable().parent_path();
+    if (!dir.empty()) {
+        candidates.push_back(dir / name);
+        candidates.push_back(dir.parent_path() / "Helpers" / name);
+    }
+#ifdef MFBE_PDF_READER_BUILD_PATH
+    candidates.push_back(platform::path_from_utf8(MFBE_PDF_READER_BUILD_PATH));
+#endif
+    for (const auto& candidate : candidates) {
+        std::error_code ec;
+        if (std::filesystem::is_regular_file(candidate, ec)) {
+            return candidate;
+        }
+    }
+    return {};
+}
+
+#ifdef _WIN32
+
+struct ReaderProcess::Impl {
+    HANDLE process = nullptr;
+    HANDLE job = nullptr;
+    HANDLE in_write = nullptr;
+    HANDLE out_read = nullptr;
+    std::string buffer;
+    std::chrono::milliseconds silence{30000};
+    std::chrono::steady_clock::time_point last;
+};
+
+std::unique_ptr<ReaderProcess> ReaderProcess::start(const ReaderOptions& o, std::string& error) {
+    auto impl = std::make_unique<Impl>();
+    SECURITY_ATTRIBUTES sa{sizeof sa, nullptr, TRUE};
+    HANDLE in_read = nullptr, out_write = nullptr;
+    if (!CreatePipe(&in_read, &impl->in_write, &sa, 0) ||
+        !CreatePipe(&impl->out_read, &out_write, &sa, 0)) {
+        error = "pipes";
+        return nullptr;
+    }
+    SetHandleInformation(impl->in_write, HANDLE_FLAG_INHERIT, 0);
+    SetHandleInformation(impl->out_read, HANDLE_FLAG_INHERIT, 0);
+    std::wstring command;
+    for (const auto& arg : arguments(o)) {
+        std::wstring w = platform::path_from_utf8(arg).wstring();
+        command += L"\"" + w + L"\" ";
+    }
+    STARTUPINFOW si{};
+    si.cb = sizeof si;
+    si.dwFlags = STARTF_USESTDHANDLES;
+    si.hStdInput = in_read;
+    si.hStdOutput = out_write;
+    si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
+    PROCESS_INFORMATION pi{};
+    impl->job = CreateJobObjectW(nullptr, nullptr);
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits{};
+    limits.BasicLimitInformation.LimitFlags =
+        JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | JOB_OBJECT_LIMIT_PROCESS_MEMORY;
+    limits.ProcessMemoryLimit = o.max_memory_mb * 1024 * 1024;
+    SetInformationJobObject(impl->job, JobObjectExtendedLimitInformation, &limits, sizeof limits);
+    if (!CreateProcessW(nullptr, command.data(), nullptr, nullptr, TRUE,
+                        CREATE_NO_WINDOW | CREATE_SUSPENDED, nullptr, nullptr, &si, &pi)) {
+        error = "start";
+        CloseHandle(in_read);
+        CloseHandle(out_write);
+        return nullptr;
+    }
+    AssignProcessToJobObject(impl->job, pi.hProcess);
+    ResumeThread(pi.hThread);
+    CloseHandle(pi.hThread);
+    CloseHandle(in_read);
+    CloseHandle(out_write);
+    impl->process = pi.hProcess;
+    impl->silence = o.silence_timeout;
+    impl->last = std::chrono::steady_clock::now();
+    return std::unique_ptr<ReaderProcess>(new ReaderProcess(std::move(impl)));
+}
+
+bool ReaderProcess::next_event(std::string& line, std::chrono::milliseconds wait) {
+    const auto until = std::chrono::steady_clock::now() + wait;
+    for (;;) {
+        if (const auto nl = impl_->buffer.find('\n'); nl != std::string::npos) {
+            line = impl_->buffer.substr(0, nl);
+            impl_->buffer.erase(0, nl + 1);
+            impl_->last = std::chrono::steady_clock::now();
+            return true;
+        }
+        DWORD available = 0;
+        if (impl_->out_read &&
+            PeekNamedPipe(impl_->out_read, nullptr, 0, nullptr, &available, nullptr) &&
+            available > 0) {
+            std::string chunk(available, '\0');
+            DWORD got = 0;
+            ReadFile(impl_->out_read, chunk.data(), available, &got, nullptr);
+            impl_->buffer.append(chunk.data(), got);
+            continue;
+        }
+        reap(false);
+        if (end_ != ReaderEnd::running) {
+            return false;
+        }
+        if (std::chrono::steady_clock::now() - impl_->last > impl_->silence) {
+            kill();
+            end_ = ReaderEnd::timed_out;
+            return false;
+        }
+        if (std::chrono::steady_clock::now() >= until) {
+            return false;
+        }
+        Sleep(10);
+    }
+}
+
+bool ReaderProcess::send_line(const std::string& text) {
+    const std::string data = text + "\n";
+    DWORD written = 0;
+    return impl_->in_write && WriteFile(impl_->in_write, data.data(),
+                                        static_cast<DWORD>(data.size()), &written, nullptr) != 0;
+}
+
+void ReaderProcess::kill() {
+    if (impl_->job) {
+        TerminateJobObject(impl_->job, 1);
+    }
+    if (end_ == ReaderEnd::running) {
+        end_ = ReaderEnd::killed;
+    }
+}
+
+void ReaderProcess::reap(bool wait) {
+    if (!impl_->process || end_ != ReaderEnd::running) {
+        return;
+    }
+    if (WaitForSingleObject(impl_->process, wait ? INFINITE : 0) == WAIT_OBJECT_0) {
+        DWORD code = 0;
+        GetExitCodeProcess(impl_->process, &code);
+        exit_code_ = static_cast<int>(code);
+        end_ = (code == 0 || code == 1) ? ReaderEnd::exited : ReaderEnd::crashed;
+    }
+}
+
+void ReaderProcess::check_limits() {}
+
+ReaderProcess::~ReaderProcess() {
+    kill();
+    for (HANDLE h : {impl_->process, impl_->job, impl_->in_write, impl_->out_read}) {
+        if (h) {
+            CloseHandle(h);
+        }
+    }
+}
+
+#else  // POSIX
+
+struct ReaderProcess::Impl {
+    pid_t pid = -1;
+    int in_fd = -1;
+    int out_fd = -1;
+    std::string buffer;
+    std::chrono::milliseconds silence{30000};
+    std::chrono::steady_clock::time_point last;
+    std::size_t max_bytes = 0;
+    bool over_memory = false;
+};
+
+std::unique_ptr<ReaderProcess> ReaderProcess::start(const ReaderOptions& o, std::string& error) {
+    int in_pipe[2], out_pipe[2];
+    if (pipe(in_pipe) != 0 || pipe(out_pipe) != 0) {
+        error = "pipes";
+        return nullptr;
+    }
+    const std::vector<std::string> args = arguments(o);
+    std::vector<char*> argv;
+    for (const auto& a : args) {
+        argv.push_back(const_cast<char*>(a.c_str()));
+    }
+    argv.push_back(nullptr);
+    const pid_t parent = getpid();
+    const pid_t pid = fork();
+    if (pid < 0) {
+        error = "fork";
+        return nullptr;
+    }
+    if (pid == 0) {
+#ifdef __linux__
+        prctl(PR_SET_PDEATHSIG, SIGKILL);
+        if (getppid() != parent) {
+            _exit(1);
+        }
+        rlimit limit{};
+        limit.rlim_cur = limit.rlim_max = static_cast<rlim_t>(o.max_memory_mb) * 1024 * 1024;
+        setrlimit(RLIMIT_AS, &limit);
+#else
+        (void)parent;
+#endif
+        dup2(in_pipe[0], 0);
+        dup2(out_pipe[1], 1);
+        for (int fd : {in_pipe[0], in_pipe[1], out_pipe[0], out_pipe[1]}) {
+            close(fd);
+        }
+        execv(argv[0], argv.data());
+        _exit(127);
+    }
+    close(in_pipe[0]);
+    close(out_pipe[1]);
+    fcntl(out_pipe[0], F_SETFD, FD_CLOEXEC);
+    fcntl(in_pipe[1], F_SETFD, FD_CLOEXEC);
+    auto impl = std::make_unique<Impl>();
+    impl->pid = pid;
+    impl->in_fd = in_pipe[1];
+    impl->out_fd = out_pipe[0];
+    impl->silence = o.silence_timeout;
+    impl->last = std::chrono::steady_clock::now();
+    impl->max_bytes = o.max_memory_mb * 1024 * 1024;
+    signal(SIGPIPE, SIG_IGN);
+    return std::unique_ptr<ReaderProcess>(new ReaderProcess(std::move(impl)));
+}
+
+void ReaderProcess::check_limits() {
+    if (impl_->pid <= 0 || end_ != ReaderEnd::running) {
+        return;
+    }
+    std::size_t resident = 0;
+#ifdef __linux__
+    std::ifstream statm("/proc/" + std::to_string(impl_->pid) + "/statm");
+    std::size_t pages = 0, rss = 0;
+    if (statm >> pages >> rss) {
+        resident = rss * static_cast<std::size_t>(sysconf(_SC_PAGESIZE));
+    }
+#elif defined(__APPLE__)
+    proc_taskinfo info{};
+    if (proc_pidinfo(impl_->pid, PROC_PIDTASKINFO, 0, &info, sizeof info) == sizeof info) {
+        resident = info.pti_resident_size;
+    }
+#endif
+    if (resident > impl_->max_bytes) {
+        impl_->over_memory = true;
+        kill();
+        end_ = ReaderEnd::over_memory;
+    }
+}
+
+bool ReaderProcess::next_event(std::string& line, std::chrono::milliseconds wait) {
+    const auto until = std::chrono::steady_clock::now() + wait;
+    for (;;) {
+        if (const auto nl = impl_->buffer.find('\n'); nl != std::string::npos) {
+            line = impl_->buffer.substr(0, nl);
+            impl_->buffer.erase(0, nl + 1);
+            impl_->last = std::chrono::steady_clock::now();
+            return true;
+        }
+        if (impl_->out_fd >= 0) {
+            pollfd p{impl_->out_fd, POLLIN, 0};
+            if (poll(&p, 1, 20) > 0) {
+                char chunk[65536];
+                const ssize_t n = read(impl_->out_fd, chunk, sizeof chunk);
+                if (n > 0) {
+                    impl_->buffer.append(chunk, static_cast<std::size_t>(n));
+                    continue;
+                }
+                close(impl_->out_fd);
+                impl_->out_fd = -1;
+            }
+        }
+        check_limits();
+        reap(impl_->out_fd < 0);
+        if (end_ != ReaderEnd::running) {
+            return false;
+        }
+        if (std::chrono::steady_clock::now() - impl_->last > impl_->silence) {
+            kill();
+            end_ = ReaderEnd::timed_out;
+            return false;
+        }
+        if (std::chrono::steady_clock::now() >= until) {
+            return false;
+        }
+    }
+}
+
+bool ReaderProcess::send_line(const std::string& text) {
+    const std::string data = text + "\n";
+    return impl_->in_fd >= 0 &&
+           write(impl_->in_fd, data.data(), data.size()) == static_cast<ssize_t>(data.size());
+}
+
+void ReaderProcess::kill() {
+    if (impl_->pid > 0 && end_ == ReaderEnd::running) {
+        ::kill(impl_->pid, SIGKILL);
+        end_ = ReaderEnd::killed;
+        int status = 0;
+        waitpid(impl_->pid, &status, 0);
+        impl_->pid = -1;
+    }
+}
+
+void ReaderProcess::reap(bool wait) {
+    if (impl_->pid <= 0 || end_ != ReaderEnd::running) {
+        return;
+    }
+    int status = 0;
+    const pid_t r = waitpid(impl_->pid, &status, wait ? 0 : WNOHANG);
+    if (r != impl_->pid) {
+        return;
+    }
+    impl_->pid = -1;
+    if (WIFEXITED(status)) {
+        exit_code_ = WEXITSTATUS(status);
+        end_ = (exit_code_ == 0 || exit_code_ == 1) ? ReaderEnd::exited : ReaderEnd::crashed;
+    } else {
+        end_ = ReaderEnd::crashed;
+    }
+}
+
+ReaderProcess::~ReaderProcess() {
+    if (impl_->in_fd >= 0) {
+        close(impl_->in_fd);  // the macOS reader ends when its standard input closes
+    }
+    kill();
+    if (impl_->out_fd >= 0) {
+        close(impl_->out_fd);
+    }
+}
+
+#endif
+
+ReaderProcess::ReaderProcess(std::unique_ptr<Impl> impl) : impl_(std::move(impl)) {}
+
+}  // namespace mfbe::pdf_import

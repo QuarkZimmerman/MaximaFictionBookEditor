@@ -4,9 +4,13 @@
 // follows no action and writes nothing outside the folder it is given.
 #include "mfbe/version.hpp"
 
+#include <chrono>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <string>
+#include <thread>
+#include <vector>
 
 namespace {
 
@@ -37,6 +41,30 @@ int main(int argc, char** argv) {
     if (pdf.empty() || out.empty()) {
         return usage();
     }
+#ifdef MFBE_TEST_HOOKS
+    // The reader process tests (tests/core/test_pdf_reader_process.cpp): a crash, a hang, a
+    // runaway.
+    for (int i = 1; i < argc; ++i) {
+        if (std::strcmp(argv[i], "--test-crash") == 0) {
+            std::abort();
+        }
+        if (std::strcmp(argv[i], "--test-hang") == 0) {
+            std::printf("{\"event\":\"opened\",\"pages\":1}\n");
+            std::fflush(stdout);
+            for (;;) {
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+            }
+        }
+        if (std::strcmp(argv[i], "--test-alloc") == 0) {
+            std::vector<std::vector<char>> hog;
+            for (;;) {
+                hog.emplace_back(64 * 1024 * 1024, 'x');
+                std::printf("{\"event\":\"page\",\"n\":%zu}\n", hog.size());
+                std::fflush(stdout);
+            }
+        }
+    }
+#endif
     // The reading itself comes with the reader's parts (tasks T012 to T018).
     std::printf("{\"event\":\"failed\",\"reason\":\"notPdf\"}\n");
     return 1;

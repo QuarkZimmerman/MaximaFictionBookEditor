@@ -56,6 +56,8 @@ target_link_libraries(mfbe_paths PRIVATE mfbe::options)
 # All other translation units under src/ are part of the library (layout: see plan.md).
 file(GLOB_RECURSE _mfbe_existing_sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 list(FILTER _mfbe_existing_sources EXCLUDE REGEX "/src/platform/(paths|portable)\\.cpp$")
+# Feature 016 (DP-1): the PDF reader's own sources make mfbe-pdf-reader, never the core library.
+list(FILTER _mfbe_existing_sources EXCLUDE REGEX "/src/pdf/reader/")
 # The regional date formatter (feature 003 US6) has one source per platform: the Windows
 # long-date picture, CoreFoundation on macOS, the LC_TIME locale elsewhere.
 list(FILTER _mfbe_existing_sources EXCLUDE REGEX "/src/platform/date_format_(win|mac|posix)\\.cpp$")
@@ -68,6 +70,9 @@ else()
 endif()
 
 add_library(mfbe_core STATIC ${_mfbe_existing_sources})
+# Feature 016 (find_reader): the build's own reader, for builds run in place (tests, journeys).
+target_compile_definitions(mfbe_core PRIVATE
+  MFBE_PDF_READER_BUILD_PATH="${CMAKE_BINARY_DIR}/bin/mfbe-pdf-reader${CMAKE_EXECUTABLE_SUFFIX}")
 add_library(mfbe::core ALIAS mfbe_core)
 
 target_include_directories(mfbe_core
@@ -135,7 +140,8 @@ endif()
 
 # Feature 016 (PD2, DP-1): mfbe-pdf-reader reads one PDF for one import in a process of its own, so that
 # a hostile file can end only it. No CEF, no server: Poppler, the picture encoders and the core's helpers.
-add_executable(mfbe-pdf-reader src/pdf/reader/main.cpp)
+file(GLOB _mfbe_reader_sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/reader/*.cpp")
+add_executable(mfbe-pdf-reader ${_mfbe_reader_sources})
 target_link_libraries(mfbe-pdf-reader PRIVATE mfbe::core PkgConfig::POPPLER)
 target_include_directories(mfbe-pdf-reader PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 set_target_properties(mfbe-pdf-reader PROPERTIES
