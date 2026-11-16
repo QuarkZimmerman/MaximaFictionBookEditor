@@ -137,5 +137,17 @@ int main(int argc, char** argv) {
                                kind + "\"}");
     }
     mfbe::pdf_reader::emit(R"({"event":"done"})");
+    // The import now asks for the pictures it takes, one line each, until the core closes standard
+    // input.
+    for (std::string line; std::getline(std::cin, line);) {
+        const auto request = nlohmann::json::parse(line, nullptr, false);
+        if (!request.is_object() || !request.contains("picture") || !request.contains("page")) {
+            continue;
+        }
+        mfbe::pdf_reader::emit(
+            mfbe::pdf_reader::write_picture(*doc, request.value("page", 0),
+                                            request.value("picture", std::string()), options)
+                .dump());
+    }
     return 0;
 }

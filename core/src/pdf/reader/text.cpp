@@ -69,6 +69,7 @@ std::string write_page(PDFDoc& doc, int n, const Options& options) {
         }
     }
     page["links"] = std::move(links);
+    page["pictures"] = record_pictures(doc, n);
     page["fonts"] = std::move(fonts);
     page["words"] = std::move(words);
     const std::string kind = page["words"].empty() ? "blank" : "text";
