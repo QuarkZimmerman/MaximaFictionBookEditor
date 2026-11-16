@@ -191,13 +191,23 @@ export async function importPdf(
       }
       const knownWords = new Set<string>();
       // Every candidate is asked about, in batches the core takes (a long book has thousands; the first
-      // thousand alone left most of them broken in D32's library run).
+      // thousand alone left most of them broken in D32's library run) - small ones, after each of which the
+      // bar moves (SC-010: a book of 1,102 pages stood still for 12 s here).
+      const BATCH = 250;
+      const batches = 3 * Math.max(1, Math.ceil(candidates.size / BATCH));
+      let asked = 0;
       for (const code of ['en', 'ru', 'uk']) {
         const list = [...candidates].filter((w) => !knownWords.has(w));
-        for (let at = 0; at < list.length; at += 20_000) {
-          const batch = list.slice(at, at + 20_000);
+        for (let at = 0; at < list.length; at += BATCH) {
+          check();
+          const batch = list.slice(at, at + BATCH);
           const wrong = new Set(await misspelled(batch, code).catch(() => batch));
           for (const word of batch) if (!wrong.has(word)) knownWords.add(word);
+          asked++;
+          modal.progress(
+            pages * 3 + Math.round((Math.min(asked, batches) / batches) * (pages / 2)),
+            total,
+          );
         }
       }
       // ... and in the tags' text as in the layout's: joined where known, else the hyphen stays (D12).
@@ -367,7 +377,10 @@ export async function importPdf(
       {
         onProgress: (progress) => {
           if (progress.total > 0)
-            modal.progress(pages * 3 + Math.round((progress.done / progress.total) * pages), total);
+            modal.progress(
+              Math.round(pages * 3.5 + (progress.done / progress.total) * (pages / 4)),
+              total,
+            );
         },
       },
     );
@@ -381,11 +394,24 @@ export async function importPdf(
       wanted = wanted.slice(0, MAX_PICTURES);
     }
     if (wanted.length > 0) {
-      const answer = await rpc.runJob('pdfImport.addPictures', {
-        token,
-        docId,
-        pictures: wanted.map((w) => ({ id: w.readerId, page: w.page, suggestedId: w.binaryId })),
-      });
+      // The last quarter of the bar's last part (SC-010: a book's many pictures held it still for 12 s).
+      const answer = await rpc.runJob(
+        'pdfImport.addPictures',
+        {
+          token,
+          docId,
+          pictures: wanted.map((w) => ({ id: w.readerId, page: w.page, suggestedId: w.binaryId })),
+        },
+        {
+          onProgress: (progress) => {
+            if (progress.total > 0)
+              modal.progress(
+                Math.round(pages * 3.75 + (progress.done / progress.total) * (pages / 4)),
+                total,
+              );
+          },
+        },
+      );
       added.push(...answer.added.map((entry) => entry.binary));
       picturesLeftOut += answer.failed.length;
     }

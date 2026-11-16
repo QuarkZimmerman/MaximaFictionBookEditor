@@ -45,7 +45,11 @@ test.describe('US8 (feature 016) - loaded when used, leaving no trace', () => {
       await new Promise((resolve) => setTimeout(resolve, 1500));
       await route.continue();
     });
-    const before = await importPdfViaMenu(core, page, pdf('text-untagged.pdf'));
+    // The window holds a new book: no "Save changes" question, and waiting the two seconds for one let a
+    // quick import end before the progress was looked for.
+    const before = await importPdfViaMenu(core, page, pdf('text-untagged.pdf'), {
+      question: false,
+    });
     await expect(page.getByTestId('modal-job')).toBeVisible({ timeout: 1000 });
     await pdfImportDone(page, before);
     expect(held).toBe(true);
