@@ -3,6 +3,12 @@
 All notable changes to Maxima Fiction Book Editor. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.0.12 - unreleased
+
+### In short
+
+- (filled while feature 016 is built)
+
 ## 0.0.11 - 2026-11-15
 
 ### In short
