@@ -463,6 +463,11 @@ export async function paginate(
     const stack: { depth: number; mark: PageMapBookmark }[] = [];
     const serializer = new XMLSerializer();
     const blockPage: number[] = [];
+    // Feature 016 (D6): each block whose text goes on onto a next page, once per page it goes on to - the
+    // import joins its parts there, and guesses nothing.
+    const continued: number[] = [];
+    // Feature 016 (D19): the pages (from 1) whose foot begins with the rest of a note cut on the page before.
+    const carriedPages: number[] = [];
 
     // D17: a bookmark's height is its title's on the composed page.
     const pendingMarks = new Map<number, PageMapBookmark>();
@@ -730,6 +735,7 @@ export async function paginate(
       const { page } = composed;
       for (const piece of pieces) {
         if (piece.fromLine === 0) blockPage[piece.block] = serialised.length;
+        else continued.push(piece.block);
         const block = blocks[piece.block];
         // The annotation's and the history's pages are bookmarked by what they are; they have no
         // heading of their own (requester, rc.4).
@@ -762,6 +768,7 @@ export async function paginate(
         (stack.length ? stack[stack.length - 1].mark.children : bookmarks).push(mark);
         stack.push({ depth: block.depth, mark });
       }
+      if (carriedNotes.length > 0) carriedPages.push(serialised.length + 1);
       finishPage(page, true);
       carriedNotes = carryNext;
       cursor = next;
@@ -783,6 +790,7 @@ export async function paginate(
       if (serialised.length + 1 > limits.pages) {
         throw new PdfLimitError('pages', serialised.length + 1, limits.pages);
       }
+      carriedPages.push(serialised.length + 1);
       finishPage(composed.page, true);
       carriedNotes = carryNext;
     }
@@ -807,6 +815,8 @@ export async function paginate(
       coverPage: cover ? 1 : null,
       titlePage: cover ? 2 : 1,
       descriptionPages,
+      continued,
+      carriedPages,
     });
     const parts: string[] = [];
     for (let at = 0; at < serialised.length; at += PAGES_PER_PART) {

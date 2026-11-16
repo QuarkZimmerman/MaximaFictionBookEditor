@@ -121,6 +121,68 @@ export function stripWhole(runs: readonly Run[]): Run[] {
   });
 }
 
+const copyPart = (part: Part): Part => ({
+  ...part,
+  runs: [...part.runs],
+  ...(part.rows ? { rows: [...part.rows] } : {}),
+});
+
+/** A part on the next page joined to the part it goes on from. */
+function joinInto(last: Part, part: Part): void {
+  if (last.kind === 'table') {
+    // A continued table repeats its header rows: they are not rows of their own.
+    const header = (last.rows ?? []).filter((row) => row.every((cell) => cell.header));
+    const rows = (part.rows ?? []).filter(
+      (row, index) =>
+        !(
+          index < header.length &&
+          row.length === header[index].length &&
+          row.every((cell, c) => partText(cell.runs) === partText(header[index][c].runs))
+        ),
+    );
+    last.rows = [...(last.rows ?? []), ...rows];
+    return;
+  }
+  const runs = [...part.runs];
+  const tail = last.runs[last.runs.length - 1];
+  const head = runs[0];
+  if (tail && head && !/\s$/.test(tail.text) && !/^\s/.test(head.text)) {
+    if (tail.text.endsWith('\u00ad'))
+      last.runs[last.runs.length - 1] = { ...tail, text: tail.text.slice(0, -1) };
+    // A word's own hyphen or dash at the page's end: the word goes on (D32: "ток-шоу").
+    else if (!/\S[-\u2010\u2012\u2013\u2014]\u00ad*$/u.test(tail.text)) {
+      // After marked text the space goes outside the mark, as at a line's end.
+      if (styled(tail) && !styled(head)) runs[0] = { ...head, text: ` ${head.text}` };
+      else last.runs[last.runs.length - 1] = { ...tail, text: `${tail.text} ` };
+    }
+  }
+  last.runs.push(...runs);
+}
+
+/**
+ * Feature 016 (D6): the parts joined where the record says a block goes on onto the next page - each block takes
+ * its part and, once per page break the paginator recorded, the next one.
+ */
+function joinRecorded(
+  parts: Part[],
+  kinds: readonly string[],
+  continued: readonly number[],
+): Part[] {
+  const breaks = new Map<number, number>();
+  for (const b of continued) breaks.set(b, (breaks.get(b) ?? 0) + 1);
+  const out: Part[] = [];
+  let cursor = 0;
+  for (let b = 0; b < kinds.length && cursor < parts.length; b++) {
+    if (kinds[b].endsWith('empty-line')) continue;
+    const joined = copyPart(parts[cursor++]);
+    for (let n = breaks.get(b) ?? 0; n > 0 && cursor < parts.length; n--)
+      joinInto(joined, parts[cursor++]);
+    out.push(joined);
+  }
+  while (cursor < parts.length) out.push(copyPart(parts[cursor++]));
+  return out;
+}
+
 /**
  * The parts a page break split, joined: as many as the hints' count of blocks needs (R4). The export cuts a
  * paragraph where a line ends and sets its part on the next page without the first-line indent
@@ -128,7 +190,13 @@ export function stripWhole(runs: readonly Run[]): Run[] {
  * most likely the rest of it; a small letter at its start and no full stop before count too (D32's library
  * run: German nouns begin with capitals, and its quotes close with "“").
  */
-function joinSplit(parts: Part[], needed: number, starts: ReadonlySet<number> = new Set()): Part[] {
+function joinSplit(
+  parts: Part[],
+  needed: number,
+  starts: ReadonlySet<number> = new Set(),
+  /** The blocks' anchors (their first 16 characters): a part that begins with one begins its block. */
+  anchors: ReadonlySet<string> = new Set(),
+): Part[] {
   const extra = parts.length - needed;
   if (extra <= 0) return parts;
   // The text block: where its lines begin and end, over the pages of one side (odd or even, which a book may
@@ -161,15 +229,30 @@ function joinSplit(parts: Part[], needed: number, starts: ReadonlySet<number> = 
     )
       score += 4;
     const there = last ? margins.get(last.page) : undefined;
+    // A part of one line ends a full line only if it also begins at the margin: a line set to the right (an
+    // author's line under a quote) ends at the margin however short (D32's library run).
+    const opening = before.runs.find((run) => run.text.trim());
+    const oneLine =
+      opening?.startTop !== undefined &&
+      last?.endTop !== undefined &&
+      opening.page === last.page &&
+      Math.abs(opening.startTop - last.endTop) < 2;
+    const widthOf = there && Number.isFinite(there.left) ? there.left : undefined;
     if (
       last?.endRight !== undefined &&
       there &&
       Number.isFinite(there.right) &&
-      there.right - last.endRight < size * 2.5
+      there.right - last.endRight < size * 2.5 &&
+      (!oneLine ||
+        (opening?.startLeft !== undefined &&
+          widthOf !== undefined &&
+          opening.startLeft - widthOf < size * 2))
     )
       score += 2;
     const start = partText(part.runs).trimStart();
     const end = partText(before.runs).trimEnd();
+    const head = start.replace(/\s+/g, ' ').slice(0, 16);
+    if (head.length >= 8 && anchors.has(head)) score -= 10;
     if (/^\p{Ll}/u.test(start)) score += 1;
     if (!/[.!?…:;»"”“)\]]$/u.test(end)) score += 1;
     scored.push({ i, score });
@@ -179,36 +262,8 @@ function joinSplit(parts: Part[], needed: number, starts: ReadonlySet<number> = 
   const out: Part[] = [];
   parts.forEach((part, i) => {
     const last = out[out.length - 1];
-    if (!join.has(i) || !last) {
-      out.push({ ...part, runs: [...part.runs], ...(part.rows ? { rows: [...part.rows] } : {}) });
-      return;
-    }
-    if (last.kind === 'table') {
-      // A continued table repeats its header rows: they are not rows of their own.
-      const header = (last.rows ?? []).filter((row) => row.every((cell) => cell.header));
-      const rows = (part.rows ?? []).filter(
-        (row, index) =>
-          !(
-            index < header.length &&
-            row.length === header[index].length &&
-            row.every((cell, c) => partText(cell.runs) === partText(header[index][c].runs))
-          ),
-      );
-      last.rows = [...(last.rows ?? []), ...rows];
-    } else {
-      const tail = last.runs[last.runs.length - 1];
-      const head = part.runs[0];
-      if (tail && head && !/\s$/.test(tail.text) && !/^\s/.test(head.text)) {
-        if (tail.text.endsWith('\u00ad')) tail.text = tail.text.slice(0, -1);
-        // A word's own hyphen or dash at the page's end: the word goes on (D32: "ток-шоу").
-        else if (!/\S[-\u2010\u2012\u2013\u2014]\u00ad*$/u.test(tail.text)) {
-          // After marked text the space goes outside the mark, as at a line's end.
-          if (styled(tail) && !styled(head)) part.runs[0] = { ...head, text: ` ${head.text}` };
-          else last.runs[last.runs.length - 1] = { ...tail, text: `${tail.text} ` };
-        }
-      }
-      last.runs.push(...part.runs);
-    }
+    if (!join.has(i) || !last) out.push(copyPart(part));
+    else joinInto(last, part);
   });
   return out;
 }
@@ -249,7 +304,54 @@ export function convertOurs(
       ...hints.bodies.map((body) => body.page + 1),
     ].filter((n): n is number => !!n),
   );
-  const parts = joinSplit(spaced, needed, starts);
+  const anchors = new Set(Object.values(hints.anchors).filter((anchor) => anchor.length >= 8));
+  // Feature 016 (D19, D32): a page whose foot holds only the rest of a note cut on the page before shows no
+  // note's label, so its paragraphs came as text. The record names those pages: the parts at the end of such a
+  // page in the notes' smaller size go back to the notes, after the note they go on from.
+  const footnotes: Footnote[] = [...flat.footnotes];
+  let textParts = spaced;
+  if (hints.carried?.length) {
+    const sizes = new Map<number, number>();
+    for (const part of spaced)
+      for (const run of part.runs)
+        if (run.text.trim() && run.size) {
+          const size = Math.round(run.size * 10) / 10;
+          sizes.set(size, (sizes.get(size) ?? 0) + run.text.length);
+        }
+    const body = [...sizes.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 10;
+    const small = (part: Part): boolean =>
+      part.kind === 'p' &&
+      part.runs.some((run) => run.text.trim()) &&
+      part.runs.every((run) => !run.text.trim() || (run.size ?? body) < body * 0.9);
+    const moved = new Set<Part>();
+    for (const page of hints.carried) {
+      if (footnotes.some((note) => note.page === page && note.id === null)) continue;
+      const rest: Part[] = [];
+      for (let i = spaced.length - 1; i >= 0; i--) {
+        if (spaced[i].page !== page) {
+          if (rest.length > 0 || spaced[i].page < page) break;
+          continue;
+        }
+        if (!small(spaced[i])) break;
+        rest.unshift(spaced[i]);
+      }
+      if (rest.length === 0) continue;
+      for (const part of rest) moved.add(part);
+      let at = footnotes.findIndex((note) => note.page > page);
+      if (at < 0) at = footnotes.length;
+      footnotes.splice(at, 0, {
+        id: null,
+        label: '',
+        page,
+        paragraphs: rest.map((part) => part.runs),
+      });
+    }
+    if (moved.size > 0) textParts = spaced.filter((part) => !moved.has(part));
+  }
+  // The record names the page breaks since feature 016; for a record of 0.0.11 they are judged (R4).
+  const parts = Array.isArray(hints.continued)
+    ? joinRecorded(textParts, kinds, hints.continued)
+    : joinSplit(textParts, needed, starts, anchors);
 
   // The blocks, numbered as the paginator numbered them.
   const blocks: Block[] = [];
@@ -303,7 +405,7 @@ export function convertOurs(
   // The cover page's picture is the description's (D5); it comes before any part.
   if (hints.generated.cover) takePicture(hints.generated.cover);
 
-  const noteIds = new Set(flat.footnotes.filter((f) => f.id).map((f) => f.id!));
+  const noteIds = new Set(footnotes.filter((f) => f.id).map((f) => f.id!));
   const link = (run: Run): { href: string; note: boolean } | null => {
     if (run.uri) return { href: run.uri, note: false };
     if (run.dest && !run.dest.startsWith('mfbe-ref-'))
@@ -670,7 +772,7 @@ export function convertOurs(
   flushBody();
 
   // The notes, from the feet of the pages: in the order of their first references (D6), then the rest.
-  const notes = notesBody(flat.footnotes, bodyBlocks, link, pictureFor);
+  const notes = notesBody(footnotes, bodyBlocks, link, pictureFor);
   counts.notes = notes.count;
 
   const annotation =

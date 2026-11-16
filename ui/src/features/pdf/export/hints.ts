@@ -30,6 +30,10 @@ export interface HintsInput {
    * import takes them from the description, not as text of the bodies.
    */
   descriptionPages?: { annotation: number | null; history: number | null };
+  /** Feature 016 (D6): the blocks whose text goes on onto a next page, once per page break (the paginator's). */
+  continued?: number[];
+  /** Feature 016 (D19): the pages (from 1) whose foot begins with the rest of a note cut on the page before. */
+  carriedPages?: number[];
 }
 
 const GENERIC_BLOCKS = new Set(['v', 'subtitle', 'text-author', 'date', 'empty-line']);
@@ -149,6 +153,8 @@ function lineEndSpaces(block: Element): number[] {
   };
   walk(block);
   const range = block.ownerDocument.createRange();
+  // Without a layout (a document never shown) nothing can be measured.
+  if (typeof range.getClientRects !== 'function') return [];
   const top = (unit: { node: Text; index: number }): number | null => {
     range.setStart(unit.node, unit.index);
     range.setEnd(unit.node, unit.index + 1);
@@ -200,6 +206,8 @@ function lineBreakJoins(block: Element): number[] {
   };
   walk(block);
   const range = block.ownerDocument.createRange();
+  // Without a layout (a document never shown) nothing can be measured.
+  if (typeof range.getClientRects !== 'function') return [];
   const top = (unit: { node: Text; index: number }): number | null => {
     range.setStart(unit.node, unit.index);
     range.setEnd(unit.node, unit.index + 1);
@@ -324,6 +332,8 @@ function markSpaces(block: Element): [number, number][] {
   };
   walk(block);
   const range = block.ownerDocument.createRange();
+  // Without a layout (a document never shown) nothing can be measured.
+  if (typeof range.getClientRects !== 'function') return [];
   const top = (at: number): number | null => {
     const unit = units[at];
     if (!unit) return null;
@@ -491,6 +501,8 @@ export function buildHints(input: HintsInput): string {
     ...(clusters.length ? { clusters } : {}),
     ...(inner.length ? { inner } : {}),
     ...(fresh.length ? { fresh } : {}),
+    ...(input.continued ? { continued: input.continued } : {}),
+    ...(input.carriedPages ? { carried: input.carriedPages } : {}),
     langs,
     ids,
     tables,

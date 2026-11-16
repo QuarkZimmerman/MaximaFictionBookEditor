@@ -153,6 +153,10 @@ export interface HintsV1 {
   inner?: [number, number, number][];
   /** Feature 016 (D6): [block, depth] where a container begins anew under the same names (two epigraphs in a row). */
   fresh?: [number, number][];
+  /** Feature 016 (D6): the blocks whose text goes on onto a next page, once per page break. */
+  continued?: number[];
+  /** Feature 016 (D19): the pages (from 1) whose foot begins with the rest of a note cut on the page before. */
+  carried?: number[];
   langs: [number, number, number, string][];
   ids: [number, string][];
   tables: [number, number, string][];
