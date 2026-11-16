@@ -333,10 +333,13 @@ def drawing() -> tuple[bytes, dict]:
     content = (text_lines(PROSE[:3], top=540) + b"\n" + "\n".join(chart).encode() + b"\n"
                + "\n".join(table).encode() + b"\n" + cells
                + b"BT /F1 7 Tf 60 290 Td (Q1  Q2  Q3  Q4) Tj ET")
-    kids = [page(pdf, pages, content, font_res(f))]
+    # A comment on the page: left out of the book and counted (D16).
+    note = pdf.add("<< /Type /Annot /Subtype /Text /Rect [300 500 320 520] /Contents (A reader's comment) >>")
+    kids = [page(pdf, pages, content, font_res(f), extra=f"/Annots [{note} 0 R] ")]
     pages_tree(pdf, kids, pages)
     pdf.add(f"<< /Type /Catalog /Pages {pages} 0 R >>", catalog)
-    return pdf.write(catalog), {"kinds": ["text"], "drawings": 1, "contains": ["harbour", "Cell"]}
+    return pdf.write(catalog), {"kinds": ["text"], "drawings": 1, "contains": ["harbour", "Cell"],
+                                "dropped": {"comments": 1}}
 
 
 def forms() -> tuple[bytes, dict]:
@@ -357,6 +360,63 @@ def forms() -> tuple[bytes, dict]:
     pdf.add(f"<< /Type /Catalog /Pages {pages} 0 R /AcroForm << /Fields [{' '.join(f'{x} 0 R' for x in fields)}] >> >>",
             catalog)
     return pdf.write(catalog), {"kinds": ["text"], "forms": 2, "contains": ["Name", "Harbourtown"]}
+
+
+def form_free() -> tuple[bytes, dict]:
+    """A form whose fields do not stand in labelled rows - two on one line, no text before them: drawn as a
+    picture of its area, with the values it shows (D16)."""
+    pdf = Pdf()
+    catalog, pages = pdf.reserve(), pdf.reserve()
+    f = fonts(pdf)
+    page_number = pdf.reserve()
+    fields = []
+    for i, (value, x) in enumerate((("12", 60), ("34", 200))):
+        fields.append(pdf.add(f"<< /Type /Annot /Subtype /Widget /FT /Tx /T (box{i}) /V ({value}) "
+                              f"/Rect [{x} 300 {x + 110} 340] /P {page_number} 0 R /F 4 >>"))
+    content = text_lines(PROSE[:2], top=520)
+    c = pdf.stream(content)
+    pdf.add(f"<< /Type /Page /Parent {pages} 0 R /MediaBox [0 0 {PAGE_W} {PAGE_H}] /Resources << {font_res(f)} >> "
+            f"/Contents {c} 0 R /Annots [{' '.join(f'{x} 0 R' for x in fields)}] >>", page_number)
+    pages_tree(pdf, [page_number], pages)
+    pdf.add(f"<< /Type /Catalog /Pages {pages} 0 R /AcroForm << /Fields [{' '.join(f'{x} 0 R' for x in fields)}] >> >>",
+            catalog)
+    return pdf.write(catalog), {"kinds": ["text"], "drawings": 1, "contains": ["harbour"]}
+
+
+RUSSIAN = ["Но ничего не случилось. Утром пришли рыбаки и принесли",
+           "свежую рыбу на рынок, а дети побежали к морю. Солнце",
+           "поднялось над городом, и день начался как всегда."]
+
+
+def latin1_cyrillic() -> tuple[bytes, dict]:
+    """Russian text whose font maps its windows-1251 bytes as Latin-1 letters ("Íî íè÷åãî" for "Но ничего"),
+    as three library PDFs of spec §4 have it: mended when the dictionary knows the words (D15)."""
+    pdf = Pdf()
+    catalog, pages = pdf.reserve(), pdf.reserve()
+    f = fonts(pdf)
+    ops = [b"BT /F1 11 Tf 14 TL 40 520 Td"]
+    for line in RUSSIAN:
+        ops.append(b"(" + line.encode("cp1251").replace(b"\\", b"\\\\").replace(b"(", b"\\(").replace(b")", b"\\)") + b") Tj T*")
+    ops.append(b"ET")
+    kids = [page(pdf, pages, b"\n".join(ops), font_res(f))]
+    pages_tree(pdf, kids, pages)
+    pdf.add(f"<< /Type /Catalog /Pages {pages} 0 R >>", catalog)
+    return pdf.write(catalog), {"kinds": ["text"], "contains": ["Но ничего не случилось", "рыбу на рынок"]}
+
+
+def two_columns() -> tuple[bytes, dict]:
+    """A page set in two columns: the text reads column by column (D11)."""
+    pdf = Pdf()
+    catalog, pages = pdf.reserve(), pdf.reserve()
+    f = fonts(pdf)
+    left = [f"First column, line {n} of the text runs on." for n in range(1, 15)]
+    right = [f"Second column, line {n} of the text goes on." for n in range(1, 15)]
+    content = (text_lines(left, x0=40, top=540, size=8, lead=12) + b"\n"
+               + text_lines(right, x0=225, top=540, size=8, lead=12))
+    kids = [page(pdf, pages, content, font_res(f))]
+    pages_tree(pdf, kids, pages)
+    pdf.add(f"<< /Type /Catalog /Pages {pages} 0 R >>", catalog)
+    return pdf.write(catalog), {"kinds": ["text"], "contains": ["First column, line 14", "Second column, line 1 "]}
 
 
 def protected(user: str, permissions: int) -> tuple[bytes, dict]:
@@ -482,6 +542,9 @@ def build() -> dict[str, tuple[bytes, dict]]:
         "garbled": picture_pages(False, garbled=True),
         "drawing": drawing(),
         "forms": forms(),
+        "form-free": form_free(),
+        "latin1-cyrillic": latin1_cyrillic(),
+        "two-columns": two_columns(),
         "picture-formats": picture_formats(),
         "password-user": protected("secret", -4),
         "copy-restricted": protected("", -20),

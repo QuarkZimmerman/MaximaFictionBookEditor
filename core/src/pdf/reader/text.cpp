@@ -72,6 +72,8 @@ std::string write_page(PDFDoc& doc, int n, const Options& options, Readability* 
     page["fonts"] = std::move(fonts);
     page["words"] = std::move(words);
     page["pictures"] = record_pictures(doc, n);
+    page["forms"] = nlohmann::json::array();
+    page["drawings"] = record_drawings(doc, n, page);
     std::string kind = page_kind(doc, n, page);
     const Readability r = readability(page["words"]);
     if ((kind == "text" || kind == "pictureWithLayer") && r.tokens >= kGarbledPageTokens &&

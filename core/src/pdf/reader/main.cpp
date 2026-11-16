@@ -14,6 +14,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <iostream>
 #ifndef _WIN32
 #include <unistd.h>
@@ -101,6 +102,30 @@ int main(int argc, char** argv) {
 #endif
     if (!globalParams) {
         globalParams = std::make_unique<GlobalParams>();
+    }
+    // DP-7: the fonts a PDF does not embed (the 14 standard ones, and what Poppler puts in their
+    // place) are drawn with the shipped Noto and DejaVu files - the editor's Poppler has no system
+    // font lookup.
+    if (!fonts.empty()) {
+        const std::pair<const char*, const char*> standard[] = {
+            {"Helvetica", "NotoSans-Regular.ttf"},
+            {"Helvetica-Bold", "NotoSans-Bold.ttf"},
+            {"Helvetica-Oblique", "NotoSans-Italic.ttf"},
+            {"Helvetica-BoldOblique", "NotoSans-BoldItalic.ttf"},
+            {"Times-Roman", "NotoSerif-Regular.ttf"},
+            {"Times-Bold", "NotoSerif-Bold.ttf"},
+            {"Times-Italic", "NotoSerif-Italic.ttf"},
+            {"Times-BoldItalic", "NotoSerif-BoldItalic.ttf"},
+            {"Courier", "DejaVuSansMono.ttf"},
+            {"Courier-Bold", "DejaVuSansMono-Bold.ttf"},
+            {"Courier-Oblique", "DejaVuSansMono-Oblique.ttf"},
+            {"Courier-BoldOblique", "DejaVuSansMono-BoldOblique.ttf"}};
+        for (const auto& [name, file] : standard) {
+            const auto path = mfbe::platform::path_from_utf8(fonts) / file;
+            if (std::filesystem::exists(path)) {
+                globalParams->addFontFile(name, mfbe::platform::utf8_from_path(path));
+            }
+        }
     }
     // Poppler's syntax notices about a hostile or sloppy file are not the editor's errors: kept
     // silent.
@@ -221,10 +246,13 @@ int main(int argc, char** argv) {
         if (!request.is_object() || !request.contains("picture") || !request.contains("page")) {
             continue;
         }
-        mfbe::pdf_reader::emit(
-            mfbe::pdf_reader::write_picture(*doc, request.value("page", 0),
-                                            request.value("picture", std::string()), options)
-                .dump());
+        mfbe::pdf_reader::emit((request.value("picture", std::string()).rfind('d', 0) == 0
+                                    ? mfbe::pdf_reader::write_drawing(
+                                          *doc, request.value("picture", std::string()), options)
+                                    : mfbe::pdf_reader::write_picture(
+                                          *doc, request.value("page", 0),
+                                          request.value("picture", std::string()), options))
+                                   .dump());
     }
     return 0;
 }

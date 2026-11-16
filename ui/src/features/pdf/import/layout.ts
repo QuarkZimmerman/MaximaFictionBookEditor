@@ -6,7 +6,7 @@
  */
 
 import type { OutlineNode, PdfPageModel, PdfWord } from './model';
-import type { Part, Run } from './parts';
+import type { Part, Run, TableCell } from './parts';
 
 export interface Line {
   page: number;
@@ -45,8 +45,20 @@ const median = (values: number[]): number => {
 };
 
 /** The page's words as lines, column by column (a gap running down the page's height splits columns). */
+/** The words a drawing or a form's labels hold: they belong to that picture or table, not to the text (D16). */
+function claimed(page: PdfPageModel, word: PdfWord): boolean {
+  const x = word.box[0] + word.box[2] / 2;
+  const y = word.box[1] + word.box[3] / 2;
+  const inside = (box: number[]): boolean =>
+    box.length === 4 && x >= box[0] && x <= box[0] + box[2] && y >= box[1] && y <= box[1] + box[3];
+  return (
+    (page.drawings ?? []).some((drawing) => inside(drawing.box)) ||
+    (page.forms ?? []).some((form) => inside(form.labelBox))
+  );
+}
+
 export function linesOf(page: PdfPageModel): Line[] {
-  const words = page.words.filter((w) => w.t.trim());
+  const words = page.words.filter((w) => w.t.trim() && !claimed(page, w));
   if (words.length === 0) return [];
   // Columns: a vertical band free of words between text, wider than a few characters.
   const sizes = median(words.map((w) => w.s)) || 10;
@@ -401,6 +413,33 @@ export function layoutParts(
         alt: '',
         readerId: picture.id,
         top: picture.box[1],
+      } as Part & { top: number });
+    }
+  }
+  // Drawings (D16): a picture each, where it stands; a form in labelled rows: a table of labels and values.
+  for (const page of pages) {
+    for (const drawing of page.drawings ?? []) {
+      figures.push({
+        kind: 'figure',
+        page: page.n,
+        runs: [],
+        alt: '',
+        readerId: drawing.id,
+        top: drawing.box[1],
+      } as Part & { top: number });
+    }
+    const forms = page.forms ?? [];
+    if (forms.length > 0) {
+      const cell = (text: string): TableCell => ({
+        runs: [{ text, page: page.n }],
+        header: false,
+      });
+      figures.push({
+        kind: 'table',
+        page: page.n,
+        runs: [],
+        rows: forms.map((form) => [cell(form.label), cell(form.value)]),
+        top: Math.min(...forms.map((form) => form.box[1])),
       } as Part & { top: number });
     }
   }

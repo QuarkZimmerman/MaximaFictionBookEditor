@@ -52,7 +52,13 @@
       "picturesLeftOut": "Pictures not added: {{count}}",
       "notImported": "Pages without text not imported (blank pages, plates of a scanned book): {{count}}",
       "platesImported": "Pages without text whose picture came in: {{count}}",
-      "garbledPages": "Pages whose text layer reads as garbage, imported as it is: {{count}}"
+      "garbledPages": "Pages whose text layer reads as garbage, imported as it is: {{count}}",
+      "dropped": {
+        "comments": "Comments and other notes on the pages, left out: {{count}}",
+        "attachments": "Attached files, left out: {{count}}",
+        "media": "Sounds and videos, left out: {{count}}",
+        "scripts": "Scripts, left out and never run: {{count}}"
+      }
     }
   }
 }

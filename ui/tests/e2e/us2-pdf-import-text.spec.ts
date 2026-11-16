@@ -35,4 +35,54 @@ test.describe('US2 (feature 016) - a PDF made from text, best effort', () => {
     expect(xml).toContain('First item');
     expect(xml).toMatch(/<td>Cell one<\/td>/);
   });
+  test('pictures in JPEG 2000, JBIG2 and CCITT fax come in (scenario 5)', async ({
+    core,
+    page,
+  }) => {
+    await pdfImportDone(page, await importPdfViaMenu(core, page, pdf('picture-formats.pdf')));
+    const xml = await bookXml(core, page);
+    expect((xml.match(/<binary /g) ?? []).length).toBe(3);
+  });
+
+  test('two columns read column by column (scenario 6)', async ({ core, page }) => {
+    await pdfImportDone(page, await importPdfViaMenu(core, page, pdf('two-columns.pdf')));
+    const xml = await bookXml(core, page);
+    expect(xml.indexOf('First column, line 14')).toBeGreaterThan(0);
+    expect(xml.indexOf('First column, line 14')).toBeLessThan(
+      xml.indexOf('Second column, line 1 '),
+    );
+  });
+
+  test('Cyrillic written in Latin-1 letters comes back in Cyrillic (scenario 7, D15)', async ({
+    core,
+    page,
+  }) => {
+    await pdfImportDone(page, await importPdfViaMenu(core, page, pdf('latin1-cyrillic.pdf')));
+    const xml = await bookXml(core, page);
+    expect(xml).toContain('Но ничего не случилось');
+    expect(xml).not.toContain('Íî');
+  });
+
+  test('a chart is a picture, its comment counted; forms by rows as a table, others drawn (scenario 8, D16)', async ({
+    core,
+    page,
+  }) => {
+    const summary = await pdfImportDone(
+      page,
+      await importPdfViaMenu(core, page, pdf('drawing.pdf')),
+    );
+    let xml = await bookXml(core, page);
+    expect((xml.match(/<binary /g) ?? []).length).toBe(1);
+    expect(xml).toContain('Cell one');
+    // The chart's labels are in its picture, not in the text (the pictures' bytes left out of the look).
+    expect(xml.replace(/<binary[\s\S]*?<\/binary>/g, '')).not.toContain('Q1');
+    expect(summary).toContain('Comments and other notes on the pages, left out: 1');
+    await pdfImportDone(page, await importPdfViaMenu(core, page, pdf('forms.pdf')));
+    xml = await bookXml(core, page);
+    expect(xml).toMatch(/<tr>\s*<td>Name:<\/td>\s*<td>Ann Example<\/td>\s*<\/tr>/);
+    expect((xml.match(/<binary /g) ?? []).length).toBe(0);
+    await pdfImportDone(page, await importPdfViaMenu(core, page, pdf('form-free.pdf')));
+    xml = await bookXml(core, page);
+    expect((xml.match(/<binary /g) ?? []).length).toBe(1);
+  });
 });

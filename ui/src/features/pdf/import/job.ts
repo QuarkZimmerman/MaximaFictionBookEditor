@@ -158,8 +158,12 @@ export async function importPdf(
         }
       }
       // Pictures: on each page, the parts' pictures in order against the reader's, top to bottom.
+      // A tagged PDF's figures take the page's pictures and drawings, top to bottom.
       const pagePictures = new Map(
-        models.map((m) => [m.n, [...m.pictures].sort((a, b) => a.box[1] - b.box[1])]),
+        models.map((m) => [
+          m.n,
+          [...m.pictures, ...(m.drawings ?? [])].sort((a, b) => a.box[1] - b.box[1]),
+        ]),
       );
       const picture = (page: number, _alt: string, readerId?: string): string | null => {
         const id = readerId ?? pagePictures.get(page)?.shift()?.id;
@@ -236,6 +240,12 @@ export async function importPdf(
       lines.push(ctx.t('pdfImport.summary.platesImported', { count: platesImported }));
     if (garbledPages > 0)
       lines.push(ctx.t('pdfImport.summary.garbledPages', { count: garbledPages }));
+    // D16, FR-029: what FB2 has no place for is left out and counted.
+    const dropped = document.dropped ?? {};
+    for (const key of ['comments', 'attachments', 'media', 'scripts'] as const) {
+      const count = dropped[key] ?? 0;
+      if (count > 0) lines.push(ctx.t(`pdfImport.summary.dropped.${key}`, { count }));
+    }
     if (lines.length === 0) actions.setStatusMessage(ctx.store, done);
     else {
       await ctx.dialogs.showMessage({

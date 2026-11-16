@@ -113,6 +113,10 @@ export interface PdfPageModel {
   words: PdfWord[];
   links: PdfLink[];
   pictures: PdfPicture[];
+  /** Areas of lines and shapes the reader draws as pictures on request (D16, DP-7). */
+  drawings?: { id: string; box: [number, number, number, number] }[];
+  /** Form fields in labelled rows: each label (the text before it) and value (D16). */
+  forms?: { box: number[]; label: string; value: string; labelBox: number[] }[];
 }
 
 /** The editor's hints (014 contracts/pdf-file.md `mfbe:fb2Hints`, version 1). */

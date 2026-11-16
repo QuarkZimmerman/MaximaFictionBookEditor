@@ -62,6 +62,14 @@ nlohmann::json write_picture(PDFDoc& doc, int n, const std::string& id, const Op
 bool render_page(PDFDoc& doc, int n, int dpi, const std::filesystem::path& file, int& width,
                  int& height);
 
+/// The page's drawings (DP-7): areas of lines and shapes, [{id, box}]; sets the page's `forms` when
+/// its fields stand in labelled rows, else draws them as one more drawing. Needs the page's words
+/// and pictures.
+nlohmann::json record_drawings(PDFDoc& doc, int n, nlohmann::json& page);
+
+/// Draws drawing `id` at 200 dpi into pictures/ and returns its event, as write_picture does.
+nlohmann::json write_drawing(PDFDoc& doc, const std::string& id, const Options& options);
+
 /// The page's kind from its words and pictures, its look measured when it is only a picture (DP-8).
 std::string page_kind(PDFDoc& doc, int n, const nlohmann::json& page);
 

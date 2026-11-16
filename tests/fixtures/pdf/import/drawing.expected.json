@@ -6,5 +6,8 @@
  "contains": [
   "harbour",
   "Cell"
- ]
+ ],
+ "dropped": {
+  "comments": 1
+ }
 }
