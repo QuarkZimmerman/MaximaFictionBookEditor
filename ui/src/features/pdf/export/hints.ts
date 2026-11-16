@@ -45,23 +45,83 @@ const squeeze = (text: string): string => clean(text).replace(/\s+/g, ' ').trim(
 const isFb2 = (element: Element | null | undefined, name?: string): boolean =>
   element?.namespaceURI === FB2_NS && (name === undefined || element.localName === name);
 
-/** The spans of the descendants of `block` matching `pick`: [from, to, value] in its text. */
+/** Whitespace as CSS collapses it in printed text (not the no-break space). */
+const WHITESPACE = /[ \t\n\r\f]/;
+
+/**
+ * The spans of the descendants of `block` matching `pick`: [from, to, value] in its text as it prints -
+ * whitespace runs one space, none leading - which is the text the PDF shows the import (D32's library run: a
+ * pretty-printed book's line breaks inside a paragraph shifted every span). Offsets count UTF-16 units.
+ */
 function spans(
   block: Element,
   pick: (element: Element) => string | null,
 ): [number, number, string][] {
   const out: [number, number, string][] = [];
-  const walk = (node: Node, at: number): number => {
-    if (node.nodeType === 3) return at + (node as Text).data.length;
-    let end = at;
-    for (const child of node.childNodes) end = walk(child, end);
+  let length = 0;
+  let space = true;
+  const walk = (node: Node): void => {
+    if (node.nodeType === 3) {
+      const data = (node as Text).data;
+      for (let i = 0; i < data.length; i++) {
+        const white = WHITESPACE.test(data[i]);
+        if (white && space) continue;
+        length++;
+        space = white;
+      }
+      return;
+    }
+    const at = length;
+    for (const child of node.childNodes) walk(child);
     if (node !== block && node.nodeType === 1) {
       const value = pick(node as Element);
-      if (value) out.push([at, end, value]);
+      if (value) out.push([at, length, value]);
     }
-    return end;
   };
-  walk(block, 0);
+  walk(block);
+  return out;
+}
+
+/**
+ * Feature 016 (D6): the spaces after a hyphen where a line ends ("Koraiten- und"). The PDF shows such a line
+ * ending with the hyphen and nothing of the space, as it shows a word going on after its own hyphen
+ * ("Jakka-Mongolen"); the import joins those, and puts these spaces back. Offsets as `spans` counts them; the
+ * block must be laid out (the measured book), else none are found.
+ */
+function lineEndSpaces(block: Element): number[] {
+  if (!/\S-\s/.test(block.textContent ?? '')) return [];
+  const units: { node: Text; index: number; char: string; offset: number }[] = [];
+  let length = 0;
+  let space = true;
+  const walk = (node: Node): void => {
+    if (node.nodeType === 3) {
+      const data = (node as Text).data;
+      for (let i = 0; i < data.length; i++) {
+        const white = WHITESPACE.test(data[i]);
+        if (white && space) continue;
+        units.push({ node: node as Text, index: i, char: white ? ' ' : data[i], offset: length });
+        length++;
+        space = white;
+      }
+      return;
+    }
+    for (const child of node.childNodes) walk(child);
+  };
+  walk(block);
+  const range = block.ownerDocument.createRange();
+  const top = (unit: { node: Text; index: number }): number | null => {
+    range.setStart(unit.node, unit.index);
+    range.setEnd(unit.node, unit.index + 1);
+    const rects = range.getClientRects();
+    return rects.length ? rects[0].top : null;
+  };
+  const out: number[] = [];
+  for (let i = 1; i + 2 < units.length; i++) {
+    if (units[i].char !== '-' || units[i - 1].char === ' ' || units[i + 1].char !== ' ') continue;
+    const before = top(units[i]);
+    const after = top(units[i + 2]);
+    if (before !== null && after !== null && after > before + 1) out.push(units[i + 1].offset);
+  }
   return out;
 }
 
@@ -78,6 +138,8 @@ export function buildHints(input: HintsInput): string {
   const kinds: [number, number, string][] = [];
   const styles: (number | string)[][] = [];
   const marks: [number, number, number, string][] = [];
+  // Feature 016 (D6): [block, offset] of each space after a hyphen at a line's end.
+  const spaces: [number, number][] = [];
   const langs: [number, number, number, string][] = [];
   const ids: [number, string][] = [];
   const tables: [number, number, string][] = [];
@@ -118,6 +180,18 @@ export function buildHints(input: HintsInput): string {
       isFb2(e) && MARKS.has(e.localName) ? e.localName : null,
     ))
       marks.push([b, from, to, name]);
+    // Feature 016 (D6): strong and emphasis where the block's look hides them - a title, an epigraph, a
+    // subtitle, an author line, a date, a block with a named style are printed bold or italic already.
+    const looked =
+      chain.some((c) => isFb2(c, 'title') || isFb2(c, 'epigraph')) ||
+      (isFb2(element) && ['subtitle', 'text-author', 'date'].includes(element.localName)) ||
+      element.hasAttribute('class');
+    if (looked)
+      for (const [from, to, name] of spans(element, (e) =>
+        isFb2(e) && (e.localName === 'strong' || e.localName === 'emphasis') ? e.localName : null,
+      ))
+        marks.push([b, from, to, name]);
+    for (const offset of lineEndSpaces(element)) spaces.push([b, offset]);
     const lang = element.getAttribute('lang');
     if (lang) langs.push([b, 0, element.textContent?.length ?? 0, clean(lang)]);
     for (const [from, to, value] of spans(element, (e) => e.getAttribute('lang')))
@@ -165,6 +239,7 @@ export function buildHints(input: HintsInput): string {
     kinds,
     styles,
     marks,
+    ...(spaces.length ? { spaces } : {}),
     langs,
     ids,
     tables,

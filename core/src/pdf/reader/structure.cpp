@@ -53,6 +53,9 @@ public:
         double left = 1e9;  // where the run begins and ends on its line, in points
         double right = -1e9;
         bool image = false;  // a picture drawn inside it (an inline figure)
+        // Its first character's place and its last one's end (D32: a paragraph's first-line indent
+        // and its last line's length, which its box hides when it runs over several lines).
+        double start_left = 0, start_top = 0, end_right = 0, end_top = 0;
     };
     std::map<int, Style> styles;
 
@@ -118,8 +121,13 @@ public:
         state->transform(x, y, &tx, &ty);
         state->transformDelta(dx, dy, &tdx, &tdy);
         auto& last = last_[mcid];
+        const bool new_line = std::abs(ty - last.y) > size * 0.5;
+        // A word's own hyphen at a line's end goes on with the next line's letters
+        // ("Jakka-Mongolen"): a line breaks after a hyphen with no space to mark (D32's library
+        // run).
+        const bool hyphen = out.size() >= 2 && out.back() == '-' && out[out.size() - 2] != ' ';
         if (!out.empty() && out.back() != ' ' &&
-            (std::abs(ty - last.y) > size * 0.5 || tx - last.x_end > size * 0.15)) {
+            ((new_line && !hyphen) || (!new_line && tx - last.x_end > size * 0.15))) {
             out += ' ';
         }
         for (int i = 0; i < uLen; ++i) {
@@ -134,6 +142,12 @@ public:
                 return name.find(part) != std::string::npos;
             };
             Style& style = styles[mcid];
+            if (style.all == 0) {
+                style.start_left = tx;
+                style.start_top = ty - size;
+            }
+            style.end_right = tx + tdx;
+            style.end_top = ty - size;
             style.all += 1;
             style.size += size;
             style.top = std::min(style.top, ty - size);
@@ -196,6 +210,12 @@ void mark_style(nlohmann::json& leaf, const McidText::Style& style) {
     leaf["top"] = std::round(style.top * 10) / 10;
     leaf["left"] = std::round(style.left * 10) / 10;
     leaf["right"] = std::round(style.right * 10) / 10;
+    if (style.all > 0) {
+        leaf["startLeft"] = std::round(style.start_left * 10) / 10;
+        leaf["startTop"] = std::round(style.start_top * 10) / 10;
+        leaf["endRight"] = std::round(style.end_right * 10) / 10;
+        leaf["endTop"] = std::round(style.end_top * 10) / 10;
+    }
     if (style.all == 0) {
         return;
     }

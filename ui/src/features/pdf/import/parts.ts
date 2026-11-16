@@ -32,6 +32,9 @@ export interface Run {
   /** Where the run begins and ends on its line, in points: the spaces between runs are not drawn. */
   left?: number;
   right?: number;
+  /** Its first character's left and its last character's right (the reader's startLeft, endRight). */
+  startLeft?: number;
+  endRight?: number;
 }
 
 export interface TableCell {
@@ -110,6 +113,14 @@ export function flatten(
   // Where each marked-content run went: the orphans go after the run before them.
   const placed = new Map<string, { list: Run[]; run: Run }>();
   const key = (page: number, mcid: number): string => `${page}:${mcid}`;
+  // Every marked-content run in the order of the structure, and each part's place among them: the number of
+  // runs before it. An element whose content the reader could not reach is an empty part at its place.
+  const leaves: { page: number; mcid: number; list: Run[]; run: Run }[] = [];
+  const slotOf = new Map<Part, number>();
+  const add = (part: Part): void => {
+    slotOf.set(part, leaves.length);
+    parts.push(part);
+  };
 
   const leafRun = (leaf: StructLeaf, context: Partial<Run>): Run => ({
     text: leaf.text,
@@ -124,6 +135,8 @@ export function flatten(
     ...(leaf.top !== undefined ? { top: leaf.top } : {}),
     ...(leaf.left !== undefined ? { left: leaf.left } : {}),
     ...(leaf.right !== undefined ? { right: leaf.right } : {}),
+    ...(leaf.startLeft !== undefined ? { startLeft: leaf.startLeft } : {}),
+    ...(leaf.endRight !== undefined ? { endRight: leaf.endRight } : {}),
   });
 
   const runsOf = (node: StructNode, list: Run[], context: Partial<Run>): void => {
@@ -131,6 +144,7 @@ export function flatten(
       const run = leafRun(node, context);
       list.push(run);
       placed.set(key(node.page, node.mcid), { list, run });
+      leaves.push({ page: node.page, mcid: node.mcid, list, run });
       return;
     }
     if (!isElement(node)) return;
@@ -185,13 +199,13 @@ export function flatten(
       if (lines.length === 0 || element.kids.some(isLeaf)) {
         const runs: Run[] = [];
         runsOf(element, runs, {});
-        parts.push({ kind: 'title', page: firstPage(element), runs, level });
+        add({ kind: 'title', page: firstPage(element), runs, level });
         return;
       }
       for (const line of lines) {
         const runs: Run[] = [];
         runsOf(line, runs, element.lang ? { lang: element.lang } : {});
-        parts.push({ kind: 'title', page: firstPage(line), runs, level });
+        add({ kind: 'title', page: firstPage(line), runs, level });
       }
       return;
     }
@@ -202,7 +216,7 @@ export function flatten(
       case 'BlockQuote': {
         const runs: Run[] = [];
         runsOf(element, runs, {});
-        parts.push({
+        add({
           kind: 'p',
           page: firstPage(element),
           runs,
@@ -211,7 +225,7 @@ export function flatten(
         return;
       }
       case 'Figure':
-        parts.push({ kind: 'figure', page: firstPage(element), runs: [], alt: element.alt ?? '' });
+        add({ kind: 'figure', page: firstPage(element), runs: [], alt: element.alt ?? '' });
         return;
       case 'Table': {
         const rows: TableCell[][] = [];
@@ -237,7 +251,7 @@ export function flatten(
           }
         };
         walkRows(element);
-        parts.push({ kind: 'table', page: firstPage(element), runs: [], rows });
+        add({ kind: 'table', page: firstPage(element), runs: [], rows });
         return;
       }
       case 'Lbl':
@@ -249,7 +263,7 @@ export function flatten(
         const runs: Run[] = [];
         for (const kid of body) runsOf(kid, runs, {});
         if (runs.some((run) => run.text.trim()))
-          parts.push({
+          add({
             kind: 'p',
             page: firstPage(element),
             runs,
@@ -324,20 +338,86 @@ export function flatten(
 
   for (const element of structure) block(element);
 
-  // The orphans, in reverse order so that each goes right after its predecessor.
-  const sorted = [...orphans].sort((a, b) => b.page - a.page || b.mcid - a.mcid);
-  for (const orphan of sorted) {
-    let before: { list: Run[]; run: Run } | undefined;
-    for (let mcid = orphan.mcid - 1; mcid >= 0 && !before; mcid--)
-      before = placed.get(key(orphan.page, mcid));
-    if (!before) continue;
-    const at = before.list.indexOf(before.run);
-    const run = leafRun(orphan, {
-      ...(before.run.uri ? { uri: before.run.uri } : {}),
-      ...(before.run.lang ? { lang: before.run.lang } : {}),
-    });
-    before.list.splice(at + 1, 0, run);
-    placed.set(key(orphan.page, orphan.mcid), { list: before.list, run });
+  // The orphans: marked content the structure holds but the reader could not reach - Poppler drops the
+  // elements of types it does not know, such as PDF 2.0's Strong and Em that Chromium writes for bold and
+  // italic (D32's library run: every bold title came back empty). Each is placed by its marked content's
+  // order among the runs: an element left empty between its neighbours takes it - the orphans of one line
+  // together, line by line, element by element; else it joins its neighbours' text, before the next run
+  // when it stands on that run's line and not on the previous one's, else after the previous run.
+  const order = (page: number, mcid: number): number => page * 1_000_000 + mcid;
+  const sortedLeaves = [...leaves].sort((a, b) => order(a.page, a.mcid) - order(b.page, b.mcid));
+  const slotFor = (orphan: StructLeaf): number => {
+    const at = order(orphan.page, orphan.mcid);
+    let low = 0;
+    let high = sortedLeaves.length;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if (order(sortedLeaves[middle].page, sortedLeaves[middle].mcid) < at) low = middle + 1;
+      else high = middle;
+    }
+    return low;
+  };
+  const empty = (part: Part): boolean =>
+    (part.kind === 'title' || part.kind === 'p') &&
+    !part.runs.some((run) => run.text.trim() || run.picture);
+  const emptiesAt = new Map<number, Part[]>();
+  for (const part of parts) {
+    // An empty part's place in the sorted runs: the runs of the structure before it.
+    const slot = slotOf.get(part);
+    if (slot === undefined || !empty(part)) continue;
+    const before = slot > 0 ? leaves[slot - 1] : undefined;
+    const sortedSlot = before ? sortedLeaves.indexOf(before) + 1 : 0;
+    emptiesAt.set(sortedSlot, [...(emptiesAt.get(sortedSlot) ?? []), part]);
+  }
+  const orphansAt = new Map<number, StructLeaf[]>();
+  for (const orphan of [...orphans].sort((a, b) => order(a.page, a.mcid) - order(b.page, b.mcid))) {
+    const slot = slotFor(orphan);
+    orphansAt.set(slot, [...(orphansAt.get(slot) ?? []), orphan]);
+  }
+  const sameLine = (a: { top?: number }, b: { top?: number }): boolean =>
+    a.top !== undefined && b.top !== undefined && Math.abs(a.top - b.top) < 2;
+  for (const [slot, group] of orphansAt) {
+    const empties = emptiesAt.get(slot) ?? [];
+    if (empties.length > 0) {
+      const lines: StructLeaf[][] = [];
+      for (const orphan of group) {
+        const line = lines[lines.length - 1];
+        if (line && line[0].page === orphan.page && sameLine(line[0], orphan)) line.push(orphan);
+        else lines.push([orphan]);
+      }
+      lines.forEach((line, index) => {
+        const part = empties[Math.min(index, empties.length - 1)];
+        if (!part.page) part.page = line[0].page;
+        for (const orphan of line)
+          part.runs.push(leafRun(orphan, part.lang ? { lang: part.lang } : {}));
+      });
+      continue;
+    }
+    const previous = slot > 0 ? sortedLeaves[slot - 1] : undefined;
+    const next = sortedLeaves[slot];
+    let after: { list: Run[]; run: Run } | undefined = previous;
+    for (const orphan of group) {
+      const onNext =
+        next &&
+        next.page === orphan.page &&
+        sameLine(next.run, orphan) &&
+        !(previous && previous.page === orphan.page && sameLine(previous.run, orphan));
+      if (onNext) {
+        const run = leafRun(orphan, {
+          ...(next.run.uri ? { uri: next.run.uri } : {}),
+          ...(next.run.lang ? { lang: next.run.lang } : {}),
+        });
+        next.list.splice(next.list.indexOf(next.run), 0, run);
+        continue;
+      }
+      if (!after) continue;
+      const run = leafRun(orphan, {
+        ...(after.run.uri ? { uri: after.run.uri } : {}),
+        ...(after.run.lang ? { lang: after.run.lang } : {}),
+      });
+      after.list.splice(after.list.indexOf(after.run) + 1, 0, run);
+      after = { list: after.list, run };
+    }
   }
   return { parts, footnotes };
 }

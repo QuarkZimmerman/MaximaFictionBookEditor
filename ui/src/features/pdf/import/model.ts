@@ -19,6 +19,12 @@ export interface StructLeaf {
   /** Where it begins and ends on its line (a figure's picture too), in points. */
   left?: number;
   right?: number;
+  /** Its first character's left and top, and its last character's right and top (D32: the first line's
+   * indent and the last line's length, which `left` and `right` hide over several lines). */
+  startLeft?: number;
+  startTop?: number;
+  endRight?: number;
+  endTop?: number;
 }
 
 /** An object of the structure (a link annotation), with the link's target. */
@@ -137,6 +143,8 @@ export interface HintsV1 {
   kinds: [number, number, string][];
   styles: (number | string)[][];
   marks: [number, number, number, string][];
+  /** Feature 016 (D6): [block, offset] of the spaces after a hyphen at a line's end, which the PDF does not show. */
+  spaces?: [number, number][];
   langs: [number, number, number, string][];
   ids: [number, string][];
   tables: [number, number, string][];

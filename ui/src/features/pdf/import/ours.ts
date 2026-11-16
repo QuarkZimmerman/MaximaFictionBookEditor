@@ -71,7 +71,9 @@ export function spaceRuns(runs: readonly Run[]): Run[] {
       const before = !previous.picture && /\s$/.test(previous.text);
       const after = !run.picture && /^\s/.test(run.text);
       const closing = !run.picture && /^[.,;:!?)\]}»”’…%]/u.test(run.text);
-      if ((newLine || apart) && !before && !after && !closing) {
+      // A word's own hyphen at a line's end: the word goes on, without a space (D32).
+      const hyphen = newLine && !previous.picture && /\p{L}-$/u.test(previous.text);
+      if ((newLine || apart) && !before && !after && !closing && !hyphen) {
         if (!previous.picture) {
           if (previous.text.endsWith('\u00ad')) previous.text = previous.text.slice(0, -1);
           else previous.text += ' ';
@@ -97,10 +99,27 @@ export function stripWhole(runs: readonly Run[]): Run[] {
   });
 }
 
-/** The parts a page break split, joined: as many as the hints' count of blocks needs (R4). */
+/**
+ * The parts a page break split, joined: as many as the hints' count of blocks needs (R4). The export cuts a
+ * paragraph where a line ends and sets its part on the next page without the first-line indent
+ * (`mfbe-continued`), so a part that begins at the page's left margin after one that ends with a full line is
+ * most likely the rest of it; a small letter at its start and no full stop before count too (D32's library
+ * run: German nouns begin with capitals, and its quotes close with "“").
+ */
 function joinSplit(parts: Part[], needed: number): Part[] {
   const extra = parts.length - needed;
   if (extra <= 0) return parts;
+  // Each page's text block: where its lines begin and end.
+  const margins = new Map<number, { left: number; right: number }>();
+  for (const part of parts)
+    for (const run of part.runs) {
+      if (run.left === undefined || run.right === undefined || !run.text.trim()) continue;
+      const m = margins.get(run.page) ?? { left: Infinity, right: -Infinity };
+      margins.set(run.page, {
+        left: Math.min(m.left, run.left),
+        right: Math.max(m.right, run.right),
+      });
+    }
   const scored: { i: number; score: number }[] = [];
   for (let i = 1; i < parts.length; i++) {
     const before = parts[i - 1];
@@ -108,10 +127,19 @@ function joinSplit(parts: Part[], needed: number): Part[] {
     if (part.page <= before.page || before.kind !== part.kind) continue;
     if (part.kind !== 'p' && part.kind !== 'table') continue;
     let score = part.kind === 'table' ? 3 : 0;
+    const first = part.runs.find((run) => run.text.trim());
+    const last = [...before.runs].reverse().find((run) => run.text.trim());
+    const size = first?.size ?? 10;
+    const here = margins.get(part.page);
+    if (first?.startLeft !== undefined && here && first.startLeft - here.left < size * 0.3)
+      score += 4;
+    const there = last ? margins.get(last.page) : undefined;
+    if (last?.endRight !== undefined && there && there.right - last.endRight < size * 2.5)
+      score += 2;
     const start = partText(part.runs).trimStart();
     const end = partText(before.runs).trimEnd();
-    if (/^\p{Ll}/u.test(start)) score += 2;
-    if (!/[.!?…:;»"”)\]]$/u.test(end)) score += 2;
+    if (/^\p{Ll}/u.test(start)) score += 1;
+    if (!/[.!?…:;»"”“)\]]$/u.test(end)) score += 1;
     scored.push({ i, score });
   }
   scored.sort((x, y) => y.score - x.score || x.i - y.i);
@@ -184,7 +212,9 @@ export function convertOurs(
   for (let b = 0; b < hints.blocks; b++) {
     const kind = kinds[b];
     if (kind.endsWith('empty-line')) {
-      blocks.push({ b, kind, part: null, page: lastPage });
+      // An empty line draws nothing: it is placed with the block after it (a section that begins with one
+      // begins on the next block's page - D32's library run found one counted into the annotation).
+      blocks.push({ b, kind, part: null, page: parts[cursor]?.page ?? lastPage });
       continue;
     }
     const part = parts[cursor++] ?? null;
@@ -248,9 +278,16 @@ export function convertOurs(
     for (const [mb, from, to, name] of hints.marks) {
       if (mb === b && (name === 'strikethrough' || name === 'sub' || name === 'sup'))
         spans.push({ from, to, kind: name });
+      // Strong and emphasis the block's look hides (D6), recorded since feature 016.
+      if (mb === b && (name === 'strong' || name === 'emphasis'))
+        spans.push({ from, to, kind: name === 'strong' ? 'bold' : 'italic' });
     }
     return spans;
   };
+  // A record that carries the marks the look hides: a presentational block's markup comes from it alone.
+  const looksRecorded = hints.marks.some(
+    ([, , , name]) => name === 'strong' || name === 'emphasis',
+  );
   const blockStyle = new Map<number, string>();
   for (const entry of hints.styles)
     if (entry.length === 2) blockStyle.set(entry[0] as number, String(entry[1]));
@@ -260,6 +297,28 @@ export function convertOurs(
     const length = block?.part ? partText(block.part.runs).length : 0;
     if (from === 0 && to >= length) blockLang.set(b, lang);
   }
+  // The spaces after a hyphen at a line's end (D6), put back before the spans, which count them.
+  const spacesAt = new Map<number, number[]>();
+  for (const [b, offset] of hints.spaces ?? [])
+    spacesAt.set(b, [...(spacesAt.get(b) ?? []), offset]);
+  const withSpaces = (runs: readonly Run[], offsets: readonly number[] | undefined): Run[] => {
+    if (!offsets?.length) return [...runs];
+    const out = runs.map((run) => ({ ...run }));
+    for (const offset of [...offsets].sort((x, y) => x - y)) {
+      let at = 0;
+      for (const run of out) {
+        if (offset <= at + run.text.length && run.text) {
+          const local = offset - at;
+          if (run.text[local] !== ' ' && run.text[local - 1] === '-') {
+            run.text = `${run.text.slice(0, local)} ${run.text.slice(local)}`;
+          }
+          break;
+        }
+        at += run.text.length;
+      }
+    }
+    return out;
+  };
   const sectionAt = new Map(hints.sections);
   const idAt = new Map(hints.ids);
   const counts = { sections: 0, pictures: 0, tables: 0, notes: 0 };
@@ -282,7 +341,17 @@ export function convertOurs(
   };
   const paragraph = (name: string, block: Block): string => {
     const part = presentational(block)
-      ? { ...block.part!, runs: stripWhole(block.part!.runs) }
+      ? {
+          ...block.part!,
+          runs: looksRecorded
+            ? block.part!.runs.map((run) => {
+                const copy = { ...run };
+                delete copy.bold;
+                delete copy.italic;
+                return copy;
+              })
+            : stripWhole(block.part!.runs),
+        }
       : block.part!;
     const attrs: string[] = [];
     const id = idAt.get(block.b);
@@ -292,7 +361,7 @@ export function convertOurs(
     const lang = blockLang.get(block.b);
     if (lang) attrs.push(`xml:lang="${attr(lang)}"`);
     const open = attrs.length ? `<${name} ${attrs.join(' ')}>` : `<${name}>`;
-    return `${open}${inline(part.runs, spansOf(block.b), link, pictureFor)}</${name}>`;
+    return `${open}${inline(withSpaces(part.runs, spacesAt.get(block.b)), spansOf(block.b), link, pictureFor)}</${name}>`;
   };
   const tableXml = (block: Block): string => {
     counts.tables++;
@@ -415,8 +484,14 @@ export function convertOurs(
   const firstBodyPage = (hints.bodies[0]?.page ?? 0) + 1;
   const annotationPage = hints.generated.annotationPage;
   const historyPage = hints.generated.historyPage;
+  // The annotation's own blocks: on its pages, and marked as an annotation's by the hints.
   const annotationBlocks = annotationPage
-    ? blocks.filter((block) => block.page >= annotationPage && block.page < firstBodyPage)
+    ? blocks.filter(
+        (block) =>
+          block.page >= annotationPage &&
+          block.page < firstBodyPage &&
+          (block.kind === 'annotation' || block.kind.startsWith('annotation/')),
+      )
     : [];
   const historyBlocks = historyPage ? blocks.filter((block) => block.page >= historyPage) : [];
   const bodyBlocks = blocks.filter(
