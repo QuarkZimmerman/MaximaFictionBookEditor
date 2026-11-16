@@ -145,6 +145,8 @@ export interface HintsV1 {
   marks: [number, number, number, string][];
   /** Feature 016 (D6): [block, offset] of the spaces after a hyphen at a line's end, which the PDF does not show. */
   spaces?: [number, number][];
+  /** Feature 016 (D6): [block, offset] of the line breaks with no space in the text (before a note's mark). */
+  joins?: [number, number][];
   langs: [number, number, number, string][];
   ids: [number, string][];
   tables: [number, number, string][];

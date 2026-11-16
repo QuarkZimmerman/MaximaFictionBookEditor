@@ -129,6 +129,51 @@ function lineEndSpaces(block: Element): number[] {
   return out;
 }
 
+/**
+ * Feature 016 (D6): where a line breaks with no space in the text - before a note's mark or another inline
+ * element, after an ellipsis or a slash. The import puts a space at every line's end it cannot tell apart, and
+ * takes these out again. Offsets as `spans` counts them; only places where two text nodes meet or such a sign
+ * stands are measured.
+ */
+function lineBreakJoins(block: Element): number[] {
+  const units: { node: Text; index: number; char: string; offset: number }[] = [];
+  let length = 0;
+  let space = true;
+  const walk = (node: Node): void => {
+    if (node.nodeType === 3) {
+      const data = (node as Text).data;
+      for (let i = 0; i < data.length; i++) {
+        const white = WHITESPACE.test(data[i]);
+        if (white && space) continue;
+        units.push({ node: node as Text, index: i, char: white ? ' ' : data[i], offset: length });
+        length++;
+        space = white;
+      }
+      return;
+    }
+    for (const child of node.childNodes) walk(child);
+  };
+  walk(block);
+  const range = block.ownerDocument.createRange();
+  const top = (unit: { node: Text; index: number }): number | null => {
+    range.setStart(unit.node, unit.index);
+    range.setEnd(unit.node, unit.index + 1);
+    const rects = range.getClientRects();
+    return rects.length ? rects[0].top : null;
+  };
+  const out: number[] = [];
+  for (let i = 1; i < units.length; i++) {
+    const before = units[i - 1];
+    const unit = units[i];
+    if (before.char === ' ' || unit.char === ' ' || DASHES.has(before.char)) continue;
+    if (before.node === unit.node && !/[\u2026/]/.test(before.char)) continue;
+    const a = top(before);
+    const b = top(unit);
+    if (a !== null && b !== null && b > a + 1) out.push(unit.offset);
+  }
+  return out;
+}
+
 export function buildHints(input: HintsInput): string {
   const { blocks, book, pageMap } = input;
   const targets = new Set<string>();
@@ -144,6 +189,8 @@ export function buildHints(input: HintsInput): string {
   const marks: [number, number, number, string][] = [];
   // Feature 016 (D6): [block, offset] of each space after a hyphen at a line's end.
   const spaces: [number, number][] = [];
+  // Feature 016 (D6): [block, offset] of each line break with no space in the text.
+  const joins: [number, number][] = [];
   const langs: [number, number, number, string][] = [];
   const ids: [number, string][] = [];
   const tables: [number, number, string][] = [];
@@ -196,6 +243,7 @@ export function buildHints(input: HintsInput): string {
       ))
         marks.push([b, from, to, name]);
     for (const offset of lineEndSpaces(element)) spaces.push([b, offset]);
+    for (const offset of lineBreakJoins(element)) joins.push([b, offset]);
     const lang = element.getAttribute('lang');
     if (lang) langs.push([b, 0, element.textContent?.length ?? 0, clean(lang)]);
     for (const [from, to, value] of spans(element, (e) => e.getAttribute('lang')))
@@ -244,6 +292,7 @@ export function buildHints(input: HintsInput): string {
     styles,
     marks,
     ...(spaces.length ? { spaces } : {}),
+    ...(joins.length ? { joins } : {}),
     langs,
     ids,
     tables,

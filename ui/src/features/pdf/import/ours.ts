@@ -51,6 +51,8 @@ function kindsOf(hints: HintsV1): string[] {
  * the run before on its line (an inline picture too); never before closing punctuation, never in a sub- or
  * superscript's step. A soft hyphen at a line's end is dropped and the word joined.
  */
+const styled = (run: Run): boolean => !!(run.bold || run.italic || run.mono || run.sub || run.sup);
+
 export function spaceRuns(runs: readonly Run[]): Run[] {
   const out = runs.map((run) => ({ ...run }));
   let previous: Run | null = null;
@@ -86,6 +88,8 @@ export function spaceRuns(runs: readonly Run[]): Run[] {
       if ((newLine || apart) && !before && !after && !closing && !hyphen) {
         if (!previous.picture) {
           if (previous.text.endsWith('\u00ad')) previous.text = previous.text.slice(0, -1);
+          // A line's end after marked text: the space goes outside the mark, as FB2 sets it (D32).
+          else if (!run.picture && styled(previous) && !styled(run)) run.text = ` ${run.text}`;
           else previous.text += ' ';
         } else if (!run.picture) run.text = ` ${run.text}`;
       }
@@ -307,24 +311,34 @@ export function convertOurs(
     const length = block?.part ? partText(block.part.runs).length : 0;
     if (from === 0 && to >= length) blockLang.set(b, lang);
   }
-  // The spaces after a hyphen at a line's end (D6), put back before the spans, which count them.
-  const spacesAt = new Map<number, number[]>();
+  // The text as the book has it at its line breaks (D6): spaces after a hyphen put back, spaces at breaks the
+  // text has none taken out - in the order of their places, before the spans, which count them.
+  const fixesAt = new Map<number, { offset: number; space: boolean }[]>();
   for (const [b, offset] of hints.spaces ?? [])
-    spacesAt.set(b, [...(spacesAt.get(b) ?? []), offset]);
-  const withSpaces = (runs: readonly Run[], offsets: readonly number[] | undefined): Run[] => {
-    if (!offsets?.length) return [...runs];
+    fixesAt.set(b, [...(fixesAt.get(b) ?? []), { offset, space: true }]);
+  for (const [b, offset] of hints.joins ?? [])
+    fixesAt.set(b, [...(fixesAt.get(b) ?? []), { offset, space: false }]);
+  const withSpaces = (
+    runs: readonly Run[],
+    fixes: readonly { offset: number; space: boolean }[] | undefined,
+  ): Run[] => {
+    if (!fixes?.length) return [...runs];
     const out = runs.map((run) => ({ ...run }));
-    for (const offset of [...offsets].sort((x, y) => x - y)) {
+    for (const fix of [...fixes].sort((x, y) => x.offset - y.offset)) {
       let at = 0;
       for (const run of out) {
-        if (offset <= at + run.text.length && run.text) {
-          const local = offset - at;
+        const local = fix.offset - at;
+        if (fix.space && local <= run.text.length && run.text) {
           if (
             run.text[local] !== ' ' &&
             '-\u2010\u2012\u2013\u2014'.includes(run.text[local - 1] ?? ' ')
-          ) {
+          )
             run.text = `${run.text.slice(0, local)} ${run.text.slice(local)}`;
-          }
+          break;
+        }
+        if (!fix.space && local < run.text.length) {
+          if (run.text[local] === ' ')
+            run.text = run.text.slice(0, local) + run.text.slice(local + 1);
           break;
         }
         at += run.text.length;
@@ -374,7 +388,7 @@ export function convertOurs(
     const lang = blockLang.get(block.b);
     if (lang) attrs.push(`xml:lang="${attr(lang)}"`);
     const open = attrs.length ? `<${name} ${attrs.join(' ')}>` : `<${name}>`;
-    return `${open}${inline(withSpaces(part.runs, spacesAt.get(block.b)), spansOf(block.b), link, pictureFor)}</${name}>`;
+    return `${open}${inline(withSpaces(part.runs, fixesAt.get(block.b)), spansOf(block.b), link, pictureFor)}</${name}>`;
   };
   const tableXml = (block: Block): string => {
     counts.tables++;
