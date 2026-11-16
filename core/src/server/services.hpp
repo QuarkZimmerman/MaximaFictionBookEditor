@@ -1,6 +1,7 @@
 // Internal: everything RPC handlers need, bundled (not part of the public API).
 #pragma once
 
+#include "pdf/import/session.hpp"
 #include "print/queued_print_service.hpp"
 #include "server/ai_state.hpp"
 
@@ -32,8 +33,6 @@
 #include <filesystem>
 #include <functional>
 #include <map>
-
-#include "pdf/import/session.hpp"
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -79,6 +78,9 @@ struct Services {
         std::filesystem::path work;
         int parts = 1;
         std::chrono::steady_clock::time_point touched;
+        // Feature 016 (D25): a ZIP archive with <stem>.pdf and <stem>.fbd instead of the PDF.
+        bool zip = false;
+        std::string stem;
     };
     struct PdfState {
         std::mutex mutex;

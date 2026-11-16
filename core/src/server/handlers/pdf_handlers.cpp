@@ -19,6 +19,7 @@
 #include "server/loopback_server.hpp"
 #include "server/services.hpp"
 
+#include <mfbe/archive.hpp>
 #include <mfbe/atomic_file.hpp>
 #include <mfbe/dialog_provider.hpp>
 #include <mfbe/fb2_writer.hpp>
@@ -549,21 +550,31 @@ void register_pdf_handlers(rpc::RpcRouter& router, Services& services) {
         e.touched = std::chrono::steady_clock::now();
         const std::string token = new_token();
         e.work = services.dirs.data / "pdf-export" / token;
+        // D25 (contracts/zip-export.md): the archive's two entries are named after it.
+        e.zip = rpc::params::boolean_or(params, "zip", false);
+        e.stem = platform::utf8_from_path(target.stem());
         std::error_code ec;
         fs::create_directories(e.work, ec);
         if (ec) {
             throw failed("pdf.ioError", json{{"message", ec.message()}});
         }
         std::lock_guard lock(services.pdf.mutex);
+        // D25: where the interface has doc.exportDescription write the archive's FBD.
+        const std::string fbd_path =
+            e.zip ? platform::utf8_from_path(e.work / (e.stem + ".fbd")) : "";
         services.pdf.exports.emplace(token, std::move(e));
         // DP-19: the limits the interface refuses a book by, before printing.
-        return json{{"token", token},
-                    {"pageSize", page->id},
-                    {"limits",
-                     {{"pages", pdf::kMaxPages},
-                      {"notes", pdf::kMaxNotes},
-                      {"nesting", pdf::kMaxNesting},
-                      {"pixels", pdf::kMaxPixels}}}};
+        json begun{{"token", token},
+                   {"pageSize", page->id},
+                   {"limits",
+                    {{"pages", pdf::kMaxPages},
+                     {"notes", pdf::kMaxNotes},
+                     {"nesting", pdf::kMaxNesting},
+                     {"pixels", pdf::kMaxPixels}}}};
+        if (!fbd_path.empty()) {
+            begun["fbdPath"] = fbd_path;
+        }
+        return begun;
     });
 
     router.add_method("pdf.export.document", [&services](const json& params, rpc::RpcContext&) {
@@ -810,7 +821,24 @@ void register_pdf_handlers(rpc::RpcRouter& router, Services& services) {
                 bytes.assign(finished.begin(), finished.end());
                 control.check_cancelled();
                 try {
-                    atomic_file::write_atomic(e.target, bytes);
+                    if (e.zip) {
+                        // D25 (contracts/zip-export.md): <stem>.pdf, the PDF byte for byte, and
+                        // <stem>.fbd, written by doc.exportDescription; the archive replaces the
+                        // target only whole.
+                        const std::string fbd = atomic_file::read_file(e.work / (e.stem + ".fbd"));
+                        if (fbd.empty()) {
+                            throw failed("pdf.ioError",
+                                         json{{"message", "the description was not written"}});
+                        }
+                        const std::string archive =
+                            archive::zip_entries({{e.stem + ".pdf", bytes, false, false},
+                                                  {e.stem + ".fbd", fbd, false, false}});
+                        atomic_file::write_atomic(e.target, archive);
+                    } else {
+                        atomic_file::write_atomic(e.target, bytes);
+                    }
+                } catch (const rpc::RpcError&) {
+                    throw;
                 } catch (const std::exception& error) {
                     throw failed("pdf.ioError", json{{"message", error.what()}});
                 }

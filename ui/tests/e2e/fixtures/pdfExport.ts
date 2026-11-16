@@ -33,7 +33,8 @@ export async function exportPdfTo(
   sizeLabel: string,
   timeout = 300_000,
 ): Promise<string> {
-  await core.enqueueDialog('dialog.saveFile', { path: target, encoding: sizeLabel });
+  // The system's dialog carries the page size and, unticked, Save in ZIP archive (feature 016, D25).
+  await core.enqueueDialog('dialog.saveFile', { path: target, encoding: sizeLabel, zip: false });
   await clickExport(core, page, 'exportPdf');
   const status = page.getByTestId('status-message');
   const failed = page.getByTestId('dialog-pdf-export-failed');

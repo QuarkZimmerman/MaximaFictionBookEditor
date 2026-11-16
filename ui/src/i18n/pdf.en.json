@@ -111,7 +111,8 @@
       "marginValue": "Margins, mm",
       "unitPt": "points",
       "unitMm": "mm"
-    }
+    },
+    "zipChoice": "Save in ZIP archive"
   },
   "dialog": {
     "settings": {

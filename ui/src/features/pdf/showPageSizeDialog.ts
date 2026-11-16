@@ -12,9 +12,9 @@ import { PageSizeDialog } from './PageSizeDialog';
 /** Opens the window; resolves with the size chosen, or null for *Cancel*. */
 export function showPageSizeDialog(
   dialogs: Dialogs,
-  options: { defaultSize: PdfPageSizeId; path?: string },
-): Promise<PdfPageSizeId | null> {
-  return dialogs.openCustom<PdfPageSizeId | null>((close) =>
+  options: { defaultSize: PdfPageSizeId; path?: string; zip?: boolean },
+): Promise<{ size: PdfPageSizeId; zip: boolean } | null> {
+  return dialogs.openCustom<{ size: PdfPageSizeId; zip: boolean } | null>((close) =>
     createElement(PageSizeDialog, { ...options, onClose: close }),
   );
 }

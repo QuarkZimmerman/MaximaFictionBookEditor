@@ -1475,12 +1475,15 @@ export interface RpcMethods {
    * `path` (chosen with dialog.saveFile) in one of the nine page sizes; errors 1112 pdfExportFailed.
    */
   'pdf.export.begin': {
-    params: { path: string; pageSize: PdfPageSizeId; docId?: string };
+    /** Feature 016 (D25): `zip` writes a ZIP archive with the PDF and the book's FBD instead. */
+    params: { path: string; pageSize: PdfPageSizeId; docId?: string; zip?: boolean };
     /** `limits`: DP-19's, by which the export refuses a book before printing. */
     result: {
       token: string;
       pageSize: PdfPageSizeId;
       limits?: { pages: number; notes: number; nesting: number; pixels: number };
+      /** With `zip`: where doc.exportDescription writes the archive's FBD before the finish. */
+      fbdPath?: string;
     };
   };
   /** Declares how many parts the paged document has (each uploaded with PUT /pdf/{token}/part/{n}). */

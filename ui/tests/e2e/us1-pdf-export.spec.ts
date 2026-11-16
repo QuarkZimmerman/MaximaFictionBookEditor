@@ -304,7 +304,11 @@ test.describe('US1: export a searchable PDF in a chosen page size (feature 014)'
       await openFixtureBook(core, page, book);
       const before = await trace(core, page, book);
       const target = path.join(OUT, 'cancelled.pdf');
-      await core.enqueueDialog('dialog.saveFile', { path: target, encoding: 'A6 (105 × 148 mm)' });
+      await core.enqueueDialog('dialog.saveFile', {
+        path: target,
+        encoding: 'A6 (105 × 148 mm)',
+        zip: false,
+      });
       await clickExport(core, page, 'exportPdf');
       // D4: the progress, with Cancel.
       await page.getByTestId('modal-job').waitFor({ timeout: 30_000 });

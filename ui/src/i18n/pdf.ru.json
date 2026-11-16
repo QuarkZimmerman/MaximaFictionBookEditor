@@ -111,7 +111,8 @@
       "marginValue": "Поля, мм",
       "unitPt": "пт",
       "unitMm": "мм"
-    }
+    },
+    "zipChoice": "Сохранить в ZIP-архив"
   },
   "dialog": {
     "settings": {
