@@ -25,38 +25,30 @@ export function metadataDescription(
   fileStem: string,
   language: string | null,
 ): string {
-  let description =
+  const description =
     /<description[\s\S]*?<\/description>/.exec(templateXml)?.[0] ?? '<description/>';
+  const templateInfo = /<title-info>[\s\S]*?<\/title-info>/.exec(description)?.[0] ?? '';
+  const genre =
+    /<genre\b[^>]*\/>|<genre\b[^>]*>[\s\S]*?<\/genre>/.exec(templateInfo)?.[0] ?? '<genre/>';
+  const templateAuthor =
+    /<author>[\s\S]*?<\/author>/.exec(templateInfo)?.[0] ?? '<author><last-name/></author>';
+  const templateLang = /<lang>([\s\S]*?)<\/lang>/.exec(templateInfo)?.[1] ?? 'en';
   const title = info?.Title?.trim() || fileStem;
-  description = description.replace(
-    /<book-title>[\s\S]*?<\/book-title>/,
-    `<book-title>${text(title)}</book-title>`,
-  );
   const authors = (info?.Author ?? '')
     .split(/;|\s&\s|\sand\s/)
     .map((a) => a.trim())
-    .filter(Boolean);
-  if (authors.length) {
-    const xml = authors
-      .map((author) => {
-        const { first, middle, last } = splitName(author);
-        return `<author>${first ? `<first-name>${text(first)}</first-name>` : ''}${middle ? `<middle-name>${text(middle)}</middle-name>` : ''}<last-name>${text(last)}</last-name></author>`;
-      })
-      .join('');
-    // The title-info's authors are the PDF's; the template's stay in document-info.
-    description = description.replace(
-      /(<title-info>[\s\S]*?)(<author>[\s\S]*?<\/author>\s*)+/,
-      `$1${xml}`,
-    );
-  }
-  const extra = [
-    info?.Subject?.trim() ? `<annotation><p>${text(info.Subject.trim())}</p></annotation>` : '',
-    info?.Keywords?.trim() ? `<keywords>${text(info.Keywords.trim())}</keywords>` : '',
-  ].join('');
-  if (extra) description = description.replace(/<\/book-title>/, `</book-title>${extra}`);
-  if (language)
-    description = description.replace(/<lang>[\s\S]*?<\/lang>/, `<lang>${text(language)}</lang>`);
-  return description;
+    .filter(Boolean)
+    .map((author) => {
+      const { first, middle, last } = splitName(author);
+      return `<author>${first ? `<first-name>${text(first)}</first-name>` : ''}${middle ? `<middle-name>${text(middle)}</middle-name>` : ''}<last-name>${text(last)}</last-name></author>`;
+    })
+    .join('');
+  const titleInfo =
+    `<title-info>${genre}${authors || templateAuthor}<book-title>${text(title)}</book-title>` +
+    (info?.Subject?.trim() ? `<annotation><p>${text(info.Subject.trim())}</p></annotation>` : '') +
+    (info?.Keywords?.trim() ? `<keywords>${text(info.Keywords.trim())}</keywords>` : '') +
+    `<lang>${text(language ?? templateLang)}</lang></title-info>`;
+  return templateInfo ? description.replace(templateInfo, titleInfo) : description;
 }
 
 /** The language whose dictionary knows most of `words` (at least half), else null (DP-14). */

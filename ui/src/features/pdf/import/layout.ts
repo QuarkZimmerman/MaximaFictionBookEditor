@@ -132,12 +132,14 @@ function furnitureOf(pages: Line[][]): Set<Line> {
     for (const lines of pages)
       for (const line of pick(lines))
         counts.set(mask(line.text), (counts.get(mask(line.text)) ?? 0) + 1);
-    const enough = Math.max(3, Math.floor(pages.length * 0.4));
+    const enough = Math.max(2, Math.ceil(pages.length * 0.4));
     for (const lines of pages) {
       for (const line of pick(lines)) {
         const key = mask(line.text);
         const lone = /^[\divxlc\-–—.\s]+$/i.test(line.text.trim()) && line.text.trim().length <= 8;
-        if (lone || (pages.length >= 3 && (counts.get(key) ?? 0) >= enough)) out.add(line);
+        // A running head is short; text that happens to repeat is not furniture.
+        const short = line.text.trim().length <= 60;
+        if (lone || (short && pages.length >= 2 && (counts.get(key) ?? 0) >= enough)) out.add(line);
       }
     }
   }
@@ -238,12 +240,14 @@ export function layoutParts(
       const gap = line.top - previous.bottom;
       const indent = line.left - leftEdge > bodySize * 0.8;
       const shortBefore = rightEdge - previous.right > bodySize * 3;
-      starts = gap > line.size * 0.8 || indent || shortBefore;
+      // A line ending with a hyphen never ends a paragraph: its word goes on (D12).
+      const broken = /[\u00ad-]$/.test(previous.text);
+      starts = !broken && (gap > line.size * 0.8 || indent || shortBefore);
     } else if (previous && previous.page !== line.page) {
       // A new page: the paragraph goes on unless this line is indented or the last one ended short.
       const indent = line.left - leftEdge > bodySize * 0.8;
       const shortBefore = rightEdge - previous.right > bodySize * 3;
-      starts = indent || shortBefore;
+      starts = !/[\u00ad-]$/.test(previous.text) && (indent || shortBefore);
     }
     if (starts) {
       flush();

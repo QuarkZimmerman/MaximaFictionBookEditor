@@ -5,6 +5,7 @@
  */
 
 import { attr, inline } from './fb2';
+import { stripWhole } from './ours';
 import type { Part, Run } from './parts';
 
 export interface TextBody {
@@ -39,7 +40,8 @@ export function textBody(
   const openSection = (level: number): void => {
     closeTitle();
     // A section holds more than its title (FB2): one that got nothing else gets an empty line.
-    if (depths.length && !sectionHasContent && depths[depths.length - 1] >= level) out += '<empty-line/>';
+    if (depths.length && !sectionHasContent && depths[depths.length - 1] >= level)
+      out += '<empty-line/>';
     while (depths.length && depths[depths.length - 1] >= level) {
       out += '</section>';
       depths.pop();
@@ -60,7 +62,8 @@ export function textBody(
         inTitle = true;
         titleLevel = level;
       }
-      out += `<p>${inline(part.runs, [], link, pictureRun)}</p>`;
+      // A title's bold or italic over the whole line is its look, not markup.
+      out += `<p>${inline(stripWhole(part.runs), [], link, pictureRun)}</p>`;
       continue;
     }
     closeTitle();

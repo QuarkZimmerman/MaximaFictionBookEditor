@@ -240,6 +240,21 @@ export function flatten(
       }
       case 'Lbl':
         return;
+      case 'LI': {
+        // A list item: its text without its label (FB2 has no lists; each item is a paragraph).
+        const body = element.kids.filter((kid) => !(isElement(kid) && kid.type === 'Lbl'));
+        if (body.some((kid) => isElement(kid) && kid.type === 'LBody')) break;
+        const runs: Run[] = [];
+        for (const kid of body) runsOf(kid, runs, {});
+        if (runs.some((run) => run.text.trim()))
+          parts.push({
+            kind: 'p',
+            page: firstPage(element),
+            runs,
+            ...(element.lang ? { lang: element.lang } : {}),
+          });
+        return;
+      }
       default:
         break;
     }

@@ -100,9 +100,37 @@ export async function importPdf(
     } else {
       // A PDF made from text, or a scan with a text layer (D11, D17): its structure when tagged, else its layout.
       const { xml: template } = await rpc.call('template.xml');
+      // The dictionaries the editor has, by their language (en, ru, uk): spell.check takes their languages.
+      const dictionaries = await rpc.call('spell.dictionaries').catch(() => []);
+      const dictionaryOf = (code: string): string | undefined =>
+        dictionaries.find(
+          (d) =>
+            d.lang.toLowerCase().startsWith(code) || (d.tag ?? '').toLowerCase().startsWith(code),
+        )?.lang;
+      const misspelled = async (list: string[], code: string): Promise<string[]> => {
+        const dictionary = dictionaryOf(code);
+        if (!dictionary || list.length === 0) return list;
+        return (await rpc.call('spell.check', { words: list, langs: [dictionary] })).misspelled;
+      };
+      // Words broken with a plain hyphen at a line's end, joined: kept when a dictionary knows them (D12).
+      const candidates = new Set<string>();
+      for (const model of models) {
+        model.words.forEach((word, index) => {
+          const next = model.words[index + 1];
+          if (next && /\p{L}-$/u.test(word.t))
+            candidates.add(`${word.t.slice(0, -1)}${next.t}`.replace(/[^\p{L}]/gu, ''));
+        });
+      }
+      const knownWords = new Set<string>();
+      for (const code of ['en', 'ru', 'uk']) {
+        const list = [...candidates].filter((w) => !knownWords.has(w)).slice(0, 1000);
+        const wrong = new Set(await misspelled(list, code).catch(() => list));
+        for (const word of list) if (!wrong.has(word)) knownWords.add(word);
+      }
       const parts = document.structure?.length
         ? flatten(document.structure, document.orphans ?? []).parts
-        : layoutParts(models, { outline: document.outline }).parts;
+        : layoutParts(models, { outline: document.outline, known: (word) => knownWords.has(word) })
+            .parts;
       // Pictures: on each page, the parts' pictures in order against the reader's, top to bottom.
       const pagePictures = new Map(
         models.map((m) => [m.n, [...m.pictures].sort((a, b) => a.box[1] - b.box[1])]),
@@ -118,11 +146,7 @@ export async function importPdf(
         run.uri ? { href: run.uri, note: false } : null;
       const body = textBody(parts, link, picture);
       const words = parts.flatMap((part) => part.runs.flatMap((run) => run.text.split(/\s+/)));
-      const language = await guessLanguage(
-        words,
-        async (list, lang) =>
-          (await rpc.call('spell.check', { words: list, langs: [lang] })).misspelled,
-      );
+      const language = await guessLanguage(words, misspelled);
       const stem = baseName(originPath).replace(/\.pdf$/i, '');
       xml =
         `<?xml version="1.0" encoding="UTF-8"?>\n<FictionBook xmlns="${FB2_NS}" xmlns:l="${XLINK_NS}">` +
