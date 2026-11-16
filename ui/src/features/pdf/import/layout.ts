@@ -62,12 +62,11 @@ export function linesOf(page: PdfPageModel): Line[] {
   if (words.length === 0) return [];
   // Columns: a vertical band free of words between text, wider than a few characters.
   const sizes = median(words.map((w) => w.s)) || 10;
-  const columns = columnBands(words, page.width, sizes);
   const lines: Line[] = [];
-  for (const [from, to] of columns) {
-    const inColumn = words
-      .filter((w) => w.box[0] + w.box[2] / 2 >= from && w.box[0] + w.box[2] / 2 < to)
-      .sort((a, b) => a.base - b.base || a.box[0] - b.box[0]);
+  // The lines of a set of words, top to bottom.
+  const build = (set: PdfWord[]): Line[] => {
+    const out: Line[] = [];
+    const sorted = [...set].sort((a, b) => a.base - b.base || a.box[0] - b.box[0]);
     let current: PdfWord[] = [];
     let base = Number.NaN;
     const flush = (): void => {
@@ -78,7 +77,7 @@ export function linesOf(page: PdfPageModel): Line[] {
       const top = Math.min(...current.map((w) => w.box[1]));
       const bottom = Math.max(...current.map((w) => w.box[1] + w.box[3]));
       const size = median(current.map((w) => w.s));
-      lines.push({
+      out.push({
         page: page.n,
         words: current,
         left,
@@ -91,7 +90,7 @@ export function linesOf(page: PdfPageModel): Line[] {
       });
       current = [];
     };
-    for (const word of inColumn) {
+    for (const word of sorted) {
       // A sub- or superscript stays on its line: its baseline moves less than half a line.
       if (!Number.isNaN(base) && Math.abs(word.base - base) > Math.max(word.s, sizes) * 0.6)
         flush();
@@ -99,7 +98,51 @@ export function linesOf(page: PdfPageModel): Line[] {
       current.push(word);
     }
     flush();
-  }
+    return out;
+  };
+  const inBand = (set: PdfWord[], [from, to]: [number, number]): PdfWord[] =>
+    set.filter((w) => w.box[0] + w.box[2] / 2 >= from && w.box[0] + w.box[2] / 2 < to);
+  const columns = columnBands(words, page.width, sizes);
+  // A line across the whole text - a heading, a sidebar's title - hides the gutter of columns beside it: the
+  // gutters are looked for again among the narrow lines, and the page is read in stretches between the wide
+  // lines, each column by column (D32's library run read two columns line by line, their words interleaved).
+  // The page's lines, cut where a gap wider than half a character runs between words (two columns' lines at one
+  // height are two lines).
+  const rough = build(words).flatMap((line) => {
+    const pieces: PdfWord[][] = [[]];
+    line.words.forEach((word, index) => {
+      const before = line.words[index - 1];
+      if (before && word.box[0] - (before.box[0] + before.box[2]) > sizes * 0.5) pieces.push([]);
+      pieces[pieces.length - 1].push(word);
+    });
+    return pieces.length === 1 ? [line] : pieces.flatMap((piece) => build(piece));
+  });
+  const textLeft = Math.min(...words.map((w) => w.box[0]));
+  const textRight = Math.max(...words.map((w) => w.box[0] + w.box[2]));
+  const wide = (line: Line): boolean => line.right - line.left > (textRight - textLeft) * 0.6;
+  const narrow = rough.filter((line) => !wide(line));
+  const again =
+    columns.length === 1 && narrow.length >= rough.length * 0.5 && narrow.length >= 10
+      ? columnBands(
+          narrow.flatMap((line) => line.words),
+          page.width,
+          sizes,
+        )
+      : [];
+  if (again.length > 1) {
+    const wides = rough.filter(wide).sort((a, b) => a.top - b.top);
+    const narrowWords = narrow.flatMap((line) => line.words);
+    let from = Number.NEGATIVE_INFINITY;
+    for (const cut of [...wides, null]) {
+      const to = cut ? cut.top : Number.POSITIVE_INFINITY;
+      const stretch = narrowWords.filter((w) => w.base > from && w.base <= to);
+      for (const band of again) lines.push(...build(inBand(stretch, band)));
+      if (cut) {
+        lines.push(cut);
+        from = cut.bottom;
+      }
+    }
+  } else for (const band of columns) lines.push(...build(inBand(words, band)));
   // A drop cap (D11): one letter set far larger than the page's text at a paragraph's start, beside its first
   // lines. Its baseline falls on a later line, so it begins the first word of the first line beside its top
   // (D32's library run found "алеко-далеко ... простран- Д ство").
@@ -163,9 +206,14 @@ function columnBands(words: PdfWord[], width: number, size: number): [number, nu
   for (let x = first; x <= last; x++) {
     if (used[x] === 0) gap++;
     else {
-      // A gutter: a free band wider than two characters with text on both sides, holding at least 20 lines.
+      // A gutter: a free band wider than half a character with text on both sides, holding at least 20 lines,
+      // each side a fifth of the text's width at least - a list's numbers are no column (D32's library run:
+      // gutters of 6 points).
+      const textWidth = (last - first) * step;
       if (
-        gap * step > size * 2 &&
+        gap * step > size * 0.5 &&
+        (x - gap) * step - start >= textWidth * 0.2 &&
+        last * step - x * step >= textWidth * 0.2 &&
         words.filter((w) => w.box[0] < x * step && w.box[0] + w.box[2] < x * step).length > 20
       ) {
         bands.push([start, (x - gap) * step + (gap * step) / 2]);

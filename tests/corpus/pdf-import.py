@@ -208,7 +208,9 @@ def missing_words(pages: list[tuple[int, list[tuple[str, bool]]]], book: list[st
     vocabulary = set(layer) | set(book)
     a, first = canonical(layer, vocabulary)
     b, _ = canonical(book, vocabulary)
-    blocks = [block for block in difflib.SequenceMatcher(None, a, b, autojunk=True).get_matching_blocks()
+    # No junk heuristics: they break the blocks at every common word, and a block moved far (an imprint the tags
+    # read at the end) then wins over the whole body (D32's library run).
+    blocks = [block for block in difflib.SequenceMatcher(None, a, b, autojunk=False).get_matching_blocks()
               if block.size]
     covered: set[int] = set()
     for block in blocks:
@@ -218,16 +220,63 @@ def missing_words(pages: list[tuple[int, list[tuple[str, bool]]]], book: list[st
     elsewhere = 0
     run: list[str] = []
     longest: list[str] = []
+
+    def nearby(i: int) -> list[str]:
+        k = bisect.bisect_right(starts, i) - 1
+        # Where the block before puts it, and where the block after does: a block moved between them shifts the
+        # one but not the other.
+        expected = [blocks[k].b + (i - blocks[k].a) if k >= 0 else 0]
+        if k + 1 < len(blocks):
+            expected.append(max(0, blocks[k + 1].b - (blocks[k + 1].a - i)))
+        # Within its page's own length either way (a PDF page can hold two pages of a book, read column by
+        # column by the import).
+        reach = max(near, 2 * page_size[page_of[first[i]]])
+        return [word for at in expected for word in b[max(0, at - reach):at + reach]]
+
+    # A run of words the alignment left out that the book holds as it is somewhere else - a block its tags read
+    # in another place (an imprint at the end) - is in another order, not lost.
+    whole = f" {' '.join(b)} "
+    moved: set[int] = set()
+    i = 0
+    while i < len(a):
+        if i in covered:
+            i += 1
+            continue
+        j = i
+        while j < len(a) and j not in covered:
+            j += 1
+        # Five words at a time: a moved block may differ from the layer here and there.
+        for k in range(i, j - 4):
+            if f" {' '.join(a[k:k + 5])} " in whole:
+                moved.update(range(k, k + 5))
+        i = j
+    # Letters of one word that the layer gives apart ("t sv e t k o v", a word set letter-spaced): the word the
+    # book holds, read from consecutive tokens outside the blocks that together make up a nearby book word.
+    joined: set[int] = set()
+    for i in range(len(a)):
+        if i in covered or i in joined or i in moved:
+            continue
+        words = [word for word in nearby(i) if len(word) >= 3]
+        text, best = a[i], -1
+        for j in range(i + 1, min(len(a), i + 24)):
+            if j in covered:
+                break
+            text += a[j]
+            if not any(text in word for word in words):
+                break
+            if any(text == word for word in words):
+                best = j
+        if best > i:
+            joined.update(range(i, best + 1))
     for i, token in enumerate(a):
         if i in covered:
             run = []
             continue
-        k = bisect.bisect_right(starts, i) - 1
-        expected = blocks[k].b + (i - blocks[k].a) if k >= 0 else 0
-        # Within its page's own length either way (a PDF page can hold two pages of a book, read column by
-        # column by the import).
-        reach = max(near, 2 * page_size[page_of[first[i]]])
-        around = b[max(0, expected - reach):expected + reach]
+        if i in joined or i in moved:
+            elsewhere += 1
+            run = []
+            continue
+        around = nearby(i)
         # Nearby as it is, or as a part of a word the book joined (its halves drawn apart in the PDF).
         if token in around or (len(token) >= 2 and any(
                 len(word) > len(token) and (word.startswith(token) or word.endswith(token)) for word in around)):

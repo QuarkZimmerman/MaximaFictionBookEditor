@@ -241,7 +241,35 @@ export async function importPdf(
               outline: document.outline,
               known: (word) => knownWords.has(word),
             });
-      const parts = layout ? layout.parts : (tagged ?? []);
+      // Pages the tags leave out (a back cover's text layer, untagged - D32's library run): read by the layout
+      // and set among the tags' parts by their page.
+      let fromTags = tagged ?? [];
+      if (!layout && tagged) {
+        const taggedOn = new Map<number, number>();
+        for (const run of taggedRuns)
+          if (run.text.trim())
+            taggedOn.set(run.page, (taggedOn.get(run.page) ?? 0) + wordsOf([run.text]));
+        const untagged = models.filter((model, index) => {
+          const words = pageLines[index]
+            .filter((line) => !furniture.has(line))
+            .reduce((n, line) => n + line.words.length, 0);
+          return words >= 5 && (taggedOn.get(model.n) ?? 0) < words * 0.5;
+        });
+        if (untagged.length > 0) {
+          const extra = layoutParts(untagged, {
+            outline: [],
+            known: (word) => knownWords.has(word),
+          }).parts;
+          const merged: typeof tagged = [];
+          let k = 0;
+          for (const part of tagged) {
+            while (k < extra.length && extra[k].page < part.page) merged.push(extra[k++]);
+            merged.push(part);
+          }
+          fromTags = [...merged, ...extra.slice(k)];
+        }
+      }
+      const parts = layout ? layout.parts : fromTags;
       if (layout?.cover && !fbd)
         wanted.push({ readerId: layout.cover, page: 1, binaryId: 'cover' });
       notImported = (kinds.blank ?? 0) + (layout?.skippedPictures ?? 0);

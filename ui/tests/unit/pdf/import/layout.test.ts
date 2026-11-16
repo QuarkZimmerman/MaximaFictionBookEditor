@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { layoutParts } from '@/features/pdf/import/layout';
+import { layoutParts, linesOf } from '@/features/pdf/import/layout';
 import type { PdfDocumentModel, PdfPageModel } from '@/features/pdf/import/model';
 import { partText, type Part } from '@/features/pdf/import/parts';
 
@@ -86,5 +86,50 @@ describe('a scan with an invisible text layer (US3)', () => {
   it('leaves out the running heads and page numbers of the layer, and keeps its errors (D12, D17)', () => {
     expect(paragraphs).not.toContain('The Generated Book');
     expect(paragraphs.join(' ')).toContain('earIy');
+  });
+});
+
+describe('two columns (D32)', () => {
+  // Two columns of 24 lines with a gutter of 6 points between them, and one line across both in the middle;
+  // the words of a line vary in width, as a text's do, so that no free band runs down inside a column.
+  const word = (t: string, x: number, y: number, w: number) => ({
+    t,
+    box: [x, y - 9, w, 11],
+    base: y,
+    s: 11,
+    f: 0,
+    c: 0,
+  });
+  const words = [];
+  const line = (name: string, from: number, to: number, y: number, i: number): void => {
+    let x = from;
+    for (let k = 0; x < to - 10; k++) {
+      const w = Math.min(to - x, 18 + ((i * 7 + k * 13) % 23));
+      words.push(word(`${name}${i}${'abcdefghij'[k]}`, x, y, w));
+      x += w + 3;
+    }
+  };
+  for (let i = 0; i < 24; i++) {
+    const y = 60 + i * 13 + (i >= 12 ? 26 : 0);
+    line('l', 32, 262, y, i);
+    line('r', 268, 498, y, i);
+  }
+  words.push(word('Across', 120, 60 + 12 * 13 + 10, 300));
+  const page = {
+    n: 1,
+    width: 527,
+    height: 700,
+    rotation: 0,
+    kind: 'text',
+    words,
+  } as unknown as PdfPageModel;
+
+  it('reads each column top to bottom, in stretches between the lines across them', () => {
+    const lines = linesOf(page).map((l) => l.words[0].t);
+    expect(lines.slice(0, 2)).toEqual(['l0a', 'l1a']);
+    expect(lines[12]).toBe('r0a');
+    expect(lines[24]).toBe('Across');
+    expect(lines[25]).toBe('l12a');
+    expect(lines[37]).toBe('r12a');
   });
 });
