@@ -49,7 +49,18 @@ export function sameDescription(
   fbd: ReadDescriptionResult,
   cover: { w: number; h: number; jpeg: boolean } | undefined,
 ): boolean {
-  if (JSON.stringify(record.description) !== JSON.stringify(fbd.description)) return false;
+  // The record holds the description without its annotation and history: the PDF prints them as pages, and
+  // the import gives them back from there (014 R10, D5). They are no difference.
+  const comparable = (read: ReadDescriptionResult): string => {
+    const description = structuredClone(read.description) as typeof read.description & {
+      titleInfo?: { annotation?: unknown };
+      documentInfo?: { history?: unknown };
+    };
+    if (description.titleInfo) delete description.titleInfo.annotation;
+    if (description.documentInfo) delete description.documentInfo.history;
+    return JSON.stringify(description);
+  };
+  if (comparable(record) !== comparable(fbd)) return false;
   const theirs = coverOf(fbd);
   if (!coverOf(record) && !theirs) return true;
   return (
