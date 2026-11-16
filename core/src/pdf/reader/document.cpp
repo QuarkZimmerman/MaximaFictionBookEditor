@@ -16,7 +16,6 @@
 #include <UTF.h>
 #include <cstdlib>
 #include <fstream>
-#include <regex>
 
 namespace mfbe::pdf_reader {
 
@@ -26,12 +25,19 @@ namespace {
 
 /// The text of an XMP element, its XML entities read: the record keeps FB2 XML and JSON as text.
 std::string xmp_value(const std::string& xmp, const std::string& name) {
-    const std::regex re("<" + name + ">([\\s\\S]*?)</" + name + ">");
-    std::smatch m;
-    if (!std::regex_search(xmp, m, re)) {
+    // A plain search: std::regex recurses over the text it matches and overflowed the stack on the
+    // record of a long book (D32's library run).
+    const std::string open = "<" + name + ">";
+    const std::string close = "</" + name + ">";
+    const std::size_t start = xmp.find(open);
+    if (start == std::string::npos) {
         return {};
     }
-    const std::string raw = m[1].str();
+    const std::size_t stop = xmp.find(close, start + open.size());
+    if (stop == std::string::npos) {
+        return {};
+    }
+    const std::string raw = xmp.substr(start + open.size(), stop - start - open.size());
     std::string out;
     out.reserve(raw.size());
     for (std::size_t i = 0; i < raw.size(); ++i) {
