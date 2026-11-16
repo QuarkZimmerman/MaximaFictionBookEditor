@@ -6,6 +6,7 @@
 
 import type { CommandContext } from '@/app/commands';
 import type { FileFeature } from '@/features/file/fileCommands';
+import type { ReadDescriptionResult } from '@/features/transfer/importEntries';
 import type { BinaryMeta } from '@/model/document';
 import { actions } from '@/model/store';
 
@@ -15,7 +16,9 @@ import type { HintsV1 } from './model';
 import { convertOurs, type PictureWanted } from './ours';
 import { loadDocument, loadPages } from './pages';
 import { flatten } from './parts';
+import { askFbd, fbdUnreadable } from './questions';
 import { guessLanguage, metadataDescription } from './describe';
+import { applyFbd, closeRead, readDescriptionFile } from './fbd';
 import { layoutParts } from './layout';
 import { fromLatin1, looksLatin1Cyrillic } from './mend';
 import { textBody } from './text';
@@ -33,7 +36,8 @@ export async function importPdf(
   run: PdfImportRun,
 ): Promise<void> {
   const rpc = ctx.rpc;
-  const { modal, token } = run;
+  const { token } = run;
+  let modal = run.modal;
   if (!rpc) {
     modal.end();
     return;
@@ -53,6 +57,33 @@ export async function importPdf(
     if (run.cancelled()) throw new Cancelled();
   };
   try {
+    // D22, D23 (FR-045): which FBD of the archive gives the description, asked before the pages are read.
+    let fbd: string | null = null;
+    if (run.fbds.length > 0) {
+      // The questions come above the window, not under the progress: it closes while they are asked.
+      modal.end();
+      const answer = await askFbd(ctx, run, await loadDocument(token));
+      if (answer === 'cancel') {
+        modal = run.reopen();
+        throw new Cancelled();
+      }
+      fbd = answer;
+      // D24: the chosen FBD is read now, so that one that cannot be read leaves the PDF's description.
+      const windowDoc = ctx.store.getState().docId;
+      if (fbd && windowDoc) {
+        let probe: ReadDescriptionResult | null = null;
+        try {
+          const { path } = await rpc.call('pdfImport.extractFbd', { token, entry: fbd });
+          probe = await readDescriptionFile(ctx, windowDoc, path);
+        } catch (error) {
+          await fbdUnreadable(ctx, fbd, error);
+          fbd = null;
+        } finally {
+          await closeRead(ctx, probe);
+        }
+      }
+      modal = run.reopen();
+    }
     // The read: the reader process takes every page (half of the bar).
     let jobId: string | null = null;
     const watch = setInterval(() => {
@@ -97,14 +128,24 @@ export async function importPdf(
     let counts = { sections: 0, pictures: 0, tables: 0, notes: 0 };
     if (document.record) {
       // The editor's own PDF (D5): its record and hints rebuild the book.
+      const hints = JSON.parse(document.record.hints) as HintsV1;
+      // An FBD taken whole (D23): the book starts from the template's description, as an untouched new
+      // document does, and the record's description pages and cover are not used.
+      const description = fbd
+        ? (/<description[\s\S]*?<\/description>/.exec((await rpc.call('template.xml')).xml)?.[0] ??
+          '<description/>')
+        : document.record.description;
       const result = convertOurs(
-        JSON.parse(document.record.hints) as HintsV1,
+        hints,
         flatten(document.structure ?? [], document.orphans ?? []),
         models,
-        document.record.description,
+        description,
+        { descriptionPages: !fbd },
       );
       ({ xml, mismatches, counts } = result);
-      wanted = result.pictures;
+      wanted = fbd
+        ? result.pictures.filter((w) => w.page !== hints.generated.cover)
+        : result.pictures;
     } else {
       // A PDF made from text, or a scan with a text layer (D11, D17): its structure when tagged, else its layout.
       const { xml: template } = await rpc.call('template.xml');
@@ -141,7 +182,8 @@ export async function importPdf(
       const parts = layout
         ? layout.parts
         : flatten(document.structure ?? [], document.orphans ?? []).parts;
-      if (layout?.cover) wanted.push({ readerId: layout.cover, page: 1, binaryId: 'cover' });
+      if (layout?.cover && !fbd)
+        wanted.push({ readerId: layout.cover, page: 1, binaryId: 'cover' });
       notImported = (kinds.blank ?? 0) + (layout?.skippedPictures ?? 0);
       platesImported = layout?.platesImported ?? 0;
       garbledPages = kinds.garbled ?? 0;
@@ -180,13 +222,15 @@ export async function importPdf(
       const stem = baseName(originPath).replace(/\.pdf$/i, '');
       xml =
         `<?xml version="1.0" encoding="UTF-8"?>\n<FictionBook xmlns="${FB2_NS}" xmlns:l="${XLINK_NS}">` +
-        metadataDescription(
-          document.metadata.info,
-          template,
-          stem,
-          language,
-          layout?.cover ? 'cover' : null,
-        ) +
+        (fbd
+          ? metadataDescription(undefined, template, stem, null)
+          : metadataDescription(
+              document.metadata.info,
+              template,
+              stem,
+              language,
+              layout?.cover ? 'cover' : null,
+            )) +
         body.xml +
         '</FictionBook>';
       counts = body.counts;
@@ -217,16 +261,32 @@ export async function importPdf(
     }
     check();
     const uploaded = new Set(added.map((binary) => binary.id));
-    const book = {
+    let book = {
       ...opened.document,
       binaries: [
         ...opened.document.binaries.filter((binary) => !uploaded.has(binary.id)),
         ...added,
       ],
     };
+    // D23: the FBD's description, every entry of it, as Import Description gives one to a new document.
+    // D24: an FBD that cannot be read is said once the progress has closed.
+    let fbdError: unknown = null;
+    if (fbd) {
+      let read: ReadDescriptionResult | null = null;
+      try {
+        const { path } = await rpc.call('pdfImport.extractFbd', { token, entry: fbd });
+        read = await readDescriptionFile(ctx, docId, path);
+        book = { ...book, ...(await applyFbd(ctx, docId, book, read)) };
+      } catch (error) {
+        fbdError = error;
+      } finally {
+        await closeRead(ctx, read);
+      }
+    }
     await end();
     modal.progress(total, total);
     modal.end();
+    if (fbd && fbdError) await fbdUnreadable(ctx, fbd, fbdError);
     await nextTask();
     await files.loadImported(ctx, book, originPath);
     docId = null;

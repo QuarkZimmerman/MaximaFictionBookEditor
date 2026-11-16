@@ -39,6 +39,10 @@ public:
 
     const std::filesystem::path& folder() const { return folder_; }
     std::mutex& mutex() { return mutex_; }
+    /// The ZIP archive the PDF came from (D21), empty for a PDF on its own: its FBDs are read from
+    /// it.
+    void set_archive(std::filesystem::path archive) { archive_ = std::move(archive); }
+    const std::filesystem::path& archive() const { return archive_; }
 
 private:
     nlohmann::json wait_open();
@@ -48,6 +52,7 @@ private:
     std::filesystem::path pdf_;
     int quality_;
     std::filesystem::path fonts_;
+    std::filesystem::path archive_;
     std::unique_ptr<ReaderProcess> reader_;
     int pages_ = 0;
     bool done_ = false;

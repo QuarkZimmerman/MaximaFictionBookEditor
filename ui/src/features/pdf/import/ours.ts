@@ -153,6 +153,8 @@ export function convertOurs(
   flat: Flattened,
   pages: readonly PdfPageModel[],
   description: string,
+  /** False when an FBD gives the description whole (D23): its annotation and history pages are not used. */
+  { descriptionPages = true }: { descriptionPages?: boolean } = {},
 ): OursResult {
   const kinds = kindsOf(hints);
   const generated = new Set(
@@ -473,10 +475,12 @@ export function convertOurs(
   const notes = notesBody(flat.footnotes, bodyBlocks, link, pictureFor);
   counts.notes = notes.count;
 
-  const annotation = annotationBlocks.length
-    ? `<annotation>${render(annotationBlocks, 1)}</annotation>`
-    : '';
-  const history = historyBlocks.length ? `<history>${render(historyBlocks)}</history>` : '';
+  const annotation =
+    descriptionPages && annotationBlocks.length
+      ? `<annotation>${render(annotationBlocks, 1)}</annotation>`
+      : '';
+  const history =
+    descriptionPages && historyBlocks.length ? `<history>${render(historyBlocks)}</history>` : '';
   const stylesheets = hints.stylesheets
     .map((sheet) => `<stylesheet type="${attr(sheet.type)}">${text(sheet.text)}</stylesheet>`)
     .join('');

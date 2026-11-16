@@ -66,6 +66,8 @@ export interface PdfDocumentModel {
   outline: OutlineNode[];
   forms: { page: number; box: number[]; value: string }[];
   dropped?: { comments?: number; attachments?: number; media?: number; scripts?: number };
+  /** The first page's largest picture: the cover an editor's own PDF gives back (D23), known before the read. */
+  cover?: { w: number; h: number; jpeg: boolean };
   structure?: StructElement[];
   orphans?: StructLeaf[];
 }

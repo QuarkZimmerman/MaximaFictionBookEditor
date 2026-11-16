@@ -241,6 +241,24 @@ bool write_document(PDFDoc& doc, const Options& options, std::string& error, boo
         out["orphans"] = std::move(orphans);
     }
     Catalog* catalog = doc.getCatalog();
+    // D23: the first page's largest picture, its size in pixels and kind - the cover the editor's
+    // own PDF gives back, for the comparison with an FBD's cover before the pages are read
+    // (FR-045).
+    if (doc.getNumPages() >= 1) {
+        const nlohmann::json first = record_pictures(doc, 1);
+        const nlohmann::json* largest = nullptr;
+        for (const auto& picture : first) {
+            if (!largest || picture.value("w", 0) * picture.value("h", 0) >
+                                (*largest).value("w", 0) * (*largest).value("h", 0)) {
+                largest = &picture;
+            }
+        }
+        if (largest) {
+            out["cover"] = {{"w", largest->value("w", 0)},
+                            {"h", largest->value("h", 0)},
+                            {"jpeg", largest->value("jpeg", false)}};
+        }
+    }
     out["dropped"] = {{"comments", comments},
                       {"attachments", catalog ? catalog->numEmbeddedFiles() : 0},
                       {"media", media},

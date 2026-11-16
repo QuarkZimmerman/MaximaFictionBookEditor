@@ -106,7 +106,7 @@ function show(ctx: CommandContext, document: Document): void {
  * Copies the image data the chosen entries refer to from the import session into the open
  * document; returns the `#old -> #new` map and the metadata of the binaries added.
  */
-async function copyBinaries(
+export async function copyBinaries(
   ctx: CommandContext,
   docId: string,
   importId: string,

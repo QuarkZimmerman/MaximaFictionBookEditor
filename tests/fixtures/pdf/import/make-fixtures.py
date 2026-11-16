@@ -532,6 +532,112 @@ def picture_formats() -> tuple[bytes, dict]:
     return pdf.write(catalog), {"kinds": ["text"], "pictures": ["jbig2", "jpx", "ccitt"], "contains": ["harbour"]}
 
 
+# --- ZIP archives with PDFs and FBDs (User Story 4; D21 to D24) ------------------------------------------
+
+def fbd_file(title: str, first: str, last: str, cover: tuple[str, bytes] | None = None,
+             description: str | None = None) -> bytes:
+    """An FBD: a description, one empty section, and the cover's binary when it has one."""
+    if description is None:
+        cover_xml = f'<coverpage><image l:href="#{cover[0]}"/></coverpage>' if cover else ""
+        description = (f"<description><title-info><genre>prose</genre><author><first-name>{first}</first-name>"
+                       f"<last-name>{last}</last-name></author><book-title>{title}</book-title>{cover_xml}"
+                       "<lang>en</lang></title-info><document-info><author><nickname>fixture</nickname></author>"
+                       '<date value="2026-01-01">2026</date><id>fixture-fbd</id><version>1.0</version>'
+                       "</document-info></description>")
+    binary = ""
+    if cover:
+        import base64
+        binary = (f'<binary id="{cover[0]}" content-type="image/jpeg">'
+                  f'{base64.b64encode(cover[1]).decode()}</binary>')
+    return ('<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">'
+            f"{description}<body><section><p/></section></body>{binary}</FictionBook>\n").encode("utf-8")
+
+
+def zip_of(entries: list[tuple[str, bytes]]) -> bytes:
+    import zipfile
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+        for name, data in entries:
+            info = zipfile.ZipInfo(name, date_time=(2026, 1, 1, 0, 0, 0))
+            info.compress_type = zipfile.ZIP_DEFLATED
+            z.writestr(info, data)
+    return out.getvalue()
+
+
+def patch_central(data: bytes, name: str, flag: int | None = None, size: int | None = None) -> bytes:
+    """Sets an entry's flag bits (in both headers) or its stated uncompressed size (central directory)."""
+    out = bytearray(data)
+    encoded = name.encode("utf-8")
+    for signature, flag_at, size_at, name_len_at, name_at in ((b"PK\x01\x02", 8, 24, 28, 46),
+                                                              (b"PK\x03\x04", 6, 22, 26, 30)):
+        at = out.find(signature)
+        while at >= 0:
+            n = struct.unpack_from("<H", out, at + name_len_at)[0]
+            if bytes(out[at + name_at:at + name_at + n]) == encoded:
+                if flag is not None:
+                    struct.pack_into("<H", out, at + flag_at, struct.unpack_from("<H", out, at + flag_at)[0] | flag)
+                if size is not None and signature == b"PK\x01\x02":
+                    struct.pack_into("<I", out, at + size_at, size)
+            at = out.find(signature, at + 4)
+    return bytes(out)
+
+
+def record_of(pdf_bytes: bytes) -> str:
+    """The editor's record description of a PDF it exported (014 R10: mfbe:fb2Description in the XMP)."""
+    import html
+    import re
+    import zlib
+    for m in re.finditer(rb"stream\r?\n(.*?)\r?\nendstream", pdf_bytes, re.S):
+        raw = m.group(1)
+        for candidate in (raw, None):
+            try:
+                text = (candidate if candidate is not None else zlib.decompress(raw)).decode("utf-8", "replace")
+            except zlib.error:
+                continue
+            found = re.search(r"<mfbe:fb2Description>(.*?)</mfbe:fb2Description>", text, re.S)
+            if found:
+                return html.unescape(found.group(1))
+    raise SystemExit("record_of: no record in the reference PDF")
+
+
+def zips() -> dict[str, tuple[bytes, dict]]:
+    text_pdf, _ = text_untagged()
+    reference = (HERE / "reference-0.0.11-a5.pdf").read_bytes()
+    record = record_of(reference)
+    book = (REPO / "tests" / "fixtures" / "books" / "reference-all-elements.fb2").read_text(encoding="utf-8")
+    import base64
+    import re
+    cover_bytes = base64.b64decode(re.search(r'<binary[^>]*id="cover"[^>]*>([^<]*)</binary>', book).group(1))
+    out = {
+        "zip/one": (zip_of([("book.pdf", text_pdf),
+                            ("book-description.fbd", fbd_file("The FBD Title", "Fiona", "Fbd", ("fbd-cover", cover_bytes)))]),
+                    {"pdfs": 1, "fbds": 1, "fbdTitle": "The FBD Title"}),
+        "zip/several": (zip_of([("a/first.pdf", text_pdf), ("b/second.pdf", text_pdf),
+                                ("first.fbd", fbd_file("First FBD", "A", "One")),
+                                ("x/SECOND.fbd", fbd_file("Second FBD", "B", "Two"))]),
+                        {"pdfs": 2, "fbds": 2, "pick": "b/second.pdf", "fbdTitle": "Second FBD"}),
+        "zip/nomatch": (zip_of([("x.pdf", text_pdf), ("y.pdf", text_pdf),
+                                ("one.fbd", fbd_file("One FBD", "C", "Three")),
+                                ("two.fbd", fbd_file("Two FBD", "D", "Four"))]),
+                        {"pdfs": 2, "fbds": 2, "pick": "x.pdf", "choose": "two.fbd", "fbdTitle": "Two FBD"}),
+        "zip/own-same": (zip_of([("reference.pdf", reference),
+                                 ("reference.fbd", fbd_file("", "", "", ("cover", cover_bytes), description=record))]),
+                         {"pdfs": 1, "fbds": 1, "question": False}),
+        "zip/own-other": (zip_of([("reference.pdf", reference),
+                                  ("reference.fbd", fbd_file("Another Title", "E", "Other"))]),
+                          {"pdfs": 1, "fbds": 1, "fbdTitle": "Another Title"}),
+        "zip/bad-fbd": (zip_of([("book.pdf", text_pdf), ("book.fbd", b"<FictionBook><description>")]),
+                        {"pdfs": 1, "fbds": 1, "unreadable": True}),
+        "zip/nopdf": (zip_of([("only.fbd", fbd_file("Only", "F", "Five"))]), {"reason": "noPdfInArchive"}),
+    }
+    plain = zip_of([("book.pdf", text_pdf)])
+    out["zip/encrypted"] = (patch_central(plain, "book.pdf", flag=1), {"reason": "encrypted"})
+    out["zip/bomb"] = (patch_central(plain, "book.pdf", size=600 * 1024 * 1024), {"reason": "tooLarge"})
+    out["zip/damaged"] = (plain[: len(plain) // 2], {"reason": "damaged"})
+    return out
+
+
 def build() -> dict[str, tuple[bytes, dict]]:
     files = {
         "text-untagged": text_untagged(),
@@ -550,6 +656,7 @@ def build() -> dict[str, tuple[bytes, dict]]:
         "copy-restricted": protected("", -20),
     }
     files.update({f"hostile/{k}": v for k, v in hostile().items()})
+    files.update(zips())
     t = tagged()
     if t:
         files["tagged"] = t
@@ -560,7 +667,7 @@ def main() -> int:
     check = "--check" in sys.argv
     failed = []
     for name, (data, expected) in build().items():
-        pdf_path = HERE / f"{name}.pdf"
+        pdf_path = HERE / (f"{name}.zip" if name.startswith("zip/") else f"{name}.pdf")
         json_path = HERE / f"{name}.expected.json"
         text = json.dumps(expected, indent=1, ensure_ascii=False) + "\n"
         if check:

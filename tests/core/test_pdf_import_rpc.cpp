@@ -156,3 +156,39 @@ TEST_CASE("pdfImport adds the pictures the import takes to the new book", "[pdf]
     CHECK(added["result"]["added"][0]["binary"]["contentType"] == "image/jpeg");
     f.ws.call("pdfImport.end", json{{"token", token}});
 }
+
+TEST_CASE(
+    "pdfImport hands 004's reader an archive's FBD and the editor's record as files (D22, D23)",
+    "[pdf][import][rpc]") {
+    Fixture f;
+    const auto zip = [](const char* name) {
+        return platform::utf8_from_path(test::fixtures_dir() / "pdf" / "import" / "zip" / name);
+    };
+    // A PDF not made by the editor, with an FBD: the FBD comes out; there is no record.
+    json begun =
+        f.ws.call("pdfImport.begin", json{{"path", zip("one.zip")}, {"entry", "book.pdf"}});
+    std::string token = begun["result"]["token"];
+    REQUIRE(f.ws.call("pdfImport.inspect", json{{"token", token}}, 30000)["result"]["opened"] ==
+            true);
+    const json fbd = f.ws.call("pdfImport.extractFbd",
+                               json{{"token", token}, {"entry", "book-description.fbd"}});
+    REQUIRE(fbd.contains("result"));
+    CHECK(atomic_file::read_file(platform::path_from_utf8(fbd["result"]["path"].get<std::string>()))
+              .find("The FBD Title") != std::string::npos);
+    CHECK(f.ws.call("pdfImport.recordFbd", json{{"token", token}})["error"]["code"] == 1113);
+    CHECK(f.ws.call("pdfImport.extractFbd",
+                    json{{"token", token}, {"entry", "book.pdf"}})["error"]["code"] == 1113);
+    f.ws.call("pdfImport.end", json{{"token", token}});
+    // The editor's own PDF: its record as an FBD file.
+    begun = f.ws.call("pdfImport.begin",
+                      json{{"path", zip("own-same.zip")}, {"entry", "reference.pdf"}});
+    token = begun["result"]["token"];
+    REQUIRE(f.ws.call("pdfImport.inspect", json{{"token", token}}, 30000)["result"]["opened"] ==
+            true);
+    const json record = f.ws.call("pdfImport.recordFbd", json{{"token", token}});
+    REQUIRE(record.contains("result"));
+    CHECK(atomic_file::read_file(
+              platform::path_from_utf8(record["result"]["path"].get<std::string>()))
+              .find("<book-title>The Reference Book</book-title>") != std::string::npos);
+    f.ws.call("pdfImport.end", json{{"token", token}});
+}

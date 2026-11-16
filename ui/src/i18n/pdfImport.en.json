@@ -44,7 +44,10 @@
       "crashed": "the PDF could not be read: its reader stopped.",
       "noPdfInArchive": "the archive holds no PDF.",
       "encrypted": "the archive is protected by a password.",
-      "cancelled": "the import was cancelled."
+      "cancelled": "the import was cancelled.",
+      "method": "the archive uses a compression the editor does not read.",
+      "multiVolume": "the archive is one part of several; the editor reads whole archives only.",
+      "missing": "the PDF is no longer in the archive."
     },
     "summaryIntro": "Not everything came over as the PDF has it:",
     "summary": {
@@ -59,6 +62,15 @@
         "media": "Sounds and videos, left out: {{count}}",
         "scripts": "Scripts, left out and never run: {{count}}"
       }
+    },
+    "fbd": {
+      "unreadable": "{{name}} could not be read: {{reason}}\nThe book takes the PDF's own description.",
+      "whichDescription": "{{pdf}} carries its book's description, and {{fbd}} holds another one. Which description should the book take?",
+      "thePdfs": "The &PDF's",
+      "theFbds": "The &FBD's",
+      "takeIt": "The archive holds {{fbd}}. Should the book take its description from it?",
+      "ownDescription": "The PDF's own description",
+      "none": "None"
     }
   }
 }

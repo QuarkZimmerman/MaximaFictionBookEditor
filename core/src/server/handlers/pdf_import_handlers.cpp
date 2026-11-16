@@ -211,9 +211,50 @@ void register_pdf_import_handlers(rpc::RpcRouter& router, Services& services) {
         const int quality = services.conversion_policy().jpeg_quality;
         auto session = std::make_shared<pdf_import::Session>(folder, pdf, quality,
                                                              services.resources_dir / "fonts");
+        if (entry) {
+            session->set_archive(path);
+        }
         std::lock_guard lock(services.pdf_import.mutex);
         services.pdf_import.sessions.emplace(token, std::move(session));
         return json{{"token", token}};
+    });
+    // D22, D23 (DP-17): the FBD of the archive, extracted into the import's folder with 009's
+    // limits, so that doc.readDescription reads it as File > Import > Description does.
+    router.add_method("pdfImport.extractFbd", [&services](const json& params, rpc::RpcContext&) {
+        auto session = find(services, params);
+        std::lock_guard lock(session->mutex());
+        const std::string entry = rpc::params::string(params, "entry");
+        if (session->archive().empty() || !ends_with(lower(entry), ".fbd")) {
+            throw failed("damaged");
+        }
+        std::string bytes;
+        try {
+            bytes = archive::read_entry(session->archive(), entry);
+        } catch (const archive::ArchiveError& e) {
+            throw failed(archive::reason_name(e.reason));
+        }
+        const fs::path file = session->folder() / "description.fbd";
+        std::ofstream(file, std::ios::binary | std::ios::trunc) << bytes;
+        return json{{"path", platform::utf8_from_path(file)}};
+    });
+    // D23: the editor's record as an FBD file, for the field-by-field comparison with the archive's
+    // FBD through the same reader. Available once the PDF is open (document.json written).
+    router.add_method("pdfImport.recordFbd", [&services](const json& params, rpc::RpcContext&) {
+        auto session = find(services, params);
+        std::lock_guard lock(session->mutex());
+        const json document =
+            json::parse(std::ifstream(session->folder() / "document.json"), nullptr, false);
+        if (!document.is_object() || !document.contains("record")) {
+            throw failed("damaged");
+        }
+        const fs::path file = session->folder() / "record.fbd";
+        std::ofstream(file, std::ios::binary | std::ios::trunc)
+            << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+            << "<FictionBook xmlns=\"http://www.gribuser.ru/xml/fictionbook/2.0\" "
+               "xmlns:l=\"http://www.w3.org/1999/xlink\">"
+            << document["record"].value("description", "")
+            << "<body><section><p/></section></body></FictionBook>";
+        return json{{"path", platform::utf8_from_path(file)}};
     });
     router.add_method("pdfImport.inspect", [&services](const json& params, rpc::RpcContext&) {
         auto session = find(services, params);

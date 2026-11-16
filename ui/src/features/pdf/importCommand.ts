@@ -25,11 +25,15 @@ export interface PdfImportRun {
   entry?: string;
   /** The archive's FBD files, for the questions of D22 and D23. */
   fbds: PdfImportEntry[];
+  /** How many PDFs the archive holds (D22: one PDF and one FBD ask about that FBD). */
+  pdfs: number;
   /** The core's import session (contracts/rpc-api.md). */
   token: string;
   pages: number;
   /** The progress, shown before the part loaded; the part ends it. */
   modal: ModalJobHandle;
+  /** The progress again, after a question the part asked with it closed (the questions of D22, D23). */
+  reopen: () => ModalJobHandle;
   /** True once Cancel was pressed, also while the part was loading. */
   cancelled: () => boolean;
 }
@@ -107,8 +111,10 @@ export function registerPdfImportFeature(commands: CommandRegistry, files: FileF
         let begun = await rpc.call('pdfImport.begin', { path });
         let entry: string | undefined;
         let fbds: PdfImportEntry[] = [];
+        let pdfs = 1;
         if (begun.archive) {
           fbds = begun.archive.fbds;
+          pdfs = begun.archive.pdfs.length;
           const chosen = await choosePdf(ctx, path, begun.archive.pdfs);
           if (!chosen) return;
           entry = chosen;
@@ -138,16 +144,20 @@ export function registerPdfImportFeature(commands: CommandRegistry, files: FileF
           open = await rpc.call('pdfImport.password', { token, password: answer.value });
         }
         let cancelled = false;
-        const modal = startModalJob(ctx.t('pdfImport.importing'), () => {
-          cancelled = true;
-        });
+        const begin = (): ModalJobHandle =>
+          startModalJob(ctx.t('pdfImport.importing'), () => {
+            cancelled = true;
+          });
+        const modal = begin();
         const run: PdfImportRun = {
           path,
           entry,
           fbds,
+          pdfs,
           token,
           pages: open.pages ?? 0,
           modal,
+          reopen: begin,
           cancelled: () => cancelled,
         };
         let part: typeof import('./import/job');
