@@ -33,6 +33,8 @@ export interface Run {
   left?: number;
   right?: number;
   /** Its first character's left and its last character's right (the reader's startLeft, endRight). */
+  /** The link it belongs to, one number per link of the structure: two links in a row stay two. */
+  link?: number;
   startLeft?: number;
   endRight?: number;
   /** Its first character's top and its last character's top (the reader's startTop, endTop). */
@@ -118,6 +120,7 @@ export function flatten(
   const key = (page: number, mcid: number): string => `${page}:${mcid}`;
   // Every marked-content run in the order of the structure, and each part's place among them: the number of
   // runs before it. An element whose content the reader could not reach is an empty part at its place.
+  let links = 0;
   const leaves: { page: number; mcid: number; list: Run[]; run: Run }[] = [];
   const slotOf = new Map<Part, number>();
   const add = (part: Part): void => {
@@ -133,6 +136,7 @@ export function flatten(
     ...(leaf.mono || context.mono ? { mono: true } : {}),
     ...(context.uri ? { uri: context.uri } : {}),
     ...(context.dest ? { dest: context.dest } : {}),
+    ...(context.link !== undefined ? { link: context.link } : {}),
     ...(context.lang ? { lang: context.lang } : {}),
     ...(leaf.size !== undefined ? { size: leaf.size } : {}),
     ...(leaf.top !== undefined ? { top: leaf.top } : {}),
@@ -156,7 +160,7 @@ export function flatten(
     const inner: Partial<Run> = { ...context, ...(node.lang ? { lang: node.lang } : {}) };
     switch (node.type) {
       case 'Link':
-        Object.assign(inner, linkTarget(node));
+        Object.assign(inner, linkTarget(node), { link: ++links });
         break;
       case 'Code':
         inner.mono = true;
@@ -352,19 +356,21 @@ export function flatten(
   const order = (page: number, mcid: number): number => page * 1_000_000 + mcid;
   const sortedLeaves = [...leaves].sort((a, b) => order(a.page, a.mcid) - order(b.page, b.mcid));
   // Each page's left margin: where its runs begin at the least.
-  const margins = new Map<number, number>();
-  const rights = new Map<number, number>();
+  // The text block's edges over the pages of one side (odd or even, which a book may mirror): a page of a few
+  // short lines tells nothing of its own (D32's library run).
+  const lefts = [Infinity, Infinity];
+  const ends = [-Infinity, -Infinity];
   for (const leaf of leaves) {
     const { left, right } = leaf.run;
-    if (left !== undefined)
-      margins.set(leaf.page, Math.min(margins.get(leaf.page) ?? Infinity, left));
-    if (right !== undefined)
-      rights.set(leaf.page, Math.max(rights.get(leaf.page) ?? -Infinity, right));
+    if (left !== undefined) lefts[leaf.page % 2] = Math.min(lefts[leaf.page % 2], left);
+    if (right !== undefined) ends[leaf.page % 2] = Math.max(ends[leaf.page % 2], right);
   }
+  const margins = { get: (page: number): number => lefts[page % 2] };
+  const rights = { get: (page: number): number => ends[page % 2] };
   // A run whose last line reaches the right margin, and an orphan that begins with the first-line indent.
   const full = (run: Run): boolean =>
-    (rights.get(run.page) ?? -Infinity) - (run.endRight ?? run.right ?? -Infinity) <
-    2.5 * (run.size ?? 10);
+    Number.isFinite(rights.get(run.page)) &&
+    rights.get(run.page) - (run.endRight ?? run.right ?? -Infinity) < 2.5 * (run.size ?? 10);
   const indented = (orphan: StructLeaf): boolean =>
     (orphan.startLeft ?? orphan.left ?? 0) - (margins.get(orphan.page) ?? Infinity) >
     0.5 * (orphan.size ?? 10);
@@ -484,7 +490,7 @@ export function flatten(
           0.5 * (orphan.size ?? 10);
       if (onNext || opens) {
         const run = leafRun(orphan, {
-          ...(next.run.uri ? { uri: next.run.uri } : {}),
+          ...(next.run.uri ? { uri: next.run.uri, link: next.run.link } : {}),
           ...(next.run.lang ? { lang: next.run.lang } : {}),
         });
         next.list.splice(next.list.indexOf(next.run), 0, run);
@@ -492,7 +498,7 @@ export function flatten(
       }
       if (!after) continue;
       const run = leafRun(orphan, {
-        ...(after.run.uri ? { uri: after.run.uri } : {}),
+        ...(after.run.uri ? { uri: after.run.uri, link: after.run.link } : {}),
         ...(after.run.lang ? { lang: after.run.lang } : {}),
       });
       after.list.splice(after.list.indexOf(after.run) + 1, 0, run);

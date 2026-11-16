@@ -85,7 +85,9 @@ export function spaceRuns(runs: readonly Run[]): Run[] {
       const closing = !run.picture && /^[.,;:!?)\]}»”’…%]/u.test(run.text);
       // A word's own hyphen at a line's end: the word goes on, without a space (D32).
       const hyphen =
-        newLine && !previous.picture && /\S[-\u2010\u2012\u2013\u2014]$/u.test(previous.text);
+        newLine &&
+        !previous.picture &&
+        /\S[-\u2010\u2012\u2013\u2014]\u00ad*$/u.test(previous.text);
       if ((newLine || apart) && !before && !after && !closing && !hyphen) {
         if (!previous.picture) {
           if (previous.text.endsWith('\u00ad')) previous.text = previous.text.slice(0, -1);
@@ -124,17 +126,17 @@ export function stripWhole(runs: readonly Run[]): Run[] {
 function joinSplit(parts: Part[], needed: number, starts: ReadonlySet<number> = new Set()): Part[] {
   const extra = parts.length - needed;
   if (extra <= 0) return parts;
-  // Each page's text block: where its lines begin and end.
-  const margins = new Map<number, { left: number; right: number }>();
+  // The text block: where its lines begin and end, over the pages of one side (odd or even, which a book may
+  // mirror) - a page of a few short lines tells nothing of its own (D32's library run).
+  const sides = [0, 1].map(() => ({ left: Infinity, right: -Infinity }));
   for (const part of parts)
     for (const run of part.runs) {
       if (run.left === undefined || run.right === undefined || !run.text.trim()) continue;
-      const m = margins.get(run.page) ?? { left: Infinity, right: -Infinity };
-      margins.set(run.page, {
-        left: Math.min(m.left, run.left),
-        right: Math.max(m.right, run.right),
-      });
+      const side = sides[run.page % 2];
+      side.left = Math.min(side.left, run.left);
+      side.right = Math.max(side.right, run.right);
     }
+  const margins = { get: (page: number) => sides[page % 2] };
   const scored: { i: number; score: number }[] = [];
   for (let i = 1; i < parts.length; i++) {
     const before = parts[i - 1];
@@ -147,10 +149,19 @@ function joinSplit(parts: Part[], needed: number, starts: ReadonlySet<number> = 
     const last = [...before.runs].reverse().find((run) => run.text.trim());
     const size = first?.size ?? 10;
     const here = margins.get(part.page);
-    if (first?.startLeft !== undefined && here && first.startLeft - here.left < size * 0.3)
+    if (
+      first?.startLeft !== undefined &&
+      Number.isFinite(here.left) &&
+      first.startLeft - here.left < size * 0.3
+    )
       score += 4;
     const there = last ? margins.get(last.page) : undefined;
-    if (last?.endRight !== undefined && there && there.right - last.endRight < size * 2.5)
+    if (
+      last?.endRight !== undefined &&
+      there &&
+      Number.isFinite(there.right) &&
+      there.right - last.endRight < size * 2.5
+    )
       score += 2;
     const start = partText(part.runs).trimStart();
     const end = partText(before.runs).trimEnd();
@@ -184,7 +195,12 @@ function joinSplit(parts: Part[], needed: number, starts: ReadonlySet<number> = 
       const head = part.runs[0];
       if (tail && head && !/\s$/.test(tail.text) && !/^\s/.test(head.text)) {
         if (tail.text.endsWith('\u00ad')) tail.text = tail.text.slice(0, -1);
-        else last.runs[last.runs.length - 1] = { ...tail, text: `${tail.text} ` };
+        // A word's own hyphen or dash at the page's end: the word goes on (D32: "ток-шоу").
+        else if (!/\S[-\u2010\u2012\u2013\u2014]\u00ad*$/u.test(tail.text)) {
+          // After marked text the space goes outside the mark, as at a line's end.
+          if (styled(tail) && !styled(head)) part.runs[0] = { ...head, text: ` ${head.text}` };
+          else last.runs[last.runs.length - 1] = { ...tail, text: `${tail.text} ` };
+        }
       }
       last.runs.push(...part.runs);
     }

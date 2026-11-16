@@ -47,24 +47,31 @@ void append_utf8(std::string& out, Unicode u) {
 /// The text ends with a hyphen or a dash after a character that is no space ("Jakka-", "10–"): a
 /// line may break after it with no space to mark (D32's library run).
 bool ends_with_dash(const std::string& out) {
+    // A soft hyphen the book put after it is no letter (D32: "кто-\u00adто").
+    std::size_t size = out.size();
+    while (size >= 2 && out.compare(size - 2, 2, "\xC2\xAD") == 0) {
+        size -= 2;
+    }
     static const char* const dashes[] = {"-", "\xE2\x80\x90", "\xE2\x80\x92", "\xE2\x80\x93",
                                          "\xE2\x80\x94"};
     for (const char* dash : dashes) {
         const std::size_t n = std::strlen(dash);
-        if (out.size() <= n || out.compare(out.size() - n, n, dash) != 0) {
+        if (size <= n || out.compare(size - n, n, dash) != 0) {
             continue;
         }
         // The character before it, decoded: a space of any kind (a no-break space before a dash, as
         // typography sets it) makes the dash no part of a word.
-        std::size_t at = out.size() - n - 1;
+        std::size_t at = size - n - 1;
         while (at > 0 && (static_cast<unsigned char>(out[at]) & 0xC0) == 0x80) {
             --at;
         }
         const auto lead = static_cast<unsigned char>(out[at]);
-        char32_t code = lead;
-        int extra = lead < 0x80 ? 0 : (lead & 0xE0) == 0xC0 ? 1 : (lead & 0xF0) == 0xE0 ? 2 : 3;
-        code = extra == 0 ? lead : lead & (0x3F >> extra);
-        for (int k = 1; k <= extra && at + k < out.size() - n; ++k) {
+        const int extra = lead < 0x80             ? 0
+                          : (lead & 0xE0) == 0xC0 ? 1
+                          : (lead & 0xF0) == 0xE0 ? 2
+                                                  : 3;
+        char32_t code = extra == 0 ? lead : lead & (0x3F >> extra);
+        for (int k = 1; k <= extra && at + k < size - n; ++k) {
             code = (code << 6) | (static_cast<unsigned char>(out[at + k]) & 0x3F);
         }
         const bool space = code == 0x20 || code == 0xA0 || code == 0x1680 ||
@@ -91,6 +98,9 @@ public:
         double start_left = 0, start_top = 0, end_right = 0, end_top = 0;
     };
     std::map<int, Style> styles;
+    /// A gap between letters wider than a sixth of their size is read as a space - not in a PDF
+    /// that draws its spaces (the editor's own).
+    bool gaps = true;
 
     bool upsideDown() override { return true; }
     bool useDrawChar() override { return true; }
@@ -158,9 +168,9 @@ public:
         // A word's own hyphen at a line's end goes on with the next line's letters
         // ("Jakka-Mongolen"): a line breaks after a hyphen with no space to mark (D32's library
         // run).
-        const bool hyphen = ends_with_dash(out);
+        const bool hyphen = new_line && ends_with_dash(out);
         if (!out.empty() && out.back() != ' ' &&
-            ((new_line && !hyphen) || (!new_line && tx - last.x_end > size * 0.15))) {
+            ((new_line && !hyphen) || (gaps && !new_line && tx - last.x_end > size * 0.15))) {
             out += ' ';
         }
         for (int i = 0; i < uLen; ++i) {
@@ -414,7 +424,7 @@ void map_newer_types(PDFDoc& doc) {
     xref->setModifiedObject(&modified, ref);
 }
 
-nlohmann::json structure_of(PDFDoc& doc, nlohmann::json& orphans) {
+nlohmann::json structure_of(PDFDoc& doc, nlohmann::json& orphans, bool drawn_spaces) {
     const StructTreeRoot* root = doc.getStructTreeRoot();
     if (root == nullptr || root->getNumChildren() == 0) {
         return nullptr;
@@ -424,6 +434,7 @@ nlohmann::json structure_of(PDFDoc& doc, nlohmann::json& orphans) {
     for (int n = 1; n <= doc.getNumPages(); ++n) {
         emit("{\"event\":\"structure\",\"n\":" + std::to_string(n) + "}");
         McidText device;
+        device.gaps = !drawn_spaces;
         doc.displayPage(&device, n, 72, 72, 0, true, false, false);
         for (auto& [mcid, text] : device.text) {
             texts[{n, mcid}] = std::move(text);

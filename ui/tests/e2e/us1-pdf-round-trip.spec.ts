@@ -46,9 +46,10 @@ const ALLOWED_LINES: RegExp[] = [
 ];
 
 /**
- * C3: spaces as the PDF shows them, applied to both books before they are compared - in every block a run of
- * white space is one space, the first, across the inline elements between (as the engine collapses it), and none
- * stands at the block's edges; code keeps its own. Evaluated in the page.
+ * C3: the text as the PDF holds it, applied to both books before they are compared - no soft hyphens and no
+ * zero-width characters; in every block a run of white space is one space, the first, across the inline elements
+ * between (as the engine collapses it), and none stands at the block's edges; code keeps its own. Evaluated in
+ * the page.
  */
 const SPACES = `(text) => {
   const FB = 'http://www.gribuser.ru/xml/fictionbook/2.0';
@@ -62,7 +63,7 @@ const SPACES = `(text) => {
       for (const node of nodes) {
         if (node.parentElement && node.parentElement.closest('code')) { space = false; continue; }
         let out = '';
-        for (const char of node.data) {
+        for (const char of node.data.replace(/[\\u00ad\\u200b-\\u200d\\u2060\\ufeff]/g, '')) {
           const white = /[ \\t\\n\\r]/.test(char);
           if (white && space) continue;
           out += white ? ' ' : char;

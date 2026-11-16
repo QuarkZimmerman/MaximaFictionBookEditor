@@ -19,7 +19,7 @@
 
 namespace mfbe::pdf_reader {
 
-nlohmann::json structure_of(PDFDoc& doc, nlohmann::json& orphans);
+nlohmann::json structure_of(PDFDoc& doc, nlohmann::json& orphans, bool drawn_spaces);
 
 namespace {
 
@@ -278,7 +278,10 @@ bool write_document(PDFDoc& doc, const Options& options, std::string& error, boo
     }
     out["forms"] = std::move(forms);
     nlohmann::json orphans;
-    if (nlohmann::json structure = structure_of(doc, orphans); !structure.is_null()) {
+    // The editor's own PDF (its record in the XMP) draws its spaces as characters: no space is read
+    // into a gap between its letters (D32's library run: a soft hyphen's gap became one).
+    const bool drawn_spaces = !xmp_value(xmp, "mfbe:recordVersion").empty();
+    if (nlohmann::json structure = structure_of(doc, orphans, drawn_spaces); !structure.is_null()) {
         out["structure"] = std::move(structure);
         out["orphans"] = std::move(orphans);
     }

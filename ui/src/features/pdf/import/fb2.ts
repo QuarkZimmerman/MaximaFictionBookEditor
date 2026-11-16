@@ -29,6 +29,8 @@ export type PictureId = (run: Run) => string | null;
 
 interface Format {
   href?: string;
+  /** Which link of the structure: two links in a row with one address stay two. */
+  link?: number;
   note?: boolean;
   style?: string;
   strikethrough?: boolean;
@@ -41,6 +43,7 @@ interface Format {
 
 const same = (a: Format, b: Format): boolean =>
   a.href === b.href &&
+  a.link === b.link &&
   a.note === b.note &&
   a.style === b.style &&
   a.strikethrough === b.strikethrough &&
@@ -93,7 +96,13 @@ export function inline(
       pieces.push({
         char,
         format: {
-          ...(target ? { href: target.href, ...(target.note ? { note: true } : {}) } : {}),
+          ...(target
+            ? {
+                href: target.href,
+                ...(target.note ? { note: true } : {}),
+                ...(run.link !== undefined ? { link: run.link } : {}),
+              }
+            : {}),
           ...(run.bold ? { bold: true } : {}),
           ...(run.italic ? { italic: true } : {}),
           ...(run.mono ? { mono: true } : {}),
