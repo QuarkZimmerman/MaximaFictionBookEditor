@@ -78,6 +78,42 @@ const SPACES = `(text) => {
   const doc = new DOMParser().parseFromString(text, 'application/xml');
   for (const name of ['p', 'v', 'subtitle', 'text-author', 'date', 'td', 'th']) {
     for (const block of [...doc.getElementsByTagNameNS(FB, name)]) {
+      // D6, at implement: marks without text are lost, a link of a space alone comes back as the space and
+      // links of one address side by side as one, and a space at a mark's edge keeps no mark of its own.
+      const MARKS = new Set(['strong', 'emphasis', 'style', 'strikethrough', 'sub', 'sup', 'code', 'a']);
+      const marks = () => [...block.getElementsByTagNameNS(FB, '*')].filter((e) => MARKS.has(e.localName));
+      for (const mark of marks().reverse()) {
+        if ((mark.textContent || '').trim() === '') mark.replaceWith(...mark.childNodes);
+      }
+      const XL = 'http://www.w3.org/1999/xlink';
+      for (const link of [...block.getElementsByTagNameNS(FB, 'a')]) {
+        if (!link.isConnected) continue;
+        for (;;) {
+          let next = link.nextSibling;
+          let gap = null;
+          if (next && next.nodeType === 3 && next.data.trim() === '') {
+            gap = next;
+            next = next.nextSibling;
+          }
+          if (!next || next.nodeType !== 1 || next.localName !== 'a' ||
+              next.getAttributeNS(XL, 'href') !== link.getAttributeNS(XL, 'href')) break;
+          if (gap) link.append(gap);
+          link.append(...next.childNodes);
+          next.remove();
+        }
+      }
+      for (const mark of marks().reverse()) {
+        const first = mark.firstChild;
+        if (first && first.nodeType === 3 && /^\\s/.test(first.data)) {
+          mark.before(first.data.match(/^\\s+/)[0]);
+          first.data = first.data.replace(/^\\s+/, '');
+        }
+        const last = mark.lastChild;
+        if (last && last.nodeType === 3 && /\\s$/.test(last.data)) {
+          mark.after(last.data.match(/\\s+$/)[0]);
+          last.data = last.data.replace(/\\s+$/, '');
+        }
+      }
       const walker = doc.createTreeWalker(block, NodeFilter.SHOW_TEXT);
       const nodes = [];
       for (let node = walker.nextNode(); node; node = walker.nextNode()) nodes.push(node);
@@ -139,7 +175,9 @@ export function outsideD6(differences: readonly string[]): string[] {
 
 function books(): string[] {
   const list = process.env.MFBE_ROUND_TRIP_BOOKS;
-  if (!list) return [fixtureBook('reference-all-elements.fb2')];
+  // The reference book, and right-to-left text the engine draws in the order it stands on the line (D32).
+  if (!list)
+    return [fixtureBook('reference-all-elements.fb2'), fixtureBook('pdf-round-trip-rtl.fb2')];
   return readFileSync(list, 'utf8')
     .split('\n')
     .map((line) => line.trim())

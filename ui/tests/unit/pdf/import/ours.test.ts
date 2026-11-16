@@ -9,7 +9,13 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import type { PdfDocumentModel, PdfPageModel } from '@/features/pdf/import/model';
-import { convertOurs, restoreDescription, spaceRuns, stripWhole } from '@/features/pdf/import/ours';
+import {
+  convertOurs,
+  logicalOrder,
+  restoreDescription,
+  spaceRuns,
+  stripWhole,
+} from '@/features/pdf/import/ours';
 import { flatten } from '@/features/pdf/import/parts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -106,6 +112,18 @@ describe('the rules under it', () => {
       { text: 'picture.', page: 1, top: 160, size: 10, left: 40, right: 80 },
     ]);
     expect(runs.map((r) => r.text).join('|')).toBe('a web page|. |H|2|O, next |inline || picture.');
+  });
+
+  it('turns right-to-left text round to the order the book wrote it (D32)', () => {
+    expect(logicalOrder('Мафусаил (ивр. חלשותמ, Метушелах)')).toBe(
+      'Мафусаил (ивр. מתושלח, Метушелах)',
+    );
+    // Brackets mirrored and numbers kept: the same turn gives the line's order back (the round trip of a
+    // book with such text comes back equal).
+    const book = 'שלום (עולם) 1990 גדול';
+    expect(logicalOrder(book)).not.toBe(book);
+    expect(logicalOrder(logicalOrder(book))).toBe(book);
+    expect(logicalOrder('no such text')).toBe('no such text');
   });
 
   it('drops the bold or italic every run of a block has, keeping the rest', () => {

@@ -268,6 +268,41 @@ function joinSplit(
   return out;
 }
 
+const RTL = '\\p{Script=Hebrew}\\p{Script=Arabic}\\p{Script=Syriac}\\p{Script=Thaana}\\p{Script=Nko}';
+const RTL_RUN = new RegExp(
+  `[${RTL}](?:[${RTL}\\d\\s.,:;!?'"()\\[\\]{}<>\\-\u2013\u2014]*[${RTL}])?`,
+  'gu',
+);
+const MIRRORED: Record<string, string> = {
+  '(': ')',
+  ')': '(',
+  '[': ']',
+  ']': '[',
+  '{': '}',
+  '}': '{',
+  '<': '>',
+  '>': '<',
+};
+
+/**
+ * Right-to-left text in the order the book wrote it (D32's library run: Hebrew came back reversed). The engine
+ * draws such text in the order it stands on the line, so each run of it is turned round - its numbers, written
+ * left to right, kept as they are, and the brackets it mirrors put back.
+ */
+export function logicalOrder(text: string): string {
+  if (!new RegExp(`[${RTL}]`, 'u').test(text)) return text;
+  return text.replace(RTL_RUN, (run) =>
+    [...run]
+      .reverse()
+      .map((char) => MIRRORED[char] ?? char)
+      .join('')
+      .replace(/\d+/g, (digits) => [...digits].reverse().join('')),
+  );
+}
+
+const inLogicalOrder = (runs: readonly Run[]): Run[] =>
+  runs.map((run) => (run.text ? { ...run, text: logicalOrder(run.text) } : run));
+
 export function convertOurs(
   hints: HintsV1,
   flat: Flattened,
@@ -276,6 +311,25 @@ export function convertOurs(
   /** False when an FBD gives the description whole (D23): its annotation and history pages are not used. */
   { descriptionPages = true }: { descriptionPages?: boolean } = {},
 ): OursResult {
+  // Right-to-left text in the book's order, everywhere the PDF gave it (D32).
+  flat = {
+    parts: flat.parts.map((part) => ({
+      ...part,
+      runs: inLogicalOrder(part.runs),
+      ...(part.rows
+        ? {
+            rows: part.rows.map((row) =>
+              row.map((cell) => ({ ...cell, runs: inLogicalOrder(cell.runs) })),
+            ),
+          }
+        : {}),
+      ...(part.caption ? { caption: inLogicalOrder(part.caption) } : {}),
+    })),
+    footnotes: flat.footnotes.map((note) => ({
+      ...note,
+      paragraphs: note.paragraphs.map(inLogicalOrder),
+    })),
+  };
   const kinds = kindsOf(hints);
   // A record of 0.0.11 names no spaces: its gaps between runs are read as spaces, as then (D7).
   const legacy = !Array.isArray(hints.spaces);
