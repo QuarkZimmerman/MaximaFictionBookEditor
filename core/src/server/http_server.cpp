@@ -321,6 +321,7 @@ void LoopbackServer::setup_http() {
     register_binary_http(*this, services_);
     register_epub_http(*this, services_);
     register_pdf_http(*this, services_);
+    register_pdf_import_http(*this, services_);
     register_scripts_http(*this, services_);
 #ifdef MFBE_TEST_HOOKS
     if (services_.test_hooks) {

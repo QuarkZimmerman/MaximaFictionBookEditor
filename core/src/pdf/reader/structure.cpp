@@ -196,6 +196,7 @@ nlohmann::json structure_of(PDFDoc& doc, nlohmann::json& orphans) {
     }
     std::map<std::pair<int, int>, std::string> texts;
     for (int n = 1; n <= doc.getNumPages(); ++n) {
+        emit("{\"event\":\"structure\",\"n\":" + std::to_string(n) + "}");
         McidText device;
         doc.displayPage(&device, n, 72, 72, 0, true, false, false);
         for (auto& [mcid, text] : device.text) {

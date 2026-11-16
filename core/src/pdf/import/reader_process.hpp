@@ -42,6 +42,8 @@ public:
     bool send_line(const std::string& line);
     /// Ends the reader at once; safe to call more than once.
     void kill();
+    /// The watchdog's silence limit; lifted once the reader is done and only answers requests.
+    void set_silence_timeout(std::chrono::milliseconds timeout);
     ReaderEnd end() const { return end_; }
     int exit_code() const { return exit_code_; }
 

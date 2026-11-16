@@ -32,6 +32,8 @@
 #include <filesystem>
 #include <functional>
 #include <map>
+
+#include "pdf/import/session.hpp"
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -84,6 +86,13 @@ struct Services {
         // Feature 014 (DP-4): installed fonts' data uploaded for pdf.fonts.addData, by upload id.
         std::map<std::string, std::string> font_uploads;
     } pdf;
+
+    // Feature 016 (pdfImport.*): the PDF imports under way, by token; each ends with pdfImport.end.
+    struct PdfImportState {
+        std::mutex mutex;
+        std::map<std::string, std::shared_ptr<pdf_import::Session>> sessions;
+        bool cleaned = false;  // stale folders removed (DP-2)
+    } pdf_import;
 
     rpc::Notifier& notifier;
     rpc::JobManager jobs;
@@ -176,6 +185,7 @@ void register_app_handlers(rpc::RpcRouter& router, Services& services);
 void register_epub_handlers(rpc::RpcRouter& router, Services& services);
 // Feature 014: pdf.export.* (pdf_handlers.cpp).
 void register_pdf_handlers(rpc::RpcRouter& router, Services& services);
+void register_pdf_import_handlers(rpc::RpcRouter& router, Services& services);
 void register_log_handlers(rpc::RpcRouter& router, Services& services);
 void register_settings_handlers(rpc::RpcRouter& router, Services& services);
 void register_dialog_handlers(rpc::RpcRouter& router, Services& services);

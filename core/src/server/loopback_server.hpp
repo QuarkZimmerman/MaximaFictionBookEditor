@@ -97,6 +97,7 @@ void register_binary_http(LoopbackServer& server, Services& services);
 void register_epub_http(LoopbackServer& server, Services& services);
 // Feature 014: PUT /pdf/{token}/part/{n} and GET /pdf/{token}/print/{n} (pdf_handlers.cpp).
 void register_pdf_http(LoopbackServer& server, Services& services);
+void register_pdf_import_http(LoopbackServer& server, Services& services);
 // Registers GET/HEAD /scripts/{scriptId}/{file} (scripts_handlers.cpp).
 void register_scripts_http(LoopbackServer& server, Services& services);
 #ifdef MFBE_TEST_HOOKS

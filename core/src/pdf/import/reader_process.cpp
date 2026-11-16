@@ -404,4 +404,8 @@ ReaderProcess::~ReaderProcess() {
 
 ReaderProcess::ReaderProcess(std::unique_ptr<Impl> impl) : impl_(std::move(impl)) {}
 
+void ReaderProcess::set_silence_timeout(std::chrono::milliseconds timeout) {
+    impl_->silence = timeout;
+}
+
 }  // namespace mfbe::pdf_import

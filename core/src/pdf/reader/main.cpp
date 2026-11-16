@@ -128,12 +128,13 @@ int main(int argc, char** argv) {
         doc = std::move(owner);
     }
     const int pages = doc->getNumPages();
-    mfbe::pdf_reader::emit("{\"event\":\"opened\",\"pages\":" + std::to_string(pages) + "}");
     std::string error;
     if (!mfbe::pdf_reader::write_document(*doc, options, error)) {
         mfbe::pdf_reader::emit(R"({"event":"failed","reason":"damaged"})");
         return 1;
     }
+    // "opened" means document.json is written: the import asks its questions from it (D23).
+    mfbe::pdf_reader::emit("{\"event\":\"opened\",\"pages\":" + std::to_string(pages) + "}");
     for (int n = 1; n <= pages; ++n) {
 #ifndef _WIN32
         if (getppid() == 1) {
