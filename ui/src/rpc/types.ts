@@ -1081,6 +1081,24 @@ export type AiOutcome =
 export type ChatRequest = { messages: unknown[]; [member: string]: unknown };
 
 /** `ai.models`: the service's list normalised (`id` from `id` or `name`, strings as ids). */
+/**
+ * Feature 016 (contracts/rpc-api.md): what `pdfImport.inspect` and `pdfImport.password` answer - the PDF
+ * open, or the password it needs (the owner's when it forbids copying its text).
+ */
+export interface PdfImportOpen {
+  opened?: boolean;
+  pages?: number;
+  needsPassword?: boolean;
+  wrongPassword?: boolean;
+  ownerPassword?: boolean;
+}
+
+/** Feature 016: `pdfImport.begin` - the import's token, or a ZIP archive's PDFs and FBDs to choose from. */
+export interface PdfImportBegun {
+  token?: string;
+  archive?: { pdfs: string[]; fbds: string[] };
+}
+
 /** Feature 012: an EPUB opened for the import (`epub.open`, contracts/rpc-api.md §1). */
 export interface EpubSource {
   token: string;
@@ -1391,6 +1409,21 @@ export interface RpcMethods {
   /** Feature 010 (US8): the effective template's FB2 text, for the import's description. */
   'template.xml': { params: void; result: { xml: string } };
   /** Feature 012 (contracts/rpc-api.md §1): opens an EPUB for the import; entries over `/epub/{token}/{entry}`. */
+  /** Feature 016 (contracts/rpc-api.md): the PDF import's session; 1113 {reason}, 1114 unknown token. */
+  'pdfImport.begin': { params: { path: string; entry?: string }; result: PdfImportBegun };
+  'pdfImport.inspect': { params: { token: string }; result: PdfImportOpen };
+  'pdfImport.password': { params: { token: string; password: string }; result: PdfImportOpen };
+  /** A job: progress per page read; its result `{ pages, kinds }`. */
+  'pdfImport.read': { params: { token: string }; result: JobStart };
+  'pdfImport.addPictures': {
+    params: {
+      token: string;
+      docId: string;
+      pictures: { id: string; page: number; suggestedId?: string }[];
+    };
+    result: { added: { id: string; binary: BinaryMeta }[]; failed: string[] };
+  };
+  'pdfImport.end': { params: { token: string }; result: Record<string, never> };
   'epub.open': { params: { path: string }; result: EpubSource };
   'epub.close': { params: { token: string }; result: Record<string, never> };
   /**
