@@ -30,7 +30,7 @@ MARKS = REPO / "tests" / "pdf" / "paragraph-marks.json"
 # Spec §4: the 12 books with an invisible text layer and the 12 with the text under the page pictures.
 BOOKS = [578115, 467051, 630750, 483278, 321637, 619677, 463115, 404720, 501217, 651071, 308296, 503629,
          415943, 503776, 531280, 375680, 384272, 402769, 567569, 307624, 459613, 522080, 386926, 617081]
-TOLERANCE = 3.0  # points: a mark and a paragraph start on the same line
+TOLERANCE = 4.0  # points: a mark and a paragraph start on the same line (lines lie 10 points apart and more)
 # Spec §4: the two OCR layers that read as garbage - refused, as D19 wants them.
 UNREADABLE = {321637, 503629}
 
@@ -86,9 +86,8 @@ def paragraphs_check(reader: Path) -> tuple[bool, list[dict]]:
             folder = Path(tmp) / str(book)
             if not (folder / "document.json").exists():
                 read(reader, book, folder)
-            runner = subprocess.run(["node", str(REPO / "tests" / "pdf" / "layout-paragraphs.mjs"),
-                                     str(folder / f"page-{page}.json")],
-                                    capture_output=True, text=True, timeout=300, cwd=REPO / "ui")
+            runner = subprocess.run(["node", str(REPO / "tests" / "pdf" / "layout-paragraphs.mjs"), str(folder),
+                                     str(page)], capture_output=True, text=True, timeout=300)
             if runner.returncode != 0:
                 print(runner.stderr, file=sys.stderr)
                 return False, report

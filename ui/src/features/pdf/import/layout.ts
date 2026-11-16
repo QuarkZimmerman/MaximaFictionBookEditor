@@ -8,7 +8,7 @@
 import type { OutlineNode, PdfPageModel, PdfWord } from './model';
 import type { Part, Run } from './parts';
 
-interface Line {
+export interface Line {
   page: number;
   words: PdfWord[];
   left: number;
@@ -45,7 +45,7 @@ const median = (values: number[]): number => {
 };
 
 /** The page's words as lines, column by column (a gap running down the page's height splits columns). */
-function linesOf(page: PdfPageModel): Line[] {
+export function linesOf(page: PdfPageModel): Line[] {
   const words = page.words.filter((w) => w.t.trim());
   if (words.length === 0) return [];
   // Columns: a vertical band free of words between text, wider than a few characters.
@@ -128,26 +128,70 @@ function columnBands(words: PdfWord[], width: number, size: number): [number, nu
 }
 
 /** Running heads and page numbers: the first and last lines that repeat on most pages, numbers masked. */
-function furnitureOf(pages: Line[][]): Set<Line> {
-  const out = new Set<Line>();
-  const mask = (text: string): string =>
-    text.replace(/\d+/g, '#').replace(/\s+/g, ' ').trim().toLowerCase();
-  for (const edge of ['head', 'foot'] as const) {
-    const counts = new Map<string, number>();
-    const pick = (lines: Line[]): Line[] => (edge === 'head' ? lines.slice(0, 2) : lines.slice(-2));
-    for (const lines of pages)
-      for (const line of pick(lines))
-        counts.set(mask(line.text), (counts.get(mask(line.text)) ?? 0) + 1);
-    const enough = Math.max(2, Math.ceil(pages.length * 0.4));
-    for (const lines of pages) {
-      for (const line of pick(lines)) {
-        const key = mask(line.text);
-        const lone = /^[\divxlc\-–—.\s]+$/i.test(line.text.trim()) && line.text.trim().length <= 8;
-        // A running head is short; text that happens to repeat is not furniture.
-        const short = line.text.trim().length <= 60;
-        if (lone || (short && pages.length >= 2 && (counts.get(key) ?? 0) >= enough)) out.add(line);
-      }
+/** The letters of a line, for comparing running heads (the page number and marks left out). */
+const letters = (text: string): string => text.toLowerCase().replace(/[^\p{L}]/gu, '');
+
+/** How alike two strings are: the share of their letter pairs in common (Dice). */
+function alike(a: string, b: string): number {
+  if (a.length < 2 || b.length < 2) return a === b ? 1 : 0;
+  const pairs = new Map<string, number>();
+  for (let i = 0; i + 1 < a.length; i++)
+    pairs.set(a.slice(i, i + 2), (pairs.get(a.slice(i, i + 2)) ?? 0) + 1);
+  let common = 0;
+  for (let i = 0; i + 1 < b.length; i++) {
+    const pair = b.slice(i, i + 2);
+    const left = pairs.get(pair) ?? 0;
+    if (left > 0) {
+      common++;
+      pairs.set(pair, left - 1);
     }
+  }
+  return (2 * common) / (a.length - 1 + (b.length - 1));
+}
+
+/**
+ * Running heads and page numbers (D12): the first and the last line of a page when it is a lone number, or
+ * when the page two before or after, or the next or the one before, has a line much like it at that edge -
+ * running heads alternate between left and right pages and change with the chapter or the story, and a
+ * scan's layer spells them a little differently on each page (the calibration of SC-007 found).
+ */
+export function furnitureOf(pages: Line[][]): Set<Line> {
+  const out = new Set<Line>();
+  const lone = (line: Line): boolean =>
+    /^[\divxlc\-–—.\s]+$/i.test(line.text.trim()) && line.text.trim().length <= 8;
+  const sizes = pages.flat().flatMap((line) => line.words.map((w) => w.s));
+  const body = median(sizes) || 10;
+  for (const edge of ['head', 'foot'] as const) {
+    // The edge's line, and the one after it when it is a lone number (a number above or below the head).
+    const candidates = pages.map((lines) => {
+      const ordered = edge === 'head' ? lines : [...lines].reverse();
+      const picked: Line[] = [];
+      for (const line of ordered.slice(0, 2)) {
+        picked.push(line);
+        if (!lone(line)) break;
+      }
+      return picked;
+    });
+    candidates.forEach((picked, index) => {
+      for (const line of picked) {
+        if (lone(line)) {
+          out.add(line);
+          continue;
+        }
+        const key = letters(line.text);
+        // A running head is short, and not set larger than the text (a chapter's title is).
+        if (key.length < 4 || line.text.trim().length > 60 || line.size > body * 1.15) continue;
+        const near = [index - 2, index - 1, index + 1, index + 2].filter(
+          (i) => i >= 0 && i < pages.length,
+        );
+        if (
+          near.some((i) =>
+            candidates[i].some((other) => !lone(other) && alike(key, letters(other.text)) >= 0.7),
+          )
+        )
+          out.add(line);
+      }
+    });
   }
   return out;
 }
@@ -201,8 +245,43 @@ export function layoutParts(
   const furniture = furnitureOf(perPage);
   const lines = perPage.flat().filter((line) => !furniture.has(line));
   const bodySize = median(lines.flatMap((line) => line.words.map((w) => w.s))) || 10;
-  const leftEdge = median(lines.map((line) => line.left));
-  const rightEdge = median(lines.map((line) => line.right));
+  // Headings by size only where sizes hold: a scan's layer gives its words sizes that wander (the
+  // calibration of SC-007 found 5 to 10 points on one page of 7-point text), a PDF made from text does not.
+  const offSize = lines.filter((line) => Math.abs(line.size / bodySize - 1) > 0.15).length;
+  const sizesHold = offSize < lines.length * 0.1;
+  // Each page's own edges: a scan's pages lie a little apart, odd ones and even ones to either side. The
+  // left edge is where most lines begin, the right where most end.
+  const edges = new Map<number, { left: number; right: number }>();
+  perPage.forEach((pageLines, index) => {
+    const kept = pageLines.filter((line) => !furniture.has(line));
+    if (kept.length === 0) return;
+    const lefts = kept.map((line) => line.left).sort((a, b) => a - b);
+    const rights = kept.map((line) => line.right).sort((a, b) => a - b);
+    edges.set(pages[index].n, {
+      left: lefts[Math.floor(lefts.length * 0.25)],
+      right: rights[Math.floor(rights.length * 0.75)],
+    });
+  });
+  // Each page's line pitch: the usual step from one line's top to the next one's.
+  const pitches = new Map<number, number>();
+  perPage.forEach((pageLines, index) => {
+    const steps: number[] = [];
+    for (let i = 1; i < pageLines.length; i++) {
+      const step = pageLines[i].top - pageLines[i - 1].top;
+      if (step > 0) steps.push(step);
+    }
+    if (steps.length) pitches.set(pages[index].n, median(steps));
+  });
+  const indentOf = (line: Line): number => line.left - (edges.get(line.page)?.left ?? line.left);
+  const shortOf = (line: Line): number => (edges.get(line.page)?.right ?? line.right) - line.right;
+  // A book that marks its paragraphs by indenting their first lines: there a line ending short is no
+  // paragraph's end (a scan's layer ends its lines short of the margin, the calibration of SC-007 found);
+  // in a book of block paragraphs it is.
+  const indented = lines.filter((line) => {
+    const by = indentOf(line);
+    return by > bodySize * 0.8 && by < bodySize * 8;
+  }).length;
+  const indentMode = lines.length >= 20 && indented >= lines.length * 0.04;
   const titles = new Set<string>();
   const walk = (nodes: readonly OutlineNode[] | undefined): void => {
     for (const node of nodes ?? []) {
@@ -228,7 +307,7 @@ export function layoutParts(
     const text = line.text.replace(/\s+/g, ' ').trim();
     const heading =
       titles.has(text.toLowerCase()) ||
-      (line.size >= bodySize * 1.2 && text.length < 120 && !/[.,;:]$/.test(text));
+      (sizesHold && line.size >= bodySize * 1.2 && text.length < 120 && !/[.,;:]$/.test(text));
     if (heading) {
       flush();
       parts.push({
@@ -243,16 +322,20 @@ export function layoutParts(
     const runs = runsOfLine(line, bodySize, fonts);
     let starts = previous === null || previous.page !== line.page;
     if (previous && previous.page === line.page) {
+      // A space between paragraphs: a gap, and a step clearly wider than the page's pitch (a scan's layer
+      // draws its line boxes unevenly, the calibration of SC-007 found).
       const gap = line.top - previous.bottom;
-      const indent = line.left - leftEdge > bodySize * 0.8;
-      const shortBefore = rightEdge - previous.right > bodySize * 3;
+      const step = line.top - previous.top;
+      const spaced = gap > line.size * 0.8 && step > (pitches.get(line.page) ?? step) * 1.35;
+      const indent = indentOf(line) > bodySize * 0.8;
+      const shortBefore = !indentMode && shortOf(previous) > bodySize * 3;
       // A line ending with a hyphen never ends a paragraph: its word goes on (D12).
       const broken = /[\u00ad-]$/.test(previous.text);
-      starts = !broken && (gap > line.size * 0.8 || indent || shortBefore);
+      starts = !broken && (spaced || indent || shortBefore);
     } else if (previous && previous.page !== line.page) {
       // A new page: the paragraph goes on unless this line is indented or the last one ended short.
-      const indent = line.left - leftEdge > bodySize * 0.8;
-      const shortBefore = rightEdge - previous.right > bodySize * 3;
+      const indent = indentOf(line) > bodySize * 0.8;
+      const shortBefore = !indentMode && shortOf(previous) > bodySize * 3;
       starts = !/[\u00ad-]$/.test(previous.text) && (indent || shortBefore);
     }
     if (starts) {
