@@ -38,7 +38,9 @@ export interface HintsInput {
 
 const GENERIC_BLOCKS = new Set(['v', 'subtitle', 'text-author', 'date', 'empty-line']);
 const CONTAINERS = new Set(['epigraph', 'cite', 'poem', 'stanza', 'annotation']);
-const MARKS = new Set(['strikethrough', 'sub', 'sup']);
+// Feature 016 (D6): code too - a symbol the text font lacks is drawn in a fallback font, which may be a
+// monospaced one: the import takes code from the record, not from the fonts (D32's library run).
+const MARKS = new Set(['strikethrough', 'sub', 'sup', 'code']);
 
 // XML 1.0 forbids these; they are left out of every value (D22).
 // eslint-disable-next-line no-control-regex

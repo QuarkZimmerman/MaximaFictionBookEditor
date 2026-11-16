@@ -20,7 +20,7 @@ export const attr = (value: string): string => text(value).replace(/"/g, '&quot;
 export interface Span {
   from: number;
   to: number;
-  kind: 'style' | 'strikethrough' | 'sub' | 'sup' | 'bold' | 'italic';
+  kind: 'style' | 'strikethrough' | 'sub' | 'sup' | 'bold' | 'italic' | 'mono';
   name?: string;
 }
 

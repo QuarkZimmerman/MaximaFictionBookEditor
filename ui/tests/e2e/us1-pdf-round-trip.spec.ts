@@ -157,6 +157,35 @@ const SPACES = `(text) => {
       }
     }
   }
+  // D6: parts FB2's schema does not allow (a <br/> some books hold) are not carried over - unwrapped.
+  const FB2_NAMES = new Set(('FictionBook description title-info genre author first-name middle-name last-name ' +
+    'nickname home-page email id book-title annotation keywords date coverpage image lang src-lang translator ' +
+    'sequence src-title-info document-info program-used src-url src-ocr version history publisher ' +
+    'publish-info book-name city year isbn custom-info output part output-document-class body title epigraph ' +
+    'section p poem stanza v subtitle cite empty-line text-author table tr th td strong emphasis style a ' +
+    'strikethrough sub sup code binary stylesheet').split(' '));
+  for (const element of [...doc.getElementsByTagName('*')].reverse()) {
+    if (!FB2_NAMES.has(element.localName)) element.replaceWith(...element.childNodes);
+  }
+  // C5: notes grouped in sections of a notes body come back ungrouped, the groups' titles with them - each
+  // group unwrapped.
+  for (const body of [...doc.getElementsByTagNameNS(FB, 'body')].slice(1)) {
+    for (;;) {
+      const group = [...body.getElementsByTagNameNS(FB, 'section')].find((section) =>
+        [...section.children].some((child) => child.localName === 'section'),
+      );
+      if (!group) break;
+      group.replaceWith(...[...group.children].filter((child) => child.localName === 'section'));
+    }
+  }
+  // C5: the notes come in the order of their first references - each notes body's notes sorted by id.
+  for (const body of [...doc.getElementsByTagNameNS(FB, 'body')].slice(1)) {
+    const notes = [...body.children].filter((child) => child.localName === 'section');
+    const sorted = [...notes].sort((a, b) =>
+      (a.getAttribute('id') ?? '').localeCompare(b.getAttribute('id') ?? '', 'en', { numeric: true }),
+    );
+    for (const note of sorted) body.append(note);
+  }
   // C5: a note without a title of its own gets its printed label as its title - dropped where it repeats the
   // label its first paragraph's link back shows.
   const plain = (value) => (value || '').replace(/[\\s\\[\\]().]/g, '');
@@ -253,15 +282,22 @@ test.describe('US1 (feature 016) - export to PDF and import again', () => {
           await pdfImportDone(page, await importPdfViaMenu(core, page, pdf), 300_000);
           const againErrors = await bodyErrors(core, page);
           const again = await bookXml(core, page);
+          // MFBE_ROUND_TRIP_KEEP=<folder>: the book imported again kept there, by the original's name, to read.
+          if (process.env.MFBE_ROUND_TRIP_KEEP)
+            writeFileSync(path.join(process.env.MFBE_ROUND_TRIP_KEEP, path.basename(book)), again);
           const all = await page.evaluate<string[]>(
-            `(${COMPARE})((${SPACES})(${JSON.stringify(original)}), (${SPACES})(${JSON.stringify(again)}))`,
+            `(${COMPARE})((${SPACES})(${JSON.stringify(original)}), (${SPACES})(${JSON.stringify(again)}), { full: true })`,
           );
-          const differences = outsideD6(all);
+          // Judged on whole lines (compare-fb2.js's { full: true }), shown cut.
+          const shown = (line: string): string =>
+            line.length > 400 ? `${line.slice(0, 400)}…` : line;
+          const judged = outsideD6(all);
+          const differences = judged.map(shown);
           results.push({
             book,
             differences,
             ...(all.length > differences.length
-              ? { allowed: all.filter((d) => !differences.includes(d)) }
+              ? { allowed: all.filter((d) => !judged.includes(d)).map(shown) }
               : {}),
             ...(invalid.length > 0 ? { invalid: invalid.slice(0, 3) } : {}),
             ...(againErrors.length > 0 ? { againInvalid: againErrors.slice(0, 3) } : {}),

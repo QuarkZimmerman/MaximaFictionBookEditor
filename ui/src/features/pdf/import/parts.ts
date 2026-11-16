@@ -216,8 +216,13 @@ export function flatten(
     const heading = HEADING.exec(element.type);
     if (heading) {
       const level = Number(heading[1] ?? 1);
-      // One title line a part: each child holding text (the export tags each line of a title).
-      const lines = element.kids.filter((kid) => isElement(kid) && textOf(kid).trim());
+      // One title line a part: each child holding text (the export tags each line of a title), or a picture
+      // alone - a line of a title may be an inline picture (D32's library run).
+      const pictured = (node: StructElement): boolean =>
+        node.type === 'Figure' || node.kids.some((kid) => isElement(kid) && pictured(kid));
+      const lines = element.kids.filter(
+        (kid) => isElement(kid) && (textOf(kid).trim() || pictured(kid)),
+      );
       if (lines.length === 0 || element.kids.some(isLeaf)) {
         const runs: Run[] = [];
         runsOf(element, runs, {});

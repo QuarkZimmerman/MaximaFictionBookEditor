@@ -188,7 +188,22 @@ export async function exportPdf(ctx: CommandContext, docId: string, run: PdfRun)
       actions.setStatusMessage(store, ctx.t('pdf.exportCancelled'));
       return false;
     }
-    let detail = error instanceof Error ? error.message : String(error);
+    // Never an empty reason: an error without a message names itself (D32's library run showed "was not
+    // written:" and nothing after it).
+    let detail =
+      error instanceof Error
+        ? error.message ||
+          `${error.name}${
+            error.stack
+              ? `: ${
+                  error.stack
+                    .split('\n')
+                    .find((line) => line.trim().startsWith('at'))
+                    ?.trim() ?? ''
+                }`
+              : ''
+          }`
+        : String(error);
     if (error instanceof PdfLimitError) {
       detail = ctx.t(`pdf.limit.${error.limit}`, { count: error.count, max: error.max });
     }

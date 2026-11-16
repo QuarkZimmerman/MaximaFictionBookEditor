@@ -14,7 +14,9 @@
  * Runs in the browser (DOMParser): tests/e2e/us7-epub-round-trip.spec.ts evaluates this file's text in
  * the page. The file holds one function expression and nothing else.
  */
-(async function compareFb2(originalText, againText) {
+(async function compareFb2(originalText, againText, options = {}) {
+  // { full: true } keeps a hunk's lines whole, for a caller that judges them (the PDF round trip, feature 016).
+  const full = !!options.full;
   const FB = 'http://www.gribuser.ru/xml/fictionbook/2.0';
   const XLINK = 'http://www.w3.org/1999/xlink';
   const BLOCKS = new Set(['p', 'v', 'subtitle', 'text-author', 'date', 'empty-line', 'td', 'th']);
@@ -192,12 +194,13 @@
         let at = 0;
         while (at < x.length && at < y.length && x[at] === y[at]) at++;
         const from = Math.max(0, at - 80);
-        const cut = (line) => `${from > 0 ? '…' : ''}${line.slice(from, at + 120)}`;
+        const cut = (line) => (full ? line : `${from > 0 ? '…' : ''}${line.slice(from, at + 120)}`);
         differences.push(`  - ${cut(x)}`, `  + ${cut(y)}`);
         continue;
       }
-      for (let k = 0; k < Math.min(3, aHi - aLo); k++) differences.push(`  - ${a[aLo + k].slice(0, 240)}`);
-      for (let k = 0; k < Math.min(3, bHi - bLo); k++) differences.push(`  + ${b[bLo + k].slice(0, 240)}`);
+      const shown = (line) => (full ? line : line.slice(0, 240));
+      for (let k = 0; k < Math.min(full ? aHi - aLo : 3, aHi - aLo); k++) differences.push(`  - ${shown(a[aLo + k])}`);
+      for (let k = 0; k < Math.min(full ? bHi - bLo : 3, bHi - bLo); k++) differences.push(`  + ${shown(b[bLo + k])}`);
     }
     if (found.length > 30) differences.push(`${part}: ${found.length - 30} more difference(s)`);
   };

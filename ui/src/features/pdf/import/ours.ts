@@ -315,19 +315,24 @@ export function convertOurs(
   /** False when an FBD gives the description whole (D23): its annotation and history pages are not used. */
   { descriptionPages = true }: { descriptionPages?: boolean } = {},
 ): OursResult {
+  // A record of 0.0.11 names no spaces: its gaps between runs are read as spaces, as then (D7).
+  const legacy = !Array.isArray(hints.spaces);
+  // Since feature 016 the record names the code (D6): a monospaced font alone - a symbol's fallback - is none.
+  const inOrder = (runs: readonly Run[]): Run[] =>
+    inLogicalOrder(runs).map((run) => (!legacy && run.mono ? { ...run, mono: false } : run));
   // Right-to-left text in the book's order, everywhere the PDF gave it (D32).
   flat = {
     parts: flat.parts.map((part) => ({
       ...part,
-      runs: inLogicalOrder(part.runs),
+      runs: inOrder(part.runs),
       ...(part.rows
         ? {
             rows: part.rows.map((row) =>
-              row.map((cell) => ({ ...cell, runs: inLogicalOrder(cell.runs) })),
+              row.map((cell) => ({ ...cell, runs: inOrder(cell.runs) })),
             ),
           }
         : {}),
-      ...(part.caption ? { caption: inLogicalOrder(part.caption) } : {}),
+      ...(part.caption ? { caption: inOrder(part.caption) } : {}),
     })),
     footnotes: flat.footnotes.map((note) => ({
       ...note,
@@ -335,8 +340,6 @@ export function convertOurs(
     })),
   };
   const kinds = kindsOf(hints);
-  // A record of 0.0.11 names no spaces: its gaps between runs are read as spaces, as then (D7).
-  const legacy = !Array.isArray(hints.spaces);
   const generated = new Set(
     [hints.generated.cover, hints.generated.titlePage].filter((n): n is number => !!n),
   );
@@ -430,7 +433,16 @@ export function convertOurs(
       });
       continue;
     }
-    const part = parts[cursor++] ?? null;
+    let part = parts[cursor++] ?? null;
+    // A paragraph that holds a picture alone is tagged as a figure (D32's library run: a title's first line):
+    // in a title, where no picture block stands, it is a paragraph of one inline picture (not for a record of
+    // 0.0.11, which may name no kinds).
+    if (!legacy && part?.kind === 'figure' && /(^|\/)title(\/|$)/.test(kind))
+      part = {
+        ...part,
+        kind: 'p',
+        runs: [{ text: '', page: part.page, picture: { alt: part.alt ?? '' } }],
+      };
     const block: Block = { b, kind, part, page: part?.page ?? lastPage };
     lastPage = block.page;
     blocks.push(block);
@@ -491,6 +503,7 @@ export function convertOurs(
     for (const [mb, from, to, name] of hints.marks) {
       if (mb === b && (name === 'strikethrough' || name === 'sub' || name === 'sup'))
         spans.push({ from, to, kind: name });
+      if (mb === b && name === 'code') spans.push({ from, to, kind: 'mono' });
       // Strong and emphasis the block's look hides (D6), recorded since feature 016.
       if (mb === b && (name === 'strong' || name === 'emphasis'))
         spans.push({ from, to, kind: name === 'strong' ? 'bold' : 'italic' });
@@ -682,8 +695,11 @@ export function convertOurs(
     const id = takePicture(block.page);
     if (!id) return '';
     counts.pictures++;
-    const alt = block.part?.alt ? ` alt="${attr(block.part.alt)}"` : '';
     const caption = block.part?.caption ? squeeze(partText(block.part.caption)) : '';
+    // The engine names a picture by its caption when it has no alternative text of its own (D32's library
+    // run): such a name is no alt.
+    const ownAlt = block.part?.alt && squeeze(block.part.alt) !== caption ? block.part.alt : '';
+    const alt = ownAlt ? ` alt="${attr(ownAlt)}"` : '';
     const title = caption ? ` title="${attr(caption)}"` : '';
     const own = idAt.get(block.b);
     return `<image l:href="#${attr(id)}"${alt}${title}${own ? ` id="${attr(own)}"` : ''}/>`;
