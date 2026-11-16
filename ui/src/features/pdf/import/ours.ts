@@ -54,7 +54,11 @@ function kindsOf(hints: HintsV1): string[] {
 const styled = (run: Run): boolean =>
   !!(run.bold || run.italic || run.mono || run.sub || run.sup || run.uri || run.dest);
 
-export function spaceRuns(runs: readonly Run[]): Run[] {
+export function spaceRuns(
+  runs: readonly Run[],
+  /** A gap between two text runs is a space: for a record of 0.0.11, which names no spaces (D7). */
+  { gaps = false }: { gaps?: boolean } = {},
+): Run[] {
   const out = runs.map((run) => ({ ...run }));
   let previous: Run | null = null;
   for (const run of out) {
@@ -79,7 +83,8 @@ export function spaceRuns(runs: readonly Run[]): Run[] {
       // Between text runs on one line nothing is added: the engine draws the book's spaces as characters
       // (D32's library run: a gap between two fonts was taken for a space). Beside an inline picture it
       // draws none, so a gap there is one.
-      const apart = known && (!!run.picture || !!previous.picture) && left! - right! > 0.15 * size;
+      const apart =
+        known && (gaps || !!run.picture || !!previous.picture) && left! - right! > 0.15 * size;
       const before = !previous.picture && /\s$/.test(previous.text);
       const after = !run.picture && /^\s/.test(run.text);
       const closing = !run.picture && /^[.,;:!?)\]}»”’…%]/u.test(run.text);
@@ -217,6 +222,8 @@ export function convertOurs(
   { descriptionPages = true }: { descriptionPages?: boolean } = {},
 ): OursResult {
   const kinds = kindsOf(hints);
+  // A record of 0.0.11 names no spaces: its gaps between runs are read as spaces, as then (D7).
+  const legacy = !Array.isArray(hints.spaces);
   const generated = new Set(
     [hints.generated.cover, hints.generated.titlePage].filter((n): n is number => !!n),
   );
@@ -224,11 +231,11 @@ export function convertOurs(
     .filter((part) => !generated.has(part.page))
     .map((part) => ({
       ...part,
-      runs: spaceRuns(part.runs),
+      runs: spaceRuns(part.runs, { gaps: legacy }),
       ...(part.rows
         ? {
             rows: part.rows.map((row) =>
-              row.map((cell) => ({ ...cell, runs: spaceRuns(cell.runs) })),
+              row.map((cell) => ({ ...cell, runs: spaceRuns(cell.runs, { gaps: legacy }) })),
             ),
           }
         : {}),
@@ -384,14 +391,18 @@ export function convertOurs(
         continue;
       }
       let at = 0;
-      for (const run of out) {
+      for (const [index, run] of out.entries()) {
         const local = fix.offset - at;
         if (fix.space && local <= run.text.length && run.text) {
-          if (
-            run.text[local] !== ' ' &&
-            '-\u2010\u2012\u2013\u2014'.includes(run.text[local - 1] ?? ' ')
-          )
-            run.text = `${run.text.slice(0, local)} ${run.text.slice(local)}`;
+          const next = out[index + 1];
+          // The characters on both sides of the place, across the runs: a space already there is kept.
+          const after = local < run.text.length ? run.text[local] : next?.text[0];
+          if (after !== ' ' && local > 0 && run.text[local - 1] !== ' ') {
+            // Where a marked run ends, the space goes outside the mark (D32: "ru[/a] ,").
+            if (local === run.text.length && next && styled(run) && !styled(next)) {
+              if (!next.text.startsWith(' ')) next.text = ` ${next.text}`;
+            } else run.text = `${run.text.slice(0, local)} ${run.text.slice(local)}`;
+          }
           break;
         }
         if (fix.cluster && local < run.text.length) {

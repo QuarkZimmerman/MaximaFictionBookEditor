@@ -47,6 +47,8 @@ const isFb2 = (element: Element | null | undefined, name?: string): boolean =>
 
 /** A hyphen or a dash after which a line may break with no space to mark. */
 const DASHES = new Set(['-', '\u2010', '\u2012', '\u2013', '\u2014']);
+/** Closing punctuation, before which the import puts no space at a line's start. */
+const CLOSING = /[.,;:!?)\]}»”’…%]/u;
 
 /** Whitespace as CSS collapses it in printed text (not the no-break space). */
 const WHITESPACE = /[ \t\n\r\f]/;
@@ -86,13 +88,48 @@ function spans(
 }
 
 /**
+ * Feature 016 (D6): the spaces that touch the edge of a text node - between two marks, or between a mark and
+ * the text beside it. The engine may draw such a space as no character at all (D32: a space of its own between
+ * two marks came as a gap), so the record names them, and the import puts back those its text lacks. Offsets as
+ * `spans` counts them.
+ */
+function boundarySpaces(block: Element): number[] {
+  if (![...block.childNodes].some((node) => node.nodeType === 1)) return [];
+  const units: { node: Text; char: string; offset: number }[] = [];
+  let length = 0;
+  let space = true;
+  const walk = (node: Node): void => {
+    if (node.nodeType === 3) {
+      for (const char of (node as Text).data) {
+        const white = WHITESPACE.test(char);
+        if (white && space) continue;
+        units.push({ node: node as Text, char: white ? ' ' : char, offset: length });
+        length += char.length;
+        space = white;
+      }
+      return;
+    }
+    for (const child of node.childNodes) walk(child);
+  };
+  walk(block);
+  const out: number[] = [];
+  for (let i = 1; i + 1 < units.length; i++) {
+    const unit = units[i];
+    if (unit.char !== ' ') continue;
+    if (units[i - 1].node !== unit.node || units[i + 1].node !== unit.node) out.push(unit.offset);
+  }
+  return out;
+}
+
+/**
  * Feature 016 (D6): the spaces after a hyphen where a line ends ("Koraiten- und"). The PDF shows such a line
  * ending with the hyphen and nothing of the space, as it shows a word going on after its own hyphen
  * ("Jakka-Mongolen"); the import joins those, and puts these spaces back. Offsets as `spans` counts them; the
  * block must be laid out (the measured book), else none are found.
  */
 function lineEndSpaces(block: Element): number[] {
-  if (!/\S[-\u2010\u2012\u2013\u2014]\s/.test(block.textContent ?? '')) return [];
+  if (!/\S[-\u2010\u2012\u2013\u2014]\s|\S\s+[.,;:!?)\]}»”’…%]/u.test(block.textContent ?? ''))
+    return [];
   const units: { node: Text; index: number; char: string; offset: number }[] = [];
   let length = 0;
   let space = true;
@@ -126,7 +163,15 @@ function lineEndSpaces(block: Element): number[] {
     const after = top(units[i + 2]);
     if (before !== null && after !== null && after > before + 1) out.push(units[i + 1].offset);
   }
-  return out;
+  // A space before closing punctuation where the line breaks at it ("ru ," - D32): the import puts none there.
+  for (let i = 1; i + 1 < units.length; i++) {
+    if (units[i].char !== ' ' || units[i - 1].char === ' ' || !CLOSING.test(units[i + 1].char))
+      continue;
+    const before = top(units[i - 1]);
+    const after = top(units[i + 1]);
+    if (before !== null && after !== null && after > before + 1) out.push(units[i].offset);
+  }
+  return out.sort((a, b) => a - b);
 }
 
 /**
@@ -166,7 +211,14 @@ function lineBreakJoins(block: Element): number[] {
     const before = units[i - 1];
     const unit = units[i];
     if (before.char === ' ' || unit.char === ' ' || DASHES.has(before.char)) continue;
-    if (before.node === unit.node && !/[\u2026/]/.test(before.char)) continue;
+    // Where a line may break with no space: where two text nodes meet, after an ellipsis or a slash, before an
+    // em dash (Unicode's line breaking, UAX #14).
+    if (
+      before.node === unit.node &&
+      !/[\u2026/]/.test(before.char) &&
+      !/[\u2014\u2e3a\u2e3b]/.test(unit.char)
+    )
+      continue;
     const a = top(before);
     const b = top(unit);
     if (a !== null && b !== null && b > a + 1) out.push(unit.offset);
@@ -354,7 +406,10 @@ export function buildHints(input: HintsInput): string {
         isFb2(e) && (e.localName === 'strong' || e.localName === 'emphasis') ? e.localName : null,
       ))
         marks.push([b, from, to, name]);
-    for (const offset of lineEndSpaces(element)) spaces.push([b, offset]);
+    for (const offset of [...new Set([...lineEndSpaces(element), ...boundarySpaces(element)])].sort(
+      (x, y) => x - y,
+    ))
+      spaces.push([b, offset]);
     for (const offset of lineBreakJoins(element)) joins.push([b, offset]);
     for (const [offset, text] of decomposed(element)) clusters.push([b, offset, clean(text)]);
     for (const [offset, side] of markSpaces(element)) inner.push([b, offset, side]);
@@ -405,7 +460,8 @@ export function buildHints(input: HintsInput): string {
     kinds,
     styles,
     marks,
-    ...(spaces.length ? { spaces } : {}),
+    // Always written: an import tells by it a record that names the spaces the PDF may not draw.
+    spaces,
     ...(joins.length ? { joins } : {}),
     ...(clusters.length ? { clusters } : {}),
     ...(inner.length ? { inner } : {}),
