@@ -5,6 +5,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <Dict.h>
 #include <GfxFont.h>
 #include <GfxState.h>
 #include <OutputDev.h>
@@ -367,6 +368,51 @@ struct Walker {
 };
 
 }  // namespace
+
+void map_newer_types(PDFDoc& doc) {
+    // PDF 2.0's standard structure types Poppler does not know: it drops such an element with all
+    // it holds (the engine writes Strong and Em for bold and italic - D32's library run lost every
+    // bold title). Each is mapped, through the structure tree's role map (ISO 32000-2, 14.8.6), to
+    // the PDF 1.7 type it refines, unless the file maps it already.
+    static const std::pair<const char*, const char*> newer[] = {{"Strong", "Span"},
+                                                                {"Em", "Span"},
+                                                                {"Sub", "Span"},
+                                                                {"Title", "H"},
+                                                                {"FENote", "Note"},
+                                                                {"Aside", "Div"},
+                                                                {"DocumentFragment", "Div"}};
+    XRef* xref = doc.getXRef();
+    Object catalog = xref->getCatalog();
+    if (!catalog.isDict()) {
+        return;
+    }
+    const Object& link = catalog.dictLookupNF("StructTreeRoot");
+    if (!link.isRef()) {
+        return;
+    }
+    const Ref ref = link.getRef();
+    Object root = xref->fetch(ref);
+    if (!root.isDict()) {
+        return;
+    }
+    Object roles = root.dictLookup("RoleMap");
+    std::unique_ptr<Dict> map =
+        roles.isDict() ? roles.getDict()->copy(xref) : std::make_unique<Dict>(xref);
+    bool changed = false;
+    for (const auto& [from, to] : newer) {
+        if (!map->hasKey(from)) {
+            map->add(from, Object(objName, to));
+            changed = true;
+        }
+    }
+    if (!changed) {
+        return;
+    }
+    std::unique_ptr<Dict> copy = root.getDict()->copy(xref);
+    copy->set("RoleMap", Object(std::move(map)));
+    const Object modified(std::move(copy));
+    xref->setModifiedObject(&modified, ref);
+}
 
 nlohmann::json structure_of(PDFDoc& doc, nlohmann::json& orphans) {
     const StructTreeRoot* root = doc.getStructTreeRoot();

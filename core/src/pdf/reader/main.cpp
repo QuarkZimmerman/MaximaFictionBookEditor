@@ -157,6 +157,7 @@ int main(int argc, char** argv) {
         }
         user = GooString(line);
     }
+    mfbe::pdf_reader::map_newer_types(*doc);
     if (!doc->okToCopy()) {
         mfbe::pdf_reader::emit(R"({"event":"owner-password"})");
         std::string line;

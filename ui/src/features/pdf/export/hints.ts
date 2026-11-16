@@ -174,6 +174,40 @@ function lineBreakJoins(block: Element): number[] {
   return out;
 }
 
+/** The text of `block` as it prints: whitespace runs one space, none leading (as `spans` counts it). */
+function printed(block: Element): string {
+  let out = '';
+  let space = true;
+  const walk = (node: Node): void => {
+    if (node.nodeType === 3) {
+      for (const char of (node as Text).data) {
+        const white = WHITESPACE.test(char);
+        if (white && space) continue;
+        out += white ? ' ' : char;
+        space = white;
+      }
+      return;
+    }
+    for (const child of node.childNodes) walk(child);
+  };
+  walk(block);
+  return out;
+}
+
+/**
+ * Feature 016 (D6): letters the book writes with combining marks (e + U+0301) that the font draws as one
+ * letter - the PDF holds the composed letter (é) then. Each such cluster, where its composed form differs:
+ * its offset as `spans` counts and its text, so that the import writes it as the book did.
+ */
+function decomposed(block: Element): [number, string][] {
+  const text = printed(block);
+  if (!/\p{M}/u.test(text)) return [];
+  const out: [number, string][] = [];
+  for (const match of text.matchAll(/\P{M}\p{M}+/gu))
+    if (match[0].normalize('NFC') !== match[0]) out.push([match.index, match[0]]);
+  return out;
+}
+
 export function buildHints(input: HintsInput): string {
   const { blocks, book, pageMap } = input;
   const targets = new Set<string>();
@@ -191,6 +225,8 @@ export function buildHints(input: HintsInput): string {
   const spaces: [number, number][] = [];
   // Feature 016 (D6): [block, offset] of each line break with no space in the text.
   const joins: [number, number][] = [];
+  // Feature 016 (D6): [block, offset, text] of each letter written with combining marks the PDF composes.
+  const clusters: [number, number, string][] = [];
   const langs: [number, number, number, string][] = [];
   const ids: [number, string][] = [];
   const tables: [number, number, string][] = [];
@@ -214,7 +250,12 @@ export function buildHints(input: HintsInput): string {
     const path = chain
       .filter((c) => isFb2(c) && CONTAINERS.has(c.localName))
       .map((c) => c.localName);
-    if (isFb2(element) && GENERIC_BLOCKS.has(element.localName)) path.push(element.localName);
+    if (isFb2(element) && GENERIC_BLOCKS.has(element.localName)) {
+      // Feature 016 (D6): an empty line draws nothing the import could see - inside a title its path says so.
+      if (element.localName === 'empty-line' && chain.some((c) => isFb2(c, 'title')))
+        path.push('title');
+      path.push(element.localName);
+    }
     if (isFb2(element, 'image') && element.parentElement?.localName === 'section')
       path.push(element.querySelector('.mfbe-caption') ? 'picture caption' : 'picture');
     const kind = path.join('/');
@@ -244,6 +285,7 @@ export function buildHints(input: HintsInput): string {
         marks.push([b, from, to, name]);
     for (const offset of lineEndSpaces(element)) spaces.push([b, offset]);
     for (const offset of lineBreakJoins(element)) joins.push([b, offset]);
+    for (const [offset, text] of decomposed(element)) clusters.push([b, offset, clean(text)]);
     const lang = element.getAttribute('lang');
     if (lang) langs.push([b, 0, element.textContent?.length ?? 0, clean(lang)]);
     for (const [from, to, value] of spans(element, (e) => e.getAttribute('lang')))
@@ -293,6 +335,7 @@ export function buildHints(input: HintsInput): string {
     marks,
     ...(spaces.length ? { spaces } : {}),
     ...(joins.length ? { joins } : {}),
+    ...(clusters.length ? { clusters } : {}),
     langs,
     ids,
     tables,

@@ -321,14 +321,16 @@ export function convertOurs(
   }
   // The text as the book has it at its line breaks (D6): spaces after a hyphen put back, spaces at breaks the
   // text has none taken out - in the order of their places, before the spans, which count them.
-  const fixesAt = new Map<number, { offset: number; space: boolean }[]>();
+  const fixesAt = new Map<number, { offset: number; space: boolean; cluster?: string }[]>();
   for (const [b, offset] of hints.spaces ?? [])
     fixesAt.set(b, [...(fixesAt.get(b) ?? []), { offset, space: true }]);
   for (const [b, offset] of hints.joins ?? [])
     fixesAt.set(b, [...(fixesAt.get(b) ?? []), { offset, space: false }]);
+  for (const [b, offset, cluster] of hints.clusters ?? [])
+    fixesAt.set(b, [...(fixesAt.get(b) ?? []), { offset, space: false, cluster }]);
   const withSpaces = (
     runs: readonly Run[],
-    fixes: readonly { offset: number; space: boolean }[] | undefined,
+    fixes: readonly { offset: number; space: boolean; cluster?: string }[] | undefined,
   ): Run[] => {
     if (!fixes?.length) return [...runs];
     const out = runs.map((run) => ({ ...run }));
@@ -344,7 +346,15 @@ export function convertOurs(
             run.text = `${run.text.slice(0, local)} ${run.text.slice(local)}`;
           break;
         }
-        if (!fix.space && local < run.text.length) {
+        if (fix.cluster && local < run.text.length) {
+          // The composed letter the PDF holds, written again as the book wrote it.
+          const composed = fix.cluster.normalize('NFC');
+          if (run.text.startsWith(composed, local))
+            run.text =
+              run.text.slice(0, local) + fix.cluster + run.text.slice(local + composed.length);
+          break;
+        }
+        if (!fix.space && !fix.cluster && local < run.text.length) {
           if (run.text[local] === ' ')
             run.text = run.text.slice(0, local) + run.text.slice(local + 1);
           break;
@@ -445,7 +455,7 @@ export function convertOurs(
       closeTitle();
       while (open.length > depth) out += `</${open.pop()}>`;
     };
-    list.forEach((block) => {
+    list.forEach((block, index) => {
       const segments = block.kind ? block.kind.split('/') : [];
       const containers = segments.slice(strip).filter((s) => CONTAINER_NAMES.has(s));
       const last = segments[segments.length - 1] ?? '';
@@ -482,7 +492,15 @@ export function convertOurs(
         if (element === 'poem' || element === 'stanza')
           shared = Math.min(shared, containers.length - 1);
       }
-      if (shared < open.length || block.part?.kind !== 'title') closeTo(shared);
+      // A title's line, or an empty line inside the title: by the hints since feature 016, else one that stands
+      // between two of the title's lines (D32's library run: a body's title kept its empty line no more).
+      const titleLine =
+        block.part?.kind === 'title' ||
+        (!block.part &&
+          (segments.includes('title') ||
+            (titleOpen &&
+              list.slice(index + 1).find((next) => next.part)?.part?.kind === 'title')));
+      if (shared < open.length || !titleLine) closeTo(shared);
       while (open.length < containers.length) {
         closeTitle();
         const name = containers[open.length];
@@ -490,10 +508,10 @@ export function convertOurs(
         out += `<${name}>`;
       }
       lastVerseTop = isVerse ? (top ?? lastVerseTop) : null;
-      if (block.part?.kind === 'title') {
+      if (titleLine) {
         if (!titleOpen) out += '<title>';
         titleOpen = true;
-        out += paragraph('p', block);
+        out += block.part ? paragraph('p', block) : '<empty-line/>';
         return;
       }
       closeTitle();

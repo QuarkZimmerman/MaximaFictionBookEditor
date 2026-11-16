@@ -151,7 +151,7 @@ TEST_CASE("the reader keeps soft hyphens and the invisible text of a scan", "[pd
     CHECK(words.find("hyphen\xC2\xAD") != std::string::npos);
 }
 
-TEST_CASE("the reader gives a tagged PDF's structure and the marked content outside it",
+TEST_CASE("the reader gives a tagged PDF's structure, PDF 2.0's Strong and Em in their place",
           "[pdf][import]") {
     Read r = read(kFixtures / "import" / "tagged.pdf");
     const json doc = r.document();
@@ -161,7 +161,13 @@ TEST_CASE("the reader gives a tagged PDF's structure and the marked content outs
         CHECK(dump.find(text) != std::string::npos);
     }
     CHECK(dump.find("\"alt\":\"A figure\"") != std::string::npos);
-    CHECK(doc["orphans"].dump().find("strong") != std::string::npos);
+    // The engine tags bold and italic with PDF 2.0's Strong and Em, which Poppler drops unless the
+    // role map names them (D32): their words stay in their paragraph, and nothing is left outside
+    // the tree.
+    CHECK(dump.find("strong") != std::string::npos);
+    CHECK(dump.find("emphasis") != std::string::npos);
+    REQUIRE(doc["orphans"].is_array());
+    CHECK(doc["orphans"].dump().find("strong") == std::string::npos);
 }
 
 TEST_CASE("the reader gives the editor's record of its own PDF", "[pdf][import]") {

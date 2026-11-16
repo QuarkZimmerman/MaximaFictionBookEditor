@@ -62,6 +62,10 @@ nlohmann::json write_picture(PDFDoc& doc, int n, const std::string& id, const Op
 bool render_page(PDFDoc& doc, int n, int dpi, const std::filesystem::path& file, int& width,
                  int& height);
 
+/// Maps PDF 2.0's structure types Poppler does not know to the types they refine, before the tree
+/// is read.
+void map_newer_types(PDFDoc& doc);
+
 /// A PDF text string (document information, a form's value, a structure element's text) as UTF-8.
 std::string text_string(std::string_view s);
 

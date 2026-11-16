@@ -353,11 +353,21 @@ export function flatten(
   const sortedLeaves = [...leaves].sort((a, b) => order(a.page, a.mcid) - order(b.page, b.mcid));
   // Each page's left margin: where its runs begin at the least.
   const margins = new Map<number, number>();
+  const rights = new Map<number, number>();
   for (const leaf of leaves) {
-    const left = leaf.run.left;
+    const { left, right } = leaf.run;
     if (left !== undefined)
       margins.set(leaf.page, Math.min(margins.get(leaf.page) ?? Infinity, left));
+    if (right !== undefined)
+      rights.set(leaf.page, Math.max(rights.get(leaf.page) ?? -Infinity, right));
   }
+  // A run whose last line reaches the right margin, and an orphan that begins with the first-line indent.
+  const full = (run: Run): boolean =>
+    (rights.get(run.page) ?? -Infinity) - (run.endRight ?? run.right ?? -Infinity) <
+    2.5 * (run.size ?? 10);
+  const indented = (orphan: StructLeaf): boolean =>
+    (orphan.startLeft ?? orphan.left ?? 0) - (margins.get(orphan.page) ?? Infinity) >
+    0.5 * (orphan.size ?? 10);
   const slotFor = (orphan: StructLeaf): number => {
     const at = order(orphan.page, orphan.mcid);
     let low = 0;
@@ -400,12 +410,35 @@ export function flatten(
         else lines.push([orphan]);
       }
       const next = sortedLeaves[slot];
+      const before = slot > 0 ? sortedLeaves[slot - 1] : undefined;
+      let taken = 0;
       lines.forEach((line, index) => {
-        // More lines than empty elements: one that ends on the line where the next run begins is that run's
-        // paragraph's first words (D32: "Постой!" after a paragraph in italic); others join the last element.
+        const first = line[0];
+        // More lines than empty elements: the first may close the paragraph before - it goes on from that
+        // paragraph's full line, at the margin (D32: an italic phrase ending a paragraph, before paragraphs
+        // wholly in italic).
+        if (
+          index === 0 &&
+          lines.length > empties.length &&
+          before &&
+          before.page === first.page &&
+          full(before.run) &&
+          !indented(first)
+        ) {
+          let at = before.list.indexOf(before.run);
+          for (const orphan of line)
+            before.list.splice(
+              ++at,
+              0,
+              leafRun(orphan, before.run.lang ? { lang: before.run.lang } : {}),
+            );
+          return;
+        }
+        // One that ends on the line where the next run begins is that run's paragraph's first words (D32:
+        // "Постой!" after a paragraph in italic); others join the last element.
         const last = line[line.length - 1];
         if (
-          index >= empties.length &&
+          taken >= empties.length &&
           next &&
           next.page === last.page &&
           level(last.endTop ?? last.top, next.run.startTop ?? next.run.top)
@@ -416,7 +449,8 @@ export function flatten(
           next.list.splice(next.list.indexOf(next.run), 0, ...runs);
           return;
         }
-        const part = empties[Math.min(index, empties.length - 1)];
+        const part = empties[Math.min(taken, empties.length - 1)];
+        taken++;
         if (!part.page) part.page = line[0].page;
         for (const orphan of line)
           part.runs.push(leafRun(orphan, part.lang ? { lang: part.lang } : {}));

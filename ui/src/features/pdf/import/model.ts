@@ -147,6 +147,8 @@ export interface HintsV1 {
   spaces?: [number, number][];
   /** Feature 016 (D6): [block, offset] of the line breaks with no space in the text (before a note's mark). */
   joins?: [number, number][];
+  /** Feature 016 (D6): [block, offset, text] of the letters written with combining marks, which the PDF composes. */
+  clusters?: [number, number, string][];
   langs: [number, number, number, string][];
   ids: [number, string][];
   tables: [number, number, string][];
