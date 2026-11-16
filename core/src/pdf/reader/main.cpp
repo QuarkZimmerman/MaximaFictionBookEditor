@@ -2,12 +2,18 @@
 // for one import, apart from the editor's process, so that a hostile file can end only this
 // program. Only the core starts it. It opens no network connection, runs no script of the PDF,
 // follows no action and writes nothing outside the folder it is given.
+#include "mfbe/utf8_paths.hpp"
 #include "mfbe/version.hpp"
+#include "pdf/reader/reader.hpp"
 
+#include <GlobalParams.h>
+#include <PDFDoc.h>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <iostream>
+#include <optional>
 #include <string>
 #include <thread>
 #include <vector>
@@ -23,6 +29,14 @@ int usage() {
 }
 
 }  // namespace
+
+namespace mfbe::pdf_reader {
+void emit(const std::string& json) {
+    std::fwrite(json.data(), 1, json.size(), stdout);
+    std::fputc('\n', stdout);
+    std::fflush(stdout);
+}
+}  // namespace mfbe::pdf_reader
 
 int main(int argc, char** argv) {
     if (argc == 2 && std::strcmp(argv[1], "--version") == 0) {
@@ -65,7 +79,59 @@ int main(int argc, char** argv) {
         }
     }
 #endif
-    // The reading itself comes with the reader's parts (tasks T012 to T018).
-    std::printf("{\"event\":\"failed\",\"reason\":\"notPdf\"}\n");
-    return 1;
+    if (!globalParams) {
+        globalParams = std::make_unique<GlobalParams>();
+    }
+    mfbe::pdf_reader::Options options;
+    options.pdf = mfbe::platform::path_from_utf8(pdf);
+    options.out = mfbe::platform::path_from_utf8(out);
+    std::optional<GooString> user;
+    std::unique_ptr<PDFDoc> doc;
+    for (int attempt = 0;; ++attempt) {
+        doc = std::make_unique<PDFDoc>(std::make_unique<GooString>(pdf), user, user);
+        if (doc->isOk()) {
+            break;
+        }
+        if (doc->getErrorCode() != errEncrypted) {
+            mfbe::pdf_reader::emit(R"({"event":"failed","reason":"damaged"})");
+            return 1;
+        }
+        mfbe::pdf_reader::emit(attempt == 0 ? R"({"event":"needs-password"})"
+                                            : R"({"event":"wrong-password"})");
+        std::string line;
+        if (!std::getline(std::cin, line) || line.empty()) {
+            mfbe::pdf_reader::emit(R"({"event":"failed","reason":"passwordCancelled"})");
+            return 1;
+        }
+        user = GooString(line);
+    }
+    if (!doc->okToCopy()) {
+        mfbe::pdf_reader::emit(R"({"event":"owner-password"})");
+        std::string line;
+        if (!std::getline(std::cin, line) || line.empty()) {
+            mfbe::pdf_reader::emit(R"({"event":"failed","reason":"copyForbidden"})");
+            return 1;
+        }
+        auto owner =
+            std::make_unique<PDFDoc>(std::make_unique<GooString>(pdf), GooString(line), user);
+        if (!owner->isOk() || !owner->okToCopy()) {
+            mfbe::pdf_reader::emit(R"({"event":"failed","reason":"copyForbidden"})");
+            return 1;
+        }
+        doc = std::move(owner);
+    }
+    const int pages = doc->getNumPages();
+    mfbe::pdf_reader::emit("{\"event\":\"opened\",\"pages\":" + std::to_string(pages) + "}");
+    std::string error;
+    if (!mfbe::pdf_reader::write_document(*doc, options, error)) {
+        mfbe::pdf_reader::emit(R"({"event":"failed","reason":"damaged"})");
+        return 1;
+    }
+    for (int n = 1; n <= pages; ++n) {
+        const std::string kind = mfbe::pdf_reader::write_page(*doc, n, options);
+        mfbe::pdf_reader::emit("{\"event\":\"page\",\"n\":" + std::to_string(n) + ",\"kind\":\"" +
+                               kind + "\"}");
+    }
+    mfbe::pdf_reader::emit(R"({"event":"done"})");
+    return 0;
 }
