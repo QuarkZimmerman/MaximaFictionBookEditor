@@ -351,6 +351,13 @@ export function flatten(
   // when it stands on that run's line and not on the previous one's, else after the previous run.
   const order = (page: number, mcid: number): number => page * 1_000_000 + mcid;
   const sortedLeaves = [...leaves].sort((a, b) => order(a.page, a.mcid) - order(b.page, b.mcid));
+  // Each page's left margin: where its runs begin at the least.
+  const margins = new Map<number, number>();
+  for (const leaf of leaves) {
+    const left = leaf.run.left;
+    if (left !== undefined)
+      margins.set(leaf.page, Math.min(margins.get(leaf.page) ?? Infinity, left));
+  }
   const slotFor = (orphan: StructLeaf): number => {
     const at = order(orphan.page, orphan.mcid);
     let low = 0;
@@ -431,7 +438,17 @@ export function flatten(
           previous.page === orphan.page &&
           level(previous.run.endTop ?? previous.run.top, orphan.startTop ?? orphan.top)
         );
-      if (onNext) {
+      // Between two paragraphs, a line of its own that begins with the first-line indent begins the next one
+      // (D32: a paragraph's first words in italic filling its first line).
+      const opens =
+        !!next &&
+        next.page === orphan.page &&
+        (!previous || previous.list !== next.list) &&
+        (orphan.startTop ?? orphan.top ?? 0) >
+          (previous?.run.endTop ?? previous?.run.top ?? -Infinity) + 2 &&
+        (orphan.startLeft ?? orphan.left ?? 0) - (margins.get(orphan.page) ?? Infinity) >
+          0.5 * (orphan.size ?? 10);
+      if (onNext || opens) {
         const run = leafRun(orphan, {
           ...(next.run.uri ? { uri: next.run.uri } : {}),
           ...(next.run.lang ? { lang: next.run.lang } : {}),
