@@ -163,7 +163,20 @@ public:
         double tx, ty, tdx, tdy;
         state->transform(x, y, &tx, &ty);
         state->transformDelta(dx, dy, &tdx, &tdy);
+        // A space drawn with no advance stands for a character no glyph shows: the engine's shaping
+        // prints a book's direction marks and other invisible characters so (D32's library run) -
+        // it is no space.
+        if (uLen == 1 && u[0] == 0x20 && std::abs(tdx) + std::abs(tdy) < size * 0.05) {
+            return;
+        }
         auto& last = last_[mcid];
+        // A space whose next glyph begins where the space began took no room: the engine draws a
+        // book's invisible characters (a direction mark) so, its width taken back by the glyphs'
+        // places (D32).
+        if (last.space_x >= 0 && std::abs(tx - last.space_x) < size * 0.05 && !out.empty() &&
+            out.back() == ' ') {
+            out.pop_back();
+        }
         const bool new_line = std::abs(ty - last.y) > size * 0.5;
         // A word's own hyphen at a line's end goes on with the next line's letters
         // ("Jakka-Mongolen"): a line breaks after a hyphen with no space to mark (D32's library
@@ -176,7 +189,7 @@ public:
         for (int i = 0; i < uLen; ++i) {
             append_utf8(out, u[i]);
         }
-        last = {tx + tdx, ty};
+        last = {tx + tdx, ty, uLen == 1 && u[0] == 0x20 ? tx : -1};
         // The font's flags, or its name where a subset font carries none
         // ("ABCDEF+Serif-BoldItalic").
         if (const auto& font = state->getFont()) {
@@ -206,6 +219,7 @@ private:
     struct Last {
         double x_end = 0;
         double y = 0;
+        double space_x = -1;  // where the last character, a space, began (-1: it was no space)
     };
     std::vector<int> stack_;
     std::map<int, Last> last_;

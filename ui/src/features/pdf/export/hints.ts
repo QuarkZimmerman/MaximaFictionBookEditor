@@ -56,6 +56,11 @@ const CLOSING = /[.,;:!?)\]}»”’…%]/u;
 
 /** Whitespace as CSS collapses it in printed text (not the no-break space). */
 const WHITESPACE = /[ \t\n\r\f]/;
+/**
+ * Characters no glyph shows, which the PDF does not hold (soft hyphens, direction marks, zero-width characters):
+ * the offsets count without them, as the import's text has them not (D32).
+ */
+const INVISIBLE = /[\u00ad\u061c\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff]/;
 
 /**
  * The spans of the descendants of `block` matching `pick`: [from, to, value] in its text as it prints -
@@ -73,6 +78,7 @@ function spans(
     if (node.nodeType === 3) {
       const data = (node as Text).data;
       for (let i = 0; i < data.length; i++) {
+        if (INVISIBLE.test(data[i])) continue;
         const white = WHITESPACE.test(data[i]);
         if (white && space) continue;
         length++;
@@ -105,6 +111,7 @@ function boundarySpaces(block: Element): number[] {
   const walk = (node: Node): void => {
     if (node.nodeType === 3) {
       for (const char of (node as Text).data) {
+        if (INVISIBLE.test(char)) continue;
         const white = WHITESPACE.test(char);
         if (white && space) continue;
         units.push({ node: node as Text, char: white ? ' ' : char, offset: length });
@@ -141,6 +148,7 @@ function lineEndSpaces(block: Element): number[] {
     if (node.nodeType === 3) {
       const data = (node as Text).data;
       for (let i = 0; i < data.length; i++) {
+        if (INVISIBLE.test(data[i])) continue;
         const white = WHITESPACE.test(data[i]);
         if (white && space) continue;
         units.push({ node: node as Text, index: i, char: white ? ' ' : data[i], offset: length });
@@ -194,6 +202,7 @@ function lineBreakJoins(block: Element): number[] {
     if (node.nodeType === 3) {
       const data = (node as Text).data;
       for (let i = 0; i < data.length; i++) {
+        if (INVISIBLE.test(data[i])) continue;
         const white = WHITESPACE.test(data[i]);
         if (white && space) continue;
         units.push({ node: node as Text, index: i, char: white ? ' ' : data[i], offset: length });
@@ -266,6 +275,7 @@ function printed(block: Element): string {
   const walk = (node: Node): void => {
     if (node.nodeType === 3) {
       for (const char of (node as Text).data) {
+        if (INVISIBLE.test(char)) continue;
         const white = WHITESPACE.test(char);
         if (white && space) continue;
         out += white ? ' ' : char;
@@ -321,6 +331,7 @@ function markSpaces(block: Element): [number, number][] {
     if (node.nodeType === 3) {
       const data = (node as Text).data;
       for (let i = 0; i < data.length; i++) {
+        if (INVISIBLE.test(data[i])) continue;
         const white = WHITESPACE.test(data[i]);
         if (white && space) continue;
         units.push({ node: node as Text, index: i, char: white ? ' ' : data[i] });
@@ -378,6 +389,8 @@ export function buildHints(input: HintsInput): string {
   const clusters: [number, number, string][] = [];
   // Feature 016 (D6): [block, offset, side] of each mark's own space where a line breaks at it.
   const inner: [number, number, number][] = [];
+  // Feature 016 (D6): [block, offset, address] of each web address the engine rewrites.
+  const hrefs: [number, number, string][] = [];
   const langs: [number, number, number, string][] = [];
   const ids: [number, string][] = [];
   const tables: [number, number, string][] = [];
@@ -448,6 +461,28 @@ export function buildHints(input: HintsInput): string {
     for (const offset of lineBreakJoins(element)) joins.push([b, offset]);
     for (const [offset, text] of decomposed(element)) clusters.push([b, offset, clean(text)]);
     for (const [offset, side] of markSpaces(element)) inner.push([b, offset, side]);
+    // Feature 016 (D6): a web address the engine writes in its URL form (' as %27, letters as %-escapes): the
+    // book's own form, by where the link's text begins.
+    // The book's link as the print prepares it: an HTML anchor by then, or the book's own element before.
+    const shownText = printed(element);
+    for (const [from, to, href] of spans(element, (e) =>
+      e.localName !== 'a'
+        ? null
+        : isFb2(e)
+          ? (e.getAttribute('data-href') ?? '')
+          : (e.getAttribute('href') ?? ''),
+    )) {
+      if (!href || href.startsWith('#')) continue;
+      // A link of white space alone shows nothing to take its address (D6 accepts it lost).
+      if (!shownText.slice(from, to).trim()) continue;
+      let shown: string;
+      try {
+        shown = new URL(href).href;
+      } catch {
+        continue;
+      }
+      if (shown !== href) hrefs.push([b, from, clean(href)]);
+    }
     const lang = element.getAttribute('lang');
     if (lang) langs.push([b, 0, element.textContent?.length ?? 0, clean(lang)]);
     for (const [from, to, value] of spans(element, (e) => e.getAttribute('lang')))
@@ -500,6 +535,7 @@ export function buildHints(input: HintsInput): string {
     ...(joins.length ? { joins } : {}),
     ...(clusters.length ? { clusters } : {}),
     ...(inner.length ? { inner } : {}),
+    ...(hrefs.length ? { hrefs } : {}),
     ...(fresh.length ? { fresh } : {}),
     ...(input.continued ? { continued: input.continued } : {}),
     ...(input.carriedPages ? { carried: input.carriedPages } : {}),

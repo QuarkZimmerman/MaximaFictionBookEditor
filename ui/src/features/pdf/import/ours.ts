@@ -268,7 +268,8 @@ function joinSplit(
   return out;
 }
 
-const RTL = '\\p{Script=Hebrew}\\p{Script=Arabic}\\p{Script=Syriac}\\p{Script=Thaana}\\p{Script=Nko}';
+const RTL =
+  '\\p{Script=Hebrew}\\p{Script=Arabic}\\p{Script=Syriac}\\p{Script=Thaana}\\p{Script=Nko}';
 const RTL_RUN = new RegExp(
   `[${RTL}](?:[${RTL}\\d\\s.,:;!?'"()\\[\\]{}<>\\-\u2013\u2014]*[${RTL}])?`,
   'gu',
@@ -579,6 +580,27 @@ export function convertOurs(
     }
     return out;
   };
+  // The web addresses as the book wrote them (D6): on the runs of the link whose text begins there.
+  const hrefsAt = new Map<number, [number, string][]>();
+  for (const [b, offset, href] of hints.hrefs ?? [])
+    hrefsAt.set(b, [...(hrefsAt.get(b) ?? []), [offset, href]]);
+  const withHrefs = (runs: Run[], list: readonly [number, string][] | undefined): Run[] => {
+    if (!list?.length) return runs;
+    const out = runs.map((run) => ({ ...run }));
+    for (const [offset, href] of list) {
+      let at = 0;
+      const index = out.findIndex((run) => {
+        const hit = offset >= at && offset < at + run.text.length;
+        at += run.text.length;
+        return hit;
+      });
+      const first = out[index];
+      if (!first?.uri) continue;
+      for (const run of out)
+        if (run.link !== undefined ? run.link === first.link : run === first) run.uri = href;
+    }
+    return out;
+  };
   const freshAt = new Map(hints.fresh ?? []);
   const sectionAt = new Map(hints.sections);
   const idAt = new Map(hints.ids);
@@ -622,7 +644,8 @@ export function convertOurs(
     const lang = blockLang.get(block.b);
     if (lang) attrs.push(`xml:lang="${attr(lang)}"`);
     const open = attrs.length ? `<${name} ${attrs.join(' ')}>` : `<${name}>`;
-    return `${open}${inline(withSpaces(part.runs, fixesAt.get(block.b)), spansOf(block.b), link, pictureFor)}</${name}>`;
+    const runs = withHrefs(withSpaces(part.runs, fixesAt.get(block.b)), hrefsAt.get(block.b));
+    return `${open}${inline(runs, spansOf(block.b), link, pictureFor)}</${name}>`;
   };
   const tableXml = (block: Block): string => {
     counts.tables++;

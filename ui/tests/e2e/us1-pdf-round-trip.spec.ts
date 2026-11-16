@@ -90,14 +90,14 @@ const SPACES = `(text) => {
         if (!link.isConnected) continue;
         for (;;) {
           let next = link.nextSibling;
-          let gap = null;
-          if (next && next.nodeType === 3 && next.data.trim() === '') {
-            gap = next;
+          const gap = [];
+          while (next && next.nodeType === 3 && next.data.trim() === '') {
+            gap.push(next);
             next = next.nextSibling;
           }
           if (!next || next.nodeType !== 1 || next.localName !== 'a' ||
               next.getAttributeNS(XL, 'href') !== link.getAttributeNS(XL, 'href')) break;
-          if (gap) link.append(gap);
+          link.append(...gap);
           link.append(...next.childNodes);
           next.remove();
         }
@@ -114,6 +114,28 @@ const SPACES = `(text) => {
           last.data = last.data.replace(/\\s+$/, '');
         }
       }
+      // ... and so two marks alike with only white space between come back as one.
+      for (const mark of marks()) {
+        if (!mark.isConnected) continue;
+        for (;;) {
+          let next = mark.nextSibling;
+          const gap = [];
+          while (next && next.nodeType === 3 && next.data.trim() === '') {
+            gap.push(next);
+            next = next.nextSibling;
+          }
+          if (!next || next.nodeType !== 1 || next.localName !== mark.localName) break;
+          // Their own attributes, not the namespaces an element declares.
+          const own = (e) => [...e.attributes].filter((a) => !a.name.startsWith('xmlns'));
+          const same =
+            own(mark).length === own(next).length &&
+            own(mark).every((a) => next.getAttribute(a.name) === a.value);
+          if (!same) break;
+          mark.append(...gap);
+          mark.append(...next.childNodes);
+          next.remove();
+        }
+      }
       const walker = doc.createTreeWalker(block, NodeFilter.SHOW_TEXT);
       const nodes = [];
       for (let node = walker.nextNode(); node; node = walker.nextNode()) nodes.push(node);
@@ -121,7 +143,7 @@ const SPACES = `(text) => {
       for (const node of nodes) {
         if (node.parentElement && node.parentElement.closest('code')) { space = false; continue; }
         let out = '';
-        for (const char of node.data.replace(/[\\u00ad\\u200b-\\u200d\\u2060\\ufeff]/g, '')) {
+        for (const char of node.data.replace(/[\\u00ad\\u061c\\u200b-\\u200f\\u202a-\\u202e\\u2060\\u2066-\\u2069\\ufeff]/g, '')) {
           const white = /[ \\t\\n\\r]/.test(char);
           if (white && space) continue;
           out += white ? ' ' : char;
@@ -134,6 +156,16 @@ const SPACES = `(text) => {
         if (nodes[i].data.length > 0) break;
       }
     }
+  }
+  // C5: a note without a title of its own gets its printed label as its title - dropped where it repeats the
+  // label its first paragraph's link back shows.
+  const plain = (value) => (value || '').replace(/[\\s\\[\\]().]/g, '');
+  for (const section of [...doc.getElementsByTagNameNS(FB, 'section')]) {
+    const title = section.firstElementChild;
+    if (!title || title.localName !== 'title') continue;
+    const first = title.nextElementSibling;
+    const back = first && first.localName === 'p' ? first.getElementsByTagNameNS(FB, 'a')[0] : null;
+    if (back && plain(back.textContent) && plain(title.textContent) === plain(back.textContent)) title.remove();
   }
   return new XMLSerializer().serializeToString(doc);
 }`;

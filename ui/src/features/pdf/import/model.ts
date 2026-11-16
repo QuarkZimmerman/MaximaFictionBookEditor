@@ -151,6 +151,8 @@ export interface HintsV1 {
   clusters?: [number, number, string][];
   /** Feature 016 (D6): [block, offset, side] of a mark's own space at a line break: 1 its last character, 0 its first. */
   inner?: [number, number, number][];
+  /** Feature 016 (D6): [block, offset, address] of the web addresses the engine writes in their URL form. */
+  hrefs?: [number, number, string][];
   /** Feature 016 (D6): [block, depth] where a container begins anew under the same names (two epigraphs in a row). */
   fresh?: [number, number][];
   /** Feature 016 (D6): the blocks whose text goes on onto a next page, once per page break. */
