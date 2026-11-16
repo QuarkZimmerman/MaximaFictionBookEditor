@@ -120,7 +120,7 @@ export function stripWhole(runs: readonly Run[]): Run[] {
  * most likely the rest of it; a small letter at its start and no full stop before count too (D32's library
  * run: German nouns begin with capitals, and its quotes close with "“").
  */
-function joinSplit(parts: Part[], needed: number): Part[] {
+function joinSplit(parts: Part[], needed: number, starts: ReadonlySet<number> = new Set()): Part[] {
   const extra = parts.length - needed;
   if (extra <= 0) return parts;
   // Each page's text block: where its lines begin and end.
@@ -138,7 +138,8 @@ function joinSplit(parts: Part[], needed: number): Part[] {
   for (let i = 1; i < parts.length; i++) {
     const before = parts[i - 1];
     const part = parts[i];
-    if (part.page <= before.page || before.kind !== part.kind) continue;
+    // A page where a flow begins - the annotation, the history, a body - continues nothing (D32).
+    if (part.page <= before.page || before.kind !== part.kind || starts.has(part.page)) continue;
     if (part.kind !== 'p' && part.kind !== 'table') continue;
     let score = part.kind === 'table' ? 3 : 0;
     const first = part.runs.find((run) => run.text.trim());
@@ -217,7 +218,14 @@ export function convertOurs(
     }));
   let needed = 0;
   for (const kind of kinds) needed += kind.endsWith('empty-line') ? 0 : 1;
-  const parts = joinSplit(spaced, needed);
+  const starts = new Set<number>(
+    [
+      hints.generated.annotationPage,
+      hints.generated.historyPage,
+      ...hints.bodies.map((body) => body.page + 1),
+    ].filter((n): n is number => !!n),
+  );
+  const parts = joinSplit(spaced, needed, starts);
 
   // The blocks, numbered as the paginator numbered them.
   const blocks: Block[] = [];
