@@ -229,12 +229,19 @@ function lineBreakJoins(block: Element): number[] {
   for (let i = 1; i < units.length; i++) {
     const before = units[i - 1];
     const unit = units[i];
-    if (before.char === ' ' || unit.char === ' ' || DASHES.has(before.char)) continue;
+    // A dash attached to its word: the import joins there itself. A dash standing alone ("уравнения —") the
+    // import follows with a space at a line's end, which the book may not have (D32's library run).
+    if (
+      before.char === ' ' ||
+      unit.char === ' ' ||
+      (DASHES.has(before.char) && units[i - 2]?.char !== ' ')
+    )
+      continue;
     // Where a line may break with no space: where two text nodes meet, after an ellipsis or a slash, before an
     // em dash (Unicode's line breaking, UAX #14).
     if (
       before.node === unit.node &&
-      !/[\u2026/]/.test(before.char) &&
+      !/[\u2026/\u2014]/.test(before.char) &&
       !/[\u2014\u2e3a\u2e3b]/.test(unit.char)
     )
       continue;

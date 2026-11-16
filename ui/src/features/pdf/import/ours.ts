@@ -61,6 +61,8 @@ export function spaceRuns(
 ): Run[] {
   const out = runs.map((run) => ({ ...run }));
   let previous: Run | null = null;
+  // The run before `previous`: a hyphen may be a run of its own, its word in the run before it.
+  let earlier: Run | null = null;
   for (const run of out) {
     if (!run.text && !run.picture) continue;
     if (previous) {
@@ -92,7 +94,9 @@ export function spaceRuns(
       const hyphen =
         newLine &&
         !previous.picture &&
-        /\S[-\u2010\u2012\u2013\u2014]\u00ad*$/u.test(previous.text);
+        /\S[-\u2010\u2012\u2013\u2014]\u00ad*$/u.test(
+          `${earlier && !earlier.picture ? earlier.text.slice(-4) : ''}${previous.text}`,
+        );
       if ((newLine || apart) && !before && !after && !closing && !hyphen) {
         if (!previous.picture) {
           if (previous.text.endsWith('\u00ad')) previous.text = previous.text.slice(0, -1);
@@ -102,6 +106,7 @@ export function spaceRuns(
         } else if (!run.picture) run.text = ` ${run.text}`;
       }
     }
+    earlier = previous;
     previous = run;
   }
   return out;
