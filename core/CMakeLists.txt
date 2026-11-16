@@ -132,3 +132,12 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
   install(TARGETS mfbe-core RUNTIME DESTINATION bin COMPONENT core)
 endif()
+
+# Feature 016 (PD2, DP-1): mfbe-pdf-reader reads one PDF for one import in a process of its own, so that
+# a hostile file can end only it. No CEF, no server: Poppler, the picture encoders and the core's helpers.
+add_executable(mfbe-pdf-reader src/pdf/reader/main.cpp)
+target_link_libraries(mfbe-pdf-reader PRIVATE mfbe::core PkgConfig::POPPLER)
+target_include_directories(mfbe-pdf-reader PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+set_target_properties(mfbe-pdf-reader PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+install(TARGETS mfbe-pdf-reader RUNTIME DESTINATION bin COMPONENT core)
