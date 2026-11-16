@@ -565,7 +565,10 @@ export function convertOurs(
       ? `<annotation>${render(annotationBlocks, 1)}</annotation>`
       : '';
   const history =
-    descriptionPages && historyBlocks.length ? `<history>${render(historyBlocks)}</history>` : '';
+    descriptionPages && historyBlocks.length
+      ? // The history is an annotation of its own in FB2: its blocks' paths begin with that container.
+        `<history>${render(historyBlocks.map((block) => ({ ...block, kind: block.kind.replace(/^annotation(\/|$)/, '') })))}</history>`
+      : '';
   const stylesheets = hints.stylesheets
     .map((sheet) => `<stylesheet type="${attr(sheet.type)}">${text(sheet.text)}</stylesheet>`)
     .join('');

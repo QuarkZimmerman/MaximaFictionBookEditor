@@ -68,7 +68,10 @@ export function pictureElement(
   box.style.height = `${size.height}px`;
   const img = doc.createElementNS(XHTML_NS, 'img') as HTMLImageElement;
   img.src = PLACEHOLDER;
-  img.alt = alt;
+  // An empty alt marks a picture as decoration, which the engine leaves out of the structure - and the
+  // import would lose the picture and the place of every block after it (D32's library run): a picture
+  // without alternative text has no alt at all, and is tagged as a figure.
+  if (alt) img.alt = alt;
   img.style.cssText = 'display:block;width:100%;height:100%';
   box.append(img);
   return box;
