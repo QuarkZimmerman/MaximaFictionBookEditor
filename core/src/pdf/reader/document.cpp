@@ -18,6 +18,8 @@
 
 namespace mfbe::pdf_reader {
 
+nlohmann::json structure_of(PDFDoc& doc, nlohmann::json& orphans);
+
 namespace {
 
 std::string xmp_value(const std::string& xmp, const std::string& name) {
@@ -177,6 +179,11 @@ bool write_document(PDFDoc& doc, const Options& options, std::string& error) {
         }
     }
     out["forms"] = std::move(forms);
+    nlohmann::json orphans;
+    if (nlohmann::json structure = structure_of(doc, orphans); !structure.is_null()) {
+        out["structure"] = std::move(structure);
+        out["orphans"] = std::move(orphans);
+    }
     Catalog* catalog = doc.getCatalog();
     out["dropped"] = {{"comments", comments},
                       {"attachments", catalog ? catalog->numEmbeddedFiles() : 0},
