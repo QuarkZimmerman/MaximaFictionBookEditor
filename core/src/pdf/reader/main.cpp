@@ -14,6 +14,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#ifndef _WIN32
+#include <unistd.h>
+#endif
 #include <optional>
 #include <string>
 #include <thread>
@@ -132,6 +135,11 @@ int main(int argc, char** argv) {
         return 1;
     }
     for (int n = 1; n <= pages; ++n) {
+#ifndef _WIN32
+        if (getppid() == 1) {
+            return 1;  // the core is gone (macOS has no parent-death signal): end with it
+        }
+#endif
         const std::string kind = mfbe::pdf_reader::write_page(*doc, n, options);
         mfbe::pdf_reader::emit("{\"event\":\"page\",\"n\":" + std::to_string(n) + ",\"kind\":\"" +
                                kind + "\"}");
