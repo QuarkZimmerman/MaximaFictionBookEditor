@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import type { PdfDocumentModel, PdfPageModel } from '@/features/pdf/import/model';
+import type { HintsV1, PdfDocumentModel, PdfPageModel } from '@/features/pdf/import/model';
 import {
   convertOurs,
   logicalOrder,
@@ -16,7 +16,7 @@ import {
   spaceRuns,
   stripWhole,
 } from '@/features/pdf/import/ours';
-import { flatten } from '@/features/pdf/import/parts';
+import { flatten, type Flattened } from '@/features/pdf/import/parts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const base = path.join(HERE, 'fixtures', 'reference-0.0.11-a5');
@@ -144,5 +144,48 @@ describe('the rules under it', () => {
     expect(restoreDescription(description, '<annotation/>', '<history/>')).toBe(
       '<description><title-info><book-title>T</book-title><annotation/><lang>en</lang></title-info><document-info><id>1</id><version>1.0</version><history/><publisher>P</publisher></document-info></description>',
     );
+  });
+});
+
+describe('a block that draws nothing (D32)', () => {
+  // Three paragraphs, the second of raw XML only (an <em>), which Preview does not draw: the PDF holds two.
+  const hints = {
+    v: 1,
+    blocks: 3,
+    blank: [1],
+    generated: { cover: null, titlePage: 1, annotationPage: null, historyPage: null },
+    bodies: [{ name: '', page: 1 }],
+    sections: [[0, 1]],
+    kinds: [],
+    styles: [],
+    marks: [],
+    spaces: [],
+    langs: [],
+    ids: [],
+    tables: [],
+    pictures: [],
+    stylesheets: [],
+    anchors: { '0': 'One', '2': 'Three' },
+  } as unknown as HintsV1;
+  const run = (text: string, top: number) => ({
+    text,
+    page: 2,
+    top,
+    left: 50,
+    right: 90,
+    size: 10,
+  });
+  const flat = {
+    parts: [
+      { kind: 'p', page: 2, runs: [run('One', 100)] },
+      { kind: 'p', page: 2, runs: [run('Three', 130)] },
+    ],
+    footnotes: [],
+  } as unknown as Flattened;
+
+  it('takes no part for it, and gives it back empty', () => {
+    const { xml, mismatches } = convertOurs(hints, flat, [], '<description/>');
+    expect(mismatches).toBe(0);
+    expect(xml.replace(/\s+/g, '')).toContain('<p>One</p><p/><p>Three</p>');
   });
 });

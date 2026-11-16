@@ -392,6 +392,9 @@ export function buildHints(input: HintsInput): string {
   const marks: [number, number, number, string][] = [];
   // Feature 016 (D6): [block, offset] of each space after a hyphen at a line's end.
   const spaces: [number, number][] = [];
+  // Feature 016 (D6): blocks that draw nothing - an empty paragraph, one of raw XML only, which Preview does not
+  // draw (D32's library run): no part of the PDF stands for them, and the import gives them back empty.
+  const blank: number[] = [];
   // Feature 016 (D6): [block, offset] of each line break with no space in the text.
   const joins: [number, number][] = [];
   // Feature 016 (D6): [block, offset, text] of each letter written with combining marks the PDF composes.
@@ -411,6 +414,12 @@ export function buildHints(input: HintsInput): string {
   const fresh: [number, number][] = [];
   let previousContainers: Element[] = [];
   blocks.forEach(({ element, chain, page }, b) => {
+    if (
+      !['empty-line', 'image', 'table'].includes(element.localName) &&
+      !element.textContent?.trim() &&
+      !element.querySelector('img')
+    )
+      blank.push(b);
     for (const container of chain) {
       if (isFb2(container, 'body') && !seenBodies.has(container)) {
         seenBodies.add(container);
@@ -547,6 +556,7 @@ export function buildHints(input: HintsInput): string {
     // Always written: an import tells by it a record that names the spaces the PDF may not draw.
     spaces,
     ...(joins.length ? { joins } : {}),
+    ...(blank.length ? { blank } : {}),
     ...(clusters.length ? { clusters } : {}),
     ...(inner.length ? { inner } : {}),
     ...(hrefs.length ? { hrefs } : {}),

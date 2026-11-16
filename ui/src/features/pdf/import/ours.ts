@@ -32,6 +32,8 @@ interface Block {
   kind: string;
   part: Part | null;
   page: number;
+  /** A block that drew nothing (the record's `blank`): given back empty. */
+  blank?: boolean;
 }
 
 const CONTAINER_NAMES = new Set(['epigraph', 'cite', 'poem', 'stanza', 'annotation']);
@@ -170,15 +172,16 @@ function joinInto(last: Part, part: Part): void {
  */
 function joinRecorded(
   parts: Part[],
-  kinds: readonly string[],
+  blocks: number,
+  drawsNothing: (b: number) => boolean,
   continued: readonly number[],
 ): Part[] {
   const breaks = new Map<number, number>();
   for (const b of continued) breaks.set(b, (breaks.get(b) ?? 0) + 1);
   const out: Part[] = [];
   let cursor = 0;
-  for (let b = 0; b < kinds.length && cursor < parts.length; b++) {
-    if (kinds[b].endsWith('empty-line')) continue;
+  for (let b = 0; b < blocks && cursor < parts.length; b++) {
+    if (drawsNothing(b)) continue;
     const joined = copyPart(parts[cursor++]);
     for (let n = breaks.get(b) ?? 0; n > 0 && cursor < parts.length; n--)
       joinInto(joined, parts[cursor++]);
@@ -345,6 +348,10 @@ export function convertOurs(
     })),
   };
   const kinds = kindsOf(hints);
+  // An empty line draws nothing, and nor does a block the record names blank (an empty paragraph, raw XML):
+  // no part stands for them.
+  const blank = new Set(hints.blank ?? []);
+  const drawsNothing = (b: number): boolean => kinds[b].endsWith('empty-line') || blank.has(b);
   const generated = new Set(
     [hints.generated.cover, hints.generated.titlePage].filter((n): n is number => !!n),
   );
@@ -362,7 +369,7 @@ export function convertOurs(
         : {}),
     }));
   let needed = 0;
-  for (const kind of kinds) needed += kind.endsWith('empty-line') ? 0 : 1;
+  for (let b = 0; b < kinds.length; b++) needed += drawsNothing(b) ? 0 : 1;
   const starts = new Set<number>(
     [
       hints.generated.annotationPage,
@@ -416,7 +423,7 @@ export function convertOurs(
   }
   // The record names the page breaks since feature 016; for a record of 0.0.11 they are judged (R4).
   const parts = Array.isArray(hints.continued)
-    ? joinRecorded(textParts, kinds, hints.continued)
+    ? joinRecorded(textParts, kinds.length, drawsNothing, hints.continued)
     : joinSplit(textParts, needed, starts, anchors);
 
   const sectionStarts = new Set(hints.sections.map(([b]) => b));
@@ -426,6 +433,16 @@ export function convertOurs(
   let lastPage = parts[0]?.page ?? 1;
   for (let b = 0; b < hints.blocks; b++) {
     const kind = kinds[b];
+    if (blank.has(b)) {
+      blocks.push({
+        b,
+        kind,
+        part: null,
+        page: sectionStarts.has(b) ? (parts[cursor]?.page ?? lastPage) : lastPage,
+        blank: true,
+      });
+      continue;
+    }
     if (kind.endsWith('empty-line')) {
       // An empty line draws nothing. One that begins a section goes with the block after it, on that block's
       // page (D32's library run found one counted into the annotation); any other stays with the block before
@@ -800,12 +817,12 @@ export function convertOurs(
       if (titleLine) {
         if (!titleOpen) out += '<title>';
         titleOpen = true;
-        out += block.part ? paragraph('p', block) : '<empty-line/>';
+        out += block.part ? paragraph('p', block) : block.blank ? '<p/>' : '<empty-line/>';
         return;
       }
       closeTitle();
       if (!block.part) {
-        out += '<empty-line/>';
+        out += block.blank ? `<${GENERIC.has(last) ? last : 'p'}/>` : '<empty-line/>';
         return;
       }
       if (block.part.kind === 'figure') {

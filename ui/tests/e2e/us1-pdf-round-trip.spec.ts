@@ -157,7 +157,8 @@ const SPACES = `(text) => {
       }
     }
   }
-  // D6: parts FB2's schema does not allow (a <br/> some books hold) are not carried over - unwrapped.
+  // D6: parts FB2's schema does not allow (a <br/>, an <em> some books hold) are not carried over: the editor
+  // keeps them as raw XML, which Preview and so the PDF do not draw - left out of both books, with their text.
   const FB2_NAMES = new Set(('FictionBook description title-info genre author first-name middle-name last-name ' +
     'nickname home-page email id book-title annotation keywords date coverpage image lang src-lang translator ' +
     'sequence src-title-info document-info program-used src-url src-ocr version history publisher ' +
@@ -165,7 +166,7 @@ const SPACES = `(text) => {
     'section p poem stanza v subtitle cite empty-line text-author table tr th td strong emphasis style a ' +
     'strikethrough sub sup code binary stylesheet').split(' '));
   for (const element of [...doc.getElementsByTagName('*')].reverse()) {
-    if (!FB2_NAMES.has(element.localName)) element.replaceWith(...element.childNodes);
+    if (!FB2_NAMES.has(element.localName)) element.remove();
   }
   // C5: notes grouped in sections of a notes body come back ungrouped, the groups' titles with them - each
   // group unwrapped.

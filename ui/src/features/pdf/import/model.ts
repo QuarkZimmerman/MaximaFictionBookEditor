@@ -131,6 +131,8 @@ export interface PdfPageModel {
 export interface HintsV1 {
   v: number;
   blocks: number;
+  /** Blocks that draw nothing, so no part stands for them (feature 016). */
+  blank?: number[];
   generated: {
     cover: number | null;
     titlePage: number;
