@@ -144,3 +144,33 @@ tests/corpus/run.sh tests/corpus/sample-1-50.txt --pdf-export
 
 `pdf-export.py` also runs on its own (`LIST [--out DIR] [--core PATH]`), writing `report.txt` and
 `report.json` in its folder, by default `tests/corpus/out/pdf-export`.
+
+## The PDF import runs (feature 016, D32, before every rc tag)
+
+`--pdf-round-trip` exports every FB2 book of the sample to PDF in A5 and imports it again (the journey
+`ui/tests/e2e/us1-pdf-round-trip.spec.ts` over the list; build `ui/dist` first). Every valid book must come
+back equal apart from D6's differences, which the comparison applies; a valid book that comes back invalid,
+or an invalid one that comes back with errors its original has not, is a failure (SC-002), and the invalid
+originals are reported apart. Besides `sample-1-50.txt`, the gate runs it over a local list of library books
+of the kinds spec §3 found defects with - notes grouped in sections, zero-width non-joiners (U+200C), two
+notes bodies, picture titles printed as captions - drawn with `sample.py --matching` (see below).
+
+`--pdf-import LIST` sorts the library PDFs of `LIST` (drawn with `sample.py --ext pdf`, more than it keeps:
+`sample-pdf-400.txt`) by what their first pages hold, keeps 50 made from text, 50 scans with a text layer and
+20 scans without usable text across their makers, and imports each through the editor (the journey
+`ui/tests/e2e/corpus-pdf-import.spec.ts`). Judged: no crash or hang; an imported book's bodies valid FB2 2.1;
+every word of a PDF's text layer in its book in order - apart from the running heads and page numbers, the
+words a drawing holds, and words broken at a line's hyphen - and no run of 6 words or more, nor more than
+0.5 % of a book's words, missing; no PDF of the first two kinds refused, unless the reader, reading it
+whole, refuses it itself (listed apart); every one of the third refused with its message.
+
+```bash
+tests/corpus/run.sh tests/corpus/sample-1-50.txt --pdf-round-trip
+tests/corpus/run.sh tests/corpus/sample-1-50.txt --pdf-import tests/corpus/sample-pdf-400.txt
+python3 tests/corpus/sample.py --ext pdf --count 400 --seed 16 --out tests/corpus/sample-pdf-400.txt
+python3 tests/corpus/sample.py --containing $'\u200c' --count 5 --seed 16 --out tests/corpus/sample-pdf-kinds.txt
+```
+
+Both run on their own as well (`pdf-round-trip.py LIST`, `pdf-import.py LIST [--text N] [--layer N]
+[--refused N] [--sort-limit S]`), writing `report.txt` and `report.json` under `tests/corpus/out/`. Keep the
+runs' temporary files on a disk (`TMPDIR`), not a small `/tmp`: a full import run writes gigabytes.
