@@ -408,6 +408,7 @@ export function convertOurs(
     ? joinRecorded(textParts, kinds, hints.continued)
     : joinSplit(textParts, needed, starts, anchors);
 
+  const sectionStarts = new Set(hints.sections.map(([b]) => b));
   // The blocks, numbered as the paginator numbered them.
   const blocks: Block[] = [];
   let cursor = 0;
@@ -415,9 +416,15 @@ export function convertOurs(
   for (let b = 0; b < hints.blocks; b++) {
     const kind = kinds[b];
     if (kind.endsWith('empty-line')) {
-      // An empty line draws nothing: it is placed with the block after it (a section that begins with one
-      // begins on the next block's page - D32's library run found one counted into the annotation).
-      blocks.push({ b, kind, part: null, page: parts[cursor]?.page ?? lastPage });
+      // An empty line draws nothing. One that begins a section goes with the block after it, on that block's
+      // page (D32's library run found one counted into the annotation); any other stays with the block before
+      // it (one ending a body's last section had gone into the next body).
+      blocks.push({
+        b,
+        kind,
+        part: null,
+        page: sectionStarts.has(b) ? (parts[cursor]?.page ?? lastPage) : lastPage,
+      });
       continue;
     }
     const part = parts[cursor++] ?? null;
