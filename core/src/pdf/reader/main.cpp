@@ -6,6 +6,7 @@
 #include "mfbe/version.hpp"
 #include "pdf/reader/reader.hpp"
 
+#include <Error.h>
 #include <GlobalParams.h>
 #include <PDFDoc.h>
 #include <chrono>
@@ -82,6 +83,9 @@ int main(int argc, char** argv) {
     if (!globalParams) {
         globalParams = std::make_unique<GlobalParams>();
     }
+    // Poppler's syntax notices about a hostile or sloppy file are not the editor's errors: kept
+    // silent.
+    setErrorCallback([](ErrorCategory, Goffset, const char*) {});
     mfbe::pdf_reader::Options options;
     options.pdf = mfbe::platform::path_from_utf8(pdf);
     options.out = mfbe::platform::path_from_utf8(out);

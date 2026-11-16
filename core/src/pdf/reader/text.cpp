@@ -5,12 +5,16 @@
 #include <nlohmann/json.hpp>
 
 #include <GlobalParams.h>
+#include <Link.h>
 #include <PDFDoc.h>
+#include <Page.h>
 #include <TextOutputDev.h>
 #include <fstream>
 #include <map>
 
 namespace mfbe::pdf_reader {
+
+nlohmann::json target_of(PDFDoc& doc, const LinkAction* action);
 
 std::string write_page(PDFDoc& doc, int n, const Options& options) {
     TextOutputDev device(nullptr, false, 0, false, false);
@@ -52,6 +56,19 @@ std::string write_page(PDFDoc& doc, int n, const Options& options) {
                              {"base", word->getBaseline()}});
         }
     }
+    nlohmann::json links = nlohmann::json::array();
+    if (Page* p = doc.getPage(n)) {
+        if (auto found = p->getLinks()) {
+            for (const auto& link : found->getLinks()) {
+                double x1, y1, x2, y2;
+                link->getRect(&x1, &y1, &x2, &y2);
+                nlohmann::json entry = target_of(doc, link->getAction());
+                entry["box"] = {x1, height - y2, x2 - x1, y2 - y1};
+                links.push_back(std::move(entry));
+            }
+        }
+    }
+    page["links"] = std::move(links);
     page["fonts"] = std::move(fonts);
     page["words"] = std::move(words);
     const std::string kind = page["words"].empty() ? "blank" : "text";
