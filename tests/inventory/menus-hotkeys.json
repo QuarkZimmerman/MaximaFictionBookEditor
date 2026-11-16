@@ -14,7 +14,8 @@
           "items": [
             "file.importDescription",
             "file.importMarkdown",
-            "file.importEpub"
+            "file.importEpub",
+            "file.importPdf"
           ]
         },
         {

@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 
 import { build } from 'vite';
 
-import { isPdfExportModule } from '../../../vite.config';
+import { isPdfExportModule, isPdfImportModule } from '../../../vite.config';
 
 const UI_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const PDF = path.join(UI_ROOT, 'src', 'features', 'pdf');
@@ -25,6 +25,18 @@ describe('the pdf chunk rule', () => {
       expect(isPdfExportModule(path.join(PDF, file)), file).toBe(false);
     }
     expect(isPdfExportModule(path.join(UI_ROOT, 'src', 'model', 'store.ts'))).toBe(false);
+  });
+});
+
+describe('the pdf-import chunk rule (feature 016, D29)', () => {
+  it('captures the import folder, and neither the export nor the static entry', () => {
+    expect(isPdfImportModule(path.join(PDF, 'import', 'job.ts'))).toBe(true);
+    expect(isPdfImportModule(`${path.join(PDF, 'import', 'layout.ts')}?v=1`)).toBe(true);
+    for (const file of ['index.ts', 'importCommand.ts', 'pageSizes.ts']) {
+      expect(isPdfImportModule(path.join(PDF, file)), file).toBe(false);
+    }
+    expect(isPdfImportModule(path.join(PDF, 'export', 'job.ts'))).toBe(false);
+    expect(isPdfExportModule(path.join(PDF, 'import', 'job.ts'))).toBe(false);
   });
 });
 
@@ -58,6 +70,13 @@ describe('the production build', () => {
     expect(indexSource).not.toMatch(/from\s*["'`]\.\/pdf-export-/);
     expect(indexSource).not.toMatch(/import\s*["'`]\.\/pdf-export-/);
     expect(html).not.toContain('pdf-export-');
+    // Feature 016 (D29): the import is a chunk of its own, reached lazily only, apart from the export.
+    const importChunk = scripts.filter((name) => /^pdf-import-[\w-]+\.js$/.test(name));
+    expect(importChunk).toHaveLength(1);
+    const importImports = indexSource.match(/import\((["'`])\.\/pdf-import-[\w-]+\.js\1\)/g) ?? [];
+    expect(importImports).toHaveLength(1);
+    expect(indexSource).not.toMatch(/from\s*["'`]\.\/pdf-import-/);
+    expect(html).not.toContain('pdf-import-');
     // The export's fonts are served by the core when a paged document asks for them, never here.
     expect(indexSource).not.toContain('/pdf/fonts/shipped/');
   }, 30_000);

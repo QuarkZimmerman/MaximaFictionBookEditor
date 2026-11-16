@@ -1,0 +1,51 @@
+{
+  "$comment": "PDF import (feature 016): File > Import > PDF File..., File > Open's refusal of a PDF, the questions (the archive's PDF, the password, the FBD), the progress, the refusals and the summary. Feature catalogue merged into en.json by i18n/index.ts.",
+  "menu": {
+    "file": {
+      "importPdf": "PDF Fi&le..."
+    }
+  },
+  "cmd": {
+    "file": {
+      "importPdf": {
+        "tooltip": "Import PDF",
+        "description": "Make a new book from a PDF: the editor's own PDFs come back as their books; PDFs made from text and scanned books with a text layer, best effort"
+      }
+    }
+  },
+  "pdfImport": {
+    "openTitle": "Import a PDF book",
+    "filterAll": "PDF books and ZIP archives (*.pdf, *.zip)",
+    "filterPdf": "PDF books (*.pdf)",
+    "filterZip": "ZIP archives (*.zip)",
+    "passwordCaption": "PDF password",
+    "passwordPrompt": "{{name}} is protected by a password. Enter it to import the book:",
+    "ownerPasswordPrompt": "{{name}} does not allow copying its text. Enter its owner password to import it:",
+    "wrongPassword": "The password is not right. Try again:",
+    "importing": "Importing the PDF book…",
+    "importCaption": "PDF import",
+    "importDone": "Imported from PDF: {{pages}} pages, {{sections}} sections, {{pictures}} pictures, {{tables}} tables, {{notes}} notes.",
+    "importCancelled": "The import was cancelled; the book in the window is unchanged.",
+    "importFailed": "{{path}} could not be imported: {{reason}}",
+    "openRefused": "{{path}} is a PDF. File > Open takes FictionBook (FB2) books, FBD files and ZIP archives holding FB2 books; a PDF is imported with File > Import > PDF File....",
+    "openRefusedInArchive": "{{path}} holds a PDF but no FictionBook book. A PDF is imported with File > Import > PDF File....",
+    "refused": {
+      "notPdf": "it is not a PDF.",
+      "damaged": "the PDF is damaged and could not be read.",
+      "tooLarge": "the file is larger than the import reads (1 GB; 512 MB inside a ZIP archive).",
+      "tooManyPages": "the PDF has more pages than the import reads (25,000).",
+      "passwordCancelled": "no password was given.",
+      "copyForbidden": "the PDF does not allow copying its text, and its owner password was not given.",
+      "noText": "the PDF holds pictures of its pages but no text ({{pages}} pages); the editor does not recognise text in pictures.",
+      "pictureOfText": "{{pages}} pages show text but have no text layer; the editor imports only PDFs whose text is all there.",
+      "garbled": "the PDF's text layer reads mostly as garbage.",
+      "memory": "reading the PDF took more memory than the import allows.",
+      "timeout": "reading the PDF stopped making progress.",
+      "crashed": "the PDF could not be read: its reader stopped.",
+      "noPdfInArchive": "the archive holds no PDF.",
+      "encrypted": "the archive is protected by a password.",
+      "cancelled": "the import was cancelled."
+    },
+    "summaryIntro": "Not everything came over as the PDF has it:"
+  }
+}

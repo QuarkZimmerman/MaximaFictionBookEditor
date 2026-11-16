@@ -114,6 +114,19 @@ export function isPdfExportModule(id: string): boolean {
   return id.split('?')[0].replace(/\\/g, '/').startsWith(pdfExportFolder);
 }
 
+// The PDF import (feature 016, D29, plan DP-10) is the lazy chunk `pdf-import`: everything under
+// `src/features/pdf/import/`, loaded by `import()` on the first import and never at start-up, apart from
+// `pdf-export`. The static entry (`src/features/pdf/importCommand.ts`) stays in the main bundle.
+// `tests/unit/pdf/import/chunk.test.ts` checks the built output.
+const pdfImportFolder = fileURLToPath(
+  new URL('./src/features/pdf/import/', import.meta.url),
+).replace(/\\/g, '/');
+
+/** True for a module of the `pdf-import` chunk (exported for the unit test of the rule). */
+export function isPdfImportModule(id: string): boolean {
+  return id.split('?')[0].replace(/\\/g, '/').startsWith(pdfImportFolder);
+}
+
 /** True for a module of the `epub-export` chunk (exported for the unit test of the rule). */
 export function isEpubExportModule(id: string): boolean {
   return id.split('?')[0].replace(/\\/g, '/').startsWith(epubExportFolder);
@@ -199,6 +212,11 @@ export default defineConfig({
             {
               name: 'pdf-export',
               test: isPdfExportModule,
+              includeDependenciesRecursively: false,
+            },
+            {
+              name: 'pdf-import',
+              test: isPdfImportModule,
               includeDependenciesRecursively: false,
             },
           ],

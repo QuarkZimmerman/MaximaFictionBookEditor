@@ -81,6 +81,10 @@ export const RpcErrorCode = {
   epubWriteFailed: 1111,
   /** Feature 014: a PDF export that cannot go on (reason pdf.*, contracts/rpc-api.md). */
   pdfExportFailed: 1112,
+  /** Feature 016: a PDF import that cannot go on ({reason}, contracts/rpc-api.md). */
+  pdfImportFailed: 1113,
+  /** Feature 016: an unknown or ended pdfImport token. */
+  pdfImportUnknownToken: 1114,
   spellDictionaryUnavailable: 1020,
   scriptNotFound: 1030,
   scriptInvalidManifest: 1031,
@@ -723,7 +727,8 @@ export interface ArchiveBook {
   /** "/"-separated, "" at the top level. */
   folder: string;
   size: number;
-  kind: 'fb2' | 'fbd';
+  /** Feature 016: the PDF import offers an archive's PDFs in the same chooser. */
+  kind: 'fb2' | 'fbd' | 'pdf';
 }
 
 /** `doc.open`'s answer for a ZIP archive of several books (feature 009). */
@@ -1093,10 +1098,16 @@ export interface PdfImportOpen {
   ownerPassword?: boolean;
 }
 
+/** Feature 016: a PDF or an FBD in a ZIP archive offered to the import. */
+export interface PdfImportEntry {
+  entry: string;
+  size: number;
+}
+
 /** Feature 016: `pdfImport.begin` - the import's token, or a ZIP archive's PDFs and FBDs to choose from. */
 export interface PdfImportBegun {
   token?: string;
-  archive?: { pdfs: string[]; fbds: string[] };
+  archive?: { pdfs: PdfImportEntry[]; fbds: PdfImportEntry[] };
 }
 
 /** Feature 012: an EPUB opened for the import (`epub.open`, contracts/rpc-api.md §1). */

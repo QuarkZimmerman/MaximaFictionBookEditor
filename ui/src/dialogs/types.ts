@@ -46,6 +46,8 @@ export interface InputDialogOptions {
   /** Returns a validation message to block confirmation, or null when the value is acceptable. */
   validate?: (value: string) => string | null;
   testId?: string;
+  /** Feature 016 (D26): the value is a password - hidden as typed, never offered for autofill. */
+  password?: boolean;
 }
 
 export interface InputDialogResult {

@@ -172,10 +172,11 @@ void register_pdf_import_handlers(rpc::RpcRouter& router, Services& services) {
                 try {
                     for (const archive::Entry& e : archive::list(path).entries) {
                         const std::string name = lower(e.name);
+                        const json item{{"entry", e.name}, {"size", e.size}};
                         if (ends_with(name, ".pdf")) {
-                            pdfs.push_back(e.name);
+                            pdfs.push_back(item);
                         } else if (ends_with(name, ".fbd")) {
-                            fbds.push_back(e.name);
+                            fbds.push_back(item);
                         }
                     }
                 } catch (const archive::ArchiveError& e) {

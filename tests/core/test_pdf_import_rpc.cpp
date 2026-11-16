@@ -100,7 +100,8 @@ TEST_CASE("pdfImport lists an archive's PDFs and FBDs and reads the one chosen",
     const json listed =
         f.ws.call("pdfImport.begin", json{{"path", platform::utf8_from_path(path)}});
     REQUIRE(listed["result"]["archive"]["pdfs"].size() == 2);
-    CHECK(listed["result"]["archive"]["fbds"][0] == "books/A.fbd");
+    CHECK(listed["result"]["archive"]["fbds"][0]["entry"] == "books/A.fbd");
+    CHECK(listed["result"]["archive"]["pdfs"][0]["size"] == pdf.size());
     const json begun = f.ws.call(
         "pdfImport.begin", json{{"path", platform::utf8_from_path(path)}, {"entry", "b.PDF"}});
     const std::string token = begun["result"]["token"];
