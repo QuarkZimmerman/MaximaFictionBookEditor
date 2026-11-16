@@ -131,7 +131,13 @@ export function linesOf(page: PdfPageModel): Line[] {
             sizes,
           )
         : columns;
-  if (bands.length > 1) {
+  // Text set around pictures narrower than it - two columns either side of a column of pictures (D32's
+  // library run): each stretch between the pictures' tops and bottoms has its own columns; a stretch's column
+  // goes on in the one under it that it overlaps by half, and the columns so joined are read in turn.
+  const flows = aroundPictures(page, words, sizes, textRight - textLeft);
+  if (flows) {
+    for (const set of flows) lines.push(...build(set));
+  } else if (bands.length > 1) {
     // The lines across a gutter cut the page into stretches, and so does a blank band across the page (above
     // and below an epigraph, a picture): each stretch is read column by column.
     const gutters = bands.slice(1).map(([from]) => from);
@@ -142,7 +148,8 @@ export function linesOf(page: PdfPageModel): Line[] {
     const stretches: { from: number; to: number; cut: Line | null }[] = [];
     let from = Number.NEGATIVE_INFINITY;
     for (const cut of [...cuts, null]) {
-      const to = cut ? cut.top : Number.POSITIVE_INFINITY;
+      // By the cut line's baseline: the columns' lines beside it, at its height, stay in a stretch.
+      const to = cut ? cut.base : Number.POSITIVE_INFINITY;
       // Blank bands across the page within the stretch.
       const spans = inColumns
         .filter((line) => line.base > from && line.base <= to)
@@ -158,7 +165,7 @@ export function linesOf(page: PdfPageModel): Line[] {
         reach = Math.max(reach, bottom);
       }
       stretches.push({ from: start, to, cut });
-      if (cut) from = cut.bottom;
+      if (cut) from = cut.base;
     }
     const columnWords = inColumns.flatMap((line) => line.words);
     for (const stretch of stretches) {
@@ -210,7 +217,13 @@ export function linesOf(page: PdfPageModel): Line[] {
   return lines;
 }
 
-function columnBands(words: PdfWord[], width: number, size: number): [number, number][] {
+function columnBands(
+  words: PdfWord[],
+  width: number,
+  size: number,
+  /** The words a column left of a gutter holds at least: 20 on a page, fewer in a stretch between pictures. */
+  minimum = 20,
+): [number, number][] {
   const step = 2;
   const cells = Math.max(1, Math.ceil(width / step));
   const used = new Array<number>(cells).fill(0);
@@ -241,7 +254,7 @@ function columnBands(words: PdfWord[], width: number, size: number): [number, nu
         gap * step > size * 0.5 &&
         (x - gap) * step - start >= textWidth * 0.2 &&
         last * step - x * step >= textWidth * 0.2 &&
-        words.filter((w) => w.box[0] < x * step && w.box[0] + w.box[2] < x * step).length > 20
+        words.filter((w) => w.box[0] < x * step && w.box[0] + w.box[2] < x * step).length > minimum
       ) {
         bands.push([start, (x - gap) * step + (gap * step) / 2]);
         start = (x - gap) * step + (gap * step) / 2;
@@ -252,6 +265,79 @@ function columnBands(words: PdfWord[], width: number, size: number): [number, nu
   bands.push([start, Number.POSITIVE_INFINITY]);
   bands[0][0] = Number.NEGATIVE_INFINITY;
   return bands;
+}
+
+/**
+ * The words of a page set around pictures, in reading order as sets of a column each, or null when the
+ * pictures make no columns of the text.
+ */
+function aroundPictures(
+  page: PdfPageModel,
+  words: PdfWord[],
+  size: number,
+  textWidth: number,
+): PdfWord[][] | null {
+  const boxes = (page.pictures ?? [])
+    .map((picture) => picture.box)
+    .filter((box) => box[2] < textWidth * 0.8);
+  if (boxes.length === 0) return null;
+  const edges = [
+    Number.NEGATIVE_INFINITY,
+    ...[...new Set(boxes.flatMap((box) => [box[1], box[1] + box[3]]))].sort((a, b) => a - b),
+    Number.POSITIVE_INFINITY,
+  ];
+  interface Flow {
+    sets: PdfWord[][];
+    left: number;
+    right: number;
+    start: number;
+    used: number;
+    spanning: boolean;
+  }
+  const flows: Flow[] = [];
+  let columns = false;
+  for (let i = 0; i + 1 < edges.length; i++) {
+    const here = words.filter((w) => w.base > edges[i] && w.base <= edges[i + 1]);
+    if (here.length === 0) continue;
+    const bands = columnBands(here, page.width, size, 2);
+    if (bands.length > 1) columns = true;
+    for (const [from, to] of bands) {
+      const set = here.filter(
+        (w) => w.box[0] + w.box[2] / 2 >= from && w.box[0] + w.box[2] / 2 < to,
+      );
+      if (set.length === 0) continue;
+      const left = Math.min(...set.map((w) => w.box[0]));
+      const right = Math.max(...set.map((w) => w.box[0] + w.box[2]));
+      const overlap = (flow: Flow): number =>
+        Math.min(flow.right, right) - Math.max(flow.left, left);
+      const flow = flows
+        .filter(
+          (f) =>
+            !f.spanning &&
+            f.used < i &&
+            overlap(f) >= Math.min(f.right - f.left, right - left) * 0.5,
+        )
+        .sort((a, b) => overlap(b) - overlap(a))[0];
+      if (flow) {
+        flow.sets.push(set);
+        flow.left = left;
+        flow.right = right;
+        flow.used = i;
+      } else
+        flows.push({
+          sets: [set],
+          left,
+          right,
+          start: i,
+          used: i,
+          spanning: right - left > textWidth * 0.8,
+        });
+    }
+  }
+  if (!columns) return null;
+  return flows
+    .sort((a, b) => a.start - b.start || a.sets[0][0].box[0] - b.sets[0][0].box[0])
+    .flatMap((flow) => flow.sets);
 }
 
 /** Running heads and page numbers: the first and last lines that repeat on most pages, numbers masked. */

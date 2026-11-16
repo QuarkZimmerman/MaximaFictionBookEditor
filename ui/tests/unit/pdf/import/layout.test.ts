@@ -100,7 +100,7 @@ describe('two columns (D32)', () => {
     f: 0,
     c: 0,
   });
-  const words = [];
+  const words: ReturnType<typeof word>[] = [];
   const line = (name: string, from: number, to: number, y: number, i: number): void => {
     let x = from;
     for (let k = 0; x < to - 10; k++) {
@@ -164,5 +164,57 @@ describe('a note that cites one book on every page (D32)', () => {
     const number = pages[1].find((l) => l.text === '2')!;
     expect(furniture.has(citation)).toBe(false);
     expect(furniture.has(number)).toBe(true);
+  });
+});
+
+describe('two columns around a column of pictures (D32)', () => {
+  // Two pictures in the middle of the page, a caption between them, the columns either side; under the
+  // pictures the columns widen into the middle - no gutter runs down the whole page.
+  const word = (t: string, x: number, y: number, w: number) => ({
+    t,
+    box: [x, y - 9, w, 11],
+    base: y,
+    s: 11,
+    f: 0,
+    c: 0,
+  });
+  const words: ReturnType<typeof word>[] = [];
+  const line = (name: string, from: number, to: number, y: number, i: number): void => {
+    let x = from;
+    for (let k = 0; x < to - 10; k++) {
+      const w = Math.min(to - x, 16 + ((i * 7 + k * 13) % 19));
+      words.push(word(`${name}${i}${'abcdefghijklmnop'[k]}`, x, y, w));
+      x += w + 3;
+    }
+  };
+  for (let i = 0; i < 20; i++) {
+    line('l', 40, 200, 50 + i * 13, i);
+    line('r', 380, 540, 50 + i * 13, i);
+  }
+  for (let i = 20; i < 24; i++) {
+    line('l', 40, 284, 50 + i * 13, i);
+    line('r', 296, 540, 50 + i * 13, i);
+  }
+  line('c', 222, 358, 172, 0);
+  const page = {
+    n: 1,
+    width: 580,
+    height: 700,
+    rotation: 0,
+    kind: 'text',
+    words,
+    pictures: [
+      { id: 'a', box: [215, 40, 150, 120] },
+      { id: 'b', box: [215, 180, 150, 120] },
+    ],
+  } as unknown as PdfPageModel;
+
+  it('reads the left column down past the pictures, then the right one, then the caption', () => {
+    const firsts = linesOf(page).map((l) => l.words[0].t);
+    expect(firsts.slice(0, 2)).toEqual(['l0a', 'l1a']);
+    expect(firsts[23]).toBe('l23a');
+    expect(firsts[24]).toBe('r0a');
+    expect(firsts[47]).toBe('r23a');
+    expect(firsts[48]).toBe('c0a');
   });
 });
