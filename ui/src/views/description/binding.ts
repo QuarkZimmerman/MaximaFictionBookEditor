@@ -205,6 +205,22 @@ export class DescriptionController {
     this.publish();
   }
 
+  /**
+   * The book as it stands - as loaded, or as the last edit committed it - holds the person at `key` with a first
+   * or middle name but no last-name element, which FB2 does not allow (the requester, after his smoke test of
+   * rc.1). Any edit commits the person in the schema's form, with an empty last name.
+   */
+  lacksLastName(key: FieldKey): boolean {
+    if (!this.committed) return false;
+    const person = getAtPath(this.committed as unknown as DescriptionForm, key) as
+      { firstName?: string; middleName?: string; lastName?: string } | undefined;
+    return (
+      !!person &&
+      !!(person.firstName?.trim() || person.middleName?.trim()) &&
+      person.lastName === undefined
+    );
+  }
+
   /** Writes the clean projection of `form` into the document (marks it modified). */
   private commitModel(form: DescriptionForm): void {
     const state = this.store.getState();

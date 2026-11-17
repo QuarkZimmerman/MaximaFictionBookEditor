@@ -921,6 +921,7 @@
       "namespaceMissing": "The root element is not in the FictionBook namespace ({{expected}})"
     },
     "schemaInvalid": "Schema: {{message}}",
+    "authorNoLastName": "A person has a first name but no last name: FB2 needs a last name, which may stay empty, or a nickname alone. Fix it beside the person in the Description.",
     "schemaUnavailable": "The FictionBook schema could not be loaded: {{reason}}",
     "genre": {
       "unknown": "Unknown genre \"{{code}}\""

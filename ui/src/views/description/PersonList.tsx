@@ -10,7 +10,15 @@ import { useTranslation } from 'react-i18next';
 
 import type { Person } from '@/model/document';
 
-import { AddButton, EmptyHint, RemoveButton, Row, SubSection, TextField } from './fields';
+import {
+  AddButton,
+  EmptyHint,
+  RemoveButton,
+  Row,
+  SmallButton,
+  SubSection,
+  TextField,
+} from './fields';
 import { useDescriptionForm } from './formContext';
 import { emptyPerson, getAtPath, setAtPath, type FieldKey } from './model';
 
@@ -25,7 +33,7 @@ export interface PersonListProps {
 
 export function PersonList({ fieldKey, testPrefix, title, required }: PersonListProps) {
   const { t } = useTranslation();
-  const { controller, form, issues } = useDescriptionForm();
+  const { controller, form, issues, readOnly } = useDescriptionForm();
   const persons = (getAtPath(form, fieldKey) as Person[] | undefined) ?? [];
   const missing = required && issues.missing.has(fieldKey as never);
 
@@ -77,6 +85,9 @@ export function PersonList({ fieldKey, testPrefix, title, required }: PersonList
         persons.map((person, index) => {
           const key = `${fieldKey}.${index}`;
           const incomplete = issues.incompletePersons.has(key);
+          // A first name without a last-name element in the book is no valid FB2 (the requester, after his smoke
+          // test of rc.1): Fix adds the empty last name the schema needs, as any edit of the form does.
+          const noLastName = controller.lacksLastName(key);
           return (
             <div
               className={`mfbe-desc-item${incomplete ? ' mfbe-desc-item-invalid' : ''}`}
@@ -136,7 +147,19 @@ export function PersonList({ fieldKey, testPrefix, title, required }: PersonList
                   onAdd={() => addTo(index, 'emails')}
                   onRemove={(position) => removeFrom(index, 'emails', position)}
                 />
-                {incomplete ? (
+                {noLastName ? (
+                  <div className="mfbe-desc-warning" data-testid={`${testPrefix}-${index}-nolast`}>
+                    {t('descriptionForm.person.noLastName')}{' '}
+                    <SmallButton
+                      testId={`${testPrefix}-${index}-fix`}
+                      onClick={() => controller.setValue(`${key}.lastName`, '')}
+                      disabled={readOnly}
+                      title={t('descriptionForm.person.fixTitle')}
+                    >
+                      {t('descriptionForm.person.fix')}
+                    </SmallButton>
+                  </div>
+                ) : incomplete ? (
                   <div
                     className="mfbe-desc-warning"
                     data-testid={`${testPrefix}-${index}-incomplete`}

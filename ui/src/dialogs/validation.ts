@@ -57,6 +57,13 @@ export function issueMessage(
   if (issue.code === 'table.irregular') {
     return describeTableMark(issue.params as unknown as TableSummary, t).name;
   }
+  // A person with a first name but no last-name element (the requester, after his smoke test of rc.1): the
+  // schema's own message names what it expected there.
+  if (
+    issue.code === 'schema.invalid' &&
+    /Expected is (one of )?\( (middle-name, )?last-name \)/.test(String(issue.params.message ?? ''))
+  )
+    return t('validation.authorNoLastName') as string;
   const key = issueMessageKey(issue.code);
   const exists = i18n ? i18n.exists(key) : false;
   if (exists) return t(key, { ...issue.params }) as string;
