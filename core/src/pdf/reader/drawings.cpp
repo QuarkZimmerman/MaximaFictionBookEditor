@@ -34,7 +34,7 @@ struct Box {
     double x0, y0, x1, y1;
     double width() const { return x1 - x0; }
     double height() const { return y1 - y0; }
-    bool near(const Box& o, double by) const {
+    bool touches(const Box& o, double by) const {
         return x0 - by <= o.x1 && o.x0 - by <= x1 && y0 - by <= o.y1 && o.y0 - by <= y1;
     }
     void join(const Box& o) {
@@ -110,7 +110,7 @@ std::vector<Box> joined(std::vector<Box> boxes, double by) {
         changed = false;
         for (std::size_t i = 0; i < boxes.size() && !changed; ++i) {
             for (std::size_t j = i + 1; j < boxes.size(); ++j) {
-                if (boxes[i].near(boxes[j], by)) {
+                if (boxes[i].touches(boxes[j], by)) {
                     boxes[i].join(boxes[j]);
                     boxes.erase(boxes.begin() + static_cast<std::ptrdiff_t>(j));
                     changed = true;
@@ -147,7 +147,7 @@ nlohmann::json record_drawings(PDFDoc& doc, int n, nlohmann::json& page) {
     // Thin lines next to a drawing are its own (a chart's axes); alone they rule or underline text.
     for (Box& area : areas) {
         for (const Box& line : paths.thin) {
-            if (area.near(line, kJoin)) {
+            if (area.touches(line, kJoin)) {
                 area.join(line);
             }
         }
