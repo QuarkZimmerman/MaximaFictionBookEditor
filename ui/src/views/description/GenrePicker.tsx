@@ -267,6 +267,12 @@ export function GenrePickerDialog({
       />
     ));
     if (!entry) return;
+    // In the list at once, before the catalog comes again: another add right after it sees it listed.
+    setCatalog((current) =>
+      current.entries.some((e) => e.code === entry.code)
+        ? current
+        : { ...current, entries: [...current.entries, entry] },
+    );
     const fresh = catalogs ? await catalogs.loadGenres(true).catch(() => null) : null;
     if (fresh) setCatalog(fresh);
     setFilter('');
