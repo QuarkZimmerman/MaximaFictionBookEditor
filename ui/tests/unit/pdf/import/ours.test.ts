@@ -188,4 +188,16 @@ describe('a block that draws nothing (D32)', () => {
     expect(mismatches).toBe(0);
     expect(xml.replace(/\s+/g, '')).toContain('<p>One</p><p/><p>Three</p>');
   });
+
+  it('nor for the part of spaces the engine tags for a paragraph of invisible characters (U+FEFF)', () => {
+    const tagged = {
+      ...flat,
+      parts: [flat.parts[0], { kind: 'p', page: 2, runs: [run(' ', 115)] }, flat.parts[1]],
+    } as unknown as Flattened;
+    // A record of feature 016: it names the page breaks.
+    const recorded = { ...hints, continued: [] } as unknown as HintsV1;
+    const { xml, mismatches } = convertOurs(recorded, tagged, [], '<description/>');
+    expect(mismatches).toBe(0);
+    expect(xml.replace(/\s+/g, '')).toContain('<p>One</p><p/><p>Three</p>');
+  });
 });

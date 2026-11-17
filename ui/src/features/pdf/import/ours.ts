@@ -170,18 +170,32 @@ function joinInto(last: Part, part: Part): void {
  * Feature 016 (D6): the parts joined where the record says a block goes on onto the next page - each block takes
  * its part and, once per page break the paginator recorded, the next one.
  */
+/** A part of nothing but spaces: no text, picture, table or caption. */
+const onlySpaces = (part: Part): boolean =>
+  part.kind !== 'figure' &&
+  part.kind !== 'table' &&
+  !part.rows?.length &&
+  part.runs.every((run) => !run.picture && run.text.trim() === '');
+
 function joinRecorded(
   parts: Part[],
   blocks: number,
   drawsNothing: (b: number) => boolean,
   continued: readonly number[],
+  blank: ReadonlySet<number> = new Set(),
 ): Part[] {
   const breaks = new Map<number, number>();
   for (const b of continued) breaks.set(b, (breaks.get(b) ?? 0) + 1);
   const out: Part[] = [];
   let cursor = 0;
   for (let b = 0; b < blocks && cursor < parts.length; b++) {
-    if (drawsNothing(b)) continue;
+    if (drawsNothing(b)) {
+      // A paragraph of invisible characters (U+FEFF, a no-break space) the record names blank, as an empty
+      // one, but the engine tags it with a space: that part is its own (the requester's smoke test of rc.1, a
+      // book of 61 such paragraphs that came back shifted by one block after the first).
+      if (blank.has(b) && onlySpaces(parts[cursor])) cursor++;
+      continue;
+    }
     const joined = copyPart(parts[cursor++]);
     for (let n = breaks.get(b) ?? 0; n > 0 && cursor < parts.length; n--)
       joinInto(joined, parts[cursor++]);
@@ -422,11 +436,11 @@ export function convertOurs(
         paragraphs: rest.map((part) => part.runs),
       });
     }
-    if (moved.size > 0) textParts = spaced.filter((part) => !moved.has(part));
+    if (moved.size > 0) textParts = textParts.filter((part) => !moved.has(part));
   }
   // The record names the page breaks since feature 016; for a record of 0.0.11 they are judged (R4).
   const parts = Array.isArray(hints.continued)
-    ? joinRecorded(textParts, kinds.length, drawsNothing, hints.continued)
+    ? joinRecorded(textParts, kinds.length, drawsNothing, hints.continued, blank)
     : joinSplit(textParts, needed, starts, anchors);
 
   const sectionStarts = new Set(hints.sections.map(([b]) => b));
