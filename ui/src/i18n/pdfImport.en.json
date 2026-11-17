@@ -56,6 +56,7 @@
       "notImported": "Pages without text not imported (blank pages, plates of a scanned book): {{count}}",
       "platesImported": "Pages without text whose picture came in: {{count}}",
       "garbledPages": "Pages whose text layer reads as garbage, imported as it is: {{count}}",
+      "mended": "Parts the FB2 schema does not allow, set right so that the book is valid FB2: {{count}}",
       "dropped": {
         "comments": "Comments and other notes on the pages, left out: {{count}}",
         "attachments": "Attached files, left out: {{count}}",

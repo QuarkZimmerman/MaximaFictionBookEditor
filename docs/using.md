@@ -465,6 +465,11 @@ What comes back depends on where the PDF came from:
   and the other page pictures are left out. A scan without a text layer, or whose layer is garbage, is
   refused with the number of pages concerned: the editor does no text recognition.
 
+Whatever the PDF, the book comes in as valid FB2: what the FB2 schema does not allow - a book that was not
+valid when it was exported, say - is set right (paragraphs beside subsections get a section of their own,
+a title's stray parts become its lines), and the summary counts it. Genres outside the schema's list, which
+the editor allows, come back as written.
+
 A ZIP archive may hold several PDFs (the editor asks which) and FBD files. When it holds an FBD with the
 PDF's name, the editor asks whether to take the book's description from it, naming it; when none has the
 name, it lists them with *None*. For the editor's own PDF the question names both descriptions, and none is

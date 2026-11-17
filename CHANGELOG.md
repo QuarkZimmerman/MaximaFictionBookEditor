@@ -36,6 +36,8 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   Damaged and hostile PDFs end in a message; nothing in them runs. Comments, attached files, media and
   scripts are left out and counted.
 - Export as PDF... offers Save in ZIP archive: the archive holds the PDF and the book's FBD, named after it.
+- Whatever the PDF, the imported book is valid FB2: what the schema does not allow is set right and counted
+  in the summary; genres outside the schema's list, which the editor allows, come back as written.
 
 ### Fixed
 
@@ -43,6 +45,8 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   and books with two notes bodies, which it refused.
 - A block picture's title is printed under it as its caption.
 - A paragraph continued onto the next page of a PDF is printed without its first-line indent.
+- Export as PDF... exports books where a picture as tall as a page has a caption, or meets the rest of a long
+  note on a page, which it refused after its own check.
 
 ## 0.0.11 - 2026-11-15
 

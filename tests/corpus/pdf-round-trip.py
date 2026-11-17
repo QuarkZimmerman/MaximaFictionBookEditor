@@ -5,9 +5,9 @@
 
 Every FB2 book of LIST is exported to PDF in A5 by the editor, imported again and compared with its original
 (the journey ui/tests/e2e/us1-pdf-round-trip.spec.ts over the list; build ui/dist first). Apart from D6's
-differences every valid book must come back equal; an invalid original is reported apart, and a valid book
-that comes back invalid - or an invalid one that comes back with errors its original has not - is a failure
-(SC-002, 012's rule). DIR/report.txt and DIR/report.json give the outcome; the exit
+differences every valid book must come back equal; an invalid original is reported apart, its differences
+accepted, and any book that comes back invalid is a failure (SC-002 as the requester revised it on 2026-11-17:
+the import always gives valid FB2). DIR/report.txt and DIR/report.json give the outcome; the exit
 code is 0 only when every book came back so.
 """
 
@@ -37,10 +37,9 @@ def main() -> int:
         sys.exit(f"us1-pdf-round-trip: the journey wrote no results (exit {run.returncode})")
     records = json.loads(results.read_text(encoding="utf-8"))
     failed = [r for r in records if r.get("failure")]
-    # SC-002, the requester's rule from 012: a valid book in and an invalid one out is a bug; an invalid book in
-    # tests the invalid case, and fails only when it comes back with errors its original has not.
-    again_invalid = [r for r in records if not r.get("failure") and r.get("againInvalid")
-                     and (not r.get("invalid") or r.get("againNew"))]
+    # SC-002, revised (requester, 2026-11-17): "the import should always be valid" - an invalid book in as a
+    # valid one: any book that comes back invalid is a failure; an invalid original's differences are accepted.
+    again_invalid = [r for r in records if not r.get("failure") and r.get("againInvalid")]
     invalid = [r for r in records if r.get("invalid")]
     differ = [r for r in records if not r.get("failure") and not r.get("invalid") and r["differences"]]
     equal = [r for r in records if not r.get("failure") and not r.get("invalid") and not r["differences"]

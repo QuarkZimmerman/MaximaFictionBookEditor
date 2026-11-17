@@ -22,6 +22,7 @@ import { applyFbd, closeRead, readDescriptionFile } from './fbd';
 import { furnitureOf, layoutParts, linesOf } from './layout';
 import { fromLatin1, looksLatin1Cyrillic } from './mend';
 import { textBody } from './text';
+import { mendFb2 } from './valid';
 
 const nextTask = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 const baseName = (path: string): string =>
@@ -371,6 +372,9 @@ export async function importPdf(
       counts = body.counts;
     }
     check();
+    // SC-002 (requester, 2026-11-17): the book comes in as valid FB2 - what the schema does not allow, mended.
+    const valid = mendFb2(xml);
+    xml = valid.xml;
     const opened = await rpc.runJob(
       'doc.newFromXml',
       { xml, origin: { kind: 'pdf', path: originPath }, keepDetails: !!document.record },
@@ -458,6 +462,7 @@ export async function importPdf(
       lines.push(ctx.t('pdfImport.summary.platesImported', { count: platesImported }));
     if (garbledPages > 0)
       lines.push(ctx.t('pdfImport.summary.garbledPages', { count: garbledPages }));
+    if (valid.mended > 0) lines.push(ctx.t('pdfImport.summary.mended', { count: valid.mended }));
     // D16, FR-029: what FB2 has no place for is left out and counted.
     const dropped = document.dropped ?? {};
     for (const key of ['comments', 'attachments', 'media', 'scripts'] as const) {

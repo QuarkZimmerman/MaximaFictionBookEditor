@@ -211,6 +211,22 @@ const SPACES = `(text) => {
       other.remove();
     }
   }
+  // D6 (requester, 2026-11-17): a link whose address is empty comes back as its text; a picture whose file the
+  // book does not hold does not come back; a space at a line break inside a note is not named by the record -
+  // the notes compared without their spaces.
+  const XLINK_NS = 'http://www.w3.org/1999/xlink';
+  for (const link of [...doc.getElementsByTagNameNS(FB, 'a')]) {
+    if (!(link.getAttributeNS(XLINK_NS, 'href') || '').trim()) link.replaceWith(...link.childNodes);
+  }
+  const files = new Set([...doc.getElementsByTagNameNS(FB, 'binary')].map((binary) => binary.getAttribute('id')));
+  for (const image of [...doc.getElementsByTagNameNS(FB, 'image')]) {
+    const href = image.getAttributeNS(XLINK_NS, 'href') || '';
+    if (href.startsWith('#') && !files.has(href.slice(1))) image.remove();
+  }
+  for (const body of [...doc.getElementsByTagNameNS(FB, 'body')].slice(1)) {
+    const walker = doc.createTreeWalker(body, 4);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) node.data = node.data.replace(/\\s+/g, '');
+  }
   // C5: the notes come in the order of their first references - each notes body's notes sorted by id.
   for (const body of [...doc.getElementsByTagNameNS(FB, 'body')].slice(1)) {
     const notes = [...body.children].filter((child) => child.localName === 'section');
