@@ -82,6 +82,7 @@ export function PageSizeDialog({
           checked={zip}
           onChange={(event) => setZip(event.target.checked)}
           data-testid="dialog-pdf-page-size-zip-box"
+          {...tip(t('tip.pdf.zip'))}
         />
         {t('pdf.zipChoice')}
       </label>
