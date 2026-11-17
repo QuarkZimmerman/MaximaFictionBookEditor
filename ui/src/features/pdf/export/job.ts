@@ -44,7 +44,12 @@ export async function exportPdf(ctx: CommandContext, docId: string, run: PdfRun)
   }
   let token: string | null = null;
   try {
-    const begun = await rpc.call('pdf.export.begin', { path, pageSize: run.pageSize, docId });
+    const begun = await rpc.call('pdf.export.begin', {
+      path,
+      pageSize: run.pageSize,
+      docId,
+      zip: run.zip,
+    });
     token = begun.token;
     const size = pdfPageSize(run.pageSize);
     // D7(c): a text font the user added, looked up by its id (gone: Noto Serif).
@@ -98,6 +103,18 @@ export async function exportPdf(ctx: CommandContext, docId: string, run: PdfRun)
           ),
       )
       .catch(() => new Map<string, string>());
+    // D25: the archive's FBD, written by doc.exportDescription as Export as FBD writes it, before the finish
+    // packs it with the PDF.
+    if (run.zip && begun.fbdPath) {
+      const document = ctx.store.getState().document;
+      if (!document) throw new Error('the book is gone');
+      await rpc.runJob('doc.exportDescription', {
+        docId,
+        document,
+        path: begun.fbdPath,
+        force: true,
+      });
+    }
     const finished = await rpc.runJob(
       'pdf.export.finish',
       {
@@ -171,7 +188,22 @@ export async function exportPdf(ctx: CommandContext, docId: string, run: PdfRun)
       actions.setStatusMessage(store, ctx.t('pdf.exportCancelled'));
       return false;
     }
-    let detail = error instanceof Error ? error.message : String(error);
+    // Never an empty reason: an error without a message names itself (D32's library run showed "was not
+    // written:" and nothing after it).
+    let detail =
+      error instanceof Error
+        ? error.message ||
+          `${error.name}${
+            error.stack
+              ? `: ${
+                  error.stack
+                    .split('\n')
+                    .find((line) => line.trim().startsWith('at'))
+                    ?.trim() ?? ''
+                }`
+              : ''
+          }`
+        : String(error);
     if (error instanceof PdfLimitError) {
       detail = ctx.t(`pdf.limit.${error.limit}`, { count: error.count, max: error.max });
     }

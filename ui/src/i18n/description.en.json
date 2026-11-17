@@ -23,7 +23,10 @@
       "id": "Author ID:",
       "homePage": "Website:",
       "email": "E-mail:",
-      "incomplete": "Enter a first and a last name, or a nickname alone."
+      "incomplete": "Enter a first and a last name, or a nickname alone.",
+      "noLastName": "A first name but no last name: FB2 needs a last name, which may stay empty, or a nickname alone.",
+      "fix": "Fix",
+      "fixTitle": "Adds the empty last name FB2 needs"
     },
     "sequence": {
       "name": "Name:",

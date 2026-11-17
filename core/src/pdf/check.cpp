@@ -75,14 +75,39 @@ std::string comparable(const std::string& text) {
         if (c == 0xE2 && i + 2 < text.size()) {
             const unsigned char b1 = static_cast<unsigned char>(text[i + 1]);
             const unsigned char b2 = static_cast<unsigned char>(text[i + 2]);
-            if ((b1 == 0x80 && (b2 == 0x8E || b2 == 0x8F || (b2 >= 0xAA && b2 <= 0xAE))) ||
-                (b1 == 0x81 && b2 >= 0xA6 && b2 <= 0xA9)) {
+            // Feature 016 (D10, research R11.2): the joiners and invisible operators Unicode calls
+            // default-ignorable (U+200C, U+200D, U+2060 to U+2064) draw nothing either.
+            if ((b1 == 0x80 && (b2 == 0x8C || b2 == 0x8D || b2 == 0x8E || b2 == 0x8F ||
+                                (b2 >= 0xAA && b2 <= 0xAE))) ||
+                (b1 == 0x81 && ((b2 >= 0xA6 && b2 <= 0xA9) || (b2 >= 0xA0 && b2 <= 0xA4)))) {
                 i += 2;
                 continue;
             }
         }
         if (c == 0xD8 && i + 1 < text.size() && static_cast<unsigned char>(text[i + 1]) == 0x9C) {
             ++i;
+            continue;
+        }
+        // The combining grapheme joiner (U+034F), the Mongolian selectors (U+180B to U+180F), the
+        // Khmer inherent vowels (U+17B4, U+17B5) and the variation selectors (U+FE00 to U+FE0F)
+        // draw nothing.
+        if (c == 0xCD && i + 1 < text.size() && static_cast<unsigned char>(text[i + 1]) == 0x8F) {
+            ++i;
+            continue;
+        }
+        if (c == 0xE1 && i + 2 < text.size()) {
+            const unsigned char b1 = static_cast<unsigned char>(text[i + 1]);
+            const unsigned char b2 = static_cast<unsigned char>(text[i + 2]);
+            if ((b1 == 0xA0 && b2 >= 0x8B && b2 <= 0x8F) ||
+                (b1 == 0x9E && (b2 == 0xB4 || b2 == 0xB5))) {
+                i += 2;
+                continue;
+            }
+        }
+        if (c == 0xEF && i + 2 < text.size() && static_cast<unsigned char>(text[i + 1]) == 0xB8 &&
+            static_cast<unsigned char>(text[i + 2]) >= 0x80 &&
+            static_cast<unsigned char>(text[i + 2]) <= 0x8F) {
+            i += 2;
             continue;
         }
         // The other Unicode spaces count as whitespace (U+1680, U+2000 to U+200B, U+202F, U+205F,

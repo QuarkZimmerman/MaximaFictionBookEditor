@@ -126,13 +126,15 @@ if [[ -d "$INSTALL_TREE/usr/lib/mfbe" ]]; then
 else
   SRC="$INSTALL_TREE"          # plain --prefix install
 fi
-for required in lib/mfbe/mfbe lib/mfbe/libcef.so share/mfbe/resources share/mfbe/ui/index.html \
+for required in lib/mfbe/mfbe lib/mfbe/mfbe-pdf-reader lib/mfbe/libcef.so share/mfbe/resources share/mfbe/ui/index.html \
                 share/applications/mfbe.desktop share/icons/hicolor/256x256/apps/mfbe.png; do
   if [[ ! -e "$SRC/$required" ]]; then
     echo "build.sh: $SRC/$required is missing - install the app, resources, ui and scripts components first" >&2
     exit 1
   fi
 done
+# Feature 016 (DP-1): the PDF reader must start on its own (no CEF, no server).
+"$SRC/lib/mfbe/mfbe-pdf-reader" --version >/dev/null || { echo "build.sh: mfbe-pdf-reader does not start" >&2; exit 1; }
 cp -a "$SRC/." "$APPDIR/usr/"
 
 # chrome-sandbox cannot be SUID inside a squashfs image; drop it so nothing can pick it up

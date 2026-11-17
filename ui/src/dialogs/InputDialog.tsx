@@ -76,7 +76,8 @@ export function InputDialog({ options, onClose }: InputDialogProps) {
         data-no-tooltip
         id={inputId}
         className="mfbe-inputdialog-input"
-        type="text"
+        type={options.password ? 'password' : 'text'}
+        autoComplete={options.password ? 'off' : undefined}
         value={value}
         placeholder={options.placeholder}
         onChange={(e) => {

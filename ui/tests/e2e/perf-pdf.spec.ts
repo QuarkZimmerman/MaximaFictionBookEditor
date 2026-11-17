@@ -213,6 +213,7 @@ test.describe('performance - the PDF export (SC-010)', () => {
         await core.enqueueDialog('dialog.saveFile', {
           path: target,
           encoding: 'A6 (105 × 148 mm)',
+          zip: false,
         });
         await clickExport(core, page, 'exportPdf');
         await page.getByTestId('modal-job').waitFor({ timeout: 30_000 });

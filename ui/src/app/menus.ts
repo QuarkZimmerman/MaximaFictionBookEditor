@@ -99,7 +99,12 @@ export const MAIN_MENU: readonly MenuSpec[] = [
         kind: 'submenu',
         id: 'import',
         labelKey: 'menu.file.import',
-        items: [cmd('file.importDescription'), cmd('file.importMarkdown'), cmd('file.importEpub')],
+        items: [
+          cmd('file.importDescription'),
+          cmd('file.importMarkdown'),
+          cmd('file.importEpub'),
+          cmd('file.importPdf'),
+        ],
       },
       {
         // The FBD export of feature 004 (FR-040) in place of the plugin placeholder.

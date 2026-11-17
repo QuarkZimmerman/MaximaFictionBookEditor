@@ -172,6 +172,18 @@ export function epubEntryUrl(
 }
 
 /**
+ * Feature 016 (contracts/rpc-api.md): a part of the PDF import's folder under `token` - `document`,
+ * `page/<n>` or `picture/<file>` (`GET /pdf-import/{token}/...`).
+ */
+export function pdfImportUrl(
+  token: string,
+  part: string,
+  baseUrl: string = import.meta.env.BASE_URL ?? '/',
+): string {
+  return withToken(`${baseUrl}pdf-import/${encodeURIComponent(token)}/${part}`, '?');
+}
+
+/**
  * Feature 012 (contracts/rpc-api.md §3): the file `name` of the EPUB the export writes under `token`
  * (`PUT /epub-write/{token}/{name}`, the bytes as the body).
  */

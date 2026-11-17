@@ -57,6 +57,10 @@
 #                               > Export as PDF... on a copy of the book, the GTK Save dialog's
 #                               proposal accepted, the pages printed by the shell's print service;
 #                               tools/ci/verapdf.sh must pass build/pdf-export/shell-smoke.pdf
+#   MFBE_SMOKE_PDF_IMPORT       1 = the PDF import through the real shell (feature 016, real UI;
+#                               needs openbox and xdotool): File > Import > PDF File... on
+#                               tests/fixtures/pdf/import/text-untagged.pdf through the GTK Open dialog,
+#                               then File > Exit; the shell and its reader must end within 20 s
 #   MFBE_SMOKE_PORTABLE         1 = portable copy (real UI only, feature 002): a `user` folder
 #                               created next to the shell (and removed afterwards) must receive
 #                               the browser profile (cef/) and the logs (logs/), and no per-user
@@ -571,11 +575,13 @@ SH
   chmod +x "$TMP/launch.sh"
   LAUNCHER="$TMP/launch.sh"
 fi
-# Close, Save As and PDF export scenarios: a window manager must run on the display - to turn
-# Alt+F4 into the close request of the title-bar button (WM_DELETE_WINDOW), to give the GTK Save
-# dialog the focus; the wrapper starts openbox and writes the display's address (DISPLAY,
-# XAUTHORITY of xvfb-run) for shell-smoke.mjs and shell-smoke-pdf.mjs, which drive xdotool.
-if [[ "$CLOSE" == "1" || "$SAVE_AS" == "1" || "$ENGINE_KEYS" == "1" || "${MFBE_SMOKE_PDF:-0}" == "1" ]]; then
+# Close, Save As, PDF export and PDF import scenarios: a window manager must run on the display - to
+# turn Alt+F4 into the close request of the title-bar button (WM_DELETE_WINDOW), to give the GTK Save
+# and Open dialogs the focus; the wrapper starts openbox and writes the display's address (DISPLAY,
+# XAUTHORITY of xvfb-run) for shell-smoke.mjs, shell-smoke-pdf.mjs and shell-smoke-pdf-import.mjs,
+# which drive xdotool.
+if [[ "$CLOSE" == "1" || "$SAVE_AS" == "1" || "$ENGINE_KEYS" == "1" || "${MFBE_SMOKE_PDF:-0}" == "1" ||
+      "${MFBE_SMOKE_PDF_IMPORT:-0}" == "1" ]]; then
   export MFBE_SMOKE_DISPLAY_FILE="$TMP/display.env"
   cat >"$TMP/launch.sh" <<SH
 #!/bin/bash
@@ -1055,6 +1061,28 @@ if [[ "${MFBE_SMOKE_PDF:-0}" == "1" ]]; then
     exit 1
   fi
   echo "shell-smoke: PDF export printed by the shell, and the shell ended after File > Exit: OK"
+fi
+
+if [[ "${MFBE_SMOKE_PDF_IMPORT:-0}" == "1" ]]; then
+  # --- the PDF import through the real shell (feature 016, T064; D30, DP-4) ----------------------
+  # File > Import > PDF File... on a generated PDF through the GTK Open dialog (xdotool), then File > Exit:
+  # the shell and the import's reader process must end within 20 s.
+  node "$ROOT/tools/shell-smoke-pdf-import.mjs" "$CDP_PORT" "$ROOT/tests/fixtures/pdf/import/text-untagged.pdf" || exit 1
+  for _ in $(seq 1 80); do
+    kill -0 "$APP_PID" 2>/dev/null || break
+    sleep 0.25
+  done
+  if kill -0 "$APP_PID" 2>/dev/null; then
+    echo "shell-smoke: the shell is still running 20 s after File > Exit following a PDF import" >&2
+    exit 1
+  fi
+  wait "$APP_PID" || true
+  APP_PID=""
+  if pgrep -x mfbe-pdf-reader >/dev/null; then
+    echo "shell-smoke: a PDF reader process is left after File > Exit" >&2
+    exit 1
+  fi
+  echo "shell-smoke: the PDF import, then File > Exit - the shell and its reader ended: OK"
 fi
 
 if [[ "$ENGINE_KEYS" == "1" ]]; then

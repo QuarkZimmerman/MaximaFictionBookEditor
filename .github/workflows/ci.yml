@@ -756,6 +756,18 @@ jobs:
           MFBE_SMOKE_PDF: "1"
           MFBE_SMOKE_SCREENSHOT: build/shell-smoke-pdf.png
 
+      - name: "Shell smoke: a PDF imported through the shell, then File > Exit (feature 016, T064)"
+        # The real shell imports a generated PDF through its GTK Open dialog (xdotool) with its own
+        # reader process; after File > Exit the shell and the reader must end within 20 s (D30).
+        # Linux only, as the shell smoke is.
+        if: runner.os == 'Linux'
+        run: tools/shell-smoke.sh
+        env:
+          MFBE_APP_BIN: ${{ github.workspace }}/build/${{ matrix.preset }}/bin/mfbe
+          MFBE_SMOKE_REAL_UI: "1"
+          MFBE_SMOKE_PDF_IMPORT: "1"
+          MFBE_SMOKE_SCREENSHOT: build/shell-smoke-pdf-import.png
+
       - name: "Shell smoke: the user's own genres, scripts and template (feature 015)"
         # The user-folder fixtures in the per-user data folder of an isolated home: the genre file's
         # genre in Choose a genre, the script in the Scripts menu, the misnamed genre file listed in
@@ -902,6 +914,10 @@ jobs:
             { echo "::error::mfbe-core --version does not name the version label $MFBE_VERSION"; exit 1; }
           test -f "$RUNNER_TEMP/mfbe-prefix/share/mfbe/ui/index.html"
           test -f "$RUNNER_TEMP/mfbe-prefix/share/mfbe/resources/schema/FictionBook.xsd"
+          # Feature 016 (DP-1, FR-088): the PDF reader is installed beside the programs, and no test tool ships
+          # (pdf.js, pypdf, veraPDF, Playwright).
+          test -x "$RUNNER_TEMP/mfbe-prefix/bin/mfbe-pdf-reader"
+          python3 tools/package-contents-check.py "$RUNNER_TEMP/mfbe-prefix"
 
       - name: Package
         run: cpack --preset ${{ matrix.preset }}

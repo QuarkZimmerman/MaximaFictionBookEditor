@@ -140,7 +140,11 @@ body { font-family: '${text}', '${georgian}', '${armenian}', '${mono}'; font-siz
 .mfbe-number { position: absolute; left: 0; right: 0; bottom: ${layout.margin / 3}px; text-align: center;
   font-size: ${(layout.textPt * 0.85).toFixed(2)}pt; }
 .mfbe-picture { display: block; margin: 0 auto; }
-.mfbe-continued { text-indent: 0 !important; }
+.mfbe-caption { text-align: center; text-indent: 0; font-size: 0.9em; font-style: italic; margin: 0.3em 0 0; }
+/* A part of a paragraph continued from the page before: no first-line indent. By the class attribute: the
+   book's own elements are printed in FB2's namespace, where a class selector does not apply (D32's library
+   run found every continued part indented). */
+[class~="mfbe-continued"] { text-indent: 0 !important; }
 /* The text area contains its blocks' margins (a block formatting context), so that its height as
    measured is the height it takes on the page. */
 .mfbe-area { display: flow-root; }

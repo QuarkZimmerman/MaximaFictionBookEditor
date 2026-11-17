@@ -31,7 +31,12 @@ describe('the PDF page size window (D2, D3)', () => {
     expect(screen.getByTestId('dialog-pdf-page-size-path')).toHaveTextContent('/books/x.pdf');
     await user.selectOptions(select, 'letter');
     await user.click(screen.getByTestId('dialog-pdf-page-size-button-ok'));
-    expect(onClose).toHaveBeenCalledWith('letter');
+    expect(onClose).toHaveBeenCalledWith({ size: 'letter', zip: false });
+    // Feature 016 (D25): Save in ZIP archive, unticked at first, given back with the size.
+    expect(screen.getByTestId('dialog-pdf-page-size-zip-box')).not.toBeChecked();
+    await user.click(screen.getByTestId('dialog-pdf-page-size-zip-box'));
+    await user.click(screen.getByTestId('dialog-pdf-page-size-button-ok'));
+    expect(onClose).toHaveBeenLastCalledWith({ size: 'letter', zip: true });
     await user.click(screen.getByTestId('dialog-pdf-page-size-button-cancel'));
     expect(onClose).toHaveBeenLastCalledWith(null);
   });

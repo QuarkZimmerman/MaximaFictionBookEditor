@@ -111,7 +111,8 @@
       "marginValue": "Margins, mm",
       "unitPt": "points",
       "unitMm": "mm"
-    }
+    },
+    "zipChoice": "Save in ZIP archive"
   },
   "dialog": {
     "settings": {
@@ -145,7 +146,8 @@
       }
     },
     "pdf": {
-      "pageSize": "The page size of this PDF: the ISO sizes first, then the North American ones"
+      "pageSize": "The page size of this PDF: the ISO sizes first, then the North American ones",
+      "zip": "Saves a ZIP archive that holds the PDF and the book's FBD file, both named after the PDF"
     }
   },
   "exports": {

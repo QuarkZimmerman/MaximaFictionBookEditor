@@ -186,6 +186,28 @@ function collectBlocks(root: Element): Block[] {
   return blocks;
 }
 
+/**
+ * Feature 016 (D10): a block picture and the caption under it fit the text area together - the picture made
+ * smaller, its proportions kept. pictureBox() fits the picture alone; with its caption a tall one overflowed the
+ * page, and the print moved or cut it (D32's library run: pages refused by the export's own check).
+ */
+function fitCaptioned(element: Element, contentHeight: number): void {
+  const box = element.querySelector<HTMLElement>(':scope > .mfbe-picture');
+  if (!box || !element.querySelector(':scope > .mfbe-caption')) return;
+  const style = element.ownerDocument.defaultView!.getComputedStyle(element);
+  const total =
+    element.getBoundingClientRect().height +
+    (Number.parseFloat(style.marginTop) || 0) +
+    (Number.parseFloat(style.marginBottom) || 0);
+  // A point to spare, for the print's rounding.
+  const over = total + 1 - contentHeight;
+  if (over <= 0) return;
+  const { width, height } = box.getBoundingClientRect();
+  const scale = Math.max(0.1, (height - over) / height);
+  box.style.width = `${width * scale}px`;
+  box.style.height = `${height * scale}px`;
+}
+
 /** Measures a block's lines in the flow (the text width). */
 function measure(block: Block): void {
   const element = block.element as HTMLElement;
@@ -380,6 +402,9 @@ export async function paginate(
         ? [...notesBody.children].find((c) => c.localName === 'title')
         : undefined;
       const body = doc.createElementNS(FB2_NS, 'body');
+      // Feature 016 (D6): marked, so that the record names it the notes body's part printed after the text and
+      // the import gives its notes back to that body (D32's library run made a body of its own of them).
+      body.setAttribute('data-mfbe-after-notes', notesBody?.getAttribute('name') || 'notes');
       const section = doc.createElementNS(FB2_NS, 'section');
       const title = heading
         ? (heading.cloneNode(true) as Element)
@@ -408,6 +433,7 @@ export async function paginate(
       }
     };
     for (let i = 0; i < blocks.length; i++) {
+      fitCaptioned(blocks[i].element, layout.contentHeight);
       measure(blocks[i]);
       // SC-010: the bar's thirds of the pagination: measuring, the notes, the pages.
       await breath(i, blocks.length * 3);
@@ -463,6 +489,13 @@ export async function paginate(
     const stack: { depth: number; mark: PageMapBookmark }[] = [];
     const serializer = new XMLSerializer();
     const blockPage: number[] = [];
+    // Feature 016 (D6): each block whose text goes on onto a next page, once per page it goes on to - the
+    // import joins its parts there, and guesses nothing.
+    const continued: number[] = [];
+    // Feature 016 (D19): the pages (from 1) whose foot begins with the rest of a note cut on the page before.
+    const carriedPages: number[] = [];
+    // Feature 016 (D19): of those, the pages whose rest begins with a whole paragraph of its note.
+    const carriedApart: number[] = [];
 
     // D17: a bookmark's height is its title's on the composed page.
     const pendingMarks = new Map<number, PageMapBookmark>();
@@ -574,19 +607,21 @@ export async function paginate(
       area: HTMLElement;
       foot: HTMLElement;
     }
-    // D19: the part of a long note that did not fit at the foot of the page before, first at the
-    // foot of this one; `carryNext` is the part this page passes on.
-    let carriedNote: Element | null = null;
-    let carryNext: Element | null = null;
+    // D19: the part of a long note that did not fit at the foot of the page before - and the notes after
+    // it - first at the foot of this one; `carryNext` is what this page passes on. Feature 016 (D10,
+    // research R11.3): a note may need many pages, and a page's carried part may itself not fit, so
+    // whatever does not fit goes on, page after page (library book 50564 has notes of 13,000 letters).
+    let carriedNotes: Element[] = [];
+    let carryNext: Element[] = [];
     const compose = (pieces: PlannedPage): Composed => {
-      carryNext = null;
+      carryNext = [];
       const { page, content } = newPage();
       // The text above, the page's footnotes at the foot under their rule (D19).
       const area = doc.createElementNS(XHTML_NS, 'div') as HTMLElement;
       area.className = 'mfbe-area';
       const foot = doc.createElementNS(XHTML_NS, 'div') as HTMLElement;
       foot.className = 'mfbe-notes';
-      if (carriedNote) foot.append(carriedNote.cloneNode(true));
+      for (const carried of carriedNotes) foot.append(carried.cloneNode(true));
       content.append(area);
       const open: { original: Element; clone: Element }[] = [];
       for (const piece of pieces) {
@@ -638,14 +673,20 @@ export async function paginate(
     // last whole line there, and the rest goes to the foot of the next page (without the note's id,
     // which links lead to: the first part keeps it).
     const cutFoot = ({ page, area, foot }: Composed): boolean => {
-      const note = foot.lastElementChild as HTMLElement | null;
-      if (!note) return false;
+      const notes = [...foot.children] as HTMLElement[];
+      if (notes.length === 0) return false;
       pagesHost.append(page);
       try {
         const footBox = foot.getBoundingClientRect();
         if (footBox.height <= layout.contentHeight * FOOT_SHARE) return false;
+        // The foot may reach down to here; the first note crossing it is cut, and the notes after it go
+        // on whole.
+        const limit = footBox.top + layout.contentHeight - area.scrollHeight;
+        const first = notes.findIndex((n) => n.getBoundingClientRect().bottom > limit + 0.5);
+        if (first < 0) return false;
+        const note = notes[first];
         const noteTop = note.getBoundingClientRect().top;
-        const room = layout.contentHeight - area.scrollHeight - (noteTop - footBox.top);
+        const room = limit - noteTop;
         const range = doc.createRange();
         range.selectNodeContents(note);
         const tops: number[] = [];
@@ -657,14 +698,37 @@ export async function paginate(
         tops.sort((a, b) => a - b);
         let keep = 0;
         while (keep + 1 < tops.length && tops[keep + 1] <= room) keep++;
-        if (keep < 1) return false;
-        const offset = lineStart({ element: note, tops } as unknown as Block, keep);
-        const rest = cloneText(note, offset, Number.MAX_SAFE_INTEGER);
-        rest.removeAttribute('id');
-        for (const marked of rest.querySelectorAll('[id]')) marked.removeAttribute('id');
-        rest.classList.add('mfbe-continued');
-        note.replaceWith(cloneText(note, 0, offset));
-        carryNext = rest;
+        const carried: Element[] = [];
+        if (keep >= 1) {
+          const offset = lineStart({ element: note, tops } as unknown as Block, keep);
+          const rest = cloneText(note, offset, Number.MAX_SAFE_INTEGER);
+          // Feature 016 (D19): cut between two of the note's paragraphs, the rest begins with a whole one -
+          // marked, so that the record names its page and the import does not join it to the paragraph before.
+          // By the offsets: the cut at the first character of one of the note's paragraphs (not by their text,
+          // which paragraphs may share).
+          const nodes = textNodes(note);
+          const starts = [...note.querySelectorAll('p')].flatMap((p) => {
+            const first = nodes.find(({ node }) => p.contains(node) && node.data.trim());
+            return first ? [first.start, first.start + first.node.data.search(/\S/)] : [];
+          });
+          if (starts.some((start) => start > 0 && start === offset))
+            rest.setAttribute('data-mfbe-apart', '');
+          rest.removeAttribute('id');
+          for (const marked of rest.querySelectorAll('[id]')) marked.removeAttribute('id');
+          rest.classList.add('mfbe-continued');
+          note.replaceWith(cloneText(note, 0, offset));
+          carried.push(rest);
+        } else if (first > 0) {
+          note.remove();
+          carried.push(note);
+        } else {
+          return false;
+        }
+        for (const after of notes.slice(first + 1)) {
+          after.remove();
+          carried.push(after);
+        }
+        carryNext = [...carried, ...carryNext];
         return true;
       } finally {
         page.remove();
@@ -698,6 +762,15 @@ export async function paginate(
         } else if (pieces[0].toLine - pieces[0].fromLine > 1) {
           pieces[0].toLine--;
           next = { block: pieces[0].block, fromLine: pieces[0].toLine };
+        } else if (carriedNotes.length > 0) {
+          // Feature 016 (D19): a block that cannot be cut (a picture) does not fit beside the rest of a long
+          // note: this page holds the note alone, cut again where it must be, and the block goes on to the
+          // next page (D32's library run: a picture drawn over the note's text, refused by the check).
+          const [alone] = pieces.splice(0, 1);
+          next = { block: alone.block, fromLine: alone.fromLine };
+          composed = compose(pieces);
+          if (overflows(composed)) cutFoot(composed);
+          break;
         } else {
           break; // one line taller than the page: the check of the finished file reports it
         }
@@ -710,6 +783,7 @@ export async function paginate(
       const { page } = composed;
       for (const piece of pieces) {
         if (piece.fromLine === 0) blockPage[piece.block] = serialised.length;
+        else continued.push(piece.block);
         const block = blocks[piece.block];
         // The annotation's and the history's pages are bookmarked by what they are; they have no
         // heading of their own (requester, rc.4).
@@ -742,8 +816,11 @@ export async function paginate(
         (stack.length ? stack[stack.length - 1].mark.children : bookmarks).push(mark);
         stack.push({ depth: block.depth, mark });
       }
+      if (carriedNotes.length > 0) carriedPages.push(serialised.length + 1);
+      if (carriedNotes[0]?.hasAttribute('data-mfbe-apart'))
+        carriedApart.push(serialised.length + 1);
       finishPage(page, true);
-      carriedNote = carryNext;
+      carriedNotes = carryNext;
       cursor = next;
       // A block may span many pages (a long table): its lines count too, so the bar moves on.
       const lines = cursor ? Math.max(1, planBlocks[cursor.block]?.lines.length ?? 1) : 1;
@@ -755,14 +832,19 @@ export async function paginate(
       );
     }
     // D19: the rest of a long note at the end of the text, on pages of their own.
-    while (carriedNote) {
+    while (carriedNotes.length > 0) {
       const composed = compose([]);
-      if (overflows(composed)) cutFoot(composed);
+      // A page of notes alone that cannot be cut (one line taller than the page) ends the carrying: the
+      // check of the finished file reports it.
+      if (overflows(composed) && !cutFoot(composed)) carryNext = [];
       if (serialised.length + 1 > limits.pages) {
         throw new PdfLimitError('pages', serialised.length + 1, limits.pages);
       }
+      carriedPages.push(serialised.length + 1);
+      if (carriedNotes[0]?.hasAttribute('data-mfbe-apart'))
+        carriedApart.push(serialised.length + 1);
       finishPage(composed.page, true);
-      carriedNote = carryNext;
+      carriedNotes = carryNext;
     }
 
     const pageMap: PageMap = {
@@ -785,6 +867,10 @@ export async function paginate(
       coverPage: cover ? 1 : null,
       titlePage: cover ? 2 : 1,
       descriptionPages,
+      continued,
+      carriedPages,
+      carriedApart,
+      textPt: layout.textPt,
     });
     const parts: string[] = [];
     for (let at = 0; at < serialised.length; at += PAGES_PER_PART) {

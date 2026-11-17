@@ -49,7 +49,7 @@ def text_compare(pairs: list[tuple[str, str]]) -> dict[str, str]:
 
 def main() -> int:
     args = arguments(__doc__, "pdf-export")
-    records = run_journey("pdf", args.list, args.out, args.core, spec="corpus-pdf")
+    records = run_journey("pdf", args.list, args.out, args.core, spec="corpus-pdf.spec")
     failed = [record for record in records if record.get("failure")]
     exported = [record for record in records if record.get("pdf")]
     files = [record["pdf"] for record in exported]

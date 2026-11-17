@@ -3445,6 +3445,55 @@ def f008_spell_expected() -> str:
                        "misspelledRussian": F008_RU_WRONG}, ensure_ascii=False, indent=2) + "\n"
 
 
+
+def f016_long_notes() -> str:
+    """Feature 016 (D10, research R11.3): notes far longer than a page's foot, referenced early, with
+    grouped notes, a second notes body linked without type="note", and digits after numbers in the notes -
+    library book 50564 was refused for such notes. A picture as tall as a page, with its caption, comes right
+    after the long note's reference: library books 349462 and 402684 were refused where the note's rest and
+    such a picture met on a page."""
+    long_note = "".join(
+        f"<p>{n})\u00a0A paragraph of the very long note, number {n}, written so that the note needs many pages"
+        " at the foot of the text before it ends.</p>" for n in range(1, 121))
+    text = "".join(f"<p>Paragraph {n} of the text.</p>" for n in range(1, 40))
+    return f"""<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="{FB_NS}" xmlns:l="{XLINK_NS}">
+\t<description>
+\t\t<title-info>
+\t\t\t<genre>prose_classic</genre>
+\t\t\t<author><first-name>Ann</first-name><last-name>Example</last-name></author>
+\t\t\t<book-title>Long notes</book-title>
+\t\t\t<lang>en</lang>
+\t\t</title-info>
+\t\t<document-info>
+\t\t\t<author><nickname>fixture</nickname></author>
+\t\t\t<date value="2026-01-01">2026</date>
+\t\t\t<id>fixture-f016-long-notes</id>
+\t\t\t<version>1.0</version>
+\t\t</document-info>
+\t</description>
+\t<body>
+\t\t<section>
+\t\t\t<title><p>Chapter</p></title>
+\t\t\t<p>A reference to the long note<a l:href="#n_1" type="note">[1]</a>, to a grouped one<a l:href="#g_1" type="note">[2]</a> and to a comment<a l:href="#c_1"><sup>{{1}}</sup></a>.</p>
+\t\t\t<image l:href="#tall.png" title="A picture as tall as a page, with its caption, beside the long note."/>
+\t\t\t{text}
+\t\t</section>
+\t</body>
+\t<body name="comments">
+\t\t<section id="c_1"><title><p>1</p></title><p>A comment, linked without the note type.</p></section>
+\t</body>
+\t<body name="notes">
+\t\t<title><p>Notes</p></title>
+\t\t<section id="n_1"><title><p>1</p></title>{long_note}</section>
+\t\t<section><title><p>Grouped notes</p></title>
+\t\t\t<section id="g_1"><title><p>2</p></title><p>A note inside a group.</p></section>
+\t\t</section>
+\t</body>
+\t<binary id="tall.png" content-type="image/png">{b64_bytes(ti_png(300, 1200))}</binary>
+</FictionBook>
+"""
+
 def main() -> None:
     write("legacy-cp1251.fb2", LEGACY, "cp1251")
     write("modern-utf8.fb2", MODERN)
@@ -3518,6 +3567,7 @@ def main() -> None:
     write("book-styles-reference.fb2", f012_reference_all_elements(F012_LOOK_STYLESHEET, "f012-book-styles"))
     write("book-styles-hostile.fb2", f012_reference_all_elements(F012_HOSTILE_STYLESHEET, "f012-book-styles-hostile"))
     write("named-style-tips.fb2", f012_named_style_tips())
+    write("long-notes.fb2", f016_long_notes())
 
 
 # ----------------------------------------------------------------------------------------------

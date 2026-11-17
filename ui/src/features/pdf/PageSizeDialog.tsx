@@ -19,14 +19,22 @@ export interface PageSizeDialogProps {
   defaultSize: PdfPageSizeId;
   /** The file chosen, shown as a hint. */
   path?: string;
-  onClose: (size: PdfPageSizeId | null) => void;
+  /** Feature 016 (D25): the *Save in ZIP archive* box, unticked every time, when the system's dialog lacked it. */
+  zip?: boolean;
+  onClose: (choice: { size: PdfPageSizeId; zip: boolean } | null) => void;
 }
 
-export function PageSizeDialog({ defaultSize, path, onClose }: PageSizeDialogProps) {
+export function PageSizeDialog({
+  defaultSize,
+  path,
+  zip: zipAtFirst = false,
+  onClose,
+}: PageSizeDialogProps) {
   const { t } = useTranslation();
   const [size, setSize] = useState<PdfPageSizeId>(defaultSize);
+  const [zip, setZip] = useState(zipAtFirst);
   const buttons: DialogButton[] = [
-    { id: 'ok', label: t('dialog.buttons.ok'), onClick: () => onClose(size) },
+    { id: 'ok', label: t('dialog.buttons.ok'), onClick: () => onClose({ size, zip }) },
     { id: 'cancel', label: t('dialog.buttons.cancel'), onClick: () => onClose(null) },
   ];
   return (
@@ -54,7 +62,7 @@ export function PageSizeDialog({ defaultSize, path, onClose }: PageSizeDialogPro
         size={PDF_PAGE_SIZES.length + GROUPS.length}
         value={size}
         onChange={(event) => setSize(event.target.value as PdfPageSizeId)}
-        onDoubleClick={() => onClose(size)}
+        onDoubleClick={() => onClose({ size, zip })}
         {...tip(t('tip.pdf.pageSize'))}
         data-testid="dialog-pdf-page-size-select"
       >
@@ -68,6 +76,16 @@ export function PageSizeDialog({ defaultSize, path, onClose }: PageSizeDialogPro
           </optgroup>
         ))}
       </select>
+      <label className="mfbe-encodingdialog-zip" data-testid="dialog-pdf-page-size-zip">
+        <input
+          type="checkbox"
+          checked={zip}
+          onChange={(event) => setZip(event.target.checked)}
+          data-testid="dialog-pdf-page-size-zip-box"
+          {...tip(t('tip.pdf.zip'))}
+        />
+        {t('pdf.zipChoice')}
+      </label>
     </Dialog>
   );
 }

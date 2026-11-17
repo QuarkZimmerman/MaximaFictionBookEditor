@@ -180,8 +180,9 @@ TEST_CASE("server: app.info / settings round trip / notifications over WebSocket
     CHECK(r["build"] == version::kBuildId);
     CHECK(r["apiVersion"] == 1);
     // Additive contract revision: feature 002 = 1, feature 003 = 2, feature 004 = 3,
-    // feature 005 = 4, feature 006 = 5, feature 007 = 6, ..., feature 011 = 10, feature 012 = 11.
-    CHECK(r["apiMinor"] == 13);
+    // feature 005 = 4, feature 006 = 5, feature 007 = 6, ..., feature 011 = 10, feature 012 = 11,
+    // feature 014 = 12, feature 015 = 13, feature 016 = 14.
+    CHECK(r["apiMinor"] == 14);
     CHECK(r["apiMinor"] == version::kApiMinor);
     CHECK(r["platform"].is_string());
     CHECK(r["uiLanguage"] == "system");

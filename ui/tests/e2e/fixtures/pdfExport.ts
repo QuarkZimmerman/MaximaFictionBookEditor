@@ -1,3 +1,4 @@
+import { pdfWords } from '../../../src/features/pdf/export/words';
 import { readFileSync } from 'node:fs';
 /**
  * Feature 014: opening a book and exporting it to PDF through the menus, shared by the PDF export's
@@ -32,7 +33,8 @@ export async function exportPdfTo(
   sizeLabel: string,
   timeout = 300_000,
 ): Promise<string> {
-  await core.enqueueDialog('dialog.saveFile', { path: target, encoding: sizeLabel });
+  // The system's dialog carries the page size and, unticked, Save in ZIP archive (feature 016, D25).
+  await core.enqueueDialog('dialog.saveFile', { path: target, encoding: sizeLabel, zip: false });
   await clickExport(core, page, 'exportPdf');
   const status = page.getByTestId('status-message');
   const failed = page.getByTestId('dialog-pdf-export-failed');
@@ -75,6 +77,8 @@ async function expectedTextAll(page: Page, file: string): Promise<Expected> {
     )
     .catch(() => null);
   const xml = typeof held === 'string' && held ? held : readFileSync(file, 'utf8');
+  // The word the export prints over notes nothing refers to when the notes have no title (D11).
+  const notesWord = pdfWords(/<lang>([^<]*)<\/lang>/.exec(xml)?.[1]?.trim()).notes;
   return page.evaluate(`(() => {
     const doc = new DOMParser().parseFromString(${JSON.stringify(xml)}, 'application/xml');
     const NS = 'http://www.gribuser.ru/xml/fictionbook/2.0';
@@ -105,14 +109,54 @@ async function expectedTextAll(page: Page, file: string): Promise<Expected> {
         for (const child of el.children) {
           // D19: the notes go to the feet of the pages; their body's own title is not printed.
           if (note && el === body && child.localName === 'title') continue;
+          // Feature 016 (D10): a group of notes (a section holding sections) is printed as its notes
+          // only - the group's own title is not.
+          if (note && child.localName === 'title' && [...el.children].some((c) => c.localName === 'section')) continue;
+          // Feature 016 (D10): a block picture's title is printed under it as its caption.
+          if (child.localName === 'image') {
+            const title = clean(child.getAttribute('title') || '');
+            if (title) blocks.push({ text: title, note });
+            continue;
+          }
           if (BLOCKS.has(child.localName)) blocks.push({ text: clean(child.textContent), note });
           else walk(child);
         }
       };
       walk(body);
     }
+    // D19: notes nothing refers to (no link of type "note") are printed after the text under the
+    // notes' title - the first notes body's own title (else the word the export adds, D11).
+    const XLINK = 'http://www.w3.org/1999/xlink';
+    const referenced = new Set(
+      [...doc.getElementsByTagNameNS(NS, 'a')]
+        .filter((a) => a.getAttribute('type') === 'note')
+        .map((a) => (a.getAttributeNS(XLINK, 'href') || '').replace(/^#/, '')),
+    );
+    const notesBodies = [...doc.getElementsByTagNameNS(NS, 'body')].filter((b) =>
+      /^(notes|comments)$/i.test(b.getAttribute('name') || ''),
+    );
+    const unreferenced = notesBodies.some((b) =>
+      [...b.getElementsByTagNameNS(NS, 'section')].some(
+        (sec) =>
+          sec.getAttribute('id') &&
+          ![...sec.children].some((c) => c.localName === 'section') &&
+          !referenced.has(sec.getAttribute('id')),
+      ),
+    );
+    const notesTitle = notesBodies.length
+      ? [...notesBodies[0].children].find((c) => c.localName === 'title')
+      : undefined;
+    const notesTitleBlocks = !unreferenced
+      ? []
+      : notesTitle
+        ? [...notesTitle.children]
+            .filter((c) => c.localName === 'p')
+            .map((c) => ({ text: clean(c.textContent), note: false }))
+        : [{ text: ${JSON.stringify(notesWord)}, note: false }];
+    // The history's page comes before them: the paginator appends their section after it.
     const historyBlocks = descriptionBlocks('document-info', 'history');
     blocks.push(...historyBlocks);
+    blocks.push(...notesTitleBlocks);
     // D11: the title page as the paginator sets it - the authors, the title, each series in
     // brackets ("(Name #N)"), and the publisher and the year ("Publisher, Year") at its foot.
     const info = doc.getElementsByTagNameNS(NS, 'title-info')[0];
@@ -136,14 +180,14 @@ async function expectedTextAll(page: Page, file: string): Promise<Expected> {
     const imprint = [field('publisher'), field('year')].filter(Boolean).join(', ');
     const lines = [...authors, title, ...series, imprint].filter(Boolean);
     // The title page shows them together: its whole text is added too.
-    return { blocks, addedWords: [...lines, lines.join(' ')], annotationBlocks, historyBlocks };
+    return { blocks, addedWords: [...lines, lines.join(' ')], annotationBlocks, historyBlocks, notesTitleBlocks };
   })()`);
 }
 
 interface ModelJson {
   type?: string;
   text?: string;
-  attrs?: { name?: string };
+  attrs?: { name?: string; title?: string };
   content?: ModelJson[];
 }
 
@@ -170,6 +214,19 @@ function modelBlocks(bodies: ModelJson[]): Expected['blocks'] {
       for (const child of node.content ?? []) {
         // D19: the notes go to the feet of the pages; their body's own title is not printed.
         if ((note && top && child.type === 'title') || raw(child)) continue;
+        // Feature 016 (D10): a group of notes is printed as its notes only, without the group's title.
+        if (
+          note &&
+          child.type === 'title' &&
+          (node.content ?? []).some((c) => c.type === 'section')
+        )
+          continue;
+        // Feature 016 (D10): a block picture's title is printed under it as its caption.
+        if (child.type === 'image') {
+          const title = typeof child.attrs?.title === 'string' ? clean(child.attrs.title) : '';
+          if (title) blocks.push({ text: title, note });
+          continue;
+        }
         if (BLOCKS.has(child.type ?? '')) blocks.push({ text: clean(textOf(child)), note });
         else walk(child, false);
       }
@@ -192,6 +249,7 @@ export async function expectedText(page: Page, file: string): Promise<Expected> 
   const around = expected as Expected & {
     annotationBlocks?: Expected['blocks'];
     historyBlocks?: Expected['blocks'];
+    notesTitleBlocks?: Expected['blocks'];
   };
   return {
     ...expected,
@@ -199,6 +257,7 @@ export async function expectedText(page: Page, file: string): Promise<Expected> 
       ...(around.annotationBlocks ?? []),
       ...modelBlocks(bodies),
       ...(around.historyBlocks ?? []),
+      ...(around.notesTitleBlocks ?? []),
     ],
   };
 }

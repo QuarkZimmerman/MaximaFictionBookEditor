@@ -133,6 +133,26 @@ TEST_CASE("validator: schema errors carry line, column-less element info and map
     }
 }
 
+TEST_CASE("validator: an error in a description field after the annotation maps to no node",
+          "[validator]") {
+    // The requester's smoke test of 0.0.12-rc.1: a wrong date, an author's home page without a last
+    // name - every such error went to the annotation's last paragraph.
+    auto l = load("modern-utf8.fb2");
+    model::Document doc = l->result.document;
+    REQUIRE(doc.description.titleInfo.annotation.has_value());
+    doc.description.documentInfo.date.value = "2026-10-30 23:46";
+    model::NodeIdAllocator ids = l->ids;
+    model::assign_node_ids(doc, ids);
+    const auto report = validation::validate_document(doc, &l->store, l->result.xlink_prefix);
+    const auto errors = with_code(report, "schema.invalid");
+    const auto date = std::find_if(errors.begin(), errors.end(), [](const auto* issue) {
+        return param(*issue, "element") == "date";
+    });
+    REQUIRE(date != errors.end());
+    CHECK((*date)->line.has_value());
+    CHECK_FALSE((*date)->nodeId.has_value());
+}
+
 TEST_CASE("validator: consistency checks - links, binaries, image formats, required values",
           "[validator]") {
     model::Document doc;

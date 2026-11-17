@@ -81,6 +81,10 @@ export const RpcErrorCode = {
   epubWriteFailed: 1111,
   /** Feature 014: a PDF export that cannot go on (reason pdf.*, contracts/rpc-api.md). */
   pdfExportFailed: 1112,
+  /** Feature 016: a PDF import that cannot go on ({reason}, contracts/rpc-api.md). */
+  pdfImportFailed: 1113,
+  /** Feature 016: an unknown or ended pdfImport token. */
+  pdfImportUnknownToken: 1114,
   spellDictionaryUnavailable: 1020,
   scriptNotFound: 1030,
   scriptInvalidManifest: 1031,
@@ -723,7 +727,8 @@ export interface ArchiveBook {
   /** "/"-separated, "" at the top level. */
   folder: string;
   size: number;
-  kind: 'fb2' | 'fbd';
+  /** Feature 016: the PDF import offers an archive's PDFs in the same chooser. */
+  kind: 'fb2' | 'fbd' | 'pdf';
 }
 
 /** `doc.open`'s answer for a ZIP archive of several books (feature 009). */
@@ -1081,6 +1086,30 @@ export type AiOutcome =
 export type ChatRequest = { messages: unknown[]; [member: string]: unknown };
 
 /** `ai.models`: the service's list normalised (`id` from `id` or `name`, strings as ids). */
+/**
+ * Feature 016 (contracts/rpc-api.md): what `pdfImport.inspect` and `pdfImport.password` answer - the PDF
+ * open, or the password it needs (the owner's when it forbids copying its text).
+ */
+export interface PdfImportOpen {
+  opened?: boolean;
+  pages?: number;
+  needsPassword?: boolean;
+  wrongPassword?: boolean;
+  ownerPassword?: boolean;
+}
+
+/** Feature 016: a PDF or an FBD in a ZIP archive offered to the import. */
+export interface PdfImportEntry {
+  entry: string;
+  size: number;
+}
+
+/** Feature 016: `pdfImport.begin` - the import's token, or a ZIP archive's PDFs and FBDs to choose from. */
+export interface PdfImportBegun {
+  token?: string;
+  archive?: { pdfs: PdfImportEntry[]; fbds: PdfImportEntry[] };
+}
+
 /** Feature 012: an EPUB opened for the import (`epub.open`, contracts/rpc-api.md §1). */
 export interface EpubSource {
   token: string;
@@ -1391,6 +1420,35 @@ export interface RpcMethods {
   /** Feature 010 (US8): the effective template's FB2 text, for the import's description. */
   'template.xml': { params: void; result: { xml: string } };
   /** Feature 012 (contracts/rpc-api.md §1): opens an EPUB for the import; entries over `/epub/{token}/{entry}`. */
+  /** Feature 016 (contracts/rpc-api.md): the PDF import's session; 1113 {reason}, 1114 unknown token. */
+  'pdfImport.begin': { params: { path: string; entry?: string }; result: PdfImportBegun };
+  'pdfImport.inspect': { params: { token: string }; result: PdfImportOpen };
+  'pdfImport.password': { params: { token: string; password: string }; result: PdfImportOpen };
+  /** A job: progress per page read; its result `{ pages, kinds }`. */
+  'pdfImport.read': {
+    params: { token: string };
+    /** The pages of each kind (DP-8) and the share of plain words of the text layer (DP-9). */
+    result: MaybeJob<{
+      pages: number;
+      kinds: Record<string, number>;
+      garbledShare: number;
+      /** Drawings past the 2,000 a book takes (DP-3), left out. */
+      drawingsLeftOut?: number;
+    }>;
+  };
+  'pdfImport.addPictures': {
+    params: {
+      token: string;
+      docId: string;
+      pictures: { id: string; page: number; suggestedId?: string }[];
+    };
+    /** A job (D32): the reader gives the pictures one by one. */
+    result: MaybeJob<{ added: { id: string; binary: BinaryMeta }[]; failed: string[] }>;
+  };
+  'pdfImport.end': { params: { token: string }; result: Record<string, never> };
+  /** Feature 016 (D22, D23): an FBD of the archive, and the editor's record, as files 004's reader takes. */
+  'pdfImport.extractFbd': { params: { token: string; entry: string }; result: { path: string } };
+  'pdfImport.recordFbd': { params: { token: string }; result: { path: string } };
   'epub.open': { params: { path: string }; result: EpubSource };
   'epub.close': { params: { token: string }; result: Record<string, never> };
   /**
@@ -1418,12 +1476,15 @@ export interface RpcMethods {
    * `path` (chosen with dialog.saveFile) in one of the nine page sizes; errors 1112 pdfExportFailed.
    */
   'pdf.export.begin': {
-    params: { path: string; pageSize: PdfPageSizeId; docId?: string };
+    /** Feature 016 (D25): `zip` writes a ZIP archive with the PDF and the book's FBD instead. */
+    params: { path: string; pageSize: PdfPageSizeId; docId?: string; zip?: boolean };
     /** `limits`: DP-19's, by which the export refuses a book before printing. */
     result: {
       token: string;
       pageSize: PdfPageSizeId;
       limits?: { pages: number; notes: number; nesting: number; pixels: number };
+      /** With `zip`: where doc.exportDescription writes the archive's FBD before the finish. */
+      fbdPath?: string;
     };
   };
   /** Declares how many parts the paged document has (each uploaded with PUT /pdf/{token}/part/{n}). */
@@ -1482,7 +1543,12 @@ export interface RpcMethods {
    * (SC-010): text of 2 MB or more is read as a job, with its progress, as `doc.open` reads a big book.
    */
   'doc.newFromXml': {
-    params: { xml: string; origin?: { kind: 'markdown' | 'epub'; path: string } };
+    params: {
+      xml: string;
+      origin?: { kind: 'markdown' | 'epub' | 'pdf'; path: string };
+      /** Feature 016 (D6): keep the description's id, date and program (the editor's own PDF). */
+      keepDetails?: boolean;
+    };
     result: MaybeJob<{ document: Document & LoadReport; warnings: ValidationIssue[] }>;
   };
   /** Feature 010 (US1, test hooks only): the core answers the next connection's requests after `ms`. */

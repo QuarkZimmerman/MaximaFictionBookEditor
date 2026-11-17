@@ -334,6 +334,39 @@ finishes an archival file.
   `ui/tests/unit/pdf/chunk.test.ts` (G20) reads the built output; `ui/tests/e2e/us5-pdf-lazy.spec.ts`
   checks that no request for the chunk or the export's fonts goes out before the first export.
 
+**PDF import (feature 016).** The reverse of the export, split the same way: a separate reader process reads
+the PDF, and the interface makes the book.
+* *The reader* `mfbe-pdf-reader` (`core/src/pdf/reader/`) is Poppler in a process of its own, beside the
+  shell and the core: a hostile PDF can end only it. The core starts it (`core/src/pdf/import/
+  reader_process.cpp`) with its memory capped at 1 GB (a job object on Windows, `RLIMIT_AS` on Linux, a watch
+  on macOS), a watchdog that ends it after 30 s without progress, and it dies with its parent. It reads
+  passwords from its standard input, and writes into a folder of its own (`<Temp>/pdf-import/<token>/`,
+  removed by `pdfImport.end` and, after a crash, at the next start): `document.json` (metadata, outline, the
+  editor's record, the tag tree with its marked content and what the tree leaves out, the first page's
+  cover, what the import drops) and a `page-<n>.json` per page (words with boxes, fonts, links, pictures,
+  drawings, form fields, the page's kind). Pictures and drawings are written only when the import asks for
+  them, as JPEG passed on byte for byte or PNG. Each page's kind - text, picture with a layer, blank,
+  picture showing text, picture without text, garbled - decides the refusals of D19. `--render <n> --dpi
+  <d> --out <file.png>` draws one page as a picture, for a later OCR.
+* *The core serves it* (`pdfImport.*` in `core/src/server/handlers/pdf_import_handlers.cpp`, `contracts/
+  rpc-api.md`): `begin` takes a PDF or a ZIP archive's entry (009's archive reader), `inspect` and
+  `password` open it, `read` is a job over every page, `GET /pdf-import/{token}/document` and `/page/{n}`
+  hand the interface the files, `addPictures` asks the reader for the pictures the book keeps and stores
+  them as the new book's binaries, `extractFbd` and `recordFbd` give 004's description reader an archive's
+  FBD and the editor's record.
+* *The interface makes the book* (`ui/src/features/pdf/import/`): its own PDFs from the record and the hints
+  (`ours.ts`: blocks numbered as the paginator numbered them, containers, sections, styles, ids, notes; since
+  0.0.12 the export's hints also name what the pages cannot show - spaces at line ends and at marks' edges,
+  line breaks without a space, letters with combining marks, blocks that go on onto the next page, pages whose
+  foot begins with a note's rest - and a record of 0.0.11, without them, is read by the pages alone),
+  tagged PDFs from their structure (`parts.ts`, `text.ts`), the rest from the layout (`layout.ts`: lines,
+  columns, running heads, paragraphs, headings, broken words, drop caps), the description from the metadata
+  or an FBD (`describe.ts`, `fbd.ts`, `questions.ts`). The new book is opened as an untouched new document.
+* *The chunk rule.* `ui/src/features/pdf/importCommand.ts` is the static entry: File > Import > PDF File...,
+  the open dialog, the archive's choice and the password; it starts the progress and only then imports the
+  `pdf-import` chunk (the rule in `ui/vite.config.ts`). `ui/tests/e2e/us8-pdf-import-lazy.spec.ts` checks
+  that nothing of it loads before the first import.
+
 **Validate.** `doc.validate` accepts either the model or Source text; the report lists
 severity, line, column, element path and message per issue. The Validation panel jumps to
 issues; `edit.gotoWrongTag` uses the same locations in the Source view.

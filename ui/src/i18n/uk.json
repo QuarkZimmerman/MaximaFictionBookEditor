@@ -937,6 +937,7 @@
       "namespaceMissing": "Кореневий елемент не належить до простору імен FictionBook ({{expected}})"
     },
     "schemaInvalid": "Схема: {{message}}",
+    "authorNoLastName": "Особа має ім'я, але не має прізвища: FB2 потребує прізвище (його можна залишити порожнім) або лише псевдонім. Виправте поруч з особою в Описі.",
     "schemaUnavailable": "Не вдалося завантажити схему FictionBook: {{reason}}",
     "genre": {
       "unknown": "Невідомий жанр «{{code}}»"

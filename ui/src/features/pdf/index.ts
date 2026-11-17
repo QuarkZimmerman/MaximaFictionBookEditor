@@ -27,6 +27,8 @@ export const EXPORT_PDF_COMMAND = 'file.exportPdf';
 export interface PdfRun {
   path: string;
   pageSize: PdfPageSizeId;
+  /** Feature 016 (D25): a ZIP archive with the PDF and the book's FBD. */
+  zip: boolean;
   /** The progress, shown before the part loaded; the part ends it. */
   modal: ModalJobHandle;
   /** True once *Cancel* was pressed, also while the part was loading. */
@@ -74,7 +76,11 @@ export function registerPdfFeature(commands: CommandRegistry): void {
       const stem = proposedStem(state.document.description, ctx.t('app.untitled'));
       const proposed = proposedSize(ctx, docId);
       const labels = PDF_PAGE_SIZES.map((size) => ctx.t(`pdf.sizes.${size.id}`));
-      const { path, encoding } = await rpc.call('dialog.saveFile', {
+      const {
+        path: chosenPath,
+        encoding,
+        zip,
+      } = await rpc.call('dialog.saveFile', {
         title: ctx.t('cmd.file.exportPdf.tooltip'),
         filters: [{ name: ctx.t('pdf.filter'), extensions: ['pdf'] }],
         selectedFilter: 0,
@@ -83,23 +89,39 @@ export function registerPdfFeature(commands: CommandRegistry): void {
         encodingChoices: labels,
         selectedEncoding: ctx.t(`pdf.sizes.${proposed}`),
         encodingLabel: ctx.t('pdf.pageSizeLabel'),
+        // Feature 016 (D25): *Save in ZIP archive*, unticked every time.
+        zipChoice: { label: ctx.t('pdf.zipChoice'), checked: false },
       });
-      if (!path || store.getState().docId !== docId) return;
-      // D2: a dialog that could not carry the list answered without it - the size is asked in the
-      // editor's own window; its *Cancel* writes nothing.
+      if (!chosenPath || store.getState().docId !== docId) return;
+      // D2: a dialog that could not carry the list or the box answered without them - they are asked in
+      // the editor's own window; its *Cancel* writes nothing.
       const chosen = encoding === undefined ? -1 : labels.indexOf(encoding);
-      const pageSize =
-        chosen >= 0
-          ? PDF_PAGE_SIZES[chosen].id
-          : await showPageSizeDialog(ctx.dialogs, { defaultSize: proposed, path });
-      if (!pageSize || store.getState().docId !== docId) return;
+      let pageSize: PdfPageSizeId | null = chosen >= 0 ? PDF_PAGE_SIZES[chosen].id : null;
+      let toZip = zip;
+      if (pageSize === null || toZip === undefined) {
+        const asked = await showPageSizeDialog(ctx.dialogs, {
+          defaultSize: pageSize ?? proposed,
+          path: chosenPath,
+          zip: toZip ?? false,
+        });
+        if (!asked) return;
+        pageSize = asked.size;
+        toZip = asked.zip;
+      }
+      if (store.getState().docId !== docId) return;
+      // D25: ticked, the name takes .zip (as Save As's box gives it); unticked, a .zip ending becomes .pdf.
+      const path = toZip
+        ? /\.zip$/i.test(chosenPath)
+          ? chosenPath
+          : `${chosenPath.replace(/\.pdf$/i, '')}.zip`
+        : chosenPath.replace(/\.zip$/i, '.pdf');
       // D25: kept for the book from here on, even if the export is cancelled (analysis C7).
       keepPageSize(docId, pageSize);
       let cancelled = false;
       const modal = startModalJob(ctx.t('pdf.exporting'), () => {
         cancelled = true;
       });
-      const run: PdfRun = { path, pageSize, modal, cancelled: () => cancelled };
+      const run: PdfRun = { path, pageSize, zip: !!toZip, modal, cancelled: () => cancelled };
       try {
         const { exportPdf } = await import('./export/job');
         await exportPdf(ctx, docId, run);

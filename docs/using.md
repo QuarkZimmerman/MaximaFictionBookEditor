@@ -217,6 +217,10 @@ closes only once the new one is ready, after the usual question about unsaved ch
   section's id; links to headings lead to their sections.
 - Emphasis, strong, strikethrough, inline code, `~sub~` and `^sup^` keep their styles; links stay
   links; footnotes become notes in a notes body, as *Style > Footnote…* makes them.
+- Notes written with superscript numbers, as AI-written texts give them - "tourists¹" in the text and,
+  after a horizontal rule, a paragraph beginning with "¹" - become notes too, when every such paragraph
+  after the rule is a note and each number stands exactly once in the text before it; anything else stays
+  as it is written.
 - Lists become paragraphs that begin with a bullet, their number or a check box; quotes become
   quotes, code blocks code paragraphs line by line, a horizontal rule a subtitle "* * *", tables
   tables with their header cells and alignment.
@@ -372,6 +376,14 @@ and *Statement*. It proposes the size the open book was last exported in, else t
 *Settings > Exports*, format PDF (A4 out of the box). Where the system's save dialog cannot show the list, the
 editor asks for the size in a window of its own after the dialog.
 
+### Save in ZIP archive
+
+The save dialog also offers *Save in ZIP archive*, unticked every time. Ticked, the export writes a ZIP
+archive instead of the PDF, named `.zip`: it holds the PDF and an FBD file with the book's description and
+its cover pictures, as *Export as FBD…* writes it, both named after the archive. Importing that archive
+gives the book back without a question. Where the system's save dialog cannot show the box, the editor's
+own window asks for it with the page size.
+
 ### What the PDF holds
 
 - A cover page with the description's cover picture, and a title page as printed books set it: the
@@ -395,6 +407,8 @@ editor asks for the size in a window of its own after the dialog.
   date, publisher, translators, ISBN, and the series as Calibre reads it. The editor also records the
   description itself and a few hints, so that the book can be recreated from its PDF later.
 - The file is archival: PDF/A-2U, checked by the editor before it is written.
+- A picture's title is printed under it as its caption. A paragraph that goes on onto the next page goes
+  on there without its first-line indent.
 
 The words the export adds - the cover's description, the notes' heading - are in the book's language
 (English, Russian or Ukrainian, else English).
@@ -428,6 +442,48 @@ export has settings of its own for now.
   with the reason; one that forbids subsetting is embedded whole. The editor keeps its own copy, in its
   data folder (a portable copy: in `user/fonts/`), so the original may be moved or deleted. *Remove*
   removes an added font; Noto Serif then becomes the text font again.
+
+## PDF import
+
+*File > Import > PDF File…* makes a new book of a PDF, or of a PDF inside a ZIP archive. The window's
+book is replaced as by *File > New* - with the usual question when it has unsaved changes - and the new
+book is unsaved, with no file of its own: Recent files, the settings and the folders the dialogs start
+in stay as they were. *File > Open* refuses a PDF and points here. The import is loaded the first time it
+is used and shows its progress with *Cancel*, which leaves the window's book as it was.
+
+What comes back depends on where the PDF came from:
+
+- **A PDF the editor exported** gives its book back as it was: the description, every body, section,
+  block, inline mark, id, link, note and stylesheet, JPEG pictures byte for byte and PNG pictures pixel for
+  pixel. What a PDF cannot hold is listed in the summary - for instance notes that come back ungrouped.
+- **A PDF made from text** by another program gives its text: from its structure when it is tagged and
+  its tags hold all its text in the order its pages read; else, and for the pages its tags leave out, from
+  its layout - columns one after the other (around pictures too), headings by the bookmarks and the type
+  sizes, paragraphs by indents and spacing,
+  running heads and page numbers left out, words broken at a line's end joined (with a soft hyphen always,
+  with a plain one when the dictionaries know the word), bold and italic, pictures, tables and drawings
+  (as pictures). Its document information gives the description. Cyrillic written with Latin-1 letters is
+  put right.
+- **A scanned book with a text layer** (recognised by a program such as ABBYY FineReader or Acrobat) gives
+  its layer's text, with its recognition errors as they are; the first page's picture becomes the cover,
+  and the other page pictures are left out. A scan without a text layer, or whose layer is garbage, is
+  refused with the number of pages concerned: the editor does no text recognition.
+
+Whatever the PDF, the book comes in as valid FB2: what the FB2 schema does not allow - a book that was not
+valid when it was exported, say - is set right (paragraphs beside subsections get a section of their own,
+a title's stray parts become its lines), and the summary counts it. Genres outside the schema's list, which
+the editor allows, come back as written.
+
+A ZIP archive may hold several PDFs (the editor asks which) and FBD files. When it holds an FBD with the
+PDF's name, the editor asks whether to take the book's description from it, naming it; when none has the
+name, it lists them with *None*. For the editor's own PDF the question names both descriptions, and none is
+asked when they are the same. An FBD that cannot be read is named with its problem, and the PDF's
+description is used.
+
+A PDF protected by a password asks for it, and again after a wrong one; one that forbids copying its text
+asks for its owner's password. Damaged and hostile files end in a message - nothing in a PDF runs, and
+nothing is fetched. Comments, attached files, sounds, videos and scripts are left out and counted in the
+summary.
 
 ## The Styles view
 
@@ -518,6 +574,11 @@ An author, translator or document author whose fields are all empty is written a
 wrote it - an author with an empty first and last name -, so the book stays valid. Validate warns when
 no author of the book has a name or a nickname, and the Description view's message says what to fill
 in.
+
+A person with a first name but no last name is not valid FB2: the schema needs a last name, which may
+stay empty, or a nickname alone. The Description view says so beside the person, and Validate says it
+too; *Fix* beside the person adds the empty last name. Any edit of the description writes the person in
+the schema's form as well, which is why such an error goes away after another field is fixed.
 
 ## Regular expressions in Find and Replace
 

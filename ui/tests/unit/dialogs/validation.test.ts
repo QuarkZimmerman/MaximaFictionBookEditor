@@ -30,6 +30,39 @@ function warning(params: Record<string, unknown>, extra: Partial<ValidationIssue
   return { severity: 'warning', code: 'table.irregular', params, ...extra } as ValidationIssue;
 }
 
+describe('a person with a first name but no last name', () => {
+  // The requester, after his smoke test of rc.1: the schema's message became a plain one.
+  it('is said plainly, whatever element the schema met after the first name', () => {
+    for (const message of [
+      "Element 'home-page': This element is not expected. Expected is one of ( middle-name, last-name ).",
+      "Element 'author': Missing child element(s). Expected is one of ( middle-name, last-name ).",
+      "Element 'email': This element is not expected. Expected is ( last-name ).",
+    ]) {
+      const issue = {
+        code: 'schema.invalid',
+        severity: 'error',
+        params: { element: 'home-page', message },
+      } as unknown as ValidationIssue;
+      for (const language of ['en', 'ru', 'uk'] as const)
+        expect(issueMessage(issue, t[language], i18n)).toBe(
+          t[language]('validation.authorNoLastName'),
+        );
+    }
+    expect(issueMessage(issue('home-page'), t.en, i18n)).toContain('first name but no last name');
+  });
+});
+
+function issue(element: string): ValidationIssue {
+  return {
+    code: 'schema.invalid',
+    severity: 'error',
+    params: {
+      element,
+      message: `Element '${element}': This element is not expected. Expected is one of ( middle-name, last-name ).`,
+    },
+  } as unknown as ValidationIssue;
+}
+
 describe('table.irregular in the Validation panel', () => {
   it('renders its problems in en, ru and uk, with plurals, with and without id', () => {
     expect(issueMessageKey('table.irregular')).toBe('validation.table.irregular');

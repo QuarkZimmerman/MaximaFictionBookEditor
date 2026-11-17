@@ -49,6 +49,12 @@ export function pictureBox(
 const PLACEHOLDER =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mP4//8/AAX+Av4zEpUUAAAAAElFTkSuQmCC';
 
+/** An FB2 picture inside a line (a paragraph, a verse...), not a block of its own. */
+const isInline = (image: Element): boolean =>
+  !['section', 'body', 'cite', 'epigraph', 'annotation', 'td', 'th'].includes(
+    image.parentElement?.localName ?? '',
+  );
+
 /** A picture box (R4): its size, its binary, and its alternative text for the structure (D20). */
 export function pictureElement(
   doc: globalThis.Document,
@@ -64,7 +70,10 @@ export function pictureElement(
   box.style.height = `${size.height}px`;
   const img = doc.createElementNS(XHTML_NS, 'img') as HTMLImageElement;
   img.src = PLACEHOLDER;
-  img.alt = alt;
+  // An empty alt marks a picture as decoration, which the engine leaves out of the structure - and the
+  // import would lose the picture and the place of every block after it (D32's library run): a picture
+  // without alternative text has no alt at all, and is tagged as a figure.
+  if (alt) img.alt = alt;
   img.style.cssText = 'display:block;width:100%;height:100%';
   box.append(img);
   return box;
@@ -198,6 +207,13 @@ export async function createPrintFrame(
     const root = doc.body.firstElementChild!;
     flow.append(root);
     doc.body.append(flow);
+    // Feature 016 (D6's C3): the soft hyphens out of the printed book. The PDF never breaks a word at one
+    // (hyphens: none), and the engine prints each as a space in the PDF's text (D32's library run).
+    const texts = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    for (let node = texts.nextNode(); node; node = texts.nextNode()) {
+      const text = node as Text;
+      if (text.data.includes('\u00ad')) text.data = text.data.replaceAll('\u00ad', '');
+    }
 
     const binaries = new Map(book.binaries.map((binary) => [binary.id, binary]));
     const leftOut: string[] = [];
@@ -214,8 +230,18 @@ export async function createPrintFrame(
         continue;
       }
       const box = pictureElement(doc, id, img?.alt ?? '', size);
+      const title = img?.title ?? '';
       if (img) img.replaceWith(box);
       else image.append(box);
+      // Feature 016 (D10, research R11.4): a block picture's title is printed under it as its caption
+      // (014 D12, FR-011), and the hints mark it so the import gives it back as the title.
+      if (title.trim() && !isInline(image)) {
+        const caption = doc.createElementNS(XHTML_NS, 'p') as HTMLElement;
+        caption.className = 'mfbe-caption';
+        caption.setAttribute('role', 'caption');
+        caption.textContent = title;
+        image.append(caption);
+      }
     }
     addRoles(root);
     // D22: an id used twice is kept by its first element (a destination must be one place).

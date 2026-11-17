@@ -21,9 +21,12 @@ export function noteSections(root: Element): Map<string, Element> {
   const notes = new Map<string, Element>();
   for (const body of root.getElementsByTagNameNS(FB2_NS, 'body')) {
     if (!isNotesBody(body)) continue;
-    for (const section of body.children) {
+    // Feature 016 (D10, research R11.1): notes may stand in groups ("Footnotes", "Comments"), sections
+    // inside sections. A note is a section with an id that holds no section itself, however deep.
+    for (const section of body.getElementsByTagNameNS(FB2_NS, 'section')) {
       const id = section.getAttribute('id');
-      if (section.localName === 'section' && id && !notes.has(id)) notes.set(id, section);
+      const group = [...section.children].some((c) => c.localName === 'section');
+      if (id && !group && !notes.has(id)) notes.set(id, section);
     }
   }
   return notes;

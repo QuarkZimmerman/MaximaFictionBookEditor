@@ -3,6 +3,59 @@
 All notable changes to Maxima Fiction Book Editor. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.0.12 - unreleased
+
+### In short
+
+- File > Import > PDF File... makes a new book of a PDF, or of a PDF in a ZIP archive
+- The editor's own PDFs come back as the books they were exported from
+- PDFs made from text give their text, headings, pictures, tables and drawings
+- Scanned books with a text layer give their recognised text; scans without one are refused
+- An FBD in the archive can give the book's description; protected PDFs ask for their password
+- Export as PDF can save a ZIP archive with the PDF and the book's FBD
+- PDF export: grouped notes, zero-width non-joiners and two notes bodies; picture titles as captions
+- Markdown notes written with superscript numbers become the book's notes
+
+### Added
+
+- File > Import > PDF File... imports a PDF, or a PDF inside a ZIP archive, as a new unsaved book, with a
+  progress bar and Cancel; File > Open refuses a PDF and points to it. Recent files, the settings and the
+  dialogs' folders stay as they were. The import is loaded the first time it is used.
+- The editor's own PDFs give their book back from the record and hints the export stores: the description,
+  bodies, sections, blocks, inline marks, ids, links, notes, stylesheets, JPEG pictures byte for byte and PNG
+  pictures pixel for pixel. A PDF exported by 0.0.11 imports too.
+- PDFs made by other programs give their text from their structure when they are tagged, else from their
+  layout: headings by bookmarks and type sizes, paragraphs, running heads and page numbers left out, words
+  broken at a line's end joined, bold and italic, pictures (JPEG, JPEG 2000, JBIG2, CCITT fax), tables,
+  drawings as pictures, forms in labelled rows as tables. Cyrillic written with Latin-1 letters is put right.
+- Scanned books with a text layer give that layer's text and their first page as the cover. A scan without a
+  layer, or whose layer reads as garbage, is refused with the number of pages concerned.
+- A ZIP archive may hold several PDFs and FBD files: the editor asks which PDF, and whether to take the
+  description from the FBD of the PDF's name, or lists the FBDs with None; no question comes when the
+  FBD repeats the editor's own description.
+- Password-protected PDFs ask for their password, and those that forbid copying for their owner's password.
+  Damaged and hostile PDFs end in a message; nothing in them runs. Comments, attached files, media and
+  scripts are left out and counted.
+- Export as PDF... offers Save in ZIP archive: the archive holds the PDF and the book's FBD, named after it.
+- Whatever the PDF, the imported book is valid FB2: what the schema does not allow is set right and counted
+  in the summary; genres outside the schema's list, which the editor allows, come back as written.
+- The Markdown import makes notes of superscript numbers - a marker in the text and, after a thematic break,
+  a paragraph beginning with it, as AI-written texts give them - where that is unambiguous (issue #16).
+- A person with a first name but no last name is said plainly, in the Description and in the Validate list,
+  and Fix beside the person adds the empty last name FB2 needs.
+
+### Fixed
+
+- Export as PDF... exports books whose notes are grouped in sections, books with zero-width non-joiners,
+  and books with two notes bodies, which it refused.
+- A block picture's title is printed under it as its caption.
+- A paragraph continued onto the next page of a PDF is printed without its first-line indent.
+- Export as PDF... exports books where a picture as tall as a page has a caption, or meets the rest of a long
+  note on a page, which it refused after its own check.
+- Validate places an error in a description field, such as a wrong date, on that field's line in the Source
+  view instead of on the annotation's last paragraph.
+- Choose a genre refuses a genre just added when it is added again right after.
+
 ## 0.0.11 - 2026-11-15
 
 ### In short

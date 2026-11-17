@@ -82,11 +82,13 @@
 #include <cstdint>
 #include <exception>
 #include <filesystem>
+#include <fstream>
 #include <functional>
 #include <future>
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <system_error>
 
 namespace mfbe::server {
@@ -348,8 +350,19 @@ ArchiveChoice choose_entry(const std::string& path, const std::optional<std::str
         return choice;
     }
     if (listing.books_total == 0) {
+        // Feature 016 (D4): an archive holding a PDF but no book points to the PDF import.
+        json data = json::object();
+        for (const archive::Entry& e : listing.entries) {
+            std::string name = e.name;
+            std::transform(name.begin(), name.end(), name.begin(),
+                           [](unsigned char c) { return std::tolower(c); });
+            if (name.size() > 4 && name.compare(name.size() - 4, 4, ".pdf") == 0) {
+                data["reason"] = "pdfInArchive";
+                break;
+            }
+        }
         throw rpc::RpcError(rpc::codes::kArchiveNoBook, "the archive holds no FictionBook book",
-                            json::object());
+                            data);
     }
     if (listing.books_total == 1) {
         choice.entry = listing.books.front().entry;
@@ -382,6 +395,16 @@ void refuse_other_archives(const fs::path& file) {
     }
     if (kind == archive::Kind::zip && epub::is_epub(file)) {
         throw not_fictionbook(platform::utf8_from_path(file), "epub");
+    }
+    // Feature 016 (D4): a PDF is not opened either; it comes in through File > Import > PDF File.
+    // Its header may follow some bytes of something else (PDF 32000-1 7.5.2): the first kilobyte is
+    // looked at.
+    std::ifstream in(file, std::ios::binary);
+    char head[1024] = {};
+    in.read(head, sizeof head);
+    if (std::string_view(head, static_cast<std::size_t>(in.gcount())).find("%PDF-") !=
+        std::string_view::npos) {
+        throw not_fictionbook(platform::utf8_from_path(file), "pdf");
     }
 }
 
@@ -979,7 +1002,8 @@ namespace {
 
 // Feature 010 (US8) and 012 (SC-010): the FB2 text of a new untitled book (doc.newFromXml) read,
 // with the document details a load fills in; the session's docId and data come after.
-void read_new_book(const std::string& xml, Opened& opened, const std::string& ui_language) {
+void read_new_book(const std::string& xml, Opened& opened, const std::string& ui_language,
+                   bool keep_details = false) {
     fb2::ReadOptions options;
     options.file_kind = model::FileKind::fb2;
     try {
@@ -992,8 +1016,10 @@ void read_new_book(const std::string& xml, Opened& opened, const std::string& ui
     model::Document& doc = opened.read.document;
     doc.path.reset();
     doc.sourceEncoding = "utf-8";
-    opened.filled_in =
-        model::fill_in_document_details(doc, model::details_context_now(true, ui_language));
+    // Feature 016 (D6): the editor's own PDF gives back its description field by field - its id,
+    // date and program are kept, only what is missing is filled in.
+    opened.filled_in = model::fill_in_document_details(
+        doc, model::details_context_now(!keep_details, ui_language));
 }
 
 json new_book_result(Opened& opened, const std::string& doc_id) {
@@ -1098,51 +1124,53 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
     router.add_method("doc.newFromXml", [&services](const json& params, rpc::RpcContext& ctx) {
         std::string xml = rpc::params::string(params, "xml");
         const std::string ui_language = ui_language_setting(services);
+        const bool keep_details = rpc::params::boolean_or(params, "keepDetails", false);
         if (xml.size() < kJobThresholdBytes) {
             Opened opened;
-            read_new_book(xml, opened, ui_language);
+            read_new_book(xml, opened, ui_language, keep_details);
             session::DocumentSession& s = services.documents.create();
             json result = new_book_result(opened, s.docId);
             fill_new_session(s, opened);
             return result;
         }
         const std::string doc_id = services.documents.create().docId;
-        const std::string job_id = ctx.jobs.start([&services, xml = std::move(xml), ui_language,
-                                                   doc_id](rpc::JobControl& control) -> json {
-            control.progress("read", 0, 100);
-            auto opened = std::make_shared<Opened>();
-            try {
-                read_new_book(xml, *opened, ui_language);
-            } catch (...) {
-                on_loop_thread(
+        const std::string job_id =
+            ctx.jobs.start([&services, xml = std::move(xml), ui_language, keep_details,
+                            doc_id](rpc::JobControl& control) -> json {
+                control.progress("read", 0, 100);
+                auto opened = std::make_shared<Opened>();
+                try {
+                    read_new_book(xml, *opened, ui_language, keep_details);
+                } catch (...) {
+                    on_loop_thread(
+                        services,
+                        [&services, doc_id] {
+                            services.documents.close(doc_id);
+                            return 0;
+                        },
+                        &control);
+                    throw;
+                }
+                control.progress("model", 90, 100);
+                json result = new_book_result(*opened, doc_id);
+                const bool registered = on_loop_thread(
                     services,
-                    [&services, doc_id] {
-                        services.documents.close(doc_id);
-                        return 0;
+                    [&services, doc_id, opened] {
+                        session::DocumentSession* s = services.documents.find(doc_id);
+                        if (s == nullptr) {
+                            return false;  // closed while loading
+                        }
+                        fill_new_session(*s, *opened);
+                        return true;
                     },
                     &control);
-                throw;
-            }
-            control.progress("model", 90, 100);
-            json result = new_book_result(*opened, doc_id);
-            const bool registered = on_loop_thread(
-                services,
-                [&services, doc_id, opened] {
-                    session::DocumentSession* s = services.documents.find(doc_id);
-                    if (s == nullptr) {
-                        return false;  // closed while loading
-                    }
-                    fill_new_session(*s, *opened);
-                    return true;
-                },
-                &control);
-            if (!registered) {
-                throw rpc::RpcError(rpc::codes::kCancelled, "document was closed while loading",
-                                    json{{"docId", doc_id}});
-            }
-            control.progress("done", 100, 100);
-            return result;
-        });
+                if (!registered) {
+                    throw rpc::RpcError(rpc::codes::kCancelled, "document was closed while loading",
+                                        json{{"docId", doc_id}});
+                }
+                control.progress("done", 100, 100);
+                return result;
+            });
         return json{{"jobId", job_id}};
     });
 

@@ -1,0 +1,12 @@
+{
+ "kinds": [
+  "text",
+  "text"
+ ],
+ "contains": [
+  "harbour",
+  "hyphenated",
+  "Bold",
+  "italic"
+ ]
+}

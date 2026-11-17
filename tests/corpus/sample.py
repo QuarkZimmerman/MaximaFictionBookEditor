@@ -25,6 +25,11 @@ EPUB mode (--ext epub; feature 012, DP-19): the draw mode over the library's EPU
 (<id>/<id>.epub, ids up to 654000 by default, where the library's last range ends): an id is kept
 when its file exists, with no read of its content.
 
+PDF mode (--ext pdf; feature 016, D32): the same draw over the library's PDF books (<id>/<id>.pdf);
+an id is kept when its file exists. The gate's PDF import run (tests/corpus/pdf-import.py) sorts the drawn
+PDFs into text PDFs, scans with a text layer and scans without text with the editor's own reader, and keeps
+50 + 50 + 20 of them across their makers.
+
 Ids mode (--ids): the paths of the given ids; a missing one is reported.
 
 Usage:
@@ -301,22 +306,22 @@ def main() -> int:
     ap.add_argument("--max-id", type=positive_id, default=None,
                     help=f"draw mode: the highest id drawn (default {DEFAULT_MAX_ID}, "
                          f"{DEFAULT_MAX_ID_EPUB} with --ext epub)")
-    ap.add_argument("--ext", choices=("fb2", "epub"), default="fb2",
-                    help="the books' kind: fb2 (default), or epub - the draw mode over EPUB books")
+    ap.add_argument("--ext", choices=("fb2", "epub", "pdf"), default="fb2",
+                    help="the books' kind: fb2 (default), or epub / pdf - the draw mode over EPUB or PDF books")
     ap.add_argument("--threads", type=int, default=8, help="draw mode: reader threads (default 8)")
     args = ap.parse_args()
 
     if args.max_id is None:
-        args.max_id = DEFAULT_MAX_ID_EPUB if args.ext == "epub" else DEFAULT_MAX_ID
-    if args.ext == "epub" and (args.containing is not None or args.matching is not None):
-        ap.error("--ext epub reads no content: an EPUB is a ZIP, --containing and --matching read FB2 text")
-    draw = args.containing is not None or args.matching is not None or args.ext == "epub"
+        args.max_id = DEFAULT_MAX_ID_EPUB if args.ext in ("epub", "pdf") else DEFAULT_MAX_ID
+    if args.ext in ("epub", "pdf") and (args.containing is not None or args.matching is not None):
+        ap.error(f"--ext {args.ext} reads no content: --containing and --matching read FB2 text")
+    draw = args.containing is not None or args.matching is not None or args.ext in ("epub", "pdf")
     if args.ids and draw:
         ap.error("--ids cannot be combined with --containing or --matching")
     if args.containing == "":
         ap.error("--containing needs a non-empty TEXT")
     if (draw or args.ids) and args.out is None:
-        ap.error("--containing, --matching, --ext epub and --ids need --out")
+        ap.error("--containing, --matching, --ext epub/pdf and --ids need --out")
 
     if not args.root.is_dir():
         print(f"corpus root not found: {args.root}", file=sys.stderr)

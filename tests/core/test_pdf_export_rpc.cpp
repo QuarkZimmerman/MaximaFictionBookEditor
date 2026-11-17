@@ -5,6 +5,7 @@
 #include "test_support.hpp"
 #include "ws_test_client.hpp"
 
+#include <mfbe/archive.hpp>
 #include <mfbe/atomic_file.hpp>
 #include <mfbe/core_server.hpp>
 #include <mfbe/utf8_paths.hpp>
@@ -12,6 +13,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <chrono>
 #include <filesystem>
+#include <fstream>
 #include <string>
 #include <thread>
 
@@ -247,4 +249,89 @@ TEST_CASE("pdf fonts rpc: an installed font added, served, used and removed (T05
     CHECK(settings["result"]["pdf"]["textFont"] == "noto-serif");
     CHECK_FALSE(std::filesystem::exists(f.data.path() / "fonts" / (id + ".ttf")));
     CHECK(f.ws.call("pdf.fonts.remove", json{{"id", id}}).contains("error"));
+}
+
+namespace {
+
+/// One export of one part through the print seam; `zip` asks for the archive, whose FBD `fbd` is
+/// written where the core says (as doc.exportDescription would write it). The finish job's last
+/// message.
+json export_once(Fixture& f, const std::filesystem::path& target, bool zip,
+                 const std::string& fbd) {
+    const json begun = f.ws.call(
+        "pdf.export.begin",
+        json{{"path", platform::utf8_from_path(target)}, {"pageSize", "a5"}, {"zip", zip}});
+    REQUIRE(begun.contains("result"));
+    const std::string token = begun["result"]["token"];
+    CHECK(begun["result"].contains("fbdPath") == zip);
+    if (zip && !fbd.empty()) {
+        std::ofstream(platform::path_from_utf8(begun["result"]["fbdPath"].get<std::string>()),
+                      std::ios::binary)
+            << fbd;
+    }
+    REQUIRE(
+        f.ws.call("pdf.export.document", json{{"token", token}, {"parts", 1}}).contains("result"));
+    const std::string html = "<!doctype html><html><body><p>Страница</p></body></html>";
+    REQUIRE(test::http_request(f.server->port(), "PUT", "/pdf/" + token + "/part/0", f.auth(), html)
+                .status == 201);
+    const json printing = f.ws.call("pdf.export.print", json{{"token", token}, {"part", 0}});
+    REQUIRE(printing.contains("result"));
+    json requests;
+    for (int i = 0; i < 50 && requests.empty(); ++i) {
+        requests = f.ws.call("test.printRequests")["result"];
+        if (requests.empty()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        }
+    }
+    REQUIRE(requests.size() >= 1);
+    REQUIRE(test::http_request(f.server->port(), "PUT",
+                               "/test/print/" + requests.back()["jobId"].get<std::string>(),
+                               f.auth(), sample_pdf())
+                .status == 201);
+    REQUIRE(f.wait_job(printing["result"]["jobId"])["event"] == "job.done");
+    const json finishing =
+        f.ws.call("pdf.export.finish", json{{"token", token}, {"pageMap", json::object()}});
+    REQUIRE(finishing.contains("result"));
+    return f.wait_job(finishing["result"]["jobId"]);
+}
+
+}  // namespace
+
+TEST_CASE("pdf export rpc: a ZIP archive with the PDF and the FBD (D25, contracts/zip-export.md)",
+          "[pdf][rpc]") {
+    Fixture f;
+    const auto out = f.data.path() / "out";
+    std::filesystem::create_directories(out);
+    const std::string fbd =
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<FictionBook "
+        "xmlns=\"http://www.gribuser.ru/xml/fictionbook/2.0\"><description/><body/></"
+        "FictionBook>\n";
+    // The plain export, for the PDF the archive must hold byte for byte.
+    const auto plain = out / platform::path_from_utf8("книга.pdf");
+    REQUIRE(export_once(f, plain, false, "")["event"] == "job.done");
+    const auto target = out / platform::path_from_utf8("книга.zip");
+    REQUIRE(export_once(f, target, true, fbd)["event"] == "job.done");
+    const archive::Listing listing = archive::list(target);
+    REQUIRE(listing.entries.size() == 2);
+    CHECK(listing.entries[0].name == "книга.pdf");
+    CHECK(listing.entries[1].name == "книга.fbd");
+    const std::string pdf = archive::read_entry(target, "книга.pdf");
+    CHECK(pdf.rfind("%PDF-", 0) == 0);
+    // The PDF the export writes (two exports differ only in their dates): finished as PDF/A-2, its
+    // pages those of the plain export.
+    CHECK(test::pdf_xmp(pdf).find("<pdfaid:part>2</pdfaid:part>") != std::string::npos);
+    const auto pages = [](const std::string& bytes) {
+        std::size_t count = 0;
+        for (std::size_t at = bytes.find("/Type /Page"); at != std::string::npos;
+             at = bytes.find("/Type /Page", at + 1)) {
+            count += bytes.compare(at, 12, "/Type /Pages") != 0 ? 1 : 0;
+        }
+        return count;
+    };
+    CHECK(pages(pdf) == pages(atomic_file::read_file(plain)));
+    CHECK(archive::read_entry(target, "книга.fbd") == fbd);
+    // Without its FBD the archive is not written, and nothing is left at the target.
+    const auto missing = out / "missing.zip";
+    CHECK(export_once(f, missing, true, "")["event"] == "job.failed");
+    CHECK_FALSE(std::filesystem::exists(missing));
 }

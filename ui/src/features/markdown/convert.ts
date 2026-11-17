@@ -28,6 +28,7 @@ import {
   type SpecialChar,
 } from './specialChars';
 import { mathRule } from './mathRule';
+import { superscriptNotes } from './superscriptNotes';
 
 export interface MarkdownPerson {
   firstName?: string;
@@ -408,7 +409,8 @@ class Converter {
   run(text: string): ConvertResult {
     const { values, structured, body } = readFrontMatter(text);
     const env: Record<string, unknown> = {};
-    const tokens = this.md.parse(this.prepare(body, values, structured), env);
+    // Notes written with superscript numbers become Markdown footnotes first (issue #16).
+    const tokens = this.md.parse(this.prepare(superscriptNotes(body), values, structured), env);
     const footnoteCount = ((env.footnotes as { list?: unknown[] } | undefined)?.list ?? []).length;
     for (let n = 1; n <= footnoteCount; n += 1) this.used.add(`n_${n}`);
     // The sections' ids first, so that links to later headings find them.

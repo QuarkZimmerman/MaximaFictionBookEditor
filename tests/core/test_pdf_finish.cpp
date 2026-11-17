@@ -277,6 +277,17 @@ TEST_CASE("pdf check: the bidirectional marks Poppler adds to right-to-left text
                           "c\xD8\x9C") == "abc");
 }
 
+TEST_CASE("pdf check: characters that draw nothing are not text (feature 016, D10)", "[pdf]") {
+    // U+200C, U+200D, U+2060, U+034F, U+180E, U+FE0F between letters.
+    CHECK(pdf::comparable("a\xE2\x80\x8C"
+                          "b\xE2\x80\x8D"
+                          "c\xE2\x81\xA0"
+                          "d\xCD\x8F"
+                          "e\xE1\xA0\x8E"
+                          "f\xEF\xB8\x8F"
+                          "g") == "abcdefg");
+}
+
 TEST_CASE("pdf finish: the engine's link annotations carry the Print flag (PDF/A)", "[pdf]") {
     const std::vector<char> finished = pdf::finish(sample(), a5("Ссылки"));
     std::string error;

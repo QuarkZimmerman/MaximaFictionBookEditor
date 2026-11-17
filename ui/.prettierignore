@@ -8,3 +8,5 @@ package-lock.json
 tests/e2e/fixtures/ai-requests-baseline.json
 # The Body view snapshot G17 writes and compares (us4-book-styles-off.spec.ts): kept as written.
 tests/e2e/fixtures/body-view-0.0.9.json
+# Feature 016: the PDF reader's own output (document.json, page-N.json), kept as it wrote them.
+tests/unit/pdf/import/fixtures/*.json

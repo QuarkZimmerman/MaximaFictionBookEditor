@@ -55,7 +55,9 @@ export async function pdfPageTexts(bytes) {
 
 const SOFT_HYPHEN = /\u00ad/g;
 // Whitespace and the bidirectional marks (pdf.js drops those; the core's own check ignores them too).
-const SPACE = /[\s\u00a0\u2000-\u200f\u202a-\u202f\u205f\u2066-\u2069\u3000\ufeff]+/g;
+// Feature 016 (D10): with the default-ignorable characters core/src/pdf/check.cpp leaves out.
+const SPACE =
+  /[\s\u00a0\u034f\u17b4\u17b5\u180b-\u180f\u2000-\u200f\u202a-\u202f\u205f-\u2064\u2066-\u2069\u3000\ufe00-\ufe0f\ufeff]+/g;
 const squeeze = (s) =>
   s.normalize("NFC").replace(SOFT_HYPHEN, "").replace(SPACE, "");
 
@@ -134,7 +136,9 @@ export function compareText(pageTexts, expected) {
       while (lo <= hi) {
         const mid = (lo + hi) >> 1;
         const at = findFree(rest.slice(0, mid), pos);
-        if (at >= 0 && (parts.length === 0 || at === pos)) {
+        // A part ends on its page, as a note's parts do (below).
+        const nextStart = at >= 0 ? pageAfter(at) : -1;
+        if (at >= 0 && (parts.length === 0 || at === pos) && (nextStart < 0 || at + mid <= nextStart)) {
           best = mid;
           bestAt = at;
           lo = mid + 1;
@@ -176,7 +180,9 @@ export function compareText(pageTexts, expected) {
   }
   for (const block of expected.blocks.filter((b) => b.note)) {
     const needle = squeeze(block.text);
-    if (!needle) continue;
+    // A note's label ("1", "[2]", "*") is allowed anywhere (below) and covers nothing: matched first,
+    // it took the digit of a note text beginning "1)" (feature 016, D10).
+    if (!needle || /^[\d[\]().*†‡§]*$/.test(needle)) continue;
     const at = findFree(needle, 0);
     if (at >= 0) {
       cover(at, needle.length);
@@ -202,7 +208,10 @@ export function compareText(pageTexts, expected) {
       while (lo <= hi) {
         const mid = (lo + hi) >> 1;
         const found = findFree(rest.slice(0, mid), pos);
-        if (found >= 0 && found < end) {
+        // A part ends on its page: letters that happen to begin the next page's text are not its own
+        // (library book 50564: a note's part ended where the next page began with the same letter).
+        const nextStart = found >= 0 ? pageAfter(found) : -1;
+        if (found >= 0 && found < end && (nextStart < 0 || found + mid <= nextStart)) {
           best = mid;
           bestAt = found;
           lo = mid + 1;
