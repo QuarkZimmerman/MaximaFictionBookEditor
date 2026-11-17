@@ -171,10 +171,12 @@ test.describe('performance - the PDF import (SC-010)', () => {
     { tag: '@perf' },
     async ({ core, page }) => {
       test.skip(!core.hasCore, 'needs mfbe-core (MFBE_CORE_BIN)');
-      const file = libraryBook('longest') ?? pdf('reference-0.0.11-a5.pdf');
+      // A long import to cancel: the library's longest PDF (a small one ends before Cancel can be clicked).
+      const file = libraryBook('longest');
+      test.skip(!file, 'the library is not here (tests/corpus/sample-perf-pdf.txt)');
       test.setTimeout(120_000);
       await core.openApp(page);
-      const before = await importPdfViaMenu(core, page, file);
+      const before = await importPdfViaMenu(core, page, file!, { question: false });
       await page.getByTestId('modal-job').waitFor({ timeout: 30_000 });
       await page.waitForTimeout(2_000);
       const clicked = Date.now();
