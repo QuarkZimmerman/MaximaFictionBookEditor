@@ -217,6 +217,10 @@ closes only once the new one is ready, after the usual question about unsaved ch
   section's id; links to headings lead to their sections.
 - Emphasis, strong, strikethrough, inline code, `~sub~` and `^sup^` keep their styles; links stay
   links; footnotes become notes in a notes body, as *Style > Footnote…* makes them.
+- Notes written with superscript numbers, as AI-written texts give them - "tourists¹" in the text and,
+  after a horizontal rule, a paragraph beginning with "¹" - become notes too, when every such paragraph
+  after the rule is a note and each number stands exactly once in the text before it; anything else stays
+  as it is written.
 - Lists become paragraphs that begin with a bullet, their number or a check box; quotes become
   quotes, code blocks code paragraphs line by line, a horizontal rule a subtitle "* * *", tables
   tables with their header cells and alignment.
@@ -570,6 +574,11 @@ An author, translator or document author whose fields are all empty is written a
 wrote it - an author with an empty first and last name -, so the book stays valid. Validate warns when
 no author of the book has a name or a nickname, and the Description view's message says what to fill
 in.
+
+A person with a first name but no last name is not valid FB2: the schema needs a last name, which may
+stay empty, or a nickname alone. The Description view says so beside the person, and Validate says it
+too; *Fix* beside the person adds the empty last name. Any edit of the description writes the person in
+the schema's form as well, which is why such an error goes away after another field is fixed.
 
 ## Regular expressions in Find and Replace
 

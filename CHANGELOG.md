@@ -14,6 +14,7 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 - An FBD in the archive can give the book's description; protected PDFs ask for their password
 - Export as PDF can save a ZIP archive with the PDF and the book's FBD
 - PDF export: grouped notes, zero-width non-joiners and two notes bodies; picture titles as captions
+- Markdown notes written with superscript numbers become the book's notes
 
 ### Added
 
@@ -38,6 +39,10 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 - Export as PDF... offers Save in ZIP archive: the archive holds the PDF and the book's FBD, named after it.
 - Whatever the PDF, the imported book is valid FB2: what the schema does not allow is set right and counted
   in the summary; genres outside the schema's list, which the editor allows, come back as written.
+- The Markdown import makes notes of superscript numbers - a marker in the text and, after a thematic break,
+  a paragraph beginning with it, as AI-written texts give them - where that is unambiguous (issue #16).
+- A person with a first name but no last name is said plainly, in the Description and in the Validate list,
+  and Fix beside the person adds the empty last name FB2 needs.
 
 ### Fixed
 
@@ -47,6 +52,9 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 - A paragraph continued onto the next page of a PDF is printed without its first-line indent.
 - Export as PDF... exports books where a picture as tall as a page has a caption, or meets the rest of a long
   note on a page, which it refused after its own check.
+- Validate places an error in a description field, such as a wrong date, on that field's line in the Source
+  view instead of on the annotation's last paragraph.
+- Choose a genre refuses a genre just added when it is added again right after.
 
 ## 0.0.11 - 2026-11-15
 
