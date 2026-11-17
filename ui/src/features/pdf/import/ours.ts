@@ -170,6 +170,15 @@ function joinInto(last: Part, part: Part): void {
  * Feature 016 (D6): the parts joined where the record says a block goes on onto the next page - each block takes
  * its part and, once per page break the paginator recorded, the next one.
  */
+/** How much two boxes [x, y, width, height] cover each other: their intersection over their union. */
+function overlap(a: readonly number[], b: readonly number[]): number {
+  const width = Math.min(a[0] + a[2], b[0] + b[2]) - Math.max(a[0], b[0]);
+  const height = Math.min(a[1] + a[3], b[1] + b[3]) - Math.max(a[1], b[1]);
+  const inter = Math.max(0, width) * Math.max(0, height);
+  const union = a[2] * a[3] + b[2] * b[3] - inter;
+  return union > 0 ? inter / union : 0;
+}
+
 /** A part of nothing but spaces: no text, picture, table or caption. */
 const onlySpaces = (part: Part): boolean =>
   part.kind !== 'figure' &&
@@ -502,9 +511,19 @@ export function convertOurs(
       .filter((p) => p.page === page.n)
       .sort((a, b) => a.box[1] - b.box[1]);
     const found = [...page.pictures].sort((a, b) => a.box[1] - b.box[1]);
+    const used = new Set<string>();
     mapped.forEach((picture, index) => {
-      const reader = found[index];
+      // The reader's picture where the record placed it, the largest of those in its place: the engine on
+      // Windows draws a 1x1 picture under a cover, in its box (the requester's smoke test of rc.1). The order
+      // on the page when no box overlaps.
+      const fit = (r: (typeof found)[number]): number => overlap(picture.box, r.box);
+      const candidates = found.filter((r) => !used.has(r.id) && fit(r) > 0);
+      const best = candidates.length ? Math.max(...candidates.map(fit)) : 0;
+      const reader =
+        candidates.filter((r) => fit(r) >= best - 0.05).sort((a, b) => b.w * b.h - a.w * a.h)[0] ??
+        found.filter((r) => !used.has(r.id))[index];
       if (!reader) return;
+      used.add(reader.id);
       if (!wanted.some((w) => w.binaryId === picture.binaryId))
         wanted.push({ readerId: reader.id, page: page.n, binaryId: picture.binaryId });
       placements.push({ page: page.n, binaryId: picture.binaryId });

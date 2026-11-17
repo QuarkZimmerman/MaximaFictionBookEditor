@@ -201,3 +201,43 @@ describe('a block that draws nothing (D32)', () => {
     expect(xml.replace(/\s+/g, '')).toContain('<p>One</p><p/><p>Three</p>');
   });
 });
+
+describe("the book's pictures on a page (D10)", () => {
+  // The requester's smoke test of rc.1: the engine on Windows drew a 1x1 picture under the cover, in its box.
+  it('takes the picture where the record placed it, the largest there, not the first', () => {
+    const hints = {
+      v: 1,
+      blocks: 0,
+      generated: { cover: 1, titlePage: null, annotationPage: null, historyPage: null },
+      bodies: [{ name: '', page: 2 }],
+      sections: [],
+      kinds: [],
+      styles: [],
+      marks: [],
+      spaces: [],
+      langs: [],
+      ids: [],
+      tables: [],
+      pictures: [
+        { page: 1, box: [62.35, 62.36, 470.55, 710.26], binaryId: 'cover.jpg', inline: false },
+      ],
+      stylesheets: [],
+      anchors: {},
+      continued: [],
+    } as unknown as HintsV1;
+    const page = {
+      n: 1,
+      pictures: [
+        { id: 'x4-0', box: [62.25, 62.22, 471, 710.25], w: 1, h: 1 },
+        { id: 'x6148-0', box: [62.35, 62.33, 470.55, 710.26], w: 424, h: 640 },
+      ],
+    } as unknown as PdfPageModel;
+    const { pictures } = convertOurs(
+      hints,
+      { parts: [], footnotes: [] } as unknown as Flattened,
+      [page],
+      '<description/>',
+    );
+    expect(pictures.map((p) => p.readerId)).toEqual(['x6148-0']);
+  });
+});
