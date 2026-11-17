@@ -109,8 +109,8 @@ TEST_CASE("a drawing's text is drawn with the shipped fonts (DP-7)", "[pdf][impo
           std::pair{"NotoSans-Italic.ttf", "DejaVuSansMono-Oblique.ttf"}}) {
         std::filesystem::copy_file(kFonts / mono, other / noto);
     }
-    Read with = read("drawing", kFonts, "-f");
-    Read swapped = read("drawing", other, "-o");
+    Read with = read("drawing", kFonts, "-dp7");
+    Read swapped = read("drawing", other, "-dp7-other");
     const int labelled = ink_at_foot(draw(with, with.page1["drawings"][0]["id"]));
     const int monospaced = ink_at_foot(draw(swapped, swapped.page1["drawings"][0]["id"]));
     CHECK(labelled > 0);
@@ -118,7 +118,7 @@ TEST_CASE("a drawing's text is drawn with the shipped fonts (DP-7)", "[pdf][impo
 #ifndef _WIN32
     // Without the folder nothing draws the labels: the axis line alone is left. (Poppler on Windows looks
     // in the Windows fonts folder for a font it is not given, so there the labels are drawn anyway.)
-    Read without = read("drawing", false);
+    Read without = read("drawing", {}, "-dp7-none");
     CHECK(labelled > ink_at_foot(draw(without, without.page1["drawings"][0]["id"])));
 #endif
 }
