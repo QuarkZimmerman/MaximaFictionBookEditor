@@ -29,19 +29,17 @@ struct Read {
     json page1;
 };
 
-Read read(const std::string& name, bool fonts) {
+/// The fixture `name` read with the fonts of `fonts` (none when empty), in a folder named with `tag`.
+Read read(const std::string& name, const std::filesystem::path& fonts, const std::string& tag) {
     Read r;
-    r.folder =
-        std::filesystem::temp_directory_path() / ("mfbe-drawings-" + name + (fonts ? "-f" : ""));
+    r.folder = std::filesystem::temp_directory_path() / ("mfbe-drawings-" + name + tag);
     std::filesystem::remove_all(r.folder);
     std::filesystem::create_directories(r.folder);
     mfbe::pdf_import::ReaderOptions o;
     o.reader = mfbe::pdf_import::find_reader();
     o.pdf = kFixtures / "pdf" / "import" / (name + ".pdf");
     o.folder = r.folder;
-    if (fonts) {
-        o.fonts = kFonts;
-    }
+    o.fonts = fonts;
     std::string error;
     r.reader = mfbe::pdf_import::ReaderProcess::start(o, error);
     REQUIRE(r.reader);
@@ -53,6 +51,10 @@ Read read(const std::string& name, bool fonts) {
     }
     r.page1 = json::parse(std::ifstream(r.folder / "page-1.json"));
     return r;
+}
+
+Read read(const std::string& name, bool fonts) {
+    return read(name, fonts ? kFonts : std::filesystem::path{}, fonts ? "-f" : "");
 }
 
 /// The drawing drawn by the reader, decoded.
@@ -95,12 +97,30 @@ TEST_CASE("a chart comes as one drawing; rules and table grids do not (D16)", "[
 }
 
 TEST_CASE("a drawing's text is drawn with the shipped fonts (DP-7)", "[pdf][import]") {
-    Read with = read("drawing", true);
-    Read without = read("drawing", false);
+    // The chart's labels are in Helvetica, which the PDF does not embed: the reader draws them with the
+    // files of its fonts folder. A folder whose Noto Sans files are another face draws them otherwise -
+    // on every system, whatever fonts the system has.
+    const auto other = std::filesystem::temp_directory_path() / "mfbe-drawings-other-fonts";
+    std::filesystem::remove_all(other);
+    std::filesystem::create_directories(other);
+    for (const auto& [noto, mono] :
+         {std::pair{"NotoSans-Regular.ttf", "DejaVuSansMono.ttf"},
+          std::pair{"NotoSans-Bold.ttf", "DejaVuSansMono-Bold.ttf"},
+          std::pair{"NotoSans-Italic.ttf", "DejaVuSansMono-Oblique.ttf"}}) {
+        std::filesystem::copy_file(kFonts / mono, other / noto);
+    }
+    Read with = read("drawing", kFonts, "-f");
+    Read swapped = read("drawing", other, "-o");
     const int labelled = ink_at_foot(draw(with, with.page1["drawings"][0]["id"]));
-    const int bare = ink_at_foot(draw(without, without.page1["drawings"][0]["id"]));
-    // The labels are drawn only with a font to draw them: the axis line alone is left without one.
-    CHECK(labelled > bare);
+    const int monospaced = ink_at_foot(draw(swapped, swapped.page1["drawings"][0]["id"]));
+    CHECK(labelled > 0);
+    CHECK(labelled != monospaced);
+#ifndef _WIN32
+    // Without the folder nothing draws the labels: the axis line alone is left. (Poppler on Windows looks
+    // in the Windows fonts folder for a font it is not given, so there the labels are drawn anyway.)
+    Read without = read("drawing", false);
+    CHECK(labelled > ink_at_foot(draw(without, without.page1["drawings"][0]["id"])));
+#endif
 }
 
 TEST_CASE("a form in labelled rows is given as its labels and values; any other is drawn (D16)",

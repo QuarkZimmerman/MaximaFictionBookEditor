@@ -105,7 +105,8 @@ int main(int argc, char** argv) {
     }
     // DP-7: the fonts a PDF does not embed (the 14 standard ones, and what Poppler puts in their
     // place) are drawn with the shipped Noto and DejaVu files - the editor's Poppler has no system
-    // font lookup.
+    // font lookup on Linux and macOS; on Windows it looks in the Windows fonts folder for a font it
+    // is not given.
     if (!fonts.empty()) {
         const std::pair<const char*, const char*> standard[] = {
             {"Helvetica", "NotoSans-Regular.ttf"},
