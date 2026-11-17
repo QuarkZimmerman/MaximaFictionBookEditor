@@ -40,6 +40,9 @@ function coverOf(
   return read.binaries.find((binary) => `#${binary.id}` === href) ?? null;
 }
 
+/** A JPEG picture's content type as books write it: image/jpg too (the requester's smoke test of rc.1). */
+const JPEG_TYPE = /^image\/(jpeg|jpg|pjpeg)$/i;
+
 /**
  * D23 (clarify): the FBD gives the description the editor's own PDF gives back - the same fields, and the same
  * cover picture: before the pages are read (FR-045) the PDF's cover is known by its size in pixels and kind.
@@ -68,7 +71,7 @@ export function sameDescription(
     !!cover &&
     theirs.width === cover.w &&
     theirs.height === cover.h &&
-    (theirs.contentType === 'image/jpeg') === cover.jpeg
+    JPEG_TYPE.test(theirs.contentType) === cover.jpeg
   );
 }
 
