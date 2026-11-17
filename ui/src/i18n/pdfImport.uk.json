@@ -25,6 +25,7 @@
     "importing": "Імпорт книги PDF…",
     "importCaption": "Імпорт PDF",
     "importDone": "Імпортовано з PDF: сторінок {{pages}}, розділів {{sections}}, зображень {{pictures}}, таблиць {{tables}}, приміток {{notes}}.",
+    "importDoneCover": "Імпортовано з PDF: сторінок {{pages}}, розділів {{sections}}, зображень {{pictures}} і обкладинка, таблиць {{tables}}, приміток {{notes}}.",
     "importCancelled": "Імпорт скасовано; книга у вікні не змінилася.",
     "importFailed": "{{path}} не імпортовано: {{reason}}",
     "openRefused": "{{path}} - це PDF. Файл > Відкрити приймає книги FictionBook (FB2), файли FBD і ZIP-архіви з книгами FB2; PDF імпортується командою Файл > Імпорт > Файл PDF....",

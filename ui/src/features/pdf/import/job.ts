@@ -450,7 +450,14 @@ export async function importPdf(
     await nextTask();
     await files.loadImported(ctx, book, originPath);
     docId = null;
-    const done = ctx.t('pdfImport.importDone', { pages: document.pages, ...counts });
+    // The cover is no picture of the text, so the count leaves it out: the summary names it (the requester,
+    // after his smoke test of rc.1: a book of a cover alone read as one without pictures).
+    const coverHref = book.description.titleInfo.coverpage[0]?.href ?? '';
+    const withCover = !!coverHref && book.binaries.some((binary) => `#${binary.id}` === coverHref);
+    const done = ctx.t(withCover ? 'pdfImport.importDoneCover' : 'pdfImport.importDone', {
+      pages: document.pages,
+      ...counts,
+    });
     const lines: string[] = [];
     if (mismatches > 0) lines.push(ctx.t('pdfImport.summary.mismatches', { count: mismatches }));
     if (picturesLeftOut > 0)

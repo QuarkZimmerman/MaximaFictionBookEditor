@@ -25,6 +25,7 @@
     "importing": "Importing the PDF book…",
     "importCaption": "PDF import",
     "importDone": "Imported from PDF: {{pages}} pages, {{sections}} sections, {{pictures}} pictures, {{tables}} tables, {{notes}} notes.",
+    "importDoneCover": "Imported from PDF: {{pages}} pages, {{sections}} sections, {{pictures}} pictures and the cover, {{tables}} tables, {{notes}} notes.",
     "importCancelled": "The import was cancelled; the book in the window is unchanged.",
     "importFailed": "{{path}} could not be imported: {{reason}}",
     "openRefused": "{{path}} is a PDF. File > Open takes FictionBook (FB2) books, FBD files and ZIP archives holding FB2 books; a PDF is imported with File > Import > PDF File....",
