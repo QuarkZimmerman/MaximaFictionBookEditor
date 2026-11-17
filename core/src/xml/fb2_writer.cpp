@@ -669,6 +669,9 @@ private:
         text_element(d, "book-title", info.bookTitle);
         if (annotation_present(info.annotation)) {
             write_mapped_block(*info.annotation, d, "annotation");
+            // The description's fields after it are no node of it (a date error is not its last
+            // paragraph's).
+            result_.lines.entries.emplace_back(line_, "");
         }
         opt_text_element(d, "keywords", info.keywords);
         if (info.date) {
@@ -709,6 +712,9 @@ private:
         text_element(d, "version", info.version);
         if (annotation_present(info.history)) {
             write_mapped_block(*info.history, d, "history");
+            // The description's fields after it are no node of it (a date error is not its last
+            // paragraph's).
+            result_.lines.entries.emplace_back(line_, "");
         }
         write_persons(d, "publisher", info.publishers, false);
         write_extras("document-info", d);
@@ -1182,6 +1188,10 @@ std::optional<std::string> LineMap::node_at(int line) const {
         return std::nullopt;
     }
     --it;
+    // An entry without an id marks lines that belong to no node: the description's own fields.
+    if (it->second.empty()) {
+        return std::nullopt;
+    }
     return it->second;
 }
 
