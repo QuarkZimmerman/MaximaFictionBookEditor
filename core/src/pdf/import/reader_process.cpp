@@ -118,10 +118,25 @@ std::unique_ptr<ReaderProcess> ReaderProcess::start(const ReaderOptions& o, std:
     }
     SetHandleInformation(impl->in_write, HANDLE_FLAG_INHERIT, 0);
     SetHandleInformation(impl->out_read, HANDLE_FLAG_INHERIT, 0);
+    // Each argument quoted as the C runtime splits a command line: backslashes before a quote - the
+    // closing one too - are doubled, and a quote inside is escaped. A folder ending in a backslash
+    // (the temporary folder) otherwise swallowed the arguments after it.
     std::wstring command;
     for (const auto& arg : arguments(o)) {
-        std::wstring w = platform::path_from_utf8(arg).wstring();
-        command += L"\"" + w + L"\" ";
+        const std::wstring w = platform::path_from_utf8(arg).wstring();
+        command += L'"';
+        std::size_t slashes = 0;
+        for (const wchar_t c : w) {
+            if (c == L'\\') {
+                ++slashes;
+                continue;
+            }
+            command.append(c == L'"' ? slashes * 2 + 1 : slashes, L'\\');
+            slashes = 0;
+            command += c;
+        }
+        command.append(slashes * 2, L'\\');
+        command += L"\" ";
     }
     STARTUPINFOW si{};
     si.cb = sizeof si;
