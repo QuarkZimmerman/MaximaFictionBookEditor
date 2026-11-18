@@ -273,6 +273,17 @@ bool showDialog(HWND owner, const FileDialogRequest& request, FileDialogResult& 
         customize->AddCheckButton(kZipCheck, wideText(request.zip_label).c_str(),
                                   request.zip_checked ? TRUE : FALSE);
     }
+    // Feature 017 (DP-5): further boxes, one check button each, ids after the ZIP box's.
+    const bool offers_checks = save && !request.checks.empty() &&
+                               (customize.get() != nullptr ||
+                                SUCCEEDED(dialog->QueryInterface(IID_PPV_ARGS(customize.put()))));
+    if (offers_checks) {
+        for (size_t i = 0; i < request.checks.size(); ++i) {
+            customize->AddCheckButton(static_cast<DWORD>(kZipCheck + 1 + i),
+                                      wideText(request.checks[i].label).c_str(),
+                                      request.checks[i].checked ? TRUE : FALSE);
+        }
+    }
 
     if (FAILED(dialog->Show(owner))) {
         return true;  // cancelled (ERROR_CANCELLED) or not shown: no file
@@ -289,6 +300,14 @@ bool showDialog(HWND owner, const FileDialogRequest& request, FileDialogResult& 
         if (SUCCEEDED(customize->GetCheckButtonState(kZipCheck, &checked))) {
             result.zip = checked ? 1 : 0;
         }
+    }
+    if (offers_checks) {
+        for (size_t i = 0; i < request.checks.size(); ++i) {
+            BOOL checked = request.checks[i].checked ? TRUE : FALSE;
+            customize->GetCheckButtonState(static_cast<DWORD>(kZipCheck + 1 + i), &checked);
+            result.checks.emplace_back(request.checks[i].id, checked == TRUE);
+        }
+        result.checks_shown = true;
     }
     result.cancelled = result.paths.empty();
     return true;

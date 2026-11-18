@@ -1724,11 +1724,13 @@ export interface RpcMethods {
       selectedFilter?: number;
       /** Feature 009 (DP-8): the "save as ZIP archive" checkbox beside the encoding choice. */
       zipChoice?: { label: string; checked: boolean };
+      /** Feature 017 (DP-5): further boxes after the ZIP box (the TXT export's byte-order mark). */
+      checks?: { id: string; label: string; checked: boolean }[];
       /** Feature 011 (D32): only `document` (Save As) keeps the chosen folder. */
       role?: 'document';
     };
-    /** `zip` is absent when the dialog could not carry the checkbox (feature 009). */
-    result: { path?: string; encoding?: string; zip?: boolean };
+    /** `zip` and `checks` are absent when the dialog could not carry the boxes (features 009, 017). */
+    result: { path?: string; encoding?: string; zip?: boolean; checks?: Record<string, boolean> };
   };
   'dialog.pickFolder': { params: { title: string }; result: { path?: string } };
   'dialog.message': {

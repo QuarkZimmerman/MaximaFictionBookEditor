@@ -250,6 +250,9 @@ struct OpenDialog {
     void* window_widget = nullptr;  // its GtkFileChooserDialog; null with the portal
     bool offers_encodings = false;
     bool offers_zip = false;
+    // Feature 017 (DP-5): the further boxes, by their ids (choices "check-<id>").
+    bool offers_checks = false;
+    std::vector<std::string> check_ids;
     FileDialogCallback done;
 };
 
@@ -290,6 +293,14 @@ void onResponse(void* chooser, int response, void* data) {
         if (dialog->offers_zip) {
             const char* zip = api.gtk_file_chooser_get_choice(chooser, kZipChoice);
             result.zip = zip != nullptr && std::string(zip) == "true" ? 1 : 0;
+        }
+        if (dialog->offers_checks) {
+            for (const std::string& id : dialog->check_ids) {
+                const char* value =
+                    api.gtk_file_chooser_get_choice(chooser, ("check-" + id).c_str());
+                result.checks.emplace_back(id, value != nullptr && std::string(value) == "true");
+            }
+            result.checks_shown = true;
         }
     }
     result.cancelled = result.paths.empty();
@@ -373,6 +384,22 @@ bool addZipChoice(const GtkApi& api, void* chooser, const FileDialogRequest& req
     return true;
 }
 
+// Feature 017 (DP-5): each further box is a boolean choice too, "check-<id>", in the portal's
+// FileChooser `choices` as well (an empty option list is a check button there).
+bool addChecks(const GtkApi& api, void* chooser, const FileDialogRequest& request,
+               std::vector<std::string>* ids) {
+    if (request.mode != FileDialogMode::kSave || request.checks.empty() || !api.offersChoices()) {
+        return false;
+    }
+    for (const auto& check : request.checks) {
+        const std::string id = "check-" + check.id;
+        api.gtk_file_chooser_add_choice(chooser, id.c_str(), check.label.c_str(), nullptr, nullptr);
+        api.gtk_file_chooser_set_choice(chooser, id.c_str(), check.checked ? "true" : "false");
+        ids->push_back(check.id);
+    }
+    return true;
+}
+
 }  // namespace
 
 bool runPlatformFileDialog(std::uintptr_t owner, const FileDialogRequest& request,
@@ -413,6 +440,7 @@ bool runPlatformFileDialog(std::uintptr_t owner, const FileDialogRequest& reques
     dialog->window_widget = api->findsDialogWindow() ? chooserWindow(*api, before) : nullptr;
     dialog->offers_encodings = addEncodings(*api, chooser, request);
     dialog->offers_zip = addZipChoice(*api, chooser, request);
+    dialog->offers_checks = addChecks(*api, chooser, request, &dialog->check_ids);
     dialog->done = std::move(done);
     api->g_signal_connect_data(chooser, "response", reinterpret_cast<GCallback>(&onResponse),
                                dialog, nullptr, 0);

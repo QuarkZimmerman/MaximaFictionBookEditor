@@ -68,11 +68,22 @@ struct SaveFileRequest {
     // label (none = no checkbox) and whether it starts ticked.
     std::optional<std::string> zipLabel;
     bool zipChecked = false;
+    // Feature 017 (DP-5): further boxes (the TXT export's "Byte-order mark"), each with its id,
+    // label and starting state.
+    struct Check {
+        std::string id;
+        std::string label;
+        bool checked = false;
+    };
+    std::vector<Check> checks;
 };
 struct SaveFileResult {
     std::optional<std::string> path;  // nullopt = cancelled
     std::optional<std::string> encoding;
     std::optional<bool> zip;  // feature 009: nullopt when the dialog could not carry the box
+    // Feature 017 (DP-5): the boxes' final states by id; nullopt when the dialog could not show
+    // them.
+    std::optional<std::vector<std::pair<std::string, bool>>> checks;
 };
 
 struct PickFolderRequest {

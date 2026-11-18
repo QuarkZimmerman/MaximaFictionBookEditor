@@ -37,6 +37,13 @@ struct FileDialogRequest {
     // ("" = none) and whether it starts ticked.
     std::string zip_label;
     bool zip_checked = false;
+    // Feature 017 (DP-5): further boxes after the ZIP box (the TXT export's "Byte-order mark").
+    struct Check {
+        std::string id;
+        std::string label;
+        bool checked = false;
+    };
+    std::vector<Check> checks;
 };
 
 struct FileDialogResult {
@@ -44,6 +51,10 @@ struct FileDialogResult {
     std::vector<std::string> paths;  // UTF-8; one entry except for kOpenMultiple
     std::string encoding;            // Save As: the chosen encoding ("" when none was offered)
     int zip = -1;  // feature 009: the checkbox's final state (0/1); -1 = the dialog had none
+    // Feature 017 (DP-5): the further boxes' final states by id; `checks_shown` false when the
+    // dialog could not show them (the interface then asks in its own window).
+    std::vector<std::pair<std::string, bool>> checks;
+    bool checks_shown = false;
 };
 
 using FileDialogCallback = std::function<void(FileDialogResult)>;

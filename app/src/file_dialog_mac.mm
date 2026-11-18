@@ -142,6 +142,21 @@ bool runPlatformFileDialog(std::uintptr_t owner, const FileDialogRequest& reques
         zip_box.state = request.zip_checked ? NSControlStateValueOn : NSControlStateValueOff;
         [rows addObject:zip_box];
     }
+    // Feature 017 (DP-5): the further boxes, one checkbox each, below the ZIP box.
+    NSMutableArray<NSButton*>* check_boxes = [NSMutableArray array];
+    std::vector<std::string>
+        check_ids;  // copied into the completion block (the request may not outlive it)
+    if (mode == FileDialogMode::kSave) {
+        for (const auto& check : request.checks) {
+            check_ids.push_back(check.id);
+            NSButton* box = [NSButton checkboxWithTitle:toNSString(check.label)
+                                                 target:nil
+                                                 action:nil];
+            box.state = check.checked ? NSControlStateValueOn : NSControlStateValueOff;
+            [check_boxes addObject:box];
+            [rows addObject:box];
+        }
+    }
     if (rows.count > 0) {
         NSStackView* accessory = [NSStackView stackViewWithViews:rows];
         accessory.orientation = NSUserInterfaceLayoutOrientationVertical;
@@ -184,6 +199,13 @@ bool runPlatformFileDialog(std::uintptr_t owner, const FileDialogRequest& reques
           }
           if (zip_box != nil) {
               result.zip = zip_box.state == NSControlStateValueOn ? 1 : 0;
+          }
+          if (check_boxes.count > 0) {
+              for (NSUInteger k = 0; k < check_boxes.count; ++k) {
+                  result.checks.emplace_back(check_ids[k],
+                                             check_boxes[k].state == NSControlStateValueOn);
+              }
+              result.checks_shown = true;
           }
       }
       (void)type_switch;  // the pop-up's target lives as long as the panel
