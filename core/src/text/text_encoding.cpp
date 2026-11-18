@@ -94,10 +94,22 @@ const std::vector<std::string>& legacy_candidates() {
     return names;
 }
 
+const std::vector<std::string>& txt_candidates() {
+    // Feature 017 (D26, DP-9): the encodings of D11's lists for English, Russian and Ukrainian,
+    // in tie order (an earlier one wins when two read the bytes alike).
+    static const std::vector<std::string> names{
+        "windows-1251",   "koi8-r",       "koi8-u",     "ibm866",      "iso-8859-5",
+        "x-mac-cyrillic", "windows-1252", "iso-8859-1", "iso-8859-15", "macintosh"};
+    return names;
+}
+
 std::optional<std::string> decode_text(std::string_view bytes, std::string_view encoding) {
     if (encoding == "cp866" || encoding == "ibm866") {
         // Feature 017 (DP-3): IBM866 from the WHATWG tables, as the TXT export writes it.
         return text::decode_single_byte(bytes, "ibm866");
+    }
+    if (text::is_single_byte(encoding)) {
+        return text::decode_single_byte(bytes, encoding);
     }
     const std::optional<std::string> name = encoding::normalize_name(encoding);
     if (!name || !encoding::is_supported(*name)) {
@@ -125,6 +137,10 @@ bool looks_binary(std::string_view bytes) {
 }
 
 TextReading read_text(std::string_view bytes) {
+    return read_text(bytes, legacy_candidates());
+}
+
+TextReading read_text(std::string_view bytes, const std::vector<std::string>& candidates) {
     TextReading reading;
     const encoding::Bom bom = encoding::detect_bom(bytes);
     if (!bom.encoding.empty()) {
@@ -149,7 +165,7 @@ TextReading read_text(std::string_view bytes) {
         long score;
     };
     std::vector<Scored> scored;
-    for (const std::string& name : legacy_candidates()) {
+    for (const std::string& name : candidates) {
         const std::optional<std::string> text = decode_text(sample, name);
         if (!text) {
             continue;
@@ -160,6 +176,17 @@ TextReading read_text(std::string_view bytes) {
     }
     std::stable_sort(scored.begin(), scored.end(),
                      [](const Scored& a, const Scored& b) { return a.score > b.score; });
+    // Feature 017 (D26): a runner-up that reads the whole file exactly as the leader does (KOI8-R
+    // and KOI8-U for a Russian text, windows-1252 and ISO-8859-1 for a Western one) is no other
+    // choice - asking would offer the same text twice - so the leader stands for both.
+    const auto leads = [&scored] {
+        return scored.size() == 1 ||
+               scored[0].score - scored[1].score >= std::max<long>(10, scored[0].score / 5);
+    };
+    while (scored.size() >= 2 && !leads() &&
+           decode_text(bytes, scored[0].name) == decode_text(bytes, scored[1].name)) {
+        scored.erase(scored.begin() + 1);
+    }
     for (const Scored& s : scored) {
         reading.candidates.push_back(s.name);
     }

@@ -8,6 +8,8 @@
 #include <mfbe/text_encoding.hpp>
 
 #include <catch2/catch_test_macros.hpp>
+
+#include <algorithm>
 #include <string>
 
 using namespace mfbe;
@@ -97,12 +99,20 @@ TEST_CASE("text judge: UTF-8, the byte-order marks and the legacy encodings of a
         CHECK(*text::decode_text(c.bytes, c.encoding) == text);
     }
 
-    // "caf\xE9": windows-1252 and ISO-8859-2 both read "café" - no clear lead, so it asks.
-    const text::TextReading unsure = text::read_text("A caf\xE9 in town.\n");
+    // "caf\xE9": windows-1252 and ISO-8859-2 both read the whole file as "café" - one choice, not
+    // two: the earlier stands for both (feature 017, D26); with no plausible word it still asks.
+    const text::TextReading same = text::read_text("A caf\xE9 in town.\n");
+    CHECK_FALSE(same.decided);
+    REQUIRE_FALSE(same.candidates.empty());
+    CHECK(same.candidates[0] == "windows-1252");
+    CHECK(std::find(same.candidates.begin(), same.candidates.end(), "iso-8859-2") ==
+          same.candidates.end());
+    // "\xB9" reads "¹" in windows-1252 and "š" in ISO-8859-2: two texts, no clear lead - it asks.
+    const text::TextReading unsure = text::read_text("A caf\xE9 \xB9 in town.\n");
     CHECK_FALSE(unsure.decided);
     REQUIRE(unsure.candidates.size() >= 2);
-    CHECK(unsure.candidates[0] == "windows-1252");
-    CHECK(unsure.candidates[1] == "iso-8859-2");
+    CHECK(unsure.candidates[0] == "iso-8859-2");
+    CHECK(unsure.candidates[1] == "windows-1252");
 
     CHECK(text::looks_binary(std::string("\x89PNG\r\n\x1A\n\0\0\0\x0DIHDR", 16)));
     CHECK_FALSE(text::looks_binary(text));
