@@ -17,8 +17,8 @@ using nlohmann::json;
 
 // D11 (contracts/encodings.md): the lists of a Russian, Ukrainian and English book, UTF-8 first,
 // the HTML Standard's suggestion next. Any other book is offered "all".
-const std::vector<std::string> kRussian = {"utf-8",   "windows-1251", "koi8-r",        "ibm866",
-                                           "iso-8859-5", "koi8-u",    "x-mac-cyrillic"};
+const std::vector<std::string> kRussian = {"utf-8",      "windows-1251", "koi8-r",        "ibm866",
+                                           "iso-8859-5", "koi8-u",       "x-mac-cyrillic"};
 const std::vector<std::string> kUkrainian = {"utf-8", "windows-1251", "koi8-u", "x-mac-cyrillic"};
 const std::vector<std::string> kEnglish = {"utf-8", "windows-1252", "iso-8859-1", "iso-8859-15",
                                            "macintosh"};

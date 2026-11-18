@@ -31,15 +31,29 @@ const SingleByteIndex* index_for(std::string_view name) {
 // Contract §"Encoding": the plain forms of typographic characters (D12 as approved).
 std::string_view plain_form(char32_t c) {
     switch (c) {
-        case 0x00AB: case 0x00BB: case 0x201E: case 0x201C: case 0x201D: case 0x201F:
+        case 0x00AB:
+        case 0x00BB:
+        case 0x201E:
+        case 0x201C:
+        case 0x201D:
+        case 0x201F:
             return "\"";
-        case 0x2018: case 0x2019: case 0x201A: case 0x201B: case 0x02BC:
+        case 0x2018:
+        case 0x2019:
+        case 0x201A:
+        case 0x201B:
+        case 0x02BC:
             return "'";
-        case 0x2014: case 0x2013: case 0x2012: case 0x2015:
+        case 0x2014:
+        case 0x2013:
+        case 0x2012:
+        case 0x2015:
             return "-";
         case 0x2026:
             return "...";
-        case 0x00A0: case 0x2007: case 0x202F:
+        case 0x00A0:
+        case 0x2007:
+        case 0x202F:
             return " ";
         case 0x2116:
             return "No.";
@@ -75,7 +89,8 @@ bool invisible(char32_t c) {
 char32_t next_code_point(std::string_view s, std::size_t& i) {
     const auto b0 = static_cast<unsigned char>(s[i]);
     const auto cont = [&](std::size_t k) -> int {
-        if (i + k >= s.size()) return -1;
+        if (i + k >= s.size())
+            return -1;
         const auto b = static_cast<unsigned char>(s[i + k]);
         return (b & 0xC0u) == 0x80u ? static_cast<int>(b & 0x3Fu) : -1;
     };
@@ -146,7 +161,9 @@ const std::vector<std::string>& single_byte_names() {
     return names;
 }
 
-bool is_single_byte(std::string_view name) { return index_for(name) != nullptr; }
+bool is_single_byte(std::string_view name) {
+    return index_for(name) != nullptr;
+}
 
 std::optional<Encoded> encode_single_byte(std::string_view utf8, std::string_view name) {
     const SingleByteIndex* index = index_for(name);
