@@ -8,7 +8,12 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { isTextSharedModule, isTxtExportModule, isTxtImportModule } from '../../../vite.config';
+import {
+  isTextSharedModule,
+  isTxtExportModule,
+  isTxtImportModule,
+  isTxtSharedModule,
+} from '../../../vite.config';
 
 const UI_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const TXT = path.join(UI_ROOT, 'src', 'features', 'txt');
@@ -28,6 +33,8 @@ describe('the txt chunk rules', () => {
       expect(isTxtExportModule(path.join(TXT, file)), file).toBe(false);
       expect(isTxtImportModule(path.join(TXT, file)), file).toBe(false);
     }
+    expect(isTxtSharedModule(path.join(TXT, 'shared', 'words.ts'))).toBe(true);
+    expect(isTxtExportModule(path.join(TXT, 'shared', 'words.ts'))).toBe(false);
     expect(isTextSharedModule(path.join(UI_ROOT, 'src', 'features', 'text', 'joinWords.ts'))).toBe(
       true,
     );

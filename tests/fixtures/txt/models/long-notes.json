@@ -1,0 +1,2262 @@
+{
+ "binaries": [
+  {
+   "contentType": "image/png",
+   "decodable": true,
+   "height": 1200,
+   "id": "tall.png",
+   "referenceCount": 1,
+   "size": 4022,
+   "width": 300,
+   "willConvert": false
+  }
+ ],
+ "bodies": [
+  {
+   "attrs": {
+    "nodeId": "n1"
+   },
+   "content": [
+    {
+     "attrs": {
+      "nodeId": "n2"
+     },
+     "content": [
+      {
+       "attrs": {
+        "nodeId": "n3"
+       },
+       "content": [
+        {
+         "attrs": {
+          "nodeId": "n4"
+         },
+         "content": [
+          {
+           "text": "Chapter",
+           "type": "text"
+          }
+         ],
+         "type": "p"
+        }
+       ],
+       "type": "title"
+      },
+      {
+       "attrs": {
+        "nodeId": "n5"
+       },
+       "content": [
+        {
+         "text": "A reference to the long note",
+         "type": "text"
+        },
+        {
+         "marks": [
+          {
+           "attrs": {
+            "href": "#n_1",
+            "type": "note"
+           },
+           "type": "link"
+          }
+         ],
+         "text": "[1]",
+         "type": "text"
+        },
+        {
+         "text": ", to a grouped one",
+         "type": "text"
+        },
+        {
+         "marks": [
+          {
+           "attrs": {
+            "href": "#g_1",
+            "type": "note"
+           },
+           "type": "link"
+          }
+         ],
+         "text": "[2]",
+         "type": "text"
+        },
+        {
+         "text": " and to a comment",
+         "type": "text"
+        },
+        {
+         "marks": [
+          {
+           "attrs": {
+            "href": "#c_1"
+           },
+           "type": "link"
+          },
+          {
+           "type": "sup"
+          }
+         ],
+         "text": "{1}",
+         "type": "text"
+        },
+        {
+         "text": ".",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "href": "#tall.png",
+        "nodeId": "n6",
+        "title": "A picture as tall as a page, with its caption, beside the long note."
+       },
+       "type": "image"
+      },
+      {
+       "attrs": {
+        "nodeId": "n7"
+       },
+       "content": [
+        {
+         "text": "Paragraph 1 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n8"
+       },
+       "content": [
+        {
+         "text": "Paragraph 2 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n9"
+       },
+       "content": [
+        {
+         "text": "Paragraph 3 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n10"
+       },
+       "content": [
+        {
+         "text": "Paragraph 4 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n11"
+       },
+       "content": [
+        {
+         "text": "Paragraph 5 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n12"
+       },
+       "content": [
+        {
+         "text": "Paragraph 6 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n13"
+       },
+       "content": [
+        {
+         "text": "Paragraph 7 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n14"
+       },
+       "content": [
+        {
+         "text": "Paragraph 8 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n15"
+       },
+       "content": [
+        {
+         "text": "Paragraph 9 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n16"
+       },
+       "content": [
+        {
+         "text": "Paragraph 10 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n17"
+       },
+       "content": [
+        {
+         "text": "Paragraph 11 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n18"
+       },
+       "content": [
+        {
+         "text": "Paragraph 12 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n19"
+       },
+       "content": [
+        {
+         "text": "Paragraph 13 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n20"
+       },
+       "content": [
+        {
+         "text": "Paragraph 14 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n21"
+       },
+       "content": [
+        {
+         "text": "Paragraph 15 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n22"
+       },
+       "content": [
+        {
+         "text": "Paragraph 16 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n23"
+       },
+       "content": [
+        {
+         "text": "Paragraph 17 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n24"
+       },
+       "content": [
+        {
+         "text": "Paragraph 18 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n25"
+       },
+       "content": [
+        {
+         "text": "Paragraph 19 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n26"
+       },
+       "content": [
+        {
+         "text": "Paragraph 20 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n27"
+       },
+       "content": [
+        {
+         "text": "Paragraph 21 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n28"
+       },
+       "content": [
+        {
+         "text": "Paragraph 22 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n29"
+       },
+       "content": [
+        {
+         "text": "Paragraph 23 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n30"
+       },
+       "content": [
+        {
+         "text": "Paragraph 24 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n31"
+       },
+       "content": [
+        {
+         "text": "Paragraph 25 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n32"
+       },
+       "content": [
+        {
+         "text": "Paragraph 26 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n33"
+       },
+       "content": [
+        {
+         "text": "Paragraph 27 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n34"
+       },
+       "content": [
+        {
+         "text": "Paragraph 28 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n35"
+       },
+       "content": [
+        {
+         "text": "Paragraph 29 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n36"
+       },
+       "content": [
+        {
+         "text": "Paragraph 30 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n37"
+       },
+       "content": [
+        {
+         "text": "Paragraph 31 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n38"
+       },
+       "content": [
+        {
+         "text": "Paragraph 32 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n39"
+       },
+       "content": [
+        {
+         "text": "Paragraph 33 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n40"
+       },
+       "content": [
+        {
+         "text": "Paragraph 34 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n41"
+       },
+       "content": [
+        {
+         "text": "Paragraph 35 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n42"
+       },
+       "content": [
+        {
+         "text": "Paragraph 36 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n43"
+       },
+       "content": [
+        {
+         "text": "Paragraph 37 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n44"
+       },
+       "content": [
+        {
+         "text": "Paragraph 38 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n45"
+       },
+       "content": [
+        {
+         "text": "Paragraph 39 of the text.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      }
+     ],
+     "type": "section"
+    }
+   ],
+   "type": "body"
+  },
+  {
+   "attrs": {
+    "name": "comments",
+    "nodeId": "n46"
+   },
+   "content": [
+    {
+     "attrs": {
+      "id": "c_1",
+      "nodeId": "n47"
+     },
+     "content": [
+      {
+       "attrs": {
+        "nodeId": "n48"
+       },
+       "content": [
+        {
+         "attrs": {
+          "nodeId": "n49"
+         },
+         "content": [
+          {
+           "text": "1",
+           "type": "text"
+          }
+         ],
+         "type": "p"
+        }
+       ],
+       "type": "title"
+      },
+      {
+       "attrs": {
+        "nodeId": "n50"
+       },
+       "content": [
+        {
+         "text": "A comment, linked without the note type.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      }
+     ],
+     "type": "section"
+    }
+   ],
+   "type": "body"
+  },
+  {
+   "attrs": {
+    "name": "notes",
+    "nodeId": "n51"
+   },
+   "content": [
+    {
+     "attrs": {
+      "nodeId": "n52"
+     },
+     "content": [
+      {
+       "attrs": {
+        "nodeId": "n53"
+       },
+       "content": [
+        {
+         "text": "Notes",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      }
+     ],
+     "type": "title"
+    },
+    {
+     "attrs": {
+      "id": "n_1",
+      "nodeId": "n54"
+     },
+     "content": [
+      {
+       "attrs": {
+        "nodeId": "n55"
+       },
+       "content": [
+        {
+         "attrs": {
+          "nodeId": "n56"
+         },
+         "content": [
+          {
+           "text": "1",
+           "type": "text"
+          }
+         ],
+         "type": "p"
+        }
+       ],
+       "type": "title"
+      },
+      {
+       "attrs": {
+        "nodeId": "n57"
+       },
+       "content": [
+        {
+         "text": "1) A paragraph of the very long note, number 1, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n58"
+       },
+       "content": [
+        {
+         "text": "2) A paragraph of the very long note, number 2, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n59"
+       },
+       "content": [
+        {
+         "text": "3) A paragraph of the very long note, number 3, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n60"
+       },
+       "content": [
+        {
+         "text": "4) A paragraph of the very long note, number 4, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n61"
+       },
+       "content": [
+        {
+         "text": "5) A paragraph of the very long note, number 5, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n62"
+       },
+       "content": [
+        {
+         "text": "6) A paragraph of the very long note, number 6, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n63"
+       },
+       "content": [
+        {
+         "text": "7) A paragraph of the very long note, number 7, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n64"
+       },
+       "content": [
+        {
+         "text": "8) A paragraph of the very long note, number 8, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n65"
+       },
+       "content": [
+        {
+         "text": "9) A paragraph of the very long note, number 9, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n66"
+       },
+       "content": [
+        {
+         "text": "10) A paragraph of the very long note, number 10, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n67"
+       },
+       "content": [
+        {
+         "text": "11) A paragraph of the very long note, number 11, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n68"
+       },
+       "content": [
+        {
+         "text": "12) A paragraph of the very long note, number 12, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n69"
+       },
+       "content": [
+        {
+         "text": "13) A paragraph of the very long note, number 13, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n70"
+       },
+       "content": [
+        {
+         "text": "14) A paragraph of the very long note, number 14, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n71"
+       },
+       "content": [
+        {
+         "text": "15) A paragraph of the very long note, number 15, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n72"
+       },
+       "content": [
+        {
+         "text": "16) A paragraph of the very long note, number 16, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n73"
+       },
+       "content": [
+        {
+         "text": "17) A paragraph of the very long note, number 17, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n74"
+       },
+       "content": [
+        {
+         "text": "18) A paragraph of the very long note, number 18, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n75"
+       },
+       "content": [
+        {
+         "text": "19) A paragraph of the very long note, number 19, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n76"
+       },
+       "content": [
+        {
+         "text": "20) A paragraph of the very long note, number 20, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n77"
+       },
+       "content": [
+        {
+         "text": "21) A paragraph of the very long note, number 21, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n78"
+       },
+       "content": [
+        {
+         "text": "22) A paragraph of the very long note, number 22, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n79"
+       },
+       "content": [
+        {
+         "text": "23) A paragraph of the very long note, number 23, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n80"
+       },
+       "content": [
+        {
+         "text": "24) A paragraph of the very long note, number 24, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n81"
+       },
+       "content": [
+        {
+         "text": "25) A paragraph of the very long note, number 25, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n82"
+       },
+       "content": [
+        {
+         "text": "26) A paragraph of the very long note, number 26, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n83"
+       },
+       "content": [
+        {
+         "text": "27) A paragraph of the very long note, number 27, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n84"
+       },
+       "content": [
+        {
+         "text": "28) A paragraph of the very long note, number 28, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n85"
+       },
+       "content": [
+        {
+         "text": "29) A paragraph of the very long note, number 29, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n86"
+       },
+       "content": [
+        {
+         "text": "30) A paragraph of the very long note, number 30, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n87"
+       },
+       "content": [
+        {
+         "text": "31) A paragraph of the very long note, number 31, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n88"
+       },
+       "content": [
+        {
+         "text": "32) A paragraph of the very long note, number 32, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n89"
+       },
+       "content": [
+        {
+         "text": "33) A paragraph of the very long note, number 33, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n90"
+       },
+       "content": [
+        {
+         "text": "34) A paragraph of the very long note, number 34, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n91"
+       },
+       "content": [
+        {
+         "text": "35) A paragraph of the very long note, number 35, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n92"
+       },
+       "content": [
+        {
+         "text": "36) A paragraph of the very long note, number 36, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n93"
+       },
+       "content": [
+        {
+         "text": "37) A paragraph of the very long note, number 37, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n94"
+       },
+       "content": [
+        {
+         "text": "38) A paragraph of the very long note, number 38, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n95"
+       },
+       "content": [
+        {
+         "text": "39) A paragraph of the very long note, number 39, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n96"
+       },
+       "content": [
+        {
+         "text": "40) A paragraph of the very long note, number 40, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n97"
+       },
+       "content": [
+        {
+         "text": "41) A paragraph of the very long note, number 41, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n98"
+       },
+       "content": [
+        {
+         "text": "42) A paragraph of the very long note, number 42, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n99"
+       },
+       "content": [
+        {
+         "text": "43) A paragraph of the very long note, number 43, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n100"
+       },
+       "content": [
+        {
+         "text": "44) A paragraph of the very long note, number 44, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n101"
+       },
+       "content": [
+        {
+         "text": "45) A paragraph of the very long note, number 45, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n102"
+       },
+       "content": [
+        {
+         "text": "46) A paragraph of the very long note, number 46, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n103"
+       },
+       "content": [
+        {
+         "text": "47) A paragraph of the very long note, number 47, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n104"
+       },
+       "content": [
+        {
+         "text": "48) A paragraph of the very long note, number 48, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n105"
+       },
+       "content": [
+        {
+         "text": "49) A paragraph of the very long note, number 49, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n106"
+       },
+       "content": [
+        {
+         "text": "50) A paragraph of the very long note, number 50, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n107"
+       },
+       "content": [
+        {
+         "text": "51) A paragraph of the very long note, number 51, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n108"
+       },
+       "content": [
+        {
+         "text": "52) A paragraph of the very long note, number 52, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n109"
+       },
+       "content": [
+        {
+         "text": "53) A paragraph of the very long note, number 53, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n110"
+       },
+       "content": [
+        {
+         "text": "54) A paragraph of the very long note, number 54, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n111"
+       },
+       "content": [
+        {
+         "text": "55) A paragraph of the very long note, number 55, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n112"
+       },
+       "content": [
+        {
+         "text": "56) A paragraph of the very long note, number 56, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n113"
+       },
+       "content": [
+        {
+         "text": "57) A paragraph of the very long note, number 57, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n114"
+       },
+       "content": [
+        {
+         "text": "58) A paragraph of the very long note, number 58, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n115"
+       },
+       "content": [
+        {
+         "text": "59) A paragraph of the very long note, number 59, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n116"
+       },
+       "content": [
+        {
+         "text": "60) A paragraph of the very long note, number 60, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n117"
+       },
+       "content": [
+        {
+         "text": "61) A paragraph of the very long note, number 61, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n118"
+       },
+       "content": [
+        {
+         "text": "62) A paragraph of the very long note, number 62, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n119"
+       },
+       "content": [
+        {
+         "text": "63) A paragraph of the very long note, number 63, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n120"
+       },
+       "content": [
+        {
+         "text": "64) A paragraph of the very long note, number 64, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n121"
+       },
+       "content": [
+        {
+         "text": "65) A paragraph of the very long note, number 65, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n122"
+       },
+       "content": [
+        {
+         "text": "66) A paragraph of the very long note, number 66, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n123"
+       },
+       "content": [
+        {
+         "text": "67) A paragraph of the very long note, number 67, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n124"
+       },
+       "content": [
+        {
+         "text": "68) A paragraph of the very long note, number 68, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n125"
+       },
+       "content": [
+        {
+         "text": "69) A paragraph of the very long note, number 69, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n126"
+       },
+       "content": [
+        {
+         "text": "70) A paragraph of the very long note, number 70, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n127"
+       },
+       "content": [
+        {
+         "text": "71) A paragraph of the very long note, number 71, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n128"
+       },
+       "content": [
+        {
+         "text": "72) A paragraph of the very long note, number 72, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n129"
+       },
+       "content": [
+        {
+         "text": "73) A paragraph of the very long note, number 73, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n130"
+       },
+       "content": [
+        {
+         "text": "74) A paragraph of the very long note, number 74, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n131"
+       },
+       "content": [
+        {
+         "text": "75) A paragraph of the very long note, number 75, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n132"
+       },
+       "content": [
+        {
+         "text": "76) A paragraph of the very long note, number 76, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n133"
+       },
+       "content": [
+        {
+         "text": "77) A paragraph of the very long note, number 77, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n134"
+       },
+       "content": [
+        {
+         "text": "78) A paragraph of the very long note, number 78, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n135"
+       },
+       "content": [
+        {
+         "text": "79) A paragraph of the very long note, number 79, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n136"
+       },
+       "content": [
+        {
+         "text": "80) A paragraph of the very long note, number 80, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n137"
+       },
+       "content": [
+        {
+         "text": "81) A paragraph of the very long note, number 81, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n138"
+       },
+       "content": [
+        {
+         "text": "82) A paragraph of the very long note, number 82, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n139"
+       },
+       "content": [
+        {
+         "text": "83) A paragraph of the very long note, number 83, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n140"
+       },
+       "content": [
+        {
+         "text": "84) A paragraph of the very long note, number 84, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n141"
+       },
+       "content": [
+        {
+         "text": "85) A paragraph of the very long note, number 85, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n142"
+       },
+       "content": [
+        {
+         "text": "86) A paragraph of the very long note, number 86, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n143"
+       },
+       "content": [
+        {
+         "text": "87) A paragraph of the very long note, number 87, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n144"
+       },
+       "content": [
+        {
+         "text": "88) A paragraph of the very long note, number 88, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n145"
+       },
+       "content": [
+        {
+         "text": "89) A paragraph of the very long note, number 89, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n146"
+       },
+       "content": [
+        {
+         "text": "90) A paragraph of the very long note, number 90, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n147"
+       },
+       "content": [
+        {
+         "text": "91) A paragraph of the very long note, number 91, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n148"
+       },
+       "content": [
+        {
+         "text": "92) A paragraph of the very long note, number 92, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n149"
+       },
+       "content": [
+        {
+         "text": "93) A paragraph of the very long note, number 93, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n150"
+       },
+       "content": [
+        {
+         "text": "94) A paragraph of the very long note, number 94, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n151"
+       },
+       "content": [
+        {
+         "text": "95) A paragraph of the very long note, number 95, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n152"
+       },
+       "content": [
+        {
+         "text": "96) A paragraph of the very long note, number 96, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n153"
+       },
+       "content": [
+        {
+         "text": "97) A paragraph of the very long note, number 97, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n154"
+       },
+       "content": [
+        {
+         "text": "98) A paragraph of the very long note, number 98, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n155"
+       },
+       "content": [
+        {
+         "text": "99) A paragraph of the very long note, number 99, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n156"
+       },
+       "content": [
+        {
+         "text": "100) A paragraph of the very long note, number 100, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n157"
+       },
+       "content": [
+        {
+         "text": "101) A paragraph of the very long note, number 101, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n158"
+       },
+       "content": [
+        {
+         "text": "102) A paragraph of the very long note, number 102, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n159"
+       },
+       "content": [
+        {
+         "text": "103) A paragraph of the very long note, number 103, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n160"
+       },
+       "content": [
+        {
+         "text": "104) A paragraph of the very long note, number 104, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n161"
+       },
+       "content": [
+        {
+         "text": "105) A paragraph of the very long note, number 105, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n162"
+       },
+       "content": [
+        {
+         "text": "106) A paragraph of the very long note, number 106, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n163"
+       },
+       "content": [
+        {
+         "text": "107) A paragraph of the very long note, number 107, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n164"
+       },
+       "content": [
+        {
+         "text": "108) A paragraph of the very long note, number 108, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n165"
+       },
+       "content": [
+        {
+         "text": "109) A paragraph of the very long note, number 109, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n166"
+       },
+       "content": [
+        {
+         "text": "110) A paragraph of the very long note, number 110, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n167"
+       },
+       "content": [
+        {
+         "text": "111) A paragraph of the very long note, number 111, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n168"
+       },
+       "content": [
+        {
+         "text": "112) A paragraph of the very long note, number 112, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n169"
+       },
+       "content": [
+        {
+         "text": "113) A paragraph of the very long note, number 113, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n170"
+       },
+       "content": [
+        {
+         "text": "114) A paragraph of the very long note, number 114, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n171"
+       },
+       "content": [
+        {
+         "text": "115) A paragraph of the very long note, number 115, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n172"
+       },
+       "content": [
+        {
+         "text": "116) A paragraph of the very long note, number 116, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n173"
+       },
+       "content": [
+        {
+         "text": "117) A paragraph of the very long note, number 117, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n174"
+       },
+       "content": [
+        {
+         "text": "118) A paragraph of the very long note, number 118, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n175"
+       },
+       "content": [
+        {
+         "text": "119) A paragraph of the very long note, number 119, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n176"
+       },
+       "content": [
+        {
+         "text": "120) A paragraph of the very long note, number 120, written so that the note needs many pages at the foot of the text before it ends.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      }
+     ],
+     "type": "section"
+    },
+    {
+     "attrs": {
+      "nodeId": "n177"
+     },
+     "content": [
+      {
+       "attrs": {
+        "nodeId": "n178"
+       },
+       "content": [
+        {
+         "attrs": {
+          "nodeId": "n179"
+         },
+         "content": [
+          {
+           "text": "Grouped notes",
+           "type": "text"
+          }
+         ],
+         "type": "p"
+        }
+       ],
+       "type": "title"
+      },
+      {
+       "attrs": {
+        "id": "g_1",
+        "nodeId": "n180"
+       },
+       "content": [
+        {
+         "attrs": {
+          "nodeId": "n181"
+         },
+         "content": [
+          {
+           "attrs": {
+            "nodeId": "n182"
+           },
+           "content": [
+            {
+             "text": "2",
+             "type": "text"
+            }
+           ],
+           "type": "p"
+          }
+         ],
+         "type": "title"
+        },
+        {
+         "attrs": {
+          "nodeId": "n183"
+         },
+         "content": [
+          {
+           "text": "A note inside a group.",
+           "type": "text"
+          }
+         ],
+         "type": "p"
+        }
+       ],
+       "type": "section"
+      }
+     ],
+     "type": "section"
+    }
+   ],
+   "type": "body"
+  }
+ ],
+ "description": {
+  "customInfo": [],
+  "documentInfo": {
+   "authors": [
+    {
+     "emails": [],
+     "homePages": [],
+     "nickname": "fixture"
+    }
+   ],
+   "date": {
+    "text": "2026",
+    "value": "2026-01-01"
+   },
+   "id": "fixture-f016-long-notes",
+   "programUsed": "Maxima Fiction Book Editor 0.0.12-rc",
+   "publishers": [],
+   "srcUrls": [],
+   "version": "1.0"
+  },
+  "outputs": [],
+  "titleInfo": {
+   "authors": [
+    {
+     "emails": [],
+     "firstName": "Ann",
+     "homePages": [],
+     "lastName": "Example"
+    }
+   ],
+   "bookTitle": "Long notes",
+   "coverpage": [],
+   "genres": [
+    {
+     "code": "prose_classic"
+    }
+   ],
+   "lang": "en",
+   "sequences": [],
+   "translators": []
+  }
+ },
+ "docId": "golden",
+ "extras": [],
+ "fileKind": "fb2",
+ "filledIn": [
+  "documentInfo.programUsed"
+ ],
+ "modelVersion": 1,
+ "schemaHint": "legacy",
+ "sourceEncoding": "utf-8",
+ "stylesheets": []
+}

@@ -149,6 +149,17 @@ export function isTxtImportModule(id: string): boolean {
   return id.split('?')[0].replace(/\\/g, '/').startsWith(txtImportFolder);
 }
 
+// What both TXT parts read - the words of the record (`src/features/txt/shared/`) - is the lazy chunk
+// `txt-shared`, as the EPUB parts' `epub-shared`.
+const txtSharedFolder = fileURLToPath(
+  new URL('./src/features/txt/shared/', import.meta.url),
+).replace(/\\/g, '/');
+
+/** True for a module of the `txt-shared` chunk (exported for the unit test of the rule). */
+export function isTxtSharedModule(id: string): boolean {
+  return id.split('?')[0].replace(/\\/g, '/').startsWith(txtSharedFolder);
+}
+
 // Feature 017 (DP-13): text helpers the lazy imports share - the joining of words broken at a line's end
 // (`src/features/text/`) - are the lazy chunk `text-shared`, which the `pdf-import` and `txt-import` chunks
 // import; never reached from the main bundle.
@@ -262,6 +273,11 @@ export default defineConfig({
             {
               name: 'txt-import',
               test: isTxtImportModule,
+              includeDependenciesRecursively: false,
+            },
+            {
+              name: 'txt-shared',
+              test: isTxtSharedModule,
               includeDependenciesRecursively: false,
             },
             {
