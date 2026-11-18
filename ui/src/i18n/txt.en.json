@@ -69,14 +69,35 @@
       "intro": "Some characters cannot be written in {{encoding}}:",
       "replaced": "{{char}} written as \"{{as}}\" ({{count}}×)",
       "leftOut": "{{char}} left out ({{count}}×)",
-      "noTitle": "The book has no title; the file's name \"{{detail}}\" stands in for it."
+      "noTitle": "The book has no title; the file's name \"{{detail}}\" stands in for it.",
+      "encoding": "The text was read in {{encoding}}.",
+      "controls": "{{count}} control characters were left out."
+    },
+    "openTitle": "Import TXT",
+    "filterAnyFile": "All files",
+    "importCaption": "Import TXT",
+    "importDone": "Imported {{path}}: {{paragraphs}} paragraphs",
+    "importFailed": "{{path}} was not imported: {{reason}}",
+    "importCancelled": "The TXT import was cancelled; the book in the window is as it was.",
+    "encodingQuestion": "The encoding of the text:",
+    "refused": {
+      "binary": "it is not a text file.",
+      "empty": "it holds no text.",
+      "tooLarge": "it is larger than 128 MB.",
+      "fictionBook": "it is a FictionBook book - open it with File > Open.",
+      "noTxtInArchive": "the archive holds no TXT file.",
+      "otherArchive": "only ZIP archives are read.",
+      "damaged": "the file or the archive cannot be read.",
+      "encrypted": "the archive is protected by a password.",
+      "tooLargeEntry": "the archive's file is too large."
     }
   },
   "tip": {
     "txt": {
       "encoding": "The encoding the text is written in; UTF-8 writes every character",
       "bom": "Begin a UTF-8 file with the byte-order mark some Windows programs look for",
-      "zip": "Write a ZIP archive with the TXT file and an FBD file of the book's description and cover"
+      "zip": "Write a ZIP archive with the TXT file and an FBD file of the book's description and cover",
+      "importEncoding": "The encoding the text file was written in; the most likely first"
     }
   }
 }

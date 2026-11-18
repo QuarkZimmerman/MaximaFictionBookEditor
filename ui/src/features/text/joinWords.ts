@@ -84,3 +84,23 @@ export async function knownWords(
   }
   return known;
 }
+
+/** The core's dictionaries asked through `spell.check` (the editor's shipped English, Russian, Ukrainian). */
+export async function dictionaryAsker(rpc: {
+  call(method: 'spell.dictionaries'): Promise<{ lang: string; tag?: string }[]>;
+  call(
+    method: 'spell.check',
+    params: { words: string[]; langs: string[] },
+  ): Promise<{ misspelled: string[] }>;
+}): Promise<MisspelledAsker> {
+  const dictionaries = await rpc.call('spell.dictionaries').catch(() => []);
+  const dictionaryOf = (code: string): string | undefined =>
+    dictionaries.find(
+      (d) => d.lang.toLowerCase().startsWith(code) || (d.tag ?? '').toLowerCase().startsWith(code),
+    )?.lang;
+  return async (words, code) => {
+    const dictionary = dictionaryOf(code);
+    if (!dictionary || words.length === 0) return words;
+    return (await rpc.call('spell.check', { words, langs: [dictionary] })).misspelled;
+  };
+}

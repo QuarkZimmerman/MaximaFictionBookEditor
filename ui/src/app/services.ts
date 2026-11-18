@@ -29,6 +29,7 @@ import { provideCompletionLists } from '@/views/source/attributeCompletion';
 import { registerEpubFeature } from '@/features/epub';
 import { registerPdfFeature } from '@/features/pdf';
 import { registerTxtExportFeature } from '@/features/txt/exportCommand';
+import { registerTxtImportFeature } from '@/features/txt/importCommand';
 import { registerPdfImportFeature } from '@/features/pdf/importCommand';
 import { registerMarkdownImport } from '@/features/markdown/importCommand';
 
@@ -114,6 +115,7 @@ export function createAppServices(options: CreateAppServicesOptions = {}): AppSe
   registerPdfFeature(commands);
   registerTxtExportFeature(commands);
   registerPdfImportFeature(commands, files);
+  registerTxtImportFeature(commands, files);
   registerViewCommands(commands);
   // Feature modules (editing, source tools, description, tree, spelling, images, words,
   // settings, scripts) register their commands/plugins through their own registrar file;

@@ -104,6 +104,7 @@ export const MAIN_MENU: readonly MenuSpec[] = [
           cmd('file.importMarkdown'),
           cmd('file.importEpub'),
           cmd('file.importPdf'),
+          cmd('file.importTxt'),
         ],
       },
       {

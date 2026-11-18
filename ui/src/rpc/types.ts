@@ -763,8 +763,8 @@ export interface ArchiveBook {
   /** "/"-separated, "" at the top level. */
   folder: string;
   size: number;
-  /** Feature 016: the PDF import offers an archive's PDFs in the same chooser. */
-  kind: 'fb2' | 'fbd' | 'pdf';
+  /** Feature 016: the PDF import offers an archive's PDFs in the same chooser; feature 017 its TXT files. */
+  kind: 'fb2' | 'fbd' | 'pdf' | 'txt';
 }
 
 /** `doc.open`'s answer for a ZIP archive of several books (feature 009). */
@@ -1618,7 +1618,7 @@ export interface RpcMethods {
   'doc.newFromXml': {
     params: {
       xml: string;
-      origin?: { kind: 'markdown' | 'epub' | 'pdf'; path: string };
+      origin?: { kind: 'markdown' | 'epub' | 'pdf' | 'txt'; path: string };
       /** Feature 016 (D6): keep the description's id, date and program (the editor's own PDF). */
       keepDetails?: boolean;
     };
