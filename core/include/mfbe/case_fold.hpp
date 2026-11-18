@@ -8,7 +8,8 @@
 
 namespace mfbe::text {
 
-// `utf8` with its capital letters of the scripts above as small ones; invalid bytes stay as they are.
+// `utf8` with its capital letters of the scripts above as small ones; invalid bytes stay as they
+// are.
 std::string fold_case(std::string_view utf8);
 
 }  // namespace mfbe::text
