@@ -32,6 +32,7 @@ export function MarkdownPage({ draft, onChange }: MarkdownPageProps) {
           <input
             type="checkbox"
             data-testid="settings-markdown-include-pictures"
+            {...tip(t('tip.settings.txt.includePictures'))}
             checked={value}
             onChange={(event) => onChange({ includePictures: event.target.checked })}
           />

@@ -75,6 +75,7 @@ export function TxtPage({ draft, onChange, ctx }: TxtPageProps) {
               type="radio"
               name="settings-txt-mode"
               data-testid="settings-txt-mode-utf-8"
+              {...tip(t('tip.settings.txt.mode'))}
               checked={values.encodingMode === 'utf-8'}
               onChange={() => onChange({ encodingMode: 'utf-8' })}
             />
@@ -85,6 +86,7 @@ export function TxtPage({ draft, onChange, ctx }: TxtPageProps) {
               type="radio"
               name="settings-txt-mode"
               data-testid="settings-txt-mode-language"
+              {...tip(t('tip.settings.txt.mode'))}
               checked={values.encodingMode === 'language'}
               onChange={() => onChange({ encodingMode: 'language' })}
             />
@@ -108,6 +110,7 @@ export function TxtPage({ draft, onChange, ctx }: TxtPageProps) {
             <select
               id={`settings-txt-encoding-${key}`}
               data-testid={`settings-txt-encoding-${key}`}
+              {...tip(t('tip.settings.txt.encoding'))}
               value={values.encodings[key]}
               disabled={values.encodingMode !== 'language'}
               onChange={(event) => setList(key, event.target.value)}
@@ -136,6 +139,7 @@ export function TxtPage({ draft, onChange, ctx }: TxtPageProps) {
             <input
               type="checkbox"
               data-testid={`settings-txt-${key}`}
+              {...tip(t(`tip.settings.txt.${key}`))}
               checked={values[key]}
               onChange={(event) => onChange({ [key]: event.target.checked })}
             />

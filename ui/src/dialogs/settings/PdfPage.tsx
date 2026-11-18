@@ -429,6 +429,7 @@ export function PdfPage({ draft, onChange, ctx }: PdfPageProps) {
           <input
             type="checkbox"
             data-testid="settings-pdf-zip"
+            {...tip(t('tip.settings.txt.pdfZip'))}
             checked={!!values.zip}
             onChange={(event) => onChange({ zip: event.target.checked })}
           />
