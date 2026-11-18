@@ -5,12 +5,14 @@
  */
 import type { CommandContext } from '@/app/commands';
 import type { FileFeature } from '@/features/file/fileCommands';
+import { withFbd } from '@/features/importShared/fbdApply';
 import { dictionaryAsker, knownWords } from '@/features/text/joinWords';
 import { actions } from '@/model/store';
 import { normaliseGenres, normaliseLanguages } from '@/views/description/resources';
 
 import type { TxtImportRun } from '../importCommand';
 import { bodyXml, bookXml, templateDescription } from './build';
+import { chooseFbd } from './fbd';
 import { brokenCandidates, foreignParagraphs, linesOf } from './layout';
 import { ownBodies, ownDescription, parseOwnTxt } from './ours';
 
@@ -28,7 +30,7 @@ export async function importTxt(
   run: TxtImportRun,
 ): Promise<boolean> {
   const { rpc, store } = ctx;
-  const { modal } = run;
+  let { modal } = run;
   if (!rpc) return false;
   const check = (): void => {
     if (run.cancelled()) throw new Cancelled();
@@ -79,9 +81,40 @@ export async function importTxt(
       origin: { kind: 'txt', path: run.path },
     });
     check();
+    // D32 to D34: the FBD of the TXT - its archive's, or the one beside it - gives the description whole.
+    let book = opened.document;
+    let fbdTaken: string | null = null;
+    let fbdError: { name: string; error: unknown } | null = null;
+    // The list of an archive's FBDs is a question: the progress steps aside while it is asked.
+    const asks = run.entry !== undefined && run.fbds.length > 0;
+    if (asks) modal.end();
+    const fbd = await chooseFbd(ctx, run);
+    if (asks) modal = run.reopen();
+    if (fbd === 'cancel') throw new Cancelled();
+    if (fbd) {
+      const fbdPath =
+        fbd.path ??
+        (await rpc.call('txtImport.extractFbd', { token: run.token, entry: fbd.entry! })).path;
+      const applied = await withFbd(ctx, opened.document.docId, book, fbdPath);
+      if (applied.error) fbdError = { name: fbd.name, error: applied.error };
+      else {
+        book = { ...opened.document, ...applied.document };
+        fbdTaken = fbd.name;
+      }
+    }
     await rpc.call('txtImport.end', { token: run.token }).catch(() => undefined);
     modal.end();
-    await files.loadImported(ctx, opened.document, run.path);
+    if (fbdError)
+      await ctx.dialogs.showMessage({
+        text: ctx.t('txt.fbdUnreadable', {
+          name: fbdError.name,
+          reason: fbdError.error instanceof Error ? fbdError.error.message : String(fbdError.error),
+        }),
+        caption: ctx.t('txt.importCaption'),
+        icon: 'warning',
+        testId: 'dialog-txt-fbd-unreadable',
+      });
+    await files.loadImported(ctx, book, run.path);
     // D37: one line for each thing worth naming, else the status bar says what came in.
     const lines37 = [
       ...(run.encoding !== 'utf-8' && run.source !== 'bom'
@@ -89,6 +122,7 @@ export async function importTxt(
         : []),
       ...(controlsLeftOut > 0 ? [ctx.t('txt.summary.controls', { count: controlsLeftOut })] : []),
       ...unread.map((detail) => ctx.t('txt.summary.unread', { detail })),
+      ...(fbdTaken ? [ctx.t('txt.summary.fbd', { name: fbdTaken })] : []),
     ];
     const done = ctx.t('txt.importDone', {
       path: run.path,

@@ -7,6 +7,7 @@
                                         the same for the books of a corpus list (local corpus gate runs)
   make-fixtures.py --hyphenated         wrapped files breaking words at line ends, with expectations
   make-fixtures.py --hostile DIR        SC-013's hostile set, generated at run time (large files)
+  make-fixtures.py --zips               the archives of D31 and D32 into tests/fixtures/txt/zips/
 
 Layouts: per-line (CR LF), per-line-blank, per-line-indent, wrapped-blank and wrapped-indent (72
 columns, words never broken). The expectation is the list of the book's paragraphs in order.
@@ -120,13 +121,36 @@ def write_hostile(out: Path) -> None:
     shutil.copyfile(BOOKS / "modern-utf8.fb2", out / "fb2-renamed.txt")
 
 
+def write_zips(out: Path) -> None:
+    """D31, D32: one TXT with an FBD of another name (a pair); two TXT with an FBD named after one; two TXT
+    with an FBD named after neither (the list with None)."""
+    import zipfile
+    out.mkdir(parents=True, exist_ok=True)
+    fbd = (BOOKS / "descriptor.fbd").read_bytes()
+    text = "A text of the archive.\nIts second paragraph.\n".encode("utf-8")
+    plans = {
+        "pair.zip": [("story.txt", text), ("description.fbd", fbd)],
+        "named.zip": [("first.txt", text), ("second.txt", text), ("Second.FBD", fbd)],
+        "unmatched.zip": [("first.txt", text), ("second.txt", text), ("other.fbd", fbd)],
+    }
+    for name, entries in plans.items():
+        with zipfile.ZipFile(out / name, "w", zipfile.ZIP_DEFLATED) as archive:
+            for entry, data in entries:
+                archive.writestr(zipfile.ZipInfo(entry, (2026, 1, 1, 0, 0, 0)), data)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--sample", help="a corpus list (one FB2 path or id per line)")
     parser.add_argument("--out", help="output folder (default tests/fixtures/txt/layouts)")
     parser.add_argument("--hyphenated", action="store_true")
     parser.add_argument("--hostile", metavar="DIR")
+    parser.add_argument("--zips", action="store_true")
     args = parser.parse_args()
+    if args.zips:
+        write_zips(HERE / "zips")
+        print("make-fixtures: archives written")
+        return 0
     if args.hostile:
         write_hostile(Path(args.hostile))
         print(f"make-fixtures: hostile set in {args.hostile}")
