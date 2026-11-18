@@ -5,6 +5,7 @@
 #include <mfbe/atomic_file.hpp>
 #include <mfbe/log.hpp>
 #include <mfbe/settings.hpp>
+#include <mfbe/single_byte.hpp>
 #include <mfbe/store_lock.hpp>
 #include <mfbe/unicode.hpp>
 #include <mfbe/utf8_paths.hpp>
@@ -15,6 +16,9 @@
 #include <system_error>
 
 namespace mfbe::settings {
+
+// Feature 017 (D11): defined below, used by the settings' rules.
+std::vector<std::string> txt_encodings();
 namespace {
 
 using json = nlohmann::json;
@@ -119,6 +123,19 @@ const std::vector<Field>& schema() {
         // (6 to 24 pt), the margins in millimetres.
         integer("pdf.customTextSize", 60, 240),
         integer("pdf.customMargin", 5, 50),
+        // Feature 017 (D17 to D21, DP-7; specs/017-txt-export-import/contracts/settings.md): the
+        // defaults of the export dialogs' options. Encodings are checked against D11's lists.
+        field("pdf.zip", Kind::boolean),
+        field("markdown.includePictures", Kind::boolean),
+        enumeration("txt.encodingMode", {"utf-8", "language"}),
+        enumeration("txt.encodings.en",
+                    {"utf-8", "windows-1252", "iso-8859-1", "iso-8859-15", "macintosh"}),
+        enumeration("txt.encodings.ru", {"utf-8", "windows-1251", "koi8-r", "ibm866", "iso-8859-5",
+                                         "koi8-u", "x-mac-cyrillic"}),
+        enumeration("txt.encodings.uk", {"utf-8", "windows-1251", "koi8-u", "x-mac-cyrillic"}),
+        enumeration("txt.encodings.other", txt_encodings()),
+        field("txt.bom", Kind::boolean),
+        field("txt.zip", Kind::boolean),
         enumeration("other.defaultEncoding", supported_encodings()),
         field("other.keepEncoding", Kind::boolean),
         // A backup of the previous version beside the saved file (feature 009, FR-006).
@@ -580,6 +597,15 @@ std::string exception_class(const std::exception& e) {
 
 // ---------------------------------------------------------------- defaults -----------------
 
+// Feature 017 (D11): the TXT export's encodings, UTF-8 and the 28 single-byte ones.
+std::vector<std::string> txt_encodings() {
+    std::vector<std::string> names{"utf-8"};
+    for (const std::string& name : text::single_byte_names()) {
+        names.push_back(name);
+    }
+    return names;
+}
+
 const std::vector<std::string>& supported_encodings() {
     static const std::vector<std::string> encodings = {
         "utf-8",      "utf-16",     "windows-1251", "windows-1252", "iso-8859-1",
@@ -641,7 +667,18 @@ json defaults() {
           {"textSize", "standard"},
           {"margins", "standard"},
           {"customTextSize", 115},
-          {"customMargin", 22}}},
+          {"customMargin", 22},
+          {"zip", false}}},
+        {"markdown", {{"includePictures", true}}},
+        {"txt",
+         {{"encodingMode", "utf-8"},
+          {"encodings",
+           {{"en", "windows-1252"},
+            {"ru", "windows-1251"},
+            {"uk", "windows-1251"},
+            {"other", "utf-8"}}},
+          {"bom", false},
+          {"zip", false}}},
         {"session",
          {{"windowGeometry", nullptr},
           {"toolbars",

@@ -99,8 +99,19 @@ TEST_CASE("settings: defaults are exactly resource-formats.md section 6", "[sett
                            {"textSize", "standard"},
                            {"margins", "standard"},
                            {"customTextSize", 115},
-                           {"customMargin", 22}});
-    CHECK(d.size() == 7);
+                           {"customMargin", 22},
+                           {"zip", false}});
+    // Feature 017 (D17 to D21, DP-7; specs/017-txt-export-import/contracts/settings.md).
+    CHECK(d["markdown"] == json{{"includePictures", true}});
+    CHECK(d["txt"] == json{{"encodingMode", "utf-8"},
+                           {"encodings",
+                            {{"en", "windows-1252"},
+                             {"ru", "windows-1251"},
+                             {"uk", "windows-1251"},
+                             {"other", "utf-8"}}},
+                           {"bom", false},
+                           {"zip", false}});
+    CHECK(d.size() == 9);
 }
 
 TEST_CASE(
