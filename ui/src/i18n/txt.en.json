@@ -59,6 +59,24 @@
       "windows-1258": "windows-1258 (Vietnamese)",
       "x-mac-cyrillic": "x-mac-cyrillic (Mac Cyrillic)",
       "iso-8859-1": "ISO-8859-1 (Western European, Latin-1)"
+    },
+    "exportCaption": "Export as TXT",
+    "exported": "Exported to {{path}}",
+    "exportCancelled": "The TXT export was cancelled; nothing was written.",
+    "exportFailed": "{{path}} was not written: {{detail}}",
+    "ownFile": "it is the book's own file, or the archive it was opened from.",
+    "summary": {
+      "intro": "Some characters cannot be written in {{encoding}}:",
+      "replaced": "{{char}} written as \"{{as}}\" ({{count}}×)",
+      "leftOut": "{{char}} left out ({{count}}×)",
+      "noTitle": "The book has no title; the file's name \"{{detail}}\" stands in for it."
+    }
+  },
+  "tip": {
+    "txt": {
+      "encoding": "The encoding the text is written in; UTF-8 writes every character",
+      "bom": "Begin a UTF-8 file with the byte-order mark some Windows programs look for",
+      "zip": "Write a ZIP archive with the TXT file and an FBD file of the book's description and cover"
     }
   }
 }

@@ -117,6 +117,7 @@ export const MAIN_MENU: readonly MenuSpec[] = [
           cmd('file.exportMarkdownZip'),
           cmd('file.exportEpub'),
           cmd('file.exportPdf'),
+          cmd('file.exportTxt'),
         ],
       },
       sep,
