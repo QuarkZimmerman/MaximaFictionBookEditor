@@ -12,6 +12,7 @@ inline constexpr int kApiVersion = 1;
 // Additive contract revision within kApiVersion (absent in app.info = 0); feature 002 = 1,
 // feature 003 = 2, feature 004 = 3, feature 005 = 4, feature 006 = 5, feature 007 = 6, ...,
 // feature 012 = 11, feature 014 = 12 (the PDF export: specs/014-pdf-export/contracts/rpc-api.md),
-// feature 015 = 13, feature 016 = 14 (the PDF import: specs/016-pdf-import/contracts/rpc-api.md).
-inline constexpr int kApiMinor = 14;
+// feature 015 = 13, feature 016 = 14 (the PDF import: specs/016-pdf-import/contracts/rpc-api.md),
+// feature 017 = 15 (TXT export and import: specs/017-txt-export-import/contracts/rpc-api.md).
+inline constexpr int kApiMinor = 15;
 }  // namespace mfbe::version

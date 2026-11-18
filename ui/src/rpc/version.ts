@@ -33,4 +33,4 @@ export const RPC_API_VERSION = 1;
  * and requires >= 5 since feature 006 (`AI_REQUIRED_API_MINOR` in `ui/src/ai/index.ts`; 4
  * before).
  */
-export const RPC_API_MINOR = 14;
+export const RPC_API_MINOR = 15;
