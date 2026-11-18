@@ -7,6 +7,7 @@ import type { CommandContext } from '@/app/commands';
 import { actions } from '@/model/store';
 import { isRpcError } from '@/rpc/client';
 import { RpcErrorCode } from '@/rpc/types';
+import { normaliseGenres, normaliseLanguages } from '@/views/description/resources';
 
 import type { TxtRun } from '../exportCommand';
 import { layoutTxt } from './layout';
@@ -37,9 +38,13 @@ export async function exportTxt(ctx: CommandContext, docId: string, run: TxtRun)
       rpc.call('resources.languages'),
       rpc.call('app.info'),
     ]);
+    // The lists as the description's fields read them (views/description/resources.ts).
+    const languageList = normaliseLanguages(languages).groups.flatMap((group) =>
+      group.languages.map((language) => ({ code: language.code, names: language.name })),
+    );
     const layout = layoutTxt(
       state.document,
-      { genres: genres.entries, languages },
+      { genres: normaliseGenres(genres).entries, languages: languageList },
       run.stem,
       info.version,
     );
