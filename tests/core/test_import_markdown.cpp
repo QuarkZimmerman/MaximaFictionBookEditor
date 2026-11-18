@@ -99,15 +99,14 @@ TEST_CASE("text judge: UTF-8, the byte-order marks and the legacy encodings of a
         CHECK(*text::decode_text(c.bytes, c.encoding) == text);
     }
 
-    // "caf\xE9": windows-1252 and ISO-8859-2 both read the whole file as "café" - one choice, not
-    // two: the earlier stands for both (feature 017, D26); with no plausible word it still asks.
+    // "caf\xE9": windows-1252 and ISO-8859-2 both read the whole file as "café"; the others mix a Cyrillic
+    // letter into the Latin word ("cafй") - the one clean reading is taken without a question (feature 017,
+    // D26: the requester's "decide alone").
     const text::TextReading same = text::read_text("A caf\xE9 in town.\n");
-    CHECK_FALSE(same.decided);
-    REQUIRE_FALSE(same.candidates.empty());
-    CHECK(same.candidates[0] == "windows-1252");
-    CHECK(std::find(same.candidates.begin(), same.candidates.end(), "iso-8859-2") ==
-          same.candidates.end());
-    // "\xB9" reads "¹" in windows-1252 and "š" in ISO-8859-2: two texts, no clear lead - it asks.
+    CHECK(same.decided);
+    CHECK(same.encoding == "windows-1252");
+    CHECK(same.utf8 == "A caf\xC3\xA9 in town.\n");
+    // "\xB9" reads "¹" in windows-1252 and "š" in ISO-8859-2: two clean readings, no clear lead - it asks.
     const text::TextReading unsure = text::read_text("A caf\xE9 \xB9 in town.\n");
     CHECK_FALSE(unsure.decided);
     REQUIRE(unsure.candidates.size() >= 2);
@@ -144,9 +143,10 @@ TEST_CASE("import.readMarkdown, template.xml and doc.newFromXml over RPC (featur
     REQUIRE(chosen.contains("result"));
     CHECK(chosen["result"]["encodingSource"] == "chosen");
 
-    // Unsure: the candidates to ask about.
+    // Unsure: the candidates to ask about - letters that several encodings read as words of their own
+    // (feature 017, D26: "café" alone is now read without a question, its one clean reading).
     const auto unsure = data / "unsure.md";
-    test::write_text(unsure, "A caf\xE9 in town.\n");
+    test::write_text(unsure, "\xFA\xFB\xFC \xFA\xFB\xFC\n");
     const json asked = ws.call("import.readMarkdown", json{{"path", unsure.string()}});
     REQUIRE(asked.contains("result"));
     CHECK(asked["result"]["needsEncoding"]["candidates"].size() >= 2);

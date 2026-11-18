@@ -6,6 +6,7 @@
 #include <mfbe/text_encoding.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 
 namespace mfbe::text {
@@ -90,7 +91,25 @@ bool is_ordinary(char32_t c) {
         return true;  // ASCII: letters, digits and the punctuation of plain text
     }
     switch (c) {
+        // Feature 017 (D26): also the degree, copyright, registered, section, plus-minus, middle
+        // dot, bullet, euro, pound and multiplication signs of running text.
         case 0xA0:
+        case 0xA3:
+        case 0xA7:
+        case 0xA9:
+        case 0xAE:
+        case 0xB0:
+        case 0xB1:
+        case 0xB2:
+        case 0xB3:
+        case 0xB7:
+        case 0xB9:
+        case 0xBC:
+        case 0xBD:
+        case 0xBE:
+        case 0xD7:
+        case 0x2022:
+        case 0x20AC:
         case 0xAB:
         case 0xBB:
         case 0x2013:
@@ -192,6 +211,125 @@ bool looks_binary(std::string_view bytes) {
     return n > 0 && controls * 100 > n;
 }
 
+namespace {
+
+// Feature 017 (D26, the requester at implement after the corpus run: "decide alone"): no clear
+// lead, and nothing in the text to judge by - as in an English text whose only bytes above 0x7F are
+// no-break spaces (IBM866 reads them as the letter "а", a word of its own). Every candidate reads
+// the ASCII bytes alike, so candidates read the file alike when they map its other byte values
+// alike. When one such set of candidates reads them as the ordinary marks of text only (a no-break
+// space, quotes, dashes - is_ordinary, letters aside) and every other set as letters or other
+// signs, one of the set is taken without a question: windows-1252 first, as the text is Latin. A
+// text with letters above 0x7F has no such set, and is asked about as before.
+std::optional<std::string> neutral_reading(std::string_view bytes,
+                                           const std::vector<std::string>& candidates) {
+    std::array<bool, 256> present{};
+    for (const char c : bytes) {
+        present[static_cast<unsigned char>(c)] = true;
+    }
+    std::string high;
+    for (int b = 0x80; b < 0x100; ++b) {
+        if (present[static_cast<std::size_t>(b)]) {
+            high.push_back(static_cast<char>(b));
+        }
+    }
+    if (high.empty()) {
+        return std::nullopt;
+    }
+    struct Set {
+        std::string reads;  // what the candidates read for the file's bytes above 0x7F
+        std::vector<std::string> names;
+    };
+    std::vector<Set> sets;
+    for (const std::string& name : candidates) {
+        std::optional<std::string> reads = decode_text(high, name);
+        if (!reads) {
+            continue;
+        }
+        const auto it = std::find_if(sets.begin(), sets.end(),
+                                     [&](const Set& set) { return set.reads == *reads; });
+        if (it == sets.end()) {
+            sets.push_back(Set{std::move(*reads), {name}});
+        } else {
+            it->names.push_back(name);
+        }
+    }
+    // A reading is clean when it gives the text no sign beyond the ordinary marks of text and no
+    // word that mixes Latin with other letters ("plainаtext", where IBM866 reads a no-break space
+    // as "а"); a lone letter of another script counts as a mixed one when no word of that script
+    // stands in the text.
+    const auto clean = [&bytes](const std::string& name) {
+        const std::optional<std::string> text = decode_text(bytes, name);
+        if (!text) {
+            return false;
+        }
+        long odd = 0;
+        long lone = 0;
+        long words = 0;  // words of two or more letters of another script than Latin
+        bool latin = false;
+        long other = 0;
+        const auto end_word = [&] {
+            if (other > 0 && latin) {
+                ++odd;
+            } else if (other == 1) {
+                ++lone;
+            } else if (other > 1) {
+                ++words;
+            }
+            latin = false;
+            other = 0;
+        };
+        const std::string& utf8 = *text;
+        for (std::size_t i = 0; i < utf8.size();) {
+            const auto c = static_cast<unsigned char>(utf8[i]);
+            const std::size_t len = c < 0x80 ? 1 : c < 0xE0 ? 2 : c < 0xF0 ? 3 : 4;
+            char32_t cp = len == 1   ? c
+                          : len == 2 ? (c & 0x1Fu)
+                          : len == 3 ? (c & 0x0Fu)
+                                     : (c & 0x07u);
+            for (std::size_t k = 1; k < len && i + k < utf8.size(); ++k) {
+                cp = (cp << 6) | (static_cast<unsigned char>(utf8[i + k]) & 0x3Fu);
+            }
+            i += len;
+            if (is_letter(cp)) {
+                if (cp < 0x250) {
+                    latin = true;  // ASCII and the Latin letters above it
+                } else {
+                    ++other;
+                }
+                continue;
+            }
+            end_word();
+            if (!is_ordinary(cp)) {
+                ++odd;
+            }
+        }
+        end_word();
+        return odd == 0 && (words > 0 || lone == 0);
+    };
+    const Set* chosen = nullptr;
+    for (const Set& set : sets) {
+        if (clean(set.names.front())) {
+            if (chosen != nullptr) {
+                return std::nullopt;  // two sets read the file differently, both plausibly: ask
+            }
+            chosen = &set;
+        }
+    }
+    if (chosen == nullptr) {
+        return std::nullopt;
+    }
+    for (const char* preferred : {"windows-1252", "iso-8859-1", "iso-8859-15", "windows-1251"}) {
+        if (std::find(chosen->names.begin(), chosen->names.end(), preferred) !=
+            chosen->names.end()) {
+            return std::string(preferred);
+        }
+    }
+    return chosen->names.front();
+}
+
+}  // namespace
+
 TextReading read_text(std::string_view bytes) {
     return read_text(bytes, legacy_candidates());
 }
@@ -257,6 +395,16 @@ TextReading read_text(std::string_view bytes, const std::vector<std::string>& ca
             reading.encoding = scored[0].name;
             reading.source = "judged";
             reading.utf8 = std::move(*text);
+        }
+    }
+    if (!reading.decided) {
+        if (std::optional<std::string> name = neutral_reading(bytes, candidates)) {
+            if (std::optional<std::string> text = decode_text(bytes, *name)) {
+                reading.decided = true;
+                reading.encoding = *name;
+                reading.source = "judged";
+                reading.utf8 = std::move(*text);
+            }
         }
     }
     return reading;

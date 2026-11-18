@@ -79,6 +79,8 @@ TEST_CASE("txtImport reads UTF-8, a byte-order mark and judged single-byte encod
     CHECK(utf8["result"]["source"] == "utf8");
     const json bom = f.read(f.write("bom.txt", "\xEF\xBB\xBF" + kRussian));
     CHECK(bom["result"]["source"] == "bom");
+    // UTF-8 with or without the byte-order mark reads the same text; the mark is not part of it.
+    CHECK(bom["result"]["text"] == kRussian);
     for (const std::string encoding : {"windows-1251", "koi8-r", "ibm866"}) {
         INFO(encoding);
         const auto bytes = text::encode_single_byte(kRussian, encoding)->bytes;
@@ -150,4 +152,23 @@ TEST_CASE("txtImport lists an archive's TXT and FBD files and reads the one chos
     const json refused = f.begin(none);
     REQUIRE(refused.contains("error"));
     CHECK(refused["error"]["data"]["reason"] == "noTxtInArchive");
+}
+
+TEST_CASE("txtImport takes an encoding without asking when nothing tells and only marks differ (D26)",
+          "[txt][import][rpc]") {
+    Fixture f;
+    // An English text whose only bytes above 0x7F are no-break spaces (the editor's own ISO-8859-1 export of
+    // corpus book 1338): five encodings read it alike, the others give letters or signs - no question.
+    const std::string bytes = "A plain\xA0text of 10\xA0km, nothing more.\n";
+    const json read = f.read(f.write("nbsp.txt", bytes));
+    REQUIRE(read["result"].contains("text"));
+    CHECK(read["result"]["source"] == "judged");
+    CHECK(read["result"]["encoding"] == "windows-1252");
+    CHECK(read["result"]["text"] == "A plain\xC2\xA0text of 10\xC2\xA0km, nothing more.\n");
+    // "café ¹": the Western encodings read it cleanly, the others mix a Cyrillic letter into the word.
+    const json cafe = f.read(f.write("cafe.txt", std::string("A caf\xE9 \xB9 in town.\n")));
+    CHECK(cafe["result"]["encoding"] == "windows-1252");
+    // Letters that several encodings read as words of their own, none plausible: a choice - it is asked.
+    const json asked = f.read(f.write("yyy.txt", std::string("\xFA\xFB\xFC \xFA\xFB\xFC\n")));
+    CHECK(asked["result"].contains("needsEncoding"));
 }

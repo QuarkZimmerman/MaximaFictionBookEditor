@@ -105,17 +105,17 @@ test('a windows-1251 TXT is judged; one the judge cannot tell is asked (D26)', a
   expect(ended.failed).toBeUndefined();
   expect(ended.summary ?? '').toContain('windows-1251');
   expect(await xml(page)).toContain('<p>Маша жила в Москве.');
-  // "caf\xE9 \xB9": two encodings read it differently and none leads - the question, all 29 on offer.
+  // Letters that several encodings read as words, none plausible: the question, all 29 on offer.
   const unsure = path.join(dir, 'unsure.txt');
-  writeFileSync(unsure, Buffer.from([0x41, 0x20, 0x63, 0x61, 0x66, 0xe9, 0x20, 0xb9, 0x0a]));
+  writeFileSync(unsure, Buffer.from([0xfa, 0xfb, 0xfc, 0x20, 0xfa, 0xfb, 0xfc, 0x0a]));
   before = await importTxt(core, page, unsure);
   const question = page.getByTestId('dialog-txt-import-encoding-question');
   await expect(question).toBeVisible();
   await expect(question.locator('option')).toHaveCount(29);
-  await question.getByTestId('dialog-txt-import-encoding').selectOption('windows-1252');
+  await question.getByTestId('dialog-txt-import-encoding').selectOption('windows-1251');
   await question.getByRole('button', { name: 'OK' }).click();
   expect((await importEnds(page, before)).failed).toBeUndefined();
-  expect(await xml(page)).toContain('<p>A café ¹</p>');
+  expect(await xml(page)).toContain('<p>ъыь ъыь</p>');
 });
 
 test('binary, empty and FictionBook files are refused; nothing changes (D26, D36)', async ({
