@@ -194,13 +194,14 @@ void register_files_handlers(rpc::RpcRouter& router, Services& services) {
         if (!file.is_absolute()) {
             throw rpc::invalid_params("path must be absolute", json{{"field", "path"}});
         }
+        // The folder's own names, read once: the exact one wins, else the only one that differs in
+        // letter case alone. Never a name made up here - on a file system that ignores letter case
+        // (macOS, Windows) a made-up "Book.fbd" would be found as "BOOK.FBD" and named as it was
+        // asked for.
         std::error_code ec;
-        fs::path exact = file.parent_path() / file.stem();
-        exact += ".fbd";  // path-text: an ASCII extension
-        if (fs::is_regular_file(exact, ec)) {
-            return json{{"path", platform::utf8_from_path(exact)}};
-        }
-        const std::string stem = text::fold_case(platform::utf8_from_path(file.stem()));
+        const std::string stem_utf8 = platform::utf8_from_path(file.stem());
+        const std::string exact = stem_utf8 + ".fbd";
+        const std::string stem = text::fold_case(stem_utf8);
         std::vector<fs::path> matches;
         for (const auto& entry : fs::directory_iterator(file.parent_path(), ec)) {
             std::error_code type_ec;
@@ -208,6 +209,9 @@ void register_files_handlers(rpc::RpcRouter& router, Services& services) {
                 continue;
             }
             const fs::path& candidate = entry.path();
+            if (platform::utf8_from_path(candidate.filename()) == exact) {
+                return json{{"path", platform::utf8_from_path(candidate)}};
+            }
             if (text::fold_case(platform::utf8_from_path(candidate.extension())) == ".fbd" &&
                 text::fold_case(platform::utf8_from_path(candidate.stem())) == stem) {
                 matches.push_back(candidate);

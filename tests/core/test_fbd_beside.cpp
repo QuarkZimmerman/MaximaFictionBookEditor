@@ -52,11 +52,16 @@ TEST_CASE("files.fbdBeside finds the FBD with the file's name", "[txt][fbd][rpc]
     CHECK(beside("\xD0\x9A\xD0\xBD\xD0\xB8\xD0\xB3\xD0\xB0.txt")["result"]["path"] ==
           platform::utf8_from_path(folder.path() /
                                    platform::path_from_utf8("\xD0\x9A\xD0\x9D\xD0\x98\xD0\x93\xD0\x90.FBD")));
-    // Two that differ only in case, neither exact: none.
+    // Two that differ only in case, neither exact: none. They can exist side by side only where the file
+    // system tells letter case apart (Linux); on macOS and Windows the second is the first, found by its name.
     touch(folder.path() / "two.txt");
     touch(folder.path() / "TWO.fbd");
-    touch(folder.path() / "Two.fbd");
-    CHECK_FALSE(beside("two.txt")["result"].contains("path"));
+    if (std::filesystem::exists(folder.path() / "TWO.TXT")) {
+        CHECK(beside("two.txt")["result"]["path"] == platform::utf8_from_path(folder.path() / "TWO.fbd"));
+    } else {
+        touch(folder.path() / "Two.fbd");
+        CHECK_FALSE(beside("two.txt")["result"].contains("path"));
+    }
     touch(folder.path() / "alone.txt");
     CHECK_FALSE(beside("alone.txt")["result"].contains("path"));
     CHECK(ws.call("files.fbdBeside", json{{"path", "relative.txt"}}).contains("error"));

@@ -4,7 +4,7 @@
  * tests/fixtures/txt/make-fixtures.py --hostile ends in a book of valid data or a message, never a crash or a
  * hang (D26, D27, D30, SC-013).
  */
-import { execFileSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -43,11 +43,17 @@ test('no TXT part loads at start-up; each loads once at its first use (D15, D38)
 test('hostile text files end in valid data or a message (SC-013)', async ({ core, page }) => {
   test.setTimeout(300_000);
   const dir = scratchDir('txt-hostile-');
-  execFileSync('python3', [
-    path.join(ROOT, 'tests/fixtures/txt/make-fixtures.py'),
-    '--hostile',
-    dir,
-  ]);
+  // The generator runs on Python: python3 on Linux and macOS, python on the Windows runners.
+  const python = ['python3', 'python'].find(
+    (command) => spawnSync(command, ['--version'], { encoding: 'utf8' }).status === 0,
+  );
+  test.skip(!python, 'Python is not available');
+  const made = spawnSync(
+    python!,
+    [path.join(ROOT, 'tests/fixtures/txt/make-fixtures.py'), '--hostile', dir],
+    { encoding: 'utf8' },
+  );
+  expect(made.status, made.stderr).toBe(0);
   await core.openApp(page);
   for (const name of readdirSync(dir).sort()) {
     const before = await importTxtViaMenu(core, page, path.join(dir, name));

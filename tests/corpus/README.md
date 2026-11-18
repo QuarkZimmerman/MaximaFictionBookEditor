@@ -121,15 +121,37 @@ tests/corpus/sample.py --ext epub --count 100 --seed 1 --out tests/corpus/sample
 tests/corpus/run.sh tests/corpus/sample-1-50.txt --epub-export --epub-import tests/corpus/sample-epub-100.txt
 ```
 
-The TXT runs (feature 017, D42) read every TXT book of the library, listed once (about 80; local and git-ignored):
-
-```bash
-tests/corpus/sample.py --ext txt --count 1000 --seed 1 --out tests/corpus/txt-library.txt
-```
-
 `epub-export.py` and `epub-import.py` also run on their own (`LIST [--out DIR] [--core PATH]`); each
 writes `report.txt` and `report.json` in its folder, by default `tests/corpus/out/epub-export` and
 `tests/corpus/out/epub-import`.
+
+## The TXT runs (feature 017, D42)
+
+Four runs go through the editor itself, the journey `ui/tests/e2e/corpus-txt.spec.ts` against the real core and
+the built interface, so build `ui/dist` first:
+
+- `--txt-export` exports every FB2 book of the sample as UTF-8 TXT: every word of its text bodies must be in the
+  file, in order (SC-002).
+- `--txt-round-trip` exports each book in UTF-8 and in every encoding of its language and imports the file again:
+  it must be read as the editor's own and give back its title - as the record holds it, in the encoding's plain
+  forms - and its notes (SC-003, SC-004, SC-007). When the import asks for the encoding, the run answers with the
+  one written and lists the question in its report.
+- `--txt-layouts` writes the sample's text in the five layouts of SC-005 (`tests/fixtures/txt/make-fixtures.py
+  --sample`) and imports each file: at least 99% of its paragraphs must come back, in order.
+- `--txt-import LIST` imports each text file of LIST: each ends in a book or in a message, never a crash or a hang
+  (SC-006, SC-008).
+
+The list of `--txt-import` holds every TXT book of the library, listed once (about 80; local and git-ignored):
+
+```bash
+tests/corpus/sample.py --ext txt --count 1000 --seed 1 --out tests/corpus/txt-library.txt
+tests/corpus/run.sh tests/corpus/sample-1-50.txt --txt-export --txt-round-trip --txt-layouts \
+    --txt-import tests/corpus/txt-library.txt
+```
+
+`txt-runs.py` also runs on its own (`MODE LIST [--out DIR] [--core PATH]`, MODE `export`, `round-trip`, `layouts`
+or `import`). Each run rewrites `results.json` after every file, so its progress shows while it goes, and writes
+`report.txt` and `report.json` when it ends, in `tests/corpus/out/txt-<mode>`.
 
 ## The PDF run (feature 014, DP-16)
 
