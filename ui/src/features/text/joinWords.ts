@@ -35,7 +35,11 @@ export function lineJoin(
 }
 
 /** The two lines joined as `lineJoin` decides. */
-export function joinLines(end: string, nextStart: string, known?: (word: string) => boolean): string {
+export function joinLines(
+  end: string,
+  nextStart: string,
+  known?: (word: string) => boolean,
+): string {
   const join = lineJoin(end, nextStart, known);
   const trimmedEnd = end.replace(/\s+$/, '');
   const trimmedStart = nextStart.replace(/^\s+/, '');
