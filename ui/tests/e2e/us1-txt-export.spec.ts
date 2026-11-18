@@ -139,8 +139,9 @@ test('a Russian book in KOI8-R, its summary naming what was replaced (D11, D12, 
   expect(bytes.subarray(0, 3).toString('hex')).not.toBe('efbbbf');
   const text = new TextDecoder('koi8-r').decode(bytes);
   expect(text.startsWith('Современная книга\r\n')).toBe(true);
-  expect(text).toContain('Название: Современная книга');
-  expect(text).toMatch(/Сделано в Maxima Fiction Book Editor \S+\r\n$/);
+  expect(text).toContain('\r\nTitle: Современная книга\r\n');
+  // The record is English whatever the book's language (D14, the requester's decision).
+  expect(text).toMatch(/Made with Maxima Fiction Book Editor \S+\r\n$/);
 });
 
 test("the editor's own window asks when the dialog cannot carry the options (DP-5)", async ({

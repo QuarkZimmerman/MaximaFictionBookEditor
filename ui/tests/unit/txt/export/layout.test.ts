@@ -64,9 +64,7 @@ describe('the TXT layout', () => {
   it('ends with the record and the line naming the editor (D4, D5)', () => {
     const { text } = layoutTxt(model('reference-all-elements'), LISTS, 'x', '0.0.12');
     const lines = text.trimEnd().split('\n');
-    expect(lines.at(-1)).toMatch(
-      /^(Made with|Сделано в|Зроблено в) Maxima Fiction Book Editor 0\.0\.12$/,
-    );
+    expect(lines.at(-1)).toMatch(/^Made with Maxima Fiction Book Editor 0\.0\.12$/);
     expect(lines).toContain('='.repeat(40));
   });
 });

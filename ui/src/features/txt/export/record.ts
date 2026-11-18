@@ -1,6 +1,6 @@
 /**
  * Feature 017 (D4, D5; contracts/txt-format.md §1 and §4): the title page that opens the TXT and the
- * record of labelled fields that closes it, in the book's language (D14). Only the description's
+ * record of labelled fields that closes it, in English whatever the book's language (D14). Only the description's
  * plain fields: the custom information gives its people (illustrators, editors...) and nothing else;
  * the document information gives nothing.
  */
@@ -9,7 +9,7 @@ import { parseRoleRow, ROLES, type Role } from '@/features/description/roles';
 import type { Description, Person, Sequence } from '@/model/document';
 import type { GenreEntry, LanguageEntry } from '@/rpc/types';
 
-import { type Plural, txtWords, txtWordsLanguage, type TxtWords } from '../shared/words';
+import { type Plural, RECORD_WORDS, type RecordWords, txtWordsLanguage } from '../shared/words';
 
 /** The editor's lists the record names genres and languages from. */
 export interface RecordLists {
@@ -46,7 +46,7 @@ export function seriesTexts(sequences: readonly Sequence[]): string[] {
   return out;
 }
 
-const ROLE_WORDS: Readonly<Record<Role, keyof TxtWords>> = {
+const ROLE_WORDS: Readonly<Record<Role, keyof RecordWords>> = {
   illustrator: 'illustrators',
   editor: 'editors',
   compiler: 'compilers',
@@ -71,7 +71,9 @@ export function recordLines(
   version: string,
 ): string[] {
   const info = description.titleInfo;
-  const words = txtWords(info.lang);
+  // The labels are English (D14, the requester's decision); the genres' and languages' names stay in
+  // the book's language, as his request asked for the genres.
+  const words = RECORD_WORDS;
   const language = txtWordsLanguage(info.lang);
   const lines = [RECORD_SEPARATOR, `${words.title}: ${title}`];
   const field = (word: Plural | string, values: string[]): void => {
