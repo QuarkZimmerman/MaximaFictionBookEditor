@@ -32,6 +32,10 @@ def main() -> int:
     failed = [r for r in records if not r.get("ok")]
     lines = [f"TXT {args.mode}: {len(records) - len(failed)} of {len(records)} passed"]
     lines += [f"FAIL {r['file']}: {r.get('detail', '')}" for r in failed]
+    asked = [r for r in records if r.get("asked")]
+    if asked:
+        lines.append(f"asked for the encoding (D26, no failure): {len(asked)} of {len(records)}")
+        lines += [f"ASKED {r['file']}: {', '.join(r['asked'])}" for r in asked]
     report(out, lines, {"mode": args.mode, "records": records})
     return 1 if failed else 0
 
