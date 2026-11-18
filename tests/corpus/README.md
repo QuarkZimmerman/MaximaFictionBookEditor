@@ -121,6 +121,12 @@ tests/corpus/sample.py --ext epub --count 100 --seed 1 --out tests/corpus/sample
 tests/corpus/run.sh tests/corpus/sample-1-50.txt --epub-export --epub-import tests/corpus/sample-epub-100.txt
 ```
 
+The TXT runs (feature 017, D42) read every TXT book of the library, listed once (about 80; local and git-ignored):
+
+```bash
+tests/corpus/sample.py --ext txt --count 1000 --seed 1 --out tests/corpus/txt-library.txt
+```
+
 `epub-export.py` and `epub-import.py` also run on their own (`LIST [--out DIR] [--core PATH]`); each
 writes `report.txt` and `report.json` in its folder, by default `tests/corpus/out/epub-export` and
 `tests/corpus/out/epub-import`.
