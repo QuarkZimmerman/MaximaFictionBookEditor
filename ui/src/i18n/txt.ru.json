@@ -1,0 +1,33 @@
+{
+  "$comment": "TXT export and import (feature 017): File > Export > Export as TXT..., File > Import > TXT File..., File > Open's refusal of a TXT, the export's options and its own options window, the settings of Settings > Exports for TXT and the summaries. Feature catalogue merged into ru.json by i18n/index.ts.",
+  "menu": {
+    "file": {
+      "exportTxt": "Экспорт в T&XT...",
+      "importTxt": "Файл &TXT..."
+    }
+  },
+  "cmd": {
+    "file": {
+      "exportTxt": {
+        "tooltip": "Экспорт в TXT",
+        "description": "Записать книгу простым текстовым файлом: титульная страница, текст с примечаниями и запись описания в конце, в UTF-8 или кодировке языка книги"
+      },
+      "importTxt": {
+        "tooltip": "Импорт TXT",
+        "description": "Создать новую книгу из текстового файла: его абзацы в одном теле; собственные TXT-файлы редактора возвращают описание и примечания"
+      }
+    }
+  },
+  "txt": {
+    "filter": "Текстовые файлы",
+    "filterZip": "ZIP-архивы",
+    "filterAll": "Текстовые файлы и ZIP-архивы",
+    "encodingLabel": "Кодировка:",
+    "bomChoice": "Метка порядка байтов (BOM)",
+    "zipChoice": "Сохранить в ZIP-архив",
+    "exporting": "Экспорт в TXT...",
+    "importing": "Импорт TXT...",
+    "openRefused": "{{path}} — текстовый файл. «Файл > Открыть» открывает книги FictionBook (FB2), файлы FBD и ZIP-архивы с книгами FB2; текстовый файл импортируется командой «Файл > Импорт > Файл TXT...».",
+    "openRefusedInArchive": "{{path}} содержит текстовый файл, но не книгу FictionBook. Текстовый файл импортируется командой «Файл > Импорт > Файл TXT...»."
+  }
+}

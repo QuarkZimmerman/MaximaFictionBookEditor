@@ -257,6 +257,13 @@ function acceleratorGroups(flat) {
     groups.get(group).add(key);
   };
   for (const key of flat.keys()) {
+    // The File menu's Import and Export submenus (ui/src/app/menus.ts) are menus of their own:
+    // their items' accelerators only have to differ from each other (feature 017).
+    const fileSubmenu = /^menu\.file\.(import|export)[A-Z]/.exec(key);
+    if (fileSubmenu) {
+      add(`menu.file.${fileSubmenu[1]}`, key);
+      continue;
+    }
     const menu = /^menu\.([^.]+)\.(.+)$/.exec(key);
     if (menu) {
       add(menu[2] === 'caption' ? 'menubar' : `menu.${menu[1]}`, key);

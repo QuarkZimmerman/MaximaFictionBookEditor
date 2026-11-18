@@ -1,0 +1,33 @@
+{
+  "$comment": "TXT export and import (feature 017): File > Export > Export as TXT..., File > Import > TXT File..., File > Open's refusal of a TXT, the export's options and its own options window, the settings of Settings > Exports for TXT and the summaries. Feature catalogue merged into en.json by i18n/index.ts.",
+  "menu": {
+    "file": {
+      "exportTxt": "Export as T&XT...",
+      "importTxt": "&TXT File..."
+    }
+  },
+  "cmd": {
+    "file": {
+      "exportTxt": {
+        "tooltip": "Export as TXT",
+        "description": "Write the book as a plain text file: a title page, the text with its notes, and a record of the description at the end, in UTF-8 or an encoding of the book's language"
+      },
+      "importTxt": {
+        "tooltip": "Import TXT",
+        "description": "Make a new book from a plain text file: its paragraphs in one body; the editor's own TXT files give their description and notes back"
+      }
+    }
+  },
+  "txt": {
+    "filter": "Text files",
+    "filterZip": "ZIP archives",
+    "filterAll": "Text files and ZIP archives",
+    "encodingLabel": "Encoding:",
+    "bomChoice": "Byte-order mark",
+    "zipChoice": "Save in ZIP archive",
+    "exporting": "Exporting as TXT...",
+    "importing": "Importing TXT...",
+    "openRefused": "{{path}} is a text file. File > Open takes FictionBook (FB2) books, FBD files and ZIP archives holding FB2 books; a text file is imported with File > Import > TXT File....",
+    "openRefusedInArchive": "{{path}} holds a text file but no FictionBook book. A text file is imported with File > Import > TXT File...."
+  }
+}
