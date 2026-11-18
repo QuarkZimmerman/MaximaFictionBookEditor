@@ -196,7 +196,10 @@ export function archiveErrorMessage(t: TFunction, error: unknown, path: string):
       // Feature 016 (D4): an archive holding a PDF but no book points to the PDF import.
       return data.reason === 'pdfInArchive'
         ? t('pdfImport.openRefusedInArchive', { path })
-        : t('archive.msg.noBook', { path });
+        : // Feature 017 (D35): so does one holding a TXT, to the TXT import.
+          data.reason === 'txtInArchive'
+          ? t('txt.openRefusedInArchive', { path })
+          : t('archive.msg.noBook', { path });
     case RpcErrorCode.archiveEntryMissing:
       return t('archive.msg.missing', { path, entry: data.entry ?? '' });
     case RpcErrorCode.archiveEntryUnreadable: {
@@ -864,19 +867,25 @@ export class FileFeature {
         // Feature 016 (D4): so is a PDF, through File > Import > PDF File.
         const epub = reason === 'epub';
         const pdf = reason === 'pdf';
+        // Feature 017 (D35): and a TXT, through File > Import > TXT File.
+        const txt = reason === 'txt';
         await ctx.dialogs.showMessage({
           text: epub
             ? ctx.t('epub.openRefused', { path })
             : pdf
               ? ctx.t('pdfImport.openRefused', { path })
-              : ctx.t('msg.notFictionBook', { path }),
+              : txt
+                ? ctx.t('txt.openRefused', { path })
+                : ctx.t('msg.notFictionBook', { path }),
           caption: ctx.t('dialog.error.caption'),
           icon: 'error',
           testId: epub
             ? 'dialog-epub-refused'
             : pdf
               ? 'dialog-pdf-refused'
-              : 'dialog-not-fictionbook',
+              : txt
+                ? 'dialog-txt-refused'
+                : 'dialog-not-fictionbook',
         });
         void this.recent.refresh(rpc);
         return false;

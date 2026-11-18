@@ -360,6 +360,11 @@ ArchiveChoice choose_entry(const std::string& path, const std::optional<std::str
                 data["reason"] = "pdfInArchive";
                 break;
             }
+            // Feature 017 (D35): a TXT and no book points to the TXT import.
+            if (name.size() > 4 && name.compare(name.size() - 4, 4, ".txt") == 0 &&
+                !data.contains("reason")) {
+                data["reason"] = "txtInArchive";
+            }
         }
         throw rpc::RpcError(rpc::codes::kArchiveNoBook, "the archive holds no FictionBook book",
                             data);
@@ -405,6 +410,14 @@ void refuse_other_archives(const fs::path& file) {
     if (std::string_view(head, static_cast<std::size_t>(in.gcount())).find("%PDF-") !=
         std::string_view::npos) {
         throw not_fictionbook(platform::utf8_from_path(file), "pdf");
+    }
+    // Feature 017 (D35, DP-15): a text file has no mark of its own; a ".txt" is told by its name
+    // and comes in through File > Import > TXT File.
+    std::string extension = platform::utf8_from_path(file.extension());
+    std::transform(extension.begin(), extension.end(), extension.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    if (extension == ".txt") {
+        throw not_fictionbook(platform::utf8_from_path(file), "txt");
     }
 }
 
