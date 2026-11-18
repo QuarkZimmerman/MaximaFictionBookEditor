@@ -195,8 +195,8 @@ void register_files_handlers(rpc::RpcRouter& router, Services& services) {
             throw rpc::invalid_params("path must be absolute", json{{"field", "path"}});
         }
         std::error_code ec;
-        const fs::path exact =
-            file.parent_path() / (file.stem().native() + fs::path(".fbd").native());
+        fs::path exact = file.parent_path() / file.stem();
+        exact += ".fbd";  // path-text: an ASCII extension
         if (fs::is_regular_file(exact, ec)) {
             return json{{"path", platform::utf8_from_path(exact)}};
         }

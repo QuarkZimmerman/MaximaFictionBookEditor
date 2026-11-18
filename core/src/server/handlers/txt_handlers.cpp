@@ -117,7 +117,8 @@ json write_txt(const TxtExport& job) {
         const std::string stem = platform::utf8_from_path(job.path.stem());
         std::error_code ec;
         fs::create_directories(job.work, ec);
-        const fs::path fbd = job.work / (job.path.stem().native() + fs::path(".fbd").native());
+        fs::path fbd = job.work / job.path.stem();
+        fbd += ".fbd";  // path-text: an ASCII extension
         try {
             job.write_fbd(fbd);
             const std::string fbd_bytes = atomic_file::read_file(fbd);
