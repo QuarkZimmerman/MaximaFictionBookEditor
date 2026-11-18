@@ -44,17 +44,22 @@ export async function exportTxtTo(
   return text;
 }
 
-/** File > Import > TXT File... with `file` queued; the unsaved-changes question answered No. */
+/**
+ * File > Import > TXT File... with `file` queued; the unsaved-changes question answered No (`question: false`
+ * skips waiting for it, for a window whose book is unchanged - the timed journeys).
+ */
 export async function importTxtViaMenu(
   core: CoreHandle,
   page: Page,
   file: string,
+  { question: ask = true }: { question?: boolean } = {},
 ): Promise<string | null> {
   const before = await shownDocId(page);
   await core.enqueueDialog('dialog.openFile', { paths: [file] });
   await page.getByTestId('menu-file').click();
   await page.getByTestId('menu-file-import').hover();
   await page.getByTestId('menu-file-import-importTxt').click();
+  if (!ask) return before;
   const question = page.getByRole('dialog').filter({ hasText: 'Save changes to' });
   if (
     await question.waitFor({ state: 'visible', timeout: 1500 }).then(

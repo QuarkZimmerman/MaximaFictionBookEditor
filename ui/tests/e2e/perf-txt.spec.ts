@@ -13,6 +13,11 @@ import { expect, shownDocId, test, waitForBook } from './fixtures/core';
 import { OWN_CORE } from './fixtures/memory';
 import { exportTxtTo, importTxtViaMenu, txtImportEnds } from './fixtures/txt';
 
+// The page's document, as the function given to waitForFunction sees it (the journeys' tsconfig has no DOM).
+declare const document: {
+  querySelector(selector: string): { getAttribute(name: string): string | null } | null;
+};
+
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const GENERATOR = path.join(REPO_ROOT, 'tests', 'fixtures', 'gen-large-book.py');
 const FACTOR = Number(process.env.MFBE_PERF_FACTOR ?? 1);
@@ -53,11 +58,21 @@ test.describe('performance - the TXT export and import (SC-011)', () => {
       expect(existsSync(target)).toBe(true);
       test.info().annotations.push({ type: 'perf', description: `10 MB to TXT: ${exported} ms` });
       expect(exported, '10 MB to TXT').toBeLessThan(5_000 * FACTOR);
+      // Timed from the command to the new book in the window, its progress gone: the window's book is
+      // unchanged since its export, so no unsaved-changes question is waited for, and the page itself watches
+      // for the end (a poll from here would add its own interval).
+      const before = await shownDocId(page);
       started = Date.now();
-      const before = await importTxtViaMenu(core, page, target);
-      expect((await txtImportEnds(page, before, 120_000)).failed).toBeUndefined();
+      await importTxtViaMenu(core, page, target, { question: false });
+      await page.waitForFunction(
+        (previous) =>
+          document.querySelector('[data-testid="body-view"]')?.getAttribute('data-doc-id') !==
+            previous && !document.querySelector('[data-testid="modal-job"]'),
+        before,
+        { timeout: 120_000, polling: 50 },
+      );
       const imported = Date.now() - started;
-      expect(await shownDocId(page)).not.toBe(before);
+      expect((await txtImportEnds(page, before, 10_000)).failed).toBeUndefined();
       test
         .info()
         .annotations.push({ type: 'perf', description: `10 MB TXT imported: ${imported} ms` });
