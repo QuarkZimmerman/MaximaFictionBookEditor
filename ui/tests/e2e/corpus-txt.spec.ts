@@ -169,15 +169,24 @@ test.describe('corpus gate - TXT (feature 017)', () => {
             record(false, ended.failed);
             continue;
           }
-          const got = [...(await bookXml(page)).matchAll(/<p>([\s\S]*?)<\/p>/g)].map((m) =>
-            m[1]!
-              .replace(/<[^>]+>/g, '')
-              .replace(/&lt;/g, '<')
-              .replace(/&gt;/g, '>')
-              .replace(/&amp;/g, '&'),
+          // The paragraphs of the bodies (the template's description has paragraphs of its own), each
+          // expected one looked for in order: a paragraph more or less shifts nothing after it.
+          const bodies = [...(await bookXml(page)).matchAll(/<body[^>]*>([\s\S]*?)<\/body>/g)]
+            .map((m) => m[1]!)
+            .join('');
+          const got = [...bodies.matchAll(/<p>([\s\S]*?)<\/p>/g)].map((m) =>
+            xmlText(m[1]!.replace(/<[^>]+>/g, '')),
           );
-          const back =
-            paragraphs.filter((p, i) => got[i] === p).length / Math.max(1, paragraphs.length);
+          let at = 0;
+          let found = 0;
+          for (const expected of paragraphs) {
+            const next = got.indexOf(expected, at);
+            if (next >= 0) {
+              found++;
+              at = next + 1;
+            }
+          }
+          const back = found / Math.max(1, paragraphs.length);
           record(
             back >= 0.99,
             back >= 0.99 ? undefined : `${(back * 100).toFixed(1)}% of paragraphs back`,
@@ -239,8 +248,10 @@ test.describe('corpus gate - TXT (feature 017)', () => {
         record(false, String(error).split('\n')[0]);
         // The window starts the next book afresh: nothing a failed book left open stands in its way.
         await core.openApp(page).catch(() => undefined);
+      } finally {
+        // After every file, whichever way it ended: the results show the run's progress as it goes.
+        writeFileSync(path.join(OUT!, 'results.json'), JSON.stringify(results, null, 1));
       }
-      writeFileSync(path.join(OUT!, 'results.json'), JSON.stringify(results, null, 1));
     }
     writeFileSync(path.join(OUT!, 'results.json'), JSON.stringify(results, null, 1));
     expect(results.length).toBeGreaterThan(0);
