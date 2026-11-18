@@ -135,6 +135,11 @@
       "tooltip": "Export as PDF",
       "description": "Write the book as a searchable PDF/A file in a page size you choose, with bookmarks, links, footnotes and the whole description in its metadata"
     },
+    "file.exportTxt": {
+      "label": "Export as T&XT...",
+      "tooltip": "Export as TXT",
+      "description": "Write the book as a plain text file: a title page, the text with its notes, and a record of the description at the end, in UTF-8 or an encoding of the book's language"
+    },
     "file.importDescription": {
       "label": "&Description from FictionBook file...",
       "tooltip": "Import description",
@@ -154,6 +159,11 @@
       "label": "PDF Fi&le...",
       "tooltip": "Import PDF",
       "description": "Make a new book from a PDF: the editor's own PDFs come back as their books; PDFs made from text and scanned books with a text layer, best effort"
+    },
+    "file.importTxt": {
+      "label": "&TXT File...",
+      "tooltip": "Import TXT",
+      "description": "Make a new book from a plain text file: its paragraphs in one body; the editor's own TXT files give their description and notes back"
     },
     "file.new": {
       "label": "&New",
@@ -867,6 +877,11 @@
       "tooltip": "Экспорт в PDF",
       "description": "Записать книгу в файл PDF/A выбранного размера страницы, с поиском по тексту, закладками, ссылками, сносками и полным описанием в метаданных"
     },
+    "file.exportTxt": {
+      "label": "Экспорт в T&XT...",
+      "tooltip": "Экспорт в TXT",
+      "description": "Записать книгу простым текстовым файлом: титульная страница, текст с примечаниями и запись описания в конце, в UTF-8 или кодировке языка книги"
+    },
     "file.importDescription": {
       "label": "Опис&ание из файла FictionBook...",
       "tooltip": "Импорт описания",
@@ -886,6 +901,11 @@
       "label": "Фай&л PDF...",
       "tooltip": "Импорт PDF",
       "description": "Создать новую книгу из PDF: собственные PDF редактора возвращаются своими книгами; PDF из текста и сканы с текстовым слоем - насколько возможно"
+    },
+    "file.importTxt": {
+      "label": "Файл &TXT...",
+      "tooltip": "Импорт TXT",
+      "description": "Создать новую книгу из текстового файла: его абзацы в одном теле; собственные TXT-файлы редактора возвращают описание и примечания"
     },
     "file.new": {
       "label": "&Создать",
@@ -1599,6 +1619,11 @@
       "tooltip": "Експорт у PDF",
       "description": "Записати книжку у файл PDF/A вибраного розміру сторінки, з пошуком у тексті, закладками, посиланнями, виносками й повним описом у метаданих"
     },
+    "file.exportTxt": {
+      "label": "Експорт у T&XT...",
+      "tooltip": "Експорт у TXT",
+      "description": "Записати книгу простим текстовим файлом: титульна сторінка, текст із примітками та запис опису наприкінці, в UTF-8 або кодуванні мови книги"
+    },
     "file.importDescription": {
       "label": "Оп&ис із файлу FictionBook...",
       "tooltip": "Імпорт опису",
@@ -1618,6 +1643,11 @@
       "label": "Фай&л PDF...",
       "tooltip": "Імпорт PDF",
       "description": "Створити нову книгу з PDF: власні PDF редактора повертаються своїми книгами; PDF із тексту та скани з текстовим шаром - наскільки можливо"
+    },
+    "file.importTxt": {
+      "label": "Файл &TXT...",
+      "tooltip": "Імпорт TXT",
+      "description": "Створити нову книгу з текстового файлу: його абзаци в одному тілі; власні TXT-файли редактора повертають опис і примітки"
     },
     "file.new": {
       "label": "&Створити",

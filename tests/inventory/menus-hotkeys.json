@@ -15,7 +15,8 @@
             "file.importDescription",
             "file.importMarkdown",
             "file.importEpub",
-            "file.importPdf"
+            "file.importPdf",
+            "file.importTxt"
           ]
         },
         {
@@ -25,7 +26,8 @@
             "file.exportMarkdown",
             "file.exportMarkdownZip",
             "file.exportEpub",
-            "file.exportPdf"
+            "file.exportPdf",
+            "file.exportTxt"
           ]
         },
         "---",
