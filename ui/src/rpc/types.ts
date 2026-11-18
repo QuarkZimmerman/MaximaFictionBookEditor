@@ -364,6 +364,17 @@ export interface Settings {
     customTextSize: number;
     /** The margins a `custom` choice uses, in millimetres (5 to 50); default 22. */
     customMargin: number;
+    /** Feature 017 (D20): the default of the dialog's *Save in ZIP archive*; default false. */
+    zip?: boolean
+  };
+  /** Feature 017 (D21): the default of the one-file Markdown export's *Include pictures*; default true. */
+  markdown?: { includePictures: boolean };
+  /** Feature 017 (D19, contracts/settings.md): the TXT export's defaults. */
+  txt?: {
+    encodingMode: 'utf-8' | 'language';
+    encodings: { en: string; ru: string; uk: string; other: string };
+    bom: boolean;
+    zip: boolean;
   };
   session: {
     /**
