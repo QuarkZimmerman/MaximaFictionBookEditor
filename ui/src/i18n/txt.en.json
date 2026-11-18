@@ -71,7 +71,8 @@
       "leftOut": "{{char}} left out ({{count}}×)",
       "noTitle": "The book has no title; the file's name \"{{detail}}\" stands in for it.",
       "encoding": "The text was read in {{encoding}}.",
-      "controls": "{{count}} control characters were left out."
+      "controls": "{{count}} control characters were left out.",
+      "unread": "The record's value \"{{detail}}\" could not be read; the template's stands."
     },
     "openTitle": "Import TXT",
     "filterAnyFile": "All files",

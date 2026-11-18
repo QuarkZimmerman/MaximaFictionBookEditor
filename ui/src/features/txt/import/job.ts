@@ -7,10 +7,12 @@ import type { CommandContext } from '@/app/commands';
 import type { FileFeature } from '@/features/file/fileCommands';
 import { dictionaryAsker, knownWords } from '@/features/text/joinWords';
 import { actions } from '@/model/store';
+import { normaliseGenres, normaliseLanguages } from '@/views/description/resources';
 
 import type { TxtImportRun } from '../importCommand';
 import { bodyXml, bookXml, templateDescription } from './build';
 import { brokenCandidates, foreignParagraphs, linesOf } from './layout';
+import { ownBodies, ownDescription, parseOwnTxt } from './ours';
 
 class Cancelled extends Error {}
 
@@ -32,20 +34,45 @@ export async function importTxt(
     if (run.cancelled()) throw new Cancelled();
   };
   try {
-    // D27 (clarify): words broken at line ends, asked of the dictionaries before the layout joins them.
-    const { lines } = linesOf(run.text);
-    const candidates = brokenCandidates(lines);
-    const known =
-      candidates.size > 0
-        ? await knownWords(candidates, await dictionaryAsker(rpc), undefined, check)
-        : new Set<string>();
-    check();
-    const paragraphs = foreignParagraphs(run.text, (word) => known.has(word));
     const { xml: template } = await rpc.call('template.xml');
-    const xml = bookXml(
-      templateDescription(template, stemOf(run.entry ?? run.path)),
-      bodyXml(paragraphs.items),
-    );
+    // D28, D29: the editor's own TXT gives its description and notes back.
+    const own = parseOwnTxt(run.text);
+    let xml: string;
+    let paragraphCount: number;
+    let controlsLeftOut = 0;
+    let unread: string[] = [];
+    if (own) {
+      const [genres, languages] = await Promise.all([
+        rpc.call('resources.genres'),
+        rpc.call('resources.languages'),
+      ]);
+      const lists = {
+        genres: normaliseGenres(genres).entries,
+        languages: normaliseLanguages(languages).groups.flatMap((group) =>
+          group.languages.map((language) => ({ code: language.code, names: language.name })),
+        ),
+      };
+      const description = ownDescription(own, template, lists);
+      unread = description.unread;
+      xml = bookXml(description.xml, ownBodies(own).xml);
+      paragraphCount = own.items.filter((item) => item.kind === 'p').length;
+    } else {
+      // D27 (clarify): words broken at line ends, asked of the dictionaries before the layout joins them.
+      const { lines } = linesOf(run.text);
+      const candidates = brokenCandidates(lines);
+      const known =
+        candidates.size > 0
+          ? await knownWords(candidates, await dictionaryAsker(rpc), undefined, check)
+          : new Set<string>();
+      check();
+      const paragraphs = foreignParagraphs(run.text, (word) => known.has(word));
+      xml = bookXml(
+        templateDescription(template, stemOf(run.entry ?? run.path)),
+        bodyXml(paragraphs.items),
+      );
+      paragraphCount = paragraphs.items.filter((item) => item !== null).length;
+      controlsLeftOut = paragraphs.controlsLeftOut;
+    }
     check();
     const opened = await rpc.runJob('doc.newFromXml', {
       xml,
@@ -60,13 +87,12 @@ export async function importTxt(
       ...(run.encoding !== 'utf-8' && run.source !== 'bom'
         ? [ctx.t('txt.summary.encoding', { encoding: run.encoding })]
         : []),
-      ...(paragraphs.controlsLeftOut > 0
-        ? [ctx.t('txt.summary.controls', { count: paragraphs.controlsLeftOut })]
-        : []),
+      ...(controlsLeftOut > 0 ? [ctx.t('txt.summary.controls', { count: controlsLeftOut })] : []),
+      ...unread.map((detail) => ctx.t('txt.summary.unread', { detail })),
     ];
     const done = ctx.t('txt.importDone', {
       path: run.path,
-      paragraphs: paragraphs.items.filter((item) => item !== null).length,
+      paragraphs: paragraphCount,
     });
     if (lines37.length === 0) actions.setStatusMessage(store, done);
     else
