@@ -280,6 +280,7 @@ distributed and are therefore not listed.
 | Hunspell dictionary en_US (SCOWL-derived) | 2020.12.07; LibreOffice dictionaries commit 67032ee95763 | SCOWL AND BSD-style AND public-domain | `resources/dictionaries/en_US.txt` | installed as share/mfbe/resources/dictionaries/en_US.txt (SCOWL permissive licence plus the Ispell BSD-style, WordNet and public-domain parts it incorporates) |
 | Hunspell dictionary ru_RU | LibreOffice dictionaries commit 67032ee95763 | BSD-style | `resources/dictionaries/ru_RU.txt` | installed as share/mfbe/resources/dictionaries/ru_RU.txt |
 | Material derived from the original FictionBook Editor 2.7 (genre lists, symbols, blank template, icons) and the converted bundled scripts; since feature 007 also the scripts and the script and script-group icons of the classic editor's 2.7.9 release (sensboston/fictionbookeditor, tag v2.7.9, files/Scripts and files/TreeCmd) | FBE 2.7, 2.7.9 | GPL-3.0-only | `LICENSE` | the original editor's licence (2.7.9: files/copying.txt, GPL v3) and the project's; its copyright notices and contributor list are in CONTRIBUTORS.txt, which credits the authors of the 2.7.x scripts; the scripts keep their authors' notices (tests/scripts/notices.json); installed as share/doc/mfbe/LICENSE and CONTRIBUTORS.txt |
+| WHATWG Encoding Standard index tables (the 27 legacy single-byte encodings) | index files dated 2024-09-18 | BSD-3-Clause | `third_party/whatwg-encoding/LICENSE.txt` | compiled into mfbe-core as core/src/text/single_byte_tables.inc (generated from third_party/whatwg-encoding/ by tools/encodings/make-tables.py) |
 
 ## Aggregated data files
 
@@ -322,7 +323,7 @@ ship with the Linux packages only (resources/certs/, refreshed by tools/refresh-
 | MIT | 139 |
 | ISC | 36 |
 | Apache-2.0 | 17 |
-| BSD-3-Clause | 12 |
+| BSD-3-Clause | 13 |
 | BSL-1.0 | 9 |
 | OFL-1.1 | 5 |
 | BSD-2-Clause | 4 |

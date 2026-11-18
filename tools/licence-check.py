@@ -802,7 +802,20 @@ def collect_data(problems: list[str]) -> list[Component]:
         "public-domain changes; installed as share/mfbe/resources/fonts/DejaVu-LICENSE.txt",
         group="aggregate",
     )
-    components = [schema, en_us, ru_ru, uk_ua, fbe, ca_bundle, noto, dejavu]
+    # Feature 017 (PD2): the WHATWG Encoding Standard's single-byte index tables, generated into
+    # core/src/text/single_byte_tables.inc by tools/encodings/make-tables.py; BSD-3-Clause where
+    # incorporated into source code (the Standard's own statement, copied into LICENSE.txt).
+    whatwg_dir = REPO / "third_party" / "whatwg-encoding"
+    whatwg_date = read_field(whatwg_dir / "index-koi8-u.txt", r"# Date:\s*(\S+)")
+    whatwg = component(
+        "WHATWG Encoding Standard index tables (the 27 legacy single-byte encodings)",
+        f"index files dated {whatwg_date}",
+        "BSD-3-Clause",
+        whatwg_dir / "LICENSE.txt",
+        "compiled into mfbe-core as core/src/text/single_byte_tables.inc (generated from "
+        "third_party/whatwg-encoding/ by tools/encodings/make-tables.py)",
+    )
+    components = [schema, en_us, ru_ru, uk_ua, fbe, ca_bundle, noto, dejavu, whatwg]
 
     # Every README row with a licence must be covered by one of the components above (substring
     # match on the licence cell - keep the keys distinct: "MPL-2.0" is the CA bundle, "MPL-1.1"
