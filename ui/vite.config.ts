@@ -127,6 +127,19 @@ export function isPdfImportModule(id: string): boolean {
   return id.split('?')[0].replace(/\\/g, '/').startsWith(pdfImportFolder);
 }
 
+// Feature 017 (DP-13): text helpers the lazy imports share - the joining of words broken at a line's end
+// (`src/features/text/`) - are the lazy chunk `text-shared`, which the `pdf-import` and `txt-import` chunks
+// import; never reached from the main bundle.
+const textSharedFolder = fileURLToPath(new URL('./src/features/text/', import.meta.url)).replace(
+  /\\/g,
+  '/',
+);
+
+/** True for a module of the `text-shared` chunk (exported for the unit test of the rule). */
+export function isTextSharedModule(id: string): boolean {
+  return id.split('?')[0].replace(/\\/g, '/').startsWith(textSharedFolder);
+}
+
 /** True for a module of the `epub-export` chunk (exported for the unit test of the rule). */
 export function isEpubExportModule(id: string): boolean {
   return id.split('?')[0].replace(/\\/g, '/').startsWith(epubExportFolder);
@@ -217,6 +230,11 @@ export default defineConfig({
             {
               name: 'pdf-import',
               test: isPdfImportModule,
+              includeDependenciesRecursively: false,
+            },
+            {
+              name: 'text-shared',
+              test: isTextSharedModule,
               includeDependenciesRecursively: false,
             },
           ],

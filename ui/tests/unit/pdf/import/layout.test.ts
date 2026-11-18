@@ -63,7 +63,7 @@ describe('a PDF made from text (US2)', () => {
       outline: doc.outline,
       known: () => false,
     });
-    expect(texts(kept.parts, 'p').some((p) => p.includes('hyphen- ated'))).toBe(true);
+    expect(texts(kept.parts, 'p').some((p) => p.includes('hyphen-ated'))).toBe(true);
   });
 });
 

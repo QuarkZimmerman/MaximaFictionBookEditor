@@ -5,6 +5,7 @@
  * words broken at a line's end joined. The result has the parts' shape, so the same FB2 writer serves it.
  */
 
+import { lineJoin } from '@/features/text/joinWords';
 import type { OutlineNode, PdfPageModel, PdfWord } from './model';
 import type { Part, Run, TableCell } from './parts';
 
@@ -585,16 +586,14 @@ export function layoutParts(
         // The line's last run may end with the space the reader set after it (D32's library run: no word
         // broken there was joined): it is judged without it.
         const end = last.text.replace(/\s+$/, '');
-        const soft = end.endsWith('\u00ad');
-        const hard = /\p{L}-$/u.test(end);
-        const tail = last.text.trim().split(/\s+/).pop() ?? '';
-        const joined =
-          `${tail.replace(/[\u00ad-]$/, '')}${head.text.trim().split(/\s+/)[0] ?? ''}`.replace(
-            /[^\p{L}]/gu,
-            '',
-          );
-        if (soft || (hard && options.known?.(joined))) {
+        // Feature 017 (DP-13): the rule both imports share; an unknown word keeps its hyphen and joins
+        // without a space ("north-east"), as the tags' text always did.
+        const join = lineJoin(end, head.text, options.known);
+        if (join === 'drop-hyphen') {
           last.text = end.replace(/[\u00ad-]$/, '');
+          head.text = head.text.replace(/^\s+/, '');
+        } else if (join === 'keep-hyphen') {
+          last.text = end;
           head.text = head.text.replace(/^\s+/, '');
         } else head.text = head.text.startsWith(' ') ? head.text : ` ${head.text}`;
       }
