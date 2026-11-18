@@ -61,6 +61,10 @@
 #                               needs openbox and xdotool): File > Import > PDF File... on
 #                               tests/fixtures/pdf/import/text-untagged.pdf through the GTK Open dialog,
 #                               then File > Exit; the shell and its reader must end within 20 s
+#   MFBE_SMOKE_TXT              1 = the TXT import through the real shell (feature 017, real UI; needs
+#                               openbox and xdotool): File > Import > TXT File... on
+#                               tests/fixtures/txt/layouts/german-book.per-line.txt through the GTK Open
+#                               dialog, then File > Exit; the shell must end within 20 s (SC-014)
 #   MFBE_SMOKE_PORTABLE         1 = portable copy (real UI only, feature 002): a `user` folder
 #                               created next to the shell (and removed afterwards) must receive
 #                               the browser profile (cef/) and the logs (logs/), and no per-user
@@ -581,7 +585,7 @@ fi
 # XAUTHORITY of xvfb-run) for shell-smoke.mjs, shell-smoke-pdf.mjs and shell-smoke-pdf-import.mjs,
 # which drive xdotool.
 if [[ "$CLOSE" == "1" || "$SAVE_AS" == "1" || "$ENGINE_KEYS" == "1" || "${MFBE_SMOKE_PDF:-0}" == "1" ||
-      "${MFBE_SMOKE_PDF_IMPORT:-0}" == "1" ]]; then
+      "${MFBE_SMOKE_PDF_IMPORT:-0}" == "1" || "${MFBE_SMOKE_TXT:-0}" == "1" ]]; then
   export MFBE_SMOKE_DISPLAY_FILE="$TMP/display.env"
   cat >"$TMP/launch.sh" <<SH
 #!/bin/bash
@@ -1083,6 +1087,24 @@ if [[ "${MFBE_SMOKE_PDF_IMPORT:-0}" == "1" ]]; then
     exit 1
   fi
   echo "shell-smoke: the PDF import, then File > Exit - the shell and its reader ended: OK"
+fi
+
+if [[ "${MFBE_SMOKE_TXT:-0}" == "1" ]]; then
+  # --- the TXT import through the real shell (feature 017, T059; D15, D38, SC-014) -----------------
+  # File > Import > TXT File... through the GTK Open dialog (xdotool), then File > Exit: the shell must end
+  # within 20 s - the TXT parts start nothing that outlives them.
+  node "$ROOT/tools/shell-smoke-txt.mjs" "$CDP_PORT" "$ROOT/tests/fixtures/txt/layouts/german-book.per-line.txt" || exit 1
+  for _ in $(seq 1 80); do
+    kill -0 "$APP_PID" 2>/dev/null || break
+    sleep 0.25
+  done
+  if kill -0 "$APP_PID" 2>/dev/null; then
+    echo "shell-smoke: the shell is still running 20 s after File > Exit following a TXT import" >&2
+    exit 1
+  fi
+  wait "$APP_PID" || true
+  APP_PID=""
+  echo "shell-smoke: the TXT import, then File > Exit - the shell ended: OK"
 fi
 
 if [[ "$ENGINE_KEYS" == "1" ]]; then
