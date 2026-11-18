@@ -18,7 +18,7 @@ import type { PdfPageSizeId } from '@/rpc/types';
 import { commitPendingSource } from '@/views/source/sourceSession';
 
 import { DEFAULT_PDF_PAGE_SIZE, PDF_PAGE_SIZES, pdfPageSize } from './pageSizes';
-import { keepPageSize, keptPageSize } from './keptPageSize';
+import { keepExportOptions, keptExportOptions } from '@/features/file/keptExportOptions';
 import { showPageSizeDialog } from './showPageSizeDialog';
 
 export const EXPORT_PDF_COMMAND = 'file.exportPdf';
@@ -48,7 +48,7 @@ function folderOf(path: string | null | undefined): string {
  */
 function proposedSize(ctx: CommandContext, docId: string): PdfPageSizeId {
   return (
-    keptPageSize(docId) ??
+    (keptExportOptions(docId, 'pdf')?.pageSize as PdfPageSizeId | undefined) ??
     pdfPageSize(ctx.store.getState().settings?.pdf?.defaultPageSize ?? DEFAULT_PDF_PAGE_SIZE).id
   );
 }
@@ -116,7 +116,7 @@ export function registerPdfFeature(commands: CommandRegistry): void {
           : `${chosenPath.replace(/\.pdf$/i, '')}.zip`
         : chosenPath.replace(/\.zip$/i, '.pdf');
       // D25: kept for the book from here on, even if the export is cancelled (analysis C7).
-      keepPageSize(docId, pageSize);
+      keepExportOptions(docId, 'pdf', { pageSize, zip: !!toZip });
       let cancelled = false;
       const modal = startModalJob(ctx.t('pdf.exporting'), () => {
         cancelled = true;
