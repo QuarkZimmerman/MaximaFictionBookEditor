@@ -165,6 +165,11 @@ bool is_single_byte(std::string_view name) {
     return index_for(name) != nullptr;
 }
 
+const std::uint16_t* single_byte_high(std::string_view name) {
+    const SingleByteIndex* index = index_for(name);
+    return index == nullptr ? nullptr : index->high.data();
+}
+
 std::optional<Encoded> encode_single_byte(std::string_view utf8, std::string_view name) {
     const SingleByteIndex* index = index_for(name);
     if (index == nullptr) {

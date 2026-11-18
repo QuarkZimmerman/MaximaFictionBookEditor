@@ -2,6 +2,7 @@
 
 #include <mfbe/archive.hpp>
 #include <mfbe/encodings.hpp>
+#include <mfbe/single_byte.hpp>
 #include <mfbe/text_encoding.hpp>
 
 #include <algorithm>
@@ -94,12 +95,9 @@ const std::vector<std::string>& legacy_candidates() {
 }
 
 std::optional<std::string> decode_text(std::string_view bytes, std::string_view encoding) {
-    if (encoding == "cp866") {
-        std::string out = archive::convert_codepage(bytes, 866);
-        if (out.empty() && !bytes.empty()) {
-            return std::nullopt;
-        }
-        return out;
+    if (encoding == "cp866" || encoding == "ibm866") {
+        // Feature 017 (DP-3): IBM866 from the WHATWG tables, as the TXT export writes it.
+        return text::decode_single_byte(bytes, "ibm866");
     }
     const std::optional<std::string> name = encoding::normalize_name(encoding);
     if (!name || !encoding::is_supported(*name)) {

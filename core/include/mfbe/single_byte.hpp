@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -16,6 +17,10 @@ namespace mfbe::text {
 const std::vector<std::string>& single_byte_names();
 
 bool is_single_byte(std::string_view name);
+
+// The code points of the bytes 0x80-0xFF of the encoding `name` (128 entries, 0 for none), or
+// nullptr for an unknown name. The FB2 reader and writer read their tables here too (DP-3).
+const std::uint16_t* single_byte_high(std::string_view name);
 
 // A character the encoding cannot write, what it became and how often (D12).
 struct Replacement {
