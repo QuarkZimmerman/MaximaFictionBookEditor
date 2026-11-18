@@ -88,6 +88,10 @@ jobs:
         # docs/releases page exists while a pre-release part is set. tools/version-check.py
         # mirrors cmake/MfbeVersion.cmake, which stays the authority.
         run: python3 tools/version-check.py --self-test && python3 tools/version-check.py --check
+      - name: TXT encodings' tables current with the WHATWG index files (feature 017, PD2)
+        # core/src/text/single_byte_tables.inc is generated from third_party/whatwg-encoding/;
+        # the check regenerates it in memory, offline, and fails when the committed file differs.
+        run: python3 tools/encodings/make-tables.py --check
       - name: Short list of changes per release (FR-075 of feature 007)
         # Every version of CHANGELOG.md starts with its "### In short" list, which the Release
         # workflow puts at the top of the release text; the dry run reads the current version's
