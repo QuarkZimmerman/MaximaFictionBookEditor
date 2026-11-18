@@ -436,7 +436,7 @@ export async function importEpub(
     modal.progress(total, total);
     modal.end();
     await nextTask();
-    await files.loadImported(ctx, document, path);
+    await files.loadImported(ctx, document);
     performance.mark('epub-import:window drawn');
     const counts = ctx.t('epub.importDone', {
       sections: converted.stats.sections,

@@ -114,7 +114,7 @@ export async function importTxt(
         icon: 'warning',
         testId: 'dialog-txt-fbd-unreadable',
       });
-    await files.loadImported(ctx, book, run.path);
+    await files.loadImported(ctx, book);
     // D37: one line for each thing worth naming, else the status bar says what came in.
     const lines37 = [
       ...(run.encoding !== 'utf-8' && run.source !== 'bom'

@@ -439,7 +439,7 @@ export async function importPdf(
     modal.end();
     if (fbd && fbdError) await fbdUnreadable(ctx, fbd, fbdError);
     await nextTask();
-    await files.loadImported(ctx, book, originPath);
+    await files.loadImported(ctx, book);
     docId = null;
     // The cover is no picture of the text, so the count leaves it out: the summary names it (the requester,
     // after his smoke test of rc.1: a book of a cover alone read as one without pictures).

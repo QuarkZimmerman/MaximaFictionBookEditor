@@ -8,7 +8,7 @@
 import path from 'node:path';
 
 import { expect, shownDocId, startCoreWith, test } from './fixtures/core';
-import { bodyErrors, bookXml, epub, EPUBS, importDone, importViaMenu } from './fixtures/epubImport';
+import { bodyErrors, bookXml, epub, importDone, importViaMenu } from './fixtures/epubImport';
 import { scratchDir } from './fixtures/scratch';
 
 test.describe('US2 (feature 012) - the EPUB import', () => {
@@ -122,7 +122,8 @@ test.describe('US2 (feature 012) - the EPUB import', () => {
     await page.getByTestId('dialog-epub-refused-button-ok').click();
 
     await importDone(page, await importViaMenu(core, page, epub('epub-3.3.epub')));
-    // Ctrl+S on the new, untitled book asks for its file, proposing the EPUB's name (D15).
+    // Ctrl+S on the new, untitled book asks for its file. Feature 017 (D25): an import keeps nothing of its
+    // source - Save As proposes what it proposes for a new book, a bare name from the description.
     await core.enqueueDialog('dialog.saveFile', { path: null });
     // Cmd+S on macOS, Ctrl+S elsewhere.
     await page.keyboard.press('ControlOrMeta+s');
@@ -141,7 +142,7 @@ test.describe('US2 (feature 012) - the EPUB import', () => {
           ''
         );
       })
-      .toBe(path.join(EPUBS, 'epub-3.3.fb2'));
+      .toMatch(/^[^/\\]+\.fb2$/);
   });
 
   test('the import is modal: progress, Cancel, and the window keeps its book (D16)', async ({

@@ -205,7 +205,7 @@ export async function importMarkdown(ctx: CommandContext, files: FileFeature): P
       xml: buildBook(templateXml, { ...result, bodyXml, notesXml, stylesheets }),
       origin: { kind: 'markdown', path },
     });
-    await files.loadImported(ctx, opened.document, path);
+    await files.loadImported(ctx, opened.document);
     const outcome = await addPictures(rpc, opened.document.docId, result.pictures, result.chars);
     for (const { id, picture } of drawn) {
       try {
