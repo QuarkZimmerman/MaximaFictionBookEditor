@@ -399,7 +399,8 @@ test.describe('US1 - open, review and save a book without loss', () => {
     );
 
     // Plain text, another XML vocabulary and binary content: one message each, no document.
-    const notes = path.join(dir, 'notes.txt');
+    // Feature 017 (D35): a .txt is refused as a TXT to import; another plain text file is no FictionBook book.
+    const notes = path.join(dir, 'notes.text');
     writeFileSync(notes, 'Just a text file, not XML at all.\n');
     const html = path.join(dir, 'page.xml');
     writeFileSync(html, '<?xml version="1.0"?><html><body><p>FictionBook</p></body></html>');

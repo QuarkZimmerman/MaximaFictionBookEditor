@@ -76,7 +76,8 @@ test.describe('US10 (010) - a file that cannot be opened changes nothing', () =>
     const file = await bookWithChange(core, page, dir);
     const changed = await paragraph(page).innerText();
 
-    const text = path.join(dir, 'notes.txt');
+    // Feature 017 (D35): a .txt is refused as a TXT to import; this one is plain text by another name.
+    const text = path.join(dir, 'notes.text');
     writeFileSync(text, 'Plain text, not a book.\n', 'utf8');
     await openViaDialog(core, page, text);
     await refusedAfterNo(page, 'dialog-not-fictionbook');
@@ -97,7 +98,7 @@ test.describe('US10 (010) - a file that cannot be opened changes nothing', () =>
   test('3. the archive without a book says so', async ({ core, page }) => {
     await openViaDialog(core, page, archive('no-book.zip'));
     await expect(page.getByTestId('dialog-archive-error')).toContainText(
-      'holds no FictionBook book',
+      'holds a text file but no FictionBook book',
     );
     await page.getByTestId('dialog-archive-error-button-ok').click();
     // 7. The untouched template stays.
