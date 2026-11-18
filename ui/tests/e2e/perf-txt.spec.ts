@@ -20,7 +20,9 @@ declare const document: {
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const GENERATOR = path.join(REPO_ROOT, 'tests', 'fixtures', 'gen-large-book.py');
-const FACTOR = Number(process.env.MFBE_PERF_FACTOR ?? 1);
+// SC-011 sets its budgets on the CI's Linux runner; the slower hosted macOS and Windows runners of the docs
+// replay get twice the time, unless MFBE_PERF_FACTOR says otherwise.
+const FACTOR = Number(process.env.MFBE_PERF_FACTOR ?? (process.platform === 'linux' ? 1 : 2)) || 1;
 
 test.use(OWN_CORE);
 
