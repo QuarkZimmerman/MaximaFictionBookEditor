@@ -127,6 +127,28 @@ export function isPdfImportModule(id: string): boolean {
   return id.split('?')[0].replace(/\\/g, '/').startsWith(pdfImportFolder);
 }
 
+// Feature 017 (D15, D38, DP-1): the TXT export and import are the lazy chunks `txt-export` and
+// `txt-import`: everything under `src/features/txt/export/` and `src/features/txt/import/`, loaded by
+// `import()` at their first use and never at start-up. The static entries (`src/features/txt/
+// exportCommand.ts`, `importCommand.ts`, `encodings.ts`, `TxtExportOptions.tsx`) stay in the main bundle.
+// `tests/unit/txt/chunk.test.ts` checks the rules.
+const txtExportFolder = fileURLToPath(
+  new URL('./src/features/txt/export/', import.meta.url),
+).replace(/\\/g, '/');
+const txtImportFolder = fileURLToPath(
+  new URL('./src/features/txt/import/', import.meta.url),
+).replace(/\\/g, '/');
+
+/** True for a module of the `txt-export` chunk (exported for the unit test of the rule). */
+export function isTxtExportModule(id: string): boolean {
+  return id.split('?')[0].replace(/\\/g, '/').startsWith(txtExportFolder);
+}
+
+/** True for a module of the `txt-import` chunk (exported for the unit test of the rule). */
+export function isTxtImportModule(id: string): boolean {
+  return id.split('?')[0].replace(/\\/g, '/').startsWith(txtImportFolder);
+}
+
 // Feature 017 (DP-13): text helpers the lazy imports share - the joining of words broken at a line's end
 // (`src/features/text/`) - are the lazy chunk `text-shared`, which the `pdf-import` and `txt-import` chunks
 // import; never reached from the main bundle.
@@ -230,6 +252,16 @@ export default defineConfig({
             {
               name: 'pdf-import',
               test: isPdfImportModule,
+              includeDependenciesRecursively: false,
+            },
+            {
+              name: 'txt-export',
+              test: isTxtExportModule,
+              includeDependenciesRecursively: false,
+            },
+            {
+              name: 'txt-import',
+              test: isTxtImportModule,
               includeDependenciesRecursively: false,
             },
             {
