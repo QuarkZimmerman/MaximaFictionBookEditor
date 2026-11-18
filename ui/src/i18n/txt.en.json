@@ -90,6 +90,25 @@
       "damaged": "the file or the archive cannot be read.",
       "encrypted": "the archive is protected by a password.",
       "tooLargeEntry": "the archive's file is too large."
+    },
+    "settings": {
+      "group": "TXT export",
+      "encodingMode": "Encoding",
+      "modeUtf8": "Always UTF-8",
+      "modeLanguage": "By the book's language",
+      "encodingFor": {
+        "en": "English books",
+        "ru": "Russian books",
+        "uk": "Ukrainian books",
+        "other": "Other languages"
+      },
+      "bom": "Byte-order mark in UTF-8 files",
+      "zip": "Save in ZIP archive",
+      "markdownGroup": "Markdown export",
+      "includePictures": "Include pictures",
+      "pdfZip": "Save in ZIP archive",
+      "on": "On",
+      "off": "Off"
     }
   },
   "tip": {
@@ -98,6 +117,16 @@
       "bom": "Begin a UTF-8 file with the byte-order mark some Windows programs look for",
       "zip": "Write a ZIP archive with the TXT file and an FBD file of the book's description and cover",
       "importEncoding": "The encoding the text file was written in; the most likely first"
+    },
+    "settings": {
+      "txt": {
+        "mode": "Which encoding the TXT export's dialog proposes for a book's first export",
+        "encoding": "The encoding proposed for books in this language",
+        "bom": "Whether the dialog proposes the byte-order mark for UTF-8 files",
+        "zip": "Whether the dialog proposes a ZIP archive with the TXT and the book's FBD",
+        "includePictures": "Whether the one-file Markdown export proposes to include the pictures",
+        "pdfZip": "Whether the PDF export's dialog proposes a ZIP archive with the PDF and the book's FBD"
+      }
     }
   }
 }

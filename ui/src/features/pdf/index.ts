@@ -13,12 +13,12 @@ import type { CommandContext, CommandRegistry } from '@/app/commands';
 import { startModalJob, type ModalJobHandle } from '@/app/modalJob';
 import { cmdKeys } from '@/features/editing/common';
 import { confirmBookExport } from '@/features/file/exportCheck';
+import { keepExportOptions, keptExportOptions } from '@/features/file/keptExportOptions';
 import { proposedStem } from '@/features/file/proposedName';
 import type { PdfPageSizeId } from '@/rpc/types';
 import { commitPendingSource } from '@/views/source/sourceSession';
 
 import { DEFAULT_PDF_PAGE_SIZE, PDF_PAGE_SIZES, pdfPageSize } from './pageSizes';
-import { keepExportOptions, keptExportOptions } from '@/features/file/keptExportOptions';
 import { showPageSizeDialog } from './showPageSizeDialog';
 
 export const EXPORT_PDF_COMMAND = 'file.exportPdf';
@@ -89,8 +89,11 @@ export function registerPdfFeature(commands: CommandRegistry): void {
         encodingChoices: labels,
         selectedEncoding: ctx.t(`pdf.sizes.${proposed}`),
         encodingLabel: ctx.t('pdf.pageSizeLabel'),
-        // Feature 016 (D25): *Save in ZIP archive*, unticked every time.
-        zipChoice: { label: ctx.t('pdf.zipChoice'), checked: false },
+        // Feature 016 (D25), 017 (D17, D20): *Save in ZIP archive* - kept for the book, else the settings'.
+        zipChoice: {
+          label: ctx.t('pdf.zipChoice'),
+          checked: keptExportOptions(docId, 'pdf')?.zip ?? state.settings?.pdf?.zip ?? false,
+        },
       });
       if (!chosenPath || store.getState().docId !== docId) return;
       // D2: a dialog that could not carry the list or the box answered without them - they are asked in
@@ -102,7 +105,7 @@ export function registerPdfFeature(commands: CommandRegistry): void {
         const asked = await showPageSizeDialog(ctx.dialogs, {
           defaultSize: pageSize ?? proposed,
           path: chosenPath,
-          zip: toZip ?? false,
+          zip: toZip ?? keptExportOptions(docId, 'pdf')?.zip ?? state.settings?.pdf?.zip ?? false,
         });
         if (!asked) return;
         pageSize = asked.size;

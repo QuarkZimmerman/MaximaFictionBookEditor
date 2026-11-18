@@ -51,7 +51,7 @@ export type SettingsPageId = 'view' | 'other' | 'hotkeys' | 'words' | 'exports' 
 const PAGES: readonly SettingsPageId[] = ['view', 'other', 'hotkeys', 'words', 'exports', 'ai'];
 
 /** The sections of the draft the pages edit (`session` is never part of the dialog). */
-type DraftSection = 'view' | 'other' | 'words' | 'pdf' | 'ai';
+type DraftSection = 'view' | 'other' | 'words' | 'pdf' | 'ai' | 'markdown' | 'txt';
 
 /**
  * The pre-apply hook (feature 005 R8.8): asked with the validated draft before anything is
@@ -390,7 +390,11 @@ export function SettingsDialog({
             <WordsPage draft={draft} onChange={(patch) => update('words', patch)} ctx={ctx} />
           </div>
           <div role="tabpanel" id="settings-page-exports-panel" hidden={page !== 'exports'}>
-            <ExportsPage draft={draft} onChange={(patch) => update('pdf', patch)} ctx={ctx} />
+            <ExportsPage
+              draft={draft}
+              onChange={(section, patch) => update(section, patch)}
+              ctx={ctx}
+            />
           </div>
           <div role="tabpanel" id="settings-page-ai" hidden={page !== 'ai'}>
             <AiPage

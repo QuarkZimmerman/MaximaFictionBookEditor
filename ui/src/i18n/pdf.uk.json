@@ -156,7 +156,8 @@
       "formats": {
         "pdf": "PDF",
         "epub": "EPUB",
-        "markdown": "Markdown"
+        "markdown": "Markdown",
+        "txt": "TXT"
       },
       "none": "Цей формат поки не має власних налаштувань."
     }

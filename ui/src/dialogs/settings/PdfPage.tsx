@@ -38,6 +38,8 @@ const PDF_DEFAULTS: PdfSettings = {
   margins: 'standard',
   customTextSize: 115,
   customMargin: 22,
+  // Feature 017 (D20): the default of the dialog's *Save in ZIP archive*.
+  zip: false,
 };
 
 export interface PdfPageProps {
@@ -421,6 +423,17 @@ export function PdfPage({ draft, onChange, ctx }: PdfPageProps) {
           <span className="mfbe-settings-unit">{t('pdf.settings.unitMm')}</span>
           {defaultNote(t(`pdf.settings.marginSizes.${PDF_DEFAULTS.margins}`))}
           {resetButton('margins', t(`pdf.settings.marginSizes.${PDF_DEFAULTS.margins}`))}
+        </FieldRow>
+
+        <FieldRow label={t('txt.settings.pdfZip')} tooltip={t('tip.settings.txt.pdfZip')}>
+          <input
+            type="checkbox"
+            data-testid="settings-pdf-zip"
+            checked={!!values.zip}
+            onChange={(event) => onChange({ zip: event.target.checked })}
+          />
+          {defaultNote(t('txt.settings.off'))}
+          {resetButton('zip', t('txt.settings.off'))}
         </FieldRow>
 
         <div className="mfbe-settings-row mfbe-settings-buttons">
