@@ -40,6 +40,20 @@ export type { BinaryMeta, Document, ValidationIssue, ValidationReport } from '@/
 
 export { RPC_API_MINOR, RPC_API_VERSION } from './version';
 
+/** Feature 017: an encoding of the TXT export and import, its catalogue key for the dialog's list. */
+export interface TxtEncoding {
+  name: string;
+  labelKey: string;
+}
+
+/** Feature 017 (D11): every encoding, and the encodings offered to a Russian, Ukrainian and English book. */
+export interface TxtEncodings {
+  all: TxtEncoding[];
+  ru: string[];
+  uk: string[];
+  en: string[];
+}
+
 /* ------------------------------------------------------------------------ */
 /* Error codes (rpc-api.md §1)                                              */
 /* ------------------------------------------------------------------------ */
@@ -1417,6 +1431,9 @@ export interface RpcMethods {
     params: { path: string; encoding?: string };
     result: MarkdownText | { needsEncoding: { candidates: string[] } };
   };
+  /** Feature 017 (contracts/rpc-api.md, D11): UTF-8 and the 28 single-byte encodings, and the lists of Russian,
+   * Ukrainian and English books - the one source of the export dialog and the settings. */
+  'txt.encodings': { params: Record<string, never>; result: TxtEncodings };
   /** Feature 010 (US8): the effective template's FB2 text, for the import's description. */
   'template.xml': { params: void; result: { xml: string } };
   /** Feature 012 (contracts/rpc-api.md §1): opens an EPUB for the import; entries over `/epub/{token}/{entry}`. */

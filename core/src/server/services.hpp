@@ -188,6 +188,7 @@ void register_epub_handlers(rpc::RpcRouter& router, Services& services);
 // Feature 014: pdf.export.* (pdf_handlers.cpp).
 void register_pdf_handlers(rpc::RpcRouter& router, Services& services);
 void register_pdf_import_handlers(rpc::RpcRouter& router, Services& services);
+void register_txt_handlers(rpc::RpcRouter& router, Services& services);
 void register_log_handlers(rpc::RpcRouter& router, Services& services);
 void register_settings_handlers(rpc::RpcRouter& router, Services& services);
 void register_dialog_handlers(rpc::RpcRouter& router, Services& services);
