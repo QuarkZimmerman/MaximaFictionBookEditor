@@ -94,6 +94,11 @@ inline constexpr int kPdfExportFailed = 1112;
 inline constexpr int kPdfImportFailed = 1113;
 // Feature 016: an unknown or ended pdfImport token.
 inline constexpr int kPdfImportUnknownToken = 1114;
+// Feature 017 (txtImport.*, contracts/rpc-api.md): a text file the TXT import refuses - {reason}:
+// noTxtInArchive, binary, empty, tooLarge, fictionBook, or an archive's reason (as Open's).
+inline constexpr int kTextImportRefused = 1115;
+// Feature 017: an unknown or ended txtImport token.
+inline constexpr int kTxtImportUnknownToken = 1116;
 // Feature 005 (ai.*): the target cannot be resolved to a service the call may contact -
 // {reason: disabled | unknownService | emptyAddress | noModel | noAgreement, id?, service?}.
 inline constexpr int kAiNoService = 1200;

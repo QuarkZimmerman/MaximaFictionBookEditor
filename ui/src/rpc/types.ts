@@ -106,6 +106,10 @@ export const RpcErrorCode = {
   pdfImportFailed: 1113,
   /** Feature 016: an unknown or ended pdfImport token. */
   pdfImportUnknownToken: 1114,
+  /** Feature 017: a text file the TXT import refuses ({reason}, contracts/rpc-api.md). */
+  textImportRefused: 1115,
+  /** Feature 017: an unknown or ended txtImport token. */
+  txtImportUnknownToken: 1116,
   spellDictionaryUnavailable: 1020,
   scriptNotFound: 1030,
   scriptInvalidManifest: 1031,
@@ -1454,6 +1458,26 @@ export interface RpcMethods {
   'txt.encodings': { params: Record<string, never>; result: TxtEncodings };
   /** Feature 017 (D33, DP-11): the FBD in a file's folder with its name (exact, else the only one apart from case). */
   'files.fbdBeside': { params: { path: string }; result: { path?: string } };
+  /** Feature 017 (D23 to D26, D31, DP-9, DP-10): the TXT import's session, as pdfImport's; 1115 {reason}, 1116. */
+  'txtImport.begin': {
+    params: { path: string; entry?: string };
+    result:
+      | { token: string }
+      | {
+          archive: {
+            txts: { entry: string; size: number }[];
+            fbds: { entry: string; size: number }[];
+          };
+        };
+  };
+  'txtImport.read': {
+    params: { token: string; encoding?: string };
+    result:
+      | { text: string; encoding: string; source: 'bom' | 'utf8' | 'judged' | 'chosen' }
+      | { needsEncoding: { candidates: string[] } };
+  };
+  'txtImport.extractFbd': { params: { token: string; entry: string }; result: { path: string } };
+  'txtImport.end': { params: { token: string }; result: Empty };
   /** Feature 017 (D10 to D13, DP-4): the laid-out text written in an encoding, with CR LF; a job. */
   'txt.export': {
     params: {

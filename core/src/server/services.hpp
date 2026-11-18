@@ -96,6 +96,20 @@ struct Services {
         bool cleaned = false;  // stale folders removed (DP-2)
     } pdf_import;
 
+    // Feature 017 (txtImport.*, DP-10): the TXT imports under way, by token - the file read (beside
+    // the archive's extracted entries in the session's folder) and its archive; each ends with
+    // txtImport.end, which removes the folder.
+    struct TxtImportSession {
+        std::filesystem::path folder;
+        std::filesystem::path file;
+        std::optional<std::filesystem::path> archive;
+    };
+    struct TxtImportState {
+        std::mutex mutex;
+        std::map<std::string, TxtImportSession> sessions;
+        bool cleaned = false;
+    } txt_import;
+
     rpc::Notifier& notifier;
     rpc::JobManager jobs;
     // The AI assistant (feature 005): the service list and the transport, both created on the

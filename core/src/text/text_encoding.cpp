@@ -77,6 +77,62 @@ long inner_capitals(const std::vector<std::string>& words) {
     return count;
 }
 
+// Feature 017 (D26): a symbol that touches a letter - "¬аша" where a wrong table read a capital as
+// a sign - marks a wrong encoding; the punctuation of ordinary text does not count.
+bool is_letter(char32_t c) {
+    return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+           (c >= 0xC0 && c <= 0x24F && c != 0xD7 && c != 0xF7) || (c >= 0x370 && c <= 0x3FF) ||
+           (c >= 0x400 && c <= 0x52F);
+}
+
+bool is_ordinary(char32_t c) {
+    if (c < 0x80) {
+        return true;  // ASCII: letters, digits and the punctuation of plain text
+    }
+    switch (c) {
+        case 0xA0:
+        case 0xAB:
+        case 0xBB:
+        case 0x2013:
+        case 0x2014:
+        case 0x2018:
+        case 0x2019:
+        case 0x201C:
+        case 0x201D:
+        case 0x201E:
+        case 0x2026:
+        case 0x2116:
+            return true;
+        default:
+            return is_letter(c);
+    }
+}
+
+long stray_symbols(const std::string& utf8) {
+    std::vector<char32_t> cps;
+    cps.reserve(utf8.size());
+    for (std::size_t i = 0; i < utf8.size();) {
+        const auto c = static_cast<unsigned char>(utf8[i]);
+        const std::size_t len = c < 0x80 ? 1 : c < 0xE0 ? 2 : c < 0xF0 ? 3 : 4;
+        char32_t cp = len == 1 ? c : len == 2 ? (c & 0x1Fu) : len == 3 ? (c & 0x0Fu) : (c & 0x07u);
+        for (std::size_t k = 1; k < len && i + k < utf8.size(); ++k) {
+            cp = (cp << 6) | (static_cast<unsigned char>(utf8[i + k]) & 0x3Fu);
+        }
+        cps.push_back(cp);
+        i += len;
+    }
+    long count = 0;
+    for (std::size_t i = 0; i < cps.size(); ++i) {
+        if (is_ordinary(cps[i])) {
+            continue;
+        }
+        if ((i > 0 && is_letter(cps[i - 1])) || (i + 1 < cps.size() && is_letter(cps[i + 1]))) {
+            ++count;
+        }
+    }
+    return count;
+}
+
 long replacement_count(const std::string& utf8) {
     long count = 0;
     for (std::size_t at = utf8.find("\xEF\xBF\xBD"); at != std::string::npos;
@@ -172,7 +228,8 @@ TextReading read_text(std::string_view bytes, const std::vector<std::string>& ca
         }
         const std::vector<std::string> words = non_ascii_words(*text);
         scored.push_back(Scored{name, archive::plausibility(words) - 2 * inner_capitals(words) -
-                                          20 * replacement_count(*text)});
+                                          20 * replacement_count(*text) -
+                                          10 * stray_symbols(*text)});
     }
     std::stable_sort(scored.begin(), scored.end(),
                      [](const Scored& a, const Scored& b) { return a.score > b.score; });
