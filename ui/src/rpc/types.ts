@@ -46,6 +46,13 @@ export interface TxtEncoding {
   labelKey: string;
 }
 
+/** Feature 017 (D16): what `txt.export` wrote, and the characters its encoding replaced or left out. */
+export interface TxtExportResult {
+  path: string;
+  replaced: { char: string; count: number; as: string }[];
+  leftOut: number;
+}
+
 /** Feature 017 (D11): every encoding, and the encodings offered to a Russian, Ukrainian and English book. */
 export interface TxtEncodings {
   all: TxtEncoding[];
@@ -1447,6 +1454,18 @@ export interface RpcMethods {
   'txt.encodings': { params: Record<string, never>; result: TxtEncodings };
   /** Feature 017 (D33, DP-11): the FBD in a file's folder with its name (exact, else the only one apart from case). */
   'files.fbdBeside': { params: { path: string }; result: { path?: string } };
+  /** Feature 017 (D10 to D13, DP-4): the laid-out text written in an encoding, with CR LF; a job. */
+  'txt.export': {
+    params: {
+      docId: string;
+      path: string;
+      text: string;
+      encoding: string;
+      bom: boolean;
+      zip?: boolean;
+    };
+    result: MaybeJob<TxtExportResult>;
+  };
   /** Feature 010 (US8): the effective template's FB2 text, for the import's description. */
   'template.xml': { params: void; result: { xml: string } };
   /** Feature 012 (contracts/rpc-api.md §1): opens an EPUB for the import; entries over `/epub/{token}/{entry}`. */
