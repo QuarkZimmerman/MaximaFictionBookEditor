@@ -22,6 +22,7 @@
 
 #include <mfbe/archive.hpp>
 #include <mfbe/atomic_file.hpp>
+#include <mfbe/case_fold.hpp>
 #include <mfbe/dialog_provider.hpp>
 #include <mfbe/encodings.hpp>
 #include <mfbe/platform.hpp>
@@ -185,6 +186,38 @@ void register_files_handlers(rpc::RpcRouter& router, Services& services) {
     // Feature 009 (rpc-api §1): what a file is before Save As writes it - for the question when
     // a completed name points at an existing file, and the one when the chosen archive holds
     // other files (D32): `otherEntries` counts its files other than one named `entryName`.
+    // Feature 017 (D33, DP-11; contracts/rpc-api.md): the FBD in a file's folder with the file's
+    // name - the exact name first, else the only one equal apart from letter case, else none.
+    router.add_method("files.fbdBeside", [](const json& params, rpc::RpcContext&) {
+        const json& p = rpc::params::object(params);
+        const fs::path file = platform::path_from_utf8(rpc::params::string(p, "path"));
+        if (!file.is_absolute()) {
+            throw rpc::invalid_params("path must be absolute", json{{"field", "path"}});
+        }
+        std::error_code ec;
+        const fs::path exact =
+            file.parent_path() / (file.stem().native() + fs::path(".fbd").native());
+        if (fs::is_regular_file(exact, ec)) {
+            return json{{"path", platform::utf8_from_path(exact)}};
+        }
+        const std::string stem = text::fold_case(platform::utf8_from_path(file.stem()));
+        std::vector<fs::path> matches;
+        for (const auto& entry : fs::directory_iterator(file.parent_path(), ec)) {
+            std::error_code type_ec;
+            if (!entry.is_regular_file(type_ec)) {
+                continue;
+            }
+            const fs::path& candidate = entry.path();
+            if (text::fold_case(platform::utf8_from_path(candidate.extension())) == ".fbd" &&
+                text::fold_case(platform::utf8_from_path(candidate.stem())) == stem) {
+                matches.push_back(candidate);
+            }
+        }
+        if (matches.size() == 1) {
+            return json{{"path", platform::utf8_from_path(matches.front())}};
+        }
+        return json::object();
+    });
     router.add_method("files.inspect", [](const json& params, rpc::RpcContext&) {
         const json& p = rpc::params::object(params);
         const fs::path file = platform::path_from_utf8(rpc::params::string(p, "path"));

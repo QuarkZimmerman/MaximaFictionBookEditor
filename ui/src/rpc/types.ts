@@ -365,7 +365,7 @@ export interface Settings {
     /** The margins a `custom` choice uses, in millimetres (5 to 50); default 22. */
     customMargin: number;
     /** Feature 017 (D20): the default of the dialog's *Save in ZIP archive*; default false. */
-    zip?: boolean
+    zip?: boolean;
   };
   /** Feature 017 (D21): the default of the one-file Markdown export's *Include pictures*; default true. */
   markdown?: { includePictures: boolean };
@@ -1445,6 +1445,8 @@ export interface RpcMethods {
   /** Feature 017 (contracts/rpc-api.md, D11): UTF-8 and the 28 single-byte encodings, and the lists of Russian,
    * Ukrainian and English books - the one source of the export dialog and the settings. */
   'txt.encodings': { params: Record<string, never>; result: TxtEncodings };
+  /** Feature 017 (D33, DP-11): the FBD in a file's folder with its name (exact, else the only one apart from case). */
+  'files.fbdBeside': { params: { path: string }; result: { path?: string } };
   /** Feature 010 (US8): the effective template's FB2 text, for the import's description. */
   'template.xml': { params: void; result: { xml: string } };
   /** Feature 012 (contracts/rpc-api.md §1): opens an EPUB for the import; entries over `/epub/{token}/{entry}`. */
