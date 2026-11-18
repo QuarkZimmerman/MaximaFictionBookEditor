@@ -203,6 +203,10 @@ void register_epub_handlers(rpc::RpcRouter& router, Services& services);
 void register_pdf_handlers(rpc::RpcRouter& router, Services& services);
 void register_pdf_import_handlers(rpc::RpcRouter& router, Services& services);
 void register_txt_handlers(rpc::RpcRouter& router, Services& services);
+// Feature 017 (D13): the FBD of the book `doc_id`, the description of `params["document"]`, written
+// at `path` as doc.exportDescription writes it (forced); defined with the doc handlers.
+void write_description_file(Services& services, const std::string& doc_id,
+                            const nlohmann::json& params, const std::string& path);
 void register_log_handlers(rpc::RpcRouter& router, Services& services);
 void register_settings_handlers(rpc::RpcRouter& router, Services& services);
 void register_dialog_handlers(rpc::RpcRouter& router, Services& services);

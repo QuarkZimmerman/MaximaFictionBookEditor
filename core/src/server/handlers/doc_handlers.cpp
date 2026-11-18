@@ -2061,4 +2061,19 @@ void register_fragment_handlers(rpc::RpcRouter& router, Services& services) {
     });
 }
 
+// Feature 017 (D13, DP-4): the book's FBD, as doc.exportDescription writes it - forced, the book's
+// validity having been confirmed before the export - for the TXT export's ZIP archive.
+void write_description_file(Services& services, const std::string& doc_id, const json& params,
+                            const std::string& path) {
+    session::DocumentSession& s = services.documents.require(doc_id);
+    ExportRequest request;
+    request.document = exported_document(document_param(params), s.ids);
+    request.path = path;
+    request.force = true;
+    request.xlink_prefix = s.xlinkPrefix;
+    request.store = s.binaries;
+    request.policy = services.conversion_policy();
+    perform_export(request, nullptr);
+}
+
 }  // namespace mfbe::server

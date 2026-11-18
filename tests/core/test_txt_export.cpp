@@ -4,6 +4,7 @@
 #include "test_support.hpp"
 #include "ws_test_client.hpp"
 
+#include <mfbe/archive.hpp>
 #include <mfbe/atomic_file.hpp>
 #include <mfbe/core_server.hpp>
 #include <mfbe/utf8_paths.hpp>
@@ -24,6 +25,7 @@ struct Fixture {
     std::unique_ptr<CoreServer> server;
     test::WsClient ws;
     std::string doc_id;
+    json document;
 
     Fixture() {
         CoreServerOptions options;
@@ -34,6 +36,7 @@ struct Fixture {
             "doc.open",
             json{{"path", platform::utf8_from_path(test::fixtures_dir() / "books" / "modern-utf8.fb2")}});
         doc_id = opened["result"]["document"]["docId"];
+        document = opened["result"]["document"];
     }
 
     json wait_job(const std::string& job_id) {
@@ -106,4 +109,39 @@ TEST_CASE("txt.export refuses an unknown encoding and the book's own file", "[tx
              {"encoding", "utf-8"}});
     REQUIRE(own.contains("error"));
     CHECK(own["error"]["code"] == 1006);
+}
+
+TEST_CASE("txt.export writes a ZIP archive with the TXT and the book's FBD (D13)", "[txt][export][rpc]") {
+    Fixture f;
+    const auto target = f.out.path() / "book.zip";
+    const json started = f.ws.call("txt.export", json{{"docId", f.doc_id},
+                                                      {"path", platform::utf8_from_path(target)},
+                                                      {"text", "Text\n"},
+                                                      {"encoding", "windows-1251"},
+                                                      {"bom", false},
+                                                      {"zip", true},
+                                                      {"document", f.document}});
+    REQUIRE(started.contains("result"));
+    REQUIRE(f.wait_job(started["result"]["jobId"])["event"] == "job.done");
+    const archive::Listing listing = archive::list(target);
+    std::vector<std::string> names;
+    for (const auto& e : listing.entries) names.push_back(e.name);
+    CHECK(names == std::vector<std::string>{"book.txt", "book.fbd"});
+    CHECK(archive::read_entry(target, "book.txt") == "Text\r\n");
+    // The FBD is the one Export as FBD writes.
+    const auto fbd = f.out.path() / "same.fbd";
+    const json exported = f.ws.call("doc.exportDescription", json{{"docId", f.doc_id},
+                                                                  {"path", platform::utf8_from_path(fbd)},
+                                                                  {"document", f.document},
+                                                                  {"force", true}});
+    REQUIRE(exported.contains("result"));
+    CHECK(archive::read_entry(target, "book.fbd") == atomic_file::read_file(fbd));
+    // Without the description a ZIP is refused before anything is written.
+    const json missing = f.ws.call("txt.export", json{{"docId", f.doc_id},
+                                                      {"path", platform::utf8_from_path(f.out.path() / "x.zip")},
+                                                      {"text", "x"},
+                                                      {"encoding", "utf-8"},
+                                                      {"zip", true}});
+    CHECK(missing.contains("error"));
+    CHECK_FALSE(std::filesystem::exists(f.out.path() / "x.zip"));
 }

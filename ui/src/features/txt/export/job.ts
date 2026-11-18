@@ -51,7 +51,16 @@ export async function exportTxt(ctx: CommandContext, docId: string, run: TxtRun)
     if (run.cancelled()) throw new Error('cancelled');
     const result = await rpc.runJob(
       'txt.export',
-      { docId, path, text: layout.text, encoding: run.encoding, bom: run.bom, zip: run.zip },
+      {
+        docId,
+        path,
+        text: layout.text,
+        encoding: run.encoding,
+        bom: run.bom,
+        zip: run.zip,
+        // D13: the archive's FBD is the book's description, as Export as FBD writes it.
+        ...(run.zip ? { document: state.document } : {}),
+      },
       {
         onStart: (id) => {
           jobId = id;

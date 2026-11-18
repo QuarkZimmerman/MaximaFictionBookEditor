@@ -15,6 +15,7 @@
 #include <cctype>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <memory>
 #include <random>
 #include <string>
@@ -83,9 +84,14 @@ struct TxtExport {
     std::string text;
     std::string encoding;
     bool bom = false;
+    // D13: a ZIP archive with <stem>.txt and the book's <stem>.fbd, the FBD made in `work`.
+    bool zip = false;
+    fs::path work;
+    std::function<void(const fs::path&)> write_fbd;
 };
 
-// The file's bytes and the summary's replacements (D10, D12, D16).
+// The file's bytes and the summary's replacements (D10, D12, D16); the TXT, or the ZIP with the
+// FBD.
 json write_txt(const TxtExport& job) {
     const std::string lines = with_crlf(job.text);
     std::string bytes;
@@ -105,7 +111,27 @@ json write_txt(const TxtExport& job) {
                 json{{"char", utf8_of(r.character)}, {"count", r.count}, {"as", r.as}});
         }
     }
-    atomic_file::write_atomic(job.path, bytes);
+    if (job.zip) {
+        // D13 (as the PDF export's archive, 016 D25): <stem>.txt and <stem>.fbd at the archive's
+        // top, named after it; the archive replaces the target only when complete.
+        const std::string stem = platform::utf8_from_path(job.path.stem());
+        std::error_code ec;
+        fs::create_directories(job.work, ec);
+        const fs::path fbd = job.work / (job.path.stem().native() + fs::path(".fbd").native());
+        try {
+            job.write_fbd(fbd);
+            const std::string fbd_bytes = atomic_file::read_file(fbd);
+            atomic_file::write_atomic(
+                job.path, archive::zip_entries({{stem + ".txt", bytes, false, false},
+                                                {stem + ".fbd", fbd_bytes, false, false}}));
+        } catch (...) {
+            fs::remove_all(job.work, ec);
+            throw;
+        }
+        fs::remove_all(job.work, ec);
+    } else {
+        atomic_file::write_atomic(job.path, bytes);
+    }
     return json{{"path", platform::utf8_from_path(job.path)},
                 {"replaced", replaced},
                 {"leftOut", left_out}};
@@ -180,6 +206,19 @@ void register_txt_handlers(rpc::RpcRouter& router, Services& services) {
         job->text = rpc::params::string(params, "text");
         job->encoding = rpc::params::string_or(params, "encoding", "utf-8");
         job->bom = params.value("bom", false);
+        job->zip = params.value("zip", false);
+        if (job->zip) {
+            // D13: the FBD is the description the interface sends, as doc.exportDescription takes
+            // it.
+            if (rpc::params::opt_field(params, "document") == nullptr) {
+                throw rpc::invalid_params("document is required for a ZIP archive",
+                                          json{{"field", "document"}});
+            }
+            job->work = services.dirs.state / "txt-export" / new_token();
+            job->write_fbd = [&services, doc_id, params](const fs::path& fbd) {
+                write_description_file(services, doc_id, params, platform::utf8_from_path(fbd));
+            };
+        }
         if (job->encoding != "utf-8" && !text::is_single_byte(job->encoding)) {
             throw rpc::invalid_params("unknown encoding", json{{"encoding", job->encoding}});
         }

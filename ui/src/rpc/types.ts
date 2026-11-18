@@ -1487,6 +1487,8 @@ export interface RpcMethods {
       encoding: string;
       bom: boolean;
       zip?: boolean;
+      /** With `zip`: the book's description for the archive's FBD, as doc.exportDescription takes it. */
+      document?: Document;
     };
     result: MaybeJob<TxtExportResult>;
   };
