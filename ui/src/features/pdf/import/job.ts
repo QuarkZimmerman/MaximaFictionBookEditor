@@ -64,6 +64,31 @@ export async function importPdf(
   try {
     // D22, D23 (FR-045): which FBD of the archive gives the description, asked before the pages are read.
     let fbd: string | null = null;
+    // Feature 017 (D39): a PDF the editor did not make, outside an archive, asks about the FBD lying beside
+    // it with its name - with the question an archive's matching FBD gets (016 D22).
+    let besidePath: string | null = null;
+    if (run.entry === undefined && run.fbds.length === 0) {
+      const beside = await rpc
+        .call('files.fbdBeside', { path: run.path })
+        .catch(() => ({ path: undefined }));
+      if (beside.path && !(await loadDocument(token)).record) {
+        modal.end();
+        const answer = await ctx.dialogs.showMessage({
+          text: ctx.t('pdfImport.fbd.takeIt', {
+            fbd: beside.path.slice(
+              Math.max(beside.path.lastIndexOf('/'), beside.path.lastIndexOf('\\')) + 1,
+            ),
+          }),
+          caption: ctx.t('pdfImport.importCaption'),
+          buttons: 'yesNoCancel',
+          icon: 'question',
+          testId: 'dialog-pdf-fbd-take',
+        });
+        modal = run.reopen();
+        if (answer === 'cancel') throw new Cancelled();
+        if (answer === 'yes') besidePath = beside.path;
+      }
+    }
     if (run.fbds.length > 0) {
       // The questions come above the window, not under the progress: it closes while they are asked.
       modal.end();
@@ -422,10 +447,12 @@ export async function importPdf(
     // D23: the FBD's description, every entry of it, as Import Description gives one to a new document.
     // D24: an FBD that cannot be read is said once the progress has closed.
     let fbdError: unknown = null;
-    if (fbd) {
+    if (fbd || besidePath) {
       let read: ReadDescriptionResult | null = null;
       try {
-        const { path } = await rpc.call('pdfImport.extractFbd', { token, entry: fbd });
+        const path = fbd
+          ? (await rpc.call('pdfImport.extractFbd', { token, entry: fbd })).path
+          : besidePath!;
         read = await readDescriptionFile(ctx, docId, path);
         book = { ...book, ...(await applyFbd(ctx, docId, book, read)) };
       } catch (error) {
@@ -437,7 +464,12 @@ export async function importPdf(
     await end();
     modal.progress(total, total);
     modal.end();
-    if (fbd && fbdError) await fbdUnreadable(ctx, fbd, fbdError);
+    const fbdName =
+      fbd ??
+      (besidePath
+        ? besidePath.slice(Math.max(besidePath.lastIndexOf('/'), besidePath.lastIndexOf('\\')) + 1)
+        : null);
+    if (fbdName && fbdError) await fbdUnreadable(ctx, fbdName, fbdError);
     await nextTask();
     await files.loadImported(ctx, book);
     docId = null;

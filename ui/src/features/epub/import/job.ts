@@ -15,6 +15,7 @@
 import type { CommandContext } from '@/app/commands';
 import { uploadBinary } from '@/features/images/binaries';
 import type { FileFeature } from '@/features/file/fileCommands';
+import { withFbd } from '@/features/importShared/fbdApply';
 import type { ConvertResult } from '@/features/markdown/convert';
 import { buildBook } from '@/features/markdown/describe';
 import { drawChar } from '@/features/markdown/pictures';
@@ -423,6 +424,14 @@ export async function importEpub(
         }
       } catch {
         summary.push({ kind: 'listedData', detail: 'mfbe:fb2-description' });
+      }
+    } else {
+      // Feature 017 (D39): an EPUB the editor did not make takes the FBD lying beside it with its name,
+      // without a question - the whole description, cover included (D34).
+      const beside = await rpc.call('files.fbdBeside', { path }).catch(() => ({ path: undefined }));
+      if (beside.path) {
+        const applied = await withFbd(ctx, opened.document.docId, document, beside.path);
+        if (!applied.error) document = { ...document, ...applied.document };
       }
     }
     summary.push(...dropped.summary());
