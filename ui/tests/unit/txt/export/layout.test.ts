@@ -67,4 +67,46 @@ describe('the TXT layout', () => {
     expect(lines.at(-1)).toMatch(/^Made with Maxima Fiction Book Editor 0\.0\.12$/);
     expect(lines).toContain('='.repeat(40));
   });
+
+  it('gives each paragraph of raw XML a line of its own, its formatting spaces collapsed', () => {
+    // Books of the corpus nest <p> in <p> (67.fb2, 2213.fb2, 2380.fb2, 2926.fb2): the editor keeps the inner
+    // paragraphs as raw XML inside the outer one. Their words must not run together ("ХранителюМолитва").
+    const book = model('german-book');
+    const section = book.bodies[0]!.content.find((node) => node.type === 'section') as unknown as {
+      content: unknown[];
+    };
+    section.content.unshift({
+      type: 'p',
+      content: [
+        { type: 'text', text: 'Before the list. ' },
+        {
+          type: 'raw-xml',
+          attrs: {
+            inline: true,
+            xml: '<p>mov ah,4Eh</p><p>mov dx,offset\n        fname</p><p><strong>add</strong> dx,bp</p>',
+          },
+        },
+        { type: 'text', text: ' After it.' },
+      ],
+    });
+    section.content.unshift({
+      type: 'raw-xml',
+      attrs: {
+        inline: false,
+        xml: '<poem>\n  <v>First   verse</v>\n  <v>Second verse</v>\n</poem>',
+      },
+    });
+    const lines = layoutTxt(book, LISTS, 'raw', '0.0.12').text.split('\n');
+    const at = lines.indexOf('First verse');
+    expect(at).toBeGreaterThan(0);
+    expect(lines.slice(at, at + 6)).toEqual([
+      'First verse',
+      'Second verse',
+      'Before the list.',
+      'mov ah,4Eh',
+      'mov dx,offset fname',
+      'add dx,bp',
+    ]);
+    expect(lines[at + 6]).toBe('After it.');
+  });
 });

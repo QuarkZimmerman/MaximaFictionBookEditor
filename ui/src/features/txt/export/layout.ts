@@ -47,9 +47,23 @@ function characterPicture(href: string): string | null {
 const linkOf = (marks: readonly Mark[] | undefined) =>
   marks?.find((m): m is Extract<Mark, { type: 'link' }> => m.type === 'link');
 
+/**
+ * A paragraph break inside raw XML: the editor keeps what the schema does not allow - a <p> nested in a <p>, as
+ * books of the corpus have - as raw XML, and each paragraph in it is a line of its own (D7), its words never run
+ * together with the next one's. Writer.line breaks the line there.
+ */
+const RAW_BREAK = '\u2029';
+/** The elements of FB2 that are blocks: their tags end a line in raw XML. */
+const RAW_BLOCKS =
+  /<\/?(?:p|v|subtitle|title|text-author|date|section|poem|stanza|cite|epigraph|annotation|table|tr|empty-line)\b[^>]*>/g;
+
+/** The text of raw XML: its tags dropped, its blocks on lines of their own, its formatting spaces collapsed. */
 const rawText = (xml: string): string =>
   xml
+    .replace(RAW_BLOCKS, RAW_BREAK)
+    .replace(/<\/?t[dh]\b[^>]*>/g, ' ')
     .replace(/<[^>]*>/g, '')
+    .replace(/[ \t\r\n]+/g, ' ')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
@@ -70,7 +84,15 @@ class Writer {
   ) {}
 
   line(text: string): void {
-    this.out.push(text.replace(/[\r\n]+/g, ' '));
+    if (!text.includes(RAW_BREAK)) {
+      this.out.push(text.replace(/[\r\n]+/g, ' '));
+      return;
+    }
+    // Raw XML's paragraphs, each on its own line (RAW_BREAK).
+    for (const piece of text.split(RAW_BREAK)) {
+      const line = piece.replace(/[\r\n]+/g, ' ').trim();
+      if (line) this.out.push(line);
+    }
   }
 
   blank(n = 1): void {

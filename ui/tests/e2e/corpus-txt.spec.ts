@@ -43,6 +43,8 @@ function bodyWords(xml: string): string[] {
   return (
     bodies
       .replace(/<binary[\s\S]*?<\/binary>/g, ' ')
+      // The TXT leaves soft hyphens out (D12): "полит\u00ADзаключённым" is one word there.
+      .replace(/\u00AD|&shy;|&#173;|&#xad;/gi, '')
       // Inline markup sits inside words ("H<sub>2</sub>O"); block elements part them.
       .replace(/<\/?(?:strong|emphasis|style|a|strikethrough|sub|sup|code)\b[^>]*>/g, '')
       .replace(/<[^>]+>/g, ' ')
