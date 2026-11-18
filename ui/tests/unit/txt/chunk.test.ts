@@ -9,6 +9,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  isImportSharedModule,
   isTextSharedModule,
   isTxtExportModule,
   isTxtImportModule,
@@ -39,5 +40,9 @@ describe('the txt chunk rules', () => {
       true,
     );
     expect(isTextSharedModule(path.join(TXT, 'import', 'layout.ts'))).toBe(false);
+    expect(
+      isImportSharedModule(path.join(UI_ROOT, 'src', 'features', 'importShared', 'fbdApply.ts')),
+    ).toBe(true);
+    expect(isImportSharedModule(path.join(TXT, 'import', 'job.ts'))).toBe(false);
   });
 });

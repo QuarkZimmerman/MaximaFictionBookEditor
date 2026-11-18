@@ -11,7 +11,8 @@ import type { ReadDescriptionResult } from '@/features/transfer/importEntries';
 import type { ArchiveChoice } from '@/rpc/types';
 
 import type { PdfImportRun } from '../importCommand';
-import { closeRead, readDescriptionFile, sameDescription } from './fbd';
+import { closeRead, readDescriptionFile } from '@/features/importShared/fbdApply';
+import { sameDescription } from './fbd';
 import type { PdfDocumentModel } from './model';
 
 /** The FBD the user takes (its entry), null for the PDF's own description, 'cancel' to end the import. */

@@ -19,7 +19,7 @@ import { loadDocument, loadPages } from './pages';
 import { flatten } from './parts';
 import { askFbd, fbdUnreadable } from './questions';
 import { guessLanguage, metadataDescription } from './describe';
-import { applyFbd, closeRead, readDescriptionFile } from './fbd';
+import { applyFbd, closeRead, readDescriptionFile } from '@/features/importShared/fbdApply';
 import { furnitureOf, layoutParts, linesOf } from './layout';
 import { fromLatin1, looksLatin1Cyrillic } from './mend';
 import { textBody } from './text';

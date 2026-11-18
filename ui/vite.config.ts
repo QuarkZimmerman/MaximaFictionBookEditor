@@ -160,6 +160,17 @@ export function isTxtSharedModule(id: string): boolean {
   return id.split('?')[0].replace(/\\/g, '/').startsWith(txtSharedFolder);
 }
 
+// Feature 017 (D34, D39): what every lazy import shares that the main bundle never reaches - an FBD read and
+// given to the new book (`src/features/importShared/`) - is the lazy chunk `import-shared`.
+const importSharedFolder = fileURLToPath(
+  new URL('./src/features/importShared/', import.meta.url),
+).replace(/\\/g, '/');
+
+/** True for a module of the `import-shared` chunk (exported for the unit test of the rule). */
+export function isImportSharedModule(id: string): boolean {
+  return id.split('?')[0].replace(/\\/g, '/').startsWith(importSharedFolder);
+}
+
 // Feature 017 (DP-13): text helpers the lazy imports share - the joining of words broken at a line's end
 // (`src/features/text/`) - are the lazy chunk `text-shared`, which the `pdf-import` and `txt-import` chunks
 // import; never reached from the main bundle.
@@ -283,6 +294,11 @@ export default defineConfig({
             {
               name: 'text-shared',
               test: isTextSharedModule,
+              includeDependenciesRecursively: false,
+            },
+            {
+              name: 'import-shared',
+              test: isImportSharedModule,
               includeDependenciesRecursively: false,
             },
           ],
