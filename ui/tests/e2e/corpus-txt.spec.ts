@@ -9,8 +9,9 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { expect, shownDocId, test } from './fixtures/core';
-import { openFixtureBook } from './fixtures/pdfExport';
+import type { Page } from '@playwright/test';
+
+import { expect, shownDocId, test, waitForBook, type CoreHandle } from './fixtures/core';
 import { bookXml, exportTxtTo, importTxtViaMenu, txtImportEnds } from './fixtures/txt';
 
 const MODE = process.env.MFBE_CORPUS_MODE;
@@ -37,12 +38,16 @@ function bodyWords(xml: string): string[] {
   ]
     .map((m) => m[1]!)
     .join(' ');
-  return bodies
-    .replace(/<binary[\s\S]*?<\/binary>/g, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&[a-z#0-9]+;/gi, ' ')
-    .split(/[^\p{L}\p{N}]+/u)
-    .filter(Boolean);
+  return (
+    bodies
+      .replace(/<binary[\s\S]*?<\/binary>/g, ' ')
+      // Inline markup sits inside words ("H<sub>2</sub>O"); block elements part them.
+      .replace(/<\/?(?:strong|emphasis|style|a|strikethrough|sub|sup|code)\b[^>]*>/g, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&[a-z#0-9]+;/gi, ' ')
+      .split(/[^\p{L}\p{N}]+/u)
+      .filter(Boolean)
+  );
 }
 
 /** True when `words` appear in `text` in order. */
@@ -55,6 +60,22 @@ function inOrder(words: string[], text: string): string | null {
     at++;
   }
   return null;
+}
+
+/** File > Open of `file`; the unsaved book an import left is not saved (its question answered No). */
+async function openBook(core: CoreHandle, page: Page, file: string): Promise<void> {
+  await core.enqueueDialog('dialog.openFile', { paths: [file] });
+  await page.getByTestId('menu-file').click();
+  await page.getByTestId('menu-file-open').click();
+  const question = page.getByRole('dialog').filter({ hasText: 'Save changes to' });
+  if (
+    await question.waitFor({ state: 'visible', timeout: 2000 }).then(
+      () => true,
+      () => false,
+    )
+  )
+    await question.getByRole('button', { name: 'No' }).click();
+  await waitForBook(page, file, 120_000);
 }
 
 const LABELS: Record<string, string[]> = {
@@ -120,7 +141,7 @@ test.describe('corpus gate - TXT (feature 017)', () => {
           else record((await shownDocId(page)) !== before);
           continue;
         }
-        await openFixtureBook(core, page, file);
+        await openBook(core, page, file);
         const original = await bookXml(page);
         const target = path.join(OUT!, `${index}.txt`);
         if (MODE === 'export') {
@@ -140,7 +161,7 @@ test.describe('corpus gate - TXT (feature 017)', () => {
         ).length;
         const problems: string[] = [];
         for (const encoding of ['UTF-8 (Unicode)', ...(LABELS[lang] ?? [])]) {
-          await openFixtureBook(core, page, file);
+          await openBook(core, page, file);
           await exportTxtTo(core, page, target, { encoding });
           const before = await importTxtViaMenu(core, page, target);
           const ended = await txtImportEnds(page, before, 300_000);
