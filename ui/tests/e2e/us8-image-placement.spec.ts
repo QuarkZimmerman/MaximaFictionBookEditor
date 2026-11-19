@@ -38,6 +38,16 @@ async function openBook(core: CoreHandle, page: Page): Promise<void> {
  * and End would stop at the ends of a visual line).
  */
 async function caretIn(page: Page, text: string, where: 'start' | 'end' | number): Promise<void> {
+  // A picture just inserted is still loading: when it arrives its paragraph is drawn again, and the editor puts back
+  // the selection it holds - the picture. The caret is placed once every picture of the book has loaded (a full
+  // local run once saw the status path stay on "image[1]").
+  await expect
+    .poll(() =>
+      page.evaluate<boolean>(
+        `[...document.querySelectorAll('[data-testid="body-editor"] img')].every((img) => img.complete)`,
+      ),
+    )
+    .toBe(true);
   const placed = await page.evaluate<boolean>(`(() => {
     const p = [...document.querySelectorAll('[data-testid="body-editor"] p.fb-p')]
       .find((el) => el.textContent.startsWith(${JSON.stringify(text)}));

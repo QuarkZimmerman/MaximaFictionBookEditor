@@ -39,7 +39,9 @@ test.describe('US7 (feature 016) - the PDF export: its defects fixed, and its ZI
     page,
     context,
   }) => {
-    test.setTimeout(180_000);
+    // The print seam may take its own 120 s to be ready, and two exports follow: the limit of the export test below
+    // (a full local run of every journey once ran past 180 s here).
+    test.setTimeout(240_000);
     const dir = scratchDir('pdf-defects-');
     const seam = startPrintSeam(core, context, { readyTimeoutMs: 120_000 });
     try {
