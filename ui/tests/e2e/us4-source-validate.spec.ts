@@ -164,10 +164,11 @@ async function validate(page: Page): Promise<void> {
 
 const activeLine = (page: Page) => page.locator('.mfbe-source-editor .cm-activeLine').first();
 
+// The macOS docs replay of 2026-11-18 saw scenario 7's Source view stay "loading" for 15 s once, and its retry pass;
+// a failed attempt keeps its trace, so that the next one shows which call the view waited for.
+test.use({ trace: 'retain-on-failure' });
+
 test.describe('US4 - edit the XML source and validate', () => {
-  // The macOS docs replay of 2026-11-18 saw scenario 7's Source view stay "loading" for 15 s once, and its retry
-  // pass; a failed attempt keeps its trace, so that the next one shows which call the view waited for.
-  test.use({ trace: 'retain-on-failure' });
   let dir: string;
 
   test.beforeAll(() => {
