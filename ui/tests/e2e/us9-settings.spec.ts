@@ -219,6 +219,26 @@ test.describe('US9 - configure settings and hotkeys', () => {
     await expect(page.getByTestId('dialog-settings')).toHaveCount(0);
   });
 
+  test('1b. the dialog keeps its size and place on every page (smoke test of 0.0.12-rc.4)', async ({
+    core,
+    page,
+  }) => {
+    // The requester: it jumped - changed its size and place - with every tab. Every page now stands in one grid
+    // cell, the dialog the size of the tallest.
+    await core.openApp(page);
+    await openSettings(page);
+    const dialog = page.getByTestId('dialog-settings');
+    const first = await dialog.boundingBox();
+    expect(first).not.toBeNull();
+    for (const id of ['other', 'hotkeys', 'words', 'exports', 'ai', 'view']) {
+      await page.getByTestId(`settings-tab-${id}`).click();
+      await expect(page.getByTestId(`settings-tab-${id}`)).toHaveAttribute('aria-selected', 'true');
+      expect(await dialog.boundingBox(), id).toEqual(first);
+    }
+    // A page not shown is out of sight and out of reach.
+    await expect(page.getByTestId('settings-page-words')).toBeHidden();
+  });
+
   test('2. a conflicting hotkey is reported; replace, delete and default work', async ({
     page,
   }) => {

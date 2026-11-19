@@ -79,6 +79,8 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 
 ### Fixed
 
+- The Settings dialog changed its size and its place with every tab: it keeps the size of the tallest page and
+  its place now, and the word-exclusion and hotkey lists grow into the room the page leaves.
 - The TXT and PDF exports replaced an existing file without a word when *Save in ZIP archive* had turned
   the name the save dialog checked into another (`book.txt` into `book.zip`): they ask first, as Save As does.
 - A person with a first name but no last name kept being reported until any other edit of the description -
