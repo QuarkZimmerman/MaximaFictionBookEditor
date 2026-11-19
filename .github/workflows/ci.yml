@@ -376,7 +376,9 @@ jobs:
         # compiled into the core is the `core` job's workspace.
         if: runner.os != 'Linux'
         shell: bash
-        run: npx playwright test --grep @platform --pass-with-no-tests
+        # As a list only, as every later Playwright run of this job: the uploaded HTML report stays the
+        # journeys' one, with the trace of any failed attempt.
+        run: npx playwright test --grep @platform --pass-with-no-tests --reporter=list
         working-directory: ui
         env:
           MFBE_CORE_BIN: ${{ github.workspace }}/build/${{ matrix.preset }}/bin/${{ matrix.core_bin }}
@@ -400,7 +402,7 @@ jobs:
           sudo locale-gen ru_RU.UTF-8 uk_UA.UTF-8 en_US.UTF-8
           mkdir -p "$HOME_RU/tmp"
           HOME="$HOME_RU" TMPDIR="$HOME_RU/tmp" \
-            npx playwright test --project=chromium us2-template us1-open-save us5-find-modeless
+            npx playwright test --project=chromium us2-template us1-open-save us5-find-modeless --reporter=list
         working-directory: ui
         env:
           HOME_RU: /tmp/Пользователь

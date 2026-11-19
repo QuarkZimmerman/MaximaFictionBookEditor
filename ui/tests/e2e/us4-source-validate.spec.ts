@@ -124,8 +124,11 @@ async function openInvalidBook(core: CoreHandle, page: Page, dir: string): Promi
 async function showSource(page: Page): Promise<void> {
   await page.getByTestId('view-source').click();
   await expect(page.getByTestId('source-view')).toHaveAttribute('data-status', 'ready', {
-    // The lazy Source view, on a machine running every journey at once (its speed has journeys of its own).
-    timeout: 15_000,
+    // The view is ready once the core has answered two calls (doc.toXml, doc.mapPositions -
+    // SourceEditor.load). On the macOS docs replay of 2026-11-18, with every journey running at once,
+    // they took longer than 15 s once. The view's speed has journeys of its own (perf-large-book), so
+    // this limit only bounds a hang.
+    timeout: 60_000,
   });
 }
 
