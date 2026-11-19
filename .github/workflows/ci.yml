@@ -982,8 +982,11 @@ jobs:
               MFBE_SMOKE_USER_FOLDERS_ROOT="$uf_image.$layout/user" \
               MFBE_SMOKE_SCREENSHOT="build/shell-smoke-appimage-$layout.png" tools/shell-smoke.sh
           done
-          # The deb, installed as a user installs it, with the user items in the per-user data folder.
-          sudo apt-get install -y "$(realpath "$deb")"
+          # The deb, installed as a user installs it, with the user items in the per-user data folder. Its one
+          # dependency comes from the Ubuntu mirrors, which hosted runners sometimes cannot reach: once more after
+          # an apt-get update (as the vcpkg downloads are retried).
+          sudo apt-get install -y "$(realpath "$deb")" ||
+            { echo "::warning::apt-get install failed once, retrying"; sleep 20; sudo apt-get update; sudo apt-get install -y "$(realpath "$deb")"; }
           MFBE_APP_BIN=/usr/bin/mfbe MFBE_SMOKE_REAL_UI=1 MFBE_SMOKE_USER_FOLDERS=1 \
             MFBE_SMOKE_SCREENSHOT=build/shell-smoke-deb-user.png tools/shell-smoke.sh
           sudo apt-get remove -y mfbe
