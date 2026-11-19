@@ -64,6 +64,8 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 - FB2 Open and Save use the WHATWG Encoding Standard's tables: windows-1251's 0x98 and five bytes of
   windows-1252 that Microsoft leaves undefined now read as control characters, as in browsers.
 - PDFs read from their layout keep a hyphenated word whole ("north-east"), as tagged PDFs do.
+- The Markdown import asks for a file's encoding less often: when only one reading of the file makes sense,
+  it is taken without a question, as the TXT import does.
 
 ### Fixed
 
