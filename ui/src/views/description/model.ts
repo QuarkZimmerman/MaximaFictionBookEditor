@@ -153,9 +153,12 @@ export function cleanPersons(list: readonly Person[] | undefined): Person[] {
   return out;
 }
 
-/** An empty person row for the forms. */
+/**
+ * An empty person row for the forms: its names empty from the start, as a new person in the schema's form has
+ * them - only a person the book holds without a last-name element has none (see formPersons).
+ */
 export function emptyPerson(): Person {
-  return { homePages: [], emails: [] };
+  return { firstName: '', lastName: '', homePages: [], emails: [] };
 }
 
 /**
@@ -172,6 +175,89 @@ export function schemaPerson(person: Person): Person {
   return { ...person, firstName: person.firstName ?? '', lastName: person.lastName ?? '' };
 }
 
+/**
+ * A script's or the assistant's description (FR-003) after the schema's forms: a person it passes through
+ * unchanged - at its place, as `before` holds it - with a first or middle name and no last-name element keeps the
+ * last name absent, as the Description view's own commits do (the requester after his smoke test of 0.0.12-rc.4:
+ * an edit must not add it behind the user's back). A person the description adds or changes gets the forms.
+ */
+export function keepPassedThroughLastNames(
+  before: Description,
+  given: Description,
+  after: Description,
+): Description {
+  const kept = (
+    was: readonly Person[] | undefined,
+    gave: readonly Person[] | undefined,
+    now: readonly Person[],
+  ): Person[] => {
+    const out = [...now];
+    let at = 0;
+    (gave ?? []).forEach((person, i) => {
+      if (personEmpty(person)) return;
+      const place = at++;
+      const old = was?.[i];
+      if (!old || !lacksLastName(person) || !samePerson(old, person) || !out[place]) return;
+      const untouched: Person = { ...out[place]! };
+      delete untouched.lastName;
+      out[place] = untouched;
+    });
+    return out;
+  };
+  const info = (
+    was: TitleInfo | undefined,
+    gave: TitleInfo | undefined,
+    now: TitleInfo,
+  ): TitleInfo => ({
+    ...now,
+    authors: kept(was?.authors, gave?.authors, now.authors),
+    translators: kept(was?.translators, gave?.translators, now.translators),
+  });
+  return {
+    ...after,
+    titleInfo: info(before.titleInfo, given.titleInfo, after.titleInfo),
+    ...(after.srcTitleInfo
+      ? { srcTitleInfo: info(before.srcTitleInfo, given.srcTitleInfo, after.srcTitleInfo) }
+      : {}),
+    documentInfo: {
+      ...after.documentInfo,
+      authors: kept(
+        before.documentInfo.authors,
+        given.documentInfo.authors,
+        after.documentInfo.authors,
+      ),
+      publishers: kept(
+        before.documentInfo.publishers,
+        given.documentInfo.publishers,
+        after.documentInfo.publishers,
+      ),
+    },
+  };
+}
+
+/** A first or middle name without a last-name element: no valid FB2, said with the person's Fix. */
+function lacksLastName(person: Person): boolean {
+  return (
+    person.lastName === undefined && !!(cleanText(person.firstName) || cleanText(person.middleName))
+  );
+}
+
+function samePerson(a: Person, b: Person): boolean {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)] as Array<keyof Person>);
+  for (const key of keys) {
+    const x = a[key];
+    const y = b[key];
+    if (Array.isArray(x) || Array.isArray(y)) {
+      const xs = (x ?? []) as readonly string[];
+      const ys = (y ?? []) as readonly string[];
+      if (xs.length !== ys.length || xs.some((value, i) => value !== ys[i])) return false;
+    } else if (x !== y) {
+      return false;
+    }
+  }
+  return true;
+}
+
 /** The author a required list holds when nobody is filled in: empty first and last names (D1). */
 export function emptyAuthor(): Person {
   return { firstName: '', lastName: '', homePages: [], emails: [] };
@@ -182,13 +268,31 @@ export function emptyAuthor(): Person {
  * persons cleaned and in the schema's forms, and one empty author when none is left (FR-001).
  */
 export function requiredPersons(list: readonly Person[] | undefined): Person[] {
-  const persons = cleanPersons(list).map(schemaPerson);
+  const persons = formPersons(list);
   return persons.length > 0 ? persons : [emptyAuthor()];
 }
 
 /** An optional list (translators, publishers): empty persons dropped, the others in form (FR-002). */
 export function optionalPersons(list: readonly Person[] | undefined): Person[] {
-  return cleanPersons(list).map(schemaPerson);
+  return formPersons(list);
+}
+
+/**
+ * The form's persons cleaned and in the schema's forms - but a person whose last name the book never had and the
+ * user never set keeps it absent: FB2 needs one, and the Description view and Validate say so, with the person's
+ * Fix, until the user gives it (the requester after his smoke test of 0.0.12-rc.4: a date's Fix had written an
+ * empty last name for an author he had not touched). A new row has its names empty from the start (emptyPerson).
+ */
+function formPersons(list: readonly Person[] | undefined): Person[] {
+  const out: Person[] = [];
+  for (const person of list ?? []) {
+    const cleaned = cleanPerson(person);
+    if (!cleaned) continue;
+    const form = schemaPerson(cleaned);
+    if (lacksLastName(person) && form.lastName === '') delete form.lastName;
+    out.push(form);
+  }
+  return out;
 }
 
 /**

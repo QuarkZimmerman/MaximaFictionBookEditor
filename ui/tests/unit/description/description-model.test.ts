@@ -12,6 +12,8 @@ import en from '@/i18n/description.en.json';
 import {
   cleanDescription,
   emptyAuthor,
+  emptyPerson,
+  keepPassedThroughLastNames,
   optionalPersons,
   requiredPersons,
   schemaPerson,
@@ -464,6 +466,38 @@ describe('persons in the schema forms (feature 011)', () => {
       middleName: 'M',
       nickname: 'Nick',
     });
+  });
+
+  it('an edit elsewhere leaves a person without a last name as the book holds it (smoke test of rc.4)', () => {
+    const book = baseForm();
+    book.documentInfo.authors = [
+      { ...blank(), firstName: 'Ground floor', homePages: ['https://e.org/'] },
+    ];
+    book.titleInfo.translators = [{ ...blank(), firstName: 'Tim' }];
+    const form = formFromDescription(book);
+    form.documentInfo.version = '2.0';
+    const after = cleanDescription(form);
+    expect(after.documentInfo.authors[0]).not.toHaveProperty('lastName');
+    expect(after.titleInfo.translators[0]).not.toHaveProperty('lastName');
+    expect(after.documentInfo.version).toBe('2.0');
+    // Its Fix gives the empty last name; a new row has empty names from the start.
+    form.documentInfo.authors[0] = { ...form.documentInfo.authors[0]!, lastName: '' };
+    form.titleInfo.translators.push({ ...emptyPerson(), firstName: 'Una' });
+    const fixed = cleanDescription(form);
+    expect(fixed.documentInfo.authors[0]?.lastName).toBe('');
+    expect(fixed.titleInfo.translators[1]).toMatchObject({ firstName: 'Una', lastName: '' });
+    expect(fixed.titleInfo.translators[0]).not.toHaveProperty('lastName');
+  });
+
+  it("a script's description: a person passed through unchanged keeps an absent last name (smoke test of rc.4)", () => {
+    const before = baseForm();
+    before.documentInfo.authors = [{ ...blank(), firstName: 'Ground floor' }];
+    const given = structuredClone(before);
+    given.titleInfo.bookTitle = 'Retitled';
+    given.titleInfo.authors = [{ ...blank(), firstName: 'Mia' }];
+    const after = keepPassedThroughLastNames(before, given, withSchemaPersons(given));
+    expect(after.documentInfo.authors[0]).toEqual({ ...blank(), firstName: 'Ground floor' });
+    expect(after.titleInfo.authors[0]).toEqual({ ...blank(), firstName: 'Mia', lastName: '' });
   });
 
   it('translators and publishers with nothing filled in are left out', () => {
