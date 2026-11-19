@@ -31,9 +31,10 @@ A `.zip` (or `.fb2.zip`) opens like a book, by every route: *File > Open*, the f
 the command line, dragging it onto the window and *Recent files*. An archive with several books
 asks which one to open; each book of an archive has its own entry in *Recent files*, and the
 window title shows the book with its archive. The editor never writes into an archive behind
-your back: saving a book from an archive always opens *Save As*, whose *Save as ZIP archive*
-box (ticked for such a book) puts it into a ZIP archive; replacing an archive that holds other
-files asks first, so nothing in it is lost without a word. *File > Open* shows FictionBook
+your back: saving a book from an archive always opens *Save As*, which proposes the book as a
+FictionBook file beside the archive, as for any book. Its *Save as ZIP archive* box, ticked, puts it
+into a ZIP archive instead; replacing an archive that holds other files asks first, so nothing in it
+is lost without a word. *File > Open* shows FictionBook
 files, descriptors and ZIP archives together by default (*Book files*).
 
 ## Notes and links

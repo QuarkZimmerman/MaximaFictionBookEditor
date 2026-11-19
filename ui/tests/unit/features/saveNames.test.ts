@@ -99,17 +99,17 @@ describe('proposedSavePath (D31, data-model §4)', () => {
 describe('the sticky ZIP checkbox (D31, FR-019, data-model §5)', () => {
   afterEach(() => resetZipSticky());
 
-  it('starts ticked for a book from an archive, unticked for any other, until first used', () => {
-    expect(zipStartState(true)).toBe(true);
-    expect(zipStartState(false)).toBe(false);
+  it('starts unticked for every book, one from an archive too, until first used', () => {
+    expect(zipStartState()).toBe(false);
   });
 
   it('then starts as the user left it, for any book, until the copy restarts', () => {
-    rememberZipChoice(false);
-    expect(zipStartState(true)).toBe(false);
     rememberZipChoice(true);
-    expect(zipStartState(false)).toBe(true);
+    expect(zipStartState()).toBe(true);
+    rememberZipChoice(false);
+    expect(zipStartState()).toBe(false);
+    rememberZipChoice(true);
     resetZipSticky(); // a new running copy
-    expect(zipStartState(false)).toBe(false);
+    expect(zipStartState()).toBe(false);
   });
 });

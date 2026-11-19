@@ -1028,7 +1028,7 @@ export class FileFeature {
         force = true;
       }
       const selectedFilter = saveAsSelectedType(state.fileKind);
-      const startChecked = zipStartState(source !== undefined);
+      const startChecked = zipStartState();
       // The document's own file, or - never saved - the bare name composed from its
       // description, which the dialog places in the folder it remembers (FR-050, FR-053).
       const current = path ?? saveAsProposedName(ctx, state.document, selectedFilter);
@@ -1055,9 +1055,9 @@ export class FileFeature {
       if (!choice.path) return false;
       encoding = normalizeEncoding(choice.encoding);
       let zip = choice.zip;
-      // A dialog without the checkbox: the editor's own window asks when the box matters (a
-      // book from an archive, or a box that starts ticked); otherwise it stays unticked.
-      if (zip === undefined && (source !== undefined || startChecked)) {
+      // A dialog without the checkbox: the editor's own window asks when the box starts ticked;
+      // otherwise it stays unticked, as for any book.
+      if (zip === undefined && startChecked) {
         const answer = await showSaveOptionsDialog(ctx.dialogs, {
           defaultEncoding: encoding ?? defaultSaveEncoding(store),
           path: choice.path,
