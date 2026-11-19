@@ -66,6 +66,9 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 - PDFs read from their layout keep a hyphenated word whole ("north-east"), as tagged PDFs do.
 - The Markdown import asks for a file's encoding less often: when only one reading of the file makes sense,
   it is taken without a question, as the TXT import does.
+- The Markdown import leaves out a scene break (`---`) at the start or end of a chapter, where it separates
+  nothing - chats end chapters with one - and its summary counts them; a break between paragraphs stays
+  "* * *" (issue #16).
 
 ### Fixed
 
