@@ -321,7 +321,8 @@ def parse_status(installed: Path, triplet: str | None) -> dict[str, dict[str, st
                 fields[key.strip().lower()] = value.strip()
         if "package" not in fields or "feature" in fields:
             continue
-        if "installed" not in fields.get("status", ""):
+        # "install ok installed" only: an upgrade leaves the old package as "purge ok not-installed".
+        if fields.get("status", "").split()[-1:] != ["installed"]:
             continue
         found.setdefault(fields["package"], []).append(fields)
     if not triplet:
@@ -421,7 +422,7 @@ def collect_vcpkg(installed: Path | None, triplet_name: str | None,
         if detected and declared and not declared.startswith("LicenseRef"):
             for identifier in detected:
                 if ("GPL" in identifier and "GPL" not in declared and "tri-licence" not in note
-                        and component.distributed):
+                        and component.distributed and name not in TEXT_MENTIONS_NOT_BUILT):
                     component.problems.append(
                         f"copyright text mentions {identifier} but the port declares {declared}")
         if component.distributed and name not in runtime_direct:
@@ -447,6 +448,14 @@ NOT_SHIPPED = {
 }
 
 # Packages whose package.json names no licence; the licence of their LICENSE file instead.
+# Ports whose copyright text names a copyleft licence for code the port does not build: the cross-check
+# below accepts their declared licence.
+TEXT_MENTIONS_NOT_BUILT = {
+    # xz's copyright: GNU getopt_long (LGPL-2.1-or-later) is linked into the xz command-line tools on systems
+    # without one of their own; vcpkg's liblzma builds the library alone, which is 0BSD (vcpkg 2026-11-18).
+    "liblzma": "the LGPL-2.1-or-later getopt_long belongs to the xz tools, which the port does not build",
+}
+
 LICENCE_OVERRIDES = {
     "khroma": ("MIT", "the package.json names no licence; its license file is the MIT License"),
 }

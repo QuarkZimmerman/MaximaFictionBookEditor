@@ -66,6 +66,9 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 - PDFs read from their layout keep a hyphenated word whole ("north-east"), as tagged PDFs do.
 - The Markdown import asks for a file's encoding less often: when only one reading of the file makes sense,
   it is taken without a question, as the TXT import does.
+- The bundled libraries move to vcpkg's versions of 2026-11-18: Boost 1.92, zlib 1.4, OpenSSL 3.6.5, curl
+  8.23, FreeType 2.15, libxml2 2.15.4, libarchive 3.8.9, uWebSockets 20.81 and Poppler 26.4.0 with the fix
+  that lets it build with the newest Windows compiler.
 - The Markdown import leaves out a scene break (`---`) at the start or end of a chapter, where it separates
   nothing - chats end chapters with one - and its summary counts them; a break between paragraphs stays
   "* * *" (issue #16).
