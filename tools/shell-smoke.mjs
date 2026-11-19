@@ -1578,9 +1578,21 @@ function storedStatusFlag() {
 }
 
 async function toggleStatusBar(page) {
-  await page.locator('[data-testid="menu-view"]').click();
+  // The View menu once stayed closed after its click in the rpm container (CI, 2026-11-19): the window was still
+  // settling and the menu closed again. Each try waits a few seconds for the item, and the menu is opened again.
   const item = page.locator('[data-testid="menu-view-statusBar"]');
-  await item.waitFor({ state: 'visible', timeout: timeoutMs });
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    if (!(await item.isVisible())) await page.locator('[data-testid="menu-view"]').click();
+    const shown = await item
+      .waitFor({ state: 'visible', timeout: Math.min(5000, Math.max(1, deadline - Date.now())) })
+      .then(
+        () => true,
+        () => false,
+      );
+    if (shown) break;
+    if (Date.now() >= deadline) throw new Error('View > Status Bar did not appear after the View menu was opened');
+  }
   await item.click();
 }
 
