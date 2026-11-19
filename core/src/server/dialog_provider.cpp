@@ -172,6 +172,12 @@ json to_json(const SaveFileRequest& r) {
     }
     if (r.zipLabel) {
         j["zipChoice"] = json{{"label", *r.zipLabel}, {"checked", r.zipChecked}};
+        if (r.zipRename) {
+            j["zipChoice"]["rename"] = *r.zipRename;
+        }
+        if (r.zipFilter >= 0) {
+            j["zipChoice"]["filter"] = r.zipFilter;
+        }
     }
     if (!r.checks.empty()) {
         json checks = json::array();
@@ -271,6 +277,12 @@ SaveFileRequest save_file_request_from_json(const json& j) {
     if (const auto it = o.find("zipChoice"); it != o.end() && it->is_object()) {
         r.zipLabel = opt_str(*it, "label");
         r.zipChecked = it->value("checked", false);
+        r.zipRename = opt_str(*it, "rename");
+        if (const auto filter = it->find("filter");
+            filter != it->end() && filter->is_number_integer() && filter->get<int>() >= 0 &&
+            filter->get<int>() < static_cast<int>(r.filters.size())) {
+            r.zipFilter = filter->get<int>();
+        }
     }
     // Feature 017 (DP-5): further boxes.
     if (const auto it = o.find("checks"); it != o.end() && it->is_array()) {

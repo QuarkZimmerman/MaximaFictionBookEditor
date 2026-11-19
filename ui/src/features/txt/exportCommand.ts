@@ -7,6 +7,8 @@
 import type { CommandContext, CommandRegistry } from '@/app/commands';
 import { startModalJob, type ModalJobHandle } from '@/app/modalJob';
 import { cmdKeys } from '@/features/editing/common';
+import { zipArchiveType } from '@/dialogs/fileTypes';
+import { confirmCompletedTarget } from '@/features/file/completedTarget';
 import { confirmBookExport } from '@/features/file/exportCheck';
 import {
   keepExportOptions,
@@ -75,13 +77,19 @@ export function registerTxtExportFeature(commands: CommandRegistry): void {
       const stem = proposedStem(state.document.description, ctx.t('app.untitled'));
       const answer = await rpc.call('dialog.saveFile', {
         title: ctx.t('cmd.file.exportTxt.tooltip'),
-        filters: [{ name: ctx.t('txt.filter'), extensions: ['txt'] }],
-        selectedFilter: 0,
-        defaultPath: `${folderOf(state.path)}${stem}.txt`,
+        // The name and the type follow the ZIP box (the requester after his smoke test of 0.0.12-rc.4).
+        filters: [{ name: ctx.t('txt.filter'), extensions: ['txt'] }, zipArchiveType(ctx.t)],
+        selectedFilter: firstZip ? 1 : 0,
+        defaultPath: `${folderOf(state.path)}${stem}.${firstZip ? 'zip' : 'txt'}`,
         encodingChoices: labels,
         selectedEncoding: labels[offered.indexOf(first)] ?? labels[0],
         encodingLabel: ctx.t('txt.encodingLabel'),
-        zipChoice: { label: ctx.t('txt.zipChoice'), checked: firstZip },
+        zipChoice: {
+          label: ctx.t('txt.zipChoice'),
+          checked: firstZip,
+          rename: 'replace',
+          filter: 1,
+        },
         checks: [{ id: 'bom', label: ctx.t('txt.bomChoice'), checked: firstBom }],
       });
       if (!answer.path || store.getState().docId !== docId) return;
@@ -110,6 +118,8 @@ export function registerTxtExportFeature(commands: CommandRegistry): void {
         : answer.path.replace(/\.zip$/i, '.txt');
       // D17: kept for the book from here on, even if the export is cancelled.
       keepExportOptions(docId, 'txt', { encoding, bom: !!bom, zip: !!zip });
+      if (!(await confirmCompletedTarget(ctx, answer.path, path))) return;
+      if (store.getState().docId !== docId) return;
       let cancelled = false;
       const modal = startModalJob(ctx.t('txt.exporting'), () => {
         cancelled = true;

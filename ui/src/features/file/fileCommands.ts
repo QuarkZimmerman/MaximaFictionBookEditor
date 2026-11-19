@@ -50,7 +50,9 @@ import {
 import { describeError, isClientSideError, logUiError } from '@/app/diagnostics';
 import { ENCODING_CHOICES, normalizeEncoding } from '@/dialogs/encodings';
 import type { StructuralPosition } from '@/editor/structuralPath';
-import { documentFileTypes, openFileTypes } from '@/dialogs/fileTypes';
+import { documentFileTypes, openFileTypes, zipArchiveType } from '@/dialogs/fileTypes';
+
+import { confirmCompletedTarget } from './completedTarget';
 import type { Dialogs } from '@/dialogs/types';
 import {
   showArchiveBookChooser,
@@ -645,15 +647,8 @@ export class FileFeature {
           : { path: target.path },
       )
       .catch(() => null);
-    if (target.path !== chosen && inspected?.exists) {
-      const answer = await ctx.dialogs.showMessage({
-        text: ctx.t('dialog.saveFile.replaceCompleted', { path: target.path }),
-        caption: ctx.t('app.name'),
-        buttons: 'yesNo',
-        icon: 'warning',
-        testId: 'dialog-replace-completed',
-      });
-      if (answer !== 'yes') return false;
+    if (inspected?.exists && !(await confirmCompletedTarget(ctx, chosen, target.path))) {
+      return false;
     }
     if (target.entryName && inspected?.kind === 'zip' && (inspected.otherEntries ?? 0) > 0) {
       const answer = await ctx.dialogs.showMessage({
@@ -1041,16 +1036,25 @@ export class FileFeature {
               checked: startChecked,
             })
           : current;
+      // The name and the type follow the ZIP box (the requester after his smoke test of 0.0.12-rc.4): the
+      // archive's type last.
+      const filters = [...documentFilters(ctx), zipArchiveType(ctx.t)];
+      const zipFilter = filters.length - 1;
       const choice = await rpc.call('dialog.saveFile', {
         title: ctx.t('cmd.file.saveAs.tooltip'),
         role: 'document',
-        filters: documentFilters(ctx),
-        selectedFilter,
+        filters,
+        selectedFilter: startChecked ? zipFilter : selectedFilter,
         defaultPath,
         encodingChoices: [...ENCODING_CHOICES],
         selectedEncoding: defaultSaveEncoding(store),
         encodingLabel: ctx.t('dialog.saveFile.encoding'),
-        zipChoice: { label: ctx.t('dialog.saveFile.zip'), checked: startChecked },
+        zipChoice: {
+          label: ctx.t('dialog.saveFile.zip'),
+          checked: startChecked,
+          rename: 'append',
+          filter: zipFilter,
+        },
       });
       if (!choice.path) return false;
       encoding = normalizeEncoding(choice.encoding);

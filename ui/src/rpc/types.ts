@@ -1780,8 +1780,19 @@ export interface RpcMethods {
       encodingLabel?: string;
       /** Index of the type selected when the dialog opens (default 0). */
       selectedFilter?: number;
-      /** Feature 009 (DP-8): the "save as ZIP archive" checkbox beside the encoding choice. */
-      zipChoice?: { label: string; checked: boolean };
+      /**
+       * Feature 009 (DP-8): the "save as ZIP archive" checkbox beside the encoding choice. While the dialog is
+       * open the name follows it (smoke test of 0.0.12-rc.4; Windows and macOS): `rename` 'append' adds or drops
+       * ".zip" (book.fb2.zip), 'replace' puts it in place of the plain type's extension (book.zip); absent, the
+       * box names no archive (the Markdown export's "Include pictures"). `filter`: the index of the ZIP archive
+       * type in `filters`, which follows the box and, chosen, ticks it.
+       */
+      zipChoice?: {
+        label: string;
+        checked: boolean;
+        rename?: 'append' | 'replace';
+        filter?: number;
+      };
       /** Feature 017 (DP-5): further boxes after the ZIP box (the TXT export's byte-order mark). */
       checks?: { id: string; label: string; checked: boolean }[];
       /** Feature 011 (D32): only `document` (Save As) keeps the chosen folder. */

@@ -84,5 +84,8 @@ TEST_CASE("corpus: every sampled book round-trips through a ZIP archive", "[corp
         fs::remove(zip, ec);
         fs::remove(extracted, ec);
     }
+    // The books written on the way go too: left in the temporary folder, they filled a small tmpfs, and the
+    // next run's writes failed (the roundtrip case cleans up the same way).
+    fs::remove_all(root, ec);
     WARN("corpus through ZIP archives: " << total << " books, " << opened << " opened");
 }

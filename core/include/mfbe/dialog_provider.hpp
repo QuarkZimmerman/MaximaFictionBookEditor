@@ -68,6 +68,13 @@ struct SaveFileRequest {
     // label (none = no checkbox) and whether it starts ticked.
     std::optional<std::string> zipLabel;
     bool zipChecked = false;
+    // While the dialog is open the file name follows the box (the requester after his smoke test of
+    // 0.0.12-rc.4): "append" adds or drops ".zip" (book.fb2.zip), "replace" puts it in place of the
+    // first type's extension (book.zip); none: the box names no archive (the Markdown export's
+    // "Include pictures"). `zipFilter`: the ZIP archive type in `filters`, which follows the box
+    // and ticks it when chosen (-1: none).
+    std::optional<std::string> zipRename;
+    int zipFilter = -1;
     // Feature 017 (DP-5): further boxes (the TXT export's "Byte-order mark"), each with its id,
     // label and starting state.
     struct Check {

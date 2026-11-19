@@ -69,12 +69,21 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 - The bundled libraries move to vcpkg's versions of 2026-11-18: Boost 1.92, zlib 1.4, OpenSSL 3.6.5, curl
   8.23, FreeType 2.15, libxml2 2.15.4, libarchive 3.8.9, uWebSockets 20.81 and Poppler 26.4.0 with the fix
   that lets it build with the newest Windows compiler.
+- A book from a ZIP archive: Save As proposes the book as a FictionBook file beside the archive, its *Save as
+  ZIP archive* box unticked as for any book, and the unsaved-changes question names the book with its archive.
+- The save dialog's ZIP box: on Windows and macOS the name and the type follow it - the TXT and PDF exports'
+  *Save in ZIP archive* and Save As's *Save as ZIP archive* alike - and choosing the ZIP archive type ticks it.
 - The Markdown import leaves out a scene break (`---`) at the start or end of a chapter, where it separates
   nothing - chats end chapters with one - and its summary counts them; a break between paragraphs stays
   "* * *" (issue #16).
 
 ### Fixed
 
+- The TXT and PDF exports replaced an existing file without a word when *Save in ZIP archive* had turned
+  the name the save dialog checked into another (`book.txt` into `book.zip`): they ask first, as Save As does.
+- A person with a first name but no last name kept being reported until any other edit of the description -
+  a date's Fix, for one - wrote an empty last name behind your back; only the person's own Fix, or a last name
+  typed, adds it now.
 - Export as PDF... exports books whose notes are grouped in sections, books with zero-width non-joiners,
   and books with two notes bodies, which it refused.
 - A block picture's title is printed under it as its caption.

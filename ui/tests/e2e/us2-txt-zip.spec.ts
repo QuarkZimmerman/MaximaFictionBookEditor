@@ -3,7 +3,7 @@
  * and <name>.fbd, the book's description with its cover as Export as FBD writes it (D13). The archive is
  * read back through the TXT import's own session, as the import will read it.
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import type { Page } from '@playwright/test';
@@ -72,4 +72,34 @@ test('the TXT and its FBD in one ZIP archive, named after it (D13)', async ({ co
   expect(requests.filter((r) => r.method === 'dialog.saveFile').at(-1)?.zipChoice?.checked).toBe(
     true,
   );
+});
+
+test('the box turned the name into an archive that exists: replaced only on Yes (smoke test of rc.4)', async ({
+  core,
+  page,
+}) => {
+  // The system's dialog checked reference.txt; the box made it reference.zip, which it never checked.
+  await core.openApp(page);
+  await openFixtureBook(core, page, 'reference-all-elements.fb2');
+  const dir = scratchDir('txt-zip-replace-');
+  const zip = path.join(dir, 'reference.zip');
+  writeFileSync(zip, 'an older archive');
+  const answer = {
+    path: path.join(dir, 'reference.txt'),
+    encoding: 'UTF-8 (Unicode)',
+    zip: true,
+    checks: { bom: false },
+  };
+  await core.enqueueDialog('dialog.saveFile', answer);
+  await clickExport(core, page, 'exportTxt');
+  const question = page.getByTestId('dialog-replace-completed');
+  await expect(question).toContainText(zip);
+  await page.getByTestId('dialog-replace-completed-button-no').click();
+  await expect(question).toHaveCount(0);
+  expect(readFileSync(zip, 'utf8')).toBe('an older archive');
+  await core.enqueueDialog('dialog.saveFile', answer);
+  await clickExport(core, page, 'exportTxt');
+  await page.getByTestId('dialog-replace-completed-button-yes').click();
+  await exported(page, zip);
+  expect(readFileSync(zip).subarray(0, 2).toString('latin1')).toBe('PK');
 });

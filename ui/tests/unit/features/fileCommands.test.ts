@@ -530,8 +530,15 @@ describe('file flows (T052)', () => {
     const dialog = rpc.calls.find((c) => c.method === 'dialog.saveFile')!;
     expect(dialog.params).toMatchObject({
       defaultPath: '/books/alpha.fbd',
-      filters: [{ extensions: ['fb2'] }, { extensions: ['fbd'] }, { extensions: ['*'] }],
+      // The ZIP archive type last: the name and the type follow the box (smoke test of 0.0.12-rc.4).
+      filters: [
+        { extensions: ['fb2'] },
+        { extensions: ['fbd'] },
+        { extensions: ['*'] },
+        { extensions: ['zip'] },
+      ],
       selectedFilter: 1,
+      zipChoice: { checked: false, rename: 'append', filter: 3 },
       // The original's list in its order, "Keep encoding" selecting the file's encoding.
       encodingChoices: [
         'utf-8',

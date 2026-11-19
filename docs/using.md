@@ -379,11 +379,18 @@ editor asks for the size in a window of its own after the dialog.
 
 ### Save in ZIP archive
 
-The save dialog also offers *Save in ZIP archive*, unticked every time. Ticked, the export writes a ZIP
+The save dialog also offers *Save in ZIP archive*, as the book's last PDF export left it, else as
+*Settings > Exports* has it. Ticked, the export writes a ZIP
 archive instead of the PDF, named `.zip`: it holds the PDF and an FBD file with the book's description and
 its cover pictures, as *Export as FBD…* writes it, both named after the archive. Importing that archive
 gives the book back without a question. Where the system's save dialog cannot show the box, the editor's
 own window asks for it with the page size.
+
+On Windows and macOS the name and the type in the save dialog follow the box: ticked, the name ends in `.zip`
+and the ZIP archive type is selected; unticked, the name and type go back; choosing the ZIP archive type ticks
+the box. Linux's save dialog tells the editor its boxes only when it closes, so there the name changes after
+it - and when a file of the new name exists, the editor asks before replacing it, on every system. The TXT
+export's box and Save As's *Save as ZIP archive* work the same way.
 
 ### What the PDF holds
 

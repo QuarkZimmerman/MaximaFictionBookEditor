@@ -202,3 +202,42 @@ TEST_CASE("file dialogs: CEF's fallback dialog gets the selected type's extensio
     CHECK(cefAcceptFilters(request(FileDialogMode::kSave, documentTypes(), 2)).empty());
     CHECK(cefAcceptFilters(request(FileDialogMode::kOpen, {}, 0)).empty());
 }
+
+TEST_CASE("file dialogs: the name and the type follow the ZIP box (smoke test of 0.0.12-rc.4)",
+          "[shell][file-dialogs]") {
+    // The TXT export: the text type first, the ZIP archive second; ticked, the name ends in .zip.
+    FileDialogRequest txt = request(FileDialogMode::kSave,
+                                    {{"Text files (*.txt)", {"txt"}}, {"ZIP archives (*.zip)", {"zip"}}}, 0);
+    txt.zip_label = "Save in ZIP archive";
+    txt.zip_rename = FileDialogRequest::ZipRename::kReplace;
+    txt.zip_filter = 1;
+    CHECK(zipFollowName(txt, "Book.txt", true) == "Book.zip");
+    CHECK(zipFollowName(txt, "Book.TXT", true) == "Book.zip");
+    CHECK(zipFollowName(txt, "Book", true) == "Book.zip");
+    CHECK(zipFollowName(txt, "Book.zip", true) == "Book.zip");
+    CHECK(zipFollowName(txt, "Book.zip", false) == "Book.txt");
+    CHECK(zipFollowName(txt, "Book.ZIP", false) == "Book.txt");
+    CHECK(zipFollowName(txt, "Book.txt", false) == "Book.txt");
+    CHECK(zipFollowName(txt, "", true).empty());
+    CHECK(zipFollowFilter(txt, true) == 1);
+    CHECK(zipFollowFilter(txt, false) == 0);
+    // Opened with the box ticked (the ZIP type selected), unticking goes back to the first type.
+    txt.selected_filter = 1;
+    CHECK(zipFollowFilter(txt, false) == 0);
+
+    // Save As: the box adds .zip to the book's name and takes it off again.
+    FileDialogRequest saveAs = request(FileDialogMode::kSave, documentTypes(), 1);
+    saveAs.filters.push_back({"ZIP archives (*.zip)", {"zip"}});
+    saveAs.zip_rename = FileDialogRequest::ZipRename::kAppend;
+    saveAs.zip_filter = static_cast<int>(saveAs.filters.size()) - 1;
+    CHECK(zipFollowName(saveAs, "book.fb2", true) == "book.fb2.zip");
+    CHECK(zipFollowName(saveAs, "book.fb2.zip", true) == "book.fb2.zip");
+    CHECK(zipFollowName(saveAs, "book.fb2.zip", false) == "book.fb2");
+    CHECK(zipFollowFilter(saveAs, false) == 1);  // the type it opened on, descriptors here
+
+    // The Markdown export's "Include pictures" names no archive: nothing follows it.
+    FileDialogRequest markdown = request(FileDialogMode::kSave, {{"Markdown (*.md)", {"md"}}}, 0);
+    markdown.zip_label = "Include pictures";
+    CHECK(zipFollowName(markdown, "book.md", true) == "book.md");
+    CHECK(zipFollowFilter(markdown, true) == 0);
+}
