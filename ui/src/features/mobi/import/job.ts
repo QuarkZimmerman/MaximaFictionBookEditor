@@ -219,6 +219,7 @@ export async function importMobi(
   };
 
   try {
+    const SCALE = 10_000;
     // 1. Read & parse the MOBI/KF8/PalmDOC container in core (background job).
     const readRes = await rpc.runJob(
       'mobiImport.read',
@@ -230,12 +231,15 @@ export async function importMobi(
         },
         onProgress: (p) => {
           if (run.cancelled()) cancelJob();
-          modal.progress(p.done, Math.max(p.total + 4, 6));
+          const frac = p.total > 0 ? Math.min(1, p.done / p.total) : 0.5;
+          modal.progress(Math.max(1, Math.round(frac * 1_500)), SCALE);
         },
       },
     );
     activeJobId = null;
     check();
+    modal.progress(1_600, SCALE);
+    await nextTask();
 
     // 2. Fetch HTML + KF8 CSS flows over authenticated loopback HTTP routes.
     const [htmlOrText, templateRes, genresRes] = await Promise.all([
@@ -250,7 +254,7 @@ export async function importMobi(
       check();
       cssFlows.push(await fetchImportText(run.token, `css/${i}`));
     }
-    modal.progress(4, 8);
+    modal.progress(2_000, SCALE);
     await nextTask();
     check();
 
@@ -267,8 +271,9 @@ export async function importMobi(
       summary.push({ kind: 'fellBackToMobi7', detail: '' });
     }
 
-    // 4. Convert HTML/PalmDOC -> FB2 bodies & notes.
-    const converted = convertMobiToFb2({
+    // 4. Convert HTML/PalmDOC -> FB2 bodies & notes (cooperatively yielding every ~40 ms).
+    let convTick = 2_000;
+    const converted = await convertMobiToFb2({
       activePart: readRes.activePart,
       htmlOrText,
       cssFlows,
@@ -279,12 +284,19 @@ export async function importMobi(
       coverIndex: readRes.coverIndex,
       thumbnailIndex: readRes.thumbnailIndex,
       mfbeBodyRecord: mfbeRes.useBody ? mfbeRes.record : null,
+      yieldStep: async () => {
+        check();
+        convTick = Math.min(convTick + 50, 5_490);
+        modal.progress(convTick, SCALE);
+        await nextTask();
+        check();
+      },
     });
     summary.push(...converted.summary);
 
     // 5. Rasterise inline drawing SVGs / MathML formulas (if any).
     const figures = await resolveFigures(converted, summary, check);
-    modal.progress(5, 8);
+    modal.progress(5_700, SCALE);
     await nextTask();
     check();
 
@@ -324,15 +336,29 @@ export async function importMobi(
         },
       });
     }
+    modal.progress(6_000, SCALE);
+    await nextTask();
     check();
 
     // 7. Create the new untitled book in core (fire-and-forget: NO source origin per 017 D25!).
-    const opened = await rpc.runJob('doc.newFromXml', {
-      xml: fb2Xml,
-      ...(mfbeRes.useMeta ? { keepDetails: true } : {}),
-    });
+    //    Forward core job progress so the bar keeps moving smoothly while core reads big books (SC-007).
+    const opened = await rpc.runJob(
+      'doc.newFromXml',
+      {
+        xml: fb2Xml,
+        ...(mfbeRes.useMeta ? { keepDetails: true } : {}),
+      },
+      {
+        onProgress: (p) => {
+          if (p.total <= 0) return;
+          const frac = Math.min(1, p.done / p.total);
+          modal.progress(6_000 + Math.round(frac * 2_500), SCALE);
+        },
+      },
+    );
     createdDocId = opened.document.docId;
     let book: Document & typeof opened.document = opened.document;
+    modal.progress(8_500, SCALE);
     check();
 
     // 8. Transfer referenced MOBI/KF8 pictures inside core + upload drawn SVGs/formulas.
@@ -340,7 +366,7 @@ export async function importMobi(
       readRes.pictures.map((p) => [p.index, p]),
     );
     const quality = store.getState().settings?.other.jpegQuality ?? 90;
-    const totalPics = converted.neededPictures.size;
+    const totalPics = Math.max(1, converted.neededPictures.size + figures.drawn.length);
     let picDone = 0;
     const transferred = await transferMobiPictures({
       rpc,
@@ -352,7 +378,7 @@ export async function importMobi(
       summary,
       onStep: async () => {
         check();
-        modal.progress(6 + ++picDone, Math.max(8, totalPics + 8));
+        modal.progress(8_500 + Math.round((++picDone / totalPics) * 1_300), SCALE);
       },
     });
     const uploadedDrawn = [];
@@ -368,12 +394,13 @@ export async function importMobi(
       } catch {
         summary.push({ kind: 'drawingLeftOut', detail: fig.id });
       }
+      modal.progress(8_500 + Math.round((++picDone / totalPics) * 1_300), SCALE);
     }
     book = {
       ...book,
       binaries: [...book.binaries, ...transferred.added, ...uploadedDrawn],
     };
-    modal.progress(7, 8);
+    modal.progress(9_850, SCALE);
     check();
 
     // 9. Companion FBD resolution (US5 rules 1–5, contracts/mobi-import.md §4).
@@ -505,7 +532,7 @@ export async function importMobi(
 
     // 10. Clean up import session, close modal, replace window book!
     await rpc.call('mobiImport.end', { token: run.token }).catch(() => undefined);
-    modal.progress(8, 8);
+    modal.progress(SCALE, SCALE);
     modal.end();
 
     if (fbdWarning) {

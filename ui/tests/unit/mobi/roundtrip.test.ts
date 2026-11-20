@@ -224,7 +224,7 @@ const PLACED: ReadonlyMap<string, PlacedMobiPicture> = new Map([
 ]);
 
 describe('MFBE EXTH 59901 round-trip & external-edit fallback (T033)', () => {
-  it('restores complete description, stylesheets, binary IDs, attributes, untitled sections, and notes across MOBI 7 & KF8', () => {
+  it('restores complete description, stylesheets, binary IDs, attributes, untitled sections, and notes across MOBI 7 & KF8', async () => {
     const doc = richDocument();
     const opts: MobiExportBuildOptions = {
       document: doc,
@@ -256,7 +256,7 @@ describe('MFBE EXTH 59901 round-trip & external-edit fallback (T033)', () => {
       ['mobi7', m7.html.replace(/filepos="0000000000" data-target="([^"]+)"/g, 'href="#$1"')],
       ['kf8', kf8.html],
     ] as const) {
-      const imported = convertMobiToFb2({
+      const imported = await convertMobiToFb2({
         activePart: part,
         htmlOrText: html,
         cssFlows: part === 'kf8' ? [kf8.css] : [],

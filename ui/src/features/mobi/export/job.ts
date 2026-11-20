@@ -127,7 +127,8 @@ export async function exportMobi(
       .catch(() => undefined);
 
     const picList = usedMobiPictures(document);
-    const totalSteps = picList.length + 5;
+    const COMMIT_SPAN = 40;
+    const totalSteps = picList.length + 7 + COMMIT_SPAN;
     let done = 0;
     const placed = new Map<string, PlacedMobiPicture>();
     const picSummary: MobiExportSummaryItem[] = [];
@@ -162,6 +163,7 @@ export async function exportMobi(
     }
 
     if (run.cancelled()) throw new Cancelled();
+    run.modal.progress(++done, totalSteps);
     await nextTask();
 
     const buildOpts = {
@@ -180,9 +182,15 @@ export async function exportMobi(
     let kf8Result = null;
     if (run.format === 'mobi7' || run.format === 'joint') {
       mobi7Result = buildMobi7(buildOpts, plan);
+      run.modal.progress(++done, totalSteps);
+      await nextTask();
+      if (run.cancelled()) throw new Cancelled();
     }
     if (run.format === 'kf8' || run.format === 'joint') {
       kf8Result = buildKf8(buildOpts, plan);
+      run.modal.progress(++done, totalSteps);
+      await nextTask();
+      if (run.cancelled()) throw new Cancelled();
     }
     const mfbe = buildMfbeRoundTripRecord(document, placed, plan.attrs);
 
@@ -190,13 +198,18 @@ export async function exportMobi(
     await nextTask();
     if (run.cancelled()) throw new Cancelled();
 
-    if (mobi7Result) await uploadSlot(token, 'mobi7-html', mobi7Result.html);
+    if (mobi7Result) {
+      await uploadSlot(token, 'mobi7-html', mobi7Result.html);
+      run.modal.progress(++done, totalSteps);
+    }
     if (kf8Result) {
       await uploadSlot(token, 'kf8-html', kf8Result.html);
       await uploadSlot(token, 'kf8-css', kf8Result.css);
+      run.modal.progress(++done, totalSteps);
     }
     await uploadSlot(token, 'mfbe', JSON.stringify(mfbe));
     run.modal.progress(++done, totalSteps);
+    await nextTask();
 
     if (run.cancelled()) throw new Cancelled();
 
@@ -228,7 +241,10 @@ export async function exportMobi(
         onProgress: (p) => {
           if (run.cancelled()) cancelJob();
           const frac = p.total > 0 ? p.done / p.total : 0.5;
-          run.modal.progress(done + Math.round(frac * 2), totalSteps);
+          run.modal.progress(
+            Math.min(done + Math.round(frac * COMMIT_SPAN), totalSteps),
+            totalSteps,
+          );
         },
       },
     );

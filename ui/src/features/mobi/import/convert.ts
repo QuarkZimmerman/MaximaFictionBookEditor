@@ -52,6 +52,8 @@ export interface ConvertMobiOptions {
   thumbnailIndex?: number;
   /** Non-null when MFBE body restoration is active (`mfbeHtmlMatches == true`). */
   mfbeBodyRecord?: MfbeRoundTripRecord | null;
+  /** Cooperative yield hook (SC-007: progress bar cadence <= 1 s and responsive Cancel). */
+  yieldStep?: () => Promise<void>;
 }
 
 export interface ConvertedMobiBook {
@@ -331,10 +333,21 @@ function serializeSection(sec: SectionBuilder): string {
 }
 
 /** Main entry point: converts MOBI 7 / KF8 / PalmDOC content to FB2 XML. */
-export function convertMobiToFb2(options: ConvertMobiOptions): ConvertedMobiBook {
+export async function convertMobiToFb2(options: ConvertMobiOptions): Promise<ConvertedMobiBook> {
   if (options.activePart === 'palmdoc') {
     return convertPlainPalmDoc(options.htmlOrText);
   }
+
+  const SLICE_MS = 40;
+  let lastYield = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  const nowMs = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  const maybeYield = async (force = false): Promise<void> => {
+    if (!options.yieldStep) return;
+    const now = nowMs();
+    if (!force && now - lastYield < SLICE_MS) return;
+    await options.yieldStep();
+    lastYield = nowMs();
+  };
 
   const parser = new DOMParser();
   const normalizedHtml = options.htmlOrText.replace(
@@ -342,6 +355,7 @@ export function convertMobiToFb2(options: ConvertMobiOptions): ConvertedMobiBook
     '<hr class="mfbe-pagebreak"/>',
   );
   const doc = parser.parseFromString(normalizedHtml, 'text/html');
+  await maybeYield(true);
   const body = doc.body ?? doc.documentElement;
   const mfbe = options.mfbeBodyRecord ?? null;
   const isEditorRoundTrip = mfbe !== null;
@@ -905,7 +919,8 @@ export function convertMobiToFb2(options: ConvertMobiOptions): ConvertedMobiBook
   };
 
   // Render an `<div class="fb2-section">` directly in editor round-trip mode.
-  const renderRoundTripSection = (el: Element): SectionBuilder => {
+  let walkedNodes = 0;
+  const renderRoundTripSection = async (el: Element): Promise<SectionBuilder> => {
     const rawId = el.getAttribute('id');
     const sec = makeSection(
       1,
@@ -914,11 +929,12 @@ export function convertMobiToFb2(options: ConvertMobiOptions): ConvertedMobiBook
     );
     counts.sections++;
     for (const ch of Array.from(el.children)) {
+      if ((++walkedNodes & 63) === 0) await maybeYield();
       const role = semanticRoleOfClasses(ch.classList);
       const tag = ch.tagName.toLowerCase();
       if (isPagebreak(ch) || isIgnoredElement(tag)) continue;
       if (role === 'section' || tag === 'section') {
-        sec.children.push(renderRoundTripSection(ch));
+        sec.children.push(await renderRoundTripSection(ch));
       } else if (role === 'title') {
         const lines = Array.from(ch.querySelectorAll('p, div, h1, h2, h3, h4, h5, h6'));
         if (lines.length > 0) {
@@ -1152,14 +1168,18 @@ export function convertMobiToFb2(options: ConvertMobiOptions): ConvertedMobiBook
 
       const secs: string[] = [];
       for (const ch of Array.from(bEl.children)) {
+        await maybeYield();
         const role = semanticRoleOfClasses(ch.classList);
         if (role === 'section' || ch.tagName.toLowerCase() === 'section') {
-          secs.push(serializeSection(renderRoundTripSection(ch)));
+          secs.push(serializeSection(await renderRoundTripSection(ch)));
         }
       }
       if (secs.length === 0) {
         const fallback = makeSection(1);
-        for (const ch of Array.from(bEl.children)) appendBlockToSection(ch, fallback);
+        for (const ch of Array.from(bEl.children)) {
+          if ((++walkedNodes & 63) === 0) await maybeYield();
+          appendBlockToSection(ch, fallback);
+        }
         counts.sections++;
         secs.push(serializeSection(fallback));
       }
@@ -1191,8 +1211,9 @@ export function convertMobiToFb2(options: ConvertMobiOptions): ConvertedMobiBook
       return stack[stack.length - 1]!;
     };
 
-    const walkForeign = (container: Element): void => {
+    const walkForeign = async (container: Element): Promise<void> => {
       for (const child of Array.from(container.children)) {
+        if ((++walkedNodes & 63) === 0) await maybeYield();
         const tag = child.tagName.toLowerCase();
         if (isIgnoredElement(tag) || isInsideNoteContainer(child)) continue;
 
@@ -1232,7 +1253,7 @@ export function convertMobiToFb2(options: ConvertMobiOptions): ConvertedMobiBook
               escText(navHit.label),
               elId,
             );
-            walkForeign(child);
+            await walkForeign(child);
             continue;
           }
         }
@@ -1253,7 +1274,7 @@ export function convertMobiToFb2(options: ConvertMobiOptions): ConvertedMobiBook
             ),
           );
           if (hasBlockChild) {
-            walkForeign(child);
+            await walkForeign(child);
             continue;
           }
         }
@@ -1262,7 +1283,7 @@ export function convertMobiToFb2(options: ConvertMobiOptions): ConvertedMobiBook
       }
     };
 
-    walkForeign(body);
+    await walkForeign(body);
 
     const topSections =
       root.children.length > 0
@@ -1361,8 +1382,10 @@ export function convertMobiToFb2(options: ConvertMobiOptions): ConvertedMobiBook
       },
     );
 
+  await maybeYield(true);
   bodyXml = resolveLinks(bodyXml);
   if (notesXml !== null) notesXml = resolveLinks(notesXml);
+  await maybeYield(true);
 
   return {
     bodyXml,

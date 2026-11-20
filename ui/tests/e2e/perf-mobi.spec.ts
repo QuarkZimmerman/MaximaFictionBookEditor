@@ -55,6 +55,14 @@ const LONGEST_STILL = `(() => {
   return longest;
 })()`;
 
+const STILL_WHERE = `(() => {
+  const p = window.__mfbeProgress;
+  const marks = [...p.changes, p.end || performance.now()];
+  let at = 1;
+  for (let i = 1; i < marks.length; i += 1) if (marks[i] - marks[i - 1] > marks[at] - marks[at - 1]) at = i;
+  return (p.values[at - 1] ?? '?') + ' -> ' + (p.values[at] ?? 'the end');
+})()`;
+
 const ARM_CANCEL = `(() => {
   const w = window;
   w.__mfbeCancel = null;
@@ -122,7 +130,11 @@ async function timedMobiExport(core: CoreHandle, page: Page, target: string) {
     )
     .toBe(true);
   const ms = Date.now() - started;
-  return { ms, still: await page.evaluate<number>(LONGEST_STILL) };
+  return {
+    ms,
+    still: await page.evaluate<number>(LONGEST_STILL),
+    where: await page.evaluate<string>(STILL_WHERE),
+  };
 }
 
 async function timedMobiImport(core: CoreHandle, page: Page, file: string) {
@@ -155,7 +167,11 @@ async function timedMobiImport(core: CoreHandle, page: Page, file: string) {
     .toBe(true);
   await expect(page.getByTestId('body-editor')).toBeVisible();
   const ms = Date.now() - started;
-  return { ms, still: await page.evaluate<number>(LONGEST_STILL) };
+  return {
+    ms,
+    still: await page.evaluate<number>(LONGEST_STILL),
+    where: await page.evaluate<string>(STILL_WHERE),
+  };
 }
 
 function checkMemory(core: CoreHandle): void {
@@ -205,14 +221,20 @@ test.describe('performance - MOBI export and import (feature 018, SC-007)', () =
       const mobiPath = path.join(dir, 'large-10mb.mobi');
       const out = await timedMobiExport(core, page, mobiPath);
       expect(existsSync(mobiPath)).toBe(true);
-      note(`10 MB MOBI export: ${out.ms} ms (still <= ${out.still.toFixed(0)} ms)`);
+      note(`10 MB MOBI export: ${out.ms} ms (still <= ${out.still.toFixed(0)} ms, ${out.where})`);
       expect(out.ms, '10 MB MOBI export').toBeLessThan(5_000 * FACTOR);
-      expect(out.still, '10 MB export progress cadence').toBeLessThan(1_000 * FACTOR);
+      expect(out.still, `10 MB export progress cadence (${out.where})`).toBeLessThan(
+        1_000 * FACTOR,
+      );
 
       const back = await timedMobiImport(core, page, mobiPath);
-      note(`10 MB MOBI import: ${back.ms} ms (still <= ${back.still.toFixed(0)} ms)`);
+      note(
+        `10 MB MOBI import: ${back.ms} ms (still <= ${back.still.toFixed(0)} ms, ${back.where})`,
+      );
       expect(back.ms, '10 MB MOBI import').toBeLessThan(5_000 * FACTOR);
-      expect(back.still, '10 MB import progress cadence').toBeLessThan(1_000 * FACTOR);
+      expect(back.still, `10 MB import progress cadence (${back.where})`).toBeLessThan(
+        1_000 * FACTOR,
+      );
       checkMemory(core);
     },
   );
@@ -229,14 +251,20 @@ test.describe('performance - MOBI export and import (feature 018, SC-007)', () =
       const mobiPath = path.join(dir, 'pictures-150mb.mobi');
       const out = await timedMobiExport(core, page, mobiPath);
       expect(existsSync(mobiPath)).toBe(true);
-      note(`150 MB MOBI export: ${out.ms} ms (still <= ${out.still.toFixed(0)} ms)`);
+      note(`150 MB MOBI export: ${out.ms} ms (still <= ${out.still.toFixed(0)} ms, ${out.where})`);
       expect(out.ms, '150 MB MOBI export').toBeLessThan(20_000 * FACTOR);
-      expect(out.still, '150 MB export progress cadence').toBeLessThan(1_000 * FACTOR);
+      expect(out.still, `150 MB export progress cadence (${out.where})`).toBeLessThan(
+        1_000 * FACTOR,
+      );
 
       const back = await timedMobiImport(core, page, mobiPath);
-      note(`150 MB MOBI import: ${back.ms} ms (still <= ${back.still.toFixed(0)} ms)`);
+      note(
+        `150 MB MOBI import: ${back.ms} ms (still <= ${back.still.toFixed(0)} ms, ${back.where})`,
+      );
       expect(back.ms, '150 MB MOBI import').toBeLessThan(30_000 * FACTOR);
-      expect(back.still, '150 MB import progress cadence').toBeLessThan(1_000 * FACTOR);
+      expect(back.still, `150 MB import progress cadence (${back.where})`).toBeLessThan(
+        1_000 * FACTOR,
+      );
       checkMemory(core);
     },
   );

@@ -76,7 +76,7 @@ describe('MOBI / KF8 / PalmDOC foreign import conversion (T025)', () => {
     expect(summary).toEqual([{ kind: 'listedData', detail: 'contributor: Unknown Role Person' }]);
   });
 
-  it('converts MOBI 7 HTML with front-matter deduplication, converter marks, tables, lists, and bidirectional notes', () => {
+  it('converts MOBI 7 HTML with front-matter deduplication, converter marks, tables, lists, and bidirectional notes', async () => {
     const html = `<html><body>
       <div id="fb2-cover"><img recindex="00001"/></div>
       <div id="fb2-toc"><a href="#ch1">Chapter One</a></div>
@@ -93,7 +93,7 @@ describe('MOBI / KF8 / PalmDOC foreign import conversion (T025)', () => {
       <script>alert('xss')</script>
     </body></html>`;
 
-    const res = convertMobiToFb2({
+    const res = await convertMobiToFb2({
       activePart: 'mobi7',
       htmlOrText: html,
       cssFlows: [],
@@ -151,7 +151,7 @@ describe('MOBI / KF8 / PalmDOC foreign import conversion (T025)', () => {
     expect(res.notesXml).toContain('Footnote text');
   });
 
-  it('handles KF8 CSS class planning, SVG single-image unwrap vs vector rasterise, MathML, and pop-up footnotes', () => {
+  it('handles KF8 CSS class planning, SVG single-image unwrap vs vector rasterise, MathML, and pop-up footnotes', async () => {
     const xhtml = `<html><body>
       <h1>KF8 Chapter</h1>
       <p class="bodytext">Paragraph with <span class="emph">italics</span> and <span class="highlight">boxed</span><a epub:type="noteref" href="#fn1">*</a>.</p>
@@ -166,7 +166,7 @@ describe('MOBI / KF8 / PalmDOC foreign import conversion (T025)', () => {
       .highlight { color: #aa0000; }
     `;
 
-    const res = convertMobiToFb2({
+    const res = await convertMobiToFb2({
       activePart: 'kf8',
       htmlOrText: xhtml,
       cssFlows: [css],
@@ -204,8 +204,8 @@ describe('MOBI / KF8 / PalmDOC foreign import conversion (T025)', () => {
     expect(res.notesXml).toContain('KF8 pop-up note.');
   });
 
-  it('converts plain PalmDOC text into valid FB2 paragraphs and empty lines', () => {
-    const res = convertMobiToFb2({
+  it('converts plain PalmDOC text into valid FB2 paragraphs and empty lines', async () => {
+    const res = await convertMobiToFb2({
       activePart: 'palmdoc',
       htmlOrText: 'First line\nwrapped line.\n\nSecond paragraph.\n\n\nAfter break.',
       cssFlows: [],
