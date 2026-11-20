@@ -206,6 +206,7 @@ export async function importMobi(
     modal.end();
     return false;
   }
+  actions.setStatusMessage(store, '');
 
   let activeJobId: string | null = null;
   let createdDocId: string | null = null;

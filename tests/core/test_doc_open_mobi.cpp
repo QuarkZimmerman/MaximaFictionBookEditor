@@ -215,3 +215,50 @@ TEST_CASE("mobiImport.* RPC lists ZIP archives, reads MOBI, extracts FBD, and wr
     const json end_res = f.ws.call("mobiImport.end", json{{"token", token}}, 20000);
     REQUIRE(end_res.contains("result"));
 }
+
+TEST_CASE("mobiImport.begin handles 0-MOBI, multi-MOBI, non-ZIP, and damaged archives",
+          "[mobi][archive]") {
+    Fixture f;
+    const std::string mobi_bytes = minimal_valid_mobi_bytes();
+
+    // 1. ZIP with 0 MOBIs -> 1117 noMobiInArchive
+    const auto no_mobi_zip = f.data.path() / "no-mobi.zip";
+    atomic_file::write_atomic(no_mobi_zip, archive::zip_one("readme.txt", "nothing here"));
+    const json empty_res =
+        f.ws.call("mobiImport.begin", json{{"path", platform::utf8_from_path(no_mobi_zip)}}, 20000);
+    REQUIRE(empty_res.contains("error"));
+    CHECK(empty_res["error"]["code"] == 1117);
+    CHECK(empty_res["error"]["data"]["reason"] == "noMobiInArchive");
+
+    // 2. Multi-MOBI ZIP -> lists all MOBIs and all FBDs
+    const auto multi_zip = f.data.path() / "multi.zip";
+    atomic_file::write_atomic(
+        multi_zip,
+        archive::zip_entries({archive::ZipEntry{"a/first.mobi", mobi_bytes, true, false},
+                              archive::ZipEntry{"b/second.azw3", mobi_bytes, true, false},
+                              archive::ZipEntry{"a/first.fbd", minimal_fbd_bytes(), false, false},
+                              archive::ZipEntry{"c/other.fbd", minimal_fbd_bytes(), false, false}}));
+    const json multi_res =
+        f.ws.call("mobiImport.begin", json{{"path", platform::utf8_from_path(multi_zip)}}, 20000);
+    REQUIRE(multi_res.contains("result"));
+    CHECK(multi_res["result"]["archive"]["mobis"].size() == 2);
+    CHECK(multi_res["result"]["archive"]["fbds"].size() == 2);
+
+    // 3. Non-ZIP archive (7z magic) -> 1117 otherArchive
+    const auto seven_z = f.data.path() / "books.7z";
+    atomic_file::write_atomic(seven_z, std::string("\x37\x7A\xBC\xAF\x27\x1C\x00\x04", 8));
+    const json sz_res =
+        f.ws.call("mobiImport.begin", json{{"path", platform::utf8_from_path(seven_z)}}, 20000);
+    REQUIRE(sz_res.contains("error"));
+    CHECK(sz_res["error"]["code"] == 1117);
+    CHECK(sz_res["error"]["data"]["reason"] == "otherArchive");
+
+    // 4. Damaged ZIP (PK header truncated) -> 1117 damaged
+    const auto bad_zip = f.data.path() / "broken.zip";
+    atomic_file::write_atomic(bad_zip, std::string("PK\x03\x04truncated-corrupt-zip", 25));
+    const json bad_res =
+        f.ws.call("mobiImport.begin", json{{"path", platform::utf8_from_path(bad_zip)}}, 20000);
+    REQUIRE(bad_res.contains("error"));
+    CHECK(bad_res["error"]["code"] == 1117);
+    CHECK(bad_res["error"]["data"]["reason"] == "damaged");
+}

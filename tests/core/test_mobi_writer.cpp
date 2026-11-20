@@ -300,3 +300,80 @@ TEST_CASE("MobiWriter assembles standalone KF8 (.azw3) and rejects missing HTML 
 
     fs::remove(tmp, ec);
 }
+
+TEST_CASE("MobiWriter ZIP packaging stores MOBI/AZW3 uncompressed (method 0) and deflates FBD (method 8)",
+          "[mobi][writer][zip]") {
+    for (const auto& [fmt, ext] :
+         std::vector<std::pair<MobiExportFormat, std::string>>{
+             {MobiExportFormat::mobi7, ".mobi"},
+             {MobiExportFormat::kf8, ".azw3"},
+         }) {
+        const fs::path tmp = fs::temp_directory_path() / ("mfbe_test_zip_" + ext.substr(1) + ".zip");
+        std::error_code ec;
+        fs::remove(tmp, ec);
+
+        MobiWriter writer(tmp, fmt, /*zip=*/true);
+        if (fmt == MobiExportFormat::mobi7) {
+            writer.set_mobi7_html(sample_mobi7_html());
+        } else {
+            writer.set_kf8_html(sample_kf8_html());
+            writer.set_kf8_css("p { margin: 0; }\n");
+        }
+        MobiCommitInput commit;
+        commit.metadata = sample_meta();
+        const std::string fbd =
+            "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
+            "<FictionBook xmlns=\"http://www.gribuser.ru/xml/fictionbook/2.0\">"
+            "<description><title-info><genre>prose</genre><author><last-name>A</last-name></author>"
+            "<book-title>Sample Novel</book-title><lang>en</lang></title-info></description>"
+            "<body><section><p/></section></body></FictionBook>";
+
+        const MobiWriteResult res = writer.commit(commit, nullptr, nullptr, fbd);
+        CHECK(res.zip);
+        CHECK(res.bytes > 0);
+
+        // Parse ZIP Central Directory headers (`PK\x01\x02`) to verify exact compression methods
+        // (robust even when data descriptors set local-header comp_size = 0):
+        // method 0 = STORE for .mobi/.azw3, method 8 = DEFLATE for .fbd!
+        const std::string zbytes = atomic_file::read_file(tmp);
+        REQUIRE(zbytes.size() > 22);
+        const auto u16 = [&](std::size_t p) -> std::uint16_t {
+            return static_cast<std::uint16_t>(
+                static_cast<unsigned char>(zbytes[p]) |
+                (static_cast<unsigned char>(zbytes[p + 1]) << 8U));
+        };
+        const auto u32 = [&](std::size_t p) -> std::uint32_t {
+            return static_cast<std::uint32_t>(static_cast<unsigned char>(zbytes[p])) |
+                   (static_cast<std::uint32_t>(static_cast<unsigned char>(zbytes[p + 1])) << 8U) |
+                   (static_cast<std::uint32_t>(static_cast<unsigned char>(zbytes[p + 2])) << 16U) |
+                   (static_cast<std::uint32_t>(static_cast<unsigned char>(zbytes[p + 3])) << 24U);
+        };
+        const std::size_t eocd = zbytes.rfind(std::string("PK\x05\x06", 4));
+        REQUIRE(eocd != std::string::npos);
+        REQUIRE(eocd + 22 <= zbytes.size());
+        const std::uint16_t entry_cnt = u16(eocd + 10);
+        std::size_t off = u32(eocd + 16);
+        std::map<std::string, std::uint16_t> methods;
+        for (std::uint16_t i = 0; i < entry_cnt; ++i) {
+            REQUIRE(off + 46 <= zbytes.size());
+            REQUIRE(zbytes.compare(off, 4, "PK\x01\x02", 4) == 0);
+            const std::uint16_t method = u16(off + 10);
+            const std::uint16_t name_len = u16(off + 28);
+            const std::uint16_t extra_len = u16(off + 30);
+            const std::uint16_t comment_len = u16(off + 32);
+            REQUIRE(off + 46 + name_len + extra_len + comment_len <= zbytes.size());
+            const std::string name = zbytes.substr(off + 46, name_len);
+            methods[name] = method;
+            off += 46 + name_len + extra_len + comment_len;
+        }
+        REQUIRE(methods.size() == 2);
+        const std::string expected_book = "mfbe_test_zip_" + ext.substr(1) + ext;
+        const std::string expected_fbd = "mfbe_test_zip_" + ext.substr(1) + ".fbd";
+        REQUIRE(methods.contains(expected_book));
+        REQUIRE(methods.contains(expected_fbd));
+        CHECK(methods[expected_book] == 0U);  // ZIP_STORED (uncompressed)
+        CHECK(methods[expected_fbd] == 8U);   // ZIP_DEFLATED (compressed)
+
+        fs::remove(tmp, ec);
+    }
+}
