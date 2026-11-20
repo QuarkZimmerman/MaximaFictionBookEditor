@@ -774,6 +774,17 @@ jobs:
           MFBE_SMOKE_PDF_IMPORT: "1"
           MFBE_SMOKE_SCREENSHOT: build/shell-smoke-pdf-import.png
 
+      - name: "Shell smoke: MOBI export and import, then File > Exit (feature 018, T046)"
+        # The real shell exports a book as MOBI through its GTK Save dialog, imports it back
+        # through its GTK Open dialog, then File > Exit; all processes must end within 20 s.
+        if: runner.os == 'Linux'
+        run: tools/shell-smoke.sh
+        env:
+          MFBE_APP_BIN: ${{ github.workspace }}/build/${{ matrix.preset }}/bin/mfbe
+          MFBE_SMOKE_REAL_UI: "1"
+          MFBE_SMOKE_MOBI: "1"
+          MFBE_SMOKE_SCREENSHOT: build/shell-smoke-mobi.png
+
       - name: "Shell smoke: the user's own genres, scripts and template (feature 015)"
         # The user-folder fixtures in the per-user data folder of an isolated home: the genre file's
         # genre in Choose a genre, the script in the Scripts menu, the misnamed genre file listed in

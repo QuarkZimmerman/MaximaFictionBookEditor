@@ -3,14 +3,14 @@
  * Exports any open FB2 book (valid or invalid) to MOBI 7 (.mobi), joint MOBI 7 + KF8 (.mobi),
  * or KF8 (.azw3), verified with Calibre's `ebook-meta` and `ebook-convert`.
  */
-import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 import type { Page } from '@playwright/test';
 
 import { expect, fixtureBook, test, waitForBook, type CoreHandle } from './fixtures/core';
 import { clickExport } from './fixtures/exportCheck';
+import { mobiMetaSummary, mobiPlainText } from './fixtures/mobi';
 import { scratchDir } from './fixtures/scratch';
 
 interface SaveRequest {
@@ -65,17 +65,11 @@ async function waitMobiExportEnds(page: Page, targetBasename: string): Promise<s
 }
 
 function calibreMeta(filePath: string): string {
-  return execFileSync('ebook-meta', [filePath], { encoding: 'utf8', timeout: 30_000 });
+  return mobiMetaSummary(filePath);
 }
 
 function calibreToTxt(filePath: string, outDir: string): string {
-  const txtPath = path.join(outDir, `${path.basename(filePath)}.txt`);
-  execFileSync('ebook-convert', [filePath, txtPath], {
-    encoding: 'utf8',
-    timeout: 60_000,
-    stdio: 'pipe',
-  });
-  return readFileSync(txtPath, 'utf8');
+  return mobiPlainText(filePath, outDir);
 }
 
 test.describe('US1 (feature 018) - MOBI / KF8 export', () => {

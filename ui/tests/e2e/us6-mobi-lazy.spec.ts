@@ -24,6 +24,7 @@ import {
   type CoreHandle,
 } from './fixtures/core';
 import { clickExport } from './fixtures/exportCheck';
+import { findPython } from './fixtures/mobi';
 import { scratchDir } from './fixtures/scratch';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -124,7 +125,7 @@ test.describe('US6 (feature 018) - Lazy loading isolation & hostile fixture safe
     page,
   }) => {
     const dir = scratchDir('mobi-us6-lazy-imp-');
-    execFileSync('python3', [FIXTURE_SCRIPT, '--out', dir, '--no-oversized'], { stdio: 'pipe' });
+    execFileSync(findPython(), [FIXTURE_SCRIPT, '--out', dir, '--no-oversized'], { stdio: 'pipe' });
     const sample = path.join(dir, 'mobi7-uncompressed.mobi');
 
     const requested: string[] = [];
@@ -171,7 +172,7 @@ test.describe('US6 (feature 018) - Lazy loading isolation & hostile fixture safe
   }) => {
     test.setTimeout(180_000);
     const dir = scratchDir('mobi-us6-hostile-');
-    execFileSync('python3', [FIXTURE_SCRIPT, '--out', dir, '--hostile'], { stdio: 'pipe' });
+    execFileSync(findPython(), [FIXTURE_SCRIPT, '--out', dir, '--hostile'], { stdio: 'pipe' });
 
     const hostileFiles = readdirSync(dir)
       .filter((name) => name.startsWith('hostile-'))

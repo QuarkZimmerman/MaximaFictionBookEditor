@@ -13,6 +13,7 @@ import type { Page } from '@playwright/test';
 
 import { expect, fixtureBook, test, waitForBook, type CoreHandle } from './fixtures/core';
 import { clickExport } from './fixtures/exportCheck';
+import { findPython, inspectZipMethods } from './fixtures/mobi';
 import { scratchDir } from './fixtures/scratch';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -37,9 +38,10 @@ async function clickImportMobi(page: Page): Promise<void> {
   await page.getByTestId('menu-file-import-importMobi').click();
 }
 
-async function waitExportDone(page: Page): Promise<void> {
+async function waitExportDone(page: Page, targetPath: string): Promise<void> {
   const summary = page.getByTestId('dialog-mobi-export-summary');
   const failed = page.getByTestId('dialog-mobi-export-failed');
+  const base = path.basename(targetPath);
   await expect
     .poll(
       async () => {
@@ -49,9 +51,8 @@ async function waitExportDone(page: Page): Promise<void> {
           await summary.getByRole('button').first().click();
           return true;
         }
-        return ((await page.getByTestId('status-message').textContent()) ?? '').includes(
-          'Exported to',
-        );
+        const msg = (await page.getByTestId('status-message').textContent()) ?? '';
+        return msg.includes('Exported to') && msg.includes(base);
       },
       { timeout: 60_000 },
     )
@@ -97,7 +98,7 @@ function makeZip(
   entries: Array<{ name: string; src: string; store?: boolean }>,
 ): void {
   execFileSync(
-    'python3',
+    findPython(),
     [
       '-c',
       `import json, sys, zipfile
@@ -116,7 +117,7 @@ with zipfile.ZipFile(sys.argv[1], 'w') as z:
 test.describe('US5 (feature 018) - ZIP export (store+deflate) & archive/sibling FBD workflows', () => {
   test.beforeAll(() => {
     foreignFixturesDir = scratchDir('mobi-us5-foreign-');
-    execFileSync('python3', [FIXTURE_SCRIPT, '--out', foreignFixturesDir, '--no-oversized'], {
+    execFileSync(findPython(), [FIXTURE_SCRIPT, '--out', foreignFixturesDir, '--no-oversized'], {
       stdio: 'pipe',
     });
   });
@@ -141,21 +142,10 @@ test.describe('US5 (feature 018) - ZIP export (store+deflate) & archive/sibling 
       selects: { format: 'mobi7', tocPlacement: 'afterTitle' },
     });
     await clickExport(core, page, 'exportMobi');
-    await waitExportDone(page);
+    await waitExportDone(page, zipPath);
 
     // Inspect ZIP entries and exact compression methods (0 = ZIP_STORED, 8 = ZIP_DEFLATED)
-    const inspectJson = execFileSync(
-      'python3',
-      [
-        '-c',
-        `import json, sys, zipfile
-with zipfile.ZipFile(sys.argv[1]) as z:
-    print(json.dumps({i.filename: i.compress_type for i in z.infolist()}))`,
-        zipPath,
-      ],
-      { encoding: 'utf8' },
-    );
-    const methods = JSON.parse(inspectJson) as Record<string, number>;
+    const methods = inspectZipMethods(zipPath);
     expect(methods['ref-bundle.mobi']).toBe(0); // ZIP_STORED
     expect(methods['ref-bundle.fbd']).toBe(8); // ZIP_DEFLATED
 
@@ -170,7 +160,7 @@ with zipfile.ZipFile(sys.argv[1]) as z:
     // 3. Create modified archive where ref-bundle.fbd has a different <book-title>
     const modZip = path.join(dir, 'modified-fbd.zip');
     execFileSync(
-      'python3',
+      findPython(),
       [
         '-c',
         `import sys, zipfile
@@ -229,7 +219,7 @@ with zipfile.ZipFile(sys.argv[1]) as zin, zipfile.ZipFile(sys.argv[2], 'w') as z
     // 4. File > Open refuses MOBI-only ZIP while opening FBD+MOBI ZIP cleanly!
     const mobiBytesPath = path.join(dir, 'only.mobi');
     execFileSync(
-      'python3',
+      findPython(),
       [
         '-c',
         `import sys, zipfile
@@ -349,7 +339,7 @@ with zipfile.ZipFile(sys.argv[1]) as z:
       selects: { format: 'mobi7', tocPlacement: 'afterTitle' },
     });
     await clickExport(core, page, 'exportMobi');
-    await waitExportDone(page);
+    await waitExportDone(page, bareOwn);
     copyFileSync(descriptorFbd, path.join(dir, 'own-book.fbd'));
 
     await core.enqueueDialog('dialog.openFile', { paths: [bareOwn] });

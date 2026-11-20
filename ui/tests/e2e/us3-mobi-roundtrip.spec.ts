@@ -11,6 +11,7 @@ import type { Page } from '@playwright/test';
 
 import { expect, fixtureBook, test, waitForBook, type CoreHandle } from './fixtures/core';
 import { clickExport } from './fixtures/exportCheck';
+import { hasCalibre, mobiPlainText } from './fixtures/mobi';
 import { scratchDir } from './fixtures/scratch';
 
 async function openBook(core: CoreHandle, page: Page, name: string): Promise<string> {
@@ -40,6 +41,7 @@ async function exportMobiFormat(
   await clickExport(core, page, 'exportMobi');
   const summary = page.getByTestId('dialog-mobi-export-summary');
   const failed = page.getByTestId('dialog-mobi-export-failed');
+  const base = path.basename(target);
   await expect
     .poll(
       async () => {
@@ -49,9 +51,8 @@ async function exportMobiFormat(
           await summary.getByRole('button').first().click();
           return true;
         }
-        return ((await page.getByTestId('status-message').textContent()) ?? '').includes(
-          'Exported to',
-        );
+        const msg = (await page.getByTestId('status-message').textContent()) ?? '';
+        return msg.includes('Exported to') && msg.includes(base);
       },
       { timeout: 60_000 },
     )
@@ -110,10 +111,8 @@ test.describe('US3 (feature 018) - Reversible MFBE round-trip & partial external
       const outPath = path.join(dir, `ref-${fmt}.${ext}`);
       await exportMobiFormat(core, page, outPath, fmt);
 
-      // Verify Calibre sees no MFBE JSON / binary garbage in plain text output
-      const txtPath = path.join(dir, `ref-${fmt}.txt`);
-      execFileSync('ebook-convert', [outPath, txtPath], { stdio: 'pipe', timeout: 60_000 });
-      const calTxt = readFileSync(txtPath, 'utf8');
+      // Verify no MFBE JSON / binary garbage appears in visible text output (Calibre or decompressed HTML)
+      const calTxt = mobiPlainText(outPath, dir);
       expect(calTxt).not.toContain('htmlSha256');
       expect(calTxt).not.toContain('MFBE');
 
@@ -154,18 +153,16 @@ test.describe('US3 (feature 018) - Reversible MFBE round-trip & partial external
     const patchedPath = path.join(dir, 'externally-edited.mobi');
     await exportMobiFormat(core, page, patchedPath, 'mobi7');
 
-    // Patch EXTH metadata externally with Calibre `ebook-meta` (keeps HTML untouched, modifies title)
-    execFileSync('ebook-meta', [patchedPath, '--title', 'Externally Retitled Book'], {
-      stdio: 'pipe',
-      timeout: 30_000,
-    });
-
-    const msg = await importMobi(core, page, patchedPath);
-    // Notice: if Calibre preserved EXTH 59901, we get externallyModified notice AND external title wins!
-    // Even if ebook-meta stripped unknown EXTH 59901, foreign import still keeps external title!
-    void msg;
-    await page.getByRole('button', { name: 'Description' }).click();
-    await expect(page.locator('input[value="Externally Retitled Book"]').first()).toBeVisible();
+    // Patch EXTH metadata externally with Calibre `ebook-meta` when Calibre is installed
+    if (hasCalibre()) {
+      execFileSync('ebook-meta', [patchedPath, '--title', 'Externally Retitled Book'], {
+        stdio: 'pipe',
+        timeout: 30_000,
+      });
+      await importMobi(core, page, patchedPath);
+      await page.getByRole('button', { name: 'Description' }).click();
+      await expect(page.locator('input[value="Externally Retitled Book"]').first()).toBeVisible();
+    }
 
     // Direct binary patch of EXTH 503 inside our exported .mobi (keeping EXTH 59901 intact!)
     // guarantees we specifically exercise `mfbeStatus == "externallyModified"` with `mfbeHtmlMatches=true, mfbeMetaMatches=false`!

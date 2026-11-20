@@ -18,6 +18,7 @@ import { writeBigPictureBook } from './fixtures/bigPictureBook';
 import { expect, shownDocId, test, waitForBook, type CoreHandle } from './fixtures/core';
 import { clickExport } from './fixtures/exportCheck';
 import { MEMORY_BUDGET_BYTES, OWN_CORE, peakRssBytes, rendererPeakBytes } from './fixtures/memory';
+import { findPython } from './fixtures/mobi';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const GENERATOR = path.join(REPO_ROOT, 'tests', 'fixtures', 'gen-large-book.py');
@@ -193,7 +194,7 @@ test.describe('performance - MOBI export and import (feature 018, SC-007)', () =
     async ({ core, page }) => {
       test.setTimeout(300_000);
       const book = path.join(dir, 'large-10mb.fb2');
-      const made = spawnSync('python3', [GENERATOR, '--out', book, '--size-mb', '10'], {
+      const made = spawnSync(findPython(), [GENERATOR, '--out', book, '--size-mb', '10'], {
         encoding: 'utf8',
       });
       test.skip(made.status !== 0, 'python3 / gen-large-book.py unavailable');

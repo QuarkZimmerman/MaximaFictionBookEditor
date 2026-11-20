@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import type { Page } from '@playwright/test';
 
 import { expect, fixtureBook, test, type CoreHandle } from './fixtures/core';
+import { findPython, hasCalibre } from './fixtures/mobi';
 import { scratchDir } from './fixtures/scratch';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -57,7 +58,7 @@ async function importMobiFile(core: CoreHandle, page: Page, filePath: string): P
 test.describe('US2 (feature 018) - Foreign MOBI / KF8 / PalmDOC import & refusals', () => {
   test.beforeAll(() => {
     fixturesDir = scratchDir('mobi-us2-fixtures-');
-    execFileSync('python3', [FIXTURE_SCRIPT, '--out', fixturesDir, '--no-oversized'], {
+    execFileSync(findPython(), [FIXTURE_SCRIPT, '--out', fixturesDir, '--no-oversized'], {
       stdio: 'pipe',
     });
   });
@@ -207,15 +208,17 @@ test.describe('US2 (feature 018) - Foreign MOBI / KF8 / PalmDOC import & refusal
       await expect(refused).toBeHidden();
     }
 
-    // Confirm real Calibre-generated MOBI imports cleanly too
-    const calDir = scratchDir('mobi-us2-calibre-');
-    const calMobi = path.join(calDir, 'calibre-from-fb2.mobi');
-    execFileSync('ebook-convert', [fixtureBook('modern-utf8.fb2'), calMobi], {
-      stdio: 'pipe',
-      timeout: 60_000,
-    });
-    await importMobiFile(core, page, calMobi);
-    await expect(page.locator('.ProseMirror')).toContainText('Современная книга');
-    await expect(page).toHaveTitle(/^Untitled\* - /);
+    // Confirm real Calibre-generated MOBI imports cleanly when Calibre is installed on the runner
+    if (hasCalibre()) {
+      const calDir = scratchDir('mobi-us2-calibre-');
+      const calMobi = path.join(calDir, 'calibre-from-fb2.mobi');
+      execFileSync('ebook-convert', [fixtureBook('modern-utf8.fb2'), calMobi], {
+        stdio: 'pipe',
+        timeout: 60_000,
+      });
+      await importMobiFile(core, page, calMobi);
+      await expect(page.locator('.ProseMirror')).toContainText('Современная книга');
+      await expect(page).toHaveTitle(/^Untitled\* - /);
+    }
   });
 });

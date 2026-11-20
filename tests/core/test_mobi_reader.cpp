@@ -8,7 +8,6 @@
 #include <mfbe/platform.hpp>
 
 #include <catch2/catch_test_macros.hpp>
-
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -42,10 +41,19 @@ fs::path generate_fixtures_dir() {
         fs::remove_all(d, ec);
         fs::create_directories(d, ec);
         const fs::path script = fs::path(MFBE_TEST_FIXTURES_DIR) / "mobi" / "make-fixtures.py";
-        const std::string cmd = "python3 \"" + mfbe::platform::utf8_from_path(script) +
-                                "\" --out \"" + mfbe::platform::utf8_from_path(d) +
-                                "\" --hostile --no-oversized";
-        const int rc = std::system(cmd.c_str());
+        const std::string args = " \"" + mfbe::platform::utf8_from_path(script) + "\" --out \"" +
+                                 mfbe::platform::utf8_from_path(d) + "\" --hostile --no-oversized";
+#ifdef _WIN32
+        int rc = std::system(("python" + args).c_str());
+        if (rc != 0) {
+            rc = std::system(("python3" + args).c_str());
+        }
+#else
+        int rc = std::system(("python3" + args).c_str());
+        if (rc != 0) {
+            rc = std::system(("python" + args).c_str());
+        }
+#endif
         REQUIRE(rc == 0);
         return d;
     }();
@@ -96,9 +104,10 @@ TEST_CASE("MobiReader reads MOBI 7 uncompressed, PalmDOC, HuffCDIC, and Windows-
         const auto res = read_mobi_file(dir / "mobi7-cp1252.mobi");
         CHECK(res.container_kind == ContainerKind::mobi7);
         CHECK(res.encoding == "windows-1252");
-        CHECK(res.html_bytes.find("Caf\xC3\xA9") != std::string::npos);  // Café in UTF-8
+        CHECK(res.html_bytes.find("Caf\xC3\xA9") != std::string::npos);           // Café in UTF-8
         CHECK(res.html_bytes.find("r\xC3\xA9sum\xC3\xA9") != std::string::npos);  // résumé
-        CHECK(res.html_bytes.find("\xE2\x82\xAC" "12") != std::string::npos);  // €12
+        CHECK(res.html_bytes.find("\xE2\x82\xAC"
+                                  "12") != std::string::npos);  // €12
     }
 }
 
@@ -172,7 +181,8 @@ TEST_CASE("MobiReader refuses encrypted/DRM, KFX, FB2, bombs, and hostile fixtur
     const auto huge_pic = read_mobi_file(dir / "hostile-huge-image.mobi");
     bool saw_too_large = false;
     for (const auto& p : huge_pic.pictures) {
-        if (p.too_large) saw_too_large = true;
+        if (p.too_large)
+            saw_too_large = true;
     }
     CHECK(saw_too_large);
 }
@@ -188,9 +198,10 @@ TEST_CASE("MobiWriter -> MobiReader round-trip verifies MFBE EXTH 59901 across a
     const std::string fig_png = make_test_png(32, 32);
     mfbe::images::ConversionPolicy policy;
 
-    for (const auto fmt : {MobiExportFormat::mobi7, MobiExportFormat::joint, MobiExportFormat::kf8}) {
-        const fs::path target =
-            tmp / ("book-" + format_to_string(fmt) + (fmt == MobiExportFormat::kf8 ? ".azw3" : ".mobi"));
+    for (const auto fmt :
+         {MobiExportFormat::mobi7, MobiExportFormat::joint, MobiExportFormat::kf8}) {
+        const fs::path target = tmp / ("book-" + format_to_string(fmt) +
+                                       (fmt == MobiExportFormat::kf8 ? ".azw3" : ".mobi"));
         MobiWriter writer(target, fmt, false);
         const auto p1 = writer.add_picture(cover_jpg, policy, true);
         const auto p3 = writer.add_picture(fig_png, policy, false);

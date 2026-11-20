@@ -12,6 +12,7 @@ import type { Page } from '@playwright/test';
 
 import { expect, fixtureBook, test, waitForBook, type CoreHandle } from './fixtures/core';
 import { clickExport } from './fixtures/exportCheck';
+import { findPython, inspectMobiBinary, mobiMetaSummary } from './fixtures/mobi';
 import { scratchDir } from './fixtures/scratch';
 
 interface SaveFileRequest {
@@ -34,9 +35,10 @@ async function openBook(core: CoreHandle, page: Page, name: string): Promise<str
   return book;
 }
 
-async function waitExportDone(page: Page): Promise<void> {
+async function waitExportDone(page: Page, targetPath: string): Promise<void> {
   const summary = page.getByTestId('dialog-mobi-export-summary');
   const failed = page.getByTestId('dialog-mobi-export-failed');
+  const base = path.basename(targetPath);
   await expect
     .poll(
       async () => {
@@ -46,9 +48,8 @@ async function waitExportDone(page: Page): Promise<void> {
           await summary.getByRole('button').first().click();
           return true;
         }
-        return ((await page.getByTestId('status-message').textContent()) ?? '').includes(
-          'Exported to',
-        );
+        const msg = (await page.getByTestId('status-message').textContent()) ?? '';
+        return msg.includes('Exported to') && msg.includes(base);
       },
       { timeout: 60_000 },
     )
@@ -142,7 +143,7 @@ test.describe('US4 (feature 018) - MOBI settings defaults & per-book dialog stic
       selects: { format: 'joint', tocPlacement: 'none' },
     });
     await clickExport(core, page, 'exportMobi');
-    await waitExportDone(page);
+    await waitExportDone(page, zipTarget);
 
     const req1 = await lastSaveRequest(core);
     expect(req1.defaultPath).toMatch(/\.zip$/);
@@ -151,10 +152,10 @@ test.describe('US4 (feature 018) - MOBI settings defaults & per-book dialog stic
     expect(req1.selects?.find((s) => s.id === 'tocPlacement')?.selected).toBe('none');
     expect(existsSync(zipTarget)).toBe(true);
 
-    // Extract .mobi from ZIP and verify shelf title prefix via Calibre ebook-meta + EXTH 116 > 0
+    // Extract .mobi from ZIP and verify shelf title prefix + EXTH 116 > 0
     const extractedMobi = path.join(dir, 'extracted.mobi');
     execFileSync(
-      'python3',
+      findPython(),
       [
         '-c',
         `import zipfile, sys
@@ -169,7 +170,7 @@ with zipfile.ZipFile(sys.argv[1]) as z:
       ],
       { stdio: 'pipe' },
     );
-    const metaOut = execFileSync('ebook-meta', [extractedMobi], { encoding: 'utf8' });
+    const metaOut = mobiMetaSummary(extractedMobi);
     expect(metaOut).toContain('The Series #3 — The Reference Book');
     expect(readExth116(extractedMobi)).toBeGreaterThan(0);
 
@@ -186,30 +187,16 @@ with zipfile.ZipFile(sys.argv[1]) as z:
       selects: { format: 'kf8', tocPlacement: 'end' },
     });
     await clickExport(core, page, 'exportMobi');
-    await waitExportDone(page);
+    await waitExportDone(page, kf8Target);
 
-    const kf8Meta = execFileSync('ebook-meta', [kf8Target], { encoding: 'utf8' });
+    const kf8Meta = mobiMetaSummary(kf8Target);
     expect(kf8Meta).toContain('3_The Reference Book');
     expect(readExth116(kf8Target)).toBeGreaterThan(0);
 
     // Verify kf8PopupFootnotes = false emitted plain footnotes (zero epub:type="noteref"/"footnote")
-    execFileSync('ebook-convert', [kf8Target, path.join(dir, 'unpacked.htmlz')], {
-      stdio: 'pipe',
-      timeout: 60_000,
-    });
-    const htmlzText = execFileSync(
-      'python3',
-      [
-        '-c',
-        `import zipfile, sys
-with zipfile.ZipFile(sys.argv[1]) as z:
-    print(z.read('index.html').decode('utf-8', 'replace'))`,
-        path.join(dir, 'unpacked.htmlz'),
-      ],
-      { encoding: 'utf8' },
-    );
-    expect(htmlzText).not.toContain('epub:type="noteref"');
-    expect(htmlzText).not.toContain('epub:type="footnote"');
+    const kf8Html = inspectMobiBinary(kf8Target).htmlText;
+    expect(kf8Html).not.toContain('epub:type="noteref"');
+    expect(kf8Html).not.toContain('epub:type="footnote"');
 
     // 4. Per-book stickiness: next export on SAME book proposes kept choices (kf8, end, zip=false)
     //    AND cancelling the Save dialog leaves those kept choices intact!
