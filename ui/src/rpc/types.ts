@@ -110,6 +110,12 @@ export const RpcErrorCode = {
   textImportRefused: 1115,
   /** Feature 017: an unknown or ended txtImport token. */
   txtImportUnknownToken: 1116,
+  /** Feature 018: `mobiImport.*` refused the file ({reason, path?, kind?, limit?, pixels?}). */
+  mobiRefused: 1117,
+  /** Feature 018: `mobi.write.*` failed to write ({reason, path?, detail?}). */
+  mobiWriteFailed: 1118,
+  /** Feature 018: an unknown or ended `mobi.write` or `mobiImport` token ({token}). */
+  mobiUnknownToken: 1119,
   spellDictionaryUnavailable: 1020,
   scriptNotFound: 1030,
   scriptInvalidManifest: 1031,
