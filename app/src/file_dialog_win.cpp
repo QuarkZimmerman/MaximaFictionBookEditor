@@ -189,8 +189,47 @@ public:
         return E_NOTIMPL;
     }
 
-    // IFileDialogControlEvents: the ZIP box's toggle.
-    IFACEMETHODIMP OnItemSelected(IFileDialogCustomize*, DWORD, DWORD) override { return S_OK; }
+    // IFileDialogControlEvents: select combo changes and ZIP checkbox toggles.
+    IFACEMETHODIMP OnItemSelected(IFileDialogCustomize* customize, DWORD id,
+                                  DWORD item_id) override {
+        if (following_ || id < kSelectComboBase ||
+            id - kSelectComboBase >= request_.selects.size()) {
+            return S_OK;
+        }
+        const std::size_t sel_idx = static_cast<std::size_t>(id - kSelectComboBase);
+        const auto& sel = request_.selects[sel_idx];
+        const std::string chosen = selectValueOfItem(sel, sel_idx, item_id);
+        if (chosen.empty()) {
+            return S_OK;
+        }
+        std::string new_ext;
+        for (const auto& ch : sel.choices) {
+            if (ch.value == chosen) {
+                new_ext = ch.extension;
+                break;
+            }
+        }
+        if (new_ext.empty()) {
+            return S_OK;
+        }
+        active_plain_ext_ = bareExtension(new_ext);
+        ComRef<IFileDialog> dialog;
+        if (FAILED(customize->QueryInterface(IID_PPV_ARGS(dialog.put())))) {
+            return S_OK;
+        }
+        BOOL checked = FALSE;
+        const bool zip = !request_.zip_label.empty() &&
+                         SUCCEEDED(customize->GetCheckButtonState(kZipCheck, &checked)) &&
+                         checked == TRUE;
+        if (!zip) {
+            following_ = true;
+            rename(dialog.get(), false);
+            dialog->SetFileTypeIndex(
+                static_cast<UINT>(selectFollowFilter(request_, active_plain_ext_, false) + 1));
+            following_ = false;
+        }
+        return S_OK;
+    }
     IFACEMETHODIMP OnButtonClicked(IFileDialogCustomize*, DWORD) override { return S_OK; }
     IFACEMETHODIMP OnCheckButtonToggled(IFileDialogCustomize* customize, DWORD id,
                                         BOOL checked) override {
@@ -205,7 +244,10 @@ public:
         following_ = true;
         rename(dialog.get(), zip);
         if (request_.zip_filter >= 0) {
-            dialog->SetFileTypeIndex(static_cast<UINT>(zipFollowFilter(request_, zip) + 1));
+            const std::size_t filt = active_plain_ext_.empty()
+                                         ? zipFollowFilter(request_, zip)
+                                         : selectFollowFilter(request_, active_plain_ext_, zip);
+            dialog->SetFileTypeIndex(static_cast<UINT>(filt + 1));
         }
         following_ = false;
         return S_OK;
@@ -216,7 +258,9 @@ private:
     ~ZipFollower() = default;
 
     void rename(IFileDialog* dialog, bool zip) {
-        const std::string extension = zip ? std::string("zip") : defaultExtension(plain_);
+        const std::string extension =
+            zip ? std::string("zip")
+                : (active_plain_ext_.empty() ? defaultExtension(plain_) : active_plain_ext_);
         if (!extension.empty()) {
             dialog->SetDefaultExtension(wideText(extension).c_str());
         }
@@ -227,7 +271,10 @@ private:
         const std::string current = mfbe::platform::utf8_from_path(
             std::filesystem::path(name));  // path-text: a wide file name from the Windows API
         ::CoTaskMemFree(name);
-        const std::string renamed = zipFollowName(request_, current, zip);
+        const std::string renamed =
+            active_plain_ext_.empty()
+                ? zipFollowName(request_, current, zip)
+                : selectFollowName(request_, current, active_plain_ext_, zip);
         if (renamed != current) {
             dialog->SetFileName(wideText(renamed).c_str());
         }
@@ -235,6 +282,7 @@ private:
 
     FileDialogRequest request_;
     FileDialogRequest plain_;  // the request with its plain type selected (its default extension)
+    std::string active_plain_ext_ = activeSelectExtension(request_);
     LONG refs_ = 1;
     bool following_ = false;  // a change made here: its own event is not followed again
 };
@@ -388,7 +436,28 @@ bool showDialog(HWND owner, const FileDialogRequest& request, FileDialogResult& 
             kEncodingCombo, static_cast<DWORD>(kEncodingItemBase + selectedEncodingIndex(request)));
         customize->EndVisualGroup();
     }
-    // Feature 009 (DP-8): the ZIP checkbox, added the same way beside the encoding choice.
+    // Feature 018 (DP-5): multi-select dropdowns inside the Save dialog.
+    const bool offers_selects = save && !request.selects.empty() &&
+                                (customize.get() != nullptr ||
+                                 SUCCEEDED(dialog->QueryInterface(IID_PPV_ARGS(customize.put()))));
+    if (offers_selects) {
+        for (size_t s = 0; s < request.selects.size(); ++s) {
+            const auto& sel = request.selects[s];
+            const DWORD group_id = static_cast<DWORD>(kSelectGroupBase + s);
+            const DWORD combo_id = static_cast<DWORD>(kSelectComboBase + s);
+            customize->StartVisualGroup(group_id, wideText(sel.label).c_str());
+            customize->AddComboBox(combo_id);
+            for (size_t c = 0; c < sel.choices.size(); ++c) {
+                customize->AddControlItem(combo_id, static_cast<DWORD>(selectItemId(s, c)),
+                                          wideText(sel.choices[c].label).c_str());
+            }
+            customize->SetSelectedControlItem(
+                combo_id,
+                static_cast<DWORD>(selectItemId(s, selectedSelectChoiceIndex(sel))));
+            customize->EndVisualGroup();
+        }
+    }
+    // Feature 009 (DP-8): the ZIP checkbox, added the same way beside the encoding/select choices.
     const bool offers_zip = save && !request.zip_label.empty() &&
                             (customize.get() != nullptr ||
                              SUCCEEDED(dialog->QueryInterface(IID_PPV_ARGS(customize.put()))));
@@ -410,7 +479,8 @@ bool showDialog(HWND owner, const FileDialogRequest& request, FileDialogResult& 
 
     DWORD follower_cookie = 0;
     bool following = false;
-    if (offers_zip && request.zip_rename != FileDialogRequest::ZipRename::kNone) {
+    if ((offers_zip && request.zip_rename != FileDialogRequest::ZipRename::kNone) ||
+        offers_selects) {
         auto* follower = new ZipFollower(request);
         following = SUCCEEDED(dialog->Advise(follower, &follower_cookie));
         follower->Release();  // the dialog holds it while advised
@@ -442,6 +512,19 @@ bool showDialog(HWND owner, const FileDialogRequest& request, FileDialogResult& 
             result.checks.emplace_back(request.checks[i].id, checked == TRUE);
         }
         result.checks_shown = true;
+    }
+    if (offers_selects) {
+        for (size_t s = 0; s < request.selects.size(); ++s) {
+            DWORD item = static_cast<DWORD>(
+                selectItemId(s, selectedSelectChoiceIndex(request.selects[s])));
+            customize->GetSelectedControlItem(static_cast<DWORD>(kSelectComboBase + s), &item);
+            std::string val = selectValueOfItem(request.selects[s], s, item);
+            if (val.empty() && !request.selects[s].choices.empty()) {
+                val = request.selects[s].choices[selectedSelectChoiceIndex(request.selects[s])].value;
+            }
+            result.selects.emplace_back(request.selects[s].id, std::move(val));
+        }
+        result.selects_shown = true;
     }
     result.cancelled = result.paths.empty();
     return true;

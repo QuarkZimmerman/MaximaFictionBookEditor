@@ -83,6 +83,19 @@ struct SaveFileRequest {
         bool checked = false;
     };
     std::vector<Check> checks;
+    // Feature 018 (DP-5, contracts/rpc-api.md §4): multi-select dropdowns inside the Save dialog.
+    struct SelectChoice {
+        std::string value;
+        std::string label;
+        std::optional<std::string> extension;
+    };
+    struct Select {
+        std::string id;
+        std::string label;
+        std::vector<SelectChoice> choices;
+        std::string selected;
+    };
+    std::vector<Select> selects;
 };
 struct SaveFileResult {
     std::optional<std::string> path;  // nullopt = cancelled
@@ -91,6 +104,9 @@ struct SaveFileResult {
     // Feature 017 (DP-5): the boxes' final states by id; nullopt when the dialog could not show
     // them.
     std::optional<std::vector<std::pair<std::string, bool>>> checks;
+    // Feature 018 (DP-5): the selects' final values by id; nullopt when the dialog could not show
+    // them (prompting the UI fallback modal).
+    std::optional<std::vector<std::pair<std::string, std::string>>> selects;
 };
 
 struct PickFolderRequest {

@@ -290,6 +290,27 @@ export type StatusBarPane =
 export type PdfPageSizeId =
   'a4' | 'b5' | 'a5' | 'b6' | 'a6' | 'legal' | 'letter' | 'executive' | 'statement';
 
+/** Feature 018 (contracts/settings.md): MOBI export format, TOC placement, series prefix, and open-at point. */
+export type MobiFormat = 'mobi7' | 'joint' | 'kf8';
+export type MobiTocPlacement = 'afterTitle' | 'end' | 'none';
+export type MobiSeriesInTitle = 'off' | 'numberBefore' | 'seriesAndNumber';
+export type MobiOpenAt = 'titlePage' | 'mainText';
+
+/** Feature 018 (contracts/rpc-api.md §4): multi-select dropdown inside `dialog.saveFile`. */
+export interface SaveFileSelectChoice {
+  value: string;
+  label: string;
+  /** Optional plain-file extension without dot (e.g. "mobi", "azw3") for live filename/filter updates. */
+  extension?: string;
+}
+
+export interface SaveFileSelect {
+  id: string;
+  label: string;
+  choices: SaveFileSelectChoice[];
+  selected: string;
+}
+
 export interface Settings {
   schemaVersion: 1;
   view: {
@@ -391,6 +412,15 @@ export interface Settings {
     encodingMode: 'utf-8' | 'language';
     encodings: { en: string; ru: string; uk: string; other: string };
     bom: boolean;
+    zip: boolean;
+  };
+  /** Feature 018 (contracts/settings.md): the MOBI export's defaults. */
+  mobi?: {
+    format: MobiFormat;
+    tocPlacement: MobiTocPlacement;
+    seriesInTitle: MobiSeriesInTitle;
+    openAt: MobiOpenAt;
+    kf8PopupFootnotes: boolean;
     zip: boolean;
   };
   session: {
@@ -1801,11 +1831,19 @@ export interface RpcMethods {
       };
       /** Feature 017 (DP-5): further boxes after the ZIP box (the TXT export's byte-order mark). */
       checks?: { id: string; label: string; checked: boolean }[];
+      /** Feature 018 (DP-5): dropdown selects inside the native Save dialog (e.g. MOBI format, TOC). */
+      selects?: SaveFileSelect[];
       /** Feature 011 (D32): only `document` (Save As) keeps the chosen folder. */
       role?: 'document';
     };
-    /** `zip` and `checks` are absent when the dialog could not carry the boxes (features 009, 017). */
-    result: { path?: string; encoding?: string; zip?: boolean; checks?: Record<string, boolean> };
+    /** `zip`, `checks`, and `selects` are absent when the dialog could not carry them (features 009, 017, 018). */
+    result: {
+      path?: string;
+      encoding?: string;
+      zip?: boolean;
+      checks?: Record<string, boolean>;
+      selects?: Record<string, string>;
+    };
   };
   'dialog.pickFolder': { params: { title: string }; result: { path?: string } };
   'dialog.message': {

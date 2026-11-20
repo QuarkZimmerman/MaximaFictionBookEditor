@@ -31,5 +31,28 @@ describe('keptExportOptions', () => {
 
   it('is empty when the editor starts', () => {
     expect(keptExportOptions('doc-1', 'pdf')).toBeUndefined();
+    expect(keptExportOptions('doc-1', 'mobi')).toBeUndefined();
+  });
+
+  it('keeps MOBI format, tocPlacement, and zip per open document and forgets on switch', () => {
+    keepExportOptions('doc-1', 'mobi', { format: 'joint', tocPlacement: 'end', zip: true });
+    expect(keptExportOptions('doc-1', 'mobi')).toEqual({
+      format: 'joint',
+      tocPlacement: 'end',
+      zip: true,
+    });
+    // Mutating the returned copy does not alter the stored record
+    const copy = keptExportOptions('doc-1', 'mobi')!;
+    copy.format = 'kf8';
+    expect(keptExportOptions('doc-1', 'mobi')?.format).toBe('joint');
+    // Another book in the window drops prior MOBI choices
+    expect(keptExportOptions('doc-2', 'mobi')).toBeUndefined();
+    keepExportOptions('doc-2', 'mobi', { format: 'kf8', tocPlacement: 'none', zip: false });
+    expect(keptExportOptions('doc-1', 'mobi')).toBeUndefined();
+    expect(keptExportOptions('doc-2', 'mobi')).toEqual({
+      format: 'kf8',
+      tocPlacement: 'none',
+      zip: false,
+    });
   });
 });
