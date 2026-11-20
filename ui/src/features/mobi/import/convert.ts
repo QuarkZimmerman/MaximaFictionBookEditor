@@ -321,6 +321,31 @@ export function convertMobiToFb2(options: ConvertMobiOptions): ConvertedMobiBook
   const isEditorRoundTrip = mfbe !== null;
 
   const summary: MobiImportSummaryItem[] = [];
+
+  // Record hostile/active elements, embedded media, and remote resources that are stripped and never run/fetched.
+  if (!isEditorRoundTrip) {
+    const scripts = doc.querySelectorAll('script');
+    if (scripts.length > 0) {
+      summary.push({ kind: 'droppedScripts', detail: `<script> (${scripts.length})` });
+    }
+    const media = doc.querySelectorAll('iframe, object, embed, applet, audio, video');
+    if (media.length > 0) {
+      summary.push({ kind: 'droppedMedia', detail: `${media.length}` });
+    }
+    for (const el of Array.from(doc.querySelectorAll('img[src], link[href], iframe[src]'))) {
+      const url = (el.getAttribute('src') ?? el.getAttribute('href') ?? '').trim();
+      if (/^https?:\/\//i.test(url)) {
+        summary.push({ kind: 'remote', detail: url });
+      }
+    }
+    for (const a of Array.from(doc.querySelectorAll('a[href]'))) {
+      const href = (a.getAttribute('href') ?? '').trim();
+      if (/^javascript:/i.test(href)) {
+        summary.push({ kind: 'droppedScripts', detail: 'javascript:' });
+      }
+    }
+  }
+
   const pictureInfoByIdx = new Map<number, MobiPictureInfo>(
     options.pictures.map((p) => [p.index, p]),
   );

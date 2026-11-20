@@ -33,6 +33,9 @@ export interface MobiImportSummaryItem {
     | 'drawingLeftOut'
     | 'formulaAsText'
     | 'cssDropped'
+    | 'droppedScripts'
+    | 'droppedMedia'
+    | 'remote'
     | 'fbdApplied'
     | 'fbdUnreadable';
   detail: string;
