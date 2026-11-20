@@ -173,7 +173,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/.vcpkg-cache
-          key: vcpkg-${{ matrix.name }}-${{ hashFiles('vcpkg.json', 'CMakePresets.json', 'triplets/*.cmake') }}
+          key: vcpkg-${{ matrix.name }}-${{ hashFiles('vcpkg.json', 'CMakePresets.json', 'triplets/*.cmake', 'ports/**') }}
           restore-keys: vcpkg-${{ matrix.name }}-
 
       - name: Configure
@@ -591,7 +591,7 @@ jobs:
       - uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/.vcpkg-cache
-          key: vcpkg-${{ matrix.name }}-${{ hashFiles('vcpkg.json', 'CMakePresets.json', 'triplets/*.cmake') }}
+          key: vcpkg-${{ matrix.name }}-${{ hashFiles('vcpkg.json', 'CMakePresets.json', 'triplets/*.cmake', 'ports/**') }}
           restore-keys: vcpkg-${{ matrix.name }}-
 
       - name: Cache CEF distribution

@@ -6,3 +6,5 @@ tests/fixtures/txt/** -text
 # Feature 017 (PD2): the WHATWG index files are the Standard's bytes - make-tables.py and the core's tests
 # read them as published, so no checkout converts their line endings.
 third_party/whatwg-encoding/** -text
+# The overlay ports' patches apply as their bytes are (ports/README.md): no checkout converts their line endings.
+ports/** -text
