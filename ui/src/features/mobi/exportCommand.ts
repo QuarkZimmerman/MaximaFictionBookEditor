@@ -157,11 +157,11 @@ export function registerMobiExportFeature(commands: CommandRegistry): void {
       if (store.getState().docId !== docId) return;
 
       const finalPath = finalizeTargetPath(answer.path, format, zip);
-      // Remember choices for this open book from the moment export starts (even if later cancelled).
-      keepExportOptions(docId, 'mobi', { format, tocPlacement, zip });
-
       if (!(await confirmCompletedTarget(ctx, answer.path, finalPath))) return;
       if (store.getState().docId !== docId) return;
+
+      // Remember choices for this open book once export actually begins (even if later cancelled).
+      keepExportOptions(docId, 'mobi', { format, tocPlacement, zip });
 
       let cancelled = false;
       const modal = startModalJob(ctx.t('mobi.exporting'), () => {

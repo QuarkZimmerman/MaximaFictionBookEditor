@@ -72,6 +72,26 @@ describe('settingsPatch', () => {
       other: { jpegQuality: 50, keepEncoding: true },
     });
     expect(settingsPatch(before, defaultSettings())).toEqual({});
+
+    const mobiAfter = defaultSettings();
+    mobiAfter.mobi = {
+      format: 'joint',
+      tocPlacement: 'end',
+      seriesInTitle: 'seriesAndNumber',
+      openAt: 'mainText',
+      kf8PopupFootnotes: false,
+      zip: true,
+    };
+    expect(settingsPatch(before, mobiAfter)).toEqual({
+      mobi: {
+        format: 'joint',
+        tocPlacement: 'end',
+        seriesInTitle: 'seriesAndNumber',
+        openAt: 'mainText',
+        kf8PopupFootnotes: false,
+        zip: true,
+      },
+    });
   });
 
   it('writes the ai section by value: changed leaves only, object leaves whole (feature 005)', () => {
