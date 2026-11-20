@@ -8,3 +8,8 @@ vcpkg port in another form than the manifest's `builtin-baseline` gives. Its ent
   that GitHub commit, lies here as `fmt-backport-4813.patch` - the same file, its SHA512 the port's. GitHub answered
   the download with HTTP 503 again and again on its own runners (2026-11-20, all three systems), which stopped the
   release of 0.0.12. Remove this overlay when vcpkg's port carries the patch itself.
+- `spdlog/` is vcpkg's `spdlog` port of the same baseline with the same change for its two backports, spdlog commits
+  `1685e694` and `d5af52d9`, kept here as `spdlog-backport-3541.patch` and `spdlog-backport-3543.patch` (their SHA512s
+  the port's). It depends on fmt: with fmt's overlay it is built again, and its downloads failed the same way. Of the
+  47 ports the editor builds, these two are the only ones that download a patch from a GitHub commit; remove this
+  overlay with fmt's.
