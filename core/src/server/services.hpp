@@ -1,6 +1,7 @@
 // Internal: everything RPC handlers need, bundled (not part of the public API).
 #pragma once
 
+#include "mobi/mobi_reader.hpp"
 #include "mobi/mobi_writer.hpp"
 #include "pdf/import/session.hpp"
 #include "print/queued_print_service.hpp"
@@ -117,9 +118,18 @@ struct Services {
         std::string doc_id;
         std::filesystem::path work_dir;
     };
+    struct MobiImportSession {
+        std::mutex mutex;
+        std::filesystem::path source_file;
+        std::optional<std::filesystem::path> archive_path;
+        std::optional<std::string> archive_entry;
+        std::filesystem::path folder;
+        std::optional<mobi::MobiReadResult> parsed;
+    };
     struct MobiState {
         std::mutex mutex;
         std::map<std::string, std::shared_ptr<MobiWriteSession>> writers;
+        std::map<std::string, std::shared_ptr<MobiImportSession>> imports;
         bool cleaned = false;
     } mobi;
 

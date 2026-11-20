@@ -70,6 +70,7 @@
 #include <mfbe/images.hpp>
 #include <mfbe/json_codec.hpp>
 #include <mfbe/log.hpp>
+#include <mfbe/mobi.hpp>
 #include <mfbe/node_ids.hpp>
 #include <mfbe/platform.hpp>
 #include <mfbe/templates.hpp>
@@ -365,6 +366,10 @@ ArchiveChoice choose_entry(const std::string& path, const std::optional<std::str
                 !data.contains("reason")) {
                 data["reason"] = "txtInArchive";
             }
+            // Feature 018 (FR-020): a MOBI/KF8/PalmDOC and no FB2/FBD points to the MOBI import.
+            if (mobi::is_mobi_extension(name) && !data.contains("reason")) {
+                data["reason"] = "mobiInArchive";
+            }
         }
         throw rpc::RpcError(rpc::codes::kArchiveNoBook, "the archive holds no FictionBook book",
                             data);
@@ -418,6 +423,15 @@ void refuse_other_archives(const fs::path& file) {
                    [](unsigned char c) { return std::tolower(c); });
     if (extension == ".txt") {
         throw not_fictionbook(platform::utf8_from_path(file), "txt");
+    }
+    // Feature 018 (FR-020): MOBI / KF8 / PalmDOC files are refused by extension or PalmDB magic
+    // and come in through File > Import > MOBI File.
+    const std::string_view head_view(head, static_cast<std::size_t>(in.gcount()));
+    const mobi::ContainerKind mobi_kind = mobi::sniff_bytes(head_view).kind;
+    if (mobi::is_mobi_extension(extension) || mobi_kind == mobi::ContainerKind::mobi7 ||
+        mobi_kind == mobi::ContainerKind::joint || mobi_kind == mobi::ContainerKind::kf8 ||
+        mobi_kind == mobi::ContainerKind::palmdoc) {
+        throw not_fictionbook(platform::utf8_from_path(file), "mobi");
     }
 }
 

@@ -1629,6 +1629,64 @@ export interface RpcMethods {
     };
   };
   'mobi.write.abort': { params: { token: string }; result: Record<string, never> };
+  'mobiImport.begin': {
+    params: { path: string; entry?: string };
+    result:
+      | { token: string }
+      | {
+          archive: {
+            mobis: { entry: string; size: number }[];
+            fbds: { entry: string; size: number }[];
+          };
+        };
+  };
+  'mobiImport.read': {
+    params: { token: string };
+    result: MaybeJob<{
+      containerKind: 'mobi7' | 'joint' | 'kf8' | 'palmdoc';
+      activePart: 'mobi7' | 'kf8' | 'palmdoc';
+      fellBackToMobi7: boolean;
+      encoding: 'utf-8' | 'windows-1252';
+      cssFlowCount: number;
+      metadata: {
+        title: string;
+        updatedTitle?: string;
+        authors: string[];
+        contributors: string[];
+        publisher?: string;
+        description?: string;
+        isbn?: string;
+        subjects: string[];
+        date?: string;
+        language: string;
+        identifier: string;
+        rights?: string;
+      };
+      navigation: { label: string; anchorId: string; depth: number; offset: number }[];
+      guide: { type: string; title: string; anchorId: string; offset: number }[];
+      pictures: {
+        index: number;
+        contentType: string;
+        width?: number;
+        height?: number;
+        size: number;
+        tooLarge: boolean;
+      }[];
+      coverIndex?: number;
+      thumbnailIndex?: number;
+      mfbeStatus: 'none' | 'valid' | 'externallyModified' | 'corrupt';
+      mfbeHtmlMatches: boolean;
+      mfbeMetaMatches: boolean;
+      mfbe?: unknown;
+    }>;
+  };
+  'mobiImport.picture': {
+    params: { token: string; index: number; docId: string; suggestedId?: string };
+    result: { binary: BinaryMeta; from: string; converted: boolean };
+  };
+  'mobiImport.extractFbd': { params: { token: string; entry: string }; result: { path: string } };
+  'mobiImport.recordFbd': { params: { token: string }; result: { path: string } };
+  'mobiImport.end': { params: { token: string }; result: Record<string, never> };
   /**
    * Feature 014 (specs/014-pdf-export/contracts/rpc-api.md): a PDF export of the book `docId` to
    * `path` (chosen with dialog.saveFile) in one of the nine page sizes; errors 1112 pdfExportFailed.

@@ -201,7 +201,10 @@ export function archiveErrorMessage(t: TFunction, error: unknown, path: string):
         : // Feature 017 (D35): so does one holding a TXT, to the TXT import.
           data.reason === 'txtInArchive'
           ? t('txt.openRefusedInArchive', { path })
-          : t('archive.msg.noBook', { path });
+          : // Feature 018 (FR-020): and one holding a MOBI/KF8/PalmDOC, to the MOBI import.
+            data.reason === 'mobiInArchive'
+            ? t('mobi.openRefusedInArchive', { path })
+            : t('archive.msg.noBook', { path });
     case RpcErrorCode.archiveEntryMissing:
       return t('archive.msg.missing', { path, entry: data.entry ?? '' });
     case RpcErrorCode.archiveEntryUnreadable: {
@@ -852,6 +855,8 @@ export class FileFeature {
         const pdf = reason === 'pdf';
         // Feature 017 (D35): and a TXT, through File > Import > TXT File.
         const txt = reason === 'txt';
+        // Feature 018 (FR-020): and a MOBI / KF8 / PalmDOC, through File > Import > MOBI File.
+        const mobi = reason === 'mobi';
         await ctx.dialogs.showMessage({
           text: epub
             ? ctx.t('epub.openRefused', { path })
@@ -859,7 +864,9 @@ export class FileFeature {
               ? ctx.t('pdfImport.openRefused', { path })
               : txt
                 ? ctx.t('txt.openRefused', { path })
-                : ctx.t('msg.notFictionBook', { path }),
+                : mobi
+                  ? ctx.t('mobi.openRefused', { path })
+                  : ctx.t('msg.notFictionBook', { path }),
           caption: ctx.t('dialog.error.caption'),
           icon: 'error',
           testId: epub
@@ -868,7 +875,9 @@ export class FileFeature {
               ? 'dialog-pdf-refused'
               : txt
                 ? 'dialog-txt-refused'
-                : 'dialog-not-fictionbook',
+                : mobi
+                  ? 'dialog-mobi-refused'
+                  : 'dialog-not-fictionbook',
         });
         void this.recent.refresh(rpc);
         return false;
