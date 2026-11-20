@@ -1,6 +1,7 @@
 // Internal: everything RPC handlers need, bundled (not part of the public API).
 #pragma once
 
+#include "mobi/mobi_writer.hpp"
 #include "pdf/import/session.hpp"
 #include "print/queued_print_service.hpp"
 #include "server/ai_state.hpp"
@@ -110,6 +111,18 @@ struct Services {
         bool cleaned = false;
     } txt_import;
 
+    // Feature 018 (mobi.write.* and mobiImport.*): active MOBI/KF8 write and import sessions.
+    struct MobiWriteSession {
+        std::unique_ptr<mobi::MobiWriter> writer;
+        std::string doc_id;
+        std::filesystem::path work_dir;
+    };
+    struct MobiState {
+        std::mutex mutex;
+        std::map<std::string, std::shared_ptr<MobiWriteSession>> writers;
+        bool cleaned = false;
+    } mobi;
+
     rpc::Notifier& notifier;
     rpc::JobManager jobs;
     // The AI assistant (feature 005): the service list and the transport, both created on the
@@ -203,6 +216,8 @@ void register_epub_handlers(rpc::RpcRouter& router, Services& services);
 void register_pdf_handlers(rpc::RpcRouter& router, Services& services);
 void register_pdf_import_handlers(rpc::RpcRouter& router, Services& services);
 void register_txt_handlers(rpc::RpcRouter& router, Services& services);
+// Feature 018: mobi.write.* and mobiImport.* (mobi_handlers.cpp).
+void register_mobi_handlers(rpc::RpcRouter& router, Services& services);
 // Feature 017 (D13): the FBD of the book `doc_id`, the description of `params["document"]`, written
 // at `path` as doc.exportDescription writes it (forced); defined with the doc handlers.
 void write_description_file(Services& services, const std::string& doc_id,

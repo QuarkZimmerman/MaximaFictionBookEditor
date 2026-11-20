@@ -118,7 +118,8 @@ std::vector<std::string> build_indx_table(const std::vector<TagDesc>& tagx_defs,
         }
         buf.replace(0, 4, "INDX");
         write_u32_be(buf, 4, kIndxHeaderLen);
-        write_u32_be(buf, 16, 2);  // entry record
+        write_u32_be(buf, 12, 1);  // entry record (type = 1)
+        write_u32_be(buf, 16, 0);  // entry gen = 0
         write_u32_be(buf, 20, idxt_off);
         write_u32_be(buf, 24, static_cast<std::uint32_t>(offs.size()));
         write_u32_be(buf, 28, 0xFFFFFFFFU);
@@ -179,8 +180,8 @@ std::vector<std::string> build_indx_table(const std::vector<TagDesc>& tagx_defs,
 
     meta.replace(0, 4, "INDX");
     write_u32_be(meta, 4, kIndxHeaderLen);
-    write_u32_be(meta, 12, 0);  // normal
-    write_u32_be(meta, 16, 0);  // meta
+    write_u32_be(meta, 12, 0);  // meta record (type = 0)
+    write_u32_be(meta, 16, 2);  // inflectional/meta (gen = 2, matching Calibre/Kindle)
     write_u32_be(meta, 20, meta_idxt_off);
     write_u32_be(meta, 24, static_cast<std::uint32_t>(entry_recs.size()));
     write_u32_be(meta, 28, 65001U);

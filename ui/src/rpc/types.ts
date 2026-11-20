@@ -1582,6 +1582,53 @@ export interface RpcMethods {
   };
   'epub.write.commit': { params: { token: string }; result: { bytes: number } };
   'epub.write.abort': { params: { token: string }; result: Record<string, never> };
+  /** Feature 018 (contracts/rpc-api.md §2): MOBI / KF8 export session. */
+  'mobi.write.begin': {
+    params: { docId: string; path: string; format: MobiFormat; zip: boolean };
+    result: { token: string };
+  };
+  'mobi.write.picture': {
+    params: { token: string; docId: string; binaryId: string; isCover?: boolean };
+    result: {
+      recindex: number;
+      mediaType: 'image/jpeg' | 'image/png';
+      width: number;
+      height: number;
+      converted: boolean;
+      downscaled: boolean;
+    };
+  };
+  'mobi.write.commit': {
+    params: {
+      token: string;
+      metadata: {
+        title: string;
+        updatedTitle?: string;
+        authors: string[];
+        contributors: string[];
+        publisher?: string;
+        description?: string;
+        isbn?: string;
+        subjects: string[];
+        date?: string;
+        language: string;
+        identifier: string;
+        openAtAnchorId?: string;
+      };
+      nav: { label: string; anchorId: string; depth: number }[];
+      guide: { type: 'cover' | 'title-page' | 'toc' | 'text'; title: string; anchorId: string }[];
+      kf8Fragments?: { id: string; skeletonIndex: number; startByte: number; endByte: number }[];
+      document?: Document;
+    };
+    result: {
+      path: string;
+      bytes: number;
+      format: MobiFormat;
+      zip: boolean;
+      mfbeSkipped: boolean;
+    };
+  };
+  'mobi.write.abort': { params: { token: string }; result: Record<string, never> };
   /**
    * Feature 014 (specs/014-pdf-export/contracts/rpc-api.md): a PDF export of the book `docId` to
    * `path` (chosen with dialog.saveFile) in one of the nine page sizes; errors 1112 pdfExportFailed.

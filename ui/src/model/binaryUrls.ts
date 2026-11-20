@@ -196,6 +196,30 @@ export function epubWriteUrl(
 }
 
 /**
+ * Feature 018 (contracts/rpc-api.md §2): upload slot for an open MOBI write session
+ * (`PUT /mobi-write/{token}/{slot}`, slot in `mobi7-html` | `kf8-html` | `kf8-css` | `mfbe`).
+ */
+export function mobiWriteUrl(
+  token: string,
+  slot: 'mobi7-html' | 'kf8-html' | 'kf8-css' | 'mfbe',
+  baseUrl: string = import.meta.env.BASE_URL ?? '/',
+): string {
+  return withToken(`${baseUrl}mobi-write/${encodeURIComponent(token)}/${slot}`, '?');
+}
+
+/**
+ * Feature 018 (contracts/rpc-api.md §3): download route for an open MOBI import session
+ * (`GET /mobi-import/{token}/{part}`, e.g. `html`, `css/0`, `picture/1`).
+ */
+export function mobiImportUrl(
+  token: string,
+  part: string,
+  baseUrl: string = import.meta.env.BASE_URL ?? '/',
+): string {
+  return withToken(`${baseUrl}mobi-import/${encodeURIComponent(token)}/${part}`, '?');
+}
+
+/**
  * Feature 014 (contracts/rpc-api.md): part `part` of the PDF export's paged document under `token`
  * (`PUT /pdf/{token}/part/{n}`, the HTML as the body).
  */
