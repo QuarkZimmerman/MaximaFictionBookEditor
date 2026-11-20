@@ -687,6 +687,14 @@ public:
         native.document_dialog = request.documentDialog;
         native.zip_label = request.zipLabel.value_or(std::string());
         native.zip_checked = request.zipChecked;
+        const std::string rename = request.zipRename.value_or(std::string());
+        native.zip_rename = rename == "append"    ? FileDialogRequest::ZipRename::kAppend
+                            : rename == "replace" ? FileDialogRequest::ZipRename::kReplace
+                                                  : FileDialogRequest::ZipRename::kNone;
+        native.zip_filter = request.zipFilter;
+        for (const auto& check : request.checks) {
+            native.checks.push_back({check.id, check.label, check.checked});
+        }
         const bool posted = dialogs_->runFileDialog(native, [done](FileDialogResult result) {
             mfbe::SaveFileResult out;
             if (!result.cancelled && !result.paths.empty()) {
@@ -696,6 +704,9 @@ public:
                 }
                 if (result.zip >= 0) {
                     out.zip = result.zip == 1;
+                }
+                if (result.checks_shown) {
+                    out.checks = std::move(result.checks);
                 }
             }
             done(std::move(out));

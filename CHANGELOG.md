@@ -7,17 +7,29 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 
 ### In short
 
-- File > Import > PDF File... makes a new book of a PDF, or of a PDF in a ZIP archive
-- The editor's own PDFs come back as the books they were exported from
-- PDFs made from text give their text, headings, pictures, tables and drawings
-- Scanned books with a text layer give their recognised text; scans without one are refused
-- An FBD in the archive can give the book's description; protected PDFs ask for their password
+- File > Import > PDF File... makes a new book of a PDF; the editor's own PDFs come back whole
+- PDFs made from text give their text and pictures; scans with a text layer their recognised text
 - Export as PDF can save a ZIP archive with the PDF and the book's FBD
-- PDF export: grouped notes, zero-width non-joiners and two notes bodies; picture titles as captions
-- Markdown notes written with superscript numbers become the book's notes
+- File > Export > Export as TXT... writes a book as plain text, in UTF-8 or its language's encodings
+- File > Import > TXT File... makes a new book of a text file; the editor's own TXT keeps its notes
+- Settings > Exports holds every export option's default; a book keeps the choices made for it
+- Imports take an FBD lying beside the file, and keep nothing of the file they read
+- PDF export fixes; Markdown notes written with superscript numbers become the book's notes
 
 ### Added
 
+- File > Export > Export as TXT... (feature 017) writes the book as plain text: a title page, the text one
+  paragraph per line with each note after the paragraph that refers to it, picture markers, the addresses of
+  outside links, and a record of the description with a line naming the editor at the end. UTF-8, with or
+  without the byte-order mark, or an encoding made for the book's language (29 in all); characters an
+  encoding cannot write take a plain form, and a summary names them. Save in ZIP archive adds the book's FBD.
+- File > Import > TXT File... makes a new book of a text file or of a TXT in a ZIP archive: the encoding read
+  or judged, else asked; the paragraphs told from the file's layout; words broken at line ends joined. A TXT
+  the editor wrote gives back its description and its notes. File > Open refuses a .txt and points to it.
+- Settings > Exports has a page for every export (PDF, EPUB, Markdown, TXT) with the defaults of its dialog's
+  options; the choices made in a dialog stay with the book until another book takes the window.
+- The TXT, Markdown, EPUB and PDF imports take an FBD lying beside a file the editor did not make (the PDF
+  import asks first); a TXT import also takes the FBD of its ZIP archive.
 - File > Import > PDF File... imports a PDF, or a PDF inside a ZIP archive, as a new unsaved book, with a
   progress bar and Cancel; File > Open refuses a PDF and points to it. Recent files, the settings and the
   dialogs' folders stay as they were. The import is loaded the first time it is used.
@@ -44,8 +56,36 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 - A person with a first name but no last name is said plainly, in the Description and in the Validate list,
   and Fix beside the person adds the empty last name FB2 needs.
 
+### Changed
+
+- After any import the first Save As proposes the name made from the book's description, as for a new
+  book; nothing of the imported file's name or folder is kept.
+- The PDF and Markdown exports' dialogs propose the choices kept for the book, else the Settings' defaults.
+- FB2 Open and Save use the WHATWG Encoding Standard's tables: windows-1251's 0x98 and five bytes of
+  windows-1252 that Microsoft leaves undefined now read as control characters, as in browsers.
+- PDFs read from their layout keep a hyphenated word whole ("north-east"), as tagged PDFs do.
+- The Markdown import asks for a file's encoding less often: when only one reading of the file makes sense,
+  it is taken without a question, as the TXT import does.
+- The bundled libraries move to vcpkg's versions of 2026-11-18: Boost 1.92, zlib 1.4, OpenSSL 3.6.5, curl
+  8.23, FreeType 2.15, libxml2 2.15.4, libarchive 3.8.9, uWebSockets 20.81 and Poppler 26.4.0 with the fix
+  that lets it build with the newest Windows compiler.
+- A book from a ZIP archive: Save As proposes the book as a FictionBook file beside the archive, its *Save as
+  ZIP archive* box unticked as for any book, and the unsaved-changes question names the book with its archive.
+- The save dialog's ZIP box: on Windows and macOS the name and the type follow it - the TXT and PDF exports'
+  *Save in ZIP archive* and Save As's *Save as ZIP archive* alike - and choosing the ZIP archive type ticks it.
+- The Markdown import leaves out a scene break (`---`) at the start or end of a chapter, where it separates
+  nothing - chats end chapters with one - and its summary counts them; a break between paragraphs stays
+  "* * *" (issue #16).
+
 ### Fixed
 
+- The Settings dialog changed its size and its place with every tab: it keeps the size of the tallest page and
+  its place now, and the word-exclusion and hotkey lists grow into the room the page leaves.
+- The TXT and PDF exports replaced an existing file without a word when *Save in ZIP archive* had turned
+  the name the save dialog checked into another (`book.txt` into `book.zip`): they ask first, as Save As does.
+- A person with a first name but no last name kept being reported until any other edit of the description -
+  a date's Fix, for one - wrote an empty last name behind your back; only the person's own Fix, or a last name
+  typed, adds it now.
 - Export as PDF... exports books whose notes are grouped in sections, books with zero-width non-joiners,
   and books with two notes bodies, which it refused.
 - A block picture's title is printed under it as its caption.

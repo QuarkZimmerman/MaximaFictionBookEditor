@@ -81,7 +81,8 @@ test.describe('US8 (010) - Markdown files become books', () => {
           await core.rpc<{ method: string; defaultPath?: string }[]>('test.dialogRequests');
         return requests.filter((r) => r.method === 'dialog.saveFile').pop()?.defaultPath;
       })
-      .toBe(path.join(dir, 'structure.fb2'));
+      // Feature 017 (D25): nothing of the source - the bare name a new book proposes, not the file's.
+      .toMatch(/^[^/\\]+\.fb2$/);
     expect(readFileSync(file).equals(before)).toBe(true);
     expect(outside).toEqual([]);
   });

@@ -96,6 +96,20 @@ struct Services {
         bool cleaned = false;  // stale folders removed (DP-2)
     } pdf_import;
 
+    // Feature 017 (txtImport.*, DP-10): the TXT imports under way, by token - the file read (beside
+    // the archive's extracted entries in the session's folder) and its archive; each ends with
+    // txtImport.end, which removes the folder.
+    struct TxtImportSession {
+        std::filesystem::path folder;
+        std::filesystem::path file;
+        std::optional<std::filesystem::path> archive;
+    };
+    struct TxtImportState {
+        std::mutex mutex;
+        std::map<std::string, TxtImportSession> sessions;
+        bool cleaned = false;
+    } txt_import;
+
     rpc::Notifier& notifier;
     rpc::JobManager jobs;
     // The AI assistant (feature 005): the service list and the transport, both created on the
@@ -188,6 +202,11 @@ void register_epub_handlers(rpc::RpcRouter& router, Services& services);
 // Feature 014: pdf.export.* (pdf_handlers.cpp).
 void register_pdf_handlers(rpc::RpcRouter& router, Services& services);
 void register_pdf_import_handlers(rpc::RpcRouter& router, Services& services);
+void register_txt_handlers(rpc::RpcRouter& router, Services& services);
+// Feature 017 (D13): the FBD of the book `doc_id`, the description of `params["document"]`, written
+// at `path` as doc.exportDescription writes it (forced); defined with the doc handlers.
+void write_description_file(Services& services, const std::string& doc_id,
+                            const nlohmann::json& params, const std::string& path);
 void register_log_handlers(rpc::RpcRouter& router, Services& services);
 void register_settings_handlers(rpc::RpcRouter& router, Services& services);
 void register_dialog_handlers(rpc::RpcRouter& router, Services& services);

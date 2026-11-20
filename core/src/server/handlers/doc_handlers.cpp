@@ -360,6 +360,11 @@ ArchiveChoice choose_entry(const std::string& path, const std::optional<std::str
                 data["reason"] = "pdfInArchive";
                 break;
             }
+            // Feature 017 (D35): a TXT and no book points to the TXT import.
+            if (name.size() > 4 && name.compare(name.size() - 4, 4, ".txt") == 0 &&
+                !data.contains("reason")) {
+                data["reason"] = "txtInArchive";
+            }
         }
         throw rpc::RpcError(rpc::codes::kArchiveNoBook, "the archive holds no FictionBook book",
                             data);
@@ -405,6 +410,14 @@ void refuse_other_archives(const fs::path& file) {
     if (std::string_view(head, static_cast<std::size_t>(in.gcount())).find("%PDF-") !=
         std::string_view::npos) {
         throw not_fictionbook(platform::utf8_from_path(file), "pdf");
+    }
+    // Feature 017 (D35, DP-15): a text file has no mark of its own; a ".txt" is told by its name
+    // and comes in through File > Import > TXT File.
+    std::string extension = platform::utf8_from_path(file.extension());
+    std::transform(extension.begin(), extension.end(), extension.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    if (extension == ".txt") {
+        throw not_fictionbook(platform::utf8_from_path(file), "txt");
     }
 }
 
@@ -2046,6 +2059,21 @@ void register_fragment_handlers(rpc::RpcRouter& router, Services& services) {
                     {"inline", parsed.is_inline},
                     {"warnings", issues_json(parsed.warnings)}};
     });
+}
+
+// Feature 017 (D13, DP-4): the book's FBD, as doc.exportDescription writes it - forced, the book's
+// validity having been confirmed before the export - for the TXT export's ZIP archive.
+void write_description_file(Services& services, const std::string& doc_id, const json& params,
+                            const std::string& path) {
+    session::DocumentSession& s = services.documents.require(doc_id);
+    ExportRequest request;
+    request.document = exported_document(document_param(params), s.ids);
+    request.path = path;
+    request.force = true;
+    request.xlink_prefix = s.xlinkPrefix;
+    request.store = s.binaries;
+    request.policy = services.conversion_policy();
+    perform_export(request, nullptr);
 }
 
 }  // namespace mfbe::server

@@ -78,12 +78,13 @@ export function proposedSavePath(p: {
 /*
  * The sticky checkbox (D31, FR-019): the state the user left at the last save through the
  * dialog in this running copy - kept in memory only, never in the settings; a restart or a new
- * copy starts afresh. Before its first use it starts ticked for a book from an archive.
+ * copy starts afresh. Before its first use it starts unticked for every book: Save As saves the
+ * book, wherever it came from (the requester after his smoke test of 0.0.12-rc.4).
  */
 let zipSticky: boolean | null = null;
 
-export function zipStartState(fromArchive: boolean): boolean {
-  return zipSticky ?? fromArchive;
+export function zipStartState(): boolean {
+  return zipSticky ?? false;
 }
 
 /** A save through the dialog wrote a file with the box in this state. */

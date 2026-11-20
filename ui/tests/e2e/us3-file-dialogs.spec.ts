@@ -131,11 +131,13 @@ const ENCODINGS = [
 /** Linux and macOS: the core opens dialogs in the folder last used by Open or Save As. */
 const KEEPS_LAST_FOLDER = process.platform !== 'win32';
 
+/** Save As: the document types, then ZIP archives - the type that follows its ZIP box (smoke test of rc.4). */
 function documentTypes(names: Record<string, string>): FileType[] {
   return [
     { name: names.fb2!, extensions: ['fb2'] },
     { name: names.fbd!, extensions: ['fbd'] },
     { name: names.all!, extensions: ['*'] },
+    { name: names.zip!, extensions: ['zip'] },
   ];
 }
 

@@ -15,6 +15,14 @@ export function fileType(name: string, extensions: readonly string[]): FileFilte
   return { name: `${name} (${patterns.join(';')})`, extensions: [...extensions] };
 }
 
+/**
+ * The ZIP archive type a save dialog offers beside its own when it has a "ZIP archive" box: the name and the
+ * type follow the box, and choosing this type ticks it (the requester after his smoke test of 0.0.12-rc.4).
+ */
+export function zipArchiveType(t: TFunction): FileFilter {
+  return fileType(t('fileDialogs.types.zipArchives'), ['zip']);
+}
+
 /** Open and Save As: FictionBook files, FictionBook descriptors, All files. */
 export function documentFileTypes(t: TFunction): FileFilter[] {
   return [

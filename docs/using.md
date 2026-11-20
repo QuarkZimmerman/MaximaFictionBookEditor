@@ -31,9 +31,10 @@ A `.zip` (or `.fb2.zip`) opens like a book, by every route: *File > Open*, the f
 the command line, dragging it onto the window and *Recent files*. An archive with several books
 asks which one to open; each book of an archive has its own entry in *Recent files*, and the
 window title shows the book with its archive. The editor never writes into an archive behind
-your back: saving a book from an archive always opens *Save As*, whose *Save as ZIP archive*
-box (ticked for such a book) puts it into a ZIP archive; replacing an archive that holds other
-files asks first, so nothing in it is lost without a word. *File > Open* shows FictionBook
+your back: saving a book from an archive always opens *Save As*, which proposes the book as a
+FictionBook file beside the archive, as for any book. Its *Save as ZIP archive* box, ticked, puts it
+into a ZIP archive instead; replacing an archive that holds other files asks first, so nothing in it
+is lost without a word. *File > Open* shows FictionBook
 files, descriptors and ZIP archives together by default (*Book files*).
 
 ## Notes and links
@@ -378,11 +379,18 @@ editor asks for the size in a window of its own after the dialog.
 
 ### Save in ZIP archive
 
-The save dialog also offers *Save in ZIP archive*, unticked every time. Ticked, the export writes a ZIP
+The save dialog also offers *Save in ZIP archive*, as the book's last PDF export left it, else as
+*Settings > Exports* has it. Ticked, the export writes a ZIP
 archive instead of the PDF, named `.zip`: it holds the PDF and an FBD file with the book's description and
 its cover pictures, as *Export as FBD…* writes it, both named after the archive. Importing that archive
 gives the book back without a question. Where the system's save dialog cannot show the box, the editor's
 own window asks for it with the page size.
+
+On Windows and macOS the name and the type in the save dialog follow the box: ticked, the name ends in `.zip`
+and the ZIP archive type is selected; unticked, the name and type go back; choosing the ZIP archive type ticks
+the box. Linux's save dialog tells the editor its boxes only when it closes, so there the name changes after
+it - and when a file of the new name exists, the editor asks before replacing it, on every system. The TXT
+export's box and Save As's *Save as ZIP archive* work the same way.
 
 ### What the PDF holds
 
@@ -429,8 +437,17 @@ more than 20,000 pages, or more than 100,000 notes, is refused before printing.
 
 ### Settings > Exports
 
-*Format* at the top chooses the export whose settings are shown: PDF, EPUB or Markdown. Only the PDF
-export has settings of its own for now.
+*Format* at the top chooses the export whose settings are shown: PDF, EPUB, Markdown or TXT. Every option an
+export's dialog offers has its default here. The defaults serve a book's first export; the choices made in the
+dialog then stay with that book until another book is opened, imported or made, or the editor closes. They are
+never stored.
+
+- **PDF:** the page and fonts below, and *Save in ZIP archive*.
+- **Markdown:** *Include pictures*, for the one-file export.
+- **TXT:** the encoding - always UTF-8, or by the book's language with one encoding each for English, Russian,
+  Ukrainian and other books -, *Byte-order mark in UTF-8 files* and *Save in ZIP archive*.
+
+The PDF page:
 
 - *Default page size*, *Text font*, *Text size* (smaller, standard, larger, custom) and *Margins*
   (narrow, standard, wide, custom). Beside the text size and the margins their value for the default
@@ -484,6 +501,53 @@ A PDF protected by a password asks for it, and again after a wrong one; one that
 asks for its owner's password. Damaged and hostile files end in a message - nothing in a PDF runs, and
 nothing is fetched. Comments, attached files, sounds, videos and scripts are left out and counted in the
 summary.
+
+## TXT files
+
+### Exporting as TXT
+
+*File > Export > Export as TXT…* writes the book as plain text. The Save dialog offers the encoding - UTF-8,
+and the encodings made for the book's language (Russian: windows-1251, KOI8-R, IBM866, ISO-8859-5, KOI8-U,
+x-mac-cyrillic; Ukrainian: windows-1251, KOI8-U, x-mac-cyrillic; English: windows-1252, ISO-8859-1,
+ISO-8859-15, macintosh; any other language: all 29) - *Byte-order mark* and *Save in ZIP archive*. Where the
+system's dialog cannot show them, the editor's own window asks right after it.
+
+- The file opens with a title page: the title, each series in brackets, the authors, then the annotation.
+- The text follows, one paragraph per line; titles, subtitles, verses and table rows on lines of their own,
+  table cells separated by tabs. Pictures are marked *[Image: …]* with their alternative text, links inside
+  the book give their text, links outside it their address.
+- Each note follows the paragraph that first refers to it, between *--- Note 1 ---* and a line of dashes; the
+  reference reads *[1]*.
+- A record of the description closes the file - title, series, people, genres, languages, the publication -
+  and a line naming the editor and its version. Its labels are always English; the words inside the text
+  (*Note*, *Image*) are in the book's language.
+- Characters an encoding cannot write take a plain form (quotes, dashes, the ellipsis, No.) or a question
+  mark; a summary names them. Lines end with CR LF.
+- *Save in ZIP archive* writes the TXT and an FBD with the book's description and cover in one archive.
+
+### Importing a TXT file
+
+*File > Import > TXT File…* makes a new book of a text file, or of a TXT in a ZIP archive (an archive with
+several asks which).
+
+- The encoding is read from a byte-order mark, else UTF-8, else judged from the words; when it cannot be
+  told, the editor asks, the likeliest encodings first.
+- The paragraphs are told from the file's layout: blank lines between wrapped paragraphs, an indent at each
+  paragraph's start, or one paragraph per line. Words broken at a line's end are joined when the spelling
+  dictionaries know the joined word.
+- The book is one body; its title is the file's name, the rest of the description the template's.
+- A TXT the editor wrote comes back with its description and its notes, linked from their references.
+- An FBD gives the whole description, cover included, without a question: in an archive, the one paired with
+  the TXT or named after it (else the list, with *None*); beside a TXT, the one with its name.
+- Binary files, empty files, files over 128 MB and FictionBook books are refused; *File > Open* refuses a
+  `.txt` and names this command.
+
+### After an import
+
+An import keeps nothing of the file it read: the book is a new one, as *File > New* makes it, and its first
+*Save As* proposes the name made from its description, as for any new book. The Markdown, EPUB and PDF imports
+also take an FBD lying beside a file the editor did not make (the PDF import asks first); the editor's own
+files keep the description they carry.
 
 ## The Styles view
 

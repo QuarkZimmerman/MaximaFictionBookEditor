@@ -28,6 +28,8 @@ update this page when the reader, the binary store or the Body view windowing ch
 | EPUB import of the 10 MB text book's EPUB: the Open dialog's answer until the new book is editable (feature 012, SC-010) | 5 s × `MFBE_PERF_FACTOR` |
 | EPUB import of the 150 MB picture book's EPUB (feature 012, SC-010) | 30 s × `MFBE_PERF_FACTOR` |
 | EPUB export and import: peak resident memory of `mfbe-core` and of the page's renderer, each (feature 012, SC-010) | 1.5 GB |
+| TXT export of the 10 MB text book: the dialog's answer until the file is written (feature 017, SC-011; `ui/tests/e2e/perf-txt.spec.ts`) | 5 s × `MFBE_PERF_FACTOR` |
+| TXT import of that file: the Open dialog's answer until the new book is editable (feature 017, SC-011) | 5 s × `MFBE_PERF_FACTOR` (on macOS and Windows 2 by default) |
 | EPUB export and import: the longest time the progress bar stands still, and Cancel until the progress window is gone (feature 012, SC-010) | 1 s × `MFBE_PERF_FACTOR` |
 | View > Show Book Styles on the 10 MB book until the styles are drawn, and typing with them shown (median of 10; feature 012, SC-017) | 1 s; 100 ms (× `MFBE_PERF_FACTOR`) |
 

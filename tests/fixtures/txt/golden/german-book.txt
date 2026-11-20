@@ -1,0 +1,17 @@
+Ein Buch
+Anna B. Example
+
+
+Ein Text mit Anmerkung[1].
+
+---------------- Note 1 ----------------
+Die Anmerkung.
+----------------------------------------
+
+
+========================================
+Title: Ein Buch
+Author: Anna B. Example
+Genre: sf_fantasy
+Language: German
+Made with Maxima Fiction Book Editor 0.0.12

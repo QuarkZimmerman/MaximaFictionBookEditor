@@ -1,3 +1,8 @@
 # Feature 010 (US8): the Markdown fixtures are compared byte for byte - one text in several
 # encodings, UTF-16 among them - so no checkout converts their line endings.
 tests/fixtures/markdown/** -text
+# Feature 017: the TXT fixtures keep their line ends (CR LF, LF) and encodings byte for byte.
+tests/fixtures/txt/** -text
+# Feature 017 (PD2): the WHATWG index files are the Standard's bytes - make-tables.py and the core's tests
+# read them as published, so no checkout converts their line endings.
+third_party/whatwg-encoding/** -text

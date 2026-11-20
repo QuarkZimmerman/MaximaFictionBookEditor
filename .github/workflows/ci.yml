@@ -88,6 +88,10 @@ jobs:
         # docs/releases page exists while a pre-release part is set. tools/version-check.py
         # mirrors cmake/MfbeVersion.cmake, which stays the authority.
         run: python3 tools/version-check.py --self-test && python3 tools/version-check.py --check
+      - name: TXT encodings' tables current with the WHATWG index files (feature 017, PD2)
+        # core/src/text/single_byte_tables.inc is generated from third_party/whatwg-encoding/;
+        # the check regenerates it in memory, offline, and fails when the committed file differs.
+        run: python3 tools/encodings/make-tables.py --check
       - name: Short list of changes per release (FR-075 of feature 007)
         # Every version of CHANGELOG.md starts with its "### In short" list, which the Release
         # workflow puts at the top of the release text; the dry run reads the current version's
@@ -372,7 +376,9 @@ jobs:
         # compiled into the core is the `core` job's workspace.
         if: runner.os != 'Linux'
         shell: bash
-        run: npx playwright test --grep @platform --pass-with-no-tests
+        # As a list only, as every later Playwright run of this job: the uploaded HTML report stays the
+        # journeys' one, with the trace of any failed attempt.
+        run: npx playwright test --grep @platform --pass-with-no-tests --reporter=list
         working-directory: ui
         env:
           MFBE_CORE_BIN: ${{ github.workspace }}/build/${{ matrix.preset }}/bin/${{ matrix.core_bin }}
@@ -396,7 +402,7 @@ jobs:
           sudo locale-gen ru_RU.UTF-8 uk_UA.UTF-8 en_US.UTF-8
           mkdir -p "$HOME_RU/tmp"
           HOME="$HOME_RU" TMPDIR="$HOME_RU/tmp" \
-            npx playwright test --project=chromium us2-template us1-open-save us5-find-modeless
+            npx playwright test --project=chromium us2-template us1-open-save us5-find-modeless --reporter=list
         working-directory: ui
         env:
           HOME_RU: /tmp/Пользователь
@@ -978,8 +984,11 @@ jobs:
               MFBE_SMOKE_USER_FOLDERS_ROOT="$uf_image.$layout/user" \
               MFBE_SMOKE_SCREENSHOT="build/shell-smoke-appimage-$layout.png" tools/shell-smoke.sh
           done
-          # The deb, installed as a user installs it, with the user items in the per-user data folder.
-          sudo apt-get install -y "$(realpath "$deb")"
+          # The deb, installed as a user installs it, with the user items in the per-user data folder. Its one
+          # dependency comes from the Ubuntu mirrors, which hosted runners sometimes cannot reach: once more after
+          # an apt-get update (as the vcpkg downloads are retried).
+          sudo apt-get install -y "$(realpath "$deb")" ||
+            { echo "::warning::apt-get install failed once, retrying"; sleep 20; sudo apt-get update; sudo apt-get install -y "$(realpath "$deb")"; }
           MFBE_APP_BIN=/usr/bin/mfbe MFBE_SMOKE_REAL_UI=1 MFBE_SMOKE_USER_FOLDERS=1 \
             MFBE_SMOKE_SCREENSHOT=build/shell-smoke-deb-user.png tools/shell-smoke.sh
           sudo apt-get remove -y mfbe

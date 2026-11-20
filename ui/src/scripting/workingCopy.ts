@@ -18,7 +18,7 @@
 
 import type { ModelNodeJson } from '@/editor/fromModel';
 import type { Description, Document } from '@/model/document';
-import { withSchemaPersons } from '@/views/description/model';
+import { keepPassedThroughLastNames, withSchemaPersons } from '@/views/description/model';
 
 /** Where a node lies: its parent (null for a body), the children list holding it and its index. */
 export interface NodePlace {
@@ -163,9 +163,17 @@ export class WorkingCopy {
     this.touch();
   }
 
-  /** Feature 011 (FR-003): a script's or the assistant's description, its persons in the schema's forms. */
+  /**
+   * Feature 011 (FR-003): a script's or the assistant's description, its persons in the schema's forms - but a
+   * person it passes through untouched keeps an absent last name absent (smoke test of rc.4).
+   */
   setDescription(description: Description): void {
-    this.ownDocument().description = withSchemaPersons(description);
+    const own = this.ownDocument();
+    own.description = keepPassedThroughLastNames(
+      own.description,
+      description,
+      withSchemaPersons(description),
+    );
     this.touch();
   }
 

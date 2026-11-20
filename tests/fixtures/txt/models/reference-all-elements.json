@@ -1,0 +1,1082 @@
+{
+ "binaries": [
+  {
+   "contentType": "image/jpeg",
+   "decodable": true,
+   "height": 6,
+   "id": "pic-jpg",
+   "referenceCount": 1,
+   "size": 376,
+   "width": 8,
+   "willConvert": false
+  },
+  {
+   "contentType": "image/png",
+   "decodable": true,
+   "height": 6,
+   "id": "pic-png",
+   "referenceCount": 2,
+   "size": 89,
+   "width": 8,
+   "willConvert": false
+  },
+  {
+   "contentType": "image/jpeg",
+   "decodable": true,
+   "height": 6,
+   "id": "cover",
+   "referenceCount": 1,
+   "size": 376,
+   "width": 8,
+   "willConvert": false
+  }
+ ],
+ "bodies": [
+  {
+   "attrs": {
+    "nodeId": "n1"
+   },
+   "content": [
+    {
+     "attrs": {
+      "alt": "Body picture",
+      "href": "#pic-jpg",
+      "nodeId": "n2",
+      "title": "The body picture's caption"
+     },
+     "type": "image"
+    },
+    {
+     "attrs": {
+      "nodeId": "n3"
+     },
+     "content": [
+      {
+       "attrs": {
+        "nodeId": "n4"
+       },
+       "content": [
+        {
+         "text": "Anna Example",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n5"
+       },
+       "content": [
+        {
+         "text": "The Reference Book",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      }
+     ],
+     "type": "title"
+    },
+    {
+     "attrs": {
+      "nodeId": "n6"
+     },
+     "content": [
+      {
+       "attrs": {
+        "nodeId": "n7"
+       },
+       "content": [
+        {
+         "text": "An epigraph of the body.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n8"
+       },
+       "content": [
+        {
+         "text": "Someone Wise",
+         "type": "text"
+        }
+       ],
+       "type": "text-author"
+      }
+     ],
+     "type": "epigraph"
+    },
+    {
+     "attrs": {
+      "id": "ch1",
+      "nodeId": "n9"
+     },
+     "content": [
+      {
+       "attrs": {
+        "nodeId": "n10"
+       },
+       "content": [
+        {
+         "attrs": {
+          "nodeId": "n11"
+         },
+         "content": [
+          {
+           "text": "Chapter One",
+           "type": "text"
+          }
+         ],
+         "type": "p"
+        },
+        {
+         "attrs": {
+          "nodeId": "n12"
+         },
+         "content": [
+          {
+           "text": "with a second title line",
+           "type": "text"
+          }
+         ],
+         "type": "p"
+        }
+       ],
+       "type": "title"
+      },
+      {
+       "attrs": {
+        "nodeId": "n13"
+       },
+       "content": [
+        {
+         "attrs": {
+          "nodeId": "n14"
+         },
+         "content": [
+          {
+           "text": "A chapter epigraph.",
+           "type": "text"
+          }
+         ],
+         "type": "p"
+        }
+       ],
+       "type": "epigraph"
+      },
+      {
+       "attrs": {
+        "alt": "A section picture",
+        "href": "#pic-png",
+        "nodeId": "n15",
+        "title": "A caption under the picture"
+       },
+       "type": "image"
+      },
+      {
+       "attrs": {
+        "nodeId": "n16"
+       },
+       "content": [
+        {
+         "attrs": {
+          "nodeId": "n17"
+         },
+         "content": [
+          {
+           "text": "A section annotation.",
+           "type": "text"
+          }
+         ],
+         "type": "p"
+        }
+       ],
+       "type": "annotation"
+      },
+      {
+       "attrs": {
+        "id": "p1",
+        "nodeId": "n18"
+       },
+       "content": [
+        {
+         "text": "Plain, ",
+         "type": "text"
+        },
+        {
+         "marks": [
+          {
+           "type": "strong"
+          }
+         ],
+         "text": "strong",
+         "type": "text"
+        },
+        {
+         "text": ", ",
+         "type": "text"
+        },
+        {
+         "marks": [
+          {
+           "type": "emphasis"
+          }
+         ],
+         "text": "emphasis",
+         "type": "text"
+        },
+        {
+         "text": ", ",
+         "type": "text"
+        },
+        {
+         "marks": [
+          {
+           "type": "strikethrough"
+          }
+         ],
+         "text": "struck",
+         "type": "text"
+        },
+        {
+         "text": ", H",
+         "type": "text"
+        },
+        {
+         "marks": [
+          {
+           "type": "sub"
+          }
+         ],
+         "text": "2",
+         "type": "text"
+        },
+        {
+         "text": "O, x",
+         "type": "text"
+        },
+        {
+         "marks": [
+          {
+           "type": "sup"
+          }
+         ],
+         "text": "2",
+         "type": "text"
+        },
+        {
+         "text": ", ",
+         "type": "text"
+        },
+        {
+         "marks": [
+          {
+           "type": "code"
+          }
+         ],
+         "text": "code()",
+         "type": "text"
+        },
+        {
+         "text": ", ",
+         "type": "text"
+        },
+        {
+         "marks": [
+          {
+           "attrs": {
+            "name": "smallcaps"
+           },
+           "type": "style"
+          }
+         ],
+         "text": "small caps",
+         "type": "text"
+        },
+        {
+         "text": " and an inline ",
+         "type": "text"
+        },
+        {
+         "attrs": {
+          "alt": "inline",
+          "href": "#pic-png",
+          "nodeId": "n19"
+         },
+         "type": "inline-image"
+        },
+        {
+         "text": " picture.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n20"
+       },
+       "content": [
+        {
+         "text": "A note",
+         "type": "text"
+        },
+        {
+         "marks": [
+          {
+           "attrs": {
+            "href": "#n1",
+            "type": "note"
+           },
+           "type": "link"
+          }
+         ],
+         "text": "[1]",
+         "type": "text"
+        },
+        {
+         "text": ", a second note",
+         "type": "text"
+        },
+        {
+         "marks": [
+          {
+           "attrs": {
+            "href": "#n2",
+            "type": "note"
+           },
+           "type": "link"
+          }
+         ],
+         "text": "[2]",
+         "type": "text"
+        },
+        {
+         "text": ", a link to ",
+         "type": "text"
+        },
+        {
+         "marks": [
+          {
+           "attrs": {
+            "href": "#ch2"
+           },
+           "type": "link"
+          }
+         ],
+         "text": "chapter two",
+         "type": "text"
+        },
+        {
+         "text": " and to ",
+         "type": "text"
+        },
+        {
+         "marks": [
+          {
+           "attrs": {
+            "href": "https://example.com/"
+           },
+           "type": "link"
+          }
+         ],
+         "text": "a web page",
+         "type": "text"
+        },
+        {
+         "text": ".",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n21",
+        "style": "letter"
+       },
+       "content": [
+        {
+         "text": "A paragraph in the named style letter.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      },
+      {
+       "attrs": {
+        "nodeId": "n22"
+       },
+       "type": "empty-line"
+      },
+      {
+       "attrs": {
+        "nodeId": "n23"
+       },
+       "content": [
+        {
+         "text": "A subtitle",
+         "type": "text"
+        }
+       ],
+       "type": "subtitle"
+      },
+      {
+       "attrs": {
+        "nodeId": "n24"
+       },
+       "content": [
+        {
+         "attrs": {
+          "nodeId": "n25"
+         },
+         "content": [
+          {
+           "text": "A quotation.",
+           "type": "text"
+          }
+         ],
+         "type": "p"
+        },
+        {
+         "attrs": {
+          "nodeId": "n26"
+         },
+         "content": [
+          {
+           "text": "Its Author",
+           "type": "text"
+          }
+         ],
+         "type": "text-author"
+        }
+       ],
+       "type": "cite"
+      },
+      {
+       "attrs": {
+        "nodeId": "n27"
+       },
+       "content": [
+        {
+         "attrs": {
+          "nodeId": "n28"
+         },
+         "content": [
+          {
+           "attrs": {
+            "nodeId": "n29"
+           },
+           "content": [
+            {
+             "text": "A Poem",
+             "type": "text"
+            }
+           ],
+           "type": "p"
+          }
+         ],
+         "type": "title"
+        },
+        {
+         "attrs": {
+          "nodeId": "n30"
+         },
+         "content": [
+          {
+           "attrs": {
+            "nodeId": "n31"
+           },
+           "content": [
+            {
+             "text": "The poem's epigraph.",
+             "type": "text"
+            }
+           ],
+           "type": "p"
+          }
+         ],
+         "type": "epigraph"
+        },
+        {
+         "attrs": {
+          "nodeId": "n32"
+         },
+         "content": [
+          {
+           "attrs": {
+            "nodeId": "n33"
+           },
+           "content": [
+            {
+             "attrs": {
+              "nodeId": "n34"
+             },
+             "content": [
+              {
+               "text": "Stanza one",
+               "type": "text"
+              }
+             ],
+             "type": "p"
+            }
+           ],
+           "type": "title"
+          },
+          {
+           "attrs": {
+            "nodeId": "n35"
+           },
+           "content": [
+            {
+             "text": "Its subtitle",
+             "type": "text"
+            }
+           ],
+           "type": "subtitle"
+          },
+          {
+           "attrs": {
+            "nodeId": "n36"
+           },
+           "content": [
+            {
+             "text": "First verse line,",
+             "type": "text"
+            }
+           ],
+           "type": "v"
+          },
+          {
+           "attrs": {
+            "nodeId": "n37"
+           },
+           "content": [
+            {
+             "text": "second verse line.",
+             "type": "text"
+            }
+           ],
+           "type": "v"
+          }
+         ],
+         "type": "stanza"
+        },
+        {
+         "attrs": {
+          "nodeId": "n38"
+         },
+         "content": [
+          {
+           "attrs": {
+            "nodeId": "n39"
+           },
+           "content": [
+            {
+             "text": "Another stanza.",
+             "type": "text"
+            }
+           ],
+           "type": "v"
+          }
+         ],
+         "type": "stanza"
+        },
+        {
+         "attrs": {
+          "nodeId": "n40"
+         },
+         "content": [
+          {
+           "text": "The Poet",
+           "type": "text"
+          }
+         ],
+         "type": "text-author"
+        },
+        {
+         "attrs": {
+          "nodeId": "n41",
+          "value": "2026-01-01"
+         },
+         "content": [
+          {
+           "text": "1 January 2026",
+           "type": "text"
+          }
+         ],
+         "type": "date"
+        }
+       ],
+       "type": "poem"
+      },
+      {
+       "attrs": {
+        "nodeId": "n42"
+       },
+       "content": [
+        {
+         "attrs": {
+          "nodeId": "n43"
+         },
+         "content": [
+          {
+           "attrs": {
+            "nodeId": "n44"
+           },
+           "content": [
+            {
+             "text": "Head A",
+             "type": "text"
+            }
+           ],
+           "type": "th"
+          },
+          {
+           "attrs": {
+            "align": "center",
+            "nodeId": "n45"
+           },
+           "content": [
+            {
+             "text": "Head B",
+             "type": "text"
+            }
+           ],
+           "type": "th"
+          }
+         ],
+         "type": "tr"
+        },
+        {
+         "attrs": {
+          "nodeId": "n46"
+         },
+         "content": [
+          {
+           "attrs": {
+            "align": "right",
+            "colspan": 2,
+            "nodeId": "n47"
+           },
+           "content": [
+            {
+             "text": "Two columns",
+             "type": "text"
+            }
+           ],
+           "type": "td"
+          }
+         ],
+         "type": "tr"
+        },
+        {
+         "attrs": {
+          "nodeId": "n48"
+         },
+         "content": [
+          {
+           "attrs": {
+            "nodeId": "n49",
+            "rowspan": 2,
+            "valign": "middle"
+           },
+           "content": [
+            {
+             "text": "Two rows",
+             "type": "text"
+            }
+           ],
+           "type": "td"
+          },
+          {
+           "attrs": {
+            "nodeId": "n50"
+           },
+           "content": [
+            {
+             "text": "Cell",
+             "type": "text"
+            }
+           ],
+           "type": "td"
+          }
+         ],
+         "type": "tr"
+        },
+        {
+         "attrs": {
+          "nodeId": "n51"
+         },
+         "content": [
+          {
+           "attrs": {
+            "nodeId": "n52"
+           },
+           "content": [
+            {
+             "text": "Cell",
+             "type": "text"
+            }
+           ],
+           "type": "td"
+          }
+         ],
+         "type": "tr"
+        }
+       ],
+       "type": "table"
+      }
+     ],
+     "type": "section"
+    },
+    {
+     "attrs": {
+      "id": "part2",
+      "nodeId": "n53"
+     },
+     "content": [
+      {
+       "attrs": {
+        "nodeId": "n54"
+       },
+       "content": [
+        {
+         "attrs": {
+          "nodeId": "n55"
+         },
+         "content": [
+          {
+           "text": "Part Two",
+           "type": "text"
+          }
+         ],
+         "type": "p"
+        }
+       ],
+       "type": "title"
+      },
+      {
+       "attrs": {
+        "id": "ch2-1",
+        "nodeId": "n56"
+       },
+       "content": [
+        {
+         "attrs": {
+          "nodeId": "n57"
+         },
+         "content": [
+          {
+           "attrs": {
+            "nodeId": "n58"
+           },
+           "content": [
+            {
+             "text": "A subsection",
+             "type": "text"
+            }
+           ],
+           "type": "p"
+          }
+         ],
+         "type": "title"
+        },
+        {
+         "attrs": {
+          "lang": "de",
+          "nodeId": "n59"
+         },
+         "content": [
+          {
+           "text": "Ein deutscher Absatz.",
+           "type": "text"
+          }
+         ],
+         "type": "p"
+        }
+       ],
+       "type": "section"
+      },
+      {
+       "attrs": {
+        "id": "ch2",
+        "nodeId": "n60"
+       },
+       "content": [
+        {
+         "attrs": {
+          "nodeId": "n61"
+         },
+         "content": [
+          {
+           "attrs": {
+            "nodeId": "n62"
+           },
+           "content": [
+            {
+             "text": "Chapter Two",
+             "type": "text"
+            }
+           ],
+           "type": "p"
+          }
+         ],
+         "type": "title"
+        },
+        {
+         "attrs": {
+          "nodeId": "n63"
+         },
+         "content": [
+          {
+           "text": "The last chapter.",
+           "type": "text"
+          }
+         ],
+         "type": "p"
+        }
+       ],
+       "type": "section"
+      }
+     ],
+     "type": "section"
+    }
+   ],
+   "type": "body"
+  },
+  {
+   "attrs": {
+    "name": "notes",
+    "nodeId": "n64"
+   },
+   "content": [
+    {
+     "attrs": {
+      "nodeId": "n65"
+     },
+     "content": [
+      {
+       "attrs": {
+        "nodeId": "n66"
+       },
+       "content": [
+        {
+         "text": "Notes",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      }
+     ],
+     "type": "title"
+    },
+    {
+     "attrs": {
+      "id": "n1",
+      "nodeId": "n67"
+     },
+     "content": [
+      {
+       "attrs": {
+        "nodeId": "n68"
+       },
+       "content": [
+        {
+         "attrs": {
+          "nodeId": "n69"
+         },
+         "content": [
+          {
+           "text": "1",
+           "type": "text"
+          }
+         ],
+         "type": "p"
+        }
+       ],
+       "type": "title"
+      },
+      {
+       "attrs": {
+        "nodeId": "n70"
+       },
+       "content": [
+        {
+         "text": "The first note.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      }
+     ],
+     "type": "section"
+    },
+    {
+     "attrs": {
+      "id": "n2",
+      "nodeId": "n71"
+     },
+     "content": [
+      {
+       "attrs": {
+        "nodeId": "n72"
+       },
+       "content": [
+        {
+         "attrs": {
+          "nodeId": "n73"
+         },
+         "content": [
+          {
+           "text": "2",
+           "type": "text"
+          }
+         ],
+         "type": "p"
+        }
+       ],
+       "type": "title"
+      },
+      {
+       "attrs": {
+        "nodeId": "n74"
+       },
+       "content": [
+        {
+         "text": "The second note.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      }
+     ],
+     "type": "section"
+    }
+   ],
+   "type": "body"
+  }
+ ],
+ "description": {
+  "customInfo": [
+   {
+    "infoType": "mlillustrator",
+    "text": "Van_Gogh Vincent"
+   },
+   {
+    "infoType": "mleditor",
+    "text": "Редактор Ю."
+   }
+  ],
+  "documentInfo": {
+   "authors": [
+    {
+     "emails": [],
+     "homePages": [],
+     "nickname": "fixture"
+    }
+   ],
+   "date": {
+    "text": "2026",
+    "value": "2026-11-10"
+   },
+   "id": "5b0e8a52-3c1d-4f6e-9a7b-2c8d4e6f8a10",
+   "programUsed": "Maxima Fiction Book Editor 0.0.12-rc",
+   "publishers": [],
+   "srcUrls": [],
+   "version": "1.0"
+  },
+  "outputs": [],
+  "publishInfo": {
+   "bookName": "The Reference Book",
+   "city": "Kyiv",
+   "isbn": "978-0-00-000000-2",
+   "publisher": "Example Press",
+   "sequences": [],
+   "year": "2026"
+  },
+  "titleInfo": {
+   "annotation": {
+    "attrs": {
+     "nodeId": "n75"
+    },
+    "content": [
+     {
+      "attrs": {
+       "nodeId": "n76"
+      },
+      "content": [
+       {
+        "text": "The annotation of the reference book.",
+        "type": "text"
+       }
+      ],
+      "type": "p"
+     }
+    ],
+    "type": "annotation"
+   },
+   "authors": [
+    {
+     "emails": [],
+     "firstName": "Anna",
+     "homePages": [],
+     "lastName": "Example",
+     "middleName": "B."
+    }
+   ],
+   "bookTitle": "The Reference Book",
+   "coverpage": [
+    {
+     "href": "#cover"
+    }
+   ],
+   "date": {
+    "text": "2026",
+    "value": "2026-11-10"
+   },
+   "genres": [
+    {
+     "code": "sf_fantasy"
+    }
+   ],
+   "keywords": "reference, export, epub",
+   "lang": "en",
+   "sequences": [
+    {
+     "children": [],
+     "name": "The Series",
+     "number": 3
+    }
+   ],
+   "srcLang": "en",
+   "translators": [
+    {
+     "emails": [],
+     "firstName": "Peter",
+     "homePages": [],
+     "lastName": "Translator"
+    }
+   ]
+  }
+ },
+ "docId": "golden",
+ "extras": [],
+ "fileKind": "fb2",
+ "filledIn": [
+  "documentInfo.programUsed"
+ ],
+ "modelVersion": 1,
+ "schemaHint": "2.1",
+ "sourceEncoding": "utf-8",
+ "stylesheets": [
+  {
+   "content": "p { text-indent: 2em; }\n.letter { font-style: italic; text-align: right; }\nepigraph { font-size: 80%; }\n.smallcaps { font-variant: small-caps; }",
+   "type": "text/css"
+  }
+ ]
+}

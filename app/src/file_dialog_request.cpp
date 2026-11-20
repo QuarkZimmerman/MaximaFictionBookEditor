@@ -143,6 +143,78 @@ ProposedFile proposedFile(const FileDialogRequest& request) {
             mfbe::platform::utf8_from_path(path.filename())};
 }
 
+namespace {
+
+bool endsWithNoCase(const std::string& text, const std::string& ending) {
+    if (text.size() < ending.size()) {
+        return false;
+    }
+    for (std::size_t i = 0; i < ending.size(); ++i) {
+        char a = text[text.size() - ending.size() + i];
+        char b = ending[i];
+        if (a >= 'A' && a <= 'Z')
+            a = static_cast<char>(a - 'A' + 'a');
+        if (b >= 'A' && b <= 'Z')
+            b = static_cast<char>(b - 'A' + 'a');
+        if (a != b) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// The plain type's extension ("txt"): its first one; "" for all files or no type.
+std::string plainExtension(const FileDialogRequest& request) {
+    const std::size_t plain = zipFollowFilter(request, false);
+    if (plain >= request.filters.size() || request.filters[plain].extensions.empty()) {
+        return {};
+    }
+    const std::string extension = bareExtension(request.filters[plain].extensions.front());
+    return extension == "*" ? std::string() : extension;
+}
+
+}  // namespace
+
+std::string zipFollowName(const FileDialogRequest& request, const std::string& name, bool zip) {
+    using Rule = FileDialogRequest::ZipRename;
+    if (name.empty() || request.zip_rename == Rule::kNone) {
+        return name;
+    }
+    const bool zipped = endsWithNoCase(name, ".zip");
+    const std::string plain = plainExtension(request);
+    if (request.zip_rename == Rule::kAppend) {
+        if (zip) {
+            return zipped ? name : name + ".zip";
+        }
+        return zipped ? name.substr(0, name.size() - 4) : name;
+    }
+    if (zip) {
+        if (zipped) {
+            return name;
+        }
+        if (!plain.empty() && endsWithNoCase(name, "." + plain)) {
+            return name.substr(0, name.size() - plain.size() - 1) + ".zip";
+        }
+        return name + ".zip";
+    }
+    if (!zipped) {
+        return name;
+    }
+    const std::string stem = name.substr(0, name.size() - 4);
+    return plain.empty() ? stem : stem + "." + plain;
+}
+
+std::size_t zipFollowFilter(const FileDialogRequest& request, bool zip) {
+    const int zip_type = request.zip_filter;
+    const bool has_zip =
+        zip_type >= 0 && static_cast<std::size_t>(zip_type) < request.filters.size();
+    if (zip && has_zip) {
+        return static_cast<std::size_t>(zip_type);
+    }
+    const std::size_t selected = selectedFilterIndex(request);
+    return has_zip && selected == static_cast<std::size_t>(zip_type) ? 0 : selected;
+}
+
 std::string encodingLabel(const std::string& language) {
     if (language.rfind("ru", 0) == 0) {
         return "Кодировка:";

@@ -35,6 +35,7 @@ packages/
 
 # Test artefacts
 tests/corpus/sample-*.txt
+tests/corpus/txt-library.txt
 tests/corpus/out/
 tests/bench/results/
 tests/bench/books/

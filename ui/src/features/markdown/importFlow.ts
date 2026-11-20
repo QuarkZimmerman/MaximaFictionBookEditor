@@ -27,6 +27,12 @@ function parts(path: string): { folder: string; stem: string } {
   return { folder: at >= 0 ? path.slice(0, at) : '', stem: name.replace(/\.(md|markdown)$/i, '') };
 }
 
+/** Feature 017 (D39): the editor's own Markdown - its front matter holds the `document` block with an `id`. */
+export function isOwnMarkdown(text: string): boolean {
+  const front = /^\uFEFF?---\r?\n([\s\S]*?)\r?\n---\r?\n/.exec(text)?.[1] ?? '';
+  return /^document:\s*$[\s\S]*?^\s+id:\s*\S/m.test(front);
+}
+
 async function readText(ctx: CommandContext, path: string): Promise<MarkdownText | null> {
   const rpc = ctx.rpc!;
   const first = await rpc.call('import.readMarkdown', { path });
@@ -205,7 +211,19 @@ export async function importMarkdown(ctx: CommandContext, files: FileFeature): P
       xml: buildBook(templateXml, { ...result, bodyXml, notesXml, stylesheets }),
       origin: { kind: 'markdown', path },
     });
-    await files.loadImported(ctx, opened.document, path);
+    // Feature 017 (D39): a Markdown file the editor did not make takes the FBD lying beside it with its
+    // name, without a question - the whole description, cover included (D34). The editor's own Markdown
+    // carries its description in its front matter, with the `document` block the export always writes.
+    let book = opened.document;
+    if (!isOwnMarkdown(text.text)) {
+      const beside = await rpc.call('files.fbdBeside', { path }).catch(() => ({ path: undefined }));
+      if (beside.path) {
+        const { withFbd } = await import('@/features/importShared/fbdApply');
+        const applied = await withFbd(ctx, opened.document.docId, book, beside.path);
+        if (!applied.error) book = { ...book, ...applied.document };
+      }
+    }
+    await files.loadImported(ctx, book);
     const outcome = await addPictures(rpc, opened.document.docId, result.pictures, result.chars);
     for (const { id, picture } of drawn) {
       try {

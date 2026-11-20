@@ -81,10 +81,15 @@ TEST_CASE("encodings: Latin tables round-trip their repertoire", "[encodings]") 
 
 TEST_CASE("encodings: unmappable characters become U+FFFD on input and char refs on output",
           "[encodings]") {
-    // 0x98 is undefined in windows-1251.
+    // Feature 017 (DP-3, the requester's decision of 2026-11-17): the tables are the WHATWG
+    // Encoding Standard's, which reads windows-1251's 0x98 - undefined by Microsoft - as the C1
+    // control U+0098, as browsers do; invalid UTF-8 still becomes U+FFFD.
     const auto decoded = encoding::decode_to_utf8(std::string("a\x98z", 3), "windows-1251");
-    CHECK(decoded.replacements == 1);
-    CHECK(decoded.utf8 == "a\xEF\xBF\xBDz");
+    CHECK(decoded.replacements == 0);
+    CHECK(decoded.utf8 == "a\xC2\x98z");
+    const auto invalid = encoding::decode_to_utf8(std::string("a\xFFz", 3), "utf-8");
+    CHECK(invalid.replacements == 1);
+    CHECK(invalid.utf8 == "a\xEF\xBF\xBDz");
     // Chinese cannot be written in KOI8-R: numeric character references keep the text.
     const auto encoded = encoding::encode_from_utf8("Текст 漢字", "koi8-r");
     CHECK(encoded.unmappable == 2);

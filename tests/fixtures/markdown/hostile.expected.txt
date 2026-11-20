@@ -33,7 +33,6 @@
 <p>                                                                                                                    • level 29</p>
 <p><a l:href="#loop">loop</a> [js](javascript:alert(1)) </p>
 <p>####### not a heading</p>
-<subtitle>* * *</subtitle>
 </section>
 </body>
 
@@ -61,6 +60,10 @@
     {
       "kind": "htmlTag",
       "detail": "iframe"
+    },
+    {
+      "kind": "edgeBreak",
+      "detail": "1"
     }
   ],
   "stats": {

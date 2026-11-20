@@ -1,0 +1,133 @@
+{
+ "binaries": [],
+ "bodies": [
+  {
+   "attrs": {
+    "nodeId": "n1"
+   },
+   "content": [
+    {
+     "attrs": {
+      "nodeId": "n2"
+     },
+     "content": [
+      {
+       "attrs": {
+        "nodeId": "n3"
+       },
+       "content": [
+        {
+         "text": "Ein Text mit Anmerkung",
+         "type": "text"
+        },
+        {
+         "marks": [
+          {
+           "attrs": {
+            "href": "#n1",
+            "type": "note"
+           },
+           "type": "link"
+          }
+         ],
+         "text": "1",
+         "type": "text"
+        },
+        {
+         "text": ".",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      }
+     ],
+     "type": "section"
+    }
+   ],
+   "type": "body"
+  },
+  {
+   "attrs": {
+    "name": "notes",
+    "nodeId": "n4"
+   },
+   "content": [
+    {
+     "attrs": {
+      "id": "n1",
+      "nodeId": "n5"
+     },
+     "content": [
+      {
+       "attrs": {
+        "nodeId": "n6"
+       },
+       "content": [
+        {
+         "text": "Die Anmerkung.",
+         "type": "text"
+        }
+       ],
+       "type": "p"
+      }
+     ],
+     "type": "section"
+    }
+   ],
+   "type": "body"
+  }
+ ],
+ "description": {
+  "customInfo": [],
+  "documentInfo": {
+   "authors": [
+    {
+     "emails": [],
+     "homePages": [],
+     "nickname": "fixture"
+    }
+   ],
+   "date": {
+    "text": "2026",
+    "value": "2026-11-10"
+   },
+   "id": "f012-de",
+   "programUsed": "Maxima Fiction Book Editor 0.0.12-rc",
+   "publishers": [],
+   "srcUrls": [],
+   "version": "1.0"
+  },
+  "outputs": [],
+  "titleInfo": {
+   "authors": [
+    {
+     "emails": [],
+     "firstName": "Anna",
+     "homePages": [],
+     "lastName": "Example",
+     "middleName": "B."
+    }
+   ],
+   "bookTitle": "Ein Buch",
+   "coverpage": [],
+   "genres": [
+    {
+     "code": "sf_fantasy"
+    }
+   ],
+   "lang": "de",
+   "sequences": [],
+   "translators": []
+  }
+ },
+ "docId": "golden",
+ "extras": [],
+ "fileKind": "fb2",
+ "filledIn": [
+  "documentInfo.programUsed"
+ ],
+ "modelVersion": 1,
+ "schemaHint": "2.1",
+ "sourceEncoding": "utf-8",
+ "stylesheets": []
+}

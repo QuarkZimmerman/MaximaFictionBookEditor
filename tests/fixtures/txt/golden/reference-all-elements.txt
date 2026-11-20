@@ -1,0 +1,91 @@
+The Reference Book
+(The Series #3)
+Anna B. Example
+
+The annotation of the reference book.
+
+
+[Image: Body picture]
+
+
+Anna Example
+The Reference Book
+
+An epigraph of the body.
+Someone Wise
+
+
+Chapter One
+with a second title line
+
+A chapter epigraph.
+
+[Image: A section picture]
+A section annotation.
+Plain, strong, emphasis, struck, H2O, x2, code(), small caps and an inline [Image: inline] picture.
+A note[1], a second note[2], a link to chapter two and to a web page <https://example.com/>.
+
+---------------- Note 1 ----------------
+The first note.
+----------------------------------------
+
+---------------- Note 2 ----------------
+The second note.
+----------------------------------------
+
+A paragraph in the named style letter.
+
+A subtitle
+
+A quotation.
+Its Author
+
+A Poem
+
+The poem's epigraph.
+
+Stanza one
+
+Its subtitle
+First verse line,
+second verse line.
+
+Another stanza.
+
+The Poet
+1 January 2026
+
+Head A	Head B
+Two columns
+Two rows	Cell
+Cell
+
+
+Part Two
+
+A subsection
+
+Ein deutscher Absatz.
+
+Chapter Two
+
+The last chapter.
+
+
+========================================
+Title: The Reference Book
+Series: The Series #3
+Author: Anna B. Example
+Translator: Peter Translator
+Illustrator: Vincent Van Gogh
+Editor: Ю. Редактор
+Genre: sf_fantasy
+Language: English
+Original language: English
+Date: 2026
+Keywords: reference, export, epub
+Publisher: Example Press
+City: Kyiv
+Year: 2026
+ISBN: 978-0-00-000000-2
+Made with Maxima Fiction Book Editor 0.0.12

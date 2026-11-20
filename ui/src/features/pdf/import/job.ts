@@ -5,6 +5,7 @@
  */
 
 import type { CommandContext } from '@/app/commands';
+import { brokenWordCandidate, knownWords } from '@/features/text/joinWords';
 import type { FileFeature } from '@/features/file/fileCommands';
 import type { ReadDescriptionResult } from '@/features/transfer/importEntries';
 import type { BinaryMeta } from '@/model/document';
@@ -18,7 +19,7 @@ import { loadDocument, loadPages } from './pages';
 import { flatten } from './parts';
 import { askFbd, fbdUnreadable } from './questions';
 import { guessLanguage, metadataDescription } from './describe';
-import { applyFbd, closeRead, readDescriptionFile } from './fbd';
+import { applyFbd, closeRead, readDescriptionFile } from '@/features/importShared/fbdApply';
 import { furnitureOf, layoutParts, linesOf } from './layout';
 import { fromLatin1, looksLatin1Cyrillic } from './mend';
 import { textBody } from './text';
@@ -63,6 +64,31 @@ export async function importPdf(
   try {
     // D22, D23 (FR-045): which FBD of the archive gives the description, asked before the pages are read.
     let fbd: string | null = null;
+    // Feature 017 (D39): a PDF the editor did not make, outside an archive, asks about the FBD lying beside
+    // it with its name - with the question an archive's matching FBD gets (016 D22).
+    let besidePath: string | null = null;
+    if (run.entry === undefined && run.fbds.length === 0) {
+      const beside = await rpc
+        .call('files.fbdBeside', { path: run.path })
+        .catch(() => ({ path: undefined }));
+      if (beside.path && !(await loadDocument(token)).record) {
+        modal.end();
+        const answer = await ctx.dialogs.showMessage({
+          text: ctx.t('pdfImport.fbd.takeIt', {
+            fbd: beside.path.slice(
+              Math.max(beside.path.lastIndexOf('/'), beside.path.lastIndexOf('\\')) + 1,
+            ),
+          }),
+          caption: ctx.t('pdfImport.importCaption'),
+          buttons: 'yesNoCancel',
+          icon: 'question',
+          testId: 'dialog-pdf-fbd-take',
+        });
+        modal = run.reopen();
+        if (answer === 'cancel') throw new Cancelled();
+        if (answer === 'yes') besidePath = beside.path;
+      }
+    }
     if (run.fbds.length > 0) {
       // The questions come above the window, not under the progress: it closes while they are asked.
       modal.end();
@@ -186,36 +212,26 @@ export async function importPdf(
       for (const model of models) {
         model.words.forEach((word, index) => {
           const next = model.words[index + 1];
-          if (next && /\p{L}-$/u.test(word.t))
-            candidates.add(`${word.t.slice(0, -1)}${next.t}`.replace(/[^\p{L}]/gu, ''));
+          const candidate = next ? brokenWordCandidate(word.t, next.t) : null;
+          if (candidate) candidates.add(candidate);
         });
       }
-      const knownWords = new Set<string>();
       // Every candidate is asked about, in batches the core takes (a long book has thousands; the first
       // thousand alone left most of them broken in D32's library run) - small ones, after each of which the
-      // bar moves (SC-010: a book of 1,102 pages stood still for 12 s here).
-      const BATCH = 250;
-      const batches = 3 * Math.max(1, Math.ceil(candidates.size / BATCH));
-      let asked = 0;
-      for (const code of ['en', 'ru', 'uk']) {
-        const list = [...candidates].filter((w) => !knownWords.has(w));
-        for (let at = 0; at < list.length; at += BATCH) {
-          check();
-          const batch = list.slice(at, at + BATCH);
-          const wrong = new Set(await misspelled(batch, code).catch(() => batch));
-          for (const word of batch) if (!wrong.has(word)) knownWords.add(word);
-          asked++;
-          modal.progress(
-            pages * 3 + Math.round((Math.min(asked, batches) / batches) * (pages / 2)),
-            total,
-          );
-        }
-      }
+      // bar moves (SC-010: a book of 1,102 pages stood still for 12 s here). Feature 017 (DP-13): the
+      // asking is the TXT import's too (features/text/joinWords.ts).
+      const knownWordSet = await knownWords(
+        candidates,
+        misspelled,
+        (asked, batches) =>
+          modal.progress(pages * 3 + Math.round((asked / batches) * (pages / 2)), total),
+        check,
+      );
       // ... and in the tags' text as in the layout's: joined where known, else the hyphen stays (D12).
       for (const run of taggedRuns)
         run.text = run.text
           .replace(BROKEN, (_all, head: string, tail: string) =>
-            knownWords.has(`${head}${tail}`) ? `${head}${tail}` : `${head}-${tail}`,
+            knownWordSet.has(`${head}${tail}`) ? `${head}${tail}` : `${head}-${tail}`,
           )
           .replace(/\u2063/g, '');
       const wordsOf = (texts: string[]): number =>
@@ -275,7 +291,7 @@ export async function importPdf(
           ? null
           : layoutParts(models, {
               outline: document.outline,
-              known: (word) => knownWords.has(word),
+              known: (word) => knownWordSet.has(word),
             });
       // Pages the tags leave out, wholly or in part (a back cover's text layer, a contents page), or whose words
       // their tags set apart letter by letter (D32's library run): read by the layout and set among the tags'
@@ -306,7 +322,7 @@ export async function importPdf(
             );
           const extra = layoutParts(untagged, {
             outline: [],
-            known: (word) => knownWords.has(word),
+            known: (word) => knownWordSet.has(word),
           }).parts;
           const merged: typeof tagged = [];
           let k = 0;
@@ -431,10 +447,12 @@ export async function importPdf(
     // D23: the FBD's description, every entry of it, as Import Description gives one to a new document.
     // D24: an FBD that cannot be read is said once the progress has closed.
     let fbdError: unknown = null;
-    if (fbd) {
+    if (fbd || besidePath) {
       let read: ReadDescriptionResult | null = null;
       try {
-        const { path } = await rpc.call('pdfImport.extractFbd', { token, entry: fbd });
+        const path = fbd
+          ? (await rpc.call('pdfImport.extractFbd', { token, entry: fbd })).path
+          : besidePath!;
         read = await readDescriptionFile(ctx, docId, path);
         book = { ...book, ...(await applyFbd(ctx, docId, book, read)) };
       } catch (error) {
@@ -446,9 +464,14 @@ export async function importPdf(
     await end();
     modal.progress(total, total);
     modal.end();
-    if (fbd && fbdError) await fbdUnreadable(ctx, fbd, fbdError);
+    const fbdName =
+      fbd ??
+      (besidePath
+        ? besidePath.slice(Math.max(besidePath.lastIndexOf('/'), besidePath.lastIndexOf('\\')) + 1)
+        : null);
+    if (fbdName && fbdError) await fbdUnreadable(ctx, fbdName, fbdError);
     await nextTask();
-    await files.loadImported(ctx, book, originPath);
+    await files.loadImported(ctx, book);
     docId = null;
     // The cover is no picture of the text, so the count leaves it out: the summary names it (the requester,
     // after his smoke test of rc.1: a book of a cover alone read as one without pictures).

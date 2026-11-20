@@ -535,7 +535,12 @@ TEST_CASE("doc handlers: files that are not FictionBook documents are refused (1
         REQUIRE(source.contains("error"));
         CHECK(source["error"]["code"] == 1004);
     }
-    CHECK(f.ws.call("doc.open", json{{"path", notes}})["error"]["data"]["reason"] == "notXml");
+    // Feature 017 (D35): a ".txt" is told by its name and pointed to the TXT import; another plain
+    // text file is no XML.
+    CHECK(f.ws.call("doc.open", json{{"path", notes}})["error"]["data"]["reason"] == "txt");
+    const std::string plain = (f.data / "notes.text").string();
+    test::write_text(plain, "Just a text file.\n");
+    CHECK(f.ws.call("doc.open", json{{"path", plain}})["error"]["data"]["reason"] == "notXml");
     CHECK(f.ws.call("doc.open", json{{"path", html}})["error"]["data"]["reason"] ==
           "rootNotFictionBook");
     // Nothing was opened or remembered.

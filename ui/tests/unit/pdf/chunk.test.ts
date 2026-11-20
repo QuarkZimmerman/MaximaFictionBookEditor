@@ -21,7 +21,7 @@ describe('the pdf chunk rule', () => {
   it('captures the export folder, and nothing else', () => {
     expect(isPdfExportModule(path.join(PDF, 'export', 'job.ts'))).toBe(true);
     expect(isPdfExportModule(`${path.join(PDF, 'export', 'paginator.ts')}?v=1`)).toBe(true);
-    for (const file of ['index.ts', 'pageSizes.ts', 'PageSizeDialog.tsx', 'keptPageSize.ts']) {
+    for (const file of ['index.ts', 'pageSizes.ts', 'PageSizeDialog.tsx']) {
       expect(isPdfExportModule(path.join(PDF, file)), file).toBe(false);
     }
     expect(isPdfExportModule(path.join(UI_ROOT, 'src', 'model', 'store.ts'))).toBe(false);

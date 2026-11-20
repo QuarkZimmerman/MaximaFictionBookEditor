@@ -116,6 +116,129 @@ std::string itemPath(IShellItem* item) {
     return utf8;
 }
 
+// The file name and type follow the ZIP box while the dialog is open (the requester after his smoke
+// test of 0.0.12-rc.4): its toggle renames the file and selects the ZIP type or the plain one;
+// choosing the ZIP type ticks the box, another type unticks it. The dialog holds the object while
+// it is advised (IFileDialog::Advise); its control events reach it through QueryInterface.
+class ZipFollower final : public IFileDialogEvents, public IFileDialogControlEvents {
+public:
+    explicit ZipFollower(const FileDialogRequest& request) : request_(request) {
+        plain_ = request;
+        plain_.selected_filter = static_cast<int>(zipFollowFilter(request, false));
+    }
+    ZipFollower(const ZipFollower&) = delete;
+    ZipFollower& operator=(const ZipFollower&) = delete;
+
+    IFACEMETHODIMP QueryInterface(REFIID riid, void** object) override {
+        if (object == nullptr) {
+            return E_POINTER;
+        }
+        if (riid == IID_IUnknown || riid == __uuidof(IFileDialogEvents)) {
+            *object = static_cast<IFileDialogEvents*>(this);
+        } else if (riid == __uuidof(IFileDialogControlEvents)) {
+            *object = static_cast<IFileDialogControlEvents*>(this);
+        } else {
+            *object = nullptr;
+            return E_NOINTERFACE;
+        }
+        AddRef();
+        return S_OK;
+    }
+    IFACEMETHODIMP_(ULONG) AddRef() override {
+        return static_cast<ULONG>(::InterlockedIncrement(&refs_));
+    }
+    IFACEMETHODIMP_(ULONG) Release() override {
+        const LONG left = ::InterlockedDecrement(&refs_);
+        if (left == 0) {
+            delete this;
+        }
+        return static_cast<ULONG>(left);
+    }
+
+    // IFileDialogEvents: only a type change matters; the rest keeps the dialog's own behaviour.
+    IFACEMETHODIMP OnFileOk(IFileDialog*) override { return S_OK; }
+    IFACEMETHODIMP OnFolderChanging(IFileDialog*, IShellItem*) override { return S_OK; }
+    IFACEMETHODIMP OnFolderChange(IFileDialog*) override { return S_OK; }
+    IFACEMETHODIMP OnSelectionChange(IFileDialog*) override { return S_OK; }
+    IFACEMETHODIMP OnShareViolation(IFileDialog*, IShellItem*,
+                                    FDE_SHAREVIOLATION_RESPONSE*) override {
+        return E_NOTIMPL;
+    }
+    IFACEMETHODIMP OnTypeChange(IFileDialog* dialog) override {
+        UINT type = 0;
+        if (following_ || request_.zip_filter < 0 || FAILED(dialog->GetFileTypeIndex(&type)) ||
+            type == 0) {
+            return S_OK;
+        }
+        const bool zip = static_cast<int>(type) - 1 == request_.zip_filter;
+        ComRef<IFileDialogCustomize> customize;
+        if (FAILED(dialog->QueryInterface(IID_PPV_ARGS(customize.put())))) {
+            return S_OK;
+        }
+        BOOL checked = FALSE;
+        customize->GetCheckButtonState(kZipCheck, &checked);
+        if ((checked == TRUE) != zip) {
+            following_ = true;
+            customize->SetCheckButtonState(kZipCheck, zip ? TRUE : FALSE);
+            rename(dialog, zip);
+            following_ = false;
+        }
+        return S_OK;
+    }
+    IFACEMETHODIMP OnOverwrite(IFileDialog*, IShellItem*, FDE_OVERWRITE_RESPONSE*) override {
+        return E_NOTIMPL;
+    }
+
+    // IFileDialogControlEvents: the ZIP box's toggle.
+    IFACEMETHODIMP OnItemSelected(IFileDialogCustomize*, DWORD, DWORD) override { return S_OK; }
+    IFACEMETHODIMP OnButtonClicked(IFileDialogCustomize*, DWORD) override { return S_OK; }
+    IFACEMETHODIMP OnCheckButtonToggled(IFileDialogCustomize* customize, DWORD id,
+                                        BOOL checked) override {
+        if (following_ || id != kZipCheck) {
+            return S_OK;
+        }
+        ComRef<IFileDialog> dialog;
+        if (FAILED(customize->QueryInterface(IID_PPV_ARGS(dialog.put())))) {
+            return S_OK;
+        }
+        const bool zip = checked == TRUE;
+        following_ = true;
+        rename(dialog.get(), zip);
+        if (request_.zip_filter >= 0) {
+            dialog->SetFileTypeIndex(static_cast<UINT>(zipFollowFilter(request_, zip) + 1));
+        }
+        following_ = false;
+        return S_OK;
+    }
+    IFACEMETHODIMP OnControlActivating(IFileDialogCustomize*, DWORD) override { return S_OK; }
+
+private:
+    ~ZipFollower() = default;
+
+    void rename(IFileDialog* dialog, bool zip) {
+        const std::string extension = zip ? std::string("zip") : defaultExtension(plain_);
+        if (!extension.empty()) {
+            dialog->SetDefaultExtension(wideText(extension).c_str());
+        }
+        PWSTR name = nullptr;
+        if (FAILED(dialog->GetFileName(&name)) || name == nullptr) {
+            return;
+        }
+        const std::string current = mfbe::platform::utf8_from_path(
+            std::filesystem::path(name));  // path-text: a wide file name from the Windows API
+        ::CoTaskMemFree(name);
+        const std::string renamed = zipFollowName(request_, current, zip);
+        if (renamed != current) {
+            dialog->SetFileName(wideText(renamed).c_str());
+        }
+    }
+
+    FileDialogRequest request_;
+    FileDialogRequest plain_;  // the request with its plain type selected (its default extension)
+    LONG refs_ = 1;
+    bool following_ = false;  // a change made here: its own event is not followed again
+};
+
 // Open and Save As: the user's documents folder while the client GUID keeps no folder.
 void defaultToDocuments(IFileDialog* dialog) {
     ComRef<IShellItem> documents;
@@ -273,8 +396,30 @@ bool showDialog(HWND owner, const FileDialogRequest& request, FileDialogResult& 
         customize->AddCheckButton(kZipCheck, wideText(request.zip_label).c_str(),
                                   request.zip_checked ? TRUE : FALSE);
     }
+    // Feature 017 (DP-5): further boxes, one check button each, ids after the ZIP box's.
+    const bool offers_checks = save && !request.checks.empty() &&
+                               (customize.get() != nullptr ||
+                                SUCCEEDED(dialog->QueryInterface(IID_PPV_ARGS(customize.put()))));
+    if (offers_checks) {
+        for (size_t i = 0; i < request.checks.size(); ++i) {
+            customize->AddCheckButton(static_cast<DWORD>(kZipCheck + 1 + i),
+                                      wideText(request.checks[i].label).c_str(),
+                                      request.checks[i].checked ? TRUE : FALSE);
+        }
+    }
 
-    if (FAILED(dialog->Show(owner))) {
+    DWORD follower_cookie = 0;
+    bool following = false;
+    if (offers_zip && request.zip_rename != FileDialogRequest::ZipRename::kNone) {
+        auto* follower = new ZipFollower(request);
+        following = SUCCEEDED(dialog->Advise(follower, &follower_cookie));
+        follower->Release();  // the dialog holds it while advised
+    }
+    const HRESULT shown = dialog->Show(owner);
+    if (following) {
+        dialog->Unadvise(follower_cookie);
+    }
+    if (FAILED(shown)) {
         return true;  // cancelled (ERROR_CANCELLED) or not shown: no file
     }
     collectResults(dialog.get(), request, result);
@@ -289,6 +434,14 @@ bool showDialog(HWND owner, const FileDialogRequest& request, FileDialogResult& 
         if (SUCCEEDED(customize->GetCheckButtonState(kZipCheck, &checked))) {
             result.zip = checked ? 1 : 0;
         }
+    }
+    if (offers_checks) {
+        for (size_t i = 0; i < request.checks.size(); ++i) {
+            BOOL checked = request.checks[i].checked ? TRUE : FALSE;
+            customize->GetCheckButtonState(static_cast<DWORD>(kZipCheck + 1 + i), &checked);
+            result.checks.emplace_back(request.checks[i].id, checked == TRUE);
+        }
+        result.checks_shown = true;
     }
     result.cancelled = result.paths.empty();
     return true;

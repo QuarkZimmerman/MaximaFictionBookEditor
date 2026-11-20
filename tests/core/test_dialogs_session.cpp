@@ -366,3 +366,25 @@ TEST_CASE("dialogs: the release service's answer becomes the latest release (fea
     CHECK(release_from_github(200, R"({"tag_name": "v1.0", "draft": true})").error == "format");
     CHECK_FALSE(release_from_github(200, R"(["tag_name"])").release);
 }
+
+TEST_CASE("dialog.saveFile carries further boxes and their answers (feature 017, DP-5)", "[dialogs]") {
+    const SaveFileRequest s = save_file_request_from_json(
+        json{{"title", "Export as TXT"},
+             {"checks", json::array({json{{"id", "bom"}, {"label", "Byte-order mark"}, {"checked", false}}})}});
+    REQUIRE(s.checks.size() == 1);
+    CHECK(s.checks[0].id == "bom");
+    CHECK(s.checks[0].label == "Byte-order mark");
+    CHECK_FALSE(s.checks[0].checked);
+    const json back = to_json(s);
+    REQUIRE(back.contains("checks"));
+    CHECK(back["checks"][0]["id"] == "bom");
+    const SaveFileResult answered =
+        save_file_result_from_json(json{{"path", "/tmp/a.txt"}, {"checks", json{{"bom", true}}}});
+    REQUIRE(answered.checks.has_value());
+    CHECK(answered.checks->front().first == "bom");
+    CHECK(answered.checks->front().second);
+    CHECK(to_json(answered)["checks"]["bom"] == true);
+    const SaveFileResult none = save_file_result_from_json(json{{"path", "/tmp/a.txt"}});
+    CHECK_FALSE(none.checks.has_value());
+    CHECK_FALSE(to_json(none).contains("checks"));
+}

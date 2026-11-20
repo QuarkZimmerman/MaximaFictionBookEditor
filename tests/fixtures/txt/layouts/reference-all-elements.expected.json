@@ -1,0 +1,32 @@
+{
+ "book": "reference-all-elements.fb2",
+ "paragraphs": [
+  "Anna Example",
+  "The Reference Book",
+  "An epigraph of the body.",
+  "Someone Wise",
+  "Chapter One",
+  "with a second title line",
+  "A chapter epigraph.",
+  "A section annotation.",
+  "Plain, strong, emphasis, struck, H2O, x2, code(), small caps and an inline picture.",
+  "A note[1], a second note[2], a link to chapter two and to a web page.",
+  "A paragraph in the named style letter.",
+  "A subtitle",
+  "A quotation.",
+  "Its Author",
+  "A Poem",
+  "The poem's epigraph.",
+  "Stanza one",
+  "Its subtitle",
+  "First verse line,",
+  "second verse line.",
+  "Another stanza.",
+  "The Poet",
+  "Part Two",
+  "A subsection",
+  "Ein deutscher Absatz.",
+  "Chapter Two",
+  "The last chapter."
+ ]
+}

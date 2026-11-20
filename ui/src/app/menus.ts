@@ -104,6 +104,7 @@ export const MAIN_MENU: readonly MenuSpec[] = [
           cmd('file.importMarkdown'),
           cmd('file.importEpub'),
           cmd('file.importPdf'),
+          cmd('file.importTxt'),
         ],
       },
       {
@@ -117,6 +118,7 @@ export const MAIN_MENU: readonly MenuSpec[] = [
           cmd('file.exportMarkdownZip'),
           cmd('file.exportEpub'),
           cmd('file.exportPdf'),
+          cmd('file.exportTxt'),
         ],
       },
       sep,

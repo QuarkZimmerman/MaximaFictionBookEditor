@@ -56,6 +56,10 @@ PDF_EXPORT=0
 EPUB_IMPORT=""
 PDF_ROUND_TRIP=0
 PDF_IMPORT=""
+TXT_EXPORT=0
+TXT_ROUND_TRIP=0
+TXT_LAYOUTS=0
+TXT_IMPORT=""
 while [ $# -gt 0 ]; do
     case "$1" in
         -j) JOBS="$2"; shift 2 ;;
@@ -67,6 +71,10 @@ while [ $# -gt 0 ]; do
         --epub-import) EPUB_IMPORT="$2"; shift 2 ;;
         --pdf-round-trip) PDF_ROUND_TRIP=1; shift ;;
         --pdf-import) PDF_IMPORT="$2"; shift 2 ;;
+        --txt-export) TXT_EXPORT=1; shift ;;
+        --txt-round-trip) TXT_ROUND_TRIP=1; shift ;;
+        --txt-layouts) TXT_LAYOUTS=1; shift ;;
+        --txt-import) TXT_IMPORT="$2"; shift 2 ;;
         --encoding) ENCODING="$2"; shift 2 ;;
         --save-hashes) SAVE_HASHES="$2"; shift 2 ;;
         --check-hashes) CHECK_HASHES="$2"; shift 2 ;;
@@ -297,6 +305,23 @@ fi
 # Feature 016 (D32): the PDF import runs.
 if [ "$PDF_ROUND_TRIP" = 1 ]; then
     python3 "$HERE/pdf-round-trip.py" "$SAMPLE" --out "$OUT/pdf-round-trip" --core "$CORE" || status=1
+fi
+# Feature 017 (D42): the TXT runs - the sample's TXT export (SC-002) and round trip (SC-003, SC-004, SC-007),
+# TXT files written from it in the five layouts of SC-005, and a list of text files imported (SC-006, SC-008).
+if [ "$TXT_EXPORT" = 1 ]; then
+    python3 "$HERE/txt-runs.py" export "$SAMPLE" --out "$OUT/txt-export" --core "$CORE" || status=1
+fi
+if [ "$TXT_ROUND_TRIP" = 1 ]; then
+    python3 "$HERE/txt-runs.py" round-trip "$SAMPLE" --out "$OUT/txt-round-trip" --core "$CORE" || status=1
+fi
+if [ "$TXT_LAYOUTS" = 1 ]; then
+    mkdir -p "$OUT/txt-layouts/files"
+    python3 "$HERE/../fixtures/txt/make-fixtures.py" --sample "$SAMPLE" --out "$OUT/txt-layouts/files" >/dev/null
+    find "$OUT/txt-layouts/files" -name '*.txt' | sort >"$OUT/txt-layouts/list.txt"
+    python3 "$HERE/txt-runs.py" layouts "$OUT/txt-layouts/list.txt" --out "$OUT/txt-layouts" --core "$CORE" || status=1
+fi
+if [ -n "$TXT_IMPORT" ]; then
+    python3 "$HERE/txt-runs.py" import "$TXT_IMPORT" --out "$OUT/txt-import" --core "$CORE" || status=1
 fi
 if [ -n "$PDF_IMPORT" ]; then
     python3 "$HERE/pdf-import.py" "$PDF_IMPORT" --out "$OUT/pdf-import" --core "$CORE" || status=1

@@ -400,7 +400,12 @@ const connectedWithDocument = (ctx: CommandContext): boolean =>
 
 /** Display name of the current document for prompts and the title bar. */
 export function currentDocumentName(ctx: Pick<CommandContext, 'store' | 't'>): string {
-  return documentFileName(ctx.store.getState()) ?? ctx.t('app.untitled');
+  const state = ctx.store.getState();
+  const name = documentFileName(state) ?? ctx.t('app.untitled');
+  // A book from a ZIP archive is named as the window title names it: the book, then its archive
+  // (the requester after his smoke test of 0.0.12-rc.4 - the book is what is unsaved).
+  const entry = state.document?.source?.entry;
+  return entry ? `${entry.slice(entry.lastIndexOf('/') + 1)} (${name})` : name;
 }
 
 /**

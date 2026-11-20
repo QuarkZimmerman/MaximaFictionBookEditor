@@ -23,11 +23,20 @@ struct TextReading {
 // The legacy encodings the judge weighs, in tie order.
 const std::vector<std::string>& legacy_candidates();
 
-// Reads `bytes` as text (see above).
+// Feature 017 (D26, DP-9): the TXT import's candidates - the encodings of D11's lists for English,
+// Russian and Ukrainian, in tie order.
+const std::vector<std::string>& txt_candidates();
+
+// Reads `bytes` as text (see above), the legacy encodings judged among legacy_candidates().
 TextReading read_text(std::string_view bytes);
 
-// `bytes` in `encoding` ("utf-8", a UTF-16 form or one of legacy_candidates()); nullopt when the
-// encoding is unknown or cannot read the bytes.
+// The same with other candidates (feature 017: txt_candidates()); candidates that read the bytes
+// alike count once, the earlier standing for both.
+TextReading read_text(std::string_view bytes, const std::vector<std::string>& candidates);
+
+// `bytes` in `encoding` ("utf-8", a UTF-16 form, one of legacy_candidates() or of the 28
+// single-byte encodings of feature 017); nullopt when the encoding is unknown or cannot read the
+// bytes.
 std::optional<std::string> decode_text(std::string_view bytes, std::string_view encoding);
 
 // True when the bytes look like a binary file rather than text: a NUL byte, or more than one

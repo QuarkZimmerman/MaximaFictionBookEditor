@@ -82,6 +82,37 @@ test.describe('US2 (feature 009) - books in ZIP archives', () => {
     await expect(page.locator('[data-testid="body-editor"]')).toContainText('ZIPPED1');
   });
 
+  test('rc.4 smoke: the unsaved-changes question names the book with its archive; Save As proposes the book itself', async ({
+    core,
+    page,
+  }) => {
+    // The requester's smoke test of 0.0.12-rc.4: the question named the archive, and Save As proposed a ZIP -
+    // "we are saving the book, it does not matter where it came from".
+    const archive = copyOf('single.fb2.zip', 'prompt.fb2.zip');
+    await core.openApp(page);
+    await openThroughDialog(core, page, archive);
+    await expect(page).toHaveTitle(`book.fb2 (prompt.fb2.zip) - ${APP_TITLE}`);
+    await editBody(page, 'PROMPT');
+    await page.getByTestId('toolbar-file.new').click();
+    await expect(page.getByTestId('dialog-save-changes-text')).toHaveText(
+      'Save changes to book.fb2 (prompt.fb2.zip)?',
+    );
+    await page.getByTestId('dialog-save-changes-button-cancel').click();
+    await core.enqueueDialog('dialog.saveFile', { path: '' });
+    await page.keyboard.press(`${MOD}+s`);
+    await expect
+      .poll(async () => (await core.rpc<Array<{ method?: string }>>('test.dialogRequests')).length)
+      .toBeGreaterThan(1);
+    // The core records each request as the dialog received it (dialog_provider.cpp, to_json).
+    const requests =
+      await core.rpc<
+        Array<{ method?: string; defaultPath?: string; zipChoice?: { checked: boolean } }>
+      >('test.dialogRequests');
+    const saveAs = requests.filter((request) => request.method === 'dialog.saveFile').at(-1);
+    expect(saveAs?.zipChoice?.checked).toBe(false);
+    expect(saveAs?.defaultPath).toBe(path.join(dir, 'book.fb2'));
+  });
+
   test('FR-016, FR-017. after a Source-view edit, Ctrl+S still asks Save As; the archive is never overwritten', async ({
     core,
     page,
@@ -211,7 +242,7 @@ test.describe('US2 (feature 009) - books in ZIP archives', () => {
     await expect.poll(() => readFileSync(plain, 'utf8').includes('AGAIN11')).toBe(true);
   });
 
-  test('DP-8. an answer without the checkbox brings the save options window', async ({
+  test('DP-8. an answer without the checkbox: the save options window asks when the box starts ticked', async ({
     core,
     page,
   }) => {
@@ -219,9 +250,22 @@ test.describe('US2 (feature 009) - books in ZIP archives', () => {
     await core.openApp(page);
     await openThroughDialog(core, page, archive);
     await expect(page).toHaveTitle(`book.fb2 (options.fb2.zip) - ${APP_TITLE}`);
+    // Unticked at the start, as for any book (rc.4 smoke): no window, the plain book is written.
+    const plain = path.join(dir, 'options-plain.fb2');
+    await core.enqueueDialog('dialog.saveFile', { path: plain, encoding: 'utf-8' });
+    await page.keyboard.press(`${MOD}+s`);
+    await expect.poll(() => existsSync(plain)).toBe(true);
+    await expect(page.getByTestId('save-options-zip')).toHaveCount(0);
+    // Ticked at a save, the box starts ticked at the next: an answer without it brings the window.
+    const zipped = path.join(dir, 'options-zipped.fb2.zip');
+    await core.enqueueDialog('dialog.saveFile', { path: zipped, encoding: 'utf-8', zip: true });
+    await page.getByTestId('menu-file').click();
+    await page.getByTestId('menu-file-saveAs').click();
+    await expect.poll(() => existsSync(zipped)).toBe(true);
     const target = path.join(dir, 'options-copy.fb2');
     await core.enqueueDialog('dialog.saveFile', { path: target, encoding: 'utf-8' });
-    await page.keyboard.press(`${MOD}+s`);
+    await page.getByTestId('menu-file').click();
+    await page.getByTestId('menu-file-saveAs').click();
     const box = page.getByTestId('save-options-zip');
     await expect(box).toBeChecked();
     await box.uncheck();

@@ -49,6 +49,8 @@ const BENCHMARK_SCRIPTS = [
 const LAPTOP_BUDGET_MS = 5_000;
 /** SC-008: the 10 MB run takes at most this many times the 1 MB run. */
 const MAX_SIZE_RATIO = 12;
+/** Runs of each script on each book; the median is measured. */
+const RUNS = 3;
 const PERF_FACTOR = Number(process.env.MFBE_PERF_FACTOR ?? 2) || 2;
 
 /**
@@ -172,15 +174,22 @@ test.describe('script benchmark', { tag: '@perf' }, () => {
     for (const size of BOOKS) {
       await openBook(page, core, bookPath(size));
       for (const id of BENCHMARK_SCRIPTS) {
-        const measured = await page.evaluate<Measurement>(
-          `${RUN_AND_MEASURE}(${JSON.stringify(id)})`,
-        );
+        // The median of RUNS runs: one run of a 128 ms script on a busy runner once broke the 12 x ratio by a pause
+        // of its own (the macOS docs replay, 2026-11-18). A run that fails or asks counts whatever its time.
+        const runs: Measurement[] = [];
+        for (let run = 0; run < RUNS; run += 1) {
+          runs.push(await page.evaluate<Measurement>(`${RUN_AND_MEASURE}(${JSON.stringify(id)})`));
+          await undoRun(page);
+        }
+        const median = [...runs].sort((a, b) => a.ms - b.ms)[Math.floor(RUNS / 2)]!;
+        const measured = runs.find((r) => r.status !== 'done' || r.asked) ?? median;
         (times[id] ??= {})[size] = measured;
         test.info().annotations.push({
           type: 'perf',
-          description: `${id} ${size}: ${Math.round(measured.ms)} ms (${measured.status})`,
+          description: `${id} ${size}: ${Math.round(measured.ms)} ms (${measured.status}; runs ${runs
+            .map((r) => Math.round(r.ms))
+            .join(', ')})`,
         });
-        await undoRun(page);
       }
     }
 

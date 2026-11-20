@@ -50,7 +50,9 @@ import {
 import { describeError, isClientSideError, logUiError } from '@/app/diagnostics';
 import { ENCODING_CHOICES, normalizeEncoding } from '@/dialogs/encodings';
 import type { StructuralPosition } from '@/editor/structuralPath';
-import { documentFileTypes, openFileTypes } from '@/dialogs/fileTypes';
+import { documentFileTypes, openFileTypes, zipArchiveType } from '@/dialogs/fileTypes';
+
+import { confirmCompletedTarget } from './completedTarget';
 import type { Dialogs } from '@/dialogs/types';
 import {
   showArchiveBookChooser,
@@ -196,7 +198,10 @@ export function archiveErrorMessage(t: TFunction, error: unknown, path: string):
       // Feature 016 (D4): an archive holding a PDF but no book points to the PDF import.
       return data.reason === 'pdfInArchive'
         ? t('pdfImport.openRefusedInArchive', { path })
-        : t('archive.msg.noBook', { path });
+        : // Feature 017 (D35): so does one holding a TXT, to the TXT import.
+          data.reason === 'txtInArchive'
+          ? t('txt.openRefusedInArchive', { path })
+          : t('archive.msg.noBook', { path });
     case RpcErrorCode.archiveEntryMissing:
       return t('archive.msg.missing', { path, entry: data.entry ?? '' });
     case RpcErrorCode.archiveEntryUnreadable: {
@@ -434,29 +439,17 @@ export class FileFeature {
   /* ------------------------------------------------------------------ close */
 
   /** Remembers the position, stops watching and closes the current document in the core. */
-  /** Feature 010 (US8): the Markdown file each imported document came from, by docId. */
-  private readonly importOrigins = new Map<string, string>();
-
   /**
-   * Feature 010 (US8, D36): shows the document the Markdown import made - modified, tied to no
-   * file. The window's book is closed only now that the new one exists; Save As proposes the
-   * Markdown file's name with `.fb2` in its folder (FR-094).
+   * Feature 010 (US8, D36): shows the document an import made - modified, tied to no file. The
+   * window's book is closed only now that the new one exists. Feature 017 (D25): an import keeps
+   * nothing of its source - the book is a new one, as File > New makes it, and its first Save As
+   * proposes what it proposes for any new book (the name from the description, in the folder Open
+   * and Save As used last).
    */
-  async loadImported(
-    ctx: CommandContext,
-    document: Document & LoadReport,
-    markdownPath: string,
-  ): Promise<void> {
+  async loadImported(ctx: CommandContext, document: Document & LoadReport): Promise<void> {
     await this.closeCurrentDocument(ctx);
     this.loadDocument(ctx, document);
-    this.importOrigins.set(document.docId, markdownPath);
     actions.setModified(ctx.store, true);
-  }
-
-  private importedSaveName(docId: string | null): string | null {
-    const origin = docId ? this.importOrigins.get(docId) : undefined;
-    // Feature 012 (D15): an EPUB import proposes the EPUB's name with `.fb2` the same way.
-    return origin ? `${origin.replace(/\.(md|markdown|epub|pdf)$/i, '')}.fb2` : null;
   }
 
   async closeCurrentDocument(ctx: CommandContext): Promise<void> {
@@ -654,15 +647,8 @@ export class FileFeature {
           : { path: target.path },
       )
       .catch(() => null);
-    if (target.path !== chosen && inspected?.exists) {
-      const answer = await ctx.dialogs.showMessage({
-        text: ctx.t('dialog.saveFile.replaceCompleted', { path: target.path }),
-        caption: ctx.t('app.name'),
-        buttons: 'yesNo',
-        icon: 'warning',
-        testId: 'dialog-replace-completed',
-      });
-      if (answer !== 'yes') return false;
+    if (inspected?.exists && !(await confirmCompletedTarget(ctx, chosen, target.path))) {
+      return false;
     }
     if (target.entryName && inspected?.kind === 'zip' && (inspected.otherEntries ?? 0) > 0) {
       const answer = await ctx.dialogs.showMessage({
@@ -864,19 +850,25 @@ export class FileFeature {
         // Feature 016 (D4): so is a PDF, through File > Import > PDF File.
         const epub = reason === 'epub';
         const pdf = reason === 'pdf';
+        // Feature 017 (D35): and a TXT, through File > Import > TXT File.
+        const txt = reason === 'txt';
         await ctx.dialogs.showMessage({
           text: epub
             ? ctx.t('epub.openRefused', { path })
             : pdf
               ? ctx.t('pdfImport.openRefused', { path })
-              : ctx.t('msg.notFictionBook', { path }),
+              : txt
+                ? ctx.t('txt.openRefused', { path })
+                : ctx.t('msg.notFictionBook', { path }),
           caption: ctx.t('dialog.error.caption'),
           icon: 'error',
           testId: epub
             ? 'dialog-epub-refused'
             : pdf
               ? 'dialog-pdf-refused'
-              : 'dialog-not-fictionbook',
+              : txt
+                ? 'dialog-txt-refused'
+                : 'dialog-not-fictionbook',
         });
         void this.recent.refresh(rpc);
         return false;
@@ -1031,13 +1023,10 @@ export class FileFeature {
         force = true;
       }
       const selectedFilter = saveAsSelectedType(state.fileKind);
-      const startChecked = zipStartState(source !== undefined);
+      const startChecked = zipStartState();
       // The document's own file, or - never saved - the bare name composed from its
       // description, which the dialog places in the folder it remembers (FR-050, FR-053).
-      const current =
-        path ??
-        this.importedSaveName(state.docId) ??
-        saveAsProposedName(ctx, state.document, selectedFilter);
+      const current = path ?? saveAsProposedName(ctx, state.document, selectedFilter);
       const defaultPath =
         source || startChecked
           ? proposedSavePath({
@@ -1047,23 +1036,32 @@ export class FileFeature {
               checked: startChecked,
             })
           : current;
+      // The name and the type follow the ZIP box (the requester after his smoke test of 0.0.12-rc.4): the
+      // archive's type last.
+      const filters = [...documentFilters(ctx), zipArchiveType(ctx.t)];
+      const zipFilter = filters.length - 1;
       const choice = await rpc.call('dialog.saveFile', {
         title: ctx.t('cmd.file.saveAs.tooltip'),
         role: 'document',
-        filters: documentFilters(ctx),
-        selectedFilter,
+        filters,
+        selectedFilter: startChecked ? zipFilter : selectedFilter,
         defaultPath,
         encodingChoices: [...ENCODING_CHOICES],
         selectedEncoding: defaultSaveEncoding(store),
         encodingLabel: ctx.t('dialog.saveFile.encoding'),
-        zipChoice: { label: ctx.t('dialog.saveFile.zip'), checked: startChecked },
+        zipChoice: {
+          label: ctx.t('dialog.saveFile.zip'),
+          checked: startChecked,
+          rename: 'append',
+          filter: zipFilter,
+        },
       });
       if (!choice.path) return false;
       encoding = normalizeEncoding(choice.encoding);
       let zip = choice.zip;
-      // A dialog without the checkbox: the editor's own window asks when the box matters (a
-      // book from an archive, or a box that starts ticked); otherwise it stays unticked.
-      if (zip === undefined && (source !== undefined || startChecked)) {
+      // A dialog without the checkbox: the editor's own window asks when the box starts ticked;
+      // otherwise it stays unticked, as for any book.
+      if (zip === undefined && startChecked) {
         const answer = await showSaveOptionsDialog(ctx.dialogs, {
           defaultEncoding: encoding ?? defaultSaveEncoding(store),
           path: choice.path,

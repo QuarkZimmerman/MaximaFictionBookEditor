@@ -258,6 +258,10 @@ describe('i18n catalogue completeness', () => {
     it(`uses unique & accelerators within each menu and dialog in ${language}`, () => {
       const flat = catalogue(language);
       const groupOf = (key: string): string | null => {
+        // Feature 017: the File menu's Import and Export submenus are menus of their own, as
+        // tools/i18n-check.mjs groups them (ui/src/app/menus.ts).
+        const fileSubmenu = /^menu\.file\.(import|export)[A-Z]/.exec(key);
+        if (fileSubmenu) return `menu.file.${fileSubmenu[1]}`;
         const menu = /^menu\.([^.]+)\.(.+)$/.exec(key);
         if (menu) return menu[2] === 'caption' ? 'menubar' : `menu.${menu[1]}`;
         if (key.startsWith('scripting.menu.')) return 'menu.scripts';

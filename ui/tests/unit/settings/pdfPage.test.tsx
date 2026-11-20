@@ -89,6 +89,8 @@ describe('Settings > PDF export (DP-5)', () => {
       margins: 'standard',
       customTextSize: 115,
       customMargin: 22,
+      // Feature 017 (D20): the ZIP box's default, unticked.
+      zip: false,
     });
     expect(screen.getByTestId('settings-pdf-reset-all')).toBeDisabled();
   });

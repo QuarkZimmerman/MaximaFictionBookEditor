@@ -1069,8 +1069,13 @@ async function addTableButtons(page: Page): Promise<void> {
   await page
     .getByTestId('customize-toolbar-available')
     .selectOption({ index: available.length - OFFERED.length });
+  // Each Add confirmed before the next: the list was once read while the last two were still being added
+  // (CI's docs replay, 2026-11-18).
   for (let added = 0; added < OFFERED.length; added += 1) {
     await page.getByTestId('dialog-customize-toolbar-button-add').click();
+    await expect
+      .poll(async () => (await listItems(page, 'current')).length)
+      .toBe(current.length + added + 1);
   }
   expect(await listItems(page, 'current')).toEqual([...current.slice(0, -1), ...OFFERED, 'end']);
   await closeCustomize(page);

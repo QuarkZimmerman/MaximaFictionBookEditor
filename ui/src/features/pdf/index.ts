@@ -12,13 +12,15 @@
 import type { CommandContext, CommandRegistry } from '@/app/commands';
 import { startModalJob, type ModalJobHandle } from '@/app/modalJob';
 import { cmdKeys } from '@/features/editing/common';
+import { zipArchiveType } from '@/dialogs/fileTypes';
+import { confirmCompletedTarget } from '@/features/file/completedTarget';
 import { confirmBookExport } from '@/features/file/exportCheck';
+import { keepExportOptions, keptExportOptions } from '@/features/file/keptExportOptions';
 import { proposedStem } from '@/features/file/proposedName';
 import type { PdfPageSizeId } from '@/rpc/types';
 import { commitPendingSource } from '@/views/source/sourceSession';
 
 import { DEFAULT_PDF_PAGE_SIZE, PDF_PAGE_SIZES, pdfPageSize } from './pageSizes';
-import { keepPageSize, keptPageSize } from './keptPageSize';
 import { showPageSizeDialog } from './showPageSizeDialog';
 
 export const EXPORT_PDF_COMMAND = 'file.exportPdf';
@@ -48,7 +50,7 @@ function folderOf(path: string | null | undefined): string {
  */
 function proposedSize(ctx: CommandContext, docId: string): PdfPageSizeId {
   return (
-    keptPageSize(docId) ??
+    (keptExportOptions(docId, 'pdf')?.pageSize as PdfPageSizeId | undefined) ??
     pdfPageSize(ctx.store.getState().settings?.pdf?.defaultPageSize ?? DEFAULT_PDF_PAGE_SIZE).id
   );
 }
@@ -76,21 +78,28 @@ export function registerPdfFeature(commands: CommandRegistry): void {
       const stem = proposedStem(state.document.description, ctx.t('app.untitled'));
       const proposed = proposedSize(ctx, docId);
       const labels = PDF_PAGE_SIZES.map((size) => ctx.t(`pdf.sizes.${size.id}`));
+      const firstZip = keptExportOptions(docId, 'pdf')?.zip ?? state.settings?.pdf?.zip ?? false;
       const {
         path: chosenPath,
         encoding,
         zip,
       } = await rpc.call('dialog.saveFile', {
         title: ctx.t('cmd.file.exportPdf.tooltip'),
-        filters: [{ name: ctx.t('pdf.filter'), extensions: ['pdf'] }],
-        selectedFilter: 0,
+        // The name and the type follow the ZIP box (the requester after his smoke test of 0.0.12-rc.4).
+        filters: [{ name: ctx.t('pdf.filter'), extensions: ['pdf'] }, zipArchiveType(ctx.t)],
+        selectedFilter: firstZip ? 1 : 0,
         // D2: the book's name in the book's folder.
-        defaultPath: `${folderOf(state.path)}${stem}.pdf`,
+        defaultPath: `${folderOf(state.path)}${stem}.${firstZip ? 'zip' : 'pdf'}`,
         encodingChoices: labels,
         selectedEncoding: ctx.t(`pdf.sizes.${proposed}`),
         encodingLabel: ctx.t('pdf.pageSizeLabel'),
-        // Feature 016 (D25): *Save in ZIP archive*, unticked every time.
-        zipChoice: { label: ctx.t('pdf.zipChoice'), checked: false },
+        // Feature 016 (D25), 017 (D17, D20): *Save in ZIP archive* - kept for the book, else the settings'.
+        zipChoice: {
+          label: ctx.t('pdf.zipChoice'),
+          checked: firstZip,
+          rename: 'replace',
+          filter: 1,
+        },
       });
       if (!chosenPath || store.getState().docId !== docId) return;
       // D2: a dialog that could not carry the list or the box answered without them - they are asked in
@@ -102,7 +111,7 @@ export function registerPdfFeature(commands: CommandRegistry): void {
         const asked = await showPageSizeDialog(ctx.dialogs, {
           defaultSize: pageSize ?? proposed,
           path: chosenPath,
-          zip: toZip ?? false,
+          zip: toZip ?? firstZip,
         });
         if (!asked) return;
         pageSize = asked.size;
@@ -116,7 +125,9 @@ export function registerPdfFeature(commands: CommandRegistry): void {
           : `${chosenPath.replace(/\.pdf$/i, '')}.zip`
         : chosenPath.replace(/\.zip$/i, '.pdf');
       // D25: kept for the book from here on, even if the export is cancelled (analysis C7).
-      keepPageSize(docId, pageSize);
+      keepExportOptions(docId, 'pdf', { pageSize, zip: !!toZip });
+      if (!(await confirmCompletedTarget(ctx, chosenPath, path))) return;
+      if (store.getState().docId !== docId) return;
       let cancelled = false;
       const modal = startModalJob(ctx.t('pdf.exporting'), () => {
         cancelled = true;

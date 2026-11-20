@@ -1,18 +1,33 @@
 /**
  * Settings > Exports (requester, rc.3): the settings of each export format, one format at a time,
- * chosen in the list at the top. For now only the PDF export has settings of its own.
+ * chosen in the list at the top - PDF, EPUB, Markdown, TXT (feature 017, D18). Every option an export's
+ * dialog offers has its default here; the choices made in a dialog stay with the open book (D17).
  */
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { tip } from '@/app/tooltips';
 
-import { PdfPage, type PdfPageProps } from './PdfPage';
+import type { CommandContext } from '@/app/commands';
+import type { Settings } from '@/rpc/types';
 
-const FORMATS = ['pdf', 'epub', 'markdown'] as const;
+import { MarkdownPage } from './MarkdownPage';
+import { PdfPage } from './PdfPage';
+import { TxtPage } from './TxtPage';
+
+const FORMATS = ['pdf', 'epub', 'markdown', 'txt'] as const;
 type ExportFormat = (typeof FORMATS)[number];
 
-export function ExportsPage(props: PdfPageProps) {
+export interface ExportsPageProps {
+  draft: Settings;
+  onChange: <S extends 'pdf' | 'markdown' | 'txt'>(
+    section: S,
+    patch: Partial<NonNullable<Settings[S]>>,
+  ) => void;
+  ctx: CommandContext;
+}
+
+export function ExportsPage({ draft, onChange, ctx }: ExportsPageProps) {
   const { t } = useTranslation();
   const [format, setFormat] = useState<ExportFormat>('pdf');
   return (
@@ -36,7 +51,11 @@ export function ExportsPage(props: PdfPageProps) {
         </select>
       </div>
       {format === 'pdf' ? (
-        <PdfPage {...props} />
+        <PdfPage draft={draft} onChange={(patch) => onChange('pdf', patch)} ctx={ctx} />
+      ) : format === 'markdown' ? (
+        <MarkdownPage draft={draft} onChange={(patch) => onChange('markdown', patch)} />
+      ) : format === 'txt' ? (
+        <TxtPage draft={draft} onChange={(patch) => onChange('txt', patch)} ctx={ctx} />
       ) : (
         <p className="mfbe-settings-note" data-testid="settings-exports-none">
           {t('exports.settings.none')}

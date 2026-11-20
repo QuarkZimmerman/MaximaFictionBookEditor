@@ -127,6 +127,63 @@ export function isPdfImportModule(id: string): boolean {
   return id.split('?')[0].replace(/\\/g, '/').startsWith(pdfImportFolder);
 }
 
+// Feature 017 (D15, D38, DP-1): the TXT export and import are the lazy chunks `txt-export` and
+// `txt-import`: everything under `src/features/txt/export/` and `src/features/txt/import/`, loaded by
+// `import()` at their first use and never at start-up. The static entries (`src/features/txt/
+// exportCommand.ts`, `importCommand.ts`, `encodings.ts`, `TxtExportOptions.tsx`) stay in the main bundle.
+// `tests/unit/txt/chunk.test.ts` checks the rules.
+const txtExportFolder = fileURLToPath(
+  new URL('./src/features/txt/export/', import.meta.url),
+).replace(/\\/g, '/');
+const txtImportFolder = fileURLToPath(
+  new URL('./src/features/txt/import/', import.meta.url),
+).replace(/\\/g, '/');
+
+/** True for a module of the `txt-export` chunk (exported for the unit test of the rule). */
+export function isTxtExportModule(id: string): boolean {
+  return id.split('?')[0].replace(/\\/g, '/').startsWith(txtExportFolder);
+}
+
+/** True for a module of the `txt-import` chunk (exported for the unit test of the rule). */
+export function isTxtImportModule(id: string): boolean {
+  return id.split('?')[0].replace(/\\/g, '/').startsWith(txtImportFolder);
+}
+
+// What both TXT parts read - the words of the record (`src/features/txt/shared/`) - is the lazy chunk
+// `txt-shared`, as the EPUB parts' `epub-shared`.
+const txtSharedFolder = fileURLToPath(
+  new URL('./src/features/txt/shared/', import.meta.url),
+).replace(/\\/g, '/');
+
+/** True for a module of the `txt-shared` chunk (exported for the unit test of the rule). */
+export function isTxtSharedModule(id: string): boolean {
+  return id.split('?')[0].replace(/\\/g, '/').startsWith(txtSharedFolder);
+}
+
+// Feature 017 (D34, D39): what every lazy import shares that the main bundle never reaches - an FBD read and
+// given to the new book (`src/features/importShared/`) - is the lazy chunk `import-shared`.
+const importSharedFolder = fileURLToPath(
+  new URL('./src/features/importShared/', import.meta.url),
+).replace(/\\/g, '/');
+
+/** True for a module of the `import-shared` chunk (exported for the unit test of the rule). */
+export function isImportSharedModule(id: string): boolean {
+  return id.split('?')[0].replace(/\\/g, '/').startsWith(importSharedFolder);
+}
+
+// Feature 017 (DP-13): text helpers the lazy imports share - the joining of words broken at a line's end
+// (`src/features/text/`) - are the lazy chunk `text-shared`, which the `pdf-import` and `txt-import` chunks
+// import; never reached from the main bundle.
+const textSharedFolder = fileURLToPath(new URL('./src/features/text/', import.meta.url)).replace(
+  /\\/g,
+  '/',
+);
+
+/** True for a module of the `text-shared` chunk (exported for the unit test of the rule). */
+export function isTextSharedModule(id: string): boolean {
+  return id.split('?')[0].replace(/\\/g, '/').startsWith(textSharedFolder);
+}
+
 /** True for a module of the `epub-export` chunk (exported for the unit test of the rule). */
 export function isEpubExportModule(id: string): boolean {
   return id.split('?')[0].replace(/\\/g, '/').startsWith(epubExportFolder);
@@ -217,6 +274,31 @@ export default defineConfig({
             {
               name: 'pdf-import',
               test: isPdfImportModule,
+              includeDependenciesRecursively: false,
+            },
+            {
+              name: 'txt-export',
+              test: isTxtExportModule,
+              includeDependenciesRecursively: false,
+            },
+            {
+              name: 'txt-import',
+              test: isTxtImportModule,
+              includeDependenciesRecursively: false,
+            },
+            {
+              name: 'txt-shared',
+              test: isTxtSharedModule,
+              includeDependenciesRecursively: false,
+            },
+            {
+              name: 'text-shared',
+              test: isTextSharedModule,
+              includeDependenciesRecursively: false,
+            },
+            {
+              name: 'import-shared',
+              test: isImportSharedModule,
               includeDependenciesRecursively: false,
             },
           ],

@@ -6,31 +6,9 @@
  * cover with the PDF's first picture (D23, clarify).
  */
 
-import type { CommandContext } from '@/app/commands';
-import { copyBinaries } from '@/features/transfer/importDescription';
-import {
-  applyEntries,
-  importableEntries,
-  type ReadDescriptionResult,
-} from '@/features/transfer/importEntries';
-import type { Document } from '@/model/document';
-import { withSchemaPersons } from '@/views/description/model';
+import type { ReadDescriptionResult } from '@/features/transfer/importEntries';
 
-/** Reads the description file `path` against the open document `docId`; close it with `closeRead`. */
-export function readDescriptionFile(
-  ctx: CommandContext,
-  docId: string,
-  path: string,
-): Promise<ReadDescriptionResult> {
-  return ctx.rpc!.runJob('doc.readDescription', { docId, path });
-}
-
-export async function closeRead(
-  ctx: CommandContext,
-  read: ReadDescriptionResult | null,
-): Promise<void> {
-  if (read) await ctx.rpc?.call('doc.close', { docId: read.importId }).catch(() => undefined);
-}
+// Feature 017: reading and applying an FBD moved to features/importShared/fbdApply.ts, shared by every import.
 
 /** The description's cover picture's metadata, when it has one. */
 function coverOf(
@@ -73,27 +51,4 @@ export function sameDescription(
     theirs.height === cover.h &&
     JPEG_TYPE.test(theirs.contentType) === cover.jpeg
   );
-}
-
-/** The new book `document` (open as `docId`) with the FBD's description, every entry of it (D23). */
-export async function applyFbd(
-  ctx: CommandContext,
-  docId: string,
-  document: Document,
-  read: ReadDescriptionResult,
-): Promise<Document> {
-  const entries = importableEntries(read);
-  const { map, added } = await copyBinaries(ctx, docId, read.importId, entries);
-  return {
-    ...document,
-    description: withSchemaPersons(
-      applyEntries(
-        document.description,
-        read,
-        entries.map((entry) => entry.key),
-        map,
-      ),
-    ),
-    binaries: [...document.binaries, ...added],
-  };
 }

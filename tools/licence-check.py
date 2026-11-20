@@ -321,7 +321,8 @@ def parse_status(installed: Path, triplet: str | None) -> dict[str, dict[str, st
                 fields[key.strip().lower()] = value.strip()
         if "package" not in fields or "feature" in fields:
             continue
-        if "installed" not in fields.get("status", ""):
+        # "install ok installed" only: an upgrade leaves the old package as "purge ok not-installed".
+        if fields.get("status", "").split()[-1:] != ["installed"]:
             continue
         found.setdefault(fields["package"], []).append(fields)
     if not triplet:
@@ -421,7 +422,7 @@ def collect_vcpkg(installed: Path | None, triplet_name: str | None,
         if detected and declared and not declared.startswith("LicenseRef"):
             for identifier in detected:
                 if ("GPL" in identifier and "GPL" not in declared and "tri-licence" not in note
-                        and component.distributed):
+                        and component.distributed and name not in TEXT_MENTIONS_NOT_BUILT):
                     component.problems.append(
                         f"copyright text mentions {identifier} but the port declares {declared}")
         if component.distributed and name not in runtime_direct:
@@ -447,6 +448,14 @@ NOT_SHIPPED = {
 }
 
 # Packages whose package.json names no licence; the licence of their LICENSE file instead.
+# Ports whose copyright text names a copyleft licence for code the port does not build: the cross-check
+# below accepts their declared licence.
+TEXT_MENTIONS_NOT_BUILT = {
+    # xz's copyright: GNU getopt_long (LGPL-2.1-or-later) is linked into the xz command-line tools on systems
+    # without one of their own; vcpkg's liblzma builds the library alone, which is 0BSD (vcpkg 2026-11-18).
+    "liblzma": "the LGPL-2.1-or-later getopt_long belongs to the xz tools, which the port does not build",
+}
+
 LICENCE_OVERRIDES = {
     "khroma": ("MIT", "the package.json names no licence; its license file is the MIT License"),
 }
@@ -802,7 +811,20 @@ def collect_data(problems: list[str]) -> list[Component]:
         "public-domain changes; installed as share/mfbe/resources/fonts/DejaVu-LICENSE.txt",
         group="aggregate",
     )
-    components = [schema, en_us, ru_ru, uk_ua, fbe, ca_bundle, noto, dejavu]
+    # Feature 017 (PD2): the WHATWG Encoding Standard's single-byte index tables, generated into
+    # core/src/text/single_byte_tables.inc by tools/encodings/make-tables.py; BSD-3-Clause where
+    # incorporated into source code (the Standard's own statement, copied into LICENSE.txt).
+    whatwg_dir = REPO / "third_party" / "whatwg-encoding"
+    whatwg_date = read_field(whatwg_dir / "index-koi8-u.txt", r"# Date:\s*(\S+)")
+    whatwg = component(
+        "WHATWG Encoding Standard index tables (the 27 legacy single-byte encodings)",
+        f"index files dated {whatwg_date}",
+        "BSD-3-Clause",
+        whatwg_dir / "LICENSE.txt",
+        "compiled into mfbe-core as core/src/text/single_byte_tables.inc (generated from "
+        "third_party/whatwg-encoding/ by tools/encodings/make-tables.py)",
+    )
+    components = [schema, en_us, ru_ru, uk_ua, fbe, ca_bundle, noto, dejavu, whatwg]
 
     # Every README row with a licence must be covered by one of the components above (substring
     # match on the licence cell - keep the keys distinct: "MPL-2.0" is the CA bundle, "MPL-1.1"

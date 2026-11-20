@@ -16,7 +16,7 @@
  * (feature 005 review A4).
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { confirmDiscardChanges, createCommandRegistry, type CommandContext } from '@/app/commands';
@@ -50,8 +50,17 @@ export type SettingsPageId = 'view' | 'other' | 'hotkeys' | 'words' | 'exports' 
 
 const PAGES: readonly SettingsPageId[] = ['view', 'other', 'hotkeys', 'words', 'exports', 'ai'];
 
+/**
+ * A page not shown keeps its room, invisible - not focusable, not read out - so that every page stands in the one
+ * grid cell of `.mfbe-settings-pages` and the dialog keeps the size of the tallest, and its place, whichever tab is
+ * shown (the requester after his smoke test of 0.0.12-rc.4: the dialog jumped from tab to tab).
+ */
+function shownIf(shown: boolean): CSSProperties | undefined {
+  return shown ? undefined : { visibility: 'hidden' };
+}
+
 /** The sections of the draft the pages edit (`session` is never part of the dialog). */
-type DraftSection = 'view' | 'other' | 'words' | 'pdf' | 'ai';
+type DraftSection = 'view' | 'other' | 'words' | 'pdf' | 'ai' | 'markdown' | 'txt';
 
 /**
  * The pre-apply hook (feature 005 R8.8): asked with the validated draft before anything is
@@ -371,8 +380,8 @@ export function SettingsDialog({
         </ul>
       ) : null}
       {draft ? (
-        <>
-          <div role="tabpanel" id="settings-page-view" hidden={page !== 'view'}>
+        <div className="mfbe-settings-pages">
+          <div role="tabpanel" id="settings-page-view" style={shownIf(page === 'view')}>
             <ViewPage
               draft={draft}
               onChange={(patch) => update('view', patch)}
@@ -380,19 +389,23 @@ export function SettingsDialog({
               ctx={ctx}
             />
           </div>
-          <div role="tabpanel" id="settings-page-other" hidden={page !== 'other'}>
+          <div role="tabpanel" id="settings-page-other" style={shownIf(page === 'other')}>
             <OtherPage draft={draft} onChange={(patch) => update('other', patch)} ctx={ctx} />
           </div>
-          <div role="tabpanel" id="settings-page-hotkeys" hidden={page !== 'hotkeys'}>
+          <div role="tabpanel" id="settings-page-hotkeys" style={shownIf(page === 'hotkeys')}>
             <HotkeysPage commands={registry} hotkeys={scratch} ctx={ctx} />
           </div>
-          <div role="tabpanel" id="settings-page-words" hidden={page !== 'words'}>
+          <div role="tabpanel" id="settings-page-words" style={shownIf(page === 'words')}>
             <WordsPage draft={draft} onChange={(patch) => update('words', patch)} ctx={ctx} />
           </div>
-          <div role="tabpanel" id="settings-page-exports-panel" hidden={page !== 'exports'}>
-            <ExportsPage draft={draft} onChange={(patch) => update('pdf', patch)} ctx={ctx} />
+          <div role="tabpanel" id="settings-page-exports-panel" style={shownIf(page === 'exports')}>
+            <ExportsPage
+              draft={draft}
+              onChange={(section, patch) => update(section, patch)}
+              ctx={ctx}
+            />
           </div>
-          <div role="tabpanel" id="settings-page-ai" hidden={page !== 'ai'}>
+          <div role="tabpanel" id="settings-page-ai" style={shownIf(page === 'ai')}>
             <AiPage
               draft={draft}
               onChange={(patch) => update('ai', patch)}
@@ -400,7 +413,7 @@ export function SettingsDialog({
               registerCancel={registerCancel}
             />
           </div>
-        </>
+        </div>
       ) : (
         <div className="mfbe-settings-note" data-testid="settings-loading">
           {loadFailed || !rpc ? t('dialog.settings.unavailable') : t('dialog.settings.loading')}

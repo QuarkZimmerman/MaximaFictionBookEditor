@@ -40,6 +40,27 @@ export type { BinaryMeta, Document, ValidationIssue, ValidationReport } from '@/
 
 export { RPC_API_MINOR, RPC_API_VERSION } from './version';
 
+/** Feature 017: an encoding of the TXT export and import, its catalogue key for the dialog's list. */
+export interface TxtEncoding {
+  name: string;
+  labelKey: string;
+}
+
+/** Feature 017 (D16): what `txt.export` wrote, and the characters its encoding replaced or left out. */
+export interface TxtExportResult {
+  path: string;
+  replaced: { char: string; count: number; as: string }[];
+  leftOut: number;
+}
+
+/** Feature 017 (D11): every encoding, and the encodings offered to a Russian, Ukrainian and English book. */
+export interface TxtEncodings {
+  all: TxtEncoding[];
+  ru: string[];
+  uk: string[];
+  en: string[];
+}
+
 /* ------------------------------------------------------------------------ */
 /* Error codes (rpc-api.md §1)                                              */
 /* ------------------------------------------------------------------------ */
@@ -85,6 +106,10 @@ export const RpcErrorCode = {
   pdfImportFailed: 1113,
   /** Feature 016: an unknown or ended pdfImport token. */
   pdfImportUnknownToken: 1114,
+  /** Feature 017: a text file the TXT import refuses ({reason}, contracts/rpc-api.md). */
+  textImportRefused: 1115,
+  /** Feature 017: an unknown or ended txtImport token. */
+  txtImportUnknownToken: 1116,
   spellDictionaryUnavailable: 1020,
   scriptNotFound: 1030,
   scriptInvalidManifest: 1031,
@@ -350,6 +375,17 @@ export interface Settings {
     customTextSize: number;
     /** The margins a `custom` choice uses, in millimetres (5 to 50); default 22. */
     customMargin: number;
+    /** Feature 017 (D20): the default of the dialog's *Save in ZIP archive*; default false. */
+    zip?: boolean;
+  };
+  /** Feature 017 (D21): the default of the one-file Markdown export's *Include pictures*; default true. */
+  markdown?: { includePictures: boolean };
+  /** Feature 017 (D19, contracts/settings.md): the TXT export's defaults. */
+  txt?: {
+    encodingMode: 'utf-8' | 'language';
+    encodings: { en: string; ru: string; uk: string; other: string };
+    bom: boolean;
+    zip: boolean;
   };
   session: {
     /**
@@ -727,8 +763,8 @@ export interface ArchiveBook {
   /** "/"-separated, "" at the top level. */
   folder: string;
   size: number;
-  /** Feature 016: the PDF import offers an archive's PDFs in the same chooser. */
-  kind: 'fb2' | 'fbd' | 'pdf';
+  /** Feature 016: the PDF import offers an archive's PDFs in the same chooser; feature 017 its TXT files. */
+  kind: 'fb2' | 'fbd' | 'pdf' | 'txt';
 }
 
 /** `doc.open`'s answer for a ZIP archive of several books (feature 009). */
@@ -1417,6 +1453,45 @@ export interface RpcMethods {
     params: { path: string; encoding?: string };
     result: MarkdownText | { needsEncoding: { candidates: string[] } };
   };
+  /** Feature 017 (contracts/rpc-api.md, D11): UTF-8 and the 28 single-byte encodings, and the lists of Russian,
+   * Ukrainian and English books - the one source of the export dialog and the settings. */
+  'txt.encodings': { params: Record<string, never>; result: TxtEncodings };
+  /** Feature 017 (D33, DP-11): the FBD in a file's folder with its name (exact, else the only one apart from case). */
+  'files.fbdBeside': { params: { path: string }; result: { path?: string } };
+  /** Feature 017 (D23 to D26, D31, DP-9, DP-10): the TXT import's session, as pdfImport's; 1115 {reason}, 1116. */
+  'txtImport.begin': {
+    params: { path: string; entry?: string };
+    result:
+      | { token: string }
+      | {
+          archive: {
+            txts: { entry: string; size: number }[];
+            fbds: { entry: string; size: number }[];
+          };
+        };
+  };
+  'txtImport.read': {
+    params: { token: string; encoding?: string };
+    result:
+      | { text: string; encoding: string; source: 'bom' | 'utf8' | 'judged' | 'chosen' }
+      | { needsEncoding: { candidates: string[] } };
+  };
+  'txtImport.extractFbd': { params: { token: string; entry: string }; result: { path: string } };
+  'txtImport.end': { params: { token: string }; result: Empty };
+  /** Feature 017 (D10 to D13, DP-4): the laid-out text written in an encoding, with CR LF; a job. */
+  'txt.export': {
+    params: {
+      docId: string;
+      path: string;
+      text: string;
+      encoding: string;
+      bom: boolean;
+      zip?: boolean;
+      /** With `zip`: the book's description for the archive's FBD, as doc.exportDescription takes it. */
+      document?: Document;
+    };
+    result: MaybeJob<TxtExportResult>;
+  };
   /** Feature 010 (US8): the effective template's FB2 text, for the import's description. */
   'template.xml': { params: void; result: { xml: string } };
   /** Feature 012 (contracts/rpc-api.md §1): opens an EPUB for the import; entries over `/epub/{token}/{entry}`. */
@@ -1545,7 +1620,7 @@ export interface RpcMethods {
   'doc.newFromXml': {
     params: {
       xml: string;
-      origin?: { kind: 'markdown' | 'epub' | 'pdf'; path: string };
+      origin?: { kind: 'markdown' | 'epub' | 'pdf' | 'txt'; path: string };
       /** Feature 016 (D6): keep the description's id, date and program (the editor's own PDF). */
       keepDetails?: boolean;
     };
@@ -1705,13 +1780,26 @@ export interface RpcMethods {
       encodingLabel?: string;
       /** Index of the type selected when the dialog opens (default 0). */
       selectedFilter?: number;
-      /** Feature 009 (DP-8): the "save as ZIP archive" checkbox beside the encoding choice. */
-      zipChoice?: { label: string; checked: boolean };
+      /**
+       * Feature 009 (DP-8): the "save as ZIP archive" checkbox beside the encoding choice. While the dialog is
+       * open the name follows it (smoke test of 0.0.12-rc.4; Windows and macOS): `rename` 'append' adds or drops
+       * ".zip" (book.fb2.zip), 'replace' puts it in place of the plain type's extension (book.zip); absent, the
+       * box names no archive (the Markdown export's "Include pictures"). `filter`: the index of the ZIP archive
+       * type in `filters`, which follows the box and, chosen, ticks it.
+       */
+      zipChoice?: {
+        label: string;
+        checked: boolean;
+        rename?: 'append' | 'replace';
+        filter?: number;
+      };
+      /** Feature 017 (DP-5): further boxes after the ZIP box (the TXT export's byte-order mark). */
+      checks?: { id: string; label: string; checked: boolean }[];
       /** Feature 011 (D32): only `document` (Save As) keeps the chosen folder. */
       role?: 'document';
     };
-    /** `zip` is absent when the dialog could not carry the checkbox (feature 009). */
-    result: { path?: string; encoding?: string; zip?: boolean };
+    /** `zip` and `checks` are absent when the dialog could not carry the boxes (features 009, 017). */
+    result: { path?: string; encoding?: string; zip?: boolean; checks?: Record<string, boolean> };
   };
   'dialog.pickFolder': { params: { title: string }; result: { path?: string } };
   'dialog.message': {

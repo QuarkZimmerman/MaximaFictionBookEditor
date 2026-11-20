@@ -127,7 +127,7 @@ export function WordsPage({ draft, onChange, ctx }: WordsPageProps) {
 
   return (
     <div className="mfbe-settings-page" data-testid="settings-page-words">
-      <GroupBox title={t('dialog.settings.words.exclusionList')}>
+      <GroupBox title={t('dialog.settings.words.exclusionList')} className="mfbe-settings-fill">
         <div className="mfbe-exclusions-table" data-testid="settings-words-list">
           {words === null ? (
             <div className="mfbe-settings-note">{t('dialog.settings.loading')}</div>

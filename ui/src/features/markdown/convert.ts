@@ -119,7 +119,9 @@ export type SummaryKind =
   // Feature 011 (D49, FR-075a): a Mermaid block that could not be drawn, kept as code.
   | 'diagram'
   // Feature 011 (D50, FR-075b): a formula that could not be drawn, kept as written.
-  | 'formula';
+  | 'formula'
+  // Issue #16: thematic breaks at the start or end of a section, which separate nothing, left out.
+  | 'edgeBreak';
 
 /**
  * Feature 011 (D50): a TeX formula. The converter leaves `<!--mfbe-formula:<index>-->` where it
@@ -149,6 +151,9 @@ export interface MarkdownDiagram {
   imageXml: string;
   codeXml: string;
 }
+
+/** What a thematic break (`---`, `***`) becomes: FB2's scene break. */
+const THEMATIC_BREAK = '<subtitle>* * *</subtitle>';
 
 export interface SummaryItem {
   kind: SummaryKind;
@@ -345,6 +350,8 @@ class Converter {
   private readonly formulas: MarkdownFormula[] = [];
   private readonly summary: SummaryItem[] = [];
   private readonly summaryKeys = new Set<string>();
+  /** Issue #16: thematic breaks left out at the edges of sections. */
+  private edgeBreaks = 0;
   private readonly notes: string[] = [];
   private readonly stats = { sections: 0, pictures: 0, tables: 0, notes: 0 };
   /** Feature 011 (US7, D46): the `<style>` blocks of the text, in order. */
@@ -461,6 +468,7 @@ class Converter {
     if (this.root.blocks.length) sections = [this.untitled(1, this.root.blocks), ...sections];
     if (sections.length === 0) sections = [this.untitled(1, [])];
     const bodyXml = `<body>${bodyTitle}${sections.map((s) => this.renderSection(s)).join('')}</body>`;
+    if (this.edgeBreaks > 0) this.note('edgeBreak', String(this.edgeBreaks));
     const notesXml = this.notes.length
       ? `<body name="notes"><title><p>${esc(this.options.notesTitle)}</p></title>${this.notes.join('')}</body>`
       : null;
@@ -730,7 +738,16 @@ class Converter {
   /** FB2 lets a section hold text or subsections: text before the first subsection goes into an
    *  untitled first subsection (D27). */
   private renderSection(section: SectionNode): string {
+    // Issue #16: a thematic break first or last in a section separates nothing - chats end chapters with `---`, and
+    // one before the notes stays behind when they move to the notes body. It is left out, and counted; one between
+    // blocks stays the "* * *" a scene break is.
     let blocks = section.blocks;
+    let first = 0;
+    let last = blocks.length;
+    while (first < last && blocks[first] === THEMATIC_BREAK) first += 1;
+    while (last > first && blocks[last - 1] === THEMATIC_BREAK) last -= 1;
+    this.edgeBreaks += blocks.length - (last - first);
+    if (first > 0 || last < blocks.length) blocks = blocks.slice(first, last);
     let children = section.children;
     if (blocks.length && children.length) {
       children = [this.untitled(section.level + 1, blocks), ...children];
@@ -858,7 +875,7 @@ class Converter {
         return index;
       }
       case 'hr':
-        out('<subtitle>* * *</subtitle>');
+        out(THEMATIC_BREAK);
         return index;
       case 'math_block':
         out(this.formula(token.content, true, ctx));

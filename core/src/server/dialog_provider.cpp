@@ -172,6 +172,19 @@ json to_json(const SaveFileRequest& r) {
     }
     if (r.zipLabel) {
         j["zipChoice"] = json{{"label", *r.zipLabel}, {"checked", r.zipChecked}};
+        if (r.zipRename) {
+            j["zipChoice"]["rename"] = *r.zipRename;
+        }
+        if (r.zipFilter >= 0) {
+            j["zipChoice"]["filter"] = r.zipFilter;
+        }
+    }
+    if (!r.checks.empty()) {
+        json checks = json::array();
+        for (const auto& c : r.checks) {
+            checks.push_back(json{{"id", c.id}, {"label", c.label}, {"checked", c.checked}});
+        }
+        j["checks"] = checks;
     }
     return j;
 }
@@ -186,6 +199,13 @@ json to_json(const SaveFileResult& r) {
     }
     if (r.zip) {
         j["zip"] = *r.zip;
+    }
+    if (r.checks) {
+        json checks = json::object();
+        for (const auto& [id, value] : *r.checks) {
+            checks[id] = value;
+        }
+        j["checks"] = checks;
     }
     return j;
 }
@@ -257,6 +277,21 @@ SaveFileRequest save_file_request_from_json(const json& j) {
     if (const auto it = o.find("zipChoice"); it != o.end() && it->is_object()) {
         r.zipLabel = opt_str(*it, "label");
         r.zipChecked = it->value("checked", false);
+        r.zipRename = opt_str(*it, "rename");
+        if (const auto filter = it->find("filter");
+            filter != it->end() && filter->is_number_integer() && filter->get<int>() >= 0 &&
+            filter->get<int>() < static_cast<int>(r.filters.size())) {
+            r.zipFilter = filter->get<int>();
+        }
+    }
+    // Feature 017 (DP-5): further boxes.
+    if (const auto it = o.find("checks"); it != o.end() && it->is_array()) {
+        for (const auto& c : *it) {
+            if (c.is_object() && c.contains("id") && c["id"].is_string()) {
+                r.checks.push_back(SaveFileRequest::Check{
+                    c["id"].get<std::string>(), str_or(c, "label"), c.value("checked", false)});
+            }
+        }
     }
     return r;
 }
@@ -268,6 +303,15 @@ SaveFileResult save_file_result_from_json(const json& j) {
     r.encoding = opt_str(o, "encoding");
     if (const auto it = o.find("zip"); it != o.end() && it->is_boolean()) {
         r.zip = it->get<bool>();
+    }
+    if (const auto it = o.find("checks"); it != o.end() && it->is_object()) {
+        std::vector<std::pair<std::string, bool>> checks;
+        for (const auto& [id, value] : it->items()) {
+            if (value.is_boolean()) {
+                checks.emplace_back(id, value.get<bool>());
+            }
+        }
+        r.checks = std::move(checks);
     }
     return r;
 }

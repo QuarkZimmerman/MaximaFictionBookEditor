@@ -255,7 +255,8 @@ installed.
 The Playwright journeys drive the real UI in a headless Chromium against `mfbe-core`, which
 the test harness starts itself. The timed journeys (tagged `@perf`) - among them the script
 benchmark and the table commands of `perf-tables.spec.ts` (feature 006) - measure times, so they
-run on their own after the journeys, with one worker:
+run on their own after the journeys, with one worker. They report as a list only, so that the HTML
+report in `ui/playwright-report` stays the journeys' one, with the trace of any failed attempt:
 
 <!-- replay:linux -->
 ```bash
@@ -263,7 +264,7 @@ cd ui
 npx playwright install --with-deps chromium
 export MFBE_CORE_BIN=../build/linux-core-release/bin/mfbe-core MFBE_UI_DIST=../ui/dist
 npm run test:e2e -- --grep-invert @perf
-npx playwright test --grep @perf --workers=1
+npx playwright test --grep @perf --workers=1 --reporter=list
 cd ..
 ```
 
@@ -273,7 +274,7 @@ cd ui
 npx playwright install chromium
 export MFBE_CORE_BIN=../build/macos-core-release/bin/mfbe-core MFBE_UI_DIST=../ui/dist
 npm run test:e2e -- --grep-invert @perf
-npx playwright test --grep @perf --workers=1
+npx playwright test --grep @perf --workers=1 --reporter=list
 cd ..
 ```
 

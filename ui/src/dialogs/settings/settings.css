@@ -37,6 +37,40 @@
   outline-offset: -2px;
 }
 
+/* Every page in one grid cell (the requester after his smoke test of 0.0.12-rc.4: the dialog jumped from tab to
+   tab): the dialog takes the size of the tallest page - capped by the window, whose pages then scroll - and keeps
+   it, and its place, whichever tab is shown. A page not shown keeps its room, invisible (its panel's inline
+   visibility). Each page fills the room, and a list grows into it: the word exclusions, the hotkeys. */
+.mfbe-settings-pages {
+  display: grid;
+  min-height: 0;
+}
+
+.mfbe-settings-pages > [role='tabpanel'] {
+  grid-area: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.mfbe-settings-pages > [role='tabpanel'] > .mfbe-settings-page {
+  flex: 1 1 auto;
+}
+
+.mfbe-settings-fill {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.mfbe-settings-fill > .mfbe-exclusions-table {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 200px;
+}
+
 .mfbe-settings-page {
   display: flex;
   flex-direction: column;
@@ -167,7 +201,23 @@
 .mfbe-hotkeys-lists {
   display: grid;
   grid-template-columns: 180px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  flex: 1 1 auto;
+  min-height: 0;
   gap: 8px;
+}
+
+/* The two lists grow into the room the page leaves (see .mfbe-settings-pages). */
+.mfbe-hotkeys-lists > div {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.mfbe-hotkeys-lists .mfbe-hotkeys-listbox {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 190px;
 }
 
 .mfbe-hotkeys-listbox {

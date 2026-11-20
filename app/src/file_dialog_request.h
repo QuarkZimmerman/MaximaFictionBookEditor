@@ -37,6 +37,22 @@ struct FileDialogRequest {
     // ("" = none) and whether it starts ticked.
     std::string zip_label;
     bool zip_checked = false;
+    // While the dialog is open the file name and type follow the ZIP box (the requester after his
+    // smoke test of 0.0.12-rc.4) where the platform tells the box's changes - Windows and macOS;
+    // GTK's dialog reports its boxes only when it closes. kAppend adds or drops ".zip" (book.fb2
+    // <-> book.fb2.zip), kReplace puts it in place of the plain type's extension (book.txt <->
+    // book.zip); kNone: the box names no archive (the Markdown export's "Include pictures").
+    // `zip_filter`: the ZIP archive type in `filters` (-1: none), which ticks the box when chosen.
+    enum class ZipRename { kNone, kAppend, kReplace };
+    ZipRename zip_rename = ZipRename::kNone;
+    int zip_filter = -1;
+    // Feature 017 (DP-5): further boxes after the ZIP box (the TXT export's "Byte-order mark").
+    struct Check {
+        std::string id;
+        std::string label;
+        bool checked = false;
+    };
+    std::vector<Check> checks;
 };
 
 struct FileDialogResult {
@@ -44,6 +60,10 @@ struct FileDialogResult {
     std::vector<std::string> paths;  // UTF-8; one entry except for kOpenMultiple
     std::string encoding;            // Save As: the chosen encoding ("" when none was offered)
     int zip = -1;  // feature 009: the checkbox's final state (0/1); -1 = the dialog had none
+    // Feature 017 (DP-5): the further boxes' final states by id; `checks_shown` false when the
+    // dialog could not show them (the interface then asks in its own window).
+    std::vector<std::pair<std::string, bool>> checks;
+    bool checks_shown = false;
 };
 
 using FileDialogCallback = std::function<void(FileDialogResult)>;
@@ -83,6 +103,16 @@ struct ProposedFile {
     std::string name;
 };
 ProposedFile proposedFile(const FileDialogRequest& request);
+
+// The file name as the ZIP box turns it (FileDialogRequest::zip_rename): ticked, kAppend adds
+// ".zip" and kReplace puts it in place of the plain type's extension ("book.txt" -> "book.zip");
+// unticked, a ".zip" ending goes back - with kReplace to the plain type's extension. Endings
+// compare without letter case; an empty name, kNone and every other name stay as typed.
+std::string zipFollowName(const FileDialogRequest& request, const std::string& name, bool zip);
+
+// The type (an index into `filters`) that goes with the box: the ZIP type when ticked, else the
+// plain type - the one selected when the dialog opened, or the first when that is the ZIP type.
+std::size_t zipFollowFilter(const FileDialogRequest& request, bool zip);
 
 // Label of the Save As encoding choice in the shell's language, as the original's IDS_ENCODING.
 std::string encodingLabel(const std::string& language);

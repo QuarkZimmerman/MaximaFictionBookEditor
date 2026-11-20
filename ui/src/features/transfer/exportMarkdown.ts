@@ -8,6 +8,7 @@
 import type { CommandContext } from '@/app/commands';
 import { startModalJob } from '@/app/modalJob';
 import { confirmBookExport } from '@/features/file/exportCheck';
+import { keepExportOptions, keptExportOptions } from '@/features/file/keptExportOptions';
 import { proposedStem } from '@/features/file/proposedName';
 import { diagramSource, FORMULA_KEYWORD, SOURCE_KEYWORD } from '@/features/markdown/diagrams/files';
 import { serializeMarkdown } from '@/features/markdown/export/serialize';
@@ -65,6 +66,11 @@ export async function exportMarkdown(ctx: CommandContext, form: MarkdownForm): P
   if (!(await confirmBookExport(ctx)) || store.getState().docId !== docId) return false;
   const stem = proposedStem(state.document.description, ctx.t('app.untitled'));
   const one = form === 'md';
+  // Feature 017 (D17, D21): *Include pictures* kept for the book, else the settings' default.
+  const firstPictures =
+    keptExportOptions(docId, 'markdown')?.includePictures ??
+    state.settings?.markdown?.includePictures ??
+    true;
   const choice = await rpc.call('dialog.saveFile', {
     title: ctx.t(one ? 'cmd.file.exportMarkdown.tooltip' : 'cmd.file.exportMarkdownZip.tooltip'),
     filters: [
@@ -76,14 +82,16 @@ export async function exportMarkdown(ctx: CommandContext, form: MarkdownForm): P
     selectedFilter: 0,
     // The book's name in the book's folder (D14); the dialog keeps no folder of its own (D32).
     defaultPath: `${folderOf(state.path)}${stem}.${one ? 'md' : 'md.zip'}`,
-    // The Save dialog's checkbox of feature 009 carries *Include pictures*, ticked every time (D14).
+    // The Save dialog's checkbox of feature 009 carries *Include pictures* (D14; feature 017, D21).
     ...(one
-      ? { zipChoice: { label: ctx.t('transfer.markdown.includePictures'), checked: true } }
+      ? {
+          zipChoice: { label: ctx.t('transfer.markdown.includePictures'), checked: firstPictures },
+        }
       : {}),
   });
   const path = choice.path;
   if (!path) return false;
-  let includePictures = true;
+  let includePictures = firstPictures;
   if (one && choice.zip !== undefined) includePictures = choice.zip;
   else if (one && state.document.binaries.length > 0) {
     // A system dialog that cannot carry the box: the editor asks (D14).
@@ -93,10 +101,12 @@ export async function exportMarkdown(ctx: CommandContext, form: MarkdownForm): P
         caption: ctx.t('app.name'),
         buttons: 'yesNo',
         icon: 'question',
-        defaultButton: 'yes',
+        defaultButton: firstPictures ? 'yes' : 'no',
         testId: 'dialog-markdown-pictures',
       })) === 'yes';
   }
+  // D17: kept for the book from here on.
+  if (one) keepExportOptions(docId, 'markdown', { includePictures });
   const current = store.getState();
   if (!current.document || current.docId !== docId) return false;
   const diagramSources = await diagramSourcesOf(current.document, docId);

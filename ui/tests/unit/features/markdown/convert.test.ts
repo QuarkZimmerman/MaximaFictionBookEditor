@@ -9,6 +9,15 @@ const convert = (text: string, options: Partial<ConvertOptions> = {}) =>
   convertMarkdown(text, { ...OPTIONS, ...options });
 
 describe('Markdown structure (§1)', () => {
+  it('leaves out thematic breaks at the edges of a section, keeps those between blocks (issue #16)', () => {
+    const result = convert(
+      '# One\n\n---\n\nFirst.\n\n---\n\nSecond.\n\n---\n\n# Two\n\nThird.\n\n***\n',
+    );
+    expect(result.bodyXml.match(/<subtitle>\* \* \*<\/subtitle>/g)?.length).toBe(1);
+    expect(result.bodyXml).toContain('<p>First.</p><subtitle>* * *</subtitle><p>Second.</p>');
+    expect(result.summary).toContainEqual({ kind: 'edgeBreak', detail: '3' });
+  });
+
   it('takes a single opening level-1 heading as the book title; the next level are the sections', () => {
     const result = convert('# The Book\n\nIntro.\n\n## One\n\nText one.\n\n## Two\n\nText two.\n');
     expect(result.description.title).toBe('The Book');

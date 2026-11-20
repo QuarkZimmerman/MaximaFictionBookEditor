@@ -55,7 +55,7 @@ describe('words broken at the end of a line (D12)', () => {
   it('joins a plain hyphen when the word is known, and keeps it when it is not', () => {
     const lines = [`${full} hy-`, 'phenated words go on here as the line does'];
     expect(text(lines, (w) => w === 'hyphenated')).toContain('hyphenated words');
-    expect(text(lines, () => false)).toContain('hy- phenated');
+    expect(text(lines, () => false)).toContain('hy-phenated');
   });
   it('never ends a paragraph at a line ending with a hyphen', () => {
     // The first line ends short, which in a book of block paragraphs ends one - not with a hyphen.
