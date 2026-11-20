@@ -4,6 +4,7 @@
 #include "mobi/exth.hpp"
 
 #include <mfbe/mobi.hpp>
+
 #include <nlohmann/json.hpp>
 
 #include <cstdint>
@@ -45,7 +46,8 @@ struct MobiReadResult {
     nlohmann::json mfbe_json;
 };
 
-using ReadProgressFn = std::function<void(const std::string& phase, std::int64_t done, std::int64_t total)>;
+using ReadProgressFn =
+    std::function<void(const std::string& phase, std::int64_t done, std::int64_t total)>;
 using ReadCancelFn = std::function<void()>;
 
 std::string container_kind_to_string(ContainerKind kind);
@@ -56,7 +58,8 @@ MobiReadResult read_mobi_bytes(std::string_view bytes, const ReadProgressFn& pro
                                const ReadCancelFn& check_cancelled = {});
 
 // Reads a file from disk (enforcing kMaxFileBytes before full load) and parses it.
-MobiReadResult read_mobi_file(const std::filesystem::path& path, const ReadProgressFn& progress = {},
+MobiReadResult read_mobi_file(const std::filesystem::path& path,
+                              const ReadProgressFn& progress = {},
                               const ReadCancelFn& check_cancelled = {});
 
 }  // namespace mfbe::mobi

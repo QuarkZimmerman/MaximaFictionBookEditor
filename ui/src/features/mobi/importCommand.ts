@@ -41,10 +41,7 @@ export function mobiImportReason(ctx: CommandContext, error: unknown): string {
   if (isRpcError(error) && error.code === RpcErrorCode.mobiRefused) {
     const data = (error.data ?? {}) as { reason?: string };
     const rawReason = data.reason ?? 'damaged';
-    const key =
-      rawReason === 'encrypted'
-        ? 'mobi.refused.encrypted'
-        : `mobi.refused.${rawReason}`;
+    const key = rawReason === 'encrypted' ? 'mobi.refused.encrypted' : `mobi.refused.${rawReason}`;
     const text = ctx.t(key);
     return text === key ? ctx.t('mobi.refused.damaged') : text;
   }

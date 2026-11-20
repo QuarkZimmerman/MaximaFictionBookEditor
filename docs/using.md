@@ -22,8 +22,8 @@ the backup cannot be made the book is still saved, and the status bar says so.
 A book with validation errors is saved only after a question; when saving opens *Save As*, the
 question comes first, so *No* ends the save without choosing a file. The exports ask the same
 question before their save dialog - *File > Export > Export as Markdown…*, *Export as Markdown
-ZIP…*, *Export as EPUB…* and *Export as PDF…* -, and *No* ends the export without choosing a file;
-*Export as FBD…* asks it about the description it writes.
+ZIP…*, *Export as EPUB…*, *Export as PDF…*, *Export as TXT…* and *Export as MOBI…* -, and *No*
+ends the export without choosing a file; *Export as FBD…* asks it about the description it writes.
 
 ## Books in ZIP archives
 
@@ -545,9 +545,68 @@ several asks which).
 ### After an import
 
 An import keeps nothing of the file it read: the book is a new one, as *File > New* makes it, and its first
-*Save As* proposes the name made from its description, as for any new book. The Markdown, EPUB and PDF imports
-also take an FBD lying beside a file the editor did not make (the PDF import asks first); the editor's own
-files keep the description they carry.
+*Save As* proposes the name made from its description, as for any new book. The Markdown, EPUB, PDF, TXT and
+MOBI imports also take an FBD lying beside a file the editor did not make (the PDF import asks first); the
+editor's own files keep the description they carry.
+
+## MOBI and KF8 files
+
+### Exporting as MOBI
+
+*File > Export > Export as MOBI…* writes the book as an unencrypted Kindle / Mobipocket e-book. The Save
+dialog offers *Format*, *Table of contents*, and *Save in ZIP archive* (where the system dialog cannot show
+them, the editor asks in a small options dialog right after).
+
+- **Formats**: *MOBI 7 (.mobi)* for older readers and broadest compatibility; *MOBI 7 + KF8 (joint .mobi)*
+  packing both MOBI 7 and KF8 in one file with pictures stored once; or *KF8 (.azw3)* for modern Kindle
+  readers with translated CSS stylesheets.
+- **Navigation and table of contents**: a native device navigation index is always written, even when the
+  inline HTML table of contents is set to *None*; otherwise the inline table of contents appears *After title
+  page* (default) or *At the end*.
+- **Cover and pictures**: cover images are converted to baseline JPEG and paired with a cover thumbnail for
+  reader shelves; non-JPEG/PNG pictures are converted automatically and oversized pictures are scaled to stay
+  within reader limits.
+- **Notes**: classic MOBI 7 always emits bidirectional jump-to-end links; KF8 (and the KF8 half of joint
+  files) emits Kindle pop-up footnotes when *Pop-up footnotes (KF8)* is enabled, or plain jump-to-end links
+  when switched off.
+- **Series in reader title and opening location**: *Settings > Exports > MOBI* can optionally prefix the
+  reader shelf title with the series number (`3_Title`) or series and number (`Series #3 — Title`) without
+  altering the title page or round-trip title, and can open the book at the *Title page* or the *Start of
+  main text*.
+- **Save in ZIP archive**: packs `<name>.mobi` or `<name>.azw3` uncompressed (ZIP store, since MOBI text is
+  already compressed) together with `<name>.fbd` compressed (ZIP deflate) into `<name>.zip`.
+
+### Importing a MOBI, AZW3, AZW, or PRC file
+
+*File > Import > MOBI File…* makes a new unsaved FB2 book from an unencrypted `.mobi`, `.azw3`, `.azw`, or
+`.prc` file, directly or inside a ZIP archive (archives holding several books ask which one to import).
+
+- **Supported formats**: MOBI 7 (uncompressed, PalmDOC, and HuffCDIC; UTF-8 and Windows-1252), joint MOBI 7 +
+  KF8 (reading KF8 first and falling back automatically to MOBI 7 if the KF8 part is damaged), standalone KF8
+  (`.azw3`), and plain PalmDOC (`.prc`). Third-party FB2 converter marks, KF8 stylesheets, vector SVGs, and
+  MathML formulas are translated to valid FB2 2.1 with JPEG/PNG pictures only.
+- **Reversible round-trip**: files written by this editor carry a verified embedded `MFBE` metadata record
+  (ignored cleanly by reading apps) so re-importing them restores the full original description, stylesheets,
+  named styles, bodies, notes, attributes, and binary IDs. If the file was edited externally in another tool,
+  the editor detects the change and imports the edited text or metadata as a regular MOBI without overwriting
+  your external edits.
+- **Refusals**: DRM/encrypted books, Amazon KFX files, oversized or malformed containers, and FictionBook
+  files chosen via *All files* are refused with a clear message. *File > Open* also refuses MOBI books and
+  MOBI-only ZIP archives, pointing to *File > Import > MOBI File…* (while still opening a ZIP that contains
+  an FBD beside a MOBI).
+- **Archive and sibling FBD files**: inside a ZIP archive, a matching `.fbd` is applied silently to foreign
+  books, or checked against the embedded description of an editor-made MOBI (silent when identical; asks
+  whether to take *The FBD's*, *The MOBI's*, or *Cancel* when they differ); unmatched multiple FBDs open a
+  chooser with *None*. Outside a ZIP archive, a sibling `<name>.fbd` is applied to foreign MOBI files and
+  ignored for the editor's own bare exports; an outside `.fbd` beside a ZIP archive is never read.
+
+### MOBI export settings
+
+*Settings > Exports > MOBI* sets the default *Format*, *Table of contents*, *Series in reader title*, *Open
+book at*, *Pop-up footnotes (KF8)*, and *Save in ZIP archive*, each showing its out-of-the-box value with
+*Reset* and *Reset all*. Choices changed in the Save dialog (*Format*, *Table of contents*, *Save in ZIP
+archive*) stay with the open book for subsequent exports until another book takes the window or the editor
+restarts. The MOBI export and import modules load on demand only when used.
 
 ## The Styles view
 

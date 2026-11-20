@@ -11,18 +11,18 @@
 namespace mfbe::mobi {
 
 // Hard safety and format limits (contracts/mobi-file.md, contracts/rpc-api.md).
-inline constexpr std::size_t kMaxFileBytes = 150ULL * 1024 * 1024;           // 150 MB
-inline constexpr std::size_t kMaxRecords = 65535;                            // uint16 max
-inline constexpr std::size_t kMaxDecompressedBytes = 256ULL * 1024 * 1024;   // 256 MB
-inline constexpr std::size_t kMinBombBaselineBytes = 1ULL * 1024 * 1024;     // 1 MB floor
-inline constexpr std::size_t kMaxExpansionRatio = 100;                       // 100x cap
-inline constexpr int kMaxHuffDepth = 32;                                     // CDIC recursion limit
-inline constexpr std::size_t kMaxMfbeCompressedBytes = 48128;                // 47 KB cap
-inline constexpr std::size_t kMaxPictureBytes = 10ULL * 1024 * 1024;         // 10 MB per picture
-inline constexpr int kThumbMaxWidth = 180;                                   // spec D7
-inline constexpr int kThumbMaxHeight = 240;                                  // spec D7
-inline constexpr std::size_t kThumbMaxBytes = 16384;                         // 16 KB (spec D7)
-inline constexpr std::uint32_t kExthMfbeType = 59901;                        // private EXTH record
+inline constexpr std::size_t kMaxFileBytes = 150ULL * 1024 * 1024;          // 150 MB
+inline constexpr std::size_t kMaxRecords = 65535;                           // uint16 max
+inline constexpr std::size_t kMaxDecompressedBytes = 256ULL * 1024 * 1024;  // 256 MB
+inline constexpr std::size_t kMinBombBaselineBytes = 1ULL * 1024 * 1024;    // 1 MB floor
+inline constexpr std::size_t kMaxExpansionRatio = 100;                      // 100x cap
+inline constexpr int kMaxHuffDepth = 32;                                    // CDIC recursion limit
+inline constexpr std::size_t kMaxMfbeCompressedBytes = 48128;               // 47 KB cap
+inline constexpr std::size_t kMaxPictureBytes = 10ULL * 1024 * 1024;        // 10 MB per picture
+inline constexpr int kThumbMaxWidth = 180;                                  // spec D7
+inline constexpr int kThumbMaxHeight = 240;                                 // spec D7
+inline constexpr std::size_t kThumbMaxBytes = 16384;                        // 16 KB (spec D7)
+inline constexpr std::uint32_t kExthMfbeType = 59901;                       // private EXTH record
 
 enum class ContainerKind {
     unknown,

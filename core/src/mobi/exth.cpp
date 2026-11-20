@@ -4,11 +4,10 @@
 #include "mobi/palmdb.hpp"
 #include "util/sha256.hpp"
 
-#include <zlib.h>
-
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <zlib.h>
 
 namespace mfbe::mobi {
 namespace {
@@ -22,17 +21,15 @@ struct LcidPair {
 
 // Primary BCP-47 to Windows LCID table (spec D4; MOBI header offset 92).
 constexpr std::array<LcidPair, 42> kLcidTable = {{
-    {"en", 0x0409},    {"en-us", 0x0409}, {"en-gb", 0x0809}, {"ru", 0x0419},
-    {"uk", 0x0422},    {"be", 0x0423},    {"de", 0x0407},    {"fr", 0x040C},
-    {"es", 0x0C0A},    {"it", 0x0410},    {"pt", 0x0816},    {"pt-br", 0x0416},
-    {"pl", 0x0415},    {"cs", 0x0405},    {"sk", 0x041B},    {"bg", 0x0402},
-    {"sr", 0x0C1A},    {"hr", 0x041A},    {"sl", 0x0424},    {"nl", 0x0413},
-    {"sv", 0x041D},    {"da", 0x0406},    {"nb", 0x0414},    {"no", 0x0414},
-    {"fi", 0x040B},    {"hu", 0x040E},    {"ro", 0x0418},    {"el", 0x0408},
-    {"tr", 0x041F},    {"ar", 0x0401},    {"he", 0x040D},    {"ja", 0x0411},
-    {"zh", 0x0804},    {"zh-cn", 0x0804}, {"zh-tw", 0x0404}, {"ko", 0x0412},
-    {"lt", 0x0427},    {"lv", 0x0426},    {"et", 0x0425},    {"ka", 0x0437},
-    {"hy", 0x042B},    {"kk", 0x043F},
+    {"en", 0x0409}, {"en-us", 0x0409}, {"en-gb", 0x0809}, {"ru", 0x0419},    {"uk", 0x0422},
+    {"be", 0x0423}, {"de", 0x0407},    {"fr", 0x040C},    {"es", 0x0C0A},    {"it", 0x0410},
+    {"pt", 0x0816}, {"pt-br", 0x0416}, {"pl", 0x0415},    {"cs", 0x0405},    {"sk", 0x041B},
+    {"bg", 0x0402}, {"sr", 0x0C1A},    {"hr", 0x041A},    {"sl", 0x0424},    {"nl", 0x0413},
+    {"sv", 0x041D}, {"da", 0x0406},    {"nb", 0x0414},    {"no", 0x0414},    {"fi", 0x040B},
+    {"hu", 0x040E}, {"ro", 0x0418},    {"el", 0x0408},    {"tr", 0x041F},    {"ar", 0x0401},
+    {"he", 0x040D}, {"ja", 0x0411},    {"zh", 0x0804},    {"zh-cn", 0x0804}, {"zh-tw", 0x0404},
+    {"ko", 0x0412}, {"lt", 0x0427},    {"lv", 0x0426},    {"et", 0x0425},    {"ka", 0x0437},
+    {"hy", 0x042B}, {"kk", 0x043F},
 }};
 
 std::string normalize_lang_lower(std::string_view lang) {
@@ -55,8 +52,9 @@ bool is_valid_language_tag(std::string_view lang) {
     }
     // Primary subtag must be 2..3 ASCII letters.
     const std::size_t dash = norm.find('-');
-    const std::string_view primary = (dash == std::string::npos) ? std::string_view(norm)
-                                                                 : std::string_view(norm).substr(0, dash);
+    const std::string_view primary = (dash == std::string::npos)
+                                         ? std::string_view(norm)
+                                         : std::string_view(norm).substr(0, dash);
     if (primary.size() < 2 || primary.size() > 3) {
         return false;
     }
@@ -66,7 +64,8 @@ bool is_valid_language_tag(std::string_view lang) {
 
 constexpr std::size_t kMaxMfbeDecompressedBytes = 8ULL * 1024 * 1024;  // 8 MB safety cap
 
-std::optional<std::string> zlib_inflate_bounded(std::string_view compressed, std::size_t max_bytes) {
+std::optional<std::string> zlib_inflate_bounded(std::string_view compressed,
+                                                std::size_t max_bytes) {
     z_stream strm{};
     if (inflateInit(&strm) != Z_OK) {
         return std::nullopt;
@@ -203,8 +202,7 @@ std::vector<ExthEntry> build_export_exth(const MobiMetadata& meta,
                                          std::optional<std::uint32_t> thumb_offset,
                                          std::optional<std::uint32_t> open_at_offset,
                                          std::optional<std::uint32_t> kf8_boundary_rec,
-                                         std::optional<std::uint32_t> resource_count,
-                                         bool is_kf8,
+                                         std::optional<std::uint32_t> resource_count, bool is_kf8,
                                          std::optional<std::string_view> mfbe_payload) {
     std::vector<ExthEntry> entries;
     for (const auto& a : meta.authors) {
@@ -263,8 +261,7 @@ std::vector<ExthEntry> build_export_exth(const MobiMetadata& meta,
     entries.push_back({207, encode_u32_be(13)});
 
     // NOTE: Store-only EXTH 113 (ASIN) and 501 (CDE type) are intentionally omitted per spec D5.
-    const std::string& shelf_title =
-        !meta.updated_title.empty() ? meta.updated_title : meta.title;
+    const std::string& shelf_title = !meta.updated_title.empty() ? meta.updated_title : meta.title;
     if (!shelf_title.empty()) {
         entries.push_back({503, shelf_title});
     }
@@ -395,7 +392,8 @@ MfbeDecodeResult decode_and_verify_mfbe(std::string_view raw_exth_payload,
         res.status = MfbeStatus::corrupt;
         return res;
     }
-    const auto inflated = zlib_inflate_bounded(raw_exth_payload.substr(6), kMaxMfbeDecompressedBytes);
+    const auto inflated =
+        zlib_inflate_bounded(raw_exth_payload.substr(6), kMaxMfbeDecompressedBytes);
     if (!inflated) {
         res.status = MfbeStatus::corrupt;
         return res;
@@ -418,8 +416,8 @@ MfbeDecodeResult decode_and_verify_mfbe(std::string_view raw_exth_payload,
     res.html_matches = (compute_html_sha256(actual_html) == expected_html);
     res.meta_matches = (compute_meta_sha256(actual_meta) == expected_meta);
     res.json = std::move(parsed);
-    res.status =
-        (res.html_matches && res.meta_matches) ? MfbeStatus::valid : MfbeStatus::externally_modified;
+    res.status = (res.html_matches && res.meta_matches) ? MfbeStatus::valid
+                                                        : MfbeStatus::externally_modified;
     return res;
 }
 

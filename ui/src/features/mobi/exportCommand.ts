@@ -13,12 +13,7 @@ import { confirmCompletedTarget } from '@/features/file/completedTarget';
 import { confirmBookExport } from '@/features/file/exportCheck';
 import { keepExportOptions, keptExportOptions } from '@/features/file/keptExportOptions';
 import { proposedStem } from '@/features/file/proposedName';
-import type {
-  MobiFormat,
-  MobiOpenAt,
-  MobiSeriesInTitle,
-  MobiTocPlacement,
-} from '@/rpc/types';
+import type { MobiFormat, MobiOpenAt, MobiSeriesInTitle, MobiTocPlacement } from '@/rpc/types';
 import { commitPendingSource } from '@/views/source/sourceSession';
 
 import { MobiExportOptions, type MobiExportOptionsChoice } from './MobiExportOptions';
@@ -86,7 +81,8 @@ export function registerMobiExportFeature(commands: CommandRegistry): void {
       const settings = state.settings?.mobi;
       const kept = keptExportOptions(docId, 'mobi');
       const initFormat: MobiFormat = kept?.format ?? settings?.format ?? 'mobi7';
-      const initToc: MobiTocPlacement = kept?.tocPlacement ?? settings?.tocPlacement ?? 'afterTitle';
+      const initToc: MobiTocPlacement =
+        kept?.tocPlacement ?? settings?.tocPlacement ?? 'afterTitle';
       const initZip: boolean = kept?.zip ?? settings?.zip ?? false;
       const seriesInTitle: MobiSeriesInTitle = settings?.seriesInTitle ?? 'off';
       const openAt: MobiOpenAt = settings?.openAt ?? 'titlePage';

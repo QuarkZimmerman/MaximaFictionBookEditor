@@ -158,7 +158,9 @@ export function buildKf8(options: MobiExportBuildOptions, plan: BookExportPlan):
         return inner;
       }
       const targetBody = plan.bodyOfId.get(target);
-      const isNote = link.attrs.type === 'note' || (targetBody !== undefined && plan.notesBodies.has(targetBody));
+      const isNote =
+        link.attrs.type === 'note' ||
+        (targetBody !== undefined && plan.notesBodies.has(targetBody));
       if (isNote) {
         const refId = plan.ids.allocate(`ref${++refSeq}`);
         if (!backRefs.has(target)) backRefs.set(target, refId);
@@ -187,7 +189,8 @@ export function buildKf8(options: MobiExportBuildOptions, plan: BookExportPlan):
       let end = i + 1;
       while (end < nodes.length) {
         const next = linkOf((nodes[end] as { marks?: Mark[] }).marks);
-        if (!next || next.attrs.href !== link.attrs.href || next.attrs.type !== link.attrs.type) break;
+        if (!next || next.attrs.href !== link.attrs.href || next.attrs.type !== link.attrs.type)
+          break;
         end++;
       }
       const inner = nodes.slice(i, end).map(renderInlineNode).join('');
@@ -210,7 +213,9 @@ export function buildKf8(options: MobiExportBuildOptions, plan: BookExportPlan):
         .join('')}</div>`;
     }
     const tag = `h${Math.min(Math.max(level, 1), 6)}`;
-    const shown = lines.map((l) => (l === '\u0000empty' ? '<span class="fb2-empty-line"></span>' : l));
+    const shown = lines.map((l) =>
+      l === '\u0000empty' ? '<span class="fb2-empty-line"></span>' : l,
+    );
     return `<${tag}${idAttrOf(title.attrs.nodeId)}${classAttr(kind)}${langAttrs(title.attrs.lang)}>${shown.join('<br/>')}</${tag}>`;
   };
 
@@ -224,7 +229,9 @@ export function buildKf8(options: MobiExportBuildOptions, plan: BookExportPlan):
     counts.pictures++;
     const alt = node.attrs.alt ?? '';
     const src = `kindle:embed:${formatKf8EmbedId(pic.recindex)}?mime=${pic.mediaType}`;
-    const caption = node.attrs.title ? `<figcaption>${escapeXml(node.attrs.title)}</figcaption>` : '';
+    const caption = node.attrs.title
+      ? `<figcaption>${escapeXml(node.attrs.title)}</figcaption>`
+      : '';
     return `<figure${idAttrOf(node.attrs.nodeId)} class="fb2-image"><img src="${escapeAttr(src)}" alt="${escapeAttr(alt)}"/>${caption}</figure>`;
   };
 
@@ -279,7 +286,9 @@ export function buildKf8(options: MobiExportBuildOptions, plan: BookExportPlan):
         case 'text-author':
           return `<p${idAttrOf(child.attrs.nodeId)}${classAttr('fb2-text-author', child.attrs.style && plan.styleClass(child.attrs.style))}${langAttrs(child.attrs.lang)}>${renderInline(child.content)}</p>`;
         case 'date': {
-          const valAttr = child.attrs.value ? ` data-fb2-value="${escapeAttr(child.attrs.value)}"` : '';
+          const valAttr = child.attrs.value
+            ? ` data-fb2-value="${escapeAttr(child.attrs.value)}"`
+            : '';
           return `<p${idAttrOf(child.attrs.nodeId)} class="fb2-date"${valAttr}${langAttrs(child.attrs.lang)}>${renderInline(child.content)}</p>`;
         }
         default:
@@ -378,7 +387,9 @@ export function buildKf8(options: MobiExportBuildOptions, plan: BookExportPlan):
   // 1. Cover fragment (KF8)
   const coverHref = titleInfo.coverpage[0]?.href ?? '';
   if (coverHref) {
-    const coverPic = coverHref.startsWith('#') ? options.pictures.get(coverHref.slice(1)) : undefined;
+    const coverPic = coverHref.startsWith('#')
+      ? options.pictures.get(coverHref.slice(1))
+      : undefined;
     if (coverPic) {
       counts.pictures++;
       const src = `kindle:embed:${formatKf8EmbedId(coverPic.recindex)}?mime=${coverPic.mediaType}`;
@@ -415,7 +426,8 @@ export function buildKf8(options: MobiExportBuildOptions, plan: BookExportPlan):
   }
 
   // 3. Inline TOC afterTitle
-  const tocHtml = options.tocPlacement === 'none' ? '' : renderInlineTocKf8(nav, plan.words.contents);
+  const tocHtml =
+    options.tocPlacement === 'none' ? '' : renderInlineTocKf8(nav, plan.words.contents);
   if (options.tocPlacement === 'afterTitle' && tocHtml) {
     chunks.push(`<div class="fb2-pagebreak">${tocHtml}</div>`);
     guide.push({ type: 'toc', title: plan.words.contents, anchorId: 'fb2-toc' });
@@ -445,7 +457,9 @@ export function buildKf8(options: MobiExportBuildOptions, plan: BookExportPlan):
         .filter((c) => !(idx === plan.notesBodyIndices[0] && c === firstTitle))
         .map((c) => (c.type === 'section' ? renderNoteSection(c) : renderBlock(c, 2)))
         .join('');
-      notesParts.push(`<div class="fb2-body fb2-notes-body" data-fb2-body="${idx}">${bodyNodes}</div>`);
+      notesParts.push(
+        `<div class="fb2-body fb2-notes-body" data-fb2-body="${idx}">${bodyNodes}</div>`,
+      );
     }
     chunks.push(`<div id="fb2-notes" class="fb2-notes fb2-pagebreak">${notesParts.join('')}</div>`);
   }

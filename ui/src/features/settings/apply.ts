@@ -166,16 +166,7 @@ export function cloneSettings(settings: Settings): Settings {
 }
 
 /** The sections the Settings dialog edits; `ai` since feature 005, `mobi` since feature 018. */
-const PATCH_SECTIONS = [
-  'view',
-  'other',
-  'words',
-  'pdf',
-  'markdown',
-  'txt',
-  'mobi',
-  'ai',
-] as const;
+const PATCH_SECTIONS = ['view', 'other', 'words', 'pdf', 'markdown', 'txt', 'mobi', 'ai'] as const;
 
 /** Leaves equal by value: primitives by `Object.is`, the object leaves of `ai` by their JSON. */
 function sameLeaf(a: unknown, b: unknown): boolean {

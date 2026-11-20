@@ -44,7 +44,13 @@ function sampleDocument(overrides?: {
           : {
               type: 'annotation',
               attrs: { nodeId: 'ann1' },
-              content: [{ type: 'p', attrs: { nodeId: 'ap1' }, content: [{ type: 'text', text: 'Book summary.' }] }],
+              content: [
+                {
+                  type: 'p',
+                  attrs: { nodeId: 'ap1' },
+                  content: [{ type: 'text', text: 'Book summary.' }],
+                },
+              ],
             },
         keywords: 'space, adventure',
         date: { value: '2026-01-01', text: '2026' },
@@ -72,7 +78,10 @@ function sampleDocument(overrides?: {
     },
     stylesheets: overrides?.withCss
       ? [
-          { type: 'text/css', content: 'p { color: #222; } .accent { font-weight: bold; } @import "http://bad/";' },
+          {
+            type: 'text/css',
+            content: 'p { color: #222; } .accent { font-weight: bold; } @import "http://bad/";',
+          },
           { type: 'text/xsl', content: '<xsl/>' },
         ]
       : [],
@@ -88,14 +97,28 @@ function sampleDocument(overrides?: {
               {
                 type: 'title',
                 attrs: { nodeId: 't1' },
-                content: [{ type: 'p', attrs: { nodeId: 'tp1' }, content: [{ type: 'text', text: 'Chapter One' }] }],
+                content: [
+                  {
+                    type: 'p',
+                    attrs: { nodeId: 'tp1' },
+                    content: [{ type: 'text', text: 'Chapter One' }],
+                  },
+                ],
               },
               {
                 type: 'epigraph',
                 attrs: { nodeId: 'ep1' },
                 content: [
-                  { type: 'p', attrs: { nodeId: 'epp1' }, content: [{ type: 'text', text: 'To the stars.' }] },
-                  { type: 'text-author', attrs: { nodeId: 'ta1' }, content: [{ type: 'text', text: 'Poet' }] },
+                  {
+                    type: 'p',
+                    attrs: { nodeId: 'epp1' },
+                    content: [{ type: 'text', text: 'To the stars.' }],
+                  },
+                  {
+                    type: 'text-author',
+                    attrs: { nodeId: 'ta1' },
+                    content: [{ type: 'text', text: 'Poet' }],
+                  },
                 ],
               },
               {
@@ -111,7 +134,12 @@ function sampleDocument(overrides?: {
                         {
                           type: 'text' as const,
                           text: '[1]',
-                          marks: [{ type: 'link' as const, attrs: { href: '#n1', type: 'note' as const } }],
+                          marks: [
+                            {
+                              type: 'link' as const,
+                              attrs: { href: '#n1', type: 'note' as const },
+                            },
+                          ],
                         },
                       ]
                     : []),
@@ -124,9 +152,19 @@ function sampleDocument(overrides?: {
                   {
                     type: 'stanza',
                     attrs: { nodeId: 'st1' },
-                    content: [{ type: 'v', attrs: { nodeId: 'v1' }, content: [{ type: 'text', text: 'Verse line one' }] }],
+                    content: [
+                      {
+                        type: 'v',
+                        attrs: { nodeId: 'v1' },
+                        content: [{ type: 'text', text: 'Verse line one' }],
+                      },
+                    ],
                   },
-                  { type: 'date', attrs: { nodeId: 'dt1', value: '1999-05-01' }, content: [{ type: 'text', text: 'May 1999' }] },
+                  {
+                    type: 'date',
+                    attrs: { nodeId: 'dt1', value: '1999-05-01' },
+                    content: [{ type: 'text', text: 'May 1999' }],
+                  },
                 ],
               },
               {
@@ -137,13 +175,24 @@ function sampleDocument(overrides?: {
                     type: 'tr',
                     attrs: { nodeId: 'tr1' },
                     content: [
-                      { type: 'th', attrs: { nodeId: 'th1', align: 'center' }, content: [{ type: 'text', text: 'Col' }] },
-                      { type: 'td', attrs: { nodeId: 'td1', colspan: 2 }, content: [{ type: 'text', text: 'Val' }] },
+                      {
+                        type: 'th',
+                        attrs: { nodeId: 'th1', align: 'center' },
+                        content: [{ type: 'text', text: 'Col' }],
+                      },
+                      {
+                        type: 'td',
+                        attrs: { nodeId: 'td1', colspan: 2 },
+                        content: [{ type: 'text', text: 'Val' }],
+                      },
                     ],
                   },
                 ],
               },
-              { type: 'image', attrs: { nodeId: 'im1', href: '#fig1.png', alt: 'Diagram', title: 'Figure 1' } },
+              {
+                type: 'image',
+                attrs: { nodeId: 'im1', href: '#fig1.png', alt: 'Diagram', title: 'Figure 1' },
+              },
               {
                 type: 'section',
                 attrs: { nodeId: 's1a', id: 'ch1a' },
@@ -151,9 +200,19 @@ function sampleDocument(overrides?: {
                   {
                     type: 'title',
                     attrs: { nodeId: 't1a' },
-                    content: [{ type: 'p', attrs: { nodeId: 'tp1a' }, content: [{ type: 'text', text: 'Subchapter A' }] }],
+                    content: [
+                      {
+                        type: 'p',
+                        attrs: { nodeId: 'tp1a' },
+                        content: [{ type: 'text', text: 'Subchapter A' }],
+                      },
+                    ],
                   },
-                  { type: 'p', attrs: { nodeId: 'p1a' }, content: [{ type: 'text', text: 'Nested body text.' }] },
+                  {
+                    type: 'p',
+                    attrs: { nodeId: 'p1a' },
+                    content: [{ type: 'text', text: 'Nested body text.' }],
+                  },
                 ],
               },
             ],
@@ -183,8 +242,22 @@ function sampleDocument(overrides?: {
         : []),
     ],
     binaries: [
-      { id: 'cover.jpg', contentType: 'image/jpeg', size: 100, decodable: true, willConvert: false, referenceCount: 1 },
-      { id: 'fig1.png', contentType: 'image/png', size: 50, decodable: true, willConvert: false, referenceCount: 1 },
+      {
+        id: 'cover.jpg',
+        contentType: 'image/jpeg',
+        size: 100,
+        decodable: true,
+        willConvert: false,
+        referenceCount: 1,
+      },
+      {
+        id: 'fig1.png',
+        contentType: 'image/png',
+        size: 50,
+        decodable: true,
+        willConvert: false,
+        referenceCount: 1,
+      },
     ],
   };
 }
@@ -277,8 +350,12 @@ describe('MOBI 7 and KF8 export builders (T016)', () => {
     expect(kf8Popup.html).toContain('<aside id="n1" class="fb2-note" epub:type="footnote"');
     expect(kf8Popup.css).toContain('.accent');
     // Disallowed @import and non-CSS stylesheet reported in summary
-    expect(popupPlan.summary.some((s) => s.kind === 'cssDropped' && s.detail === '@import')).toBe(true);
-    expect(popupPlan.summary.some((s) => s.kind === 'stylesheetDropped' && s.detail === 'text/xsl')).toBe(true);
+    expect(popupPlan.summary.some((s) => s.kind === 'cssDropped' && s.detail === '@import')).toBe(
+      true,
+    );
+    expect(
+      popupPlan.summary.some((s) => s.kind === 'stylesheetDropped' && s.detail === 'text/xsl'),
+    ).toBe(true);
 
     const plainOpts = makeOptions(doc, { kf8PopupFootnotes: false });
     const plainPlan = buildExportPlan(plainOpts);
@@ -289,14 +366,22 @@ describe('MOBI 7 and KF8 export builders (T016)', () => {
   });
 
   it('supports all seriesInTitle modes, openAt fallback, book-language words, and missing gaps', () => {
-    expect(formatShelfTitle('Dune', [{ name: 'Chronicles', number: 2, children: [] }], 'off')).toBe('Dune');
-    expect(formatShelfTitle('Dune', [{ name: 'Chronicles', number: 2, children: [] }], 'numberBefore')).toBe('2_Dune');
-    expect(formatShelfTitle('Dune', [{ name: 'Chronicles', number: 2, children: [] }], 'seriesAndNumber')).toBe(
-      'Chronicles #2 \u2014 Dune',
+    expect(formatShelfTitle('Dune', [{ name: 'Chronicles', number: 2, children: [] }], 'off')).toBe(
+      'Dune',
     );
-    expect(formatShelfTitle('Dune', [{ name: 'Chronicles', children: [] }], 'seriesAndNumber')).toBe(
-      'Chronicles \u2014 Dune',
-    );
+    expect(
+      formatShelfTitle('Dune', [{ name: 'Chronicles', number: 2, children: [] }], 'numberBefore'),
+    ).toBe('2_Dune');
+    expect(
+      formatShelfTitle(
+        'Dune',
+        [{ name: 'Chronicles', number: 2, children: [] }],
+        'seriesAndNumber',
+      ),
+    ).toBe('Chronicles #2 \u2014 Dune');
+    expect(
+      formatShelfTitle('Dune', [{ name: 'Chronicles', children: [] }], 'seriesAndNumber'),
+    ).toBe('Chronicles \u2014 Dune');
 
     // Russian added words & openAt = mainText
     const ruDoc = sampleDocument({ lang: 'ru-RU', withNotes: true });
@@ -318,10 +403,11 @@ describe('MOBI 7 and KF8 export builders (T016)', () => {
     expect(badPlan.openAtAnchorId).toBe('fb2-main-start');
     expect(badPlan.metadata.title).toBe('Fallback Stem');
     expect(badPlan.metadata.language).toBe('');
-    expect(badPlan.summary.filter((s) => s.kind === 'gapFilled').map((s) => s.detail).sort()).toEqual([
-      'identifier',
-      'language',
-      'title',
-    ]);
+    expect(
+      badPlan.summary
+        .filter((s) => s.kind === 'gapFilled')
+        .map((s) => s.detail)
+        .sort(),
+    ).toEqual(['identifier', 'language', 'title']);
   });
 });

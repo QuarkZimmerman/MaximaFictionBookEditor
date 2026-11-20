@@ -65,7 +65,10 @@ export function parseBase32(raw: string): number | null {
   return value;
 }
 
-export async function fetchImportText(token: string, slot: 'html' | `css/${number}`): Promise<string> {
+export async function fetchImportText(
+  token: string,
+  slot: 'html' | `css/${number}`,
+): Promise<string> {
   const response = await fetch(mobiImportUrl(token, slot));
   if (!response.ok) {
     throw new Error(`${slot}: HTTP ${response.status}`);

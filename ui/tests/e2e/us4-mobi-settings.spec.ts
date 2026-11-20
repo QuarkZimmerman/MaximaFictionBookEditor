@@ -40,7 +40,8 @@ async function waitExportDone(page: Page): Promise<void> {
   await expect
     .poll(
       async () => {
-        if (await failed.isVisible()) throw new Error(`Export failed: ${await failed.textContent()}`);
+        if (await failed.isVisible())
+          throw new Error(`Export failed: ${await failed.textContent()}`);
         if (await summary.isVisible()) {
           await summary.getByRole('button').first().click();
           return true;
@@ -215,7 +216,9 @@ with zipfile.ZipFile(sys.argv[1]) as z:
     await core.enqueueDialog('dialog.saveFile', {}); // user cancels Save dialog
     await clickExport(core, page, 'exportMobi');
     await expect
-      .poll(async () => (await lastSaveRequest(core)).selects?.find((s) => s.id === 'format')?.selected)
+      .poll(
+        async () => (await lastSaveRequest(core)).selects?.find((s) => s.id === 'format')?.selected,
+      )
       .toBe('kf8');
     const cancelledReq = await lastSaveRequest(core);
     expect(cancelledReq.defaultPath).toMatch(/\.azw3$/);
@@ -227,7 +230,9 @@ with zipfile.ZipFile(sys.argv[1]) as z:
     await core.enqueueDialog('dialog.saveFile', {}); // cancel so we just inspect the proposed options
     await clickExport(core, page, 'exportMobi');
     await expect
-      .poll(async () => (await lastSaveRequest(core)).selects?.find((s) => s.id === 'format')?.selected)
+      .poll(
+        async () => (await lastSaveRequest(core)).selects?.find((s) => s.id === 'format')?.selected,
+      )
       .toBe('joint');
     const otherBookReq = await lastSaveRequest(core);
     expect(otherBookReq.defaultPath).toMatch(/\.zip$/);

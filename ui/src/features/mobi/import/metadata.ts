@@ -84,15 +84,25 @@ function annotationParagraphs(html: string | undefined): string[] {
 const ROLE_PATTERNS: readonly { pattern: RegExp; kind: 'translator' | FbdMakerLabel }[] = [
   { pattern: /^(?:translator|trl|переводчик|перекладач)\s*[:—-]\s*(.+)$/i, kind: 'translator' },
   { pattern: /^(.+?)\s*\((?:translator|trl)\)$/i, kind: 'translator' },
-  { pattern: /^(?:illustrator|ill|иллюстратор|ілюстратор)\s*[:—-]\s*(.+)$/i, kind: 'mlillustrator' },
+  {
+    pattern: /^(?:illustrator|ill|иллюстратор|ілюстратор)\s*[:—-]\s*(.+)$/i,
+    kind: 'mlillustrator',
+  },
   { pattern: /^(.+?)\s*\((?:illustrator|ill)\)$/i, kind: 'mlillustrator' },
   { pattern: /^(?:editor|edt|редактор)\s*[:—-]\s*(.+)$/i, kind: 'mleditor' },
   { pattern: /^(.+?)\s*\((?:editor|edt)\)$/i, kind: 'mleditor' },
   { pattern: /^(?:compiler|com|составитель|упорядник)\s*[:—-]\s*(.+)$/i, kind: 'mlcompiler' },
   { pattern: /^(.+?)\s*\((?:compiler|com)\)$/i, kind: 'mlcompiler' },
-  { pattern: /^(?:designer|book designer|cover designer|dsr|bkd|cov|оформитель|дизайнер)\s*[:—-]\s*(.+)$/i, kind: 'mldesigner' },
+  {
+    pattern:
+      /^(?:designer|book designer|cover designer|dsr|bkd|cov|оформитель|дизайнер)\s*[:—-]\s*(.+)$/i,
+    kind: 'mldesigner',
+  },
   { pattern: /^(.+?)\s*\((?:designer|dsr|bkd|cov)\)$/i, kind: 'mldesigner' },
-  { pattern: /^(?:commentator|cmm|комментатор|коментатор)\s*[:—-]\s*(.+)$/i, kind: 'mlcommentator' },
+  {
+    pattern: /^(?:commentator|cmm|комментатор|коментатор)\s*[:—-]\s*(.+)$/i,
+    kind: 'mlcommentator',
+  },
   { pattern: /^(.+?)\s*\((?:commentator|cmm)\)$/i, kind: 'mlcommentator' },
 ];
 

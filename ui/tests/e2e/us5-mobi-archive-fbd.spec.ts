@@ -43,7 +43,8 @@ async function waitExportDone(page: Page): Promise<void> {
   await expect
     .poll(
       async () => {
-        if (await failed.isVisible()) throw new Error(`Export failed: ${await failed.textContent()}`);
+        if (await failed.isVisible())
+          throw new Error(`Export failed: ${await failed.textContent()}`);
         if (await summary.isVisible()) {
           await summary.getByRole('button').first().click();
           return true;
@@ -69,7 +70,8 @@ async function waitImportDone(
   await expect
     .poll(
       async () => {
-        if (await failed.isVisible()) throw new Error(`Import failed: ${await failed.textContent()}`);
+        if (await failed.isVisible())
+          throw new Error(`Import failed: ${await failed.textContent()}`);
         if (await unreadable.isVisible()) {
           sawUnreadableFbd = true;
           await unreadable.getByRole('button').first().click();
@@ -90,7 +92,10 @@ async function waitImportDone(
   return { text, sawUnreadableFbd };
 }
 
-function makeZip(zipPath: string, entries: Array<{ name: string; src: string; store?: boolean }>): void {
+function makeZip(
+  zipPath: string,
+  entries: Array<{ name: string; src: string; store?: boolean }>,
+): void {
   execFileSync(
     'python3',
     [

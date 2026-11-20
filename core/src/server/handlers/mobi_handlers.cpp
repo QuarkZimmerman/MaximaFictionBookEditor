@@ -1,4 +1,5 @@
-// Feature 018 (contracts/rpc-api.md §2–§3): MOBI / KF8 export & import RPC handlers and HTTP routes.
+// Feature 018 (contracts/rpc-api.md §2–§3): MOBI / KF8 export & import RPC handlers and HTTP
+// routes.
 #include "mobi/mobi_reader.hpp"
 #include "mobi/mobi_writer.hpp"
 #include "server/loopback_server.hpp"
@@ -65,7 +66,8 @@ std::string lower_ascii(std::string s) {
 }
 
 bool ends_with_ci(const std::string& s, std::string_view suffix) {
-    if (s.size() < suffix.size()) return false;
+    if (s.size() < suffix.size())
+        return false;
     const std::string l = lower_ascii(s);
     return l.compare(l.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
@@ -82,19 +84,21 @@ std::shared_ptr<Services::MobiImportSession> require_import(Services& services,
 
 json metadata_to_json(const mobi::MobiMetadata& m) {
     json j = {
-        {"title", m.title},
-        {"authors", m.authors},
-        {"contributors", m.contributors},
-        {"subjects", m.subjects},
-        {"language", m.language},
-        {"identifier", m.identifier},
+        {"title", m.title},       {"authors", m.authors},   {"contributors", m.contributors},
+        {"subjects", m.subjects}, {"language", m.language}, {"identifier", m.identifier},
     };
-    if (!m.updated_title.empty()) j["updatedTitle"] = m.updated_title;
-    if (!m.publisher.empty()) j["publisher"] = m.publisher;
-    if (!m.description.empty()) j["description"] = m.description;
-    if (!m.isbn.empty()) j["isbn"] = m.isbn;
-    if (!m.date.empty()) j["date"] = m.date;
-    if (!m.rights.empty()) j["rights"] = m.rights;
+    if (!m.updated_title.empty())
+        j["updatedTitle"] = m.updated_title;
+    if (!m.publisher.empty())
+        j["publisher"] = m.publisher;
+    if (!m.description.empty())
+        j["description"] = m.description;
+    if (!m.isbn.empty())
+        j["isbn"] = m.isbn;
+    if (!m.date.empty())
+        j["date"] = m.date;
+    if (!m.rights.empty())
+        j["rights"] = m.rights;
     return j;
 }
 
@@ -143,9 +147,9 @@ void serve_import_slot(LoopbackServer& server, Services& services, uWS::HttpResp
     const auto& parsed = *session->parsed;
     if (rest == "html") {
         res->writeStatus("200 OK");
-        res->writeHeader("Content-Type",
-                         parsed.active_part == "palmdoc" ? "text/plain; charset=utf-8"
-                                                         : "text/html; charset=utf-8");
+        res->writeHeader("Content-Type", parsed.active_part == "palmdoc"
+                                             ? "text/plain; charset=utf-8"
+                                             : "text/html; charset=utf-8");
         res->writeHeader("Cache-Control", "no-store");
         res->writeHeader("X-Content-Type-Options", "nosniff");
         res->end(parsed.html_bytes);
@@ -174,9 +178,9 @@ void serve_import_slot(LoopbackServer& server, Services& services, uWS::HttpResp
             for (const auto& p : parsed.pictures) {
                 if (p.index == pic_idx) {
                     res->writeStatus("200 OK");
-                    res->writeHeader("Content-Type",
-                                     p.content_type.empty() ? "application/octet-stream"
-                                                            : p.content_type);
+                    res->writeHeader("Content-Type", p.content_type.empty()
+                                                         ? "application/octet-stream"
+                                                         : p.content_type);
                     res->writeHeader("Cache-Control", "no-store");
                     res->writeHeader("X-Content-Type-Options", "nosniff");
                     res->end(p.bytes);
@@ -394,12 +398,9 @@ void register_mobi_handlers(rpc::RpcRouter& router, Services& services) {
             const mobi::MobiAddedPicture added =
                 session->writer->add_picture(*raw, services.conversion_policy(), is_cover);
             return json{
-                {"recindex", added.recindex},
-                {"mediaType", added.media_type},
-                {"width", added.width},
-                {"height", added.height},
-                {"converted", added.converted},
-                {"downscaled", added.downscaled},
+                {"recindex", added.recindex},   {"mediaType", added.media_type},
+                {"width", added.width},         {"height", added.height},
+                {"converted", added.converted}, {"downscaled", added.downscaled},
             };
         } catch (const mobi::MobiError& e) {
             throw rpc::RpcError(rpc::codes::kBinaryNotImage, e.what(), json{{"id", binary_id}});
@@ -453,37 +454,36 @@ void register_mobi_handlers(rpc::RpcRouter& router, Services& services) {
             fs::remove_all(session->work_dir, ec);
         }
 
-        const std::string job_id = services.jobs.start(
-            [session = std::move(session), input = std::move(input),
-             fbd_bytes = std::move(fbd_bytes)](rpc::JobControl& control) -> json {
-                try {
-                    const mobi::MobiWriteResult res = session->writer->commit(
-                        input,
-                        [&control](const std::string& phase, std::int64_t done, std::int64_t total) {
-                            control.progress(phase, done, total);
-                        },
-                        [&control]() { control.check_cancelled(); }, fbd_bytes);
-                    return json{
-                        {"path", res.path},
-                        {"bytes", res.bytes},
-                        {"format", res.format},
-                        {"zip", res.zip},
-                        {"mfbeSkipped", res.mfbe_skipped},
-                    };
-                } catch (const rpc::RpcError&) {
-                    throw;
-                } catch (const mobi::MobiError& e) {
-                    throw write_failed(
-                        e.reason,
-                        json{{"path", platform::utf8_from_path(session->writer->target())},
-                             {"detail", e.detail}});
-                } catch (const std::exception& e) {
-                    throw write_failed(
-                        "ioError",
-                        json{{"path", platform::utf8_from_path(session->writer->target())},
-                             {"detail", e.what()}});
-                }
-            });
+        const std::string job_id = services.jobs.start([session = std::move(session),
+                                                        input = std::move(input),
+                                                        fbd_bytes = std::move(fbd_bytes)](
+                                                           rpc::JobControl& control) -> json {
+            try {
+                const mobi::MobiWriteResult res = session->writer->commit(
+                    input,
+                    [&control](const std::string& phase, std::int64_t done, std::int64_t total) {
+                        control.progress(phase, done, total);
+                    },
+                    [&control]() { control.check_cancelled(); }, fbd_bytes);
+                return json{
+                    {"path", res.path},
+                    {"bytes", res.bytes},
+                    {"format", res.format},
+                    {"zip", res.zip},
+                    {"mfbeSkipped", res.mfbe_skipped},
+                };
+            } catch (const rpc::RpcError&) {
+                throw;
+            } catch (const mobi::MobiError& e) {
+                throw write_failed(
+                    e.reason, json{{"path", platform::utf8_from_path(session->writer->target())},
+                                   {"detail", e.detail}});
+            } catch (const std::exception& e) {
+                throw write_failed(
+                    "ioError", json{{"path", platform::utf8_from_path(session->writer->target())},
+                                    {"detail", e.what()}});
+            }
+        });
         return json{{"jobId", job_id}};
     });
 
@@ -569,8 +569,8 @@ void register_mobi_handlers(rpc::RpcRouter& router, Services& services) {
                 const std::string bytes = archive::read_entry(path, *entry);
                 if (bytes.size() > mobi::kMaxFileBytes) {
                     fs::remove_all(session->folder, ec);
-                    throw refused("tooLarge", json{{"path", path_str},
-                                                   {"limit", mobi::kMaxFileBytes}});
+                    throw refused("tooLarge",
+                                  json{{"path", path_str}, {"limit", mobi::kMaxFileBytes}});
                 }
                 const fs::path extracted = session->folder / "source.mobi";
                 atomic_file::write_atomic(extracted, bytes);
@@ -586,8 +586,7 @@ void register_mobi_handlers(rpc::RpcRouter& router, Services& services) {
         } else {
             const auto sz = fs::file_size(path, ec);
             if (!ec && sz > mobi::kMaxFileBytes) {
-                throw refused("tooLarge",
-                              json{{"path", path_str}, {"limit", mobi::kMaxFileBytes}});
+                throw refused("tooLarge", json{{"path", path_str}, {"limit", mobi::kMaxFileBytes}});
             }
         }
 
@@ -617,8 +616,10 @@ void register_mobi_handlers(rpc::RpcRouter& router, Services& services) {
                         {"size", p.size},
                         {"tooLarge", p.too_large},
                     };
-                    if (p.width) pj["width"] = *p.width;
-                    if (p.height) pj["height"] = *p.height;
+                    if (p.width)
+                        pj["width"] = *p.width;
+                    if (p.height)
+                        pj["height"] = *p.height;
                     pictures.push_back(std::move(pj));
                 }
 
@@ -656,8 +657,10 @@ void register_mobi_handlers(rpc::RpcRouter& router, Services& services) {
                     {"mfbeHtmlMatches", res.mfbe_html_matches},
                     {"mfbeMetaMatches", res.mfbe_meta_matches},
                 };
-                if (res.cover_index) out["coverIndex"] = *res.cover_index;
-                if (res.thumbnail_index) out["thumbnailIndex"] = *res.thumbnail_index;
+                if (res.cover_index)
+                    out["coverIndex"] = *res.cover_index;
+                if (res.thumbnail_index)
+                    out["thumbnailIndex"] = *res.thumbnail_index;
                 if ((res.mfbe_status == mobi::MfbeStatus::valid ||
                      res.mfbe_status == mobi::MfbeStatus::externally_modified) &&
                     res.mfbe_json.is_object()) {
@@ -709,8 +712,7 @@ void register_mobi_handlers(rpc::RpcRouter& router, Services& services) {
                 }
             }
             if (!found) {
-                throw rpc::RpcError(rpc::codes::kBinaryNotFound, "",
-                                    json{{"index", pic_index}});
+                throw rpc::RpcError(rpc::codes::kBinaryNotFound, "", json{{"index", pic_index}});
             }
         }
 
@@ -743,8 +745,7 @@ void register_mobi_handlers(rpc::RpcRouter& router, Services& services) {
                                 json{{"index", pic_index}, {"contentType", probe.contentType}});
         }
 
-        const std::string id =
-            doc.binaries->unique_id(suggested.empty() ? "picture" : suggested);
+        const std::string id = doc.binaries->unique_id(suggested.empty() ? "picture" : suggested);
         const model::BinaryMeta meta =
             doc.binaries->put(id, converted->content_type, std::move(converted->bytes));
         if (doc.snapshot) {
@@ -789,7 +790,8 @@ void register_mobi_handlers(rpc::RpcRouter& router, Services& services) {
         }
         model::Document doc;
         try {
-            doc.description = model::description_from_json(session->parsed->mfbe_json["description"]);
+            doc.description =
+                model::description_from_json(session->parsed->mfbe_json["description"]);
         } catch (const std::exception& e) {
             throw refused("damaged", json{{"detail", e.what()}});
         }

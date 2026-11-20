@@ -79,16 +79,17 @@ std::string format_hex_key(std::size_t idx, int width) {
 // Generic INDX table builder: produces [meta_record, entry_record(s)..., optional cncx_record(s)].
 // Splits entries across multiple entry records if an entry record would exceed 48 KB so every
 // PalmDB record stays comfortably under 64 KB.
-std::vector<std::string> build_indx_table(const std::vector<TagDesc>& tagx_defs,
-                                          std::uint32_t control_bytes,
-                                          const std::vector<std::pair<std::string, std::string>>& raw_entries,
-                                          std::string_view cncx_blob) {
+std::vector<std::string> build_indx_table(
+    const std::vector<TagDesc>& tagx_defs, std::uint32_t control_bytes,
+    const std::vector<std::pair<std::string, std::string>>& raw_entries,
+    std::string_view cncx_blob) {
     // Split CNCX into <= 60 KB chunks (usually 1 record).
     std::vector<std::string> cncx_recs;
     if (!cncx_blob.empty()) {
         constexpr std::size_t kMaxCncxChunk = 60000;
         for (std::size_t p = 0; p < cncx_blob.size(); p += kMaxCncxChunk) {
-            cncx_recs.emplace_back(cncx_blob.substr(p, std::min(kMaxCncxChunk, cncx_blob.size() - p)));
+            cncx_recs.emplace_back(
+                cncx_blob.substr(p, std::min(kMaxCncxChunk, cncx_blob.size() - p)));
         }
     }
 
@@ -124,8 +125,8 @@ std::vector<std::string> build_indx_table(const std::vector<TagDesc>& tagx_defs,
         write_u32_be(buf, 24, static_cast<std::uint32_t>(offs.size()));
         write_u32_be(buf, 28, 0xFFFFFFFFU);
         write_u32_be(buf, 32, 0xFFFFFFFFU);
-        entry_recs.push_back(BuiltEntryRec{std::move(buf), last_key,
-                                           static_cast<std::uint16_t>(offs.size())});
+        entry_recs.push_back(
+            BuiltEntryRec{std::move(buf), last_key, static_cast<std::uint16_t>(offs.size())});
     };
 
     std::string cur(kIndxHeaderLen, '\0');
@@ -309,8 +310,8 @@ DecodedIndx decode_indx_table(const std::vector<std::string_view>& records, std:
                     }
                     pending.push_back(PendingTag{t.id, 0, v});
                 } else {
-                    pending.push_back(PendingTag{t.id, static_cast<std::uint32_t>(shifted) * t.num_values,
-                                                 std::nullopt});
+                    pending.push_back(PendingTag{
+                        t.id, static_cast<std::uint32_t>(shifted) * t.num_values, std::nullopt});
                 }
             }
 
@@ -578,7 +579,8 @@ std::vector<std::pair<std::uint32_t, std::uint32_t>> parse_fdst(std::string_view
     }
     const std::uint32_t sec_start = read_u32_be(record, 4);
     const std::uint32_t num_entries = read_u32_be(record, 8);
-    if (sec_start < 12 || static_cast<std::size_t>(sec_start) + num_entries * 8ULL > record.size()) {
+    if (sec_start < 12 ||
+        static_cast<std::size_t>(sec_start) + num_entries * 8ULL > record.size()) {
         return flows;
     }
     flows.reserve(num_entries);

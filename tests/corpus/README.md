@@ -202,3 +202,28 @@ python3 tests/corpus/sample.py --containing $'\u200c' --count 5 --seed 16 --out 
 Both run on their own as well (`pdf-round-trip.py LIST`, `pdf-import.py LIST [--text N] [--layer N]
 [--refused N] [--sort-limit S]`), writing `report.txt` and `report.json` under `tests/corpus/out/`. Keep the
 runs' temporary files on a disk (`TMPDIR`), not a small `/tmp`: a full import run writes gigabytes.
+
+## The MOBI and KF8 runs (feature 018, before every rc tag)
+
+Four flags drive `tests/corpus/mobi-runs.py` and `ui/tests/e2e/corpus-mobi.spec.ts` against the real Release core
+and built `ui/dist`:
+
+- `--mobi-export`: exports every FB2 book of `SAMPLE_FILE` in MOBI 7, checking PalmDOC prose compression ratio
+  `<= 80%` (for books with at least 4 KB of text) and verifying each output with Calibre `ebook-meta` and
+  `ebook-convert` (SC-001).
+- `--mobi-round-trip`: exports every FB2 book of `SAMPLE_FILE` in MOBI 7 and re-imports it via the verified
+  `MFBE` record, verifying valid originals stay valid FB2 2.1 and invalid originals reopen cleanly (SC-002).
+- `--mobi-kf8-sample`: exports and round-trips `reference-all-elements.fb2` plus 10 diverse books from
+  `SAMPLE_FILE` in both joint MOBI 7 + KF8 (`.mobi`) and standalone KF8 (`.azw3`), checking Calibre and
+  re-import validation for both formats.
+- `--mobi-import LIST`: imports up to 50 foreign MOBI/KF8 files (if `LIST` points to `.fb2`/`.epub` books,
+  first converts them with Calibre `ebook-convert` alternating `.mobi` and `.azw3`), verifying valid FB2 2.1
+  output and zero crashes or hangs (SC-003).
+
+```bash
+tests/corpus/run.sh tests/corpus/sample-1-50.txt --mobi-export --mobi-round-trip --mobi-kf8-sample \
+    --mobi-import tests/corpus/sample-1-50.txt
+```
+
+`mobi-runs.py` also runs directly (`export|round-trip|kf8-sample|import LIST [--out DIR] [--core PATH]`),
+writing `report.txt` and `report.json` under `tests/corpus/out/mobi-<mode>`.

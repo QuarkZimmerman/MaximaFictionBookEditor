@@ -272,9 +272,8 @@ private:
             std::filesystem::path(name));  // path-text: a wide file name from the Windows API
         ::CoTaskMemFree(name);
         const std::string renamed =
-            active_plain_ext_.empty()
-                ? zipFollowName(request_, current, zip)
-                : selectFollowName(request_, current, active_plain_ext_, zip);
+            active_plain_ext_.empty() ? zipFollowName(request_, current, zip)
+                                      : selectFollowName(request_, current, active_plain_ext_, zip);
         if (renamed != current) {
             dialog->SetFileName(wideText(renamed).c_str());
         }
@@ -452,8 +451,7 @@ bool showDialog(HWND owner, const FileDialogRequest& request, FileDialogResult& 
                                           wideText(sel.choices[c].label).c_str());
             }
             customize->SetSelectedControlItem(
-                combo_id,
-                static_cast<DWORD>(selectItemId(s, selectedSelectChoiceIndex(sel))));
+                combo_id, static_cast<DWORD>(selectItemId(s, selectedSelectChoiceIndex(sel))));
             customize->EndVisualGroup();
         }
     }
@@ -515,12 +513,13 @@ bool showDialog(HWND owner, const FileDialogRequest& request, FileDialogResult& 
     }
     if (offers_selects) {
         for (size_t s = 0; s < request.selects.size(); ++s) {
-            DWORD item = static_cast<DWORD>(
-                selectItemId(s, selectedSelectChoiceIndex(request.selects[s])));
+            DWORD item =
+                static_cast<DWORD>(selectItemId(s, selectedSelectChoiceIndex(request.selects[s])));
             customize->GetSelectedControlItem(static_cast<DWORD>(kSelectComboBase + s), &item);
             std::string val = selectValueOfItem(request.selects[s], s, item);
             if (val.empty() && !request.selects[s].choices.empty()) {
-                val = request.selects[s].choices[selectedSelectChoiceIndex(request.selects[s])].value;
+                val =
+                    request.selects[s].choices[selectedSelectChoiceIndex(request.selects[s])].value;
             }
             result.selects.emplace_back(request.selects[s].id, std::move(val));
         }

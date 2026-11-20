@@ -229,6 +229,9 @@ fi
 TMP=$(mktemp -d -t mfbe-smoke.XXXXXX)
 # MFBE_SMOKE_PDF / MFBE_SMOKE_MOBI: the book is opened from a copy, so that the file the Save dialog
 # proposes beside it lands in this run's folder.
+if [[ "${MFBE_SMOKE_MOBI:-0}" == "1" && -z "${MFBE_SMOKE_OPEN_FILE:-}" ]]; then
+  MFBE_SMOKE_OPEN_FILE="$ROOT/tests/fixtures/books/reference-all-elements.fb2"
+fi
 if [[ ( "${MFBE_SMOKE_PDF:-0}" == "1" || "${MFBE_SMOKE_MOBI:-0}" == "1" ) && -n "${MFBE_SMOKE_OPEN_FILE:-}" ]]; then
   mkdir -p "$TMP/books"
   cp "$MFBE_SMOKE_OPEN_FILE" "$TMP/books/"

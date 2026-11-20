@@ -15,7 +15,14 @@ import { fileURLToPath } from 'node:url';
 
 import type { Page } from '@playwright/test';
 
-import { expect, fixtureBook, shownDocId, test, waitForBook, type CoreHandle } from './fixtures/core';
+import {
+  expect,
+  fixtureBook,
+  shownDocId,
+  test,
+  waitForBook,
+  type CoreHandle,
+} from './fixtures/core';
 import { clickExport } from './fixtures/exportCheck';
 import { scratchDir } from './fixtures/scratch';
 
@@ -49,7 +56,8 @@ async function exportMobiOnce(core: CoreHandle, page: Page, target: string): Pro
   await expect
     .poll(
       async () => {
-        if (await failed.isVisible()) throw new Error(`Export failed: ${await failed.textContent()}`);
+        if (await failed.isVisible())
+          throw new Error(`Export failed: ${await failed.textContent()}`);
         if (await summary.isVisible()) {
           await summary.getByRole('button').first().click();
           return true;
@@ -137,7 +145,8 @@ test.describe('US6 (feature 018) - Lazy loading isolation & hostile fixture safe
       await expect
         .poll(
           async () => {
-            if (await failed.isVisible()) throw new Error(`Import failed: ${await failed.textContent()}`);
+            if (await failed.isVisible())
+              throw new Error(`Import failed: ${await failed.textContent()}`);
             if (await summary.isVisible()) {
               await summary.getByRole('button').first().click();
               return true;

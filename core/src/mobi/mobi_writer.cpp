@@ -67,7 +67,8 @@ std::unordered_map<std::string, std::uint32_t> collect_anchor_offsets(std::strin
         if (lt == std::string_view::npos) {
             break;
         }
-        if (lt + 1 < html.size() && (html[lt + 1] == '/' || html[lt + 1] == '!' || html[lt + 1] == '?')) {
+        if (lt + 1 < html.size() &&
+            (html[lt + 1] == '/' || html[lt + 1] == '!' || html[lt + 1] == '?')) {
             const std::size_t gt = html.find('>', lt + 1);
             pos = (gt == std::string_view::npos) ? html.size() : gt + 1;
             continue;
@@ -129,7 +130,8 @@ PatchedMobi7 patch_mobi7_filepos(std::string_view input) {
         }
         const std::size_t digits_pos = clean.size() + 9;  // after `filepos="`
         clean.append("filepos=\"0000000000\"");
-        sites.push_back(PatchSite{digits_pos, std::string(input.substr(id_start, id_end - id_start))});
+        sites.push_back(
+            PatchSite{digits_pos, std::string(input.substr(id_start, id_end - id_start))});
         pos = id_end + 1;
     }
 
@@ -185,10 +187,9 @@ PreparedKf8 prepare_kf8_document(std::string_view input) {
         const std::string target_id(input.substr(id_start, id_end - id_start));
         // Look backwards from `hit` within the same `<a ...>` tag for `href="..."`
         const std::size_t tag_open = input.rfind('<', hit);
-        const std::size_t href_pos =
-            (tag_open != std::string_view::npos && tag_open >= pos)
-                ? input.find("href=\"", tag_open)
-                : std::string_view::npos;
+        const std::size_t href_pos = (tag_open != std::string_view::npos && tag_open >= pos)
+                                         ? input.find("href=\"", tag_open)
+                                         : std::string_view::npos;
         if (href_pos != std::string_view::npos && href_pos < hit) {
             const std::size_t href_end = input.find('"', href_pos + 6);
             if (href_end != std::string_view::npos && href_end < hit) {
@@ -206,12 +207,14 @@ PreparedKf8 prepare_kf8_document(std::string_view input) {
         pos = id_end + 1;
     }
 
-    // Ensure `<body` carries `aid="0"` for Calibre/Kindle SKEL/FRAG XPath selector `P-//*[@aid='0']`.
+    // Ensure `<body` carries `aid="0"` for Calibre/Kindle SKEL/FRAG XPath selector
+    // `P-//*[@aid='0']`.
     std::size_t body_open = html.find("<body");
     if (body_open != std::string::npos) {
         const std::size_t body_gt = html.find('>', body_open);
         if (body_gt != std::string::npos) {
-            const std::string_view btag = std::string_view(html).substr(body_open, body_gt - body_open);
+            const std::string_view btag =
+                std::string_view(html).substr(body_open, body_gt - body_open);
             if (btag.find("aid=") == std::string_view::npos) {
                 const std::size_t insert_at = body_gt;
                 const std::string_view aid = " aid=\"0\"";
@@ -243,9 +246,11 @@ PreparedKf8 prepare_kf8_document(std::string_view input) {
     const std::size_t body_gt =
         (body_open != std::string::npos) ? html.find('>', body_open) : std::string::npos;
     const std::size_t body_close = html.rfind("</body>");
-    if (body_gt != std::string::npos && body_close != std::string::npos && body_close >= body_gt + 1) {
+    if (body_gt != std::string::npos && body_close != std::string::npos &&
+        body_close >= body_gt + 1) {
         const std::string_view prefix = std::string_view(html).substr(0, body_gt + 1);
-        const std::string_view inner = std::string_view(html).substr(body_gt + 1, body_close - (body_gt + 1));
+        const std::string_view inner =
+            std::string_view(html).substr(body_gt + 1, body_close - (body_gt + 1));
         const std::string_view suffix = std::string_view(html).substr(body_close);
         std::string skel;
         skel.reserve(prefix.size() + suffix.size());
@@ -381,8 +386,8 @@ std::string build_mobi_header_record(const HeaderParams& p) {
     // MOBI header (16..)
     buf.replace(16, 4, "MOBI");
     write_u32_be(buf, 20, p.header_length);
-    write_u32_be(buf, 24, 2);      // Book
-    write_u32_be(buf, 28, 65001U); // UTF-8
+    write_u32_be(buf, 24, 2);       // Book
+    write_u32_be(buf, 28, 65001U);  // UTF-8
     write_u32_be(buf, 32, 0x4D464245U);
     write_u32_be(buf, 36, p.file_version);
     for (std::size_t off = 40; off < 80; off += 4) {
@@ -392,7 +397,7 @@ std::string build_mobi_header_record(const HeaderParams& p) {
     write_u32_be(buf, 92, p.locale);
     write_u32_be(buf, 104, p.file_version);
     write_u32_be(buf, 108, p.first_image_index);
-    write_u32_be(buf, 128, 0x50U);  // EXTH present (bit 6)
+    write_u32_be(buf, 128, 0x50U);        // EXTH present (bit 6)
     write_u32_be(buf, 168, 0xFFFFFFFFU);  // drm_offset
     write_u32_be(buf, 172, 0);            // drm_count
     write_u32_be(buf, 176, 0);            // drm_size
@@ -485,9 +490,9 @@ std::vector<std::string> build_kf8_block(const PreparedKf8& kf8, const std::stri
     }
 
     // NCX navigation index (written whenever nav is non-empty, independent of inline TOC)
-    const auto resolved_nav =
-        resolve_nav_entries(input.nav, kf8.anchors, static_cast<std::uint32_t>(kf8.canonical_html.size()),
-                            /*compute_hierarchy=*/true);
+    const auto resolved_nav = resolve_nav_entries(
+        input.nav, kf8.anchors, static_cast<std::uint32_t>(kf8.canonical_html.size()),
+        /*compute_hierarchy=*/true);
     std::uint32_t indx_rec = 0xFFFFFFFFU;
     if (!resolved_nav.empty()) {
         indx_rec = static_cast<std::uint32_t>(recs.size());
@@ -630,9 +635,12 @@ std::string format_to_string(MobiExportFormat fmt) {
 }
 
 std::optional<MobiExportFormat> format_from_string(std::string_view s) {
-    if (s == "mobi7") return MobiExportFormat::mobi7;
-    if (s == "joint") return MobiExportFormat::joint;
-    if (s == "kf8") return MobiExportFormat::kf8;
+    if (s == "mobi7")
+        return MobiExportFormat::mobi7;
+    if (s == "joint")
+        return MobiExportFormat::joint;
+    if (s == "kf8")
+        return MobiExportFormat::kf8;
     return std::nullopt;
 }
 
@@ -655,12 +663,7 @@ MobiAddedPicture MobiWriter::add_picture(std::string_view raw_bytes,
     }
 
     return MobiAddedPicture{
-        zero_idx + 1U,
-        prep.media_type,
-        prep.width,
-        prep.height,
-        prep.converted,
-        prep.downscaled,
+        zero_idx + 1U, prep.media_type, prep.width, prep.height, prep.converted, prep.downscaled,
     };
 }
 
@@ -718,9 +721,9 @@ MobiWriteResult MobiWriter::commit(const MobiCommitInput& input, const ProgressF
     std::optional<std::string> mfbe_payload;
     bool mfbe_skipped = false;
     if (mfbe_json_.has_value()) {
-        const std::string_view canonical_html =
-            prepared8.has_value() ? std::string_view(prepared8->canonical_html)
-                                  : std::string_view(patched7->html);
+        const std::string_view canonical_html = prepared8.has_value()
+                                                    ? std::string_view(prepared8->canonical_html)
+                                                    : std::string_view(patched7->html);
         mfbe_payload = encode_mfbe_record(*mfbe_json_, canonical_html, input.metadata);
         if (!mfbe_payload.has_value()) {
             mfbe_skipped = true;
@@ -833,7 +836,8 @@ MobiWriteResult MobiWriter::commit(const MobiCommitInput& input, const ProgressF
         }
         const std::string stem = platform::utf8_from_path(target_.stem());
         const std::string book_ext = (format_ == MobiExportFormat::kf8) ? ".azw3" : ".mobi";
-        // Contract: MOBI/AZW3 stored uncompressed (`stored = true`), FBD compressed (`stored = false`).
+        // Contract: MOBI/AZW3 stored uncompressed (`stored = true`), FBD compressed (`stored =
+        // false`).
         final_bytes = archive::zip_entries({
             archive::ZipEntry{stem + book_ext, mobi_bytes, /*stored=*/true, /*utf8=*/false},
             archive::ZipEntry{stem + ".fbd", *fbd_bytes, /*stored=*/false, /*utf8=*/false},

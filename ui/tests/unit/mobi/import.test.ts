@@ -8,8 +8,18 @@ import { buildForeignDescription, splitPersonName } from '@/features/mobi/import
 import type { GenreEntry } from '@/rpc/types';
 
 const SAMPLE_GENRES: GenreEntry[] = [
-  { code: 'sf_space', category: 'sf', source: 'standard', names: { en: 'Space Fiction', ru: 'Космическая фантастика', uk: 'Космічна фантастика' } },
-  { code: 'prose_classic', category: 'prose', source: 'standard', names: { en: 'Classic Prose', ru: 'Классическая проза', uk: 'Класична проза' } },
+  {
+    code: 'sf_space',
+    category: 'sf',
+    source: 'standard',
+    names: { en: 'Space Fiction', ru: 'Космическая фантастика', uk: 'Космічна фантастика' },
+  },
+  {
+    code: 'prose_classic',
+    category: 'prose',
+    source: 'standard',
+    names: { en: 'Classic Prose', ru: 'Классическая проза', uk: 'Класична проза' },
+  },
 ];
 
 describe('MOBI / KF8 / PalmDOC foreign import conversion (T025)', () => {
@@ -45,8 +55,12 @@ describe('MOBI / KF8 / PalmDOC foreign import conversion (T025)', () => {
     );
 
     expect(description.title).toBe('Star Voyage');
-    expect(description.authors).toEqual([{ lastName: 'Author', firstName: 'Jane', middleName: 'A.' }]);
-    expect(description.translators).toEqual([{ firstName: 'John', lastName: 'Smith', middleName: undefined }]);
+    expect(description.authors).toEqual([
+      { lastName: 'Author', firstName: 'Jane', middleName: 'A.' },
+    ]);
+    expect(description.translators).toEqual([
+      { firstName: 'John', lastName: 'Smith', middleName: undefined },
+    ]);
     expect(description.genres).toEqual(['sf_space']);
     expect(description.keywords).toBe('deep space');
     expect(description.lang).toBe('en');
@@ -94,8 +108,22 @@ describe('MOBI / KF8 / PalmDOC foreign import conversion (T025)', () => {
       navigation: [],
       guide: [],
       pictures: [
-        { index: 1, contentType: 'image/jpeg', width: 600, height: 900, size: 1000, tooLarge: false },
-        { index: 2, contentType: 'image/jpeg', width: 120, height: 180, size: 500, tooLarge: false },
+        {
+          index: 1,
+          contentType: 'image/jpeg',
+          width: 600,
+          height: 900,
+          size: 1000,
+          tooLarge: false,
+        },
+        {
+          index: 2,
+          contentType: 'image/jpeg',
+          width: 120,
+          height: 180,
+          size: 500,
+          tooLarge: false,
+        },
         { index: 3, contentType: 'image/png', width: 100, height: 100, size: 300, tooLarge: false },
       ],
       coverIndex: 1,
@@ -110,7 +138,9 @@ describe('MOBI / KF8 / PalmDOC foreign import conversion (T025)', () => {
     expect(res.bodyXml).not.toContain('fb2-toc');
     expect(res.bodyXml).not.toContain('alert');
     // Converter structural marks restored
-    expect(res.bodyXml).toContain('<epigraph><p>Wise words.</p><text-author>Sage</text-author></epigraph>');
+    expect(res.bodyXml).toContain(
+      '<epigraph><p>Wise words.</p><text-author>Sage</text-author></epigraph>',
+    );
     expect(res.bodyXml).toContain('<poem><stanza><v>Line A</v><v>Line B</v></stanza></poem>');
     expect(res.bodyXml).toContain('<th align="center">H</th><td colspan="2">V</td>');
     expect(res.bodyXml).toContain('<p>\u2022 One</p>');
@@ -140,10 +170,26 @@ describe('MOBI / KF8 / PalmDOC foreign import conversion (T025)', () => {
       activePart: 'kf8',
       htmlOrText: xhtml,
       cssFlows: [css],
-      metadata: { title: 'KF8', authors: [], contributors: [], subjects: [], language: 'en', identifier: '' },
+      metadata: {
+        title: 'KF8',
+        authors: [],
+        contributors: [],
+        subjects: [],
+        language: 'en',
+        identifier: '',
+      },
       navigation: [],
       guide: [],
-      pictures: [{ index: 1, contentType: 'image/jpeg', width: 200, height: 200, size: 500, tooLarge: false }],
+      pictures: [
+        {
+          index: 1,
+          contentType: 'image/jpeg',
+          width: 200,
+          height: 200,
+          size: 500,
+          tooLarge: false,
+        },
+      ],
     });
 
     expect(res.bodyXml).toContain('<emphasis>italics</emphasis>');
@@ -163,7 +209,14 @@ describe('MOBI / KF8 / PalmDOC foreign import conversion (T025)', () => {
       activePart: 'palmdoc',
       htmlOrText: 'First line\nwrapped line.\n\nSecond paragraph.\n\n\nAfter break.',
       cssFlows: [],
-      metadata: { title: 'Plain', authors: [], contributors: [], subjects: [], language: 'en', identifier: '' },
+      metadata: {
+        title: 'Plain',
+        authors: [],
+        contributors: [],
+        subjects: [],
+        language: 'en',
+        identifier: '',
+      },
       navigation: [],
       guide: [],
       pictures: [],

@@ -254,8 +254,7 @@ unsigned selectItemId(std::size_t select_index, std::size_t choice_index) {
 
 std::string selectValueOfItem(const FileDialogRequest::Select& select, std::size_t select_index,
                               unsigned item_id) {
-    const unsigned base =
-        kSelectItemBase + static_cast<unsigned>(select_index) * kSelectItemStride;
+    const unsigned base = kSelectItemBase + static_cast<unsigned>(select_index) * kSelectItemStride;
     if (item_id < base || item_id - base >= select.choices.size()) {
         return {};
     }

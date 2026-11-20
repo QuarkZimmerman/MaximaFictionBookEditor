@@ -1,4 +1,5 @@
-// PalmDOC LZ77, HuffCDIC decoder, UTF-8 chunking, and trailing entries (T006, contracts/mobi-file.md §3).
+// PalmDOC LZ77, HuffCDIC decoder, UTF-8 chunking, and trailing entries (T006,
+// contracts/mobi-file.md §3).
 #include "mobi/compression.hpp"
 
 #include "mobi/palmdb.hpp"
@@ -204,7 +205,8 @@ std::vector<std::string> split_utf8_chunks(std::string_view utf8, std::size_t ma
     while (pos < utf8.size()) {
         std::size_t end = std::min(utf8.size(), pos + max_chunk);
         if (end < utf8.size()) {
-            // Walk back at most 3 bytes if `end` lands in the middle of a multi-byte UTF-8 sequence.
+            // Walk back at most 3 bytes if `end` lands in the middle of a multi-byte UTF-8
+            // sequence.
             std::size_t back = 0;
             while (end > pos && back < 4 &&
                    (static_cast<unsigned char>(utf8[end]) & 0xC0U) == 0x80U) {
@@ -412,8 +414,7 @@ void HuffCdicDecoder::decode_slice(std::string_view slice, std::string& out,
 std::string decompress_text_records(std::uint16_t compression,
                                     const std::vector<std::string_view>& text_records,
                                     std::uint32_t extra_data_flags,
-                                    std::size_t expected_text_length,
-                                    const HuffCdicDecoder* huff) {
+                                    std::size_t expected_text_length, const HuffCdicDecoder* huff) {
     if (compression != 1 && compression != 2 && compression != 17480) {
         throw MobiError("damaged", "unsupported MOBI compression type");
     }

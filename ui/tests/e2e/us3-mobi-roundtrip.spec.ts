@@ -43,12 +43,15 @@ async function exportMobiFormat(
   await expect
     .poll(
       async () => {
-        if (await failed.isVisible()) throw new Error(`Export failed: ${await failed.textContent()}`);
+        if (await failed.isVisible())
+          throw new Error(`Export failed: ${await failed.textContent()}`);
         if (await summary.isVisible()) {
           await summary.getByRole('button').first().click();
           return true;
         }
-        return ((await page.getByTestId('status-message').textContent()) ?? '').includes('Exported to');
+        return ((await page.getByTestId('status-message').textContent()) ?? '').includes(
+          'Exported to',
+        );
       },
       { timeout: 60_000 },
     )
@@ -70,7 +73,8 @@ async function importMobi(core: CoreHandle, page: Page, target: string): Promise
   await expect
     .poll(
       async () => {
-        if (await failed.isVisible()) throw new Error(`Import failed: ${await failed.textContent()}`);
+        if (await failed.isVisible())
+          throw new Error(`Import failed: ${await failed.textContent()}`);
         if (await summary.isVisible()) {
           text = (await summary.textContent()) ?? '';
           await summary.getByRole('button').first().click();
@@ -124,13 +128,18 @@ test.describe('US3 (feature 018) - Reversible MFBE round-trip & partial external
 
       // Validate: restored book must be 100% valid FB2 2.1
       await page.getByRole('button', { name: 'Validate' }).click();
-      await expect(page.getByTestId('status-message')).toContainText(/No errors|error found|errors found|valid/i, {
-        timeout: 15_000,
-      });
+      await expect(page.getByTestId('status-message')).toContainText(
+        /No errors|error found|errors found|valid/i,
+        {
+          timeout: 15_000,
+        },
+      );
       const valText = (await page.getByTestId('status-message').textContent()) ?? '';
       if (!/No errors|valid/i.test(valText)) {
         await page.getByTestId('status-validity').click();
-        const details = await page.locator('.mfbe-validation-panel, [data-testid*="validation"]').allTextContents();
+        const details = await page
+          .locator('.mfbe-validation-panel, [data-testid*="validation"]')
+          .allTextContents();
         throw new Error(`${fmt} round-trip validation failed (${valText}): ${details.join(' | ')}`);
       }
     }

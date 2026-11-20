@@ -18,10 +18,7 @@ import type { BinaryMeta } from '@/model/document';
 import { isRpcError, type RpcClient } from '@/rpc/client';
 import { RpcErrorCode } from '@/rpc/types';
 
-import {
-  pictureFormat,
-  singleFramedImageHrefFromXml,
-} from '../../ebookShared/svg';
+import { pictureFormat, singleFramedImageHrefFromXml } from '../../ebookShared/svg';
 import type { ImportSummaryItem } from './convert';
 import { MAX_PICTURE_PIXELS, type Yielder } from './limits';
 import { resolvePath } from './package';

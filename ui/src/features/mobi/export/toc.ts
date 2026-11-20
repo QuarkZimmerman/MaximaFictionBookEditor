@@ -71,7 +71,10 @@ export function buildNavTree(
     const firstNotes = bodies[plan.notesBodyIndices[0]!]!;
     const label = titlePlainText(bodyTitleNode(firstNotes)) || plan.words.notes;
     for (const idx of plan.notesBodyIndices) {
-      bodyAnchorIds.set(idx, idx === plan.notesBodyIndices[0] ? 'fb2-notes' : plan.ids.allocate(`fb2-notes-${idx}`));
+      bodyAnchorIds.set(
+        idx,
+        idx === plan.notesBodyIndices[0] ? 'fb2-notes' : plan.ids.allocate(`fb2-notes-${idx}`),
+      );
     }
     nav.push({ label, anchorId: 'fb2-notes', depth: 0 });
   }

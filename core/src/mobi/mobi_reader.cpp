@@ -25,7 +25,8 @@ namespace {
 constexpr std::uint32_t kInvalidIndex = 0xFFFFFFFFU;
 
 std::string trim_ascii(std::string_view s) {
-    while (!s.empty() && (s.front() == '\0' || std::isspace(static_cast<unsigned char>(s.front())))) {
+    while (!s.empty() &&
+           (s.front() == '\0' || std::isspace(static_cast<unsigned char>(s.front())))) {
         s.remove_prefix(1);
     }
     while (!s.empty() && (s.back() == '\0' || std::isspace(static_cast<unsigned char>(s.back())))) {
@@ -148,7 +149,8 @@ bool is_control_record(std::string_view rec) {
 bool looks_like_svg(std::string_view data) {
     std::size_t pos = 0;
     if (data.size() >= 3 && static_cast<unsigned char>(data[0]) == 0xEF &&
-        static_cast<unsigned char>(data[1]) == 0xBB && static_cast<unsigned char>(data[2]) == 0xBF) {
+        static_cast<unsigned char>(data[1]) == 0xBB &&
+        static_cast<unsigned char>(data[2]) == 0xBF) {
         pos = 3;
     }
     while (pos < data.size() && std::isspace(static_cast<unsigned char>(data[pos]))) {
@@ -189,7 +191,8 @@ std::string format_fp_anchor(std::size_t off) {
 // Extracts an existing id="..." or name="..." on the opening tag starting at `pos` (if any).
 std::optional<std::string> existing_id_at_tag(std::string_view html, std::size_t pos) {
     if (pos >= html.size() || html[pos] != '<' ||
-        (pos + 1 < html.size() && (html[pos + 1] == '/' || html[pos + 1] == '!' || html[pos + 1] == '?'))) {
+        (pos + 1 < html.size() &&
+         (html[pos + 1] == '/' || html[pos + 1] == '!' || html[pos + 1] == '?'))) {
         return std::nullopt;
     }
     const std::size_t gt = html.find('>', pos + 1);
@@ -218,7 +221,8 @@ std::size_t safe_anchor_position(std::string_view html, std::size_t pos) {
         pos = html.size();
     }
     // Step back from UTF-8 continuation bytes
-    while (pos > 0 && pos < html.size() && (static_cast<unsigned char>(html[pos]) & 0xC0U) == 0x80U) {
+    while (pos > 0 && pos < html.size() &&
+           (static_cast<unsigned char>(html[pos]) & 0xC0U) == 0x80U) {
         --pos;
     }
     // Check if inside an open tag `<...>` by searching backwards for '<' or '>'
@@ -323,18 +327,21 @@ std::string rewrite_mobi7_filepos(std::string_view utf8_html,
                 continue;
             }
             std::size_t q = p + kFp.size();
-            while (q < gt && std::isspace(static_cast<unsigned char>(utf8_html[q]))) ++q;
+            while (q < gt && std::isspace(static_cast<unsigned char>(utf8_html[q])))
+                ++q;
             if (q >= gt || utf8_html[q] != '=') {
                 continue;
             }
             ++q;
-            while (q < gt && std::isspace(static_cast<unsigned char>(utf8_html[q]))) ++q;
+            while (q < gt && std::isspace(static_cast<unsigned char>(utf8_html[q])))
+                ++q;
             char quote = '\0';
             if (q < gt && (utf8_html[q] == '"' || utf8_html[q] == '\'')) {
                 quote = utf8_html[q++];
             }
             const std::size_t num_start = q;
-            while (q < gt && std::isdigit(static_cast<unsigned char>(utf8_html[q]))) ++q;
+            while (q < gt && std::isdigit(static_cast<unsigned char>(utf8_html[q])))
+                ++q;
             const std::size_t num_end = q;
             if (quote != '\0' && q < gt && utf8_html[q] == quote) {
                 ++q;
@@ -361,7 +368,8 @@ std::string rewrite_mobi7_filepos(std::string_view utf8_html,
 
     // 3. Map each target UTF-8 offset -> anchor ID (reusing existing element id if present).
     std::map<std::size_t, std::string> offset_to_id;
-    std::map<std::size_t, std::string> injections;  // positions needing synthetic `<a id="..."></a>`
+    std::map<std::size_t, std::string>
+        injections;  // positions needing synthetic `<a id="..."></a>`
     for (const std::size_t pos : target_utf8_offsets) {
         if (auto existing = existing_id_at_tag(utf8_html, pos)) {
             offset_to_id.emplace(pos, std::move(*existing));
@@ -385,7 +393,8 @@ std::string rewrite_mobi7_filepos(std::string_view utf8_html,
         }
     }
 
-    // 4. Build rewritten HTML in a single ordered pass combining attribute replacements & anchor insertions.
+    // 4. Build rewritten HTML in a single ordered pass combining attribute replacements & anchor
+    // insertions.
     struct Edit {
         std::size_t start = 0;
         std::size_t end = 0;
@@ -402,7 +411,8 @@ std::string rewrite_mobi7_filepos(std::string_view utf8_html,
         edits.push_back(Edit{pos, pos, snippet});
     }
     std::sort(edits.begin(), edits.end(), [](const Edit& a, const Edit& b) {
-        if (a.start != b.start) return a.start < b.start;
+        if (a.start != b.start)
+            return a.start < b.start;
         return a.end < b.end;
     });
 
@@ -474,7 +484,8 @@ ReassembledKf8 reassemble_kf8_flow0(std::string_view flow0, const Kf8SkelFragDat
                         continue;
                     }
                 }
-                // Fragment key (`aid`) is decimal absolute insert position in skeleton (Calibre & MFBE).
+                // Fragment key (`aid`) is decimal absolute insert position in skeleton (Calibre &
+                // MFBE).
                 std::size_t insert_at = fr.insert_pos;
                 if (!fr.aid.empty() &&
                     std::all_of(fr.aid.begin(), fr.aid.end(),
@@ -562,8 +573,9 @@ ReassembledKf8 reassemble_kf8_flow0(std::string_view flow0, const Kf8SkelFragDat
         const std::size_t placed_base = combined.size();
         combined.append(sk.data() + inner_start, inner_end - inner_start);
         for (const auto& [fid, local_off] : skel_fid_local_offsets[si]) {
-            const std::size_t adjusted =
-                (local_off >= inner_start) ? (placed_base + (local_off - inner_start)) : placed_base;
+            const std::size_t adjusted = (local_off >= inner_start)
+                                             ? (placed_base + (local_off - inner_start))
+                                             : placed_base;
             res.fid_base_offsets[fid] = adjusted;
         }
     }
@@ -625,8 +637,8 @@ std::string rewrite_kf8_positions(std::string_view html,
         const auto fid = parse_base32(html.substr(fid_start, off_tag - fid_start));
         const auto off = parse_base32(html.substr(off_start, off_end - off_start));
         if (fid.has_value() && off.has_value()) {
-            const std::size_t tgt = resolve_pos(static_cast<std::uint32_t>(*fid),
-                                                static_cast<std::uint32_t>(*off));
+            const std::size_t tgt =
+                resolve_pos(static_cast<std::uint32_t>(*fid), static_cast<std::uint32_t>(*off));
             refs.push_back(PosRef{at, off_end, tgt});
             targets.insert(tgt);
         }
@@ -634,15 +646,15 @@ std::string rewrite_kf8_positions(std::string_view html,
     }
 
     for (const auto& n : nav) {
-        const std::size_t tgt =
-            (n.fid > 0 || n.fid_offset > 0) ? resolve_pos(n.fid, n.fid_offset)
-                                            : safe_anchor_position(html, n.offset);
+        const std::size_t tgt = (n.fid > 0 || n.fid_offset > 0)
+                                    ? resolve_pos(n.fid, n.fid_offset)
+                                    : safe_anchor_position(html, n.offset);
         targets.insert(tgt);
     }
     for (const auto& g : guide) {
-        const std::size_t tgt =
-            (g.fid > 0 || g.fid_offset > 0) ? resolve_pos(g.fid, g.fid_offset)
-                                            : safe_anchor_position(html, g.offset);
+        const std::size_t tgt = (g.fid > 0 || g.fid_offset > 0)
+                                    ? resolve_pos(g.fid, g.fid_offset)
+                                    : safe_anchor_position(html, g.offset);
         targets.insert(tgt);
     }
 
@@ -659,17 +671,17 @@ std::string rewrite_kf8_positions(std::string_view html,
     }
 
     for (auto& n : nav) {
-        const std::size_t tgt =
-            (n.fid > 0 || n.fid_offset > 0) ? resolve_pos(n.fid, n.fid_offset)
-                                            : safe_anchor_position(html, n.offset);
+        const std::size_t tgt = (n.fid > 0 || n.fid_offset > 0)
+                                    ? resolve_pos(n.fid, n.fid_offset)
+                                    : safe_anchor_position(html, n.offset);
         if (auto it = offset_to_id.find(tgt); it != offset_to_id.end()) {
             n.anchor_id = it->second;
         }
     }
     for (auto& g : guide) {
-        const std::size_t tgt =
-            (g.fid > 0 || g.fid_offset > 0) ? resolve_pos(g.fid, g.fid_offset)
-                                            : safe_anchor_position(html, g.offset);
+        const std::size_t tgt = (g.fid > 0 || g.fid_offset > 0)
+                                    ? resolve_pos(g.fid, g.fid_offset)
+                                    : safe_anchor_position(html, g.offset);
         if (auto it = offset_to_id.find(tgt); it != offset_to_id.end()) {
             g.anchor_id = it->second;
         }
@@ -693,7 +705,8 @@ std::string rewrite_kf8_positions(std::string_view html,
         edits.push_back(Edit{pos, pos, snippet});
     }
     std::sort(edits.begin(), edits.end(), [](const Edit& a, const Edit& b) {
-        if (a.start != b.start) return a.start < b.start;
+        if (a.start != b.start)
+            return a.start < b.start;
         return a.end < b.end;
     });
 
@@ -741,8 +754,8 @@ std::vector<MobiReadPicture> extract_pictures(const PalmDb& pdb, std::size_t pic
             pic.width = probe.width;
             pic.height = probe.height;
             if (probe.width && probe.height) {
-                const std::uint64_t pixels =
-                    static_cast<std::uint64_t>(*probe.width) * static_cast<std::uint64_t>(*probe.height);
+                const std::uint64_t pixels = static_cast<std::uint64_t>(*probe.width) *
+                                             static_cast<std::uint64_t>(*probe.height);
                 if (pixels > static_cast<std::uint64_t>(images::kMaxPixels)) {
                     pic.too_large = true;
                 }
@@ -774,7 +787,8 @@ ParsedPart parse_mobi_part(const PalmDb& pdb, std::size_t base_rec,
                            std::optional<std::size_t> shared_pic_start,
                            std::optional<std::size_t> shared_pic_end,
                            const ReadProgressFn& progress, const ReadCancelFn& check_cancelled) {
-    if (check_cancelled) check_cancelled();
+    if (check_cancelled)
+        check_cancelled();
     if (base_rec >= pdb.records.size()) {
         throw MobiError("damaged", "MOBI header record index out of bounds");
     }
@@ -861,10 +875,12 @@ ParsedPart parse_mobi_part(const PalmDb& pdb, std::size_t base_rec,
                 resource_count_exth = read_u32_be(e.data, 0);
             } else if (e.type == 201U && e.data.size() == 4) {
                 const std::uint32_t v = read_u32_be(e.data, 0);
-                if (v != kInvalidIndex) cover_off = v;
+                if (v != kInvalidIndex)
+                    cover_off = v;
             } else if (e.type == 202U && e.data.size() == 4) {
                 const std::uint32_t v = read_u32_be(e.data, 0);
-                if (v != kInvalidIndex) thumb_off = v;
+                if (v != kInvalidIndex)
+                    thumb_off = v;
             } else if (e.type == kExthMfbeType) {
                 raw_mfbe_payload = e.data;
             } else if (prefer_1252 &&
@@ -881,8 +897,10 @@ ParsedPart parse_mobi_part(const PalmDb& pdb, std::size_t base_rec,
     part.kf8_boundary_rec = kf8_boundary;
     part.metadata = metadata_from_exth(exth, header_title, locale);
 
-    if (progress) progress("decompress", 1, 3);
-    if (check_cancelled) check_cancelled();
+    if (progress)
+        progress("decompress", 1, 3);
+    if (check_cancelled)
+        check_cancelled();
 
     // Validate and decompress text records.
     if (base_rec + 1U + text_rec_cnt > pdb.records.size()) {
@@ -912,8 +930,10 @@ ParsedPart parse_mobi_part(const PalmDb& pdb, std::size_t base_rec,
             decompress_text_records(compression, text_recs, extra_data_flags, text_length, nullptr);
     }
 
-    if (progress) progress("index", 2, 3);
-    if (check_cancelled) check_cancelled();
+    if (progress)
+        progress("index", 2, 3);
+    if (check_cancelled)
+        check_cancelled();
 
     // Build part-local view slice starting at `base_rec`.
     std::vector<std::string_view> part_views;
@@ -972,8 +992,8 @@ ParsedPart parse_mobi_part(const PalmDb& pdb, std::size_t base_rec,
 
         // Parse SKEL + FRAG and GUIDE.
         Kf8SkelFragData sf;
-        if (skel_rel != kInvalidIndex && frag_rel != kInvalidIndex && skel_rel < part_views.size() &&
-            frag_rel < part_views.size()) {
+        if (skel_rel != kInvalidIndex && frag_rel != kInvalidIndex &&
+            skel_rel < part_views.size() && frag_rel < part_views.size()) {
             sf = parse_kf8_skel_frag(part_views, skel_rel, frag_rel);
         }
         if (guide_rel != kInvalidIndex && guide_rel < part_views.size()) {
@@ -1026,7 +1046,8 @@ ParsedPart parse_mobi_part(const PalmDb& pdb, std::size_t base_rec,
     } else if (first_img_rel != kInvalidIndex && base_rec + first_img_rel < pdb.records.size()) {
         pic_start = base_rec + first_img_rel;
         if (resource_count_exth.has_value() && *resource_count_exth > 0U) {
-            pic_end = std::min(pdb.records.size(), *pic_start + static_cast<std::size_t>(*resource_count_exth) + 4U);
+            pic_end = std::min(pdb.records.size(),
+                               *pic_start + static_cast<std::size_t>(*resource_count_exth) + 4U);
         }
     }
 
@@ -1109,11 +1130,13 @@ std::string mfbe_status_to_string(MfbeStatus status) {
 
 MobiReadResult read_mobi_bytes(std::string_view bytes, const ReadProgressFn& progress,
                                const ReadCancelFn& check_cancelled) {
-    if (check_cancelled) check_cancelled();
+    if (check_cancelled)
+        check_cancelled();
     if (bytes.size() > kMaxFileBytes) {
         throw MobiError("tooLarge", "file exceeds 150 MB limit");
     }
-    if (progress) progress("open", 0, 3);
+    if (progress)
+        progress("open", 0, 3);
 
     const PalmDb pdb = read_palmdb(bytes);
 
@@ -1132,8 +1155,10 @@ MobiReadResult read_mobi_bytes(std::string_view bytes, const ReadProgressFn& pro
         if (1U + rec_cnt > pdb.records.size()) {
             throw MobiError("damaged", "PalmDOC record count out of bounds");
         }
-        if (progress) progress("decompress", 1, 3);
-        if (check_cancelled) check_cancelled();
+        if (progress)
+            progress("decompress", 1, 3);
+        if (check_cancelled)
+            check_cancelled();
 
         std::vector<std::string_view> trecs;
         trecs.reserve(rec_cnt);
@@ -1153,7 +1178,8 @@ MobiReadResult read_mobi_bytes(std::string_view bytes, const ReadProgressFn& pro
             res.html_bytes = decode_cp1252(raw);
         }
         res.metadata.title = trim_ascii(ensure_utf8_text(pdb.name, res.encoding == "windows-1252"));
-        if (progress) progress("index", 3, 3);
+        if (progress)
+            progress("index", 3, 3);
         return res;
     }
 
@@ -1175,7 +1201,8 @@ MobiReadResult read_mobi_bytes(std::string_view bytes, const ReadProgressFn& pro
     const std::uint32_t ver0 = read_u32_be(r0, 36);
     if (ver0 >= 8U) {
         auto kf8 = parse_mobi_part(pdb, 0, std::nullopt, std::nullopt, progress, check_cancelled);
-        if (progress) progress("index", 3, 3);
+        if (progress)
+            progress("index", 3, 3);
         return part_to_result(ContainerKind::kf8, std::move(kf8), false);
     }
 
@@ -1206,7 +1233,8 @@ MobiReadResult read_mobi_bytes(std::string_view bytes, const ReadProgressFn& pro
 
     if (!kf8_base.has_value()) {
         auto m7 = parse_mobi_part(pdb, 0, std::nullopt, std::nullopt, progress, check_cancelled);
-        if (progress) progress("index", 3, 3);
+        if (progress)
+            progress("index", 3, 3);
         return part_to_result(ContainerKind::mobi7, std::move(m7), false);
     }
 
@@ -1222,24 +1250,29 @@ MobiReadResult read_mobi_bytes(std::string_view bytes, const ReadProgressFn& pro
                          : *kf8_base;
     }
 
-    // Prefer KF8 half; fall back to MOBI 7 automatically if KF8 half is damaged (never bypass DRM/bomb!).
+    // Prefer KF8 half; fall back to MOBI 7 automatically if KF8 half is damaged (never bypass
+    // DRM/bomb!).
     try {
-        auto kf8 = parse_mobi_part(pdb, *kf8_base, shared_start, shared_end, progress, check_cancelled);
-        if (progress) progress("index", 3, 3);
+        auto kf8 =
+            parse_mobi_part(pdb, *kf8_base, shared_start, shared_end, progress, check_cancelled);
+        if (progress)
+            progress("index", 3, 3);
         return part_to_result(ContainerKind::joint, std::move(kf8), false);
     } catch (const MobiError& e) {
         if (e.reason == "encrypted" || e.reason == "decompressBomb") {
             throw;
         }
         auto m7 = parse_mobi_part(pdb, 0, shared_start, shared_end, progress, check_cancelled);
-        if (progress) progress("index", 3, 3);
+        if (progress)
+            progress("index", 3, 3);
         return part_to_result(ContainerKind::joint, std::move(m7), true);
     }
 }
 
 MobiReadResult read_mobi_file(const std::filesystem::path& path, const ReadProgressFn& progress,
                               const ReadCancelFn& check_cancelled) {
-    if (check_cancelled) check_cancelled();
+    if (check_cancelled)
+        check_cancelled();
     std::error_code ec;
     const auto sz = std::filesystem::file_size(path, ec);
     if (ec) {

@@ -16,7 +16,8 @@
             "file.importMarkdown",
             "file.importEpub",
             "file.importPdf",
-            "file.importTxt"
+            "file.importTxt",
+            "file.importMobi"
           ]
         },
         {
@@ -27,7 +28,8 @@
             "file.exportMarkdownZip",
             "file.exportEpub",
             "file.exportPdf",
-            "file.exportTxt"
+            "file.exportTxt",
+            "file.exportMobi"
           ]
         },
         "---",

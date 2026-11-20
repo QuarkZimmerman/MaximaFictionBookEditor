@@ -2,7 +2,11 @@
  * Feature 018 (T020, contracts/mobi-export.md §1–§3): MOBI/KF8 export metadata builder,
  * shelf title formatting (`seriesInTitle`), gap filling, and `MfbeRoundTripRecord` preparation.
  */
-import { readFbdMakerName, ROLE_BY_LABEL, type FbdMakerLabel } from '@/features/ebookShared/fbdMaker';
+import {
+  readFbdMakerName,
+  ROLE_BY_LABEL,
+  type FbdMakerLabel,
+} from '@/features/ebookShared/fbdMaker';
 import { xmlName, XmlNameAllocator } from '@/features/ebookShared/names';
 import type {
   BodyNode,
@@ -148,7 +152,8 @@ export function formatShelfTitle(
   const first = flattenSequences(sequences)[0];
   if (!first) return title;
   const name = (first.name ?? '').trim();
-  const num = first.number !== undefined && first.number !== null ? String(first.number).trim() : '';
+  const num =
+    first.number !== undefined && first.number !== null ? String(first.number).trim() : '';
   if (mode === 'numberBefore') {
     return num ? `${num}_${title}` : title;
   }
@@ -174,11 +179,7 @@ export function plainTextOfNodes(nodes: readonly AnyNode[]): string {
 export function inlinePlainText(nodes: readonly InlineNode[]): string {
   return nodes
     .map((n) =>
-      n.type === 'text'
-        ? n.text
-        : n.type === 'raw-xml'
-          ? n.attrs.xml.replace(/<[^>]*>/g, '')
-          : '',
+      n.type === 'text' ? n.text : n.type === 'raw-xml' ? n.attrs.xml.replace(/<[^>]*>/g, '') : '',
     )
     .join('');
 }
@@ -304,7 +305,11 @@ export function buildExportPlan(options: MobiExportBuildOptions): BookExportPlan
   for (const body of document.bodies) {
     forEachNode(body, (node) => {
       for (const mark of (node.marks ?? []) as Mark[]) {
-        if (mark.type === 'link' && mark.attrs.type === 'note' && mark.attrs.href?.startsWith('#')) {
+        if (
+          mark.type === 'link' &&
+          mark.attrs.type === 'note' &&
+          mark.attrs.href?.startsWith('#')
+        ) {
           noteTargets.add(mark.attrs.href.slice(1));
         }
       }
@@ -340,7 +345,13 @@ export function buildExportPlan(options: MobiExportBuildOptions): BookExportPlan
   // Allocate unique XML IDs across the whole book.
   const ids = new XmlNameAllocator();
   // Reserve structural landmark IDs so book IDs never collide with them.
-  for (const reserved of ['fb2-cover', 'fb2-title-page', 'fb2-toc', 'fb2-main-start', 'fb2-notes']) {
+  for (const reserved of [
+    'fb2-cover',
+    'fb2-title-page',
+    'fb2-toc',
+    'fb2-main-start',
+    'fb2-notes',
+  ]) {
     ids.allocate(reserved);
   }
   const elementIds = new Map<string, string>();

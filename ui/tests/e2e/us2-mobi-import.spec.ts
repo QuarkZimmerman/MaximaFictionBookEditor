@@ -111,9 +111,8 @@ test.describe('US2 (feature 018) - Foreign MOBI / KF8 / PalmDOC import & refusal
     await page.getByTestId('menu-file-saveAs').click();
     await expect
       .poll(async () => {
-        const reqs = await core.rpc<Array<{ method: string; defaultPath?: string }>>(
-          'test.dialogRequests',
-        );
+        const reqs =
+          await core.rpc<Array<{ method: string; defaultPath?: string }>>('test.dialogRequests');
         return reqs.filter((r) => r.method === 'dialog.saveFile').at(-1)?.defaultPath ?? '';
       })
       .toContain('Uncompressed Sample.fb2');
@@ -157,13 +156,18 @@ test.describe('US2 (feature 018) - Foreign MOBI / KF8 / PalmDOC import & refusal
 
       // Verify validation pane reports zero errors (valid FB2 2.1!)
       await page.getByRole('button', { name: 'Validate' }).click();
-      await expect(page.getByTestId('status-message')).toContainText(/No errors|error found|errors found|valid/i, {
-        timeout: 15_000,
-      });
+      await expect(page.getByTestId('status-message')).toContainText(
+        /No errors|error found|errors found|valid/i,
+        {
+          timeout: 15_000,
+        },
+      );
       const valText = (await page.getByTestId('status-message').textContent()) ?? '';
       if (!/No errors|valid/i.test(valText)) {
         await page.getByTestId('status-validity').click();
-        const details = await page.locator('.mfbe-validation-panel, [data-testid*="validation"]').allTextContents();
+        const details = await page
+          .locator('.mfbe-validation-panel, [data-testid*="validation"]')
+          .allTextContents();
         throw new Error(`${tc.file} validation failed (${valText}): ${details.join(' | ')}`);
       }
     }

@@ -70,7 +70,10 @@ function classAttr(...names: Array<string | undefined | false>): string {
   return list.length > 0 ? ` class="${escapeAttr(list.join(' '))}"` : '';
 }
 
-export function buildMobi7(options: MobiExportBuildOptions, plan: BookExportPlan): Mobi7BuildResult {
+export function buildMobi7(
+  options: MobiExportBuildOptions,
+  plan: BookExportPlan,
+): Mobi7BuildResult {
   const { document } = options;
   const { nav, bodyAnchorIds } = buildNavTree(document.bodies, plan);
   const backRefs = new Map<string, string>();
@@ -87,7 +90,11 @@ export function buildMobi7(options: MobiExportBuildOptions, plan: BookExportPlan
   };
 
   const idAttrOf = (nodeId: string | undefined, forcePrefix?: string): string => {
-    const id = forcePrefix ? ensureId(nodeId, forcePrefix) : nodeId ? plan.elementIds.get(nodeId) : undefined;
+    const id = forcePrefix
+      ? ensureId(nodeId, forcePrefix)
+      : nodeId
+        ? plan.elementIds.get(nodeId)
+        : undefined;
     return id ? ` id="${escapeAttr(id)}"` : '';
   };
 
@@ -146,7 +153,9 @@ export function buildMobi7(options: MobiExportBuildOptions, plan: BookExportPlan
         return inner;
       }
       const targetBody = plan.bodyOfId.get(target);
-      const isNote = link.attrs.type === 'note' || (targetBody !== undefined && plan.notesBodies.has(targetBody));
+      const isNote =
+        link.attrs.type === 'note' ||
+        (targetBody !== undefined && plan.notesBodies.has(targetBody));
       if (isNote) {
         const refId = plan.ids.allocate(`ref${++refSeq}`);
         if (!backRefs.has(target)) backRefs.set(target, refId);
@@ -174,7 +183,8 @@ export function buildMobi7(options: MobiExportBuildOptions, plan: BookExportPlan
       let end = i + 1;
       while (end < nodes.length) {
         const next = linkOf((nodes[end] as { marks?: Mark[] }).marks);
-        if (!next || next.attrs.href !== link.attrs.href || next.attrs.type !== link.attrs.type) break;
+        if (!next || next.attrs.href !== link.attrs.href || next.attrs.type !== link.attrs.type)
+          break;
         end++;
       }
       const inner = nodes.slice(i, end).map(renderInlineNode).join('');
@@ -194,11 +204,17 @@ export function buildMobi7(options: MobiExportBuildOptions, plan: BookExportPlan
     });
     if (level === null) {
       return `<div${idAttrOf(title.attrs.nodeId)}${classAttr(kind)}>${lines
-        .map((l) => (l === '\u0000empty' ? '<div height="1em" class="fb2-empty-line">&nbsp;</div>' : `<p width="0"><b>${l}</b></p>`))
+        .map((l) =>
+          l === '\u0000empty'
+            ? '<div height="1em" class="fb2-empty-line">&nbsp;</div>'
+            : `<p width="0"><b>${l}</b></p>`,
+        )
         .join('')}</div>`;
     }
     const tag = `h${Math.min(Math.max(level, 1), 6)}`;
-    const shown = lines.map((l) => (l === '\u0000empty' ? '<span class="fb2-empty-line"></span>' : l));
+    const shown = lines.map((l) =>
+      l === '\u0000empty' ? '<span class="fb2-empty-line"></span>' : l,
+    );
     return `<${tag}${idAttrOf(title.attrs.nodeId)}${classAttr(kind)}>${shown.join('<br/>')}</${tag}>`;
   };
 
@@ -211,7 +227,9 @@ export function buildMobi7(options: MobiExportBuildOptions, plan: BookExportPlan
     }
     counts.pictures++;
     const alt = node.attrs.alt ?? '';
-    const id = node.attrs.title ? ensureId(node.attrs.nodeId, 'img') : plan.elementIds.get(node.attrs.nodeId);
+    const id = node.attrs.title
+      ? ensureId(node.attrs.nodeId, 'img')
+      : plan.elementIds.get(node.attrs.nodeId);
     if (id && node.attrs.title) {
       plan.attrs.imageTitles[id] = node.attrs.title;
     }
@@ -275,7 +293,9 @@ export function buildMobi7(options: MobiExportBuildOptions, plan: BookExportPlan
         case 'text-author':
           return `<p${idAttrOf(child.attrs.nodeId)} align="right" width="0" class="fb2-text-author"><i>${renderInline(child.content)}</i></p>`;
         case 'date': {
-          const id = child.attrs.value ? ensureId(child.attrs.nodeId, 'dt') : plan.elementIds.get(child.attrs.nodeId);
+          const id = child.attrs.value
+            ? ensureId(child.attrs.nodeId, 'dt')
+            : plan.elementIds.get(child.attrs.nodeId);
           if (id && child.attrs.value) plan.attrs.dates[id] = child.attrs.value;
           recordLang(child.attrs.nodeId, child.attrs.lang);
           return `<p${id ? ` id="${escapeAttr(id)}"` : ''} align="right" width="0" class="fb2-date">${renderInline(child.content)}</p>`;
@@ -364,9 +384,7 @@ export function buildMobi7(options: MobiExportBuildOptions, plan: BookExportPlan
     const backTarget = ownFb2Id ? backRefs.get(ownFb2Id) : undefined;
     const inner = section.content
       .map((child) =>
-        child.type === 'title'
-          ? renderTitle(child, null, 'fb2-note-title')
-          : renderBlock(child, 3),
+        child.type === 'title' ? renderTitle(child, null, 'fb2-note-title') : renderBlock(child, 3),
       )
       .join('');
     const back = backTarget
@@ -383,7 +401,9 @@ export function buildMobi7(options: MobiExportBuildOptions, plan: BookExportPlan
   // 1. Cover: MOBI 7 renders EXTH 201 natively without duplicating an inline cover page (contract §1).
   const coverHref = titleInfo.coverpage[0]?.href ?? '';
   if (coverHref) {
-    const coverPic = coverHref.startsWith('#') ? options.pictures.get(coverHref.slice(1)) : undefined;
+    const coverPic = coverHref.startsWith('#')
+      ? options.pictures.get(coverHref.slice(1))
+      : undefined;
     if (coverPic) {
       counts.pictures++;
     } else {
@@ -415,7 +435,8 @@ export function buildMobi7(options: MobiExportBuildOptions, plan: BookExportPlan
   }
 
   // 3. Inline TOC afterTitle
-  const tocHtml = options.tocPlacement === 'none' ? '' : renderInlineTocMobi7(nav, plan.words.contents);
+  const tocHtml =
+    options.tocPlacement === 'none' ? '' : renderInlineTocMobi7(nav, plan.words.contents);
   if (options.tocPlacement === 'afterTitle' && tocHtml) {
     if (chunks.length > 0) chunks.push('<mbp:pagebreak/>');
     chunks.push(tocHtml);
@@ -449,7 +470,9 @@ export function buildMobi7(options: MobiExportBuildOptions, plan: BookExportPlan
         .filter((c) => !(idx === plan.notesBodyIndices[0] && c === firstTitle))
         .map((c) => (c.type === 'section' ? renderNoteSection(c) : renderBlock(c, 2)))
         .join('');
-      notesParts.push(`<div class="fb2-body fb2-notes-body" data-fb2-body="${idx}">${bodyNodes}</div>`);
+      notesParts.push(
+        `<div class="fb2-body fb2-notes-body" data-fb2-body="${idx}">${bodyNodes}</div>`,
+      );
     }
     chunks.push(`<div id="fb2-notes" class="fb2-notes">${notesParts.join('')}</div>`);
   }

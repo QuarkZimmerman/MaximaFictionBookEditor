@@ -6,8 +6,13 @@
  */
 import type { MarkdownStylesheet } from '@/features/markdown/convert';
 
-import { planClasses, type ClassPlan, type ClassUse, type Fb2Form } from '../../ebookShared/importCss';
-import { NameAllocator, xmlName } from '../../ebookShared/names';
+import {
+  planClasses,
+  type ClassPlan,
+  type ClassUse,
+  type Fb2Form,
+} from '../../ebookShared/importCss';
+import { XmlNameAllocator } from '../../ebookShared/names';
 import { singleFramedImageHref } from '../../ebookShared/svg';
 import type { MfbeRoundTripRecord } from '../export/metadata';
 import { isConverterStructuralClass, semanticRoleOfClasses } from '../shared/format';
@@ -212,7 +217,11 @@ function isFrontMatterBlock(
 
   // Metadata-only title block repeating only title and authors.
   if (text.length > 0 && text.length < 300) {
-    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9\u0400-\u04ff]+/gi, ' ').trim();
+    const norm = (s: string) =>
+      s
+        .toLowerCase()
+        .replace(/[^a-z0-9\u0400-\u04ff]+/gi, ' ')
+        .trim();
     const tNorm = norm(text);
     const titleNorm = norm(meta.updatedTitle || meta.title);
     if (titleNorm && tNorm === titleNorm && el.tagName.toLowerCase() === 'div') {
@@ -258,7 +267,16 @@ interface SectionBuilder {
 }
 
 function makeSection(level: number, id?: string, lang?: string): SectionBuilder {
-  return { level, id, lang, titleLines: [], epigraphs: [], leadingImages: [], blocks: [], children: [] };
+  return {
+    level,
+    id,
+    lang,
+    titleLines: [],
+    epigraphs: [],
+    leadingImages: [],
+    blocks: [],
+    children: [],
+  };
 }
 
 function serializeSection(sec: SectionBuilder): string {
@@ -274,12 +292,20 @@ function serializeSection(sec: SectionBuilder): string {
   head.push(...sec.epigraphs);
   const leading = [...sec.leadingImages];
   const blocks = [...sec.blocks];
-  // FB2 2.1 schema: block sequences cannot start with <image>; an opening image belongs before
-  // <annotation> (as section header image) or after an <empty-line/>.
-  if (blocks.length > 0 && blocks[0]!.startsWith('<image ')) {
-    if (!sec.annotationXml && leading.length === 0) {
+  // FB2 2.1 schema: section allows AT MOST ONE leading <image> before <annotation>,
+  // and block sequences cannot start with <image> (prepend <empty-line/> if needed).
+  if (leading.length > 1) {
+    blocks.unshift(...leading.splice(1));
+  }
+  const startsWithImage = (b: string): boolean =>
+    b.startsWith('<image ') ||
+    b.startsWith('<!--mfbe-svg-block:') ||
+    b.startsWith('<!--mfbe-math-block:');
+  if (blocks.length > 0 && startsWithImage(blocks[0]!)) {
+    if (!sec.annotationXml && leading.length === 0 && blocks[0]!.startsWith('<image ')) {
       leading.push(blocks.shift()!);
-    } else {
+    }
+    if (blocks.length > 0 && startsWithImage(blocks[0]!)) {
       blocks.unshift('<empty-line/>');
     }
   }
@@ -291,7 +317,7 @@ function serializeSection(sec: SectionBuilder): string {
     // Wrap any direct blocks before child sections inside an untitled child section.
     const childXml: string[] = [];
     if (blocks.length > 0) {
-      const wrapped = blocks[0]!.startsWith('<image ') ? ['<empty-line/>', ...blocks] : blocks;
+      const wrapped = startsWithImage(blocks[0]!) ? ['<empty-line/>', ...blocks] : blocks;
       childXml.push(`<section>${wrapped.join('')}</section>`);
     }
     for (const ch of sec.children) {
@@ -351,7 +377,7 @@ export function convertMobiToFb2(options: ConvertMobiOptions): ConvertedMobiBook
   );
 
   // Allocate clean XML NCName binary IDs (restoring original binary IDs when MFBE matches!).
-  const picNames = new NameAllocator();
+  const picNames = new XmlNameAllocator();
   const neededPictures = new Map<number, string>();
   const preferredIdByIdx = new Map<number, string>();
   if (mfbe?.binaries) {
@@ -378,10 +404,10 @@ export function convertMobiToFb2(options: ConvertMobiOptions): ConvertedMobiBook
     const pref = preferredIdByIdx.get(picIdx);
     let id: string;
     if (pref) {
-      id = picNames.allocate('', pref, '');
+      id = picNames.allocate(pref);
     } else {
       const base = isCover ? 'cover' : `img_${picIdx}`;
-      id = picNames.allocate('', base, extForMime(info.contentType));
+      id = picNames.allocate(`${base}${extForMime(info.contentType)}`);
     }
     neededPictures.set(picIdx, id);
     return id;
@@ -422,17 +448,15 @@ export function convertMobiToFb2(options: ConvertMobiOptions): ConvertedMobiBook
     }
   }
 
-  // Track unique XML IDs and placeholders for drawings/formulas.
-  const idAllocator = new NameAllocator();
-  const idMap = new Map<string, string>(); // raw HTML id -> allocated FB2 NCName id
+  // Track unique XML IDs across BOTH binaries and body/note elements (shared xs:ID space!).
+  const idAllocator = picNames;
+  const idMap = new Map<string, string>(); // raw HTML id -> first allocated FB2 NCName id
   const emittedIds = new Set<string>();
   const registerId = (raw: string | null | undefined): string | undefined => {
     const cleaned = (raw ?? '').trim();
     if (!cleaned) return undefined;
-    const prev = idMap.get(cleaned);
-    if (prev) return prev;
-    const alloc = idAllocator.allocate('', xmlName(cleaned), '');
-    idMap.set(cleaned, alloc);
+    const alloc = idAllocator.allocate(cleaned);
+    if (!idMap.has(cleaned)) idMap.set(cleaned, alloc);
     emittedIds.add(alloc);
     return alloc;
   };
@@ -506,7 +530,9 @@ export function convertMobiToFb2(options: ConvertMobiOptions): ConvertedMobiBook
         if (!tgtEl) continue;
         const container = tgtEl.closest('aside, p, div, li') ?? tgtEl;
         const backLinks = Array.from(container.querySelectorAll('a[href^="#"]'));
-        const hasBack = backLinks.some((bl) => refIds.includes((bl.getAttribute('href') ?? '').slice(1)));
+        const hasBack = backLinks.some((bl) =>
+          refIds.includes((bl.getAttribute('href') ?? '').slice(1)),
+        );
         if (hasBack) {
           noteTargetIds.add(tgtId);
           noteElements.add(container);
@@ -557,8 +583,12 @@ export function convertMobiToFb2(options: ConvertMobiOptions): ConvertedMobiBook
           if (bid) return `<image l:href="#${escAttr(bid)}"/>`;
         }
       }
-      const id = picNames.allocate('', `svg_${drawings.length + 1}`, '.png');
-      const alt = (el.querySelector('title')?.textContent ?? el.getAttribute('aria-label') ?? '').trim();
+      const id = picNames.allocate(`svg_${drawings.length + 1}.png`);
+      const alt = (
+        el.querySelector('title')?.textContent ??
+        el.getAttribute('aria-label') ??
+        ''
+      ).trim();
       const markup = new XMLSerializer().serializeToString(el);
       const n = drawings.length;
       drawings.push({ id, markup, alt, display: false });
@@ -567,7 +597,7 @@ export function convertMobiToFb2(options: ConvertMobiOptions): ConvertedMobiBook
 
     // Inline MathML
     if (tag === 'math') {
-      const id = picNames.allocate('', `math_${formulas.length + 1}`, '.png');
+      const id = picNames.allocate(`math_${formulas.length + 1}.png`);
       const alt = (el.getAttribute('alttext') ?? el.textContent ?? '').replace(/\s+/g, ' ').trim();
       const markup = new XMLSerializer().serializeToString(el);
       const display = el.getAttribute('display') === 'block';
@@ -685,7 +715,12 @@ export function convertMobiToFb2(options: ConvertMobiOptions): ConvertedMobiBook
     for (const f of forms) {
       content = wrapAvoidingLinks(`<${f}>`, `</${f}>`, content, f === 'sup');
     }
-    if (styleName && !insideLink && !content.includes('<!--mfbe-link:') && !content.includes('<a ')) {
+    if (
+      styleName &&
+      !insideLink &&
+      !content.includes('<!--mfbe-link:') &&
+      !content.includes('<a ')
+    ) {
       content = `<style name="${escAttr(styleName)}">${content}</style>`;
     }
     return content;
@@ -702,10 +737,7 @@ export function convertMobiToFb2(options: ConvertMobiOptions): ConvertedMobiBook
     const id = registerId(rawId);
     const alt = img.getAttribute('alt') ?? '';
     const title =
-      captionTitle ??
-      (rawId && mfbe?.attrs.imageTitles[rawId]) ??
-      img.getAttribute('title') ??
-      '';
+      captionTitle ?? (rawId && mfbe?.attrs.imageTitles[rawId]) ?? img.getAttribute('title') ?? '';
     const attrs = [`l:href="#${escAttr(bid)}"`];
     if (alt) attrs.push(`alt="${escAttr(alt)}"`);
     if (title) attrs.push(`title="${escAttr(title)}"`);
@@ -751,7 +783,9 @@ export function convertMobiToFb2(options: ConvertMobiOptions): ConvertedMobiBook
     if (fb2Rows.length === 0) return null;
     counts.tables++;
     const tid = registerId(table.getAttribute('id'));
-    return tid ? `<table id="${escAttr(tid)}">${fb2Rows.join('')}</table>` : `<table>${fb2Rows.join('')}</table>`;
+    return tid
+      ? `<table id="${escAttr(tid)}">${fb2Rows.join('')}</table>`
+      : `<table>${fb2Rows.join('')}</table>`;
   };
 
   // Render poem / epigraph / cite / annotation containers
@@ -944,7 +978,10 @@ export function convertMobiToFb2(options: ConvertMobiOptions): ConvertedMobiBook
     if (role === 'subtitle') {
       const sid = registerId(el.getAttribute('id'));
       const t = renderInlines(el).trim();
-      if (t) sec.blocks.push(sid ? `<subtitle id="${escAttr(sid)}">${t}</subtitle>` : `<subtitle>${t}</subtitle>`);
+      if (t)
+        sec.blocks.push(
+          sid ? `<subtitle id="${escAttr(sid)}">${t}</subtitle>` : `<subtitle>${t}</subtitle>`,
+        );
       return;
     }
     if (tag === 'table') {
@@ -991,8 +1028,12 @@ export function convertMobiToFb2(options: ConvertMobiOptions): ConvertedMobiBook
           }
         }
       }
-      const id = picNames.allocate('', `svg_${drawings.length + 1}`, '.png');
-      const alt = (el.querySelector('title')?.textContent ?? el.getAttribute('aria-label') ?? '').trim();
+      const id = picNames.allocate(`svg_${drawings.length + 1}.png`);
+      const alt = (
+        el.querySelector('title')?.textContent ??
+        el.getAttribute('aria-label') ??
+        ''
+      ).trim();
       const markup = new XMLSerializer().serializeToString(el);
       const n = drawings.length;
       drawings.push({ id, markup, alt, display: true });
@@ -1000,7 +1041,7 @@ export function convertMobiToFb2(options: ConvertMobiOptions): ConvertedMobiBook
       return;
     }
     if (tag === 'math') {
-      const id = picNames.allocate('', `math_${formulas.length + 1}`, '.png');
+      const id = picNames.allocate(`math_${formulas.length + 1}.png`);
       const alt = (el.getAttribute('alttext') ?? el.textContent ?? '').replace(/\s+/g, ' ').trim();
       const markup = new XMLSerializer().serializeToString(el);
       const n = formulas.length;
@@ -1032,7 +1073,16 @@ export function convertMobiToFb2(options: ConvertMobiOptions): ConvertedMobiBook
     }
 
     // Paragraph (or simple block holding only a single image/svg/math)
-    if (tag === 'p' || tag === 'div' || tag === 'h1' || tag === 'h2' || tag === 'h3' || tag === 'h4' || tag === 'h5' || tag === 'h6') {
+    if (
+      tag === 'p' ||
+      tag === 'div' ||
+      tag === 'h1' ||
+      tag === 'h2' ||
+      tag === 'h3' ||
+      tag === 'h4' ||
+      tag === 'h5' ||
+      tag === 'h6'
+    ) {
       // Single standalone image inside <p> -> block <image/>
       if (
         el.children.length === 1 &&
@@ -1173,9 +1223,15 @@ export function convertMobiToFb2(options: ConvertMobiOptions): ConvertedMobiBook
         const elId = child.getAttribute('id') ?? '';
         const navHit = elId ? navByAnchorId.get(elId) : undefined;
         if (navHit && (tag === 'div' || tag === 'section' || tag === 'article')) {
-          const headingChild = Array.from(child.children).find((c) => /^h[1-6]$/.test(c.tagName.toLowerCase()));
+          const headingChild = Array.from(child.children).find((c) =>
+            /^h[1-6]$/.test(c.tagName.toLowerCase()),
+          );
           if (!headingChild && navHit.label.trim()) {
-            openHeadingSection(Math.min(6, Math.max(1, navHit.depth + 1)), escText(navHit.label), elId);
+            openHeadingSection(
+              Math.min(6, Math.max(1, navHit.depth + 1)),
+              escText(navHit.label),
+              elId,
+            );
             walkForeign(child);
             continue;
           }
@@ -1192,7 +1248,9 @@ export function convertMobiToFb2(options: ConvertMobiOptions): ConvertedMobiBook
         ) {
           // If it only has inline text directly without block children, treat as a paragraph
           const hasBlockChild = Array.from(child.children).some((c) =>
-            /^(div|section|article|p|h[1-6]|ul|ol|table|blockquote|figure|pre|hr|svg|math)$/i.test(c.tagName),
+            /^(div|section|article|p|h[1-6]|ul|ol|table|blockquote|figure|pre|hr|svg|math)$/i.test(
+              c.tagName,
+            ),
           );
           if (hasBlockChild) {
             walkForeign(child);
@@ -1263,7 +1321,11 @@ export function convertMobiToFb2(options: ConvertMobiOptions): ConvertedMobiBook
     const notesContainer = body.querySelector('#fb2-notes, .fb2-notes');
     if (notesContainer) {
       for (const item of Array.from(notesContainer.children)) {
-        if (item.classList.contains('fb2-note') || item.tagName.toLowerCase() === 'aside' || item.getAttribute('id')) {
+        if (
+          item.classList.contains('fb2-note') ||
+          item.tagName.toLowerCase() === 'aside' ||
+          item.getAttribute('id')
+        ) {
           addNoteSection(item);
         }
       }

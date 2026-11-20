@@ -32,7 +32,7 @@
 set -u
 
 usage() {
-    echo "usage: $0 SAMPLE_FILE [-j N] [--out DIR] [--core PATH] [--encoding ENC] [--save-hashes FILE] [--check-hashes FILE] [--markdown] [--epub-export] [--pdf-export] [--epub-import LIST] [--pdf-round-trip] [--pdf-import LIST]" >&2
+    echo "usage: $0 SAMPLE_FILE [-j N] [--out DIR] [--core PATH] [--encoding ENC] [--save-hashes FILE] [--check-hashes FILE] [--markdown] [--epub-export] [--pdf-export] [--epub-import LIST] [--pdf-round-trip] [--pdf-import LIST] [--txt-export] [--txt-round-trip] [--txt-layouts] [--txt-import LIST] [--mobi-export] [--mobi-round-trip] [--mobi-kf8-sample] [--mobi-import LIST]" >&2
     exit 2
 }
 
@@ -60,6 +60,10 @@ TXT_EXPORT=0
 TXT_ROUND_TRIP=0
 TXT_LAYOUTS=0
 TXT_IMPORT=""
+MOBI_EXPORT=0
+MOBI_ROUND_TRIP=0
+MOBI_KF8_SAMPLE=0
+MOBI_IMPORT=""
 while [ $# -gt 0 ]; do
     case "$1" in
         -j) JOBS="$2"; shift 2 ;;
@@ -75,6 +79,10 @@ while [ $# -gt 0 ]; do
         --txt-round-trip) TXT_ROUND_TRIP=1; shift ;;
         --txt-layouts) TXT_LAYOUTS=1; shift ;;
         --txt-import) TXT_IMPORT="$2"; shift 2 ;;
+        --mobi-export) MOBI_EXPORT=1; shift ;;
+        --mobi-round-trip) MOBI_ROUND_TRIP=1; shift ;;
+        --mobi-kf8-sample) MOBI_KF8_SAMPLE=1; shift ;;
+        --mobi-import) MOBI_IMPORT="$2"; shift 2 ;;
         --encoding) ENCODING="$2"; shift 2 ;;
         --save-hashes) SAVE_HASHES="$2"; shift 2 ;;
         --check-hashes) CHECK_HASHES="$2"; shift 2 ;;
@@ -325,5 +333,18 @@ if [ -n "$TXT_IMPORT" ]; then
 fi
 if [ -n "$PDF_IMPORT" ]; then
     python3 "$HERE/pdf-import.py" "$PDF_IMPORT" --out "$OUT/pdf-import" --core "$CORE" || status=1
+fi
+# Feature 018 (T048, SC-001..SC-003): the MOBI / KF8 runs.
+if [ "$MOBI_EXPORT" = 1 ]; then
+    python3 "$HERE/mobi-runs.py" export "$SAMPLE" --out "$OUT/mobi-export" --core "$CORE" || status=1
+fi
+if [ "$MOBI_ROUND_TRIP" = 1 ]; then
+    python3 "$HERE/mobi-runs.py" round-trip "$SAMPLE" --out "$OUT/mobi-round-trip" --core "$CORE" || status=1
+fi
+if [ "$MOBI_KF8_SAMPLE" = 1 ]; then
+    python3 "$HERE/mobi-runs.py" kf8-sample "$SAMPLE" --out "$OUT/mobi-kf8-sample" --core "$CORE" || status=1
+fi
+if [ -n "$MOBI_IMPORT" ]; then
+    python3 "$HERE/mobi-runs.py" import "$MOBI_IMPORT" --out "$OUT/mobi-import" --core "$CORE" || status=1
 fi
 exit $status

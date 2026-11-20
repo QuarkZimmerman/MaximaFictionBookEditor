@@ -6,11 +6,7 @@ import type { CommandContext } from '@/app/commands';
 import { showArchiveBookChooser } from '@/dialogs/show';
 import type { FileFeature } from '@/features/file/fileCommands';
 import { uploadBinary } from '@/features/images/binaries';
-import {
-  closeRead,
-  readDescriptionFile,
-  withFbd,
-} from '@/features/importShared/fbdApply';
+import { closeRead, readDescriptionFile, withFbd } from '@/features/importShared/fbdApply';
 import { buildBook } from '@/features/markdown/describe';
 import type { Document } from '@/model/document';
 import { actions } from '@/model/store';
@@ -60,7 +56,10 @@ function escText(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function formatSummaryLines(ctx: CommandContext, items: readonly MobiImportSummaryItem[]): string[] {
+function formatSummaryLines(
+  ctx: CommandContext,
+  items: readonly MobiImportSummaryItem[],
+): string[] {
   const counted = new Map<string, { item: MobiImportSummaryItem; count: number }>();
   for (const item of items) {
     const key = `${item.kind}\u0000${item.detail}`;
@@ -341,6 +340,8 @@ export async function importMobi(
       readRes.pictures.map((p) => [p.index, p]),
     );
     const quality = store.getState().settings?.other.jpegQuality ?? 90;
+    const totalPics = converted.neededPictures.size;
+    let picDone = 0;
     const transferred = await transferMobiPictures({
       rpc,
       token: run.token,
@@ -351,6 +352,7 @@ export async function importMobi(
       summary,
       onStep: async () => {
         check();
+        modal.progress(6 + ++picDone, Math.max(8, totalPics + 8));
       },
     });
     const uploadedDrawn = [];
@@ -483,15 +485,16 @@ export async function importMobi(
       }
     } else if (!mfbeRes.useMeta) {
       // Bare foreign MOBI/KF8/PalmDOC: apply sibling .fbd if present (bare editor-made ignores it!)
-      const beside = await rpc.call('files.fbdBeside', { path: run.path }).catch(() => ({ path: null }));
+      const beside = await rpc
+        .call('files.fbdBeside', { path: run.path })
+        .catch(() => ({ path: null }));
       if (beside.path) {
         const applied = await withFbd(ctx, book.docId, book, beside.path);
         const fbdName = baseName(beside.path);
         if (applied.error) {
           fbdWarning = {
             name: fbdName,
-            reason:
-              applied.error instanceof Error ? applied.error.message : String(applied.error),
+            reason: applied.error instanceof Error ? applied.error.message : String(applied.error),
           };
         } else {
           book = { ...book, ...applied.document };

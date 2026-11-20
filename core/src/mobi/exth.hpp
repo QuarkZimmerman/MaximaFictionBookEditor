@@ -2,6 +2,7 @@
 #pragma once
 
 #include <mfbe/mobi.hpp>
+
 #include <nlohmann/json.hpp>
 
 #include <cstddef>
@@ -49,8 +50,7 @@ std::vector<ExthEntry> build_export_exth(const MobiMetadata& meta,
                                          std::optional<std::uint32_t> thumb_offset,
                                          std::optional<std::uint32_t> open_at_offset,
                                          std::optional<std::uint32_t> kf8_boundary_rec,
-                                         std::optional<std::uint32_t> resource_count,
-                                         bool is_kf8,
+                                         std::optional<std::uint32_t> resource_count, bool is_kf8,
                                          std::optional<std::string_view> mfbe_payload);
 
 // Populates MobiMetadata from parsed EXTH entries and fallback header title/locale.

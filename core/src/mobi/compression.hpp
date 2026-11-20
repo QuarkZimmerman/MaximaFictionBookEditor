@@ -1,4 +1,5 @@
-// PalmDOC LZ77, HuffCDIC decoder, UTF-8 chunking, and trailing entries (T006, contracts/mobi-file.md §3).
+// PalmDOC LZ77, HuffCDIC decoder, UTF-8 chunking, and trailing entries (T006,
+// contracts/mobi-file.md §3).
 #pragma once
 
 #include <mfbe/mobi.hpp>
@@ -29,8 +30,7 @@ class HuffCdicDecoder {
 public:
     static HuffCdicDecoder parse(const std::vector<std::string_view>& huff_cdic_records);
 
-    void decode_into(std::string_view record, std::string& out,
-                     std::size_t max_total_bytes) const;
+    void decode_into(std::string_view record, std::string& out, std::size_t max_total_bytes) const;
 
 private:
     struct CdicEntry {

@@ -701,8 +701,7 @@ public:
             dst.label = sel.label;
             dst.selected = sel.selected;
             for (const auto& ch : sel.choices) {
-                dst.choices.push_back(
-                    {ch.value, ch.label, ch.extension.value_or(std::string())});
+                dst.choices.push_back({ch.value, ch.label, ch.extension.value_or(std::string())});
             }
             native.selects.push_back(std::move(dst));
         }

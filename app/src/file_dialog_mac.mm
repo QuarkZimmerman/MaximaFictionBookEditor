@@ -47,8 +47,8 @@
     const std::string renamed =
         _activePlainExt.empty()
             ? mfbe::shell::zipFollowName(_request, std::string(name.UTF8String), zip)
-            : mfbe::shell::selectFollowName(_request, std::string(name.UTF8String),
-                                            _activePlainExt, zip);
+            : mfbe::shell::selectFollowName(_request, std::string(name.UTF8String), _activePlainExt,
+                                            zip);
     NSString* shown = [NSString stringWithUTF8String:renamed.c_str()];
     if (shown != nil && ![shown isEqualToString:name]) {
         self.panel.nameFieldStringValue = shown;
@@ -337,7 +337,8 @@ bool runPlatformFileDialog(std::uintptr_t owner, const FileDialogRequest& reques
                   const NSInteger idx = select_popups[k].indexOfSelectedItem;
                   const auto& vals = select_values[k];
                   if (idx >= 0 && static_cast<std::size_t>(idx) < vals.size()) {
-                      result.selects.emplace_back(select_ids[k], vals[static_cast<std::size_t>(idx)]);
+                      result.selects.emplace_back(select_ids[k],
+                                                  vals[static_cast<std::size_t>(idx)]);
                   }
               }
               result.selects_shown = true;

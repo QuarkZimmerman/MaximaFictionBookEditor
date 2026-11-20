@@ -168,9 +168,19 @@ function serializeAnnotationBlocks(blocks: readonly BlockNode[] | undefined): st
       case 'empty-line':
         parts.push('<empty-line/>');
         break;
-      case 'cite':
-        parts.push(`<cite>${serializeAnnotationBlocks(b.content as BlockNode[])}</cite>`);
+      case 'cite': {
+        const inner = (
+          b.content as readonly (BlockNode | { type: 'text-author'; content?: InlineNode[] })[]
+        )
+          .map((c) =>
+            c.type === 'text-author'
+              ? `<text-author>${serializeInlines(c.content)}</text-author>`
+              : serializeAnnotationBlocks([c as BlockNode]),
+          )
+          .join('');
+        parts.push(`<cite>${inner || '<p/>'}</cite>`);
         break;
+      }
       case 'poem': {
         const inner = b.content
           .map((c) => {
@@ -200,11 +210,18 @@ function serializeAnnotationBlocks(blocks: readonly BlockNode[] | undefined): st
 }
 
 function serializePerson(tag: string, p: Person): string {
+  const hasName = Boolean(p.firstName || p.middleName || p.lastName);
   const parts: string[] = [];
-  if (p.firstName) parts.push(`<first-name>${escText(p.firstName)}</first-name>`);
-  if (p.middleName) parts.push(`<middle-name>${escText(p.middleName)}</middle-name>`);
-  if (p.lastName) parts.push(`<last-name>${escText(p.lastName)}</last-name>`);
-  if (p.nickname) parts.push(`<nickname>${escText(p.nickname)}</nickname>`);
+  if (hasName) {
+    parts.push(`<first-name>${escText(p.firstName ?? '')}</first-name>`);
+    if (p.middleName) parts.push(`<middle-name>${escText(p.middleName)}</middle-name>`);
+    parts.push(`<last-name>${escText(p.lastName ?? '')}</last-name>`);
+    if (p.nickname) parts.push(`<nickname>${escText(p.nickname)}</nickname>`);
+  } else if (p.nickname) {
+    parts.push(`<nickname>${escText(p.nickname)}</nickname>`);
+  } else {
+    parts.push('<first-name/><last-name/>');
+  }
   for (const hp of p.homePages ?? []) {
     if (hp) parts.push(`<home-page>${escText(hp)}</home-page>`);
   }
@@ -212,9 +229,6 @@ function serializePerson(tag: string, p: Person): string {
     if (em) parts.push(`<email>${escText(em)}</email>`);
   }
   if (p.id) parts.push(`<id>${escText(p.id)}</id>`);
-  if (parts.length === 0) {
-    parts.push('<first-name/><last-name/>');
-  }
   return `<${tag}>${parts.join('')}</${tag}>`;
 }
 
@@ -245,13 +259,19 @@ function serializeTitleInfo(
     parts.push(`<genre${match}>${escText(g.code)}</genre>`);
   }
   const authors =
-    ti.authors.length > 0 ? ti.authors : [{ homePages: [], emails: [], firstName: '', lastName: '' }];
+    ti.authors.length > 0
+      ? ti.authors
+      : [{ homePages: [], emails: [], firstName: '', lastName: '' }];
   for (const a of authors) parts.push(serializePerson('author', a));
   parts.push(`<book-title>${escText(ti.bookTitle ?? '')}</book-title>`);
   if (ti.annotation) {
     const id = ti.annotation.attrs?.id ? ` id="${escAttr(ti.annotation.attrs.id)}"` : '';
-    const lang = ti.annotation.attrs?.lang ? ` xml:lang="${escAttr(ti.annotation.attrs.lang)}"` : '';
-    parts.push(`<annotation${id}${lang}>${serializeAnnotationBlocks(ti.annotation.content)}</annotation>`);
+    const lang = ti.annotation.attrs?.lang
+      ? ` xml:lang="${escAttr(ti.annotation.attrs.lang)}"`
+      : '';
+    parts.push(
+      `<annotation${id}${lang}>${serializeAnnotationBlocks(ti.annotation.content)}</annotation>`,
+    );
   }
   if (ti.keywords) parts.push(`<keywords>${escText(ti.keywords)}</keywords>`);
   if (ti.date) parts.push(serializeDate(ti.date));

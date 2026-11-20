@@ -3,6 +3,7 @@
 
 #include <mfbe/images.hpp>
 #include <mfbe/mobi.hpp>
+
 #include <nlohmann/json.hpp>
 
 #include <cstddef>
@@ -64,7 +65,8 @@ public:
     std::optional<std::uint32_t> cover_rec_index() const { return cover_rec_index_; }
     std::optional<std::uint32_t> thumbnail_rec_index() const { return thumbnail_rec_index_; }
 
-    using ProgressFn = std::function<void(const std::string& phase, std::int64_t done, std::int64_t total)>;
+    using ProgressFn =
+        std::function<void(const std::string& phase, std::int64_t done, std::int64_t total)>;
     using CancelFn = std::function<void()>;
 
     // Assembles the MOBI/KF8 binary, runs the pre-write self-check, optionally packs into ZIP

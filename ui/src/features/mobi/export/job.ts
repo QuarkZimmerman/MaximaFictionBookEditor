@@ -61,11 +61,16 @@ async function uploadSlot(
     body: new TextEncoder().encode(text),
   });
   if (!response.ok) {
-    throw new Error(`${slot}: HTTP ${response.status} ${await response.text().catch(() => '')}`.trim());
+    throw new Error(
+      `${slot}: HTTP ${response.status} ${await response.text().catch(() => '')}`.trim(),
+    );
   }
 }
 
-function formatSummaryLines(ctx: CommandContext, items: readonly MobiExportSummaryItem[]): string[] {
+function formatSummaryLines(
+  ctx: CommandContext,
+  items: readonly MobiExportSummaryItem[],
+): string[] {
   const counted = new Map<string, { item: MobiExportSummaryItem; count: number }>();
   for (const item of items) {
     const key = `${item.kind}\u0000${item.detail}`;

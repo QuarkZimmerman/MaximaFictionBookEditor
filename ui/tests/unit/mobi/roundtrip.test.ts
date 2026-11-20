@@ -32,12 +32,29 @@ function richDocument(): Document {
     description: {
       titleInfo: {
         genres: [{ code: 'sf_space', match: 90 }],
-        authors: [{ firstName: 'Anna', middleName: 'B.', lastName: 'Example', homePages: ['https://example.org'], emails: ['a@b.c'] }],
+        authors: [
+          {
+            firstName: 'Anna',
+            middleName: 'B.',
+            lastName: 'Example',
+            homePages: ['https://example.org'],
+            emails: ['a@b.c'],
+          },
+        ],
         bookTitle: 'Round Trip Title',
         annotation: {
           type: 'annotation',
           attrs: { nodeId: 'a1' },
-          content: [{ type: 'p', attrs: { nodeId: 'ap1' }, content: [{ type: 'text', text: 'Rich ' }, { type: 'text', text: 'bold', marks: [{ type: 'strong' }] }] }],
+          content: [
+            {
+              type: 'p',
+              attrs: { nodeId: 'ap1' },
+              content: [
+                { type: 'text', text: 'Rich ' },
+                { type: 'text', text: 'bold', marks: [{ type: 'strong' }] },
+              ],
+            },
+          ],
         },
         keywords: 'alpha, beta',
         date: { value: '2026-03-15', text: '15 March 2026' },
@@ -67,7 +84,9 @@ function richDocument(): Document {
         history: {
           type: 'annotation',
           attrs: { nodeId: 'h1' },
-          content: [{ type: 'p', attrs: { nodeId: 'hp1' }, content: [{ type: 'text', text: 'v2.1 fix' }] }],
+          content: [
+            { type: 'p', attrs: { nodeId: 'hp1' }, content: [{ type: 'text', text: 'v2.1 fix' }] },
+          ],
         },
         publishers: [],
       },
@@ -94,15 +113,29 @@ function richDocument(): Document {
               {
                 type: 'title',
                 attrs: { nodeId: 't1' },
-                content: [{ type: 'p', attrs: { nodeId: 'tp1' }, content: [{ type: 'text', text: 'First Chapter' }] }],
+                content: [
+                  {
+                    type: 'p',
+                    attrs: { nodeId: 'tp1' },
+                    content: [{ type: 'text', text: 'First Chapter' }],
+                  },
+                ],
               },
               {
                 type: 'p',
                 attrs: { nodeId: 'p1', style: 'letter' },
                 content: [
                   { type: 'text', text: 'Text with ' },
-                  { type: 'text', text: 'named', marks: [{ type: 'style', attrs: { name: 'special' } }] },
-                  { type: 'text', text: '[1]', marks: [{ type: 'link', attrs: { href: '#n1', type: 'note' } }] },
+                  {
+                    type: 'text',
+                    text: 'named',
+                    marks: [{ type: 'style', attrs: { name: 'special' } }],
+                  },
+                  {
+                    type: 'text',
+                    text: '[1]',
+                    marks: [{ type: 'link', attrs: { href: '#n1', type: 'note' } }],
+                  },
                 ],
               },
               {
@@ -112,18 +145,37 @@ function richDocument(): Document {
                   {
                     type: 'stanza',
                     attrs: { nodeId: 'st1' },
-                    content: [{ type: 'v', attrs: { nodeId: 'v1' }, content: [{ type: 'text', text: 'Ode line' }] }],
+                    content: [
+                      {
+                        type: 'v',
+                        attrs: { nodeId: 'v1' },
+                        content: [{ type: 'text', text: 'Ode line' }],
+                      },
+                    ],
                   },
-                  { type: 'date', attrs: { nodeId: 'dt1', value: '1899-12-31' }, content: [{ type: 'text', text: 'Dec 1899' }] },
+                  {
+                    type: 'date',
+                    attrs: { nodeId: 'dt1', value: '1899-12-31' },
+                    content: [{ type: 'text', text: 'Dec 1899' }],
+                  },
                 ],
               },
-              { type: 'image', attrs: { nodeId: 'im1', href: '#orig-fig.png', alt: 'Fig', title: 'Caption Title' } },
+              {
+                type: 'image',
+                attrs: { nodeId: 'im1', href: '#orig-fig.png', alt: 'Fig', title: 'Caption Title' },
+              },
             ],
           },
           {
             type: 'section',
             attrs: { nodeId: 's2' }, // untitled section preserved!
-            content: [{ type: 'p', attrs: { nodeId: 'p2' }, content: [{ type: 'text', text: 'Untitled section text.' }] }],
+            content: [
+              {
+                type: 'p',
+                attrs: { nodeId: 'p2' },
+                content: [{ type: 'text', text: 'Untitled section text.' }],
+              },
+            ],
           },
         ],
       },
@@ -134,14 +186,34 @@ function richDocument(): Document {
           {
             type: 'section',
             attrs: { nodeId: 'ns1', id: 'n1' },
-            content: [{ type: 'p', attrs: { nodeId: 'np1' }, content: [{ type: 'text', text: 'My note.' }] }],
+            content: [
+              {
+                type: 'p',
+                attrs: { nodeId: 'np1' },
+                content: [{ type: 'text', text: 'My note.' }],
+              },
+            ],
           },
         ],
       },
     ],
     binaries: [
-      { id: 'orig-cover.jpg', contentType: 'image/jpeg', size: 100, decodable: true, willConvert: false, referenceCount: 1 },
-      { id: 'orig-fig.png', contentType: 'image/png', size: 50, decodable: true, willConvert: false, referenceCount: 1 },
+      {
+        id: 'orig-cover.jpg',
+        contentType: 'image/jpeg',
+        size: 100,
+        decodable: true,
+        willConvert: false,
+        referenceCount: 1,
+      },
+      {
+        id: 'orig-fig.png',
+        contentType: 'image/png',
+        size: 50,
+        decodable: true,
+        willConvert: false,
+        referenceCount: 1,
+      },
     ],
   };
 }
@@ -192,9 +264,30 @@ describe('MFBE EXTH 59901 round-trip & external-edit fallback (T033)', () => {
         navigation: [],
         guide: [],
         pictures: [
-          { index: 1, contentType: 'image/jpeg', width: 400, height: 600, size: 100, tooLarge: false },
-          { index: 2, contentType: 'image/jpeg', width: 120, height: 180, size: 50, tooLarge: false },
-          { index: 3, contentType: 'image/png', width: 200, height: 100, size: 50, tooLarge: false },
+          {
+            index: 1,
+            contentType: 'image/jpeg',
+            width: 400,
+            height: 600,
+            size: 100,
+            tooLarge: false,
+          },
+          {
+            index: 2,
+            contentType: 'image/jpeg',
+            width: 120,
+            height: 180,
+            size: 50,
+            tooLarge: false,
+          },
+          {
+            index: 3,
+            contentType: 'image/png',
+            width: 200,
+            height: 100,
+            size: 50,
+            tooLarge: false,
+          },
         ],
         coverIndex: 1,
         thumbnailIndex: 2,
