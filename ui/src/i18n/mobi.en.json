@@ -151,7 +151,7 @@
       "seriesInTitle": "&Series in reader title:",
       "openAt": "&Open book at:",
       "kf8PopupFootnotes": "&Pop-up footnotes (KF8)",
-      "kf8PopupFootnotesHint": "Applies to KF8 and the KF8 half of joint files; MOBI 7 always uses jump-to-end links.",
+      "kf8PopupFootnotesHint": "Works on modern Kindles (KF8 and joint files); older MOBI 7 readers always jump to the end.",
       "zip": "Save in &ZIP archive",
       "on": "On",
       "off": "Off"
@@ -159,18 +159,18 @@
   },
   "tip": {
     "mobi": {
-      "format": "MOBI 7 for older readers, joint MOBI 7 + KF8 for broadest compatibility, or KF8 (.azw3) for modern Kindle readers",
-      "tocPlacement": "Where to place the inline HTML table of contents; the native device navigation index is always written",
-      "zip": "Write a ZIP archive containing the MOBI/AZW3 book (uncompressed) and the book's FBD description (compressed)"
+      "format": "MOBI 7 + KF8 works on both old and modern readers; MOBI 7 is for older devices; KF8 (.azw3) is for modern Kindles",
+      "tocPlacement": "Where to put a table of contents page inside the book (the reader's own menu is always included)",
+      "zip": "Pack the exported book and its FBD description together in a ZIP archive"
     },
     "settings": {
       "mobi": {
-        "format": "The MOBI format proposed by the Save dialog on a book's first export",
-        "tocPlacement": "Where the inline table of contents is placed on a book's first export",
-        "seriesInTitle": "Optional series prefix added to the reader shelf title only; does not alter the title page or round-trip title",
-        "openAt": "Where a reading device opens the book for the first time",
-        "kf8PopupFootnotes": "Emit KF8 pop-up footnote markers in KF8 and joint files; classic MOBI 7 always uses jump-to-end links",
-        "zip": "Whether the Save dialog proposes saving a ZIP archive containing the MOBI/AZW3 and the book's FBD"
+        "format": "File format selected by default: MOBI 7 + KF8 works on both old and modern readers",
+        "tocPlacement": "Where to put a table of contents page inside the book (the reader's own menu is always included)",
+        "seriesInTitle": "Adds the book's series name or number to the title shown in your reader's library list (the title page stays unchanged)",
+        "openAt": "Which page the reader shows when opening the book for the first time",
+        "kf8PopupFootnotes": "Show footnotes in a pop-up on modern Kindles (older MOBI 7 readers jump to the end of the book)",
+        "zip": "Pack the exported book and its FBD description together in a ZIP archive by default"
       }
     }
   }

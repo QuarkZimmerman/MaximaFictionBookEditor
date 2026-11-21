@@ -108,17 +108,18 @@ test.describe('US4 (feature 018) - MOBI settings defaults & per-book dialog stic
 
     // 1. Open Settings > Exports > MOBI, test Reset & Reset all, then save custom defaults
     await openMobiSettings(page);
-    await page.getByTestId('settings-mobi-format').selectOption('joint');
+    await page.getByTestId('settings-mobi-format').selectOption('mobi7');
     await page.getByTestId('settings-mobi-tocPlacement').selectOption('none');
-    await page.getByTestId('settings-mobi-seriesInTitle').selectOption('seriesAndNumber');
+    await page.getByTestId('settings-mobi-seriesInTitle').selectOption('off');
     await page.getByTestId('settings-mobi-openAt').selectOption('mainText');
     await page.getByTestId('settings-mobi-kf8PopupFootnotes').uncheck();
     await page.getByTestId('settings-mobi-zip').check();
 
     // Test individual reset + reset all
     await page.getByTestId('settings-mobi-reset-format').click();
-    await expect(page.getByTestId('settings-mobi-format')).toHaveValue('mobi7');
+    await expect(page.getByTestId('settings-mobi-format')).toHaveValue('joint');
     await page.getByTestId('settings-mobi-reset-all').click();
+    await expect(page.getByTestId('settings-mobi-seriesInTitle')).toHaveValue('seriesAndNumber');
     await expect(page.getByTestId('settings-mobi-zip')).not.toBeChecked();
     await expect(page.getByTestId('settings-mobi-kf8PopupFootnotes')).toBeChecked();
 

@@ -52,7 +52,7 @@ export interface MobiNavItem {
 }
 
 export interface MobiGuideItem {
-  type: 'cover' | 'title-page' | 'toc' | 'text';
+  type: 'cover' | 'title-page' | 'toc' | 'text' | 'colophon';
   title: string;
   anchorId: string;
 }
@@ -63,6 +63,13 @@ export interface MfbeBodyAttr {
   lang?: string;
 }
 
+export interface MfbeBodyCoverAttr {
+  href: string;
+  alt?: string;
+  title?: string;
+  id?: string;
+}
+
 export interface MfbeAttrs {
   bodies: MfbeBodyAttr[];
   dates: Record<string, string>;
@@ -70,6 +77,8 @@ export interface MfbeAttrs {
   styleNames: Record<string, string>;
   untitledSections: string[];
   nodeLangs: Record<string, string>;
+  /** Main body's leading `<image>` when omitted from export HTML because it duplicated `<coverpage>`. */
+  bodyLeadingCover?: MfbeBodyCoverAttr;
 }
 
 export interface MfbeRoundTripRecord {
@@ -211,6 +220,8 @@ export interface BookExportPlan {
   words: MobiBookWords;
   identifier: string;
   hasTitlePage: boolean;
+  hasAnnotationPage: boolean;
+  hasHistoryPage: boolean;
   openAtAnchorId: string;
   metadata: MobiExportMetadata;
   notesBodies: ReadonlySet<number>;
@@ -348,9 +359,11 @@ export function buildExportPlan(options: MobiExportBuildOptions): BookExportPlan
   for (const reserved of [
     'fb2-cover',
     'fb2-title-page',
+    'fb2-annotation',
     'fb2-toc',
     'fb2-main-start',
     'fb2-notes',
+    'fb2-history',
   ]) {
     ids.allocate(reserved);
   }
@@ -366,6 +379,7 @@ export function buildExportPlan(options: MobiExportBuildOptions): BookExportPlan
   };
   for (const body of document.bodies) forEachNode(body, claim);
   if (titleInfo.annotation) forEachNode(titleInfo.annotation, claim);
+  if (docInfo.history) forEachNode(docInfo.history, claim);
 
   let sectionSeq = 0;
   for (const body of document.bodies) {
@@ -378,14 +392,27 @@ export function buildExportPlan(options: MobiExportBuildOptions): BookExportPlan
     });
   }
 
+  const hasAnnotationPage = Boolean(
+    titleInfo.annotation && titleInfo.annotation.content.length > 0,
+  );
+  const hasHistoryPage = Boolean(docInfo.history && docInfo.history.content.length > 0);
+  const hasImprint = Boolean(
+    (publishInfo?.publisher ?? '').trim() || (publishInfo?.year ?? '').trim(),
+  );
   const hasTitlePage =
     !originalTitleEmpty ||
     flattenSequences(titleInfo.sequences).some((s) => s.name.trim().length > 0) ||
     authors.length > 0 ||
-    descriptionText.length > 0;
+    hasImprint;
 
   const openAtAnchorId =
-    options.openAt === 'mainText' || !hasTitlePage ? 'fb2-main-start' : 'fb2-title-page';
+    options.openAt === 'mainText'
+      ? 'fb2-main-start'
+      : hasTitlePage
+        ? 'fb2-title-page'
+        : hasAnnotationPage
+          ? 'fb2-annotation'
+          : 'fb2-main-start';
 
   const metadata: MobiExportMetadata = {
     title,
@@ -432,6 +459,8 @@ export function buildExportPlan(options: MobiExportBuildOptions): BookExportPlan
     words,
     identifier,
     hasTitlePage,
+    hasAnnotationPage,
+    hasHistoryPage,
     openAtAnchorId,
     metadata,
     notesBodies,
@@ -470,9 +499,23 @@ export function buildMfbeRoundTripRecord(
   for (const [binaryId, placed] of pictures) {
     binaries[formatKf8EmbedId(placed.recindex)] = binaryId;
   }
+  // Annotation and history are rendered as full structured pages (#fb2-annotation, #fb2-history),
+  // so omit non-empty copies from the private EXTH 59901 record (matching PDF commit 38357d9b).
+  const titleInfo = { ...document.description.titleInfo };
+  if (titleInfo.annotation && titleInfo.annotation.content.length > 0) {
+    delete titleInfo.annotation;
+  }
+  const documentInfo = { ...document.description.documentInfo };
+  if (documentInfo.history && documentInfo.history.content.length > 0) {
+    delete documentInfo.history;
+  }
   return {
     v: 1,
-    description: document.description,
+    description: {
+      ...document.description,
+      titleInfo,
+      documentInfo,
+    },
     stylesheets: document.stylesheets,
     binaries,
     attrs,

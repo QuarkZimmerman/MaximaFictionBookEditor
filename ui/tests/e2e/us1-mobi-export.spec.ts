@@ -113,7 +113,7 @@ test.describe('US1 (feature 018) - MOBI / KF8 export', () => {
     expect(path.dirname(saveReq.defaultPath ?? '')).toBe(path.dirname(book));
     expect(saveReq.defaultPath).toMatch(/The Reference Book\.mobi$/);
     expect(saveReq.selects?.map((s) => s.id)).toEqual(['format', 'tocPlacement']);
-    expect(saveReq.selects?.[0]?.selected).toBe('mobi7');
+    expect(saveReq.selects?.[0]?.selected).toBe('joint');
     expect(saveReq.selects?.[1]?.selected).toBe('afterTitle');
     expect(saveReq.zipChoice?.checked).toBe(false);
 

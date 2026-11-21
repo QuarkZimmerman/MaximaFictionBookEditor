@@ -594,13 +594,15 @@ std::string rewrite_kf8_positions(std::string_view html,
         if (auto it = fid_bases.find(fid); it != fid_bases.end()) {
             base = it->second;
         }
-        // Special case: single-skeleton document where fid==0 & base > 0, check whether `off`
-        // was written relative to document start (like MobiWriter) or relative to fragment start.
+        const std::size_t candidate = base + off;
+        if (candidate < html.size() && existing_id_at_tag(html, candidate).has_value()) {
+            return candidate;
+        }
+        // Legacy fallback: older MobiWriter files wrote fid_offset relative to document start.
         if (fid == 0 && base > 0 && off >= base && off < html.size() &&
             existing_id_at_tag(html, off).has_value()) {
             return off;
         }
-        const std::size_t candidate = base + off;
         if (candidate < html.size()) {
             return safe_anchor_position(html, candidate);
         }

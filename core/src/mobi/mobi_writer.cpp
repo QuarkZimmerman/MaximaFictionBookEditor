@@ -228,12 +228,23 @@ PreparedKf8 prepare_kf8_document(std::string_view input) {
         }
     }
 
+    // Locate `<body>` boundaries first so we know fragment 0's `insert_pos` (= `prefix.size()`).
+    // In KF8, `pos_fid` offsets (`kindle:pos:fid:0000:off:...`, NCX tag 6, GUIDE tag 6) are byte
+    // offsets relative to the fragment start (`insert_pos`), NOT relative to document start.
+    const std::size_t body_gt_final =
+        (body_open != std::string::npos) ? html.find('>', body_open) : std::string::npos;
+    const std::size_t body_close = html.rfind("</body>");
+    const bool has_split = body_gt_final != std::string::npos && body_close != std::string::npos &&
+                           body_close >= body_gt_final + 1;
+    const std::uint32_t insert_pos = has_split ? static_cast<std::uint32_t>(body_gt_final + 1) : 0U;
+
     // Compute exact byte offsets on `html` and patch `kindle:pos:fid:0000:off:YYYYYYYYYY` in place.
     auto anchors = collect_anchor_offsets(html);
     for (const auto& s : sites) {
         const auto it = anchors.find(s.target_id);
-        const std::uint32_t off = (it != anchors.end()) ? it->second : 0U;
-        const std::string b32 = to_base32_padded(off, 10);
+        const std::uint32_t abs_off = (it != anchors.end()) ? it->second : insert_pos;
+        const std::uint32_t frag_off = (abs_off >= insert_pos) ? (abs_off - insert_pos) : 0U;
+        const std::string b32 = to_base32_padded(frag_off, 10);
         std::memcpy(html.data() + s.off_pos, b32.data(), 10);
     }
 
@@ -242,21 +253,16 @@ PreparedKf8 prepare_kf8_document(std::string_view input) {
     out.anchors = std::move(anchors);
 
     // Split into skeleton (`...<body ...></body></html>`) + fragment (`INNER`).
-    body_open = html.find("<body");
-    const std::size_t body_gt =
-        (body_open != std::string::npos) ? html.find('>', body_open) : std::string::npos;
-    const std::size_t body_close = html.rfind("</body>");
-    if (body_gt != std::string::npos && body_close != std::string::npos &&
-        body_close >= body_gt + 1) {
-        const std::string_view prefix = std::string_view(html).substr(0, body_gt + 1);
+    if (has_split) {
+        const std::string_view prefix = std::string_view(html).substr(0, body_gt_final + 1);
         const std::string_view inner =
-            std::string_view(html).substr(body_gt + 1, body_close - (body_gt + 1));
+            std::string_view(html).substr(body_gt_final + 1, body_close - (body_gt_final + 1));
         const std::string_view suffix = std::string_view(html).substr(body_close);
         std::string skel;
         skel.reserve(prefix.size() + suffix.size());
         skel.append(prefix);
         skel.append(suffix);
-        out.insert_pos = static_cast<std::uint32_t>(prefix.size());
+        out.insert_pos = insert_pos;
         out.skel_len = static_cast<std::uint32_t>(skel.size());
         out.frag_len = static_cast<std::uint32_t>(inner.size());
         out.flow0.reserve(skel.size() + inner.size());
@@ -275,14 +281,15 @@ PreparedKf8 prepare_kf8_document(std::string_view input) {
 std::vector<MobiNavEntry> resolve_nav_entries(
     const std::vector<MobiNavEntry>& raw_nav,
     const std::unordered_map<std::string, std::uint32_t>& anchors, std::uint32_t total_len,
-    bool compute_hierarchy) {
+    bool compute_hierarchy, std::uint32_t frag_insert_pos = 0) {
     std::vector<MobiNavEntry> nav = raw_nav;
     for (auto& e : nav) {
         if (!e.anchor_id.empty()) {
             if (auto it = anchors.find(e.anchor_id); it != anchors.end()) {
                 e.offset = it->second;
                 e.fid = 0;
-                e.fid_offset = it->second;
+                e.fid_offset =
+                    (it->second >= frag_insert_pos) ? (it->second - frag_insert_pos) : 0U;
             }
         }
     }
@@ -324,14 +331,16 @@ std::vector<MobiNavEntry> resolve_nav_entries(
 
 std::vector<MobiGuideEntry> resolve_guide_entries(
     const std::vector<MobiGuideEntry>& raw_guide,
-    const std::unordered_map<std::string, std::uint32_t>& anchors) {
+    const std::unordered_map<std::string, std::uint32_t>& anchors,
+    std::uint32_t frag_insert_pos = 0) {
     std::vector<MobiGuideEntry> out;
     for (auto g : raw_guide) {
         if (!g.anchor_id.empty()) {
             if (auto it = anchors.find(g.anchor_id); it != anchors.end()) {
                 g.offset = it->second;
                 g.fid = 0;
-                g.fid_offset = it->second;
+                g.fid_offset =
+                    (it->second >= frag_insert_pos) ? (it->second - frag_insert_pos) : 0U;
                 out.push_back(std::move(g));
             }
         }
@@ -480,7 +489,7 @@ std::vector<std::string> build_kf8_block(const PreparedKf8& kf8, const std::stri
     }
 
     // GUIDE index (optional)
-    const auto resolved_guide = resolve_guide_entries(input.guide, kf8.anchors);
+    const auto resolved_guide = resolve_guide_entries(input.guide, kf8.anchors, kf8.insert_pos);
     std::uint32_t guide_rec = 0xFFFFFFFFU;
     if (!resolved_guide.empty()) {
         guide_rec = static_cast<std::uint32_t>(recs.size());
@@ -492,7 +501,7 @@ std::vector<std::string> build_kf8_block(const PreparedKf8& kf8, const std::stri
     // NCX navigation index (written whenever nav is non-empty, independent of inline TOC)
     const auto resolved_nav = resolve_nav_entries(
         input.nav, kf8.anchors, static_cast<std::uint32_t>(kf8.canonical_html.size()),
-        /*compute_hierarchy=*/true);
+        /*compute_hierarchy=*/true, kf8.insert_pos);
     std::uint32_t indx_rec = 0xFFFFFFFFU;
     if (!resolved_nav.empty()) {
         indx_rec = static_cast<std::uint32_t>(recs.size());

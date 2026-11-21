@@ -8,32 +8,44 @@ export type MobiWordsLanguage = 'en' | 'ru' | 'uk';
 export interface MobiBookWords {
   cover: string;
   titlePage: string;
+  annotation: string;
   contents: string;
   start: string;
   notes: string;
+  revisionHistory: string;
+  version: string;
 }
 
 export const MOBI_BOOK_WORDS: Readonly<Record<MobiWordsLanguage, MobiBookWords>> = {
   en: {
     cover: 'Cover',
     titlePage: 'Title page',
+    annotation: 'Annotation',
     contents: 'Contents',
     start: 'Start',
     notes: 'Notes',
+    revisionHistory: 'Revision history',
+    version: 'Version',
   },
   ru: {
     cover: 'Обложка',
     titlePage: 'Титульная страница',
+    annotation: 'Аннотация',
     contents: 'Содержание',
     start: 'Начало',
     notes: 'Примечания',
+    revisionHistory: 'История изменений',
+    version: 'Версия',
   },
   uk: {
     cover: 'Обкладинка',
     titlePage: 'Титульна сторінка',
+    annotation: 'Анотація',
     contents: 'Зміст',
     start: 'Початок',
     notes: 'Примітки',
+    revisionHistory: 'Історія змін',
+    version: 'Версія',
   },
 };
 

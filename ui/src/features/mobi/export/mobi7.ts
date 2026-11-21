@@ -357,11 +357,37 @@ export function buildMobi7(
     return `${brk}<div id="${escapeAttr(secId)}" class="fb2-section">${inner}</div>`;
   };
 
+  const titleInfo = document.description.titleInfo;
+  const docInfo = document.description.documentInfo;
+  const publishInfo = document.description.publishInfo;
+
+  // 1. Cover: MOBI 7 renders EXTH 201 natively without duplicating an inline cover page.
+  const coverHref = titleInfo.coverpage[0]?.href ?? '';
+  const hasCoverPic = Boolean(
+    coverHref.startsWith('#') && options.pictures.has(coverHref.slice(1)),
+  );
+
   const renderBodyContent = (body: BodyNode, bodyIndex: number, isMain: boolean): string => {
     const anchor = bodyAnchorIds.get(bodyIndex);
     const parts: string[] = [];
     let firstTopSection = true;
     for (const child of body.content) {
+      if (
+        isMain &&
+        firstTopSection &&
+        hasCoverPic &&
+        child.type === 'image' &&
+        child.attrs.href === coverHref
+      ) {
+        // Avoid duplicating the EXTH 201 cover; record in MFBE attrs for lossless round-trip.
+        plan.attrs.bodyLeadingCover ??= {
+          href: child.attrs.href,
+          ...(child.attrs.alt ? { alt: child.attrs.alt } : {}),
+          ...(child.attrs.title ? { title: child.attrs.title } : {}),
+          ...(child.attrs.id ? { id: child.attrs.id } : {}),
+        };
+        continue;
+      }
       if (child.type === 'section') {
         const needBreak = !firstTopSection;
         firstTopSection = false;
@@ -396,42 +422,48 @@ export function buildMobi7(
   // Assemble document sections in contract order (§1).
   const chunks: string[] = [];
   const guide: MobiGuideItem[] = [];
-  const titleInfo = document.description.titleInfo;
 
-  // 1. Cover: MOBI 7 renders EXTH 201 natively without duplicating an inline cover page (contract §1).
-  const coverHref = titleInfo.coverpage[0]?.href ?? '';
   if (coverHref) {
-    const coverPic = coverHref.startsWith('#')
-      ? options.pictures.get(coverHref.slice(1))
-      : undefined;
-    if (coverPic) {
+    if (hasCoverPic) {
       counts.pictures++;
     } else {
       plan.summary.push({ kind: 'pictureLeftOut', detail: coverHref });
     }
   }
 
-  // 2. Title page (omitted only if title, series, authors, and annotation are all empty).
+  // 2. Title page (printed-book layout: authors, title, series, publisher/year at foot).
   if (plan.hasTitlePage) {
     let tp = '<div id="fb2-title-page" class="fb2-title-page">';
+    for (const author of titleInfo.authors) {
+      const name = personDisplayName(author);
+      if (name) tp += `<p align="center" width="0" class="fb2-author">${escapeXml(name)}</p>`;
+    }
     if (!plan.originalTitleEmpty) {
       tp += `<h1 class="fb2-book-title">${escapeXml(plan.title)}</h1>`;
     }
     for (const seq of flattenSequences(titleInfo.sequences)) {
       if (!seq.name.trim()) continue;
       const num = seq.number ? ` #${seq.number}` : '';
-      tp += `<p align="center" width="0" class="fb2-series"><i>${escapeXml(seq.name.trim() + num)}</i></p>`;
+      tp += `<p align="center" width="0" class="fb2-series"><i>(${escapeXml(seq.name.trim() + num)})</i></p>`;
     }
-    for (const author of titleInfo.authors) {
-      const name = personDisplayName(author);
-      if (name) tp += `<p align="center" width="0" class="fb2-author">${escapeXml(name)}</p>`;
-    }
-    if (titleInfo.annotation) {
-      tp += renderBlock(titleInfo.annotation, 2);
+    const imprint = [publishInfo?.publisher, publishInfo?.year]
+      .map((s) => (s ?? '').trim())
+      .filter(Boolean)
+      .join(', ');
+    if (imprint) {
+      tp += `<p align="center" width="0" class="fb2-imprint"><small>${escapeXml(imprint)}</small></p>`;
     }
     tp += '</div>';
     chunks.push(tp);
     guide.push({ type: 'title-page', title: plan.words.titlePage, anchorId: 'fb2-title-page' });
+  }
+
+  // 2b. Dedicated Annotation page right after Title page (no heading, bookmarked).
+  if (plan.hasAnnotationPage && titleInfo.annotation) {
+    if (chunks.length > 0) chunks.push('<mbp:pagebreak/>');
+    chunks.push(
+      `<div id="fb2-annotation" class="fb2-annotation-page">${renderBlock(titleInfo.annotation, 2)}</div>`,
+    );
   }
 
   // 3. Inline TOC afterTitle
@@ -475,6 +507,26 @@ export function buildMobi7(
       );
     }
     chunks.push(`<div id="fb2-notes" class="fb2-notes">${notesParts.join('')}</div>`);
+  }
+
+  // 5b. Closing Revision history + version page (matches PDF e84f1f81; version + history together).
+  if (plan.hasHistoryPage && docInfo.history) {
+    chunks.push('<mbp:pagebreak/>');
+    recordLang(docInfo.history.attrs.nodeId, docInfo.history.attrs.lang);
+    const ver = (docInfo.version ?? '').trim();
+    const verHtml = ver
+      ? `<p width="0" class="fb2-doc-version"><i>${escapeXml(`${plan.words.version} ${ver}`)}</i></p>`
+      : '';
+    const histInner = docInfo.history.content.map((c) => renderBlock(c, 2)).join('');
+    chunks.push(
+      `<div id="fb2-history" class="fb2-history-page">${verHtml}` +
+        `<div${idAttrOf(docInfo.history.attrs.nodeId)} class="fb2-history">${histInner}</div></div>`,
+    );
+    guide.push({
+      type: 'colophon',
+      title: plan.words.revisionHistory,
+      anchorId: 'fb2-history',
+    });
   }
 
   // 6. Inline TOC at end

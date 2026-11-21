@@ -11,8 +11,8 @@ export interface MobiFormatSpec {
 }
 
 export const MOBI_FORMATS: readonly MobiFormatSpec[] = [
-  { id: 'mobi7', extension: 'mobi', labelKey: 'mobi.formats.mobi7' },
   { id: 'joint', extension: 'mobi', labelKey: 'mobi.formats.joint' },
+  { id: 'mobi7', extension: 'mobi', labelKey: 'mobi.formats.mobi7' },
   { id: 'kf8', extension: 'azw3', labelKey: 'mobi.formats.kf8' },
 ];
 

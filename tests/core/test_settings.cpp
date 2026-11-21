@@ -112,9 +112,9 @@ TEST_CASE("settings: defaults are exactly resource-formats.md section 6", "[sett
                            {"bom", false},
                            {"zip", false}});
     // Feature 018 (contracts/settings.md): the MOBI export's page.
-    CHECK(d["mobi"] == json{{"format", "mobi7"},
+    CHECK(d["mobi"] == json{{"format", "joint"},
                             {"tocPlacement", "afterTitle"},
-                            {"seriesInTitle", "off"},
+                            {"seriesInTitle", "seriesAndNumber"},
                             {"openAt", "titlePage"},
                             {"kf8PopupFootnotes", true},
                             {"zip", false}});

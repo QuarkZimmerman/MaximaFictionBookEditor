@@ -240,15 +240,16 @@ describe('MFBE EXTH 59901 round-trip & external-edit fallback (T033)', () => {
     const kf8 = buildKf8(opts, plan);
     const mfbe = buildMfbeRoundTripRecord(doc, PLACED, plan.attrs);
 
-    // Serialize description & stylesheets from MFBE record
-    const descXml = serializeDescriptionXml(mfbe.description);
-    expect(descXml).toContain('<book-title>Round Trip Title</book-title>');
-    expect(descXml).not.toContain('Trilogy #2');
-    expect(descXml).toContain('<src-title-info>');
-    expect(descXml).toContain('<history><p>v2.1 fix</p></history>');
-    expect(descXml).toContain('<city>Kyiv</city>');
-    expect(descXml).toContain('<custom-info info-type="mlillustrator">Van_Gogh V.</custom-info>');
-    expect(descXml).toContain('<annotation><p>Rich <strong>bold</strong></p></annotation>');
+    // Non-empty annotation & history are omitted from private MFBE JSON (rendered as pages instead!)
+    expect(mfbe.description.titleInfo.annotation).toBeUndefined();
+    expect(mfbe.description.documentInfo.history).toBeUndefined();
+    expect(m7.html).toContain('id="fb2-annotation"');
+    expect(m7.html).toContain('id="fb2-history"');
+    expect(m7.html).toContain('Version 2.1');
+    expect(kf8.html).toContain('id="fb2-annotation"');
+    expect(kf8.html).toContain('id="fb2-history"');
+    expect(kf8.html).toContain('epub:type="colophon"');
+    expect(kf8.html).toContain('Version 2.1');
     expect(serializeStylesheetsXml(mfbe.stylesheets)).toContain('.letter { font-style: italic; }');
 
     // Convert both MOBI 7 and KF8 HTML back using MFBE body restoration
@@ -294,9 +295,24 @@ describe('MFBE EXTH 59901 round-trip & external-edit fallback (T033)', () => {
         mfbeBodyRecord: mfbe,
       });
 
-      // Generated cover/title-page/TOC suppressed
+      // Serialize description with annotation & history restored from their dedicated pages!
+      const descXml = serializeDescriptionXml(mfbe.description, undefined, {
+        annotationXml: imported.annotationXml,
+        historyXml: imported.historyXml,
+      });
+      expect(descXml).toContain('<book-title>Round Trip Title</book-title>');
+      expect(descXml).not.toContain('Trilogy #2');
+      expect(descXml).toContain('<src-title-info>');
+      expect(descXml).toContain('<history><p>v2.1 fix</p></history>');
+      expect(descXml).toContain('<city>Kyiv</city>');
+      expect(descXml).toContain('<custom-info info-type="mlillustrator">Van_Gogh V.</custom-info>');
+      expect(descXml).toContain('<annotation><p>Rich <strong>bold</strong></p></annotation>');
+
+      // Generated cover/title-page/annotation/history/TOC suppressed from body
       expect(imported.bodyXml).not.toContain('fb2-title-page');
       expect(imported.bodyXml).not.toContain('fb2-toc');
+      expect(imported.bodyXml).not.toContain('v2.1 fix');
+      expect(imported.bodyXml).not.toContain('Version 2.1');
       // Original binary IDs restored!
       expect(imported.neededPictures.get(1)).toBe('orig-cover.jpg');
       expect(imported.neededPictures.get(3)).toBe('orig-fig.png');
@@ -361,5 +377,122 @@ describe('MFBE EXTH 59901 round-trip & external-edit fallback (T033)', () => {
     expect(descriptionsCanonicallyEqual(a, b)).toBe(true);
     b.titleInfo.bookTitle = 'Edited Elsewhere';
     expect(descriptionsCanonicallyEqual(a, b)).toBe(false);
+  });
+
+  it('skips a leading main-body image that duplicates coverpage in MOBI/KF8 HTML and restores it on round-trip', async () => {
+    const doc = richDocument();
+    doc.bodies[0]!.content = [
+      {
+        type: 'image',
+        attrs: { nodeId: 'lead-img', href: '#orig-cover.jpg', alt: 'Leading cover' },
+      } as never,
+      ...doc.bodies[0]!.content,
+    ];
+    const opts: MobiExportBuildOptions = {
+      document: doc,
+      pictures: PLACED,
+      fallbackTitle: 'Fallback',
+      tocPlacement: 'afterTitle',
+      seriesInTitle: 'seriesAndNumber',
+      openAt: 'titlePage',
+      kf8PopupFootnotes: true,
+    };
+    const plan = buildExportPlan(opts);
+    const m7 = buildMobi7(opts, plan);
+    const kf8 = buildKf8(opts, plan);
+    const mfbe = buildMfbeRoundTripRecord(doc, PLACED, plan.attrs);
+
+    // Neither MOBI 7 nor KF8 draws the cover image inline (no duplicate cover!)
+    expect(m7.html).not.toContain('recindex="00001"');
+    expect(kf8.html).not.toContain('recindex="00001"');
+    expect(kf8.html).not.toContain('id="fb2-cover"');
+    expect(mfbe.attrs.bodyLeadingCover).toEqual({
+      href: '#orig-cover.jpg',
+      alt: 'Leading cover',
+    });
+
+    // Round-trip restores the leading body <image>
+    const imported = await convertMobiToFb2({
+      activePart: 'kf8',
+      htmlOrText: kf8.html,
+      cssFlows: [kf8.css],
+      metadata: plan.metadata,
+      navigation: [],
+      guide: [],
+      pictures: [
+        {
+          index: 1,
+          contentType: 'image/jpeg',
+          width: 400,
+          height: 600,
+          size: 100,
+          tooLarge: false,
+        },
+        { index: 2, contentType: 'image/jpeg', width: 120, height: 180, size: 50, tooLarge: false },
+        { index: 3, contentType: 'image/png', width: 200, height: 100, size: 50, tooLarge: false },
+      ],
+      coverIndex: 1,
+      thumbnailIndex: 2,
+      mfbeBodyRecord: mfbe,
+    });
+    expect(imported.bodyXml).toMatch(
+      /^<body><image l:href="#orig-cover\.jpg" alt="Leading cover"\/>/,
+    );
+  });
+
+  it('restores annotation/history from legacy MFBE JSON when pages are absent and maps safe foreign MOBI colophon', async () => {
+    const doc = richDocument();
+    // Simulate legacy MFBE description that still carried annotation & history in JSON
+    const legacyXml = serializeDescriptionXml(doc.description);
+    expect(legacyXml).toContain('<annotation><p>Rich <strong>bold</strong></p></annotation>');
+    expect(legacyXml).toContain('<history><p>v2.1 fix</p></history>');
+
+    // Foreign KF8 book with a safe text-only colophon -> historyXml
+    const foreignSafe = await convertMobiToFb2({
+      activePart: 'kf8',
+      htmlOrText:
+        '<html><body><div><h1>Chapter 1</h1><p>Story.</p></div>' +
+        '<div epub:type="colophon"><h2>Colophon</h2><p>Typeset 2026.</p></div></body></html>',
+      cssFlows: [],
+      metadata: {
+        title: 'Foreign',
+        authors: [],
+        contributors: [],
+        subjects: [],
+        language: 'en',
+        identifier: '',
+      },
+      navigation: [],
+      guide: [],
+      pictures: [],
+    });
+    expect(foreignSafe.historyXml).toBe(
+      '<history><subtitle>Colophon</subtitle><p>Typeset 2026.</p></history>',
+    );
+    expect(foreignSafe.bodyXml).not.toContain('Typeset 2026.');
+
+    // Foreign KF8 book with a colophon containing a block image -> kept in bodyXml
+    const foreignUnsafe = await convertMobiToFb2({
+      activePart: 'kf8',
+      htmlOrText:
+        '<html><body><div><h1>Chapter 1</h1><p>Story.</p></div>' +
+        '<div epub:type="colophon"><p><img recindex="00001" alt="Seal"/></p><p>Press seal.</p></div></body></html>',
+      cssFlows: [],
+      metadata: {
+        title: 'Foreign',
+        authors: [],
+        contributors: [],
+        subjects: [],
+        language: 'en',
+        identifier: '',
+      },
+      navigation: [],
+      guide: [],
+      pictures: [
+        { index: 1, contentType: 'image/png', width: 200, height: 200, size: 50, tooLarge: false },
+      ],
+    });
+    expect(foreignUnsafe.historyXml).toBeNull();
+    expect(foreignUnsafe.bodyXml).toContain('Press seal.');
   });
 });

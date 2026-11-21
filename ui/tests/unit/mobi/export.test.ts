@@ -67,12 +67,14 @@ function sampleDocument(overrides?: {
         srcUrls: [],
         publishers: [],
       },
-      publishInfo: {
-        publisher: 'Galaxy Press',
-        year: '2026',
-        isbn: '978-0-00-000001-0',
-        sequences: [],
-      },
+      publishInfo: overrides?.emptyTitlePage
+        ? undefined
+        : {
+            publisher: 'Galaxy Press',
+            year: '2026',
+            isbn: '978-0-00-000001-0',
+            sequences: [],
+          },
       customInfo: [{ infoType: 'mlillustrator', text: 'Artist Ivan' }],
       outputs: [],
     },
@@ -305,12 +307,19 @@ describe('MOBI 7 and KF8 export builders (T016)', () => {
     // Classic jump-to-end notes with back-link
     expect(m7.html).toContain('data-target="n1"');
     expect(m7.html).toContain('class="fb2-backlink"');
-    // Hierarchical native nav tree built
+    // Hierarchical native nav tree built (Annotation bookmarked at start when present)
     expect(m7.nav.map((n) => [n.label, n.depth])).toEqual([
+      ['Annotation', 0],
       ['Chapter One', 0],
       ['Subchapter A', 1],
       ['Notes', 0],
     ]);
+    // Dedicated annotation page placed after title page and before TOC
+    expect(m7.html).toContain('id="fb2-annotation"');
+    expect(m7.html.indexOf('id="fb2-title-page"')).toBeLessThan(
+      m7.html.indexOf('id="fb2-annotation"'),
+    );
+    expect(m7.html.indexOf('id="fb2-annotation"')).toBeLessThan(m7.html.indexOf('id="fb2-toc"'));
     expect(m7.counts).toEqual({ sections: 2, pictures: 2, tables: 1, notes: 1 });
     // MFBE round-trip record captures original binary IDs, date/@value, image/@title
     const mfbe = buildMfbeRoundTripRecord(doc, SAMPLE_PICTURES, plan.attrs);
@@ -337,15 +346,17 @@ describe('MOBI 7 and KF8 export builders (T016)', () => {
     expect(m7None.nav.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('renders KF8 XHTML5 + translated CSS, cover fragment, and pop-up footnotes toggle', () => {
+  it('renders KF8 XHTML5 + translated CSS, single cover via EXTH 201 (no duplicate inline cover), and pop-up footnotes toggle', () => {
     const doc = sampleDocument({ withNotes: true, withCss: true });
 
     const popupOpts = makeOptions(doc, { kf8PopupFootnotes: true });
     const popupPlan = buildExportPlan(popupOpts);
     const kf8Popup = buildKf8(popupOpts, popupPlan);
-    expect(kf8Popup.html).toContain('id="fb2-cover"');
-    expect(kf8Popup.html).toContain('kindle:embed:0001?mime=image/jpeg');
+    // Cover is rendered natively via EXTH 201 — no duplicate inline fb2-cover page
+    expect(kf8Popup.html).not.toContain('id="fb2-cover"');
+    expect(kf8Popup.html).not.toContain('kindle:embed:0001?mime=image/jpeg');
     expect(kf8Popup.html).toContain('kindle:embed:0003?mime=image/png');
+    expect(kf8Popup.html).toContain('id="fb2-annotation"');
     expect(kf8Popup.html).toContain('epub:type="noteref"');
     expect(kf8Popup.html).toContain('<aside id="n1" class="fb2-note" epub:type="footnote"');
     expect(kf8Popup.css).toContain('.accent');

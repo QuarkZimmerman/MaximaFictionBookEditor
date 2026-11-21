@@ -1,8 +1,9 @@
 // Tests for mobi.* settings keys and schemaVersion 1 compatibility (T010, contracts/settings.md).
-#include <catch2/catch_test_macros.hpp>
 #include <mfbe/settings.hpp>
 
 #include <nlohmann/json.hpp>
+
+#include <catch2/catch_test_macros.hpp>
 
 using namespace mfbe::settings;
 using json = nlohmann::json;
@@ -12,9 +13,9 @@ TEST_CASE("mobi.* settings defaults match contract and keep schemaVersion 1", "[
     CHECK(def["schemaVersion"] == 1);
     REQUIRE(def.contains("mobi"));
     const json& m = def["mobi"];
-    CHECK(m["format"] == "mobi7");
+    CHECK(m["format"] == "joint");
     CHECK(m["tocPlacement"] == "afterTitle");
-    CHECK(m["seriesInTitle"] == "off");
+    CHECK(m["seriesInTitle"] == "seriesAndNumber");
     CHECK(m["openAt"] == "titlePage");
     CHECK(m["kf8PopupFootnotes"] == true);
     CHECK(m["zip"] == false);
@@ -54,9 +55,9 @@ TEST_CASE("mobi.* settings accept all valid enum/boolean values and reject inval
     json broken = {{"schemaVersion", 1}, {"mobi", {{"format", "bogus"}, {"zip", "nope"}}}};
     const auto invalid = sanitize(broken);
     CHECK(invalid.size() >= 2);
-    CHECK(broken["mobi"]["format"] == "mobi7");
+    CHECK(broken["mobi"]["format"] == "joint");
     CHECK(broken["mobi"]["tocPlacement"] == "afterTitle");
-    CHECK(broken["mobi"]["seriesInTitle"] == "off");
+    CHECK(broken["mobi"]["seriesInTitle"] == "seriesAndNumber");
     CHECK(broken["mobi"]["openAt"] == "titlePage");
     CHECK(broken["mobi"]["kf8PopupFootnotes"] == true);
     CHECK(broken["mobi"]["zip"] == false);

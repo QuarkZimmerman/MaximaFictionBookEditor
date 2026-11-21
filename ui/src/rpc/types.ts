@@ -1616,7 +1616,11 @@ export interface RpcMethods {
         openAtAnchorId?: string;
       };
       nav: { label: string; anchorId: string; depth: number }[];
-      guide: { type: 'cover' | 'title-page' | 'toc' | 'text'; title: string; anchorId: string }[];
+      guide: {
+        type: 'cover' | 'title-page' | 'toc' | 'text' | 'colophon';
+        title: string;
+        anchorId: string;
+      }[];
       kf8Fragments?: { id: string; skeletonIndex: number; startByte: number; endByte: number }[];
       document?: Document;
     };

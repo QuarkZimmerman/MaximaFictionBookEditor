@@ -59,6 +59,10 @@ export interface ConvertMobiOptions {
 export interface ConvertedMobiBook {
   bodyXml: string;
   notesXml: string | null;
+  /** Structured `<annotation>...</annotation>` extracted from `#fb2-annotation` when present. */
+  annotationXml: string | null;
+  /** Structured `<history>...</history>` extracted from `#fb2-history` or foreign `colophon`. */
+  historyXml: string | null;
   stylesheets: MarkdownStylesheet[];
   /** 1-based picture index -> allocated FB2 binary ID. */
   neededPictures: Map<number, string>;
@@ -132,6 +136,8 @@ function convertPlainPalmDoc(text: string): ConvertedMobiBook {
   return {
     bodyXml: `<body><section>${blocks.join('')}</section></body>`,
     notesXml: null,
+    annotationXml: null,
+    historyXml: null,
     stylesheets: [],
     neededPictures: new Map(),
     drawings: [],
@@ -195,6 +201,14 @@ function isFrontMatterBlock(
   if (id === 'fb2-cover' || role === 'cover') return 'cover';
   if (id === 'fb2-toc' || role === 'toc') return 'toc';
   if (id === 'fb2-title-page' || role === 'title-page') return 'title-page';
+  if (
+    id === 'fb2-annotation' ||
+    el.classList.contains('fb2-annotation-page') ||
+    id === 'fb2-history' ||
+    el.classList.contains('fb2-history-page')
+  ) {
+    return 'title-page';
+  }
   if (isEditorRoundTrip) return null;
 
   const gtype = id ? guideTypesById.get(id) : undefined;
@@ -1144,11 +1158,165 @@ export async function convertMobiToFb2(options: ConvertMobiOptions): Promise<Con
     }
   };
 
+  // Render an `<annotation>` or `<history>` container (`annotationType`: p | poem | cite | subtitle | empty-line | table).
+  const renderAnnotationContainer = (
+    container: Element,
+    tag: 'annotation' | 'history',
+  ): string | null => {
+    const innerWrapper =
+      Array.from(container.children).find((c) => c.classList.contains(`fb2-${tag}`)) ?? container;
+    const rawId = innerWrapper.getAttribute('id');
+    const aid =
+      rawId && rawId !== 'fb2-annotation' && rawId !== 'fb2-history'
+        ? registerId(rawId)
+        : undefined;
+    const lang =
+      (rawId && mfbe?.attrs.nodeLangs[rawId]) ||
+      innerWrapper.getAttribute('lang') ||
+      container.getAttribute('lang') ||
+      '';
+    const parts: string[] = [];
+
+    const visitBlocks = (parent: Element): void => {
+      for (const ch of Array.from(parent.children)) {
+        const ctag = ch.tagName.toLowerCase();
+        if (isIgnoredElement(ctag) || isPagebreak(ch) || ch.classList.contains('fb2-doc-version')) {
+          continue;
+        }
+        const role = semanticRoleOfClasses(ch.classList);
+        if (role === 'empty-line' || ctag === 'hr') {
+          parts.push('<empty-line/>');
+        } else if (role === 'poem') {
+          parts.push(renderPoem(ch));
+        } else if (role === 'cite' || ctag === 'blockquote') {
+          const c = renderCite(ch);
+          if (c) parts.push(c);
+        } else if (role === 'subtitle' || /^h[1-6]$/.test(ctag)) {
+          const sid = registerId(ch.getAttribute('id'));
+          const t = renderInlines(ch).trim();
+          if (t) {
+            parts.push(
+              sid ? `<subtitle id="${escAttr(sid)}">${t}</subtitle>` : `<subtitle>${t}</subtitle>`,
+            );
+          }
+        } else if (ctag === 'table') {
+          const tbl = renderTable(ch);
+          if (tbl) parts.push(tbl);
+        } else if (ctag === 'ul' || ctag === 'ol') {
+          let idx = 1;
+          for (const li of Array.from(ch.children)) {
+            if (li.tagName.toLowerCase() !== 'li') continue;
+            const inner = renderInlines(li).trim();
+            if (inner) {
+              const prefix = ctag === 'ol' ? `${idx}. ` : '\u2022 ';
+              parts.push(`<p>${escText(prefix)}${inner}</p>`);
+            }
+            idx++;
+          }
+        } else if (
+          ctag === 'div' &&
+          Array.from(ch.children).some((gc) =>
+            /^(div|p|h[1-6]|ul|ol|table|blockquote|hr)$/i.test(gc.tagName),
+          )
+        ) {
+          visitBlocks(ch);
+        } else {
+          const pid = registerId(ch.getAttribute('id'));
+          const plang =
+            (ch.getAttribute('id') && mfbe?.attrs.nodeLangs[ch.getAttribute('id')!]) ||
+            ch.getAttribute('lang') ||
+            '';
+          const inner = Array.from(ch.childNodes)
+            .map((c) => renderInlines(c))
+            .join('')
+            .trim();
+          if (inner) {
+            const pattrs: string[] = [];
+            if (pid) pattrs.push(`id="${escAttr(pid)}"`);
+            if (plang) pattrs.push(`xml:lang="${escAttr(plang)}"`);
+            parts.push(
+              pattrs.length > 0 ? `<p ${pattrs.join(' ')}>${inner}</p>` : `<p>${inner}</p>`,
+            );
+          }
+        }
+      }
+    };
+
+    visitBlocks(innerWrapper);
+    if (parts.length === 0) {
+      const t = renderInlines(innerWrapper).trim();
+      if (t) parts.push(`<p>${t}</p>`);
+    }
+    if (parts.length === 0) return null;
+    const attrs: string[] = [];
+    if (aid) attrs.push(`id="${escAttr(aid)}"`);
+    if (lang) attrs.push(`xml:lang="${escAttr(lang)}"`);
+    return attrs.length > 0
+      ? `<${tag} ${attrs.join(' ')}>${parts.join('')}</${tag}>`
+      : `<${tag}>${parts.join('')}</${tag}>`;
+  };
+
+  // Extract dedicated annotation & history pages (editor exports) or safe foreign colophon back-matter.
+  const capturedDescriptionEls = new Set<Element>();
+  let annotationXml: string | null = null;
+  let historyXml: string | null = null;
+
+  if (body) {
+    const annEl = body.querySelector('#fb2-annotation, .fb2-annotation-page');
+    if (annEl) {
+      annotationXml = renderAnnotationContainer(annEl, 'annotation');
+      capturedDescriptionEls.add(annEl);
+    }
+    const histEl = body.querySelector('#fb2-history, .fb2-history-page');
+    if (histEl) {
+      historyXml = renderAnnotationContainer(histEl, 'history');
+      capturedDescriptionEls.add(histEl);
+    } else if (!isEditorRoundTrip) {
+      // Foreign colophon back-matter -> `<document-info><history>` only when safe (text-based,
+      // no block images / subsections, and not the sole content of the book).
+      const totalBodyText = (body.textContent ?? '').trim().length;
+      for (const el of Array.from(body.querySelectorAll('div, section, aside, article'))) {
+        if (isInsideNoteContainer(el)) continue;
+        const eid = el.getAttribute('id') ?? '';
+        const etype = (getAttrIgnoreNs(el, 'type') ?? '').toLowerCase();
+        const isColophon =
+          etype === 'colophon' || (eid !== '' && guideTypesById.get(eid) === 'colophon');
+        if (!isColophon) continue;
+        const elTextLen = (el.textContent ?? '').trim().length;
+        const hasOtherText = totalBodyText - elTextLen > 0;
+        const hasBlockImg =
+          el.querySelector('figure, svg') !== null ||
+          Array.from(el.querySelectorAll('img')).some(
+            (img) => (img.parentElement?.textContent ?? '').trim().length === 0,
+          );
+        const hasSubsections =
+          el.querySelector('section') !== null || el.querySelectorAll('h1, h2, h3').length > 1;
+        if (hasOtherText && !hasBlockImg && !hasSubsections) {
+          historyXml = renderAnnotationContainer(el, 'history');
+          if (historyXml) {
+            capturedDescriptionEls.add(el);
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  const isInsideCapturedDescription = (el: Element): boolean => {
+    let cur: Element | null = el;
+    while (cur && cur !== body) {
+      if (capturedDescriptionEls.has(cur)) return true;
+      cur = cur.parentElement;
+    }
+    return false;
+  };
+
   // Build bodies XML (editor round-trip vs foreign heading-driven hierarchy).
   const bodiesXml: string[] = [];
 
   if (isEditorRoundTrip && body && body.querySelector('.fb2-body')) {
     const bodyEls = Array.from(body.querySelectorAll('.fb2-body'));
+    let emittedMainBody = false;
     for (let bi = 0; bi < bodyEls.length; bi++) {
       const bEl = bodyEls[bi]!;
       const bodyIdx = Number.parseInt(
@@ -1165,6 +1333,18 @@ export async function convertMobiToFb2(options: ConvertMobiOptions): Promise<Con
       if (bName) bAttrs.push(`name="${escAttr(bName)}"`);
       if (bLang) bAttrs.push(`xml:lang="${escAttr(bLang)}"`);
       const openBody = bAttrs.length > 0 ? `<body ${bAttrs.join(' ')}>` : '<body>';
+
+      let leadingCoverXml = '';
+      if (!emittedMainBody && mfbe.attrs.bodyLeadingCover) {
+        const lc = mfbe.attrs.bodyLeadingCover;
+        const attrs: string[] = [`l:href="${escAttr(lc.href)}"`];
+        if (lc.alt) attrs.push(`alt="${escAttr(lc.alt)}"`);
+        if (lc.title) attrs.push(`title="${escAttr(lc.title)}"`);
+        const cid = registerId(lc.id);
+        if (cid) attrs.push(`id="${escAttr(cid)}"`);
+        leadingCoverXml = `<image ${attrs.join(' ')}/>`;
+      }
+      emittedMainBody = true;
 
       const secs: string[] = [];
       for (const ch of Array.from(bEl.children)) {
@@ -1183,7 +1363,7 @@ export async function convertMobiToFb2(options: ConvertMobiOptions): Promise<Con
         counts.sections++;
         secs.push(serializeSection(fallback));
       }
-      bodiesXml.push(`${openBody}${secs.join('')}</body>`);
+      bodiesXml.push(`${openBody}${leadingCoverXml}${secs.join('')}</body>`);
     }
   } else if (body) {
     // Foreign book: heading-driven & nav-aware section hierarchy.
@@ -1215,7 +1395,12 @@ export async function convertMobiToFb2(options: ConvertMobiOptions): Promise<Con
       for (const child of Array.from(container.children)) {
         if ((++walkedNodes & 63) === 0) await maybeYield();
         const tag = child.tagName.toLowerCase();
-        if (isIgnoredElement(tag) || isInsideNoteContainer(child)) continue;
+        if (
+          isIgnoredElement(tag) ||
+          isInsideNoteContainer(child) ||
+          isInsideCapturedDescription(child)
+        )
+          continue;
 
         const fm = isFrontMatterBlock(
           child,
@@ -1385,11 +1570,15 @@ export async function convertMobiToFb2(options: ConvertMobiOptions): Promise<Con
   await maybeYield(true);
   bodyXml = resolveLinks(bodyXml);
   if (notesXml !== null) notesXml = resolveLinks(notesXml);
+  if (annotationXml !== null) annotationXml = resolveLinks(annotationXml);
+  if (historyXml !== null) historyXml = resolveLinks(historyXml);
   await maybeYield(true);
 
   return {
     bodyXml,
     notesXml,
+    annotationXml,
+    historyXml,
     stylesheets,
     neededPictures,
     coverBinaryId,

@@ -26,9 +26,9 @@ async function setup() {
     const [draft, setDraft] = useState<Settings>(() => ({
       ...defaultSettings(),
       mobi: {
-        format: 'mobi7',
+        format: 'joint',
         tocPlacement: 'afterTitle',
-        seriesInTitle: 'off',
+        seriesInTitle: 'seriesAndNumber',
         openAt: 'titlePage',
         kf8PopupFootnotes: true,
         zip: false,
@@ -70,9 +70,9 @@ describe('Settings > Exports > MOBI (feature 018, T036)', () => {
     await user.selectOptions(screen.getByTestId('settings-exports-format'), 'mobi');
 
     expect(screen.getByTestId('settings-page-mobi')).toBeInTheDocument();
-    expect(screen.getByTestId('settings-mobi-format')).toHaveValue('mobi7');
+    expect(screen.getByTestId('settings-mobi-format')).toHaveValue('joint');
     expect(screen.getByTestId('settings-mobi-tocPlacement')).toHaveValue('afterTitle');
-    expect(screen.getByTestId('settings-mobi-seriesInTitle')).toHaveValue('off');
+    expect(screen.getByTestId('settings-mobi-seriesInTitle')).toHaveValue('seriesAndNumber');
     expect(screen.getByTestId('settings-mobi-openAt')).toHaveValue('titlePage');
     expect(screen.getByTestId('settings-mobi-kf8PopupFootnotes')).toBeChecked();
     expect(screen.getByTestId('settings-mobi-kf8PopupFootnotes-hint')).toHaveTextContent(
@@ -94,7 +94,9 @@ describe('Settings > Exports > MOBI (feature 018, T036)', () => {
     }
 
     // Out-of-the-box default notes are shown beside every field
-    expect(screen.getByTestId('settings-page-mobi')).toHaveTextContent('Default: MOBI 7 (.mobi)');
+    expect(screen.getByTestId('settings-page-mobi')).toHaveTextContent(
+      'Default: MOBI 7 + KF8 (joint .mobi)',
+    );
     expect(screen.getByTestId('settings-page-mobi')).toHaveTextContent('Default: After title page');
     expect(screen.getByTestId('settings-page-mobi')).toHaveTextContent('Default: Title page');
 
@@ -105,10 +107,10 @@ describe('Settings > Exports > MOBI (feature 018, T036)', () => {
     await user.selectOptions(screen.getByTestId('settings-mobi-tocPlacement'), 'end');
     expect(changes.at(-1)).toEqual({ section: 'mobi', patch: { tocPlacement: 'end' } });
 
-    await user.selectOptions(screen.getByTestId('settings-mobi-seriesInTitle'), 'seriesAndNumber');
+    await user.selectOptions(screen.getByTestId('settings-mobi-seriesInTitle'), 'off');
     expect(changes.at(-1)).toEqual({
       section: 'mobi',
-      patch: { seriesInTitle: 'seriesAndNumber' },
+      patch: { seriesInTitle: 'off' },
     });
 
     await user.selectOptions(screen.getByTestId('settings-mobi-openAt'), 'mainText');
@@ -123,8 +125,8 @@ describe('Settings > Exports > MOBI (feature 018, T036)', () => {
     // Individual Reset on format restores only format
     expect(screen.getByTestId('settings-mobi-reset-format')).toBeEnabled();
     await user.click(screen.getByTestId('settings-mobi-reset-format'));
-    expect(changes.at(-1)).toEqual({ section: 'mobi', patch: { format: 'mobi7' } });
-    expect(screen.getByTestId('settings-mobi-format')).toHaveValue('mobi7');
+    expect(changes.at(-1)).toEqual({ section: 'mobi', patch: { format: 'joint' } });
+    expect(screen.getByTestId('settings-mobi-format')).toHaveValue('joint');
     expect(screen.getByTestId('settings-mobi-reset-format')).toBeDisabled();
     expect(screen.getByTestId('settings-mobi-tocPlacement')).toHaveValue('end');
 
@@ -134,9 +136,9 @@ describe('Settings > Exports > MOBI (feature 018, T036)', () => {
     expect(changes.at(-1)).toEqual({
       section: 'mobi',
       patch: {
-        format: 'mobi7',
+        format: 'joint',
         tocPlacement: 'afterTitle',
-        seriesInTitle: 'off',
+        seriesInTitle: 'seriesAndNumber',
         openAt: 'titlePage',
         kf8PopupFootnotes: true,
         zip: false,

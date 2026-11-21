@@ -303,8 +303,10 @@ has it, edits in the Source view included, and stays as it was.
 
 - A cover page from the description's cover, a title page with the book's title, series, authors and
   annotation, then one page per chapter of the main body - a long chapter is divided between its
-  subsections or paragraphs -, the other bodies, and the notes on a page of their own, each note with a
-  link back to its first reference.
+  subsections or paragraphs -, the other bodies, the notes on a page of their own (each note with a
+  link back to its first reference), and when the document carries a revision history, a closing
+  colophon page with the document version and revision history (`epub:type="colophon"`, bookmarked
+  *Revision history*).
 - Sections, titles, epigraphs, quotes, poems, subtitles, text authors, tables and the inline styles keep
   their structure. Pictures keep their bytes and their alternative text; a block picture's title becomes
   its caption. Links inside the book lead to their targets; links to the web stay as they are.
@@ -557,22 +559,25 @@ editor's own files keep the description they carry.
 dialog offers *Format*, *Table of contents*, and *Save in ZIP archive* (where the system dialog cannot show
 them, the editor asks in a small options dialog right after).
 
-- **Formats**: *MOBI 7 (.mobi)* for older readers and broadest compatibility; *MOBI 7 + KF8 (joint .mobi)*
-  packing both MOBI 7 and KF8 in one file with pictures stored once; or *KF8 (.azw3)* for modern Kindle
-  readers with translated CSS stylesheets.
-- **Navigation and table of contents**: a native device navigation index is always written, even when the
-  inline HTML table of contents is set to *None*; otherwise the inline table of contents appears *After title
-  page* (default) or *At the end*.
+- **Formats**: *MOBI 7 + KF8 (joint .mobi)* (default) packing both MOBI 7 and KF8 in one file with pictures
+  stored once for broadest out-of-the-box support across old and modern readers; *MOBI 7 (.mobi)* for older
+  readers alone; or *KF8 (.azw3)* for modern Kindle readers with translated CSS stylesheets.
+- **Book pages and navigation**: a single cover image (through the reader's native cover metadata, never
+  duplicated inline), a printed-book title page (authors, title, series, and publisher/year when present),
+  the annotation on a page of its own right after the title page (bookmarked *Annotation*), a native device
+  navigation index (always written, even when the inline HTML table of contents is set to *None*; otherwise
+  the inline table of contents appears *After title page* [default] or *At the end*), the book's bodies and
+  notes, and a closing *Revision history* page with the document version and revision history when present.
 - **Cover and pictures**: cover images are converted to baseline JPEG and paired with a cover thumbnail for
   reader shelves; non-JPEG/PNG pictures are converted automatically and oversized pictures are scaled to stay
   within reader limits.
 - **Notes**: classic MOBI 7 always emits bidirectional jump-to-end links; KF8 (and the KF8 half of joint
   files) emits Kindle pop-up footnotes when *Pop-up footnotes (KF8)* is enabled, or plain jump-to-end links
   when switched off.
-- **Series in reader title and opening location**: *Settings > Exports > MOBI* can optionally prefix the
-  reader shelf title with the series number (`3_Title`) or series and number (`Series #3 — Title`) without
-  altering the title page or round-trip title, and can open the book at the *Title page* or the *Start of
-  main text*.
+- **Series in reader title and opening location**: *Settings > Exports > MOBI* defaults to adding the series
+  and number (`Series #3 — Title`) to the title shown in the reader's library list (or *Number before title*,
+  or *Off*) without altering the title page or round-trip title, and can open the book at the *Title page*
+  or the *Start of main text*.
 - **Save in ZIP archive**: packs `<name>.mobi` or `<name>.azw3` uncompressed (ZIP store, since MOBI text is
   already compressed) together with `<name>.fbd` compressed (ZIP deflate) into `<name>.zip`.
 

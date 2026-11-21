@@ -5,13 +5,14 @@
 #include "mobi/mobi_writer.hpp"
 #include "mobi/palmdb.hpp"
 
-#include <catch2/catch_test_macros.hpp>
 #include <mfbe/atomic_file.hpp>
 #include <mfbe/images.hpp>
 #include <mfbe/mobi.hpp>
 
-#include <filesystem>
 #include <nlohmann/json.hpp>
+
+#include <catch2/catch_test_macros.hpp>
+#include <filesystem>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -78,16 +79,19 @@ std::string sample_mobi7_html() {
 
 std::string sample_kf8_html() {
     return "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
-           "<html xmlns=\"http://www.w3.org/1999/xhtml\" xmlns:epub=\"http://www.idpf.org/2007/ops\">"
+           "<html xmlns=\"http://www.w3.org/1999/xhtml\" "
+           "xmlns:epub=\"http://www.idpf.org/2007/ops\">"
            "<head><title>Sample Novel</title>"
            "<link rel=\"stylesheet\" type=\"text/css\" href=\"kindle:flow:0001?mime=text/css\"/>"
            "</head><body>"
-           "<div id=\"fb2-cover\" class=\"fb2-cover\"><img src=\"kindle:embed:0001?mime=image/jpeg\" alt=\"Cover\"/></div>"
+           "<div id=\"fb2-cover\" class=\"fb2-cover\"><img "
+           "src=\"kindle:embed:0001?mime=image/jpeg\" alt=\"Cover\"/></div>"
            "<div id=\"fb2-title-page\"><h1>Sample Novel</h1></div>"
            "<div id=\"fb2-main-start\">"
            "<section class=\"fb2-section\" id=\"ch1\"><h1>Chapter One</h1>"
            "<p>Hello <a href=\"#ch2\" data-kf8-target=\"ch2\">Chapter Two</a> "
-           "<a id=\"ref1\" epub:type=\"noteref\" href=\"#n1\" data-kf8-target=\"n1\">[1]</a>.</p></section>"
+           "<a id=\"ref1\" epub:type=\"noteref\" href=\"#n1\" "
+           "data-kf8-target=\"n1\">[1]</a>.</p></section>"
            "<section class=\"fb2-section\" id=\"ch2\"><h1>Chapter Two</h1>"
            "<p>Second chapter prose for KF8 testing.</p></section>"
            "<aside id=\"n1\" class=\"fb2-note\" epub:type=\"footnote\">"
@@ -111,8 +115,10 @@ TEST_CASE("MobiWriter assembles valid MOBI 7 with filepos patching, INDX/CNCX, E
     CHECK(writer.thumbnail_rec_index().has_value());
 
     writer.set_mobi7_html(sample_mobi7_html());
-    writer.set_mfbe_json(json{{"v", 1}, {"description", {{"titleInfo", {{"bookTitle", "Sample Novel"}}}}},
-                              {"stylesheets", json::array()}, {"binaries", {{"0001", "cover.jpg"}}},
+    writer.set_mfbe_json(json{{"v", 1},
+                              {"description", {{"titleInfo", {{"bookTitle", "Sample Novel"}}}}},
+                              {"stylesheets", json::array()},
+                              {"binaries", {{"0001", "cover.jpg"}}},
                               {"attrs", json::object()}});
 
     MobiCommitInput commit;
@@ -136,13 +142,14 @@ TEST_CASE("MobiWriter assembles valid MOBI 7 with filepos patching, INDX/CNCX, E
     const PalmDb pdb = read_palmdb(file_bytes);
     REQUIRE(pdb.records.size() >= 6);
     const std::string& r0 = pdb.records[0];
-    CHECK(read_u16_be(r0, 0) == 2U);      // PalmDOC compression
-    CHECK(read_u16_be(r0, 12) == 0U);     // unencrypted
-    CHECK(read_u32_be(r0, 36) == 6U);     // MOBI version 6
-    CHECK(read_u32_be(r0, 28) == 65001U); // UTF-8
+    CHECK(read_u16_be(r0, 0) == 2U);       // PalmDOC compression
+    CHECK(read_u16_be(r0, 12) == 0U);      // unencrypted
+    CHECK(read_u32_be(r0, 36) == 6U);      // MOBI version 6
+    CHECK(read_u32_be(r0, 28) == 65001U);  // UTF-8
     CHECK(read_u32_be(r0, 92) == 0x0409U);
 
-    // Verify EXTH records: 503 shelf title, 116 openAt, 201/202/203 cover+thumb, 59901 MFBE, NO 113/501
+    // Verify EXTH records: 503 shelf title, 116 openAt, 201/202/203 cover+thumb, 59901 MFBE, NO
+    // 113/501
     const std::uint32_t hlen = read_u32_be(r0, 20);
     const auto exth = parse_exth(std::string_view(r0).substr(16 + hlen));
     bool has_116 = false;
@@ -154,10 +161,14 @@ TEST_CASE("MobiWriter assembles valid MOBI 7 with filepos patching, INDX/CNCX, E
     for (const auto& e : exth) {
         CHECK(e.type != 113U);
         CHECK(e.type != 501U);
-        if (e.type == 116U) has_116 = true;
-        if (e.type == 201U) has_201 = true;
-        if (e.type == 202U) has_202 = true;
-        if (e.type == 503U) exth_503 = e.data;
+        if (e.type == 116U)
+            has_116 = true;
+        if (e.type == 201U)
+            has_201 = true;
+        if (e.type == 202U)
+            has_202 = true;
+        if (e.type == 503U)
+            exth_503 = e.data;
         if (e.type == kExthMfbeType) {
             has_59901 = true;
             mfbe_raw = e.data;
@@ -206,8 +217,9 @@ TEST_CASE("MobiWriter assembles valid MOBI 7 with filepos patching, INDX/CNCX, E
     fs::remove(tmp, ec);
 }
 
-TEST_CASE("MobiWriter assembles joint MOBI 7 + KF8 with shared pictures, BOUNDARY, and EXTH 121/125",
-          "[mobi][writer][joint]") {
+TEST_CASE(
+    "MobiWriter assembles joint MOBI 7 + KF8 with shared pictures, BOUNDARY, and EXTH 121/125",
+    "[mobi][writer][joint]") {
     const fs::path tmp = fs::temp_directory_path() / "mfbe_test_writer_joint.mobi";
     std::error_code ec;
     fs::remove(tmp, ec);
@@ -218,8 +230,10 @@ TEST_CASE("MobiWriter assembles joint MOBI 7 + KF8 with shared pictures, BOUNDAR
     writer.set_mobi7_html(sample_mobi7_html());
     writer.set_kf8_html(sample_kf8_html());
     writer.set_kf8_css("p { text-indent: 1.5em; }\n");
-    writer.set_mfbe_json(json{{"v", 1}, {"description", {{"titleInfo", {{"bookTitle", "Sample Novel"}}}}},
-                              {"stylesheets", json::array()}, {"binaries", {{"0001", "cover.jpg"}}},
+    writer.set_mfbe_json(json{{"v", 1},
+                              {"description", {{"titleInfo", {{"bookTitle", "Sample Novel"}}}}},
+                              {"stylesheets", json::array()},
+                              {"binaries", {{"0001", "cover.jpg"}}},
                               {"attrs", json::object()}});
 
     MobiCommitInput commit;
@@ -238,12 +252,15 @@ TEST_CASE("MobiWriter assembles joint MOBI 7 + KF8 with shared pictures, BOUNDAR
     const PalmDb pdb = read_palmdb(atomic_file::read_file(tmp));
 
     // Locate BOUNDARY and verify EXTH 121 points to record immediately after BOUNDARY
-    const auto exth7 = parse_exth(std::string_view(pdb.records[0]).substr(16 + read_u32_be(pdb.records[0], 20)));
+    const auto exth7 =
+        parse_exth(std::string_view(pdb.records[0]).substr(16 + read_u32_be(pdb.records[0], 20)));
     std::uint32_t kf8_hdr_idx = 0;
     std::uint32_t res_count = 0;
     for (const auto& e : exth7) {
-        if (e.type == 121U) kf8_hdr_idx = read_u32_be(e.data, 0);
-        if (e.type == 125U) res_count = read_u32_be(e.data, 0);
+        if (e.type == 121U)
+            kf8_hdr_idx = read_u32_be(e.data, 0);
+        if (e.type == 125U)
+            res_count = read_u32_be(e.data, 0);
     }
     REQUIRE(kf8_hdr_idx > 1);
     REQUIRE(kf8_hdr_idx < pdb.records.size());
@@ -301,14 +318,15 @@ TEST_CASE("MobiWriter assembles standalone KF8 (.azw3) and rejects missing HTML 
     fs::remove(tmp, ec);
 }
 
-TEST_CASE("MobiWriter ZIP packaging stores MOBI/AZW3 uncompressed (method 0) and deflates FBD (method 8)",
-          "[mobi][writer][zip]") {
-    for (const auto& [fmt, ext] :
-         std::vector<std::pair<MobiExportFormat, std::string>>{
+TEST_CASE(
+    "MobiWriter ZIP packaging stores MOBI/AZW3 uncompressed (method 0) and deflates FBD (method 8)",
+    "[mobi][writer][zip]") {
+    for (const auto& [fmt, ext] : std::vector<std::pair<MobiExportFormat, std::string>>{
              {MobiExportFormat::mobi7, ".mobi"},
              {MobiExportFormat::kf8, ".azw3"},
          }) {
-        const fs::path tmp = fs::temp_directory_path() / ("mfbe_test_zip_" + ext.substr(1) + ".zip");
+        const fs::path tmp =
+            fs::temp_directory_path() / ("mfbe_test_zip_" + ext.substr(1) + ".zip");
         std::error_code ec;
         fs::remove(tmp, ec);
 
@@ -338,9 +356,8 @@ TEST_CASE("MobiWriter ZIP packaging stores MOBI/AZW3 uncompressed (method 0) and
         const std::string zbytes = atomic_file::read_file(tmp);
         REQUIRE(zbytes.size() > 22);
         const auto u16 = [&](std::size_t p) -> std::uint16_t {
-            return static_cast<std::uint16_t>(
-                static_cast<unsigned char>(zbytes[p]) |
-                (static_cast<unsigned char>(zbytes[p + 1]) << 8U));
+            return static_cast<std::uint16_t>(static_cast<unsigned char>(zbytes[p]) |
+                                              (static_cast<unsigned char>(zbytes[p + 1]) << 8U));
         };
         const auto u32 = [&](std::size_t p) -> std::uint32_t {
             return static_cast<std::uint32_t>(static_cast<unsigned char>(zbytes[p])) |
@@ -376,4 +393,76 @@ TEST_CASE("MobiWriter ZIP packaging stores MOBI/AZW3 uncompressed (method 0) and
 
         fs::remove(tmp, ec);
     }
+}
+
+TEST_CASE(
+    "KF8 pos_fid offsets for GUIDE, NCX, and internal links are fragment-relative (not shifted by "
+    "skeleton prefix)",
+    "[mobi][writer][kf8]") {
+    const fs::path tmp = fs::temp_directory_path() / "mfbe_test_writer_kf8_posfid.azw3";
+    std::error_code ec;
+    fs::remove(tmp, ec);
+
+    const std::string html =
+        "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
+        "<html xmlns=\"http://www.w3.org/1999/xhtml\" xmlns:epub=\"http://www.idpf.org/2007/ops\">"
+        "<head><title>Long Prefix Title For Offset Check</title>"
+        "<link rel=\"stylesheet\" type=\"text/css\" "
+        "href=\"kindle:flow:0001?mime=text/css\"/></head>"
+        "<body aid=\"0\"><div id=\"fb2-main-start\"><h1 id=\"ch1\">Chapter 1</h1>"
+        "<p><a href=\"#fb2-history\" data-kf8-target=\"fb2-history\">Colophon</a></p></div>"
+        "<div id=\"fb2-history\"><p>v1.0</p></div></body></html>";
+
+    MobiWriter writer(tmp, MobiExportFormat::kf8);
+    writer.set_kf8_html(html);
+    writer.set_kf8_css("body { margin: 0; }\n");
+
+    MobiCommitInput commit;
+    commit.metadata = sample_meta();
+    commit.nav = {
+        {"Chapter 1", "ch1", 0, 0, 0, -1, -1, -1, 0, 0},
+        {"Revision history", "fb2-history", 0, 0, 0, -1, -1, -1, 0, 0},
+    };
+    commit.guide = {
+        {"text", "Start", "fb2-main-start", 0, 0, 0},
+        {"colophon", "Revision history", "fb2-history", 0, 0, 0},
+    };
+
+    const MobiWriteResult res = writer.commit(commit);
+    REQUIRE(res.bytes > 0);
+
+    const PalmDb pdb = read_palmdb(atomic_file::read_file(tmp));
+    std::vector<std::string_view> views;
+    views.reserve(pdb.records.size());
+    for (const auto& r : pdb.records) {
+        views.emplace_back(r);
+    }
+    const std::uint32_t frag_rec = read_u32_be(pdb.records[0], 248);
+    const std::uint32_t skel_rec = read_u32_be(pdb.records[0], 252);
+    const std::uint32_t guide_rec = read_u32_be(pdb.records[0], 260);
+    const auto sf = parse_kf8_skel_frag(views, skel_rec, frag_rec);
+    const auto guides = parse_kf8_guide(views, guide_rec);
+    REQUIRE(sf.frags.size() == 1);
+    REQUIRE(guides.size() == 2);
+
+    const std::size_t insert_pos = std::stoull(sf.frags[0].aid);
+    REQUIRE(sf.skels.size() == 1);
+    const std::string raw_text = palmdoc_decompress(
+        std::string_view(pdb.records[1]).substr(0, pdb.records[1].size() - 1), 4096);
+    const std::string_view skel =
+        std::string_view(raw_text).substr(sf.skels[0].start_pos, sf.skels[0].length);
+    const std::string_view frag = std::string_view(raw_text).substr(
+        sf.skels[0].length + sf.frags[0].start_pos, sf.frags[0].length);
+    const std::string reconstructed = std::string(skel.substr(0, insert_pos)) + std::string(frag) +
+                                      std::string(skel.substr(insert_pos));
+
+    const auto colophon_it = std::find_if(guides.begin(), guides.end(),
+                                          [](const auto& g) { return g.type == "colophon"; });
+    REQUIRE(colophon_it != guides.end());
+    CHECK(colophon_it->fid == 0U);
+    const std::size_t colophon_pos = insert_pos + colophon_it->fid_offset;
+    REQUIRE(colophon_pos < reconstructed.size());
+    CHECK(reconstructed.compare(colophon_pos, 21, "<div id=\"fb2-history\"") == 0);
+
+    fs::remove(tmp, ec);
 }

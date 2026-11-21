@@ -80,11 +80,11 @@ export function registerMobiExportFeature(commands: CommandRegistry): void {
 
       const settings = state.settings?.mobi;
       const kept = keptExportOptions(docId, 'mobi');
-      const initFormat: MobiFormat = kept?.format ?? settings?.format ?? 'mobi7';
+      const initFormat: MobiFormat = kept?.format ?? settings?.format ?? 'joint';
       const initToc: MobiTocPlacement =
         kept?.tocPlacement ?? settings?.tocPlacement ?? 'afterTitle';
       const initZip: boolean = kept?.zip ?? settings?.zip ?? false;
-      const seriesInTitle: MobiSeriesInTitle = settings?.seriesInTitle ?? 'off';
+      const seriesInTitle: MobiSeriesInTitle = settings?.seriesInTitle ?? 'seriesAndNumber';
       const openAt: MobiOpenAt = settings?.openAt ?? 'titlePage';
       const kf8PopupFootnotes: boolean = settings?.kf8PopupFootnotes ?? true;
 
@@ -109,8 +109,8 @@ export function registerMobiExportFeature(commands: CommandRegistry): void {
             label: ctx.t('mobi.formatLabel'),
             selected: initFormat,
             choices: [
-              { value: 'mobi7', label: ctx.t('mobi.formats.mobi7'), extension: 'mobi' },
               { value: 'joint', label: ctx.t('mobi.formats.joint'), extension: 'mobi' },
+              { value: 'mobi7', label: ctx.t('mobi.formats.mobi7'), extension: 'mobi' },
               { value: 'kf8', label: ctx.t('mobi.formats.kf8'), extension: 'azw3' },
             ],
           },

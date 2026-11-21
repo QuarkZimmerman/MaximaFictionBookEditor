@@ -225,4 +225,61 @@ describe('the EPUB pages', () => {
       ),
     ).toEqual(['EPUB/text/0001.xhtml: 9999.xhtml names no file of the EPUB']);
   });
+
+  it('writes a closing colophon page for documentInfo.history and omits it from mfbe:fb2-description', () => {
+    const withHistory = book([
+      { type: 'section', attrs: { nodeId: id() }, content: [title('One'), p('Body text.')] },
+    ]);
+    withHistory.description.documentInfo.version = '2.1';
+    withHistory.description.documentInfo.history = {
+      type: 'annotation',
+      attrs: { nodeId: id() },
+      content: [
+        {
+          type: 'p',
+          attrs: { nodeId: id() },
+          content: [{ type: 'text', text: 'v2.1 corrected typos' }],
+        },
+      ],
+    };
+    const built = build(withHistory);
+    const historyPage = textOf(built.files, 'EPUB/text/history.xhtml');
+    expect(historyPage).toContain('class="fb2-history-page" epub:type="colophon"');
+    expect(historyPage).toContain('<p class="fb2-doc-version">Version 2.1</p>');
+    expect(historyPage).toContain('<div class="fb2-history"><p>v2.1 corrected typos</p></div>');
+
+    const opf = textOf(built.files, 'EPUB/package.opf');
+    expect(opf).toContain('<item id="p-history" href="text/history.xhtml"');
+    expect(opf).toContain('<itemref idref="p-history"/>');
+    expect(opf).toContain(
+      '<reference type="colophon" title="Revision history" href="text/history.xhtml"/>',
+    );
+    // Spine places history.xhtml at the very end.
+    expect(opf.indexOf('<itemref idref="p-0001"/>')).toBeLessThan(
+      opf.indexOf('<itemref idref="p-history"/>'),
+    );
+    // Private mfbe:fb2-description omits history so it is not duplicated.
+    const mfbeMatch = opf.match(/property="mfbe:fb2-description">([^<]+)<\/meta>/);
+    expect(mfbeMatch).not.toBeNull();
+    const decodedMfbe = JSON.parse(
+      mfbeMatch![1]!.replaceAll('&quot;', '"').replaceAll('&amp;', '&'),
+    ) as { documentInfo: { history?: unknown } };
+    expect(decodedMfbe.documentInfo.history).toBeUndefined();
+
+    const nav = textOf(built.files, 'EPUB/nav.xhtml');
+    expect(nav).toContain('<a href="text/history.xhtml#fb2-history">Revision history</a>');
+    expect(nav).toContain('<a epub:type="colophon" href="text/history.xhtml">Revision history</a>');
+    expect(
+      verifyEpub(
+        built.files,
+        [...pictures.values()].map((picture) => picture.name),
+      ),
+    ).toEqual([]);
+
+    // Without documentInfo.history, no history.xhtml page is emitted.
+    const withoutHistory = build(
+      book([{ type: 'section', attrs: { nodeId: id() }, content: [title('One'), p('x')] }]),
+    );
+    expect(textOf(withoutHistory.files, 'EPUB/text/history.xhtml')).toBe('');
+  });
 });

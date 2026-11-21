@@ -44,6 +44,11 @@ export function buildNavTree(
     }
   };
 
+  // Annotation page bookmark at start of navigation when present (matches PDF e84f1f81).
+  if (plan.hasAnnotationPage) {
+    nav.push({ label: plan.words.annotation, anchorId: 'fb2-annotation', depth: 0 });
+  }
+
   // Main body sections at depth 0
   if (plan.mainBodyIndex >= 0) {
     const mainBody = bodies[plan.mainBodyIndex]!;
@@ -77,6 +82,11 @@ export function buildNavTree(
       );
     }
     nav.push({ label, anchorId: 'fb2-notes', depth: 0 });
+  }
+
+  // Revision history closing page bookmark at end of navigation when present.
+  if (plan.hasHistoryPage) {
+    nav.push({ label: plan.words.revisionHistory, anchorId: 'fb2-history', depth: 0 });
   }
 
   return { nav, bodyAnchorIds };

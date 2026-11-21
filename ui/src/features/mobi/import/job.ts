@@ -103,7 +103,13 @@ async function resolveFigures(
   book: ConvertedMobiBook,
   summary: MobiImportSummaryItem[],
   checkCancelled: () => void,
-): Promise<{ bodyXml: string; notesXml: string | null; drawn: DrawnFigure[] }> {
+): Promise<{
+  bodyXml: string;
+  notesXml: string | null;
+  annotationXml: string | null;
+  historyXml: string | null;
+  drawn: DrawnFigure[];
+}> {
   const drawn: DrawnFigure[] = [];
   const placed = new Map<string, string>();
 
@@ -145,6 +151,8 @@ async function resolveFigures(
   return {
     bodyXml: replace(book.bodyXml),
     notesXml: book.notesXml === null ? null : replace(book.notesXml),
+    annotationXml: book.annotationXml === null ? null : replace(book.annotationXml),
+    historyXml: book.historyXml === null ? null : replace(book.historyXml),
     drawn,
   };
 }
@@ -303,7 +311,10 @@ export async function importMobi(
     // 6. Assemble complete FB2 XML (restored MFBE description vs foreign EXTH description).
     let fb2Xml: string;
     if (mfbeRes.useMeta && mfbeRes.record) {
-      const descXml = serializeDescriptionXml(mfbeRes.record.description);
+      const descXml = serializeDescriptionXml(mfbeRes.record.description, undefined, {
+        annotationXml: figures.annotationXml,
+        historyXml: figures.historyXml,
+      });
       const cssXml = serializeStylesheetsXml(mfbeRes.record.stylesheets);
       fb2Xml =
         `<?xml version="1.0" encoding="utf-8"?>\n` +
@@ -317,24 +328,31 @@ export async function importMobi(
       if (converted.coverBinaryId) {
         foreign.description.cover = `#${converted.coverBinaryId}`;
       }
-      fb2Xml = buildBook(templateRes.xml, {
-        description: foreign.description,
-        bodyXml: figures.bodyXml,
-        notesXml: figures.notesXml,
-        stylesheets: converted.stylesheets,
-        pictures: [],
-        formulas: [],
-        chars: [],
-        diagrams: [],
-        summary: [],
-        cssFiles: [],
-        stats: {
-          sections: converted.counts.sections,
-          pictures: converted.counts.pictures,
-          tables: converted.counts.tables,
-          notes: converted.counts.notes,
+      fb2Xml = buildBook(
+        templateRes.xml,
+        {
+          description: foreign.description,
+          bodyXml: figures.bodyXml,
+          notesXml: figures.notesXml,
+          stylesheets: converted.stylesheets,
+          pictures: [],
+          formulas: [],
+          chars: [],
+          diagrams: [],
+          summary: [],
+          cssFiles: [],
+          stats: {
+            sections: converted.counts.sections,
+            pictures: converted.counts.pictures,
+            tables: converted.counts.tables,
+            notes: converted.counts.notes,
+          },
         },
-      });
+        {
+          annotationXml: figures.annotationXml,
+          historyXml: figures.historyXml,
+        },
+      );
     }
     modal.progress(6_000, SCALE);
     await nextTask();
@@ -434,21 +452,17 @@ export async function importMobi(
 
           if (extractedPath) {
             if (mfbeRes.useMeta) {
-              // Editor-made MOBI + archive FBD: compare canonically via doc.readDescription!
+              // Editor-made MOBI + archive FBD: compare archive FBD canonically against the
+              // full restored description (including annotation & history read from their pages).
               let archiveRead = null;
-              let recordRead = null;
               try {
-                const recPath = (await rpc.call('mobiImport.recordFbd', { token: run.token })).path;
                 archiveRead = await readDescriptionFile(ctx, book.docId, extractedPath);
-                recordRead = await readDescriptionFile(ctx, book.docId, recPath);
                 const same = descriptionsCanonicallyEqual(
                   archiveRead.description,
-                  recordRead.description,
+                  book.description,
                 );
                 await closeRead(ctx, archiveRead);
-                await closeRead(ctx, recordRead);
                 archiveRead = null;
-                recordRead = null;
 
                 if (!same) {
                   modal.end();
@@ -486,7 +500,6 @@ export async function importMobi(
                 }
               } catch (err) {
                 await closeRead(ctx, archiveRead);
-                await closeRead(ctx, recordRead);
                 if (err instanceof Cancelled) throw err;
                 fbdWarning = {
                   name: chosen.name,

@@ -344,11 +344,36 @@ export function buildKf8(options: MobiExportBuildOptions, plan: BookExportPlan):
     return `<${tag} id="${escapeAttr(secId)}" class="${cls}"${langAttrs(node.attrs.lang)}>${inner}</${tag}>`;
   };
 
+  const titleInfo = document.description.titleInfo;
+  const docInfo = document.description.documentInfo;
+  const publishInfo = document.description.publishInfo;
+
+  // 1. Cover: KF8 renders EXTH 201 natively without duplicating an inline cover page.
+  const coverHref = titleInfo.coverpage[0]?.href ?? '';
+  const hasCoverPic = Boolean(
+    coverHref.startsWith('#') && options.pictures.has(coverHref.slice(1)),
+  );
+
   const renderBodyContent = (body: BodyNode, bodyIndex: number, isMain: boolean): string => {
     const anchor = bodyAnchorIds.get(bodyIndex);
     const parts: string[] = [];
     let firstTop = true;
     for (const child of body.content) {
+      if (
+        isMain &&
+        firstTop &&
+        hasCoverPic &&
+        child.type === 'image' &&
+        child.attrs.href === coverHref
+      ) {
+        plan.attrs.bodyLeadingCover ??= {
+          href: child.attrs.href,
+          ...(child.attrs.alt ? { alt: child.attrs.alt } : {}),
+          ...(child.attrs.title ? { title: child.attrs.title } : {}),
+          ...(child.attrs.id ? { id: child.attrs.id } : {}),
+        };
+        continue;
+      }
       if (child.type === 'section') {
         parts.push(renderSection(child, isMain ? 1 : 2, !firstTop));
         firstTop = false;
@@ -382,47 +407,48 @@ export function buildKf8(options: MobiExportBuildOptions, plan: BookExportPlan):
   // Assemble document in contract order (§1).
   const chunks: string[] = [];
   const guide: MobiGuideItem[] = [];
-  const titleInfo = document.description.titleInfo;
 
-  // 1. Cover fragment (KF8)
-  const coverHref = titleInfo.coverpage[0]?.href ?? '';
   if (coverHref) {
-    const coverPic = coverHref.startsWith('#')
-      ? options.pictures.get(coverHref.slice(1))
-      : undefined;
-    if (coverPic) {
+    if (hasCoverPic) {
       counts.pictures++;
-      const src = `kindle:embed:${formatKf8EmbedId(coverPic.recindex)}?mime=${coverPic.mediaType}`;
-      chunks.push(
-        `<div id="fb2-cover" class="fb2-cover"><img src="${escapeAttr(src)}" alt="${escapeAttr(plan.words.cover)}"/></div>`,
-      );
-      guide.push({ type: 'cover', title: plan.words.cover, anchorId: 'fb2-cover' });
     } else {
       plan.summary.push({ kind: 'pictureLeftOut', detail: coverHref });
     }
   }
 
-  // 2. Title page
+  // 2. Title page (printed-book layout: authors, title, series, publisher/year at foot).
   if (plan.hasTitlePage) {
-    let tp = '<div id="fb2-title-page" class="fb2-title-page fb2-pagebreak" epub:type="titlepage">';
+    let tp = '<div id="fb2-title-page" class="fb2-title-page" epub:type="titlepage">';
+    for (const author of titleInfo.authors) {
+      const name = personDisplayName(author);
+      if (name) tp += `<p class="fb2-author">${escapeXml(name)}</p>`;
+    }
     if (!plan.originalTitleEmpty) {
       tp += `<h1 class="fb2-book-title">${escapeXml(plan.title)}</h1>`;
     }
     for (const seq of flattenSequences(titleInfo.sequences)) {
       if (!seq.name.trim()) continue;
       const num = seq.number ? ` #${seq.number}` : '';
-      tp += `<p class="fb2-series">${escapeXml(seq.name.trim() + num)}</p>`;
+      tp += `<p class="fb2-series">(${escapeXml(seq.name.trim() + num)})</p>`;
     }
-    for (const author of titleInfo.authors) {
-      const name = personDisplayName(author);
-      if (name) tp += `<p class="fb2-author">${escapeXml(name)}</p>`;
-    }
-    if (titleInfo.annotation) {
-      tp += renderBlock(titleInfo.annotation, 2);
+    const imprint = [publishInfo?.publisher, publishInfo?.year]
+      .map((s) => (s ?? '').trim())
+      .filter(Boolean)
+      .join(', ');
+    if (imprint) {
+      tp += `<p class="fb2-imprint">${escapeXml(imprint)}</p>`;
     }
     tp += '</div>';
     chunks.push(tp);
     guide.push({ type: 'title-page', title: plan.words.titlePage, anchorId: 'fb2-title-page' });
+  }
+
+  // 2b. Dedicated Annotation page right after Title page (no heading, bookmarked).
+  if (plan.hasAnnotationPage && titleInfo.annotation) {
+    const cls = chunks.length > 0 ? 'fb2-annotation-page fb2-pagebreak' : 'fb2-annotation-page';
+    chunks.push(
+      `<div id="fb2-annotation" class="${cls}">${renderBlock(titleInfo.annotation, 2)}</div>`,
+    );
   }
 
   // 3. Inline TOC afterTitle
@@ -462,6 +488,24 @@ export function buildKf8(options: MobiExportBuildOptions, plan: BookExportPlan):
       );
     }
     chunks.push(`<div id="fb2-notes" class="fb2-notes fb2-pagebreak">${notesParts.join('')}</div>`);
+  }
+
+  // 5b. Closing Revision history + version page (colophon, matches PDF e84f1f81).
+  if (plan.hasHistoryPage && docInfo.history) {
+    const ver = (docInfo.version ?? '').trim();
+    const verHtml = ver
+      ? `<p class="fb2-doc-version">${escapeXml(`${plan.words.version} ${ver}`)}</p>`
+      : '';
+    const histInner = docInfo.history.content.map((c) => renderBlock(c, 2)).join('');
+    chunks.push(
+      `<div id="fb2-history" class="fb2-history-page fb2-pagebreak" epub:type="colophon">` +
+        `${verHtml}<div${idAttrOf(docInfo.history.attrs.nodeId)} class="fb2-history"${langAttrs(docInfo.history.attrs.lang)}>${histInner}</div></div>`,
+    );
+    guide.push({
+      type: 'colophon',
+      title: plan.words.revisionHistory,
+      anchorId: 'fb2-history',
+    });
   }
 
   // 6. Inline TOC at end

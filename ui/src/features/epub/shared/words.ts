@@ -15,6 +15,8 @@ export interface BookWords {
   start: string;
   notes: string;
   contents: string;
+  revisionHistory: string;
+  version: string;
   coverDescription: string;
   /** D43: one sentence, by what the book holds. */
   summaryTextOnly: string;
@@ -29,6 +31,8 @@ export const BOOK_WORDS: Readonly<Record<WordsLanguage, BookWords>> = {
     start: 'Start',
     notes: 'Notes',
     contents: 'Contents',
+    revisionHistory: 'Revision history',
+    version: 'Version',
     coverDescription: 'Cover',
     summaryTextOnly: 'The book is text only.',
     summaryAllAlt: 'The book is text with pictures; every picture has a text alternative.',
@@ -40,6 +44,8 @@ export const BOOK_WORDS: Readonly<Record<WordsLanguage, BookWords>> = {
     start: 'Начало',
     notes: 'Примечания',
     contents: 'Содержание',
+    revisionHistory: 'История изменений',
+    version: 'Версия',
     coverDescription: 'Обложка',
     summaryTextOnly: 'Книга состоит только из текста.',
     summaryAllAlt: 'Книга — текст с иллюстрациями; у каждой иллюстрации есть текстовое описание.',
@@ -51,6 +57,8 @@ export const BOOK_WORDS: Readonly<Record<WordsLanguage, BookWords>> = {
     start: 'Початок',
     notes: 'Примітки',
     contents: 'Зміст',
+    revisionHistory: 'Історія змін',
+    version: 'Версія',
     coverDescription: 'Обкладинка',
     summaryTextOnly: 'Книга складається лише з тексту.',
     summaryAllAlt: 'Книга — текст з ілюстраціями; кожна ілюстрація має текстовий опис.',

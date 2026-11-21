@@ -47,7 +47,12 @@ figcaption { text-align: center; font-style: italic; margin-top: 0.3em; }
 .fb2-book-title { margin: 1em 0; }
 .fb2-series { font-style: italic; }
 .fb2-author { margin-top: 0.5em; }
+.fb2-imprint { margin-top: 3em; font-size: 0.9em; }
 .fb2-title-page .fb2-annotation { text-align: justify; margin-top: 2em; }
+.fb2-annotation-page { margin: 1em 0; }
+.fb2-history-page { margin: 1em 0; }
+.fb2-doc-version { text-indent: 0; font-style: italic; margin-bottom: 1em; }
+.fb2-history { margin: 0.5em 0; }
 .fb2-note { margin: 1em 0; }
 .fb2-note-title p { text-indent: 0; font-weight: bold; }
 .fb2-backlink { text-indent: 0; }

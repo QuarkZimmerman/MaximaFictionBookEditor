@@ -38,7 +38,7 @@ import { namedStylesPlan, planClasses } from './css';
 import { describe } from './description';
 import { Dropped } from './dropped';
 import { CancelledError, Yielder } from './limits';
-import { readNavigation, readPackage, type EpubPackage } from './package';
+import { readLandmarks, readNavigation, readPackage, type EpubPackage } from './package';
 import { decodePage, pageKind, parsePage } from './parse';
 import { addPictures, drawSvg, entryBytes } from './pictures';
 
@@ -82,10 +82,14 @@ function summaryLines(ctx: CommandContext, summary: readonly ImportSummaryItem[]
 async function readPages(
   token: string,
   pkg: EpubPackage,
+  landmarks: ReadonlyMap<string, string>,
   summary: ImportSummaryItem[],
   yielder: Yielder,
 ): Promise<ConvertPage[]> {
   const roles = new Map(pkg.guide.map((reference) => [reference.path, reference.type]));
+  for (const [targetPath, landmarkType] of landmarks) {
+    if (!roles.has(targetPath)) roles.set(targetPath, landmarkType);
+  }
   const pages: ConvertPage[] = [];
   for (const { item: first, linear } of pkg.spine) {
     await yielder.step();
@@ -157,7 +161,12 @@ async function drawFigures(
   book: ConvertedBook,
   summary: ImportSummaryItem[],
   yielder: Yielder,
-): Promise<{ bodyXml: string; notesXml: string | null; drawn: Figure[] }> {
+): Promise<{
+  bodyXml: string;
+  notesXml: string | null;
+  historyXml: string | null;
+  drawn: Figure[];
+}> {
   const drawn: Figure[] = [];
   const placed = new Map<string, string>();
   if (book.formulas.length > 0) {
@@ -199,6 +208,7 @@ async function drawFigures(
   return {
     bodyXml: replace(book.bodyXml),
     notesXml: book.notesXml === null ? null : replace(book.notesXml),
+    historyXml: book.historyXml === null ? null : replace(book.historyXml),
     drawn,
   };
 }
@@ -252,8 +262,12 @@ export async function importEpub(
     const navigation = navigationItem
       ? readNavigation(navigationText, navigationItem.path, navigationItem !== pkg.nav)
       : [];
+    const landmarks =
+      navigationItem && navigationItem === pkg.nav
+        ? readLandmarks(navigationText, navigationItem.path)
+        : new Map<string, string>();
     if (/page-list|<pageList[\s>]/.test(navigationText)) dropped.add('droppedPageList');
-    const pages = await readPages(token, pkg, summary, yielder);
+    const pages = await readPages(token, pkg, landmarks, summary, yielder);
     performance.mark('epub-import:pages read');
     const genres = await rpc
       .call('resources.genres')
@@ -335,16 +349,20 @@ export async function importEpub(
     performance.mark('epub-import:drawn figures');
 
     const { xml: templateXml } = await rpc.call('template.xml');
-    const xml = buildBook(templateXml, {
-      description: described.description,
-      bodyXml: figures.bodyXml,
-      notesXml: figures.notesXml,
-      stylesheets: restoredSheets
-        ? restoredSheets.map(({ type, content }) => ({ type, text: content, foreign: false }))
-        : plan.stylesheet
-          ? [{ type: 'text/css', text: plan.stylesheet, foreign: false }]
-          : [],
-    } as unknown as ConvertResult);
+    const xml = buildBook(
+      templateXml,
+      {
+        description: described.description,
+        bodyXml: figures.bodyXml,
+        notesXml: figures.notesXml,
+        stylesheets: restoredSheets
+          ? restoredSheets.map(({ type, content }) => ({ type, text: content, foreign: false }))
+          : plan.stylesheet
+            ? [{ type: 'text/css', text: plan.stylesheet, foreign: false }]
+            : [],
+      } as unknown as ConvertResult,
+      { historyXml: figures.historyXml },
+    );
     performance.mark('epub-import:book built');
     await yielder.step();
     // The core's job is not cancelled: it would leave the document it made unknown here. A
@@ -420,6 +438,17 @@ export async function importEpub(
           const cover = described.description.cover;
           if (cover && restored.titleInfo.coverpage?.[0])
             restored.titleInfo.coverpage[0].href = cover;
+          // History lives on its own colophon page in newer exports (fall back to mfbeDescription for older EPUBs).
+          if (
+            !restored.documentInfo.history &&
+            figures.historyXml &&
+            opened.document.description.documentInfo.history
+          ) {
+            restored.documentInfo = {
+              ...restored.documentInfo,
+              history: opened.document.description.documentInfo.history,
+            };
+          }
           document = { ...document, description: restored };
         }
       } catch {

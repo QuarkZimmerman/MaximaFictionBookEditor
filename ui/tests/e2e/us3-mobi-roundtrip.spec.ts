@@ -10,8 +10,9 @@ import path from 'node:path';
 import type { Page } from '@playwright/test';
 
 import { expect, fixtureBook, test, waitForBook, type CoreHandle } from './fixtures/core';
+import { bookXml } from './fixtures/epubImport';
 import { clickExport } from './fixtures/exportCheck';
-import { hasCalibre, mobiPlainText } from './fixtures/mobi';
+import { hasCalibre, inspectMobiBinary, mobiPlainText } from './fixtures/mobi';
 import { scratchDir } from './fixtures/scratch';
 
 async function openBook(core: CoreHandle, page: Page, name: string): Promise<string> {
@@ -142,6 +143,30 @@ test.describe('US3 (feature 018) - Reversible MFBE round-trip & partial external
         throw new Error(`${fmt} round-trip validation failed (${valText}): ${details.join(' | ')}`);
       }
     }
+
+    // Export modern-utf8.fb2 (has leading body cover duplicate + annotation + version/history) as
+    // default joint .mobi: verify single cover, dedicated annotation page, closing history colophon
+    // page, and clean round-trip of history + valid FB2.
+    await openBook(core, page, 'modern-utf8.fb2');
+    const modernJoint = path.join(dir, 'modern-joint.mobi');
+    await exportMobiFormat(core, page, modernJoint, 'joint');
+    const modernInspected = inspectMobiBinary(modernJoint);
+    expect(modernInspected.htmlText).not.toContain('id="fb2-cover"');
+    expect(modernInspected.htmlText).toContain('id="fb2-annotation"');
+    expect(modernInspected.htmlText).toContain('id="fb2-history"');
+    expect(modernInspected.htmlText).toContain('Версия 2.1');
+    expect(modernInspected.htmlText).toContain('v2.1 — вычитка');
+
+    await importMobi(core, page, modernJoint);
+    const restoredModernXml = await bookXml(core, page);
+    expect(restoredModernXml).toContain('<history>');
+    expect(restoredModernXml).toContain('v2.1 — вычитка');
+    expect(restoredModernXml).toContain('<annotation>');
+    expect(restoredModernXml).toContain('Второй абзац аннотации.');
+    await page.getByRole('button', { name: 'Validate' }).click();
+    await expect(page.getByTestId('status-message')).toContainText(/No errors|valid/i, {
+      timeout: 15_000,
+    });
   });
 
   test('partial external-edit fallback preserves external metadata edit while keeping MFBE body, and invalid FB2 round-trips cleanly', async ({
@@ -184,7 +209,9 @@ test.describe('US3 (feature 018) - Reversible MFBE round-trip & partial external
     const directMsg = await importMobi(core, page, directPath);
     expect(directMsg).toContain('modified outside the editor');
     await page.getByRole('button', { name: 'Description' }).click();
-    await expect(page.locator('input[value="Patched Title Book"]').first()).toBeVisible();
+    await expect(
+      page.locator('input[value="The Series #3 \u2014 Patched Title Book"]').first(),
+    ).toBeVisible();
 
     // Direct binary patch of HTML text record ONLY (leaving Record 0 EXTH & EXTH 59901 intact!):
     // exercises `mfbeStatus == "externallyModified"` with `mfbeHtmlMatches=false, mfbeMetaMatches=true`

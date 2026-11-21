@@ -22,15 +22,15 @@ type MobiSettings = NonNullable<Settings['mobi']>;
 
 /** Out-of-the-box defaults of contracts/settings.md (core/src/settings/settings.cpp). */
 const MOBI_DEFAULTS: MobiSettings = {
-  format: 'mobi7',
+  format: 'joint',
   tocPlacement: 'afterTitle',
-  seriesInTitle: 'off',
+  seriesInTitle: 'seriesAndNumber',
   openAt: 'titlePage',
   kf8PopupFootnotes: true,
   zip: false,
 };
 
-const FORMAT_OPTIONS: readonly MobiFormat[] = ['mobi7', 'joint', 'kf8'];
+const FORMAT_OPTIONS: readonly MobiFormat[] = ['joint', 'mobi7', 'kf8'];
 const TOC_OPTIONS: readonly MobiTocPlacement[] = ['afterTitle', 'end', 'none'];
 const SERIES_OPTIONS: readonly MobiSeriesInTitle[] = ['off', 'numberBefore', 'seriesAndNumber'];
 const OPEN_AT_OPTIONS: readonly MobiOpenAt[] = ['titlePage', 'mainText'];

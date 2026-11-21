@@ -41,6 +41,7 @@ export function parseMfbeRecord(raw: unknown): MfbeRoundTripRecord | null {
     styleNames: obj.attrs?.styleNames ?? {},
     untitledSections: Array.isArray(obj.attrs?.untitledSections) ? obj.attrs.untitledSections : [],
     nodeLangs: obj.attrs?.nodeLangs ?? {},
+    ...(obj.attrs?.bodyLeadingCover ? { bodyLeadingCover: obj.attrs.bodyLeadingCover } : {}),
   };
   return {
     v: 1,
@@ -199,6 +200,29 @@ function serializeAnnotationBlocks(blocks: readonly BlockNode[] | undefined): st
         parts.push(`<poem>${inner}</poem>`);
         break;
       }
+      case 'table': {
+        const rows = b.content
+          .map((row) => {
+            const cells = row.content
+              .map((cell) => {
+                const ctag = cell.type === 'th' ? 'th' : 'td';
+                const cattrs: string[] = [];
+                if (cell.attrs.colspan && cell.attrs.colspan > 1)
+                  cattrs.push(`colspan="${cell.attrs.colspan}"`);
+                if (cell.attrs.rowspan && cell.attrs.rowspan > 1)
+                  cattrs.push(`rowspan="${cell.attrs.rowspan}"`);
+                if (cell.attrs.align) cattrs.push(`align="${escAttr(cell.attrs.align)}"`);
+                if (cell.attrs.valign) cattrs.push(`valign="${escAttr(cell.attrs.valign)}"`);
+                const attrStr = cattrs.length > 0 ? ` ${cattrs.join(' ')}` : '';
+                return `<${ctag}${attrStr}>${serializeInlines(cell.content)}</${ctag}>`;
+              })
+              .join('');
+            return `<tr>${cells}</tr>`;
+          })
+          .join('');
+        parts.push(`<table>${rows}</table>`);
+        break;
+      }
       case 'raw-xml':
         parts.push(b.attrs.xml);
         break;
@@ -251,6 +275,7 @@ function serializeTitleInfo(
   tag: 'title-info' | 'src-title-info',
   ti: TitleInfo,
   coverRemap?: ReadonlyMap<string, string>,
+  annotationXmlOverride?: string | null,
 ): string {
   const parts: string[] = [];
   const genres = ti.genres.length > 0 ? ti.genres : [{ code: 'unrecognised' }];
@@ -264,7 +289,9 @@ function serializeTitleInfo(
       : [{ homePages: [], emails: [], firstName: '', lastName: '' }];
   for (const a of authors) parts.push(serializePerson('author', a));
   parts.push(`<book-title>${escText(ti.bookTitle ?? '')}</book-title>`);
-  if (ti.annotation) {
+  if (tag === 'title-info' && annotationXmlOverride) {
+    parts.push(annotationXmlOverride);
+  } else if (ti.annotation) {
     const id = ti.annotation.attrs?.id ? ` id="${escAttr(ti.annotation.attrs.id)}"` : '';
     const lang = ti.annotation.attrs?.lang
       ? ` xml:lang="${escAttr(ti.annotation.attrs.lang)}"`
@@ -298,7 +325,7 @@ function serializeTitleInfo(
   return `<${tag}>${parts.join('')}</${tag}>`;
 }
 
-function serializeDocumentInfo(di: DocumentInfo): string {
+function serializeDocumentInfo(di: DocumentInfo, historyXmlOverride?: string | null): string {
   const parts: string[] = [];
   const authors =
     di.authors.length > 0 ? di.authors : [{ homePages: [], emails: [], nickname: 'unknown' }];
@@ -311,7 +338,9 @@ function serializeDocumentInfo(di: DocumentInfo): string {
   if (di.srcOcr) parts.push(`<src-ocr>${escText(di.srcOcr)}</src-ocr>`);
   parts.push(`<id>${escText(di.id ?? '')}</id>`);
   parts.push(`<version>${escText(di.version || '1.0')}</version>`);
-  if (di.history) {
+  if (historyXmlOverride) {
+    parts.push(historyXmlOverride);
+  } else if (di.history) {
     const id = di.history.attrs?.id ? ` id="${escAttr(di.history.attrs.id)}"` : '';
     const lang = di.history.attrs?.lang ? ` xml:lang="${escAttr(di.history.attrs.lang)}"` : '';
     parts.push(`<history${id}${lang}>${serializeAnnotationBlocks(di.history.content)}</history>`);
@@ -340,10 +369,13 @@ function serializeCustomInfo(ci: CustomInfo): string {
 export function serializeDescriptionXml(
   desc: Description,
   coverRemap?: ReadonlyMap<string, string>,
+  overrides?: { annotationXml?: string | null; historyXml?: string | null },
 ): string {
-  const parts: string[] = [serializeTitleInfo('title-info', desc.titleInfo, coverRemap)];
+  const parts: string[] = [
+    serializeTitleInfo('title-info', desc.titleInfo, coverRemap, overrides?.annotationXml),
+  ];
   if (desc.srcTitleInfo) parts.push(serializeTitleInfo('src-title-info', desc.srcTitleInfo));
-  parts.push(serializeDocumentInfo(desc.documentInfo));
+  parts.push(serializeDocumentInfo(desc.documentInfo, overrides?.historyXml));
   if (desc.publishInfo) parts.push(serializePublishInfo(desc.publishInfo));
   for (const ci of desc.customInfo ?? []) parts.push(serializeCustomInfo(ci));
   for (const out of desc.outputs ?? []) parts.push(out.attrs.xml);
