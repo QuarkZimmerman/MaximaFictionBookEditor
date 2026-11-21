@@ -867,6 +867,26 @@
       "replaceCompleted": "«{{path}}» already exists. Replace it?",
       "archiveOthers": "The archive «{{path}}» holds {{count}} other files. The new archive will hold this book alone. Replace it?"
     },
+    "encodingMismatch": {
+      "caption": "Encoding Mismatch",
+      "noneDeclared": "(none)",
+      "messageConfident": "This file declares encoding \"{{declared}}\", but its content appears to be \"{{detected}}\". Choose an encoding below and click Fix to open with it (the file is marked modified and is not saved until you save it).",
+      "messageAmbiguous": "This file declares encoding \"{{declared}}\", which does not match its content. Choose the encoding that shows the text below correctly, then click Fix (the file is marked modified and is not saved until you save it).",
+      "preview": "Preview:",
+      "prevBlock": "Previous",
+      "nextBlock": "Next",
+      "blockOf": "{{current}} / {{total}}",
+      "loadingPreview": "Loading preview…",
+      "previewUnavailable": "Preview is not available.",
+      "previewEmpty": "No readable text found in the preview sample.",
+      "undecodable_one": "{{count}} byte could not be decoded in this encoding — try another encoding.",
+      "undecodable_other": "{{count}} bytes could not be decoded in this encoding — try another encoding.",
+      "cleanInvalid": "Clean hidden and invalid characters that turn into '?' in older encodings",
+      "cleanInvalidWithCount_one": "Clean hidden and invalid characters ({{count}} found in preview sample)",
+      "cleanInvalidWithCount_other": "Clean hidden and invalid characters ({{count}} found in preview sample)",
+      "fix": "Fix",
+      "loadAsIs": "Load as is"
+    },
     "addImage": {
       "caption": "Add image",
       "insertClear": "Insert clear image?",

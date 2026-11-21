@@ -212,6 +212,37 @@ TEST_CASE("encodings: mismatch detection picks the encoding that decodes cleanly
         CHECK(d.reason == "unsupported");
         CHECK(d.detected == "windows-1251");
     }
+    SECTION("declares utf-8 but the bytes are KOI8-R: statistical judge detects koi8-r") {
+        const std::string prose =
+            "<FictionBook><body><section><p>"
+            "Старый маяк стоял на самом краю скалы и светил кораблям в ночном море. "
+            "Ветер шумел в соснах, а волны тихо бились о камни."
+            "</p></section></body></FictionBook>";
+        const auto bytes =
+            encoding::encode_from_utf8("<?xml version=\"1.0\" encoding=\"utf-8\"?>" + prose,
+                                       "koi8-r")
+                .bytes;
+        const auto d = encoding::detect_encoding(bytes);
+        CHECK(d.declared == "utf-8");
+        CHECK(d.mismatch);
+        CHECK(d.detected == "koi8-r");
+        CHECK(d.confident);
+        REQUIRE_FALSE(d.candidates.empty());
+        CHECK(d.candidates.front() == "koi8-r");
+    }
+}
+
+TEST_CASE("encodings: clean_invalid_utf8 strips hidden/broken chars and preserves normal text",
+          "[encodings]") {
+    const std::string dirty =
+        "«Я \xE2\x80\x8Bв \xE2\x80\x89полной\xC2\xAD \xEF\xBB\xBFзаднице?» \xE2\x80\x90 "
+        "тест\xEF\xBF\xBD\xE2\x80\xAF" "1";
+    std::size_t changed = 0;
+    const std::string clean = encoding::clean_invalid_utf8(dirty, &changed);
+    CHECK(changed == 7);
+    CHECK(encoding::count_invalid_utf8(dirty) == 7);
+    CHECK(encoding::count_invalid_utf8(clean) == 0);
+    CHECK(clean == "«Я в  полной заднице?» - тест\xC2\xA0" "1");
 }
 
 TEST_CASE("base64: encode, wrap, decode and streaming decode", "[encodings][base64]") {

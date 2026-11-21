@@ -57,6 +57,7 @@ import type { Dialogs } from '@/dialogs/types';
 import {
   showArchiveBookChooser,
   showEncodingDialog,
+  showEncodingMismatchDialog,
   showOpenElsewhereDialog,
   showSaveChangesPrompt,
   showSaveOptionsDialog,
@@ -827,8 +828,59 @@ export class FileFeature {
         );
         if ('needsChoice' in result) return false;
       }
+      let markModified = false;
+      const mismatch = result.warnings.find((w) => w.code === 'encoding.mismatch');
+      if (mismatch) {
+        const params = mismatch.params as Record<string, unknown>;
+        const declared = String(params.declared ?? '');
+        const detected = String(params.detected ?? result.document.sourceEncoding);
+        const confident = params.confident !== false;
+        const rawCandidates = params.candidates;
+        const candidates = Array.isArray(rawCandidates)
+          ? rawCandidates.filter((c): c is string => typeof c === 'string')
+          : [detected];
+        const answer = await showEncodingMismatchDialog(ctx.dialogs, {
+          path: entry ? `${path} (${entry})` : path,
+          declared,
+          detected,
+          confident,
+          candidates,
+          fetchPreview: (encoding, cleanInvalidChars) =>
+            rpc.call('doc.encodingPreview', {
+              path,
+              ...(entry ? { entry } : {}),
+              encoding,
+              cleanInvalidChars,
+            }),
+        });
+        if (answer.action === 'cancel') {
+          await rpc.call('doc.close', { docId: result.document.docId }).catch(() => {});
+          return false;
+        }
+        if (answer.action === 'fix') {
+          if (answer.encoding !== detected || answer.cleanInvalidChars) {
+            await rpc.call('doc.close', { docId: result.document.docId }).catch(() => {});
+            const reopened = await rpc.runJob(
+              'doc.open',
+              {
+                path,
+                ...(entry ? { entry } : {}),
+                encoding: answer.encoding,
+                cleanInvalidChars: answer.cleanInvalidChars,
+              },
+              { onProgress: (progress) => actions.setProgress(store, progress) },
+            );
+            if ('needsChoice' in reopened) return false;
+            result = reopened;
+          }
+          markModified = true;
+        }
+      }
       await this.closeCurrentDocument(ctx);
       this.loadDocument(ctx, result.document);
+      if (markModified) {
+        actions.setModified(store, true);
+      }
       if (result.warnings.length > 0) {
         actions.setStatusMessage(
           store,

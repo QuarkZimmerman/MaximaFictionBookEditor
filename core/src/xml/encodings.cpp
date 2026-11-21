@@ -1,6 +1,7 @@
 // Table-driven legacy encodings and their libxml2 registration (T040). See mfbe/encodings.hpp.
 #include <mfbe/encodings.hpp>
 #include <mfbe/single_byte.hpp>
+#include <mfbe/text_encoding.hpp>
 
 #include <libxml/encoding.h>
 #include <libxml/parser.h>
@@ -682,6 +683,8 @@ Detection detect_encoding(std::string_view bytes, std::size_t sample_bytes) {
             if (!same) {
                 d.mismatch = true;
                 d.reason = "bom";
+                d.confident = true;
+                d.candidates = {d.detected};
             }
         }
         return d;
@@ -692,12 +695,20 @@ Detection detect_encoding(std::string_view bytes, std::size_t sample_bytes) {
         d.detected = "utf-16le";
         d.mismatch = declared && *declared != "utf-16" && *declared != "utf-16le";
         d.reason = d.mismatch ? "utf16-bytes" : "";
+        if (d.mismatch) {
+            d.confident = true;
+            d.candidates = {d.detected};
+        }
         return d;
     }
     if (bytes.size() >= 4 && bytes[0] == '\0' && bytes[1] == '<') {
         d.detected = "utf-16be";
         d.mismatch = declared && *declared != "utf-16" && *declared != "utf-16be";
         d.reason = d.mismatch ? "utf16-bytes" : "";
+        if (d.mismatch) {
+            d.confident = true;
+            d.candidates = {d.detected};
+        }
         return d;
     }
 
@@ -735,7 +746,9 @@ Detection detect_encoding(std::string_view bytes, std::size_t sample_bytes) {
             // being mis-labelled).
             d.detected = "utf-8";
             d.mismatch = true;
+            d.confident = true;
             d.reason = "utf8-bytes";
+            d.candidates = {"utf-8", claimed};
             return d;
         }
         d.detected = claimed;
@@ -745,15 +758,125 @@ Detection detect_encoding(std::string_view bytes, std::size_t sample_bytes) {
         d.reason = "invalid-bytes";
     }
 
-    for (const char* candidate :
-         {"utf-8", "windows-1251", "koi8-r", "windows-1252", "iso-8859-1"}) {
-        if (clean(candidate)) {
-            d.detected = candidate;
-            return d;
+    // Valid UTF-8 bytes with a wrong/unsupported declaration win immediately.
+    if (clean("utf-8")) {
+        d.detected = "utf-8";
+        d.confident = true;
+        d.candidates = {"utf-8"};
+        return d;
+    }
+
+    // Strip XML markup and stop before <binary so the statistical judge scores prose text.
+    std::string prose;
+    prose.reserve(sample.size());
+    bool in_tag = false;
+    for (std::size_t i = 0; i < sample.size(); ++i) {
+        if (sample[i] == '<') {
+            if (i + 7 <= sample.size()) {
+                std::string tag;
+                tag.reserve(7);
+                for (std::size_t k = 0; k < 7; ++k) {
+                    tag.push_back(
+                        static_cast<char>(std::tolower(static_cast<unsigned char>(sample[i + k]))));
+                }
+                if (tag == "<binary") {
+                    break;
+                }
+            }
+            in_tag = true;
+            if (!prose.empty() && prose.back() != ' ') {
+                prose.push_back(' ');
+            }
+            continue;
+        }
+        if (in_tag) {
+            if (sample[i] == '>') {
+                in_tag = false;
+            }
+            continue;
+        }
+        prose.push_back(sample[i]);
+    }
+    const std::vector<std::string> fb2_single_byte = {"windows-1251", "koi8-r",     "iso-8859-5",
+                                                      "windows-1252", "iso-8859-1", "iso-8859-2",
+                                                      "iso-8859-15"};
+    const text::TextReading judged =
+        text::read_text(prose.empty() ? sample : std::string_view(prose), fb2_single_byte);
+    for (const std::string& name : judged.candidates) {
+        if (is_supported(name) &&
+            std::find(d.candidates.begin(), d.candidates.end(), name) == d.candidates.end()) {
+            d.candidates.push_back(name);
         }
     }
-    d.detected = "windows-1251";  // unreachable in practice: iso-8859-1 always decodes
+    for (const std::string& name : fb2_single_byte) {
+        if (std::find(d.candidates.begin(), d.candidates.end(), name) == d.candidates.end()) {
+            d.candidates.push_back(name);
+        }
+    }
+    d.confident = judged.decided;
+    if (judged.decided && is_supported(judged.encoding)) {
+        d.detected = judged.encoding;
+        if (!d.candidates.empty() && d.candidates.front() != d.detected) {
+            d.candidates.erase(std::remove(d.candidates.begin(), d.candidates.end(), d.detected),
+                               d.candidates.end());
+            d.candidates.insert(d.candidates.begin(), d.detected);
+        }
+    } else if (!d.candidates.empty()) {
+        d.detected = d.candidates.front();
+    } else {
+        d.detected = "windows-1251";
+    }
     return d;
+}
+
+std::string clean_invalid_utf8(std::string_view utf8, std::size_t* changed) {
+    std::string out;
+    out.reserve(utf8.size());
+    std::size_t count = 0;
+    std::size_t pos = 0;
+    while (pos < utf8.size()) {
+        const std::size_t start = pos;
+        bool ok = true;
+        const char32_t cp = next_utf8(utf8, pos, &ok);
+        if (!ok || cp == 0xFFFD || cp == 0x00AD || (cp >= 0x200B && cp <= 0x200F) ||
+            (cp >= 0x2028 && cp <= 0x202E) || (cp >= 0x2060 && cp <= 0x2064) || cp == 0xFEFF ||
+            cp == 0xFFFC || cp == 0xE06E || (cp >= 0xFE00 && cp <= 0xFE0F) ||
+            (cp >= 0xE0100 && cp <= 0xE01EF)) {
+            ++count;
+            continue;
+        }
+        if ((cp >= 0x2000 && cp <= 0x200A) || cp == 0xE088 || cp == 0xF04A) {
+            out.push_back(' ');
+            ++count;
+            continue;
+        }
+        if (cp == 0x202F) {
+            out.append("\xC2\xA0");
+            ++count;
+            continue;
+        }
+        if (cp == 0x2010 || cp == 0x2011) {
+            out.push_back('-');
+            ++count;
+            continue;
+        }
+        if (cp == 0x2015) {
+            out.append("\xE2\x80\x94");
+            ++count;
+            continue;
+        }
+        out.append(utf8.data() + start, pos - start);
+    }
+    if (changed != nullptr) {
+        *changed = count;
+    }
+    return out;
+}
+
+std::size_t count_invalid_utf8(std::string_view utf8) {
+    std::size_t count = 0;
+    (void)clean_invalid_utf8(utf8, &count);
+    return count;
 }
 
 /* ----------------------------------------------------------------------------------------- */

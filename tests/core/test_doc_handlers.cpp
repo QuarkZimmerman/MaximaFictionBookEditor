@@ -497,14 +497,93 @@ TEST_CASE("doc handlers: open (direct and as a job), warnings, validate, keepEnc
     CHECK_THAT(malformed["error"]["data"]["message"].get<std::string>(),
                ContainsSubstring("Opening and ending tag mismatch"));
 
-    // Mismatched declaration: opened with a warning.
-    const json mismatch =
-        f.ws.call("doc.open", json{{"path", f.book("mismatched-declaration.fb2").string()}});
+    // Mismatched declaration: opened with a warning, reported in Validation until saved, and
+    // previewable through doc.encodingPreview.
+    const std::string mismatch_path = f.book("mismatched-declaration.fb2").string();
+    const json mismatch = f.ws.call("doc.open", json{{"path", mismatch_path}});
     REQUIRE(mismatch.contains("result"));
     REQUIRE(mismatch["result"]["warnings"].size() == 1);
     CHECK(mismatch["result"]["warnings"][0]["code"] == "encoding.mismatch");
+    CHECK(mismatch["result"]["warnings"][0]["line"] == 1);
     CHECK(mismatch["result"]["warnings"][0]["params"]["detected"] == "windows-1251");
+    CHECK(mismatch["result"]["warnings"][0]["params"]["candidates"].is_array());
     CHECK(mismatch["result"]["document"]["sourceEncoding"] == "windows-1251");
+    const std::string mismatch_id = mismatch["result"]["document"]["docId"];
+    const json mismatch_val = f.run_job("doc.validate", json{{"docId", mismatch_id}});
+    REQUIRE(mismatch_val.contains("result"));
+    bool found_mismatch_in_validate = false;
+    for (const auto& issue : mismatch_val["result"]["issues"]) {
+        if (issue["code"] == "encoding.mismatch" && issue["line"] == 1) {
+            found_mismatch_in_validate = true;
+        }
+    }
+    CHECK(found_mismatch_in_validate);
+    // Live preview in the right encoding (0 undecodable) vs wrong encoding (>0 undecodable).
+    const json preview_ok = f.ws.call(
+        "doc.encodingPreview",
+        json{{"path", mismatch_path}, {"encoding", "windows-1251"}, {"cleanInvalidChars", true}});
+    REQUIRE(preview_ok.contains("result"));
+    CHECK(preview_ok["result"]["undecodableCount"] == 0);
+    REQUIRE_FALSE(preview_ok["result"]["blocks"].empty());
+    const json preview_bad = f.ws.call(
+        "doc.encodingPreview", json{{"path", mismatch_path}, {"encoding", "utf-8"}});
+    REQUIRE(preview_bad.contains("result"));
+    CHECK(preview_bad["result"]["undecodableCount"].get<int>() > 0);
+    // Saving clears the open-time encoding.mismatch warning from Validation.
+    const std::string fixed_out = (f.data / "mismatch-fixed.fb2").string();
+    const json fixed_save = f.run_job(
+        "doc.save",
+        json{{"docId", mismatch_id},
+             {"document", mismatch["result"]["document"]},
+             {"path", fixed_out},
+             {"encoding", "windows-1251"},
+             {"force", true}});
+    REQUIRE(fixed_save.contains("result"));
+    const json after_fix_val = f.run_job("doc.validate", json{{"docId", mismatch_id}});
+    REQUIRE(after_fix_val.contains("result"));
+    for (const auto& issue : after_fix_val["result"]["issues"]) {
+        CHECK(issue["code"] != "encoding.mismatch");
+    }
+    // doc.open with cleanInvalidChars strips U+200B, drops empty text children, keeps literal '?',
+    // and converts <p>&#x200B;</p> to <empty-line/>. Preview preserves decoded &lt;1&gt;.
+    const std::filesystem::path zwsp_path = f.data / "zwsp.fb2";
+    {
+        std::ofstream zwsp_out(zwsp_path, std::ios::binary);
+        zwsp_out << "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+                    "<FictionBook xmlns=\"http://www.gribuser.ru/xml/fictionbook/2.0\" "
+                    "xmlns:l=\"http://www.w3.org/1999/xlink\">"
+                    "<description><title-info><genre>sf</genre><author><last-name>A</last-name>"
+                    "</author><book-title>T\xE2\x80\x8B"
+                    "1</book-title><lang>ru</lang></title-info>"
+                    "<document-info><author><last-name>A</last-name></author><date>2026</date>"
+                    "<id>z1</id><version>1.0</version></document-info></description>"
+                    "<body><section><p>Привет <strong>\xE2\x80\x8B</strong>мир &lt;1&gt;?</p>"
+                    "<p>\xE2\x80\x8B</p></section></body>"
+                    "</FictionBook>\n";
+    }
+    const json zwsp_preview = f.ws.call(
+        "doc.encodingPreview",
+        json{{"path", zwsp_path.string()}, {"encoding", "utf-8"}, {"cleanInvalidChars", true}});
+    REQUIRE(zwsp_preview.contains("result"));
+    CHECK(zwsp_preview["result"]["invalidCharCount"].get<int>() >= 3);
+    REQUIRE(zwsp_preview["result"]["blocks"].size() >= 2);
+    CHECK(zwsp_preview["result"]["blocks"][1] == "Привет мир <1>?");
+
+    const json cleaned_open = f.ws.call(
+        "doc.open",
+        json{{"path", zwsp_path.string()}, {"encoding", "utf-8"}, {"cleanInvalidChars", true}});
+    REQUIRE(cleaned_open.contains("result"));
+    const json& cdoc = cleaned_open["result"]["document"];
+    CHECK(cdoc["description"]["titleInfo"]["bookTitle"] == "T1");
+    REQUIRE(cdoc["bodies"][0]["content"][0]["content"].size() == 2);
+    const json& first_p = cdoc["bodies"][0]["content"][0]["content"][0]["content"];
+    std::string combined_p;
+    for (const auto& run : first_p) {
+        CHECK_FALSE(run["text"].get<std::string>().empty());
+        combined_p += run["text"].get<std::string>();
+    }
+    CHECK(combined_p == "Привет мир <1>?");
+    CHECK(cdoc["bodies"][0]["content"][0]["content"][1]["type"] == "empty-line");
 
     // A big file (> 2 MB) opens as a job with progress and job.done carrying the result.
     const std::filesystem::path big_path = f.data / "big.fb2";

@@ -1328,3 +1328,83 @@ describe('Exit and window close while a script runs (feature 003 FR-013)', () =>
     off();
   });
 });
+
+describe('Encoding mismatch dialog on load', () => {
+  const mismatchWarning = {
+    severity: 'warning' as const,
+    code: 'encoding.mismatch',
+    line: 1,
+    params: {
+      declared: 'utf-8',
+      detected: 'windows-1251',
+      reason: 'invalid-bytes',
+      confident: true,
+      candidates: ['windows-1251', 'koi8-r'],
+    },
+  };
+
+  it('Fix reloads with chosen encoding and cleanup, marks modified, and never auto-saves', async () => {
+    let opens = 0;
+    const { feature, rpc, dialogs } = setup({
+      'doc.open': (params: unknown) => {
+        opens += 1;
+        const p = params as { encoding?: string; cleanInvalidChars?: boolean };
+        return {
+          document: {
+            ...fakeDocument(),
+            docId: `doc-m-${opens}`,
+            sourceEncoding: p.encoding ?? 'windows-1251',
+          },
+          warnings: opens === 1 ? [mismatchWarning] : [],
+        };
+      },
+      'doc.close': {},
+      'doc.watch': {},
+      'doc.recent': [],
+    });
+    const ctx = await makeContext({ rpc: rpc.client, dialogs });
+    actions.setConnection(ctx.store, 'connected');
+    dialogs.customAnswers.push({ action: 'fix', encoding: 'koi8-r', cleanInvalidChars: true });
+
+    expect(await feature.openDocument(ctx, '/books/broken.fb2')).toBe(true);
+    expect(dialogs.custom).toHaveLength(1);
+    const openCalls = rpc.calls.filter((c) => c.method === 'doc.open');
+    expect(openCalls).toEqual([
+      { method: 'doc.open', params: { path: '/books/broken.fb2' } },
+      {
+        method: 'doc.open',
+        params: { path: '/books/broken.fb2', encoding: 'koi8-r', cleanInvalidChars: true },
+      },
+    ]);
+    expect(rpc.calls.filter((c) => c.method === 'doc.save')).toEqual([]);
+    expect(ctx.store.getState().document?.sourceEncoding).toBe('koi8-r');
+    expect(ctx.store.getState().modified).toBe(true);
+  });
+
+  it('Load as is opens untouched without marking modified; Cancel keeps previous book', async () => {
+    const { feature, rpc, dialogs } = setup({
+      'doc.open': {
+        document: { ...fakeDocument(), docId: 'doc-new', sourceEncoding: 'windows-1251' },
+        warnings: [mismatchWarning],
+      },
+      'doc.close': {},
+      'doc.watch': {},
+      'doc.recent': [],
+    });
+    const ctx = await makeContext({ rpc: rpc.client, dialogs });
+    actions.setConnection(ctx.store, 'connected');
+    actions.setDocument(ctx.store, { ...fakeDocument(), docId: 'doc-prev' });
+
+    dialogs.customAnswers.push({ action: 'cancel' });
+    expect(await feature.openDocument(ctx, '/books/broken.fb2')).toBe(false);
+    expect(ctx.store.getState().docId).toBe('doc-prev');
+    expect(rpc.calls.filter((c) => c.method === 'doc.close')).toEqual([
+      { method: 'doc.close', params: { docId: 'doc-new' } },
+    ]);
+
+    dialogs.customAnswers.push({ action: 'asIs' });
+    expect(await feature.openDocument(ctx, '/books/broken.fb2')).toBe(true);
+    expect(ctx.store.getState().docId).toBe('doc-new');
+    expect(ctx.store.getState().modified).toBe(false);
+  });
+});

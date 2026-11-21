@@ -1340,11 +1340,30 @@ export interface RpcMethods {
    * with several books and no `entry` answers `needsChoice`; the UI shows the book chooser.
    */
   'doc.open': {
-    params: { path: string; entry?: string };
+    params: {
+      path: string;
+      entry?: string;
+      encoding?: string;
+      cleanInvalidChars?: boolean;
+    };
     result: MaybeJob<
       | { document: Document & LoadReport; warnings: ValidationIssue[] }
       | { needsChoice: ArchiveChoice }
     >;
+  };
+  'doc.encodingPreview': {
+    params: {
+      path: string;
+      entry?: string;
+      encoding: string;
+      cleanInvalidChars?: boolean;
+    };
+    result: {
+      blocks: string[];
+      initialBlock: number;
+      undecodableCount: number;
+      invalidCharCount: number;
+    };
   };
   'doc.openSource': {
     params: { path: string; entry?: string };

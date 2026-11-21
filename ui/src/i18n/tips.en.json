@@ -299,6 +299,12 @@
     },
     "genreFileHelp": {
       "close": "Closes the explanation."
+    },
+    "encodingMismatch": {
+      "encoding": "Choose the encoding to read the file with. The preview below updates right away.",
+      "prevBlock": "Show the previous text block from the file.",
+      "nextBlock": "Show the next text block from the file.",
+      "cleanInvalid": "Remove hidden or broken characters (such as zero-width spaces) that turn into question marks in older encodings."
     }
   }
 }
