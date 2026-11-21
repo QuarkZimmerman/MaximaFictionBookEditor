@@ -6,7 +6,7 @@
  * defaults of Settings > Exports serve again. Never stored anywhere.
  */
 
-import type { MobiFormat, MobiTocPlacement } from '@/rpc/types';
+import type { MobiFormat } from '@/rpc/types';
 
 export interface PdfKept {
   pageSize: string;
@@ -22,7 +22,6 @@ export interface TxtKept {
 }
 export interface MobiKept {
   format: MobiFormat;
-  tocPlacement: MobiTocPlacement;
   zip: boolean;
 }
 export interface KeptByFormat {

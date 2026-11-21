@@ -2,6 +2,7 @@
 #include "mobi/compression.hpp"
 #include "mobi/exth.hpp"
 #include "mobi/indx.hpp"
+#include "mobi/mobi_reader.hpp"
 #include "mobi/mobi_writer.hpp"
 #include "mobi/palmdb.hpp"
 
@@ -463,6 +464,104 @@ TEST_CASE(
     const std::size_t colophon_pos = insert_pos + colophon_it->fid_offset;
     REQUIRE(colophon_pos < reconstructed.size());
     CHECK(reconstructed.compare(colophon_pos, 21, "<div id=\"fb2-history\"") == 0);
+
+    fs::remove(tmp, ec);
+}
+
+TEST_CASE(
+    "Multi-fragment KF8 splits on mfbe-pagebreak into separate SKEL/FRAG parts with valid "
+    "cross-fragment links and MFBE digest",
+    "[mobi][writer][kf8]") {
+    const fs::path tmp = fs::temp_directory_path() / "mfbe_test_writer_kf8_multifrag.azw3";
+    std::error_code ec;
+    fs::remove(tmp, ec);
+
+    const std::string html =
+        "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
+        "<html xmlns=\"http://www.w3.org/1999/xhtml\" xmlns:epub=\"http://www.idpf.org/2007/ops\">"
+        "<head><title>Multi Fragment Book</title>"
+        "<link rel=\"stylesheet\" type=\"text/css\" "
+        "href=\"kindle:flow:0001?mime=text/css\"/></head>"
+        "<body aid=\"0\">"
+        "<div id=\"fb2-title-page\"><h1>Title</h1></div>"
+        "<hr class=\"mfbe-pagebreak\"/>"
+        "<div id=\"fb2-annotation\"><p>Summary</p></div>"
+        "<hr class=\"mfbe-pagebreak\"/>"
+        "<nav id=\"fb2-toc\"><ol>"
+        "<li><a href=\"#fb2-annotation\" data-kf8-target=\"fb2-annotation\">Annotation</a></li>"
+        "<li><a href=\"#s1\" data-kf8-target=\"s1\">Ch 1</a></li>"
+        "<li><a href=\"#s2\" data-kf8-target=\"s2\">Ch 2</a></li>"
+        "<li><a href=\"#fb2-history\" data-kf8-target=\"fb2-history\">History</a></li>"
+        "</ol></nav>"
+        "<hr class=\"mfbe-pagebreak\"/>"
+        "<div id=\"fb2-main-start\" class=\"fb2-body\" data-fb2-body=\"0\"><section "
+        "id=\"s1\"><h1>Ch 1</h1><p>One</p></section></div>"
+        "<hr class=\"mfbe-pagebreak\"/>"
+        "<div class=\"fb2-body fb2-body-continued\" data-fb2-body=\"0\"><section id=\"s2\"><h1>Ch "
+        "2</h1><p>Two</p></section></div>"
+        "<hr class=\"mfbe-pagebreak\"/>"
+        "<div id=\"fb2-history\" epub:type=\"colophon\"><p>v1.0</p></div>"
+        "</body></html>";
+
+    MobiWriter writer(tmp, MobiExportFormat::kf8);
+    writer.set_kf8_html(html);
+    writer.set_kf8_css("body { margin: 0; }\n");
+    writer.set_mfbe_json(json{{"description", json::object()}, {"attrs", json::object()}});
+
+    MobiCommitInput commit;
+    commit.metadata = sample_meta();
+    commit.metadata.open_at_anchor_id = "fb2-title-page";
+    commit.nav = {
+        {"Annotation", "fb2-annotation", 0, 0, 0, -1, -1, -1, 0, 0},
+        {"Ch 1", "s1", 0, 0, 0, -1, -1, -1, 0, 0},
+        {"Ch 2", "s2", 0, 0, 0, -1, -1, -1, 0, 0},
+        {"History", "fb2-history", 0, 0, 0, -1, -1, -1, 0, 0},
+    };
+    commit.guide = {
+        {"title-page", "Title page", "fb2-title-page", 0, 0, 0},
+        {"toc", "Contents", "fb2-toc", 0, 0, 0},
+        {"colophon", "Revision history", "fb2-history", 0, 0, 0},
+        {"text", "Start", "fb2-title-page", 0, 0, 0},
+    };
+
+    const MobiWriteResult res = writer.commit(commit);
+    REQUIRE(res.bytes > 0);
+
+    // Verify 6 separate SKEL and FRAG entries
+    const PalmDb pdb = read_palmdb(atomic_file::read_file(tmp));
+    std::vector<std::string_view> views;
+    views.reserve(pdb.records.size());
+    for (const auto& r : pdb.records) {
+        views.emplace_back(r);
+    }
+    const std::uint32_t frag_rec = read_u32_be(pdb.records[0], 248);
+    const std::uint32_t skel_rec = read_u32_be(pdb.records[0], 252);
+    const std::uint32_t guide_rec = read_u32_be(pdb.records[0], 260);
+    const auto sf = parse_kf8_skel_frag(views, skel_rec, frag_rec);
+    const auto guides = parse_kf8_guide(views, guide_rec);
+    REQUIRE(sf.skels.size() == 6);
+    REQUIRE(sf.frags.size() == 6);
+
+    const auto find_guide = [&](std::string_view type) {
+        return std::find_if(guides.begin(), guides.end(),
+                            [&](const auto& g) { return g.type == type; });
+    };
+    REQUIRE(find_guide("title-page") != guides.end());
+    CHECK(find_guide("title-page")->fid == 0U);
+    REQUIRE(find_guide("toc") != guides.end());
+    CHECK(find_guide("toc")->fid == 2U);
+    REQUIRE(find_guide("colophon") != guides.end());
+    CHECK(find_guide("colophon")->fid == 5U);
+
+    // Round-trip through MobiReader: MFBE htmlSha256 matches exactly and every guide/link resolves!
+    const MobiReadResult back = read_mobi_file(tmp);
+    CHECK(back.mfbe_status == MfbeStatus::valid);
+    CHECK(back.mfbe_html_matches);
+    CHECK(back.mfbe_meta_matches);
+    CHECK(back.html_bytes.find("href=\"#fb2-annotation\"") != std::string::npos);
+    CHECK(back.html_bytes.find("href=\"#s1\"") != std::string::npos);
+    CHECK(back.html_bytes.find("href=\"#s2\"") != std::string::npos);
+    CHECK(back.html_bytes.find("href=\"#fb2-history\"") != std::string::npos);
 
     fs::remove(tmp, ec);
 }

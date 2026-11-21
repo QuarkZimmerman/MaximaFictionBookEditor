@@ -147,134 +147,260 @@ PatchedMobi7 patch_mobi7_filepos(std::string_view input) {
     return PatchedMobi7{std::move(clean), std::move(anchors)};
 }
 
-// Splits a complete KF8 XHTML5 document (`...<body ...>INNER</body></html>`) into a Calibre/Kindle
-// compatible skeleton (`...<body aid="0"></body></html>`) and fragment (`INNER`), and resolves
-// `data-kf8-target="ID"` placeholders to exact `kindle:pos:fid:0000:off:YYYYYYYYYY` URIs.
+// Splits a complete KF8 XHTML5 document (`...<body ...>INNER</body></html>`) into one or more
+// Calibre/Kindle compatible skeletons (`...<body aid="N"></body></html>`) and fragments split on
+// `<hr class="mfbe-pagebreak"/>`, resolving `data-kf8-target="ID"` placeholders to exact
+// `kindle:pos:fid:XXXX:off:YYYYYYYYYY` URIs across all fragments.
+struct Kf8AnchorLoc {
+    std::uint32_t fid = 0;
+    std::uint32_t fid_offset = 0;
+    std::uint32_t flow_offset = 0;
+};
+
 struct PreparedKf8 {
     std::string canonical_html;  // Complete reconstructed XHTML5 (for MFBE htmlSha256)
-    std::string flow0;           // skeleton + fragment bytes
-    std::uint32_t skel_len = 0;
-    std::uint32_t insert_pos = 0;
-    std::uint32_t frag_len = 0;
-    std::unordered_map<std::string, std::uint32_t> anchors;  // offsets within canonical_html
+    std::string flow0;           // Concatenated (skel_i + frag_i) bytes
+    std::vector<SkelEntry> skels;
+    std::vector<FragEntry> frags;
+    std::unordered_map<std::string, Kf8AnchorLoc> anchors;
 };
+
+std::string set_body_aid(std::string_view prefix, std::size_t index) {
+    const std::string aid_attr = " aid=\"" + std::to_string(index) + "\"";
+    const std::size_t body_open = prefix.find("<body");
+    if (body_open == std::string_view::npos) {
+        return std::string(prefix);
+    }
+    const std::size_t body_gt = prefix.find('>', body_open);
+    if (body_gt == std::string_view::npos) {
+        return std::string(prefix);
+    }
+    const std::string_view btag = prefix.substr(body_open, body_gt - body_open);
+    const std::size_t aid_pos = btag.find(" aid=\"");
+    if (aid_pos != std::string_view::npos) {
+        const std::size_t abs_aid = body_open + aid_pos;
+        const std::size_t aid_end = prefix.find('"', abs_aid + 6);
+        if (aid_end != std::string_view::npos && aid_end < body_gt) {
+            std::string out;
+            out.reserve(prefix.size() + 8);
+            out.append(prefix.substr(0, abs_aid));
+            out.append(aid_attr);
+            out.append(prefix.substr(aid_end + 1));
+            return out;
+        }
+    }
+    std::string out;
+    out.reserve(prefix.size() + aid_attr.size());
+    out.append(prefix.substr(0, body_gt));
+    out.append(aid_attr);
+    out.append(prefix.substr(body_gt));
+    return out;
+}
 
 PreparedKf8 prepare_kf8_document(std::string_view input) {
     // First strip ` data-kf8-target="ID"` and replace `href="#..."` (or placeholder) with
     // fixed-width `href="kindle:pos:fid:0000:off:0000000000"` so patching never shifts offsets!
     struct Kf8Site {
-        std::size_t off_pos;  // position of 10-char base32 offset inside canonical_html
+        std::size_t frag_idx = 0;
+        std::size_t fid_pos = 0;  // position of 4-char base32 fid inside frag_texts[frag_idx]
+        std::size_t off_pos = 0;  // position of 10-char base32 offset inside frag_texts[frag_idx]
         std::string target_id;
     };
-    std::vector<Kf8Site> sites;
-    std::string html;
-    html.reserve(input.size() + 1024);
 
-    static constexpr std::string_view kTargetAttr = " data-kf8-target=\"";
-    std::size_t pos = 0;
-    while (pos < input.size()) {
-        const std::size_t hit = input.find(kTargetAttr, pos);
-        if (hit == std::string_view::npos) {
-            html.append(input.substr(pos));
-            break;
-        }
-        const std::size_t id_start = hit + kTargetAttr.size();
-        const std::size_t id_end = input.find('"', id_start);
-        if (id_end == std::string_view::npos) {
-            html.append(input.substr(pos));
-            break;
-        }
-        const std::string target_id(input.substr(id_start, id_end - id_start));
-        // Look backwards from `hit` within the same `<a ...>` tag for `href="..."`
-        const std::size_t tag_open = input.rfind('<', hit);
-        const std::size_t href_pos = (tag_open != std::string_view::npos && tag_open >= pos)
-                                         ? input.find("href=\"", tag_open)
-                                         : std::string_view::npos;
-        if (href_pos != std::string_view::npos && href_pos < hit) {
-            const std::size_t href_end = input.find('"', href_pos + 6);
-            if (href_end != std::string_view::npos && href_end < hit) {
-                html.append(input.substr(pos, href_pos - pos));
-                html.append("href=\"kindle:pos:fid:0000:off:");
-                const std::size_t off_pos = html.size();
-                html.append("0000000000\"");
-                html.append(input.substr(href_end + 1, hit - (href_end + 1)));
-                sites.push_back(Kf8Site{off_pos, target_id});
-                pos = id_end + 1;
-                continue;
+    auto rewrite_targets = [](std::string_view src, std::size_t frag_idx,
+                              std::vector<Kf8Site>& sites) -> std::string {
+        std::string out;
+        out.reserve(src.size() + 64);
+        static constexpr std::string_view kTargetAttr = " data-kf8-target=\"";
+        std::size_t pos = 0;
+        while (pos < src.size()) {
+            const std::size_t hit = src.find(kTargetAttr, pos);
+            if (hit == std::string_view::npos) {
+                out.append(src.substr(pos));
+                break;
             }
-        }
-        html.append(input.substr(pos, hit - pos));
-        pos = id_end + 1;
-    }
-
-    // Ensure `<body` carries `aid="0"` for Calibre/Kindle SKEL/FRAG XPath selector
-    // `P-//*[@aid='0']`.
-    std::size_t body_open = html.find("<body");
-    if (body_open != std::string::npos) {
-        const std::size_t body_gt = html.find('>', body_open);
-        if (body_gt != std::string::npos) {
-            const std::string_view btag =
-                std::string_view(html).substr(body_open, body_gt - body_open);
-            if (btag.find("aid=") == std::string_view::npos) {
-                const std::size_t insert_at = body_gt;
-                const std::string_view aid = " aid=\"0\"";
-                html.insert(insert_at, aid);
-                for (auto& s : sites) {
-                    if (s.off_pos >= insert_at) {
-                        s.off_pos += aid.size();
-                    }
+            const std::size_t id_start = hit + kTargetAttr.size();
+            const std::size_t id_end = src.find('"', id_start);
+            if (id_end == std::string_view::npos) {
+                out.append(src.substr(pos));
+                break;
+            }
+            const std::string target_id(src.substr(id_start, id_end - id_start));
+            const std::size_t tag_open = src.rfind('<', hit);
+            const std::size_t href_pos = (tag_open != std::string_view::npos && tag_open >= pos)
+                                             ? src.find("href=\"", tag_open)
+                                             : std::string_view::npos;
+            if (href_pos != std::string_view::npos && href_pos < hit) {
+                const std::size_t href_end = src.find('"', href_pos + 6);
+                if (href_end != std::string_view::npos && href_end < hit) {
+                    out.append(src.substr(pos, href_pos - pos));
+                    out.append("href=\"kindle:pos:fid:");
+                    const std::size_t fid_pos = out.size();
+                    out.append("0000:off:");
+                    const std::size_t off_pos = out.size();
+                    out.append("0000000000\"");
+                    out.append(src.substr(href_end + 1, hit - (href_end + 1)));
+                    sites.push_back(Kf8Site{frag_idx, fid_pos, off_pos, target_id});
+                    pos = id_end + 1;
+                    continue;
                 }
             }
+            out.append(src.substr(pos, hit - pos));
+            pos = id_end + 1;
+        }
+        return out;
+    };
+
+    const std::size_t body_open = input.find("<body");
+    const std::size_t body_gt =
+        (body_open != std::string_view::npos) ? input.find('>', body_open) : std::string_view::npos;
+    const std::size_t body_close = input.rfind("</body>");
+    const bool has_split = body_gt != std::string_view::npos &&
+                           body_close != std::string_view::npos && body_close >= body_gt + 1;
+
+    PreparedKf8 out;
+    if (!has_split) {
+        std::vector<Kf8Site> sites;
+        std::string html = rewrite_targets(input, 0, sites);
+        const auto raw_anchors = collect_anchor_offsets(html);
+        for (const auto& [id, off] : raw_anchors) {
+            out.anchors.emplace(id, Kf8AnchorLoc{0U, off, off});
+        }
+        for (const auto& s : sites) {
+            const auto it = out.anchors.find(s.target_id);
+            const std::uint32_t off = (it != out.anchors.end()) ? it->second.fid_offset : 0U;
+            const std::string b32 = to_base32_padded(off, 10);
+            std::memcpy(html.data() + s.off_pos, b32.data(), 10);
+        }
+        out.canonical_html = html;
+        out.flow0 = html;
+        char aid_buf[32];
+        std::snprintf(aid_buf, sizeof(aid_buf), "%010u", static_cast<unsigned>(html.size()));
+        out.skels.push_back(
+            SkelEntry{"SKEL0000000000", 1, 0, static_cast<std::uint32_t>(html.size())});
+        out.frags.push_back(FragEntry{aid_buf, "P-//*[@aid='0']", 0, 0, 0, 0});
+        return out;
+    }
+
+    const std::string_view raw_prefix = input.substr(0, body_gt + 1);
+    const std::string_view inner = input.substr(body_gt + 1, body_close - (body_gt + 1));
+    const std::string_view suffix = input.substr(body_close);
+
+    // Split `inner` on `<hr class="mfbe-pagebreak"/>` into balanced per-page KF8 fragments.
+    static constexpr std::string_view kBreakMarker = "<hr class=\"mfbe-pagebreak\"/>";
+    std::vector<std::string_view> raw_frags;
+    {
+        std::size_t cur = 0;
+        while (cur <= inner.size()) {
+            const std::size_t br = inner.find(kBreakMarker, cur);
+            if (br == std::string_view::npos) {
+                const std::string_view piece = inner.substr(cur);
+                if (!piece.empty() || raw_frags.empty()) {
+                    raw_frags.push_back(piece);
+                }
+                break;
+            }
+            const std::string_view piece = inner.substr(cur, br - cur);
+            if (!piece.empty()) {
+                raw_frags.push_back(piece);
+            }
+            cur = br + kBreakMarker.size();
+        }
+        if (raw_frags.empty()) {
+            raw_frags.push_back(std::string_view{});
         }
     }
 
-    // Locate `<body>` boundaries first so we know fragment 0's `insert_pos` (= `prefix.size()`).
-    // In KF8, `pos_fid` offsets (`kindle:pos:fid:0000:off:...`, NCX tag 6, GUIDE tag 6) are byte
-    // offsets relative to the fragment start (`insert_pos`), NOT relative to document start.
-    const std::size_t body_gt_final =
-        (body_open != std::string::npos) ? html.find('>', body_open) : std::string::npos;
-    const std::size_t body_close = html.rfind("</body>");
-    const bool has_split = body_gt_final != std::string::npos && body_close != std::string::npos &&
-                           body_close >= body_gt_final + 1;
-    const std::uint32_t insert_pos = has_split ? static_cast<std::uint32_t>(body_gt_final + 1) : 0U;
+    std::vector<Kf8Site> sites;
+    std::vector<std::string> frag_texts;
+    std::vector<std::string> prefixes;
+    std::vector<std::string> skel_texts;
+    frag_texts.reserve(raw_frags.size());
+    prefixes.reserve(raw_frags.size());
+    skel_texts.reserve(raw_frags.size());
 
-    // Compute exact byte offsets on `html` and patch `kindle:pos:fid:0000:off:YYYYYYYYYY` in place.
-    auto anchors = collect_anchor_offsets(html);
-    for (const auto& s : sites) {
-        const auto it = anchors.find(s.target_id);
-        const std::uint32_t abs_off = (it != anchors.end()) ? it->second : insert_pos;
-        const std::uint32_t frag_off = (abs_off >= insert_pos) ? (abs_off - insert_pos) : 0U;
-        const std::string b32 = to_base32_padded(frag_off, 10);
-        std::memcpy(html.data() + s.off_pos, b32.data(), 10);
-    }
-
-    PreparedKf8 out;
-    out.canonical_html = html;
-    out.anchors = std::move(anchors);
-
-    // Split into skeleton (`...<body ...></body></html>`) + fragment (`INNER`).
-    if (has_split) {
-        const std::string_view prefix = std::string_view(html).substr(0, body_gt_final + 1);
-        const std::string_view inner =
-            std::string_view(html).substr(body_gt_final + 1, body_close - (body_gt_final + 1));
-        const std::string_view suffix = std::string_view(html).substr(body_close);
+    for (std::size_t i = 0; i < raw_frags.size(); ++i) {
+        frag_texts.push_back(rewrite_targets(raw_frags[i], i, sites));
+        std::string pfx = set_body_aid(raw_prefix, i);
         std::string skel;
-        skel.reserve(prefix.size() + suffix.size());
-        skel.append(prefix);
+        skel.reserve(pfx.size() + suffix.size());
+        skel.append(pfx);
         skel.append(suffix);
-        out.insert_pos = insert_pos;
-        out.skel_len = static_cast<std::uint32_t>(skel.size());
-        out.frag_len = static_cast<std::uint32_t>(inner.size());
-        out.flow0.reserve(skel.size() + inner.size());
-        out.flow0.append(skel);
-        out.flow0.append(inner);
-    } else {
-        // Fallback: single-piece Flow[0] with empty fragment
-        out.insert_pos = static_cast<std::uint32_t>(html.size());
-        out.skel_len = static_cast<std::uint32_t>(html.size());
-        out.frag_len = 0;
-        out.flow0 = html;
+        prefixes.push_back(std::move(pfx));
+        skel_texts.push_back(std::move(skel));
     }
+
+    // Compute exact global offsets in Flow[0] and collect every anchor's (fid, fid_offset,
+    // flow_offset). Link patching is fixed-width so no length changes afterwards!
+    std::vector<std::uint32_t> skel_starts(frag_texts.size(), 0);
+    std::vector<std::uint32_t> insert_positions(frag_texts.size(), 0);
+    std::uint32_t flow_cursor = 0;
+    for (std::size_t i = 0; i < frag_texts.size(); ++i) {
+        skel_starts[i] = flow_cursor;
+        insert_positions[i] = flow_cursor + static_cast<std::uint32_t>(prefixes[i].size());
+        const auto local_anchors = collect_anchor_offsets(frag_texts[i]);
+        for (const auto& [id, local_off] : local_anchors) {
+            out.anchors.try_emplace(id, Kf8AnchorLoc{static_cast<std::uint32_t>(i), local_off,
+                                                     insert_positions[i] + local_off});
+        }
+        flow_cursor += static_cast<std::uint32_t>(skel_texts[i].size() + frag_texts[i].size());
+    }
+
+    // Patch every `kindle:pos:fid:XXXX:off:YYYYYYYYYY` in place.
+    for (const auto& s : sites) {
+        const auto it = out.anchors.find(s.target_id);
+        const std::uint32_t fid = (it != out.anchors.end()) ? it->second.fid : 0U;
+        const std::uint32_t off = (it != out.anchors.end()) ? it->second.fid_offset : 0U;
+        const std::string fid_b32 = to_base32_padded(fid, 4);
+        const std::string off_b32 = to_base32_padded(off, 10);
+        std::memcpy(frag_texts[s.frag_idx].data() + s.fid_pos, fid_b32.data(), 4);
+        std::memcpy(frag_texts[s.frag_idx].data() + s.off_pos, off_b32.data(), 10);
+    }
+
+    // Assemble Flow[0], SKEL, FRAG, and canonical_html (matching mobi_reader's reassembly
+    // byte-for-byte so MFBE htmlSha256 verifies identically across single and multi-fragment KF8).
+    out.flow0.reserve(flow_cursor);
+    out.skels.reserve(frag_texts.size());
+    out.frags.reserve(frag_texts.size());
+    std::size_t canonical_len =
+        prefixes[0].size() + suffix.size() +
+        (frag_texts.size() > 1 ? (frag_texts.size() - 1) * kBreakMarker.size() : 0);
+    for (const auto& ft : frag_texts) {
+        canonical_len += ft.size();
+    }
+    out.canonical_html.reserve(canonical_len);
+    out.canonical_html.append(prefixes[0]);
+
+    for (std::size_t i = 0; i < frag_texts.size(); ++i) {
+        if (i > 0) {
+            out.canonical_html.append(kBreakMarker);
+        }
+        out.canonical_html.append(frag_texts[i]);
+
+        out.flow0.append(skel_texts[i]);
+        out.flow0.append(frag_texts[i]);
+
+        char skel_key[32];
+        std::snprintf(skel_key, sizeof(skel_key), "SKEL%010u", static_cast<unsigned>(i));
+        out.skels.push_back(SkelEntry{
+            skel_key,
+            1U,
+            skel_starts[i],
+            static_cast<std::uint32_t>(skel_texts[i].size()),
+        });
+
+        char aid_buf[32];
+        std::snprintf(aid_buf, sizeof(aid_buf), "%010u", insert_positions[i]);
+        out.frags.push_back(FragEntry{
+            aid_buf,
+            "P-//*[@aid='" + std::to_string(i) + "']",
+            static_cast<std::uint32_t>(i),
+            static_cast<std::uint32_t>(i),
+            0U,
+            static_cast<std::uint32_t>(frag_texts[i].size()),
+        });
+    }
+    out.canonical_html.append(suffix);
     return out;
 }
 
@@ -329,18 +455,62 @@ std::vector<MobiNavEntry> resolve_nav_entries(
     return nav;
 }
 
-std::vector<MobiGuideEntry> resolve_guide_entries(
+std::vector<MobiNavEntry> resolve_kf8_nav_entries(
+    const std::vector<MobiNavEntry>& raw_nav,
+    const std::unordered_map<std::string, Kf8AnchorLoc>& anchors, std::uint32_t total_len) {
+    std::vector<MobiNavEntry> nav = raw_nav;
+    for (auto& e : nav) {
+        if (!e.anchor_id.empty()) {
+            if (auto it = anchors.find(e.anchor_id); it != anchors.end()) {
+                e.offset = it->second.flow_offset;
+                e.fid = it->second.fid;
+                e.fid_offset = it->second.fid_offset;
+            }
+        }
+    }
+    for (std::size_t i = 0; i < nav.size(); ++i) {
+        std::uint32_t end = total_len;
+        for (std::size_t j = i + 1; j < nav.size(); ++j) {
+            if (nav[j].depth <= nav[i].depth && nav[j].offset >= nav[i].offset) {
+                end = nav[j].offset;
+                break;
+            }
+        }
+        nav[i].length = (end >= nav[i].offset) ? (end - nav[i].offset) : 0U;
+        nav[i].parent = -1;
+        nav[i].first_child = -1;
+        nav[i].last_child = -1;
+        for (int p = static_cast<int>(i) - 1; p >= 0; --p) {
+            if (nav[static_cast<std::size_t>(p)].depth < nav[i].depth) {
+                nav[i].parent = p;
+                break;
+            }
+        }
+        for (std::size_t j = i + 1; j < nav.size(); ++j) {
+            if (nav[j].depth <= nav[i].depth) {
+                break;
+            }
+            if (nav[j].depth == nav[i].depth + 1) {
+                if (nav[i].first_child < 0) {
+                    nav[i].first_child = static_cast<int>(j);
+                }
+                nav[i].last_child = static_cast<int>(j);
+            }
+        }
+    }
+    return nav;
+}
+
+std::vector<MobiGuideEntry> resolve_kf8_guide_entries(
     const std::vector<MobiGuideEntry>& raw_guide,
-    const std::unordered_map<std::string, std::uint32_t>& anchors,
-    std::uint32_t frag_insert_pos = 0) {
+    const std::unordered_map<std::string, Kf8AnchorLoc>& anchors) {
     std::vector<MobiGuideEntry> out;
     for (auto g : raw_guide) {
         if (!g.anchor_id.empty()) {
             if (auto it = anchors.find(g.anchor_id); it != anchors.end()) {
-                g.offset = it->second;
-                g.fid = 0;
-                g.fid_offset =
-                    (it->second >= frag_insert_pos) ? (it->second - frag_insert_pos) : 0U;
+                g.offset = it->second.flow_offset;
+                g.fid = it->second.fid;
+                g.fid_offset = it->second.fid_offset;
                 out.push_back(std::move(g));
             }
         }
@@ -468,28 +638,20 @@ std::vector<std::string> build_kf8_block(const PreparedKf8& kf8, const std::stri
 
     const std::uint32_t first_non_book = static_cast<std::uint32_t>(recs.size());
 
-    // FRAG index
-    char aid_buf[16];
-    std::snprintf(aid_buf, sizeof(aid_buf), "%010u", kf8.insert_pos);
-    const std::vector<FragEntry> frags = {
-        FragEntry{aid_buf, "P-//*[@aid='0']", 0, 0, 0, kf8.frag_len},
-    };
+    // FRAG index (one fragment per page-break part)
     const std::uint32_t frag_rec = static_cast<std::uint32_t>(recs.size());
-    for (auto& r : build_kf8_frag(frags)) {
+    for (auto& r : build_kf8_frag(kf8.frags)) {
         recs.push_back(std::move(r));
     }
 
-    // SKEL index
-    const std::vector<SkelEntry> skels = {
-        SkelEntry{"SKEL0000000000", 1, 0, kf8.skel_len},
-    };
+    // SKEL index (one skeleton per page-break part)
     const std::uint32_t skel_rec = static_cast<std::uint32_t>(recs.size());
-    for (auto& r : build_kf8_skel(skels)) {
+    for (auto& r : build_kf8_skel(kf8.skels)) {
         recs.push_back(std::move(r));
     }
 
     // GUIDE index (optional)
-    const auto resolved_guide = resolve_guide_entries(input.guide, kf8.anchors, kf8.insert_pos);
+    const auto resolved_guide = resolve_kf8_guide_entries(input.guide, kf8.anchors);
     std::uint32_t guide_rec = 0xFFFFFFFFU;
     if (!resolved_guide.empty()) {
         guide_rec = static_cast<std::uint32_t>(recs.size());
@@ -499,9 +661,8 @@ std::vector<std::string> build_kf8_block(const PreparedKf8& kf8, const std::stri
     }
 
     // NCX navigation index (written whenever nav is non-empty, independent of inline TOC)
-    const auto resolved_nav = resolve_nav_entries(
-        input.nav, kf8.anchors, static_cast<std::uint32_t>(kf8.canonical_html.size()),
-        /*compute_hierarchy=*/true, kf8.insert_pos);
+    const auto resolved_nav = resolve_kf8_nav_entries(input.nav, kf8.anchors,
+                                                      static_cast<std::uint32_t>(kf8.flow0.size()));
     std::uint32_t indx_rec = 0xFFFFFFFFU;
     if (!resolved_nav.empty()) {
         indx_rec = static_cast<std::uint32_t>(recs.size());
@@ -542,7 +703,7 @@ std::vector<std::string> build_kf8_block(const PreparedKf8& kf8, const std::stri
     std::optional<std::uint32_t> open_at_off;
     if (!input.metadata.open_at_anchor_id.empty()) {
         if (auto it = kf8.anchors.find(input.metadata.open_at_anchor_id); it != kf8.anchors.end()) {
-            open_at_off = it->second;
+            open_at_off = it->second.flow_offset;
         }
     }
 

@@ -43,10 +43,6 @@ function isMobiFormat(v: string | undefined): v is MobiFormat {
   return v === 'mobi7' || v === 'joint' || v === 'kf8';
 }
 
-function isTocPlacement(v: string | undefined): v is MobiTocPlacement {
-  return v === 'afterTitle' || v === 'end' || v === 'none';
-}
-
 function finalizeTargetPath(rawPath: string, format: MobiFormat, zip: boolean): string {
   if (zip) {
     return /\.zip$/i.test(rawPath)
@@ -81,9 +77,8 @@ export function registerMobiExportFeature(commands: CommandRegistry): void {
       const settings = state.settings?.mobi;
       const kept = keptExportOptions(docId, 'mobi');
       const initFormat: MobiFormat = kept?.format ?? settings?.format ?? 'joint';
-      const initToc: MobiTocPlacement =
-        kept?.tocPlacement ?? settings?.tocPlacement ?? 'afterTitle';
       const initZip: boolean = kept?.zip ?? settings?.zip ?? false;
+      const tocPlacement: MobiTocPlacement = settings?.tocPlacement ?? 'afterTitle';
       const seriesInTitle: MobiSeriesInTitle = settings?.seriesInTitle ?? 'seriesAndNumber';
       const openAt: MobiOpenAt = settings?.openAt ?? 'titlePage';
       const kf8PopupFootnotes: boolean = settings?.kf8PopupFootnotes ?? true;
@@ -109,19 +104,9 @@ export function registerMobiExportFeature(commands: CommandRegistry): void {
             label: ctx.t('mobi.formatLabel'),
             selected: initFormat,
             choices: [
-              { value: 'joint', label: ctx.t('mobi.formats.joint'), extension: 'mobi' },
-              { value: 'mobi7', label: ctx.t('mobi.formats.mobi7'), extension: 'mobi' },
-              { value: 'kf8', label: ctx.t('mobi.formats.kf8'), extension: 'azw3' },
-            ],
-          },
-          {
-            id: 'tocPlacement',
-            label: ctx.t('mobi.tocLabel'),
-            selected: initToc,
-            choices: [
-              { value: 'afterTitle', label: ctx.t('mobi.tocPlacements.afterTitle') },
-              { value: 'end', label: ctx.t('mobi.tocPlacements.end') },
-              { value: 'none', label: ctx.t('mobi.tocPlacements.none') },
+              { value: 'joint', label: ctx.t('mobi.saveFormats.joint'), extension: 'mobi' },
+              { value: 'mobi7', label: ctx.t('mobi.saveFormats.mobi7'), extension: 'mobi' },
+              { value: 'kf8', label: ctx.t('mobi.saveFormats.kf8'), extension: 'azw3' },
             ],
           },
         ],
@@ -130,24 +115,21 @@ export function registerMobiExportFeature(commands: CommandRegistry): void {
       if (!answer.path || store.getState().docId !== docId) return;
 
       const returnedFormat = answer.selects?.format;
-      const returnedToc = answer.selects?.tocPlacement;
       let format: MobiFormat | null = isMobiFormat(returnedFormat) ? returnedFormat : null;
-      let tocPlacement: MobiTocPlacement | null = isTocPlacement(returnedToc) ? returnedToc : null;
       let zip: boolean | undefined = answer.zip;
 
       // Fallback modal when platform dialog could not carry selects or zip checkbox.
-      if (format === null || tocPlacement === null || zip === undefined) {
+      if (format === null || zip === undefined) {
         const asked = await ctx.dialogs.openCustom<MobiExportOptionsChoice | null>((close) =>
           createElement(MobiExportOptions, {
             format: format ?? initFormat,
-            tocPlacement: tocPlacement ?? initToc,
             zip: zip ?? initZip,
             path: answer.path,
             onClose: close,
           }),
         );
         if (!asked) return;
-        ({ format, tocPlacement, zip } = asked);
+        ({ format, zip } = asked);
       }
 
       if (store.getState().docId !== docId) return;
@@ -157,7 +139,7 @@ export function registerMobiExportFeature(commands: CommandRegistry): void {
       if (store.getState().docId !== docId) return;
 
       // Remember choices for this open book once export actually begins (even if later cancelled).
-      keepExportOptions(docId, 'mobi', { format, tocPlacement, zip });
+      keepExportOptions(docId, 'mobi', { format, zip });
 
       let cancelled = false;
       const modal = startModalJob(ctx.t('mobi.exporting'), () => {

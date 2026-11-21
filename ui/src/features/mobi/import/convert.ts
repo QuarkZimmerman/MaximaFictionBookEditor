@@ -1316,7 +1316,10 @@ export async function convertMobiToFb2(options: ConvertMobiOptions): Promise<Con
 
   if (isEditorRoundTrip && body && body.querySelector('.fb2-body')) {
     const bodyEls = Array.from(body.querySelectorAll('.fb2-body'));
-    let emittedMainBody = false;
+    // Group `.fb2-body` fragments by their `data-fb2-body` index so multi-fragment KF8 books
+    // (one fragment per chapter) reassemble into the exact original FB2 bodies.
+    const bodyGroups: Array<{ bodyIdx: number; els: Element[] }> = [];
+    const groupByIdx = new Map<number, { bodyIdx: number; els: Element[] }>();
     for (let bi = 0; bi < bodyEls.length; bi++) {
       const bEl = bodyEls[bi]!;
       const bodyIdx = Number.parseInt(
@@ -1328,7 +1331,21 @@ export async function convertMobiToFb2(options: ConvertMobiOptions): Promise<Con
       if (bEl.id === 'fb2-notes' || bEl.classList.contains('fb2-notes') || bName === 'notes') {
         continue;
       }
-      const bLang = bodyAttr?.lang ?? bEl.getAttribute('lang') ?? '';
+      let grp = groupByIdx.get(bodyIdx);
+      if (!grp) {
+        grp = { bodyIdx, els: [] };
+        groupByIdx.set(bodyIdx, grp);
+        bodyGroups.push(grp);
+      }
+      grp.els.push(bEl);
+    }
+
+    let emittedMainBody = false;
+    for (const grp of bodyGroups) {
+      const firstEl = grp.els[0]!;
+      const bodyAttr = mfbe.attrs.bodies.find((b) => b.index === grp.bodyIdx);
+      const bName = bodyAttr?.name ?? firstEl.getAttribute('data-body-name') ?? '';
+      const bLang = bodyAttr?.lang ?? firstEl.getAttribute('lang') ?? '';
       const bAttrs: string[] = [];
       if (bName) bAttrs.push(`name="${escAttr(bName)}"`);
       if (bLang) bAttrs.push(`xml:lang="${escAttr(bLang)}"`);
@@ -1347,18 +1364,22 @@ export async function convertMobiToFb2(options: ConvertMobiOptions): Promise<Con
       emittedMainBody = true;
 
       const secs: string[] = [];
-      for (const ch of Array.from(bEl.children)) {
-        await maybeYield();
-        const role = semanticRoleOfClasses(ch.classList);
-        if (role === 'section' || ch.tagName.toLowerCase() === 'section') {
-          secs.push(serializeSection(await renderRoundTripSection(ch)));
+      for (const bEl of grp.els) {
+        for (const ch of Array.from(bEl.children)) {
+          await maybeYield();
+          const role = semanticRoleOfClasses(ch.classList);
+          if (role === 'section' || ch.tagName.toLowerCase() === 'section') {
+            secs.push(serializeSection(await renderRoundTripSection(ch)));
+          }
         }
       }
       if (secs.length === 0) {
         const fallback = makeSection(1);
-        for (const ch of Array.from(bEl.children)) {
-          if ((++walkedNodes & 63) === 0) await maybeYield();
-          appendBlockToSection(ch, fallback);
+        for (const bEl of grp.els) {
+          for (const ch of Array.from(bEl.children)) {
+            if ((++walkedNodes & 63) === 0) await maybeYield();
+            appendBlockToSection(ch, fallback);
+          }
         }
         counts.sections++;
         secs.push(serializeSection(fallback));

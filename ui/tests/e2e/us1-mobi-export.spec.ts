@@ -99,12 +99,12 @@ test.describe('US1 (feature 018) - MOBI / KF8 export', () => {
     await page.keyboard.press('Escape');
     await page.keyboard.press('Escape');
 
-    // 1) MOBI 7 (.mobi, default)
+    // 1) MOBI 7 (.mobi)
     const mobi7Path = path.join(dir, 'ref-mobi7.mobi');
     await core.enqueueDialog('dialog.saveFile', {
       path: mobi7Path,
       zip: false,
-      selects: { format: 'mobi7', tocPlacement: 'afterTitle' },
+      selects: { format: 'mobi7' },
     });
     expect(await clickExport(core, page, 'exportMobi')).toBe(false);
     await waitMobiExportEnds(page, 'ref-mobi7.mobi');
@@ -112,9 +112,8 @@ test.describe('US1 (feature 018) - MOBI / KF8 export', () => {
     const saveReq = await lastSaveRequest(core);
     expect(path.dirname(saveReq.defaultPath ?? '')).toBe(path.dirname(book));
     expect(saveReq.defaultPath).toMatch(/The Reference Book\.mobi$/);
-    expect(saveReq.selects?.map((s) => s.id)).toEqual(['format', 'tocPlacement']);
+    expect(saveReq.selects?.map((s) => s.id)).toEqual(['format']);
     expect(saveReq.selects?.[0]?.selected).toBe('joint');
-    expect(saveReq.selects?.[1]?.selected).toBe('afterTitle');
     expect(saveReq.zipChoice?.checked).toBe(false);
 
     expect(statSync(mobi7Path).size).toBeGreaterThan(1024);
@@ -126,12 +125,13 @@ test.describe('US1 (feature 018) - MOBI / KF8 export', () => {
     expect(txt7).toContain('The annotation of the reference book.');
     expect(txt7).toContain('Notes');
 
-    // 2) Joint MOBI 7 + KF8 (.mobi) with inline TOC = none (native INDX still written)
+    // 2) Joint MOBI 7 + KF8 (.mobi) with inline TOC = none via Settings (native INDX still written)
+    await core.rpc('settings.set', { patch: { mobi: { tocPlacement: 'none' } } });
     const jointPath = path.join(dir, 'ref-joint.mobi');
     await core.enqueueDialog('dialog.saveFile', {
       path: jointPath,
       zip: false,
-      selects: { format: 'joint', tocPlacement: 'none' },
+      selects: { format: 'joint' },
     });
     expect(await clickExport(core, page, 'exportMobi')).toBe(false);
     await waitMobiExportEnds(page, 'ref-joint.mobi');
@@ -143,14 +143,16 @@ test.describe('US1 (feature 018) - MOBI / KF8 export', () => {
     expect(txtJoint).not.toContain('Contents\n\nChapter One');
 
     // 3) KF8 (.azw3)
+    await core.rpc('settings.set', { patch: { mobi: { tocPlacement: 'end' } } });
     const kf8Path = path.join(dir, 'ref-kf8.azw3');
     await core.enqueueDialog('dialog.saveFile', {
       path: kf8Path,
       zip: false,
-      selects: { format: 'kf8', tocPlacement: 'end' },
+      selects: { format: 'kf8' },
     });
     expect(await clickExport(core, page, 'exportMobi')).toBe(false);
     await waitMobiExportEnds(page, 'ref-kf8.azw3');
+    await core.rpc('settings.set', { patch: { mobi: { tocPlacement: 'afterTitle' } } });
 
     const metaKf8 = calibreMeta(kf8Path);
     expect(metaKf8).toContain('The Reference Book');
@@ -181,7 +183,6 @@ test.describe('US1 (feature 018) - MOBI / KF8 export', () => {
     const modal = page.getByTestId('dialog-mobi-export-options');
     await expect(modal).toBeVisible();
     await modal.getByTestId('dialog-mobi-export-format').selectOption('kf8');
-    await modal.getByTestId('dialog-mobi-export-toc').selectOption('none');
     await modal.getByRole('button', { name: 'OK' }).click();
 
     const expectedAzw3 = path.join(dir, 'fallback-choice.azw3');

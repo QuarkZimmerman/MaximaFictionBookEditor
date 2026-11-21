@@ -36,6 +36,9 @@
     "exports.settings.formats.mobi",
     "mobi.formats.mobi7",
     "mobi.formats.kf8",
+    "mobi.saveFormats.joint",
+    "mobi.saveFormats.mobi7",
+    "mobi.saveFormats.kf8",
     "dialog.settings.other.passedOver.rule.genres",
     "dialog.settings.other.passedOver.rule.template"
   ]

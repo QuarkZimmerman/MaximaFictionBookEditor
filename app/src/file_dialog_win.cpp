@@ -435,10 +435,20 @@ bool showDialog(HWND owner, const FileDialogRequest& request, FileDialogResult& 
             kEncodingCombo, static_cast<DWORD>(kEncodingItemBase + selectedEncodingIndex(request)));
         customize->EndVisualGroup();
     }
-    // Feature 018 (DP-5): multi-select dropdowns inside the Save dialog.
+    // Feature 018 (DP-5): select dropdowns inside the Save dialog. When a single select dropdown
+    // accompanies only the ZIP checkbox (MOBI export), keep both inside one visual group so Windows
+    // aligns them neatly on a single horizontal row without extra vertical padding.
     const bool offers_selects = save && !request.selects.empty() &&
                                 (customize.get() != nullptr ||
                                  SUCCEEDED(dialog->QueryInterface(IID_PPV_ARGS(customize.put()))));
+    const bool offers_zip = save && !request.zip_label.empty() &&
+                            (customize.get() != nullptr ||
+                             SUCCEEDED(dialog->QueryInterface(IID_PPV_ARGS(customize.put()))));
+    const bool offers_checks = save && !request.checks.empty() &&
+                               (customize.get() != nullptr ||
+                                SUCCEEDED(dialog->QueryInterface(IID_PPV_ARGS(customize.put()))));
+    const bool zip_in_select_group = offers_selects && request.selects.size() == 1 && offers_zip &&
+                                     !offers_encodings && !offers_checks;
     if (offers_selects) {
         for (size_t s = 0; s < request.selects.size(); ++s) {
             const auto& sel = request.selects[s];
@@ -452,21 +462,20 @@ bool showDialog(HWND owner, const FileDialogRequest& request, FileDialogResult& 
             }
             customize->SetSelectedControlItem(
                 combo_id, static_cast<DWORD>(selectItemId(s, selectedSelectChoiceIndex(sel))));
+            if (s == 0 && zip_in_select_group) {
+                customize->AddCheckButton(kZipCheck, wideText(request.zip_label).c_str(),
+                                          request.zip_checked ? TRUE : FALSE);
+            }
             customize->EndVisualGroup();
         }
     }
-    // Feature 009 (DP-8): the ZIP checkbox, added the same way beside the encoding/select choices.
-    const bool offers_zip = save && !request.zip_label.empty() &&
-                            (customize.get() != nullptr ||
-                             SUCCEEDED(dialog->QueryInterface(IID_PPV_ARGS(customize.put()))));
-    if (offers_zip) {
+    // Feature 009 (DP-8): the ZIP checkbox, added beside the encoding/select choices when not
+    // already grouped into a single select row above.
+    if (offers_zip && !zip_in_select_group) {
         customize->AddCheckButton(kZipCheck, wideText(request.zip_label).c_str(),
                                   request.zip_checked ? TRUE : FALSE);
     }
     // Feature 017 (DP-5): further boxes, one check button each, ids after the ZIP box's.
-    const bool offers_checks = save && !request.checks.empty() &&
-                               (customize.get() != nullptr ||
-                                SUCCEEDED(dialog->QueryInterface(IID_PPV_ARGS(customize.put()))));
     if (offers_checks) {
         for (size_t i = 0; i < request.checks.size(); ++i) {
             customize->AddCheckButton(static_cast<DWORD>(kZipCheck + 1 + i),

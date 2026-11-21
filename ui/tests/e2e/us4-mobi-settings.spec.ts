@@ -136,12 +136,12 @@ test.describe('US4 (feature 018) - MOBI settings defaults & per-book dialog stic
     // 2. Open reference book (has <sequence name="The Series" number="3"/>)
     await openBook(core, page, 'reference-all-elements.fb2');
 
-    // First export: verify Save dialog proposes Settings defaults (joint, none, zip=true, .zip)
+    // First export: verify Save dialog proposes Settings defaults (joint, zip=true, .zip)
     const zipTarget = path.join(dir, 'settings-default.zip');
     await core.enqueueDialog('dialog.saveFile', {
       path: zipTarget,
       zip: true,
-      selects: { format: 'joint', tocPlacement: 'none' },
+      selects: { format: 'joint' },
     });
     await clickExport(core, page, 'exportMobi');
     await waitExportDone(page, zipTarget);
@@ -149,8 +149,8 @@ test.describe('US4 (feature 018) - MOBI settings defaults & per-book dialog stic
     const req1 = await lastSaveRequest(core);
     expect(req1.defaultPath).toMatch(/\.zip$/);
     expect(req1.zipChoice?.checked).toBe(true);
+    expect(req1.selects?.map((s) => s.id)).toEqual(['format']);
     expect(req1.selects?.find((s) => s.id === 'format')?.selected).toBe('joint');
-    expect(req1.selects?.find((s) => s.id === 'tocPlacement')?.selected).toBe('none');
     expect(existsSync(zipTarget)).toBe(true);
 
     // Extract .mobi from ZIP and verify shelf title prefix + EXTH 116 > 0
@@ -185,7 +185,7 @@ with zipfile.ZipFile(sys.argv[1]) as z:
     await core.enqueueDialog('dialog.saveFile', {
       path: kf8Target,
       zip: false,
-      selects: { format: 'kf8', tocPlacement: 'end' },
+      selects: { format: 'kf8' },
     });
     await clickExport(core, page, 'exportMobi');
     await waitExportDone(page, kf8Target);
@@ -199,7 +199,7 @@ with zipfile.ZipFile(sys.argv[1]) as z:
     expect(kf8Html).not.toContain('epub:type="noteref"');
     expect(kf8Html).not.toContain('epub:type="footnote"');
 
-    // 4. Per-book stickiness: next export on SAME book proposes kept choices (kf8, end, zip=false)
+    // 4. Per-book stickiness: next export on SAME book proposes kept choices (kf8, zip=false)
     //    AND cancelling the Save dialog leaves those kept choices intact!
     await core.enqueueDialog('dialog.saveFile', {}); // user cancels Save dialog
     await clickExport(core, page, 'exportMobi');
@@ -211,9 +211,8 @@ with zipfile.ZipFile(sys.argv[1]) as z:
     const cancelledReq = await lastSaveRequest(core);
     expect(cancelledReq.defaultPath).toMatch(/\.azw3$/);
     expect(cancelledReq.zipChoice?.checked).toBe(false);
-    expect(cancelledReq.selects?.find((s) => s.id === 'tocPlacement')?.selected).toBe('end');
 
-    // 5. Switch to another book: Save dialog returns to live Settings defaults (joint, none, zip=true)
+    // 5. Switch to another book: Save dialog returns to live Settings defaults (joint, zip=true)
     await openBook(core, page, 'modern-utf8.fb2');
     await core.enqueueDialog('dialog.saveFile', {}); // cancel so we just inspect the proposed options
     await clickExport(core, page, 'exportMobi');
@@ -225,7 +224,6 @@ with zipfile.ZipFile(sys.argv[1]) as z:
     const otherBookReq = await lastSaveRequest(core);
     expect(otherBookReq.defaultPath).toMatch(/\.zip$/);
     expect(otherBookReq.zipChoice?.checked).toBe(true);
-    expect(otherBookReq.selects?.find((s) => s.id === 'tocPlacement')?.selected).toBe('none');
 
     // 6. Re-importing the shelf-prefixed bare .mobi restores the ORIGINAL FB2 title (no prefix!)
     await core.enqueueDialog('dialog.openFile', { paths: [extractedMobi] });

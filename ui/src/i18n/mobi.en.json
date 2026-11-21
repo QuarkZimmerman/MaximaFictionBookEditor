@@ -33,11 +33,15 @@
     "filterImportBooks": "MOBI books (*.mobi, *.azw3, *.azw, *.prc)",
     "filterAnyFile": "All files",
     "formatLabel": "Format:",
-    "tocLabel": "Table of contents:",
     "zipChoice": "Save in ZIP archive",
     "formats": {
       "mobi7": "MOBI 7 (.mobi)",
       "joint": "MOBI 7 + KF8 (joint .mobi)",
+      "kf8": "KF8 (.azw3)"
+    },
+    "saveFormats": {
+      "joint": "MOBI 7 + KF8",
+      "mobi7": "MOBI 7",
       "kf8": "KF8 (.azw3)"
     },
     "tocPlacements": {
@@ -160,7 +164,6 @@
   "tip": {
     "mobi": {
       "format": "MOBI 7 + KF8 works on both old and modern readers; MOBI 7 is for older devices; KF8 (.azw3) is for modern Kindles",
-      "tocPlacement": "Where to put a table of contents page inside the book (the reader's own menu is always included)",
       "zip": "Pack the exported book and its FBD description together in a ZIP archive"
     },
     "settings": {

@@ -216,8 +216,9 @@ bool runPlatformFileDialog(std::uintptr_t owner, const FileDialogRequest& reques
         row.orientation = NSUserInterfaceLayoutOrientationHorizontal;
         [rows addObject:row];
     }
-    // Feature 018 (DP-5): multi-select dropdowns inside the Save accessory view.
+    // Feature 018 (DP-5): select dropdowns inside the Save accessory view.
     NSMutableArray<NSPopUpButton*>* select_popups = [NSMutableArray array];
+    NSMutableArray<NSStackView*>* select_rows = [NSMutableArray array];
     std::vector<std::string> select_ids;
     std::vector<std::vector<std::string>> select_values;
     if (mode == FileDialogMode::kSave && !request.selects.empty()) {
@@ -244,13 +245,17 @@ bool runPlatformFileDialog(std::uintptr_t owner, const FileDialogRequest& reques
             NSTextField* label = [NSTextField labelWithString:toNSString(sel.label)];
             NSStackView* row = [NSStackView stackViewWithViews:@[ label, popup ]];
             row.orientation = NSUserInterfaceLayoutOrientationHorizontal;
+            row.alignment = NSLayoutAttributeCenterY;
+            row.spacing = 8;
             [select_popups addObject:popup];
+            [select_rows addObject:row];
             select_ids.push_back(sel.id);
             select_values.push_back(std::move(values));
             [rows addObject:row];
         }
     }
-    // Feature 009 (DP-8): the "save as ZIP archive" checkbox, below the encoding/select choices.
+    // Feature 009 (DP-8): the "save as ZIP archive" checkbox; shares the row with a lone select
+    // dropdown (MOBI export) so the Save sheet stays compact and aligned.
     NSButton* zip_box = nil;
     if (mode == FileDialogMode::kSave && !request.zip_label.empty()) {
         zip_box = [NSButton checkboxWithTitle:toNSString(request.zip_label) target:nil action:nil];
@@ -265,7 +270,11 @@ bool runPlatformFileDialog(std::uintptr_t owner, const FileDialogRequest& reques
             zip_box.target = type_switch;
             zip_box.action = @selector(zipToggled:);
         }
-        [rows addObject:zip_box];
+        if (select_rows.count == 1 && encoding_popup == nil && request.checks.empty()) {
+            [select_rows[0] addArrangedSubview:zip_box];
+        } else {
+            [rows addObject:zip_box];
+        }
     }
     // Feature 017 (DP-5): the further boxes, one checkbox each, below the ZIP box.
     NSMutableArray<NSButton*>* check_boxes = [NSMutableArray array];

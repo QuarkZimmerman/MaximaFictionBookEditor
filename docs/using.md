@@ -556,8 +556,8 @@ editor's own files keep the description they carry.
 ### Exporting as MOBI
 
 *File > Export > Export as MOBI…* writes the book as an unencrypted Kindle / Mobipocket e-book. The Save
-dialog offers *Format*, *Table of contents*, and *Save in ZIP archive* (where the system dialog cannot show
-them, the editor asks in a small options dialog right after).
+dialog offers *Format* and *Save in ZIP archive* (where the system dialog cannot show them, the editor asks
+in a small options dialog right after).
 
 - **Formats**: *MOBI 7 + KF8 (joint .mobi)* (default) packing both MOBI 7 and KF8 in one file with pictures
   stored once for broadest out-of-the-box support across old and modern readers; *MOBI 7 (.mobi)* for older
@@ -609,9 +609,9 @@ them, the editor asks in a small options dialog right after).
 
 *Settings > Exports > MOBI* sets the default *Format*, *Table of contents*, *Series in reader title*, *Open
 book at*, *Pop-up footnotes (KF8)*, and *Save in ZIP archive*, each showing its out-of-the-box value with
-*Reset* and *Reset all*. Choices changed in the Save dialog (*Format*, *Table of contents*, *Save in ZIP
-archive*) stay with the open book for subsequent exports until another book takes the window or the editor
-restarts. The MOBI export and import modules load on demand only when used.
+*Reset* and *Reset all*. Choices changed in the Save dialog (*Format* and *Save in ZIP archive*) stay with
+the open book for subsequent exports until another book takes the window or the editor restarts. The MOBI
+export and import modules load on demand only when used.
 
 ## The Styles view
 

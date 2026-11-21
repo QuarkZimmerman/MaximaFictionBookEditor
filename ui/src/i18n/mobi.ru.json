@@ -33,11 +33,15 @@
     "filterImportBooks": "Книги MOBI (*.mobi, *.azw3, *.azw, *.prc)",
     "filterAnyFile": "Все файлы",
     "formatLabel": "Формат:",
-    "tocLabel": "Оглавление:",
     "zipChoice": "Сохранить в ZIP-архив",
     "formats": {
       "mobi7": "MOBI 7 (.mobi)",
       "joint": "MOBI 7 + KF8 (объединённый .mobi)",
+      "kf8": "KF8 (.azw3)"
+    },
+    "saveFormats": {
+      "joint": "MOBI 7 + KF8",
+      "mobi7": "MOBI 7",
       "kf8": "KF8 (.azw3)"
     },
     "tocPlacements": {
@@ -160,7 +164,6 @@
   "tip": {
     "mobi": {
       "format": "MOBI 7 + KF8 подходит и старым, и новым читалкам; MOBI 7 — для старых устройств; KF8 (.azw3) — для современных Kindle",
-      "tocPlacement": "Куда вставить страницу с оглавлением внутри книги (собственное меню читалки добавляется всегда)",
       "zip": "Упаковать экспортированную книгу вместе с её файлом описания FBD в ZIP-архив"
     },
     "settings": {
