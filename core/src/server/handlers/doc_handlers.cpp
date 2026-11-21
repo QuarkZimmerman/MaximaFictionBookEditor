@@ -250,6 +250,23 @@ std::string effective_encoding(Services& services, const session::DocumentSessio
     return name;
 }
 
+// Encoding declared by Source view (`doc.toXml`): the document's own encoding (the opened or last
+// saved file's), regardless of whether "Keep encoding" is enabled for a future plain Save.
+std::string document_encoding(Services& services, const session::DocumentSession& s) {
+    std::string name;
+    if (!s.sourceEncoding.empty()) {
+        name = encoding::normalize_name(s.sourceEncoding).value_or("utf-8");
+    } else {
+        name =
+            encoding::normalize_name(services.settings.get_string("other.defaultEncoding", "utf-8"))
+                .value_or("utf-8");
+    }
+    if (name.rfind("utf-16", 0) == 0) {
+        name = "utf-16";
+    }
+    return name;
+}
+
 /* ----------------------------------------------------------------------------------------- */
 /* Remembered position (feature 004 US8)                                                      */
 /* ----------------------------------------------------------------------------------------- */
@@ -671,6 +688,11 @@ json converted_json(const std::vector<images::Converted>& converted) {
 // Rewrites (or inserts) the encoding of the XML declaration of Source-only text.
 std::string with_declared_encoding(std::string text, const std::string& encoding) {
     std::size_t pos = 0;
+    if (text.size() >= 3 && static_cast<unsigned char>(text[0]) == 0xEF &&
+        static_cast<unsigned char>(text[1]) == 0xBB &&
+        static_cast<unsigned char>(text[2]) == 0xBF) {
+        pos = 3;
+    }
     while (pos < text.size() &&
            (text[pos] == ' ' || text[pos] == '\n' || text[pos] == '\r' || text[pos] == '\t')) {
         ++pos;
@@ -1430,7 +1452,7 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         options.elide_binaries = rpc::params::boolean_or(params, "elideBinaries", false);
         options.positions = rpc::params::boolean_or(params, "positions", false);
         options.xlink_prefix = s.xlinkPrefix;
-        options.encoding = effective_encoding(services, s, std::nullopt);
+        options.encoding = document_encoding(services, s);
         update_reference_counts(doc, *s.binaries);
         fb2::WriteResult written = fb2::write_document(doc, s.binaries.get(), options);
         json result{{"text", written.text}};

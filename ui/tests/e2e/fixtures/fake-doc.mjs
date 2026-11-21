@@ -1104,7 +1104,7 @@ export function createDocService({
       const s = session(docId);
       return {
         text: documentToFb2(document, {
-          encoding: 'utf-8',
+          encoding: document?.sourceEncoding || 'utf-8',
           elideBinaries: !!elideBinaries,
           binaryStore: s.binaries,
         }),

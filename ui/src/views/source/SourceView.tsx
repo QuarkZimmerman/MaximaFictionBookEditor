@@ -62,6 +62,7 @@ export function SourceView() {
   const controller = useMemo(() => sourceEditorFor(store, undo), [store, undo]);
   const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const hasDocument = document !== null;
+  const sourceEncoding = document?.sourceEncoding ?? '';
 
   // The latest command context for the asynchronous loader (declared before the load effect).
   const ctxRef = useRef(ctx);
@@ -82,11 +83,11 @@ export function SourceView() {
     controller.setDark(theme === 'dark');
   }, [controller, theme]);
 
-  // Load the text whenever the view is shown for a document.
+  // Load the text whenever the view is shown for a document, or when a save changes its encoding.
   useEffect(() => {
     if (!hasDocument) return;
     void controller.load(ctxRef.current);
-  }, [controller, hasDocument, docId]);
+  }, [controller, hasDocument, docId, sourceEncoding]);
 
   // A parse error reported while this view is active: move the cursor there.
   useEffect(() => {

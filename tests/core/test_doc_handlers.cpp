@@ -447,12 +447,43 @@ TEST_CASE("doc handlers: open (direct and as a job), warnings, validate, keepEnc
                                      {"document", doc},
                                      {"encoding", "ebcdic"}})["error"]["code"] == -32602);
     // Re-open of the windows-1251 copy: same title, legacy order normalised -> now "2.1".
+    // Also verify doc.toXml (Source view) declares the opened file's own encoding even when
+    // "Keep encoding" is turned off (the default).
+    REQUIRE(f.ws.call("settings.set", json{{"patch", {{"other", {{"keepEncoding", false}}}}}})
+                .contains("result"));
+    f.ws.wait_notification("settings.changed");
     const json reopened = f.ws.call("doc.open", json{{"path", out}});
     REQUIRE(reopened.contains("result"));
     CHECK(reopened["result"]["document"]["sourceEncoding"] == "windows-1251");
     CHECK(reopened["result"]["document"]["schemaHint"] == "2.1");
     CHECK(reopened["result"]["document"]["description"]["titleInfo"]["bookTitle"] ==
           "Старая книга");
+    const json reopened_xml = f.ws.call(
+        "doc.toXml", json{{"docId", reopened["result"]["document"]["docId"]},
+                          {"document", reopened["result"]["document"]},
+                          {"elideBinaries", true}});
+    REQUIRE(reopened_xml.contains("result"));
+    CHECK(reopened_xml["result"]["text"].get<std::string>().rfind(
+              "<?xml version=\"1.0\" encoding=\"windows-1251\"?>", 0) == 0);
+    // And after saving an open UTF-8 file as windows-1251, doc.toXml reflects windows-1251 too.
+    const json utf8_opened = f.ws.call("doc.open", json{{"path", f.book("modern-utf8.fb2").string()}});
+    REQUIRE(utf8_opened.contains("result"));
+    const json utf8_doc = utf8_opened["result"]["document"];
+    const std::string utf8_as_1251 = (f.data / "utf8-as-1251.fb2").string();
+    const json saved_1251 = f.run_job(
+        "doc.save", json{{"docId", utf8_doc["docId"]},
+                         {"document", utf8_doc},
+                         {"path", utf8_as_1251},
+                         {"encoding", "windows-1251"},
+                         {"force", true}});
+    REQUIRE(saved_1251.contains("result"));
+    CHECK(read_all(utf8_as_1251).rfind("<?xml version=\"1.0\" encoding=\"windows-1251\"?>", 0) == 0);
+    const json after_save_xml = f.ws.call(
+        "doc.toXml",
+        json{{"docId", utf8_doc["docId"]}, {"document", utf8_doc}, {"elideBinaries", true}});
+    REQUIRE(after_save_xml.contains("result"));
+    CHECK(after_save_xml["result"]["text"].get<std::string>().rfind(
+              "<?xml version=\"1.0\" encoding=\"windows-1251\"?>", 0) == 0);
 
     // Missing file -> doc.ioError; malformed -> doc.parseError with line/column.
     const json missing = f.ws.call("doc.open", json{{"path", (f.data / "nope.fb2").string()}});
