@@ -201,7 +201,7 @@ export function epubWriteUrl(
  */
 export function mobiWriteUrl(
   token: string,
-  slot: 'mobi7-html' | 'kf8-html' | 'kf8-css' | 'mfbe',
+  slot: 'mobi7-html' | 'kf8-html' | 'kf8-css' | 'mfbe' | 'bundle',
   baseUrl: string = import.meta.env.BASE_URL ?? '/',
 ): string {
   return withToken(`${baseUrl}mobi-write/${encodeURIComponent(token)}/${slot}`, '?');
@@ -217,6 +217,17 @@ export function mobiImportUrl(
   baseUrl: string = import.meta.env.BASE_URL ?? '/',
 ): string {
   return withToken(`${baseUrl}mobi-import/${encodeURIComponent(token)}/${part}`, '?');
+}
+
+/**
+ * Feature 019: one-shot Document JSON route for an ephemeral `batch.openDoc` session
+ * (`GET /batch/doc/{docId}`) fetched directly by parallel Web Workers off the main thread.
+ */
+export function batchDocUrl(
+  docId: string,
+  baseUrl: string = import.meta.env.BASE_URL ?? '/',
+): string {
+  return withToken(`${baseUrl}batch/doc/${encodeURIComponent(docId)}`, '?');
 }
 
 /**

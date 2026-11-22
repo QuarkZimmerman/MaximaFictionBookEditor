@@ -817,7 +817,11 @@ export function BatchConverterDialog({
       ) : null}
 
       {!running && report ? (
-        <div className="mfbe-batch-report" data-testid="batch-report-view">
+        <div
+          className="mfbe-batch-report"
+          data-testid="batch-report-view"
+          data-duration-ms={report.durationMs}
+        >
           <h3 className="mfbe-batch-report-heading" data-testid="batch-report-heading">
             {report.counts.total === 0
               ? t('batch.report.headingEmpty')

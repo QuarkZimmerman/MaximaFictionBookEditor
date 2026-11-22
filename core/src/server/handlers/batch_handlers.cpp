@@ -1,7 +1,8 @@
-// Feature 019 (T012; contracts/rpc-api.md §3): batch.* JSON-RPC handlers.
+// Feature 019 (T012; contracts/rpc-api.md §3): batch.* JSON-RPC handlers and HTTP routes.
 #include "batch/extractor.hpp"
 #include "batch/run_state.hpp"
 #include "batch/scanner.hpp"
+#include "server/loopback_server.hpp"
 #include "server/services.hpp"
 
 #include <mfbe/atomic_file.hpp>
@@ -88,6 +89,29 @@ json scan_error_to_json(const batch::ScanError& err) {
 }
 
 }  // namespace
+
+void register_batch_http(LoopbackServer& server, Services& services) {
+    uWS::App& app = server.app();
+    app.get("/batch/doc/:docId", [&server, &services](auto* res, auto* req) {
+        if (!server.check_auth(res, req)) {
+            return;
+        }
+        const std::string doc_id = LoopbackServer::url_decode(req->getParameter(0));
+        auto body = services.batch.take_doc_json(doc_id);
+        if (!body) {
+            res->writeStatus("404 Not Found");
+            res->writeHeader("Content-Type", "text/plain; charset=utf-8");
+            res->writeHeader("Cache-Control", "no-store");
+            res->end("unknown or already consumed batch document");
+            return;
+        }
+        res->writeStatus("200 OK");
+        res->writeHeader("Content-Type", "application/json; charset=utf-8");
+        res->writeHeader("Cache-Control", "no-store");
+        res->writeHeader("X-Content-Type-Options", "nosniff");
+        res->end(*body);
+    });
+}
 
 void register_batch_handlers(rpc::RpcRouter& router, Services& services) {
     router.add_method("batch.scan", [&services](const json& params, rpc::RpcContext& ctx) {

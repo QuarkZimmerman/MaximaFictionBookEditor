@@ -2257,6 +2257,19 @@ export interface RpcMethods {
     params: { runId: string; claimId: string; succeeded?: boolean };
     result: Empty;
   };
+  'batch.openDoc': {
+    params: {
+      path: string;
+      entry?: string;
+      cleanInvalidChars?: boolean;
+    };
+    result: MaybeJob<{
+      docId: string;
+      description: Description;
+      binaryCount: number;
+      warnings: ValidationIssue[];
+    }>;
+  };
   'batch.extractEntry': {
     params: {
       runId: string;

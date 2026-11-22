@@ -395,3 +395,151 @@ TEST_CASE("CoreServer shutdown removes remaining active batch temp directories",
     }
     CHECK_FALSE(fs::exists(extracted_dir));
 }
+
+TEST_CASE("batch.openDoc serves one-shot Document JSON via GET /batch/doc/:docId and cleans up",
+          "[batch][rpc]") {
+    BatchFixture f;
+    const fs::path src = test::fixtures_dir() / "books" / "modern-utf8.fb2";
+
+    const json opened = f.call_maybe_job(
+        "batch.openDoc",
+        json{{"path", platform::utf8_from_path(src)}, {"cleanInvalidChars", true}});
+    REQUIRE(opened.contains("docId"));
+    REQUIRE(opened.contains("description"));
+    REQUIRE(opened.contains("binaryCount"));
+    const std::string doc_id = opened["docId"].get<std::string>();
+
+    // Auth check: missing token is rejected with 401.
+    const auto unauth = test::http_get(f.server->port(), "/batch/doc/" + doc_id);
+    CHECK(unauth.status == 401);
+
+    // First authenticated GET returns the full Document JSON and consumes the entry.
+    const auto ok =
+        test::http_get(f.server->port(), "/batch/doc/" + doc_id + "?token=" + f.server->token());
+    REQUIRE(ok.status == 200);
+    const json doc_json = json::parse(ok.body);
+    CHECK(doc_json["docId"] == doc_id);
+    CHECK(doc_json.contains("bodies"));
+
+    // Second GET returns 404 (one-shot take).
+    const auto second =
+        test::http_get(f.server->port(), "/batch/doc/" + doc_id + "?token=" + f.server->token());
+    CHECK(second.status == 404);
+
+    f.ws.call("doc.close", json{{"docId", doc_id}});
+
+    // Closing an unfetched batch.openDoc session releases its buffered JSON cleanly.
+    const json opened2 = f.call_maybe_job(
+        "batch.openDoc",
+        json{{"path", platform::utf8_from_path(src)}, {"cleanInvalidChars", true}});
+    const std::string doc_id2 = opened2["docId"].get<std::string>();
+    f.ws.call("doc.close", json{{"docId", doc_id2}});
+    const auto after_close =
+        test::http_get(f.server->port(), "/batch/doc/" + doc_id2 + "?token=" + f.server->token());
+    CHECK(after_close.status == 404);
+
+    // Recent files must remain untouched.
+    CHECK(f.ws.call("doc.recent")["result"].empty());
+}
+
+TEST_CASE("PUT /mobi-write/:token/bundle uploads all slots in one request and commits with zip",
+          "[batch][mobi][rpc]") {
+    BatchFixture f;
+    const fs::path src = test::fixtures_dir() / "books" / "modern-utf8.fb2";
+    const json opened = f.call_maybe_job(
+        "batch.openDoc",
+        json{{"path", platform::utf8_from_path(src)}, {"cleanInvalidChars", true}});
+    const std::string doc_id = opened["docId"].get<std::string>();
+
+    const fs::path out_zip = f.work.path() / "bundled.mobi.zip";
+    const json begun = f.ws.call("mobi.write.begin",
+                                 json{{"docId", doc_id},
+                                      {"path", platform::utf8_from_path(out_zip)},
+                                      {"format", "joint"},
+                                      {"zip", true}});
+    REQUIRE(begun.contains("result"));
+    const std::string token = begun["result"]["token"].get<std::string>();
+
+    auto append_u32 = [](std::string& dst, std::uint32_t v) {
+        dst.push_back(static_cast<char>(v & 0xFFU));
+        dst.push_back(static_cast<char>((v >> 8U) & 0xFFU));
+        dst.push_back(static_cast<char>((v >> 16U) & 0xFFU));
+        dst.push_back(static_cast<char>((v >> 24U) & 0xFFU));
+    };
+    auto append_slot = [&](std::string& dst, const std::string& name, const std::string& payload) {
+        append_u32(dst, static_cast<std::uint32_t>(name.size()));
+        dst.append(name);
+        append_u32(dst, static_cast<std::uint32_t>(payload.size()));
+        dst.append(payload);
+    };
+
+    std::string bundle;
+    append_slot(bundle, "mobi7-html", "<html><body><p>Hello MOBI 7</p></body></html>");
+    append_slot(bundle, "kf8-html", "<html><body><p>Hello KF8</p></body></html>");
+    append_slot(bundle, "kf8-css", "p { margin: 0; }");
+    append_slot(bundle, "mfbe", R"({"v":1})");
+
+    const auto put = test::http_request(
+        f.server->port(), "PUT", "/mobi-write/" + token + "/bundle?token=" + f.server->token(),
+        {{"Content-Type", "application/octet-stream"}}, bundle);
+    REQUIRE(put.status == 201);
+
+    // Commit without passing `document` — core falls back to the session snapshot for FBD export.
+    const json committed =
+        f.call_maybe_job("mobi.write.commit", json{{"token", token},
+                                                   {"metadata", {{"title", "Bundled"}}},
+                                                   {"nav", json::array()},
+                                                   {"guide", json::array()}});
+    REQUIRE(committed.contains("path"));
+    REQUIRE(fs::exists(out_zip));
+    const archive::Listing listing = archive::list(out_zip);
+    CHECK(listing.entries.size() == 2);
+
+    f.ws.call("doc.close", json{{"docId", doc_id}});
+}
+
+TEST_CASE("concurrent batch.openDoc calls validate and serialize in parallel safely",
+          "[batch][rpc]") {
+    BatchFixture f;
+    test::WsClient observer;
+    REQUIRE(observer.open(f.server->port(), "/rpc?token=" + f.server->token()) == 101);
+
+    const fs::path valid_src = test::fixtures_dir() / "books" / "modern-utf8.fb2";
+    const fs::path large_src = test::fixtures_dir() / "books" / "notes-400.fb2";
+    std::vector<std::pair<std::string, std::string>> jobs;  // (jobId, expectedSchemaHint)
+    for (int i = 0; i < 6; ++i) {
+        const bool use_valid = (i % 2) == 0;
+        const fs::path& src = use_valid ? valid_src : large_src;
+        const json reply = f.ws.call(
+            "batch.openDoc",
+            json{{"path", platform::utf8_from_path(src)}, {"cleanInvalidChars", true}});
+        REQUIRE(reply.contains("result"));
+        jobs.emplace_back(reply["result"]["jobId"].get<std::string>(),
+                          use_valid ? "2.1" : "legacy");
+    }
+
+    std::map<std::string, json> outcomes;
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
+    while (outcomes.size() < jobs.size() && std::chrono::steady_clock::now() < deadline) {
+        auto msg = observer.receive_json(10000);
+        REQUIRE(msg.has_value());
+        const std::string name = msg->value("method", "");
+        if (name == "job.done" || name == "job.failed") {
+            const std::string jid = (*msg)["params"]["jobId"].get<std::string>();
+            json res = (*msg)["params"];
+            res["event"] = name;
+            outcomes[jid] = std::move(res);
+        }
+    }
+    REQUIRE(outcomes.size() == jobs.size());
+    for (const auto& [jid, expected_hint] : jobs) {
+        REQUIRE(outcomes[jid]["event"] == "job.done");
+        const std::string doc_id = outcomes[jid]["result"]["docId"].get<std::string>();
+        const auto get = test::http_get(f.server->port(),
+                                        "/batch/doc/" + doc_id + "?token=" + f.server->token());
+        REQUIRE(get.status == 200);
+        const json doc_json = json::parse(get.body);
+        CHECK(doc_json["schemaHint"] == expected_hint);
+        f.ws.call("doc.close", json{{"docId", doc_id}});
+    }
+}

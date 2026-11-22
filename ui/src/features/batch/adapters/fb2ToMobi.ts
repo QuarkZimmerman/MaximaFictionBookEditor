@@ -1,11 +1,11 @@
 /**
  * Feature 019 (T031; FR-004, FR-005, FR-024): unattended FB2 -> MOBI / KF8 batch adapter.
- * Reuses Settings -> Exports -> MOBI defaults + batch `zipOutput` override and builds HTML/CSS/MFBE
- * off-thread in `mobiExportWorker.ts`.
+ * Reuses Settings -> Exports -> MOBI defaults + batch `zipOutput` override and runs document
+ * parsing, HTML/CSS/MFBE generation, and slot uploads off-thread in `mobiExportWorker.ts`.
  */
 
 import { proposedStem } from '@/features/file/proposedName';
-import { mobiWriteUrl } from '@/model/binaryUrls';
+import { batchDocUrl, mobiWriteUrl } from '@/model/binaryUrls';
 import { isRpcError } from '@/rpc/client';
 import {
   RpcErrorCode,
@@ -20,36 +20,21 @@ import { runWorkerTask } from '../workers/workerCall';
 import type { BatchAdapterContext, BatchAdapterOutcome } from './adapterTypes';
 import {
   closeEphemeralDoc,
-  openEphemeralFb2,
+  openEphemeralFb2Headless,
   runCancellableRpcJob,
   throwIfAborted,
 } from './fb2LoadSave';
 
-async function uploadSlot(
-  token: string,
-  slot: 'mobi7-html' | 'kf8-html' | 'kf8-css' | 'mfbe',
-  text: string,
-  signal: AbortSignal,
-): Promise<void> {
-  const response = await fetch(mobiWriteUrl(token, slot), {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/octet-stream' },
-    body: new TextEncoder().encode(text),
-    signal,
-  });
-  if (!response.ok) {
-    throw new Error(
-      `${slot}: HTTP ${response.status} ${await response.text().catch(() => '')}`.trim(),
-    );
-  }
+function toAbsoluteUrl(relativeOrAbsolute: string): string {
+  return new URL(relativeOrAbsolute, window.location.href).href;
 }
+
+const createMobiExportWorker = () =>
+  new Worker(new URL('../workers/mobiExportWorker.ts', import.meta.url), { type: 'module' });
 
 export async function runFb2ToMobi(params: BatchAdapterContext): Promise<BatchAdapterOutcome> {
   const { ctx, rpc, settings, config, item, targetPath, signal, onStage, cache } = params;
-  const [{ usedMobiPictures }, { mobiWordsLanguage }] = await Promise.all([
-    import('@/features/mobi/export/job'),
-    import('@/features/mobi/shared/words'),
-  ]);
+  const { mobiWordsLanguage } = await import('@/features/mobi/shared/words');
 
   const mobiSettings = settings?.mobi;
   const format: MobiFormat = mobiSettings?.format ?? 'joint';
@@ -64,108 +49,110 @@ export async function runFb2ToMobi(params: BatchAdapterContext): Promise<BatchAd
 
   try {
     onStage('batch.progress.stageReading', 0, 100);
-    const opened = await openEphemeralFb2(rpc, item.sourcePath, item.archiveEntry, {
+    const opened = await openEphemeralFb2Headless(rpc, item.sourcePath, item.archiveEntry, {
       signal,
       onProgress: (done, total) =>
         onStage('batch.progress.stageReading', done, Math.max(total, 100)),
     });
     docId = opened.docId;
-    const { document } = opened;
     throwIfAborted(signal);
 
-    token = (
-      await rpc.call('mobi.write.begin', {
+    const [begun, genresList] = await Promise.all([
+      rpc.call('mobi.write.begin', {
         docId,
         path: targetPath,
         format,
         zip,
-      })
-    ).token;
+      }),
+      cache.getGenres(),
+    ]);
+    token = begun.token;
     throwIfAborted(signal);
 
-    const genresList = await cache.getGenres();
-    const lang = mobiWordsLanguage(document.description.titleInfo.lang);
+    const activeToken = token;
+    const activeDocId = docId;
+    const lang = mobiWordsLanguage(opened.description.titleInfo.lang);
     const genreEntries: [string, string][] = genresList.map((entry) => [
       entry.code,
       entry.names[lang] ?? entry.names.en ?? entry.code,
     ]);
 
-    const picList = usedMobiPictures(document);
-    const placed: [
-      string,
-      { recindex: number; mediaType: 'image/jpeg' | 'image/png'; width: number; height: number },
-    ][] = [];
     const picSummary: { kind: string; detail: string }[] = [];
 
-    for (let i = 0; i < picList.length; i++) {
-      throwIfAborted(signal);
-      const pic = picList[i]!;
-      onStage('batch.progress.stageConverting', i, picList.length + 4);
-      try {
-        const res = await rpc.call('mobi.write.picture', {
-          token,
-          docId,
-          binaryId: pic.id,
-          isCover: pic.isCover,
-        });
-        placed.push([
-          pic.id,
-          {
-            recindex: res.recindex,
-            mediaType: res.mediaType === 'image/png' ? 'image/png' : 'image/jpeg',
-            width: res.width,
-            height: res.height,
-          },
-        ]);
-        if (res.converted) picSummary.push({ kind: 'pictureConverted', detail: `#${pic.id}` });
-        if (res.downscaled) picSummary.push({ kind: 'pictureDownscaled', detail: `#${pic.id}` });
-      } catch (error) {
-        if (
-          !isRpcError(error) ||
-          (error.code !== RpcErrorCode.binaryNotImage && error.code !== RpcErrorCode.binaryNotFound)
-        ) {
-          throw error;
-        }
-        picSummary.push({ kind: 'pictureLeftOut', detail: `#${pic.id}` });
-      }
-    }
-
-    throwIfAborted(signal);
     const workerReq: MobiExportWorkerRequest = {
-      document,
-      pictures: placed,
-      fallbackTitle: proposedStem(document.description, ctx.t('app.untitled')),
+      documentUrl: toAbsoluteUrl(batchDocUrl(activeDocId)),
+      needsPicturePlacement: opened.binaryCount > 0,
+      fallbackTitle: proposedStem(opened.description, ctx.t('app.untitled')),
       format,
       tocPlacement,
       seriesInTitle,
       openAt,
       kf8PopupFootnotes,
       genreNames: genreEntries,
+      uploadBundleUrl: toAbsoluteUrl(mobiWriteUrl(activeToken, 'bundle')),
     };
+
     const built = await runWorkerTask<MobiExportWorkerRequest, MobiExportWorkerResult>(
-      () =>
-        new Worker(new URL('../workers/mobiExportWorker.ts', import.meta.url), { type: 'module' }),
+      createMobiExportWorker,
       workerReq,
       {
         signal,
         pool: { pool: cache.workerPool, key: 'mobiExport' },
-        onProgress: (p) =>
-          onStage('batch.progress.stageConverting', picList.length + p.done, picList.length + 4),
+        onProgress: (p) => onStage('batch.progress.stageConverting', p.done, Math.max(p.total, 4)),
+        onRequest: async (payload) => {
+          const picList = payload as { id: string; isCover: boolean }[];
+          const placed: [
+            string,
+            {
+              recindex: number;
+              mediaType: 'image/jpeg' | 'image/png';
+              width: number;
+              height: number;
+            },
+          ][] = [];
+          for (let i = 0; i < picList.length; i++) {
+            throwIfAborted(signal);
+            const pic = picList[i]!;
+            onStage('batch.progress.stageConverting', i, picList.length + 4);
+            try {
+              const res = await rpc.call('mobi.write.picture', {
+                token: activeToken,
+                docId: activeDocId,
+                binaryId: pic.id,
+                isCover: pic.isCover,
+              });
+              placed.push([
+                pic.id,
+                {
+                  recindex: res.recindex,
+                  mediaType: res.mediaType === 'image/png' ? 'image/png' : 'image/jpeg',
+                  width: res.width,
+                  height: res.height,
+                },
+              ]);
+              if (res.converted)
+                picSummary.push({ kind: 'pictureConverted', detail: `#${pic.id}` });
+              if (res.downscaled) {
+                picSummary.push({ kind: 'pictureDownscaled', detail: `#${pic.id}` });
+              }
+            } catch (error) {
+              if (
+                !isRpcError(error) ||
+                (error.code !== RpcErrorCode.binaryNotImage &&
+                  error.code !== RpcErrorCode.binaryNotFound)
+              ) {
+                throw error;
+              }
+              picSummary.push({ kind: 'pictureLeftOut', detail: `#${pic.id}` });
+            }
+          }
+          return placed;
+        },
       },
     );
 
     throwIfAborted(signal);
     onStage('batch.progress.stageWriting', 0, 100);
-    if (built.mobi7Html !== undefined) {
-      await uploadSlot(token, 'mobi7-html', built.mobi7Html, signal);
-    }
-    if (built.kf8Html !== undefined) {
-      await uploadSlot(token, 'kf8-html', built.kf8Html, signal);
-      await uploadSlot(token, 'kf8-css', built.kf8Css ?? '', signal);
-    }
-    await uploadSlot(token, 'mfbe', built.mfbeJson, signal);
-    throwIfAborted(signal);
-
     const commitToken = token;
     token = null; // consumed by mobi.write.commit
     const commitRes = await runCancellableRpcJob(
@@ -176,7 +163,6 @@ export async function runFb2ToMobi(params: BatchAdapterContext): Promise<BatchAd
           metadata: built.metadata,
           nav: built.nav,
           guide: built.guide,
-          ...(zip ? { document } : {}),
         }),
       {
         signal,

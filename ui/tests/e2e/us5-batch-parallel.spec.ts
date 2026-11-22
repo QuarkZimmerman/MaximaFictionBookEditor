@@ -184,8 +184,12 @@ test.describe('US5: Parallel conversion up to CPU cores minus 1', () => {
         await page.getByTestId('batch-parallel').uncheck();
         const tSeqStart = Date.now();
         await page.getByTestId('dialog-batch-converter-button-start').click();
-        await expect(page.getByTestId('batch-report-view')).toBeVisible({ timeout: 120_000 });
-        const seqMs = Date.now() - tSeqStart;
+        // waitFor uses in-page MutationObserver rather than expect's 500 ms backoff polling.
+        await page.getByTestId('batch-report-view').waitFor({ state: 'visible', timeout: 120_000 });
+        const seqWallMs = Date.now() - tSeqStart;
+        const seqMs =
+          Number(await page.getByTestId('batch-report-view').getAttribute('data-duration-ms')) ||
+          seqWallMs;
         await expect(page.getByTestId('batch-count-converted')).toContainText('20');
         await expect(page.getByTestId('batch-count-failed')).toContainText('0');
 
@@ -196,8 +200,11 @@ test.describe('US5: Parallel conversion up to CPU cores minus 1', () => {
         await page.getByTestId('batch-worker-count').fill(String(hostCores - 1));
         const tParStart = Date.now();
         await page.getByTestId('dialog-batch-converter-button-start').click();
-        await expect(page.getByTestId('batch-report-view')).toBeVisible({ timeout: 120_000 });
-        const parMs = Date.now() - tParStart;
+        await page.getByTestId('batch-report-view').waitFor({ state: 'visible', timeout: 120_000 });
+        const parWallMs = Date.now() - tParStart;
+        const parMs =
+          Number(await page.getByTestId('batch-report-view').getAttribute('data-duration-ms')) ||
+          parWallMs;
         await expect(page.getByTestId('batch-count-converted')).toContainText('20');
         await expect(page.getByTestId('batch-count-failed')).toContainText('0');
 

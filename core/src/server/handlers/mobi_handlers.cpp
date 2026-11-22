@@ -278,6 +278,43 @@ std::vector<mobi::MobiKf8Fragment> parse_fragments(const json& arr) {
     return out;
 }
 
+std::optional<std::uint32_t> read_u32_le(std::string_view buf, std::size_t& pos) {
+    if (pos + 4 > buf.size()) {
+        return std::nullopt;
+    }
+    const auto* p = reinterpret_cast<const unsigned char*>(buf.data() + pos);
+    pos += 4;
+    return static_cast<std::uint32_t>(p[0]) | (static_cast<std::uint32_t>(p[1]) << 8U) |
+           (static_cast<std::uint32_t>(p[2]) << 16U) | (static_cast<std::uint32_t>(p[3]) << 24U);
+}
+
+bool apply_write_slot(mobi::MobiWriter& writer, std::string_view slot, std::string payload,
+                      std::string& error_out) {
+    if (slot == "mobi7-html") {
+        writer.set_mobi7_html(std::move(payload));
+        return true;
+    }
+    if (slot == "kf8-html") {
+        writer.set_kf8_html(std::move(payload));
+        return true;
+    }
+    if (slot == "kf8-css") {
+        writer.set_kf8_css(std::move(payload));
+        return true;
+    }
+    if (slot == "mfbe") {
+        json parsed = json::parse(payload, nullptr, false);
+        if (parsed.is_discarded() || !parsed.is_object()) {
+            error_out = "invalid MFBE JSON payload";
+            return false;
+        }
+        writer.set_mfbe_json(std::move(parsed));
+        return true;
+    }
+    error_out = "unknown MOBI upload slot";
+    return false;
+}
+
 void upload_write_slot(LoopbackServer& server, Services& services, uWS::HttpResponse<false>* res,
                        uWS::HttpRequest* req) {
     if (!server.check_auth(res, req)) {
@@ -286,6 +323,17 @@ void upload_write_slot(LoopbackServer& server, Services& services, uWS::HttpResp
     const std::string token = LoopbackServer::url_decode(req->getParameter(0));
     const std::string slot = slot_after_token(req->getUrl(), "/mobi-write/", token);
     auto buffer = std::make_shared<std::string>();
+    const std::string_view cl_hdr = req->getHeader("content-length");
+    if (!cl_hdr.empty() && cl_hdr.find_first_not_of("0123456789") == std::string_view::npos) {
+        try {
+            const std::size_t expected = std::stoull(std::string(cl_hdr));
+            if (expected <= mobi::kMaxDecompressedBytes) {
+                buffer->reserve(expected);
+            }
+        } catch (...) {
+            // Ignore malformed Content-Length and let onData enforce the size limit.
+        }
+    }
     auto aborted = std::make_shared<bool>(false);
     res->onAborted([aborted] { *aborted = true; });
     res->onData([res, buffer, aborted, &services, token, slot](std::string_view chunk, bool last) {
@@ -308,22 +356,36 @@ void upload_write_slot(LoopbackServer& server, Services& services, uWS::HttpResp
             return;
         }
         mobi::MobiWriter& writer = *it->second->writer;
-        if (slot == "mobi7-html") {
-            writer.set_mobi7_html(std::move(*buffer));
-        } else if (slot == "kf8-html") {
-            writer.set_kf8_html(std::move(*buffer));
-        } else if (slot == "kf8-css") {
-            writer.set_kf8_css(std::move(*buffer));
-        } else if (slot == "mfbe") {
-            json parsed = json::parse(*buffer, nullptr, false);
-            if (parsed.is_discarded() || !parsed.is_object()) {
-                end_plain(res, "400 Bad Request", "invalid MFBE JSON payload");
+        if (slot == "bundle") {
+            const std::string_view view(*buffer);
+            std::size_t pos = 0;
+            while (pos < view.size()) {
+                const auto name_len = read_u32_le(view, pos);
+                if (!name_len || pos + *name_len > view.size()) {
+                    end_plain(res, "400 Bad Request", "truncated MOBI bundle slot header");
+                    return;
+                }
+                const std::string_view entry_slot = view.substr(pos, *name_len);
+                pos += *name_len;
+                const auto body_len = read_u32_le(view, pos);
+                if (!body_len || pos + *body_len > view.size()) {
+                    end_plain(res, "400 Bad Request", "truncated MOBI bundle payload");
+                    return;
+                }
+                std::string entry_payload(view.substr(pos, *body_len));
+                pos += *body_len;
+                std::string err;
+                if (!apply_write_slot(writer, entry_slot, std::move(entry_payload), err)) {
+                    end_plain(res, "400 Bad Request", err);
+                    return;
+                }
+            }
+        } else {
+            std::string err;
+            if (!apply_write_slot(writer, slot, std::move(*buffer), err)) {
+                end_plain(res, "400 Bad Request", err);
                 return;
             }
-            writer.set_mfbe_json(std::move(parsed));
-        } else {
-            end_plain(res, "400 Bad Request", "unknown MOBI upload slot");
-            return;
         }
         res->writeStatus("201 Created");
         res->writeHeader("Cache-Control", "no-store");

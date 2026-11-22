@@ -258,6 +258,29 @@ void BatchState::cleanup_all() {
         std::error_code ec;
         fs::remove_all(root, ec);
     }
+    std::lock_guard doc_lock(doc_json_mutex_);
+    doc_json_.clear();
+}
+
+void BatchState::store_doc_json(const std::string& doc_id, std::string json_text) {
+    std::lock_guard lock(doc_json_mutex_);
+    doc_json_[doc_id] = std::move(json_text);
+}
+
+std::optional<std::string> BatchState::take_doc_json(const std::string& doc_id) {
+    std::lock_guard lock(doc_json_mutex_);
+    const auto it = doc_json_.find(doc_id);
+    if (it == doc_json_.end()) {
+        return std::nullopt;
+    }
+    std::string out = std::move(it->second);
+    doc_json_.erase(it);
+    return out;
+}
+
+void BatchState::erase_doc_json(const std::string& doc_id) {
+    std::lock_guard lock(doc_json_mutex_);
+    doc_json_.erase(doc_id);
 }
 
 }  // namespace mfbe::batch

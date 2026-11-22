@@ -5,7 +5,7 @@
  * ever touched.
  */
 
-import type { Document, ValidationIssue } from '@/model/document';
+import type { Description, Document, ValidationIssue } from '@/model/document';
 import type { RpcClient } from '@/rpc/client';
 import { isJobStart, type BinaryMeta, type SaveResult } from '@/rpc/types';
 
@@ -71,6 +71,39 @@ export interface EphemeralOpenedBook {
   docId: string;
   document: Document;
   warnings: ValidationIssue[];
+}
+
+export interface EphemeralHeadlessBook {
+  docId: string;
+  description: Description;
+  binaryCount: number;
+  warnings: ValidationIssue[];
+}
+
+/**
+ * Opens an FB2 file headlessly for worker-side processing (`batch.openDoc`). The full Document
+ * JSON is serialized on a C++ worker thread and served once at `GET /batch/doc/:docId` so the
+ * browser main thread never parses or structured-clones the document body AST.
+ */
+export async function openEphemeralFb2Headless(
+  rpc: RpcClient,
+  path: string,
+  archiveEntry: string | undefined,
+  options: {
+    signal?: AbortSignal;
+    onProgress?: (done: number, total: number, phase: string) => void;
+  } = {},
+): Promise<EphemeralHeadlessBook> {
+  return runCancellableRpcJob(
+    rpc,
+    () =>
+      rpc.call('batch.openDoc', {
+        path,
+        entry: archiveEntry,
+        cleanInvalidChars: true,
+      }),
+    options,
+  );
 }
 
 /**

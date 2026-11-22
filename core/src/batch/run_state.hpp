@@ -77,10 +77,23 @@ public:
     // Removes every remaining active run's temp directory (called on server shutdown / destructor).
     void cleanup_all();
 
+    // Stores pre-serialized Document JSON for an ephemeral batch.openDoc session so a Web Worker
+    // can fetch it directly via GET /batch/doc/:docId without crossing the main-thread WebSocket.
+    void store_doc_json(const std::string& doc_id, std::string json_text);
+
+    // Takes and removes the stored Document JSON for doc_id (one-shot fetch).
+    std::optional<std::string> take_doc_json(const std::string& doc_id);
+
+    // Releases any unfetched Document JSON when an ephemeral session is closed early.
+    void erase_doc_json(const std::string& doc_id);
+
 private:
     std::mutex mutex_;
     bool swept_ = false;
     std::unordered_map<std::string, RunState> runs_;
+
+    std::mutex doc_json_mutex_;
+    std::unordered_map<std::string, std::string> doc_json_;
 };
 
 }  // namespace mfbe::batch

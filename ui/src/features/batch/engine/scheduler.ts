@@ -321,6 +321,7 @@ export function startBatchRun(options: BatchSchedulerOptions): BatchRunControlle
           const item = items[idx]!;
           const resolved = resolveBatchTargetPath(item, config, settings);
 
+          const prevActiveCount = activeBySlot.size;
           activeBySlot.set(slot, {
             slot,
             itemId: item.itemId,
@@ -329,7 +330,13 @@ export function startBatchRun(options: BatchSchedulerOptions): BatchRunControlle
             done: 0,
             total: 0,
           });
-          emitNow();
+          // Emit immediately when a worker slot first becomes active so UI shows live slots right
+          // away; steady-state slot swaps stay throttled to avoid synchronous layout stalls.
+          if (activeBySlot.size > prevActiveCount) {
+            emitNow();
+          } else {
+            emitThrottled();
+          }
 
           let claimId: string | null = null;
           let claimSucceeded = false;
@@ -425,21 +432,29 @@ export function startBatchRun(options: BatchSchedulerOptions): BatchRunControlle
             }
           } finally {
             activeBySlot.delete(slot);
+            const cleanupCalls: Promise<unknown>[] = [];
             if (claimId !== null && runId !== null) {
-              await rpc
-                .call('batch.releaseTarget', {
-                  runId,
-                  claimId,
-                  succeeded: claimSucceeded,
-                })
-                .catch(() => undefined);
+              cleanupCalls.push(
+                rpc
+                  .call('batch.releaseTarget', {
+                    runId,
+                    claimId,
+                    succeeded: claimSucceeded,
+                  })
+                  .catch(() => undefined),
+              );
             }
             if (runId !== null) {
-              await rpc
-                .call('batch.cleanupItem', { runId, itemId: item.itemId })
-                .catch(() => undefined);
+              cleanupCalls.push(
+                rpc
+                  .call('batch.cleanupItem', { runId, itemId: item.itemId })
+                  .catch(() => undefined),
+              );
             }
-            emitNow();
+            if (cleanupCalls.length > 0) {
+              await Promise.all(cleanupCalls);
+            }
+            emitThrottled();
           }
         }
       };

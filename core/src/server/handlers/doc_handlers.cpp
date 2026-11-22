@@ -1400,6 +1400,88 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         return json{{"jobId", job_id}};
     });
 
+    // Feature 019: headless ephemeral open for batch export workers. Serializes the full Document
+    // JSON on the C++ worker thread into services.batch (served once via GET /batch/doc/:docId)
+    // so parallel Web Workers fetch and parse the AST off the browser main thread.
+    router.add_method("batch.openDoc", [&services](const json& params, rpc::RpcContext& ctx) {
+        const std::string path = absolute_path(rpc::params::string(params, "path"));
+        const fs::path file = platform::path_from_utf8(path);
+        const std::optional<std::string> requested_entry = rpc::params::opt_string(params, "entry");
+        const bool clean_invalid_chars =
+            rpc::params::boolean_or(params, "cleanInvalidChars", false);
+        const std::string ui_language = ui_language_setting(services);
+
+        const std::string doc_id = services.documents.create().docId;
+        const std::string job_id =
+            ctx.jobs.start([&services, path, file, doc_id, ui_language, requested_entry,
+                            clean_invalid_chars](rpc::JobControl& control) -> json {
+                auto cleanup_doc = [&services, &doc_id, &control] {
+                    services.batch.erase_doc_json(doc_id);
+                    on_loop_thread(
+                        services,
+                        [&services, doc_id] {
+                            services.documents.close(doc_id);
+                            return 0;
+                        },
+                        &control);
+                };
+                auto opened = std::make_shared<Opened>();
+                try {
+                    std::error_code ec;
+                    if (!fs::exists(file, ec)) {
+                        throw io_error(path, "file not found");
+                    }
+                    refuse_other_archives(file);
+                    std::optional<std::string> entry = requested_entry;
+                    if (archive::detect_kind(file) == archive::Kind::zip) {
+                        ArchiveChoice choice = choose_entry(path, requested_entry);
+                        if (!choice.needs_choice.is_null()) {
+                            throw rpc::RpcError(rpc::codes::kArchiveEntryMissing,
+                                                "archive requires an explicit book entry",
+                                                json{{"path", path}});
+                        }
+                        entry = choice.entry;
+                    }
+                    *opened = open_document(path, ui_language, &control, entry, std::nullopt,
+                                            clean_invalid_chars);
+                } catch (...) {
+                    cleanup_doc();
+                    throw;
+                }
+                opened->read.document.docId = doc_id;
+                json full_doc = loaded_document_json(opened->read.document, opened->filled_in);
+                add_source(full_doc, *opened);
+                std::string wire = full_doc.dump();
+                json description = model::to_json(opened->read.document.description);
+                const std::size_t binary_count = opened->read.document.binaries.size();
+                json warnings = issues_json(opened->read.warnings);
+                // Store before registering so the HTTP route is ready immediately upon job.done.
+                services.batch.store_doc_json(doc_id, std::move(wire));
+                const bool registered = on_loop_thread(
+                    services,
+                    [&services, doc_id, opened] {
+                        session::DocumentSession* s = services.documents.find(doc_id);
+                        if (s == nullptr) {
+                            return false;
+                        }
+                        fill_session(services, *s, *opened, true);
+                        return true;
+                    },
+                    &control);
+                if (!registered) {
+                    services.batch.erase_doc_json(doc_id);
+                    throw rpc::RpcError(rpc::codes::kCancelled, "document was closed while loading",
+                                        json{{"docId", doc_id}});
+                }
+                control.progress("done", 100, 100);
+                return json{{"docId", doc_id},
+                            {"description", std::move(description)},
+                            {"binaryCount", binary_count},
+                            {"warnings", std::move(warnings)}};
+            });
+        return json{{"jobId", job_id}};
+    });
+
     router.add_method("doc.encodingPreview", [](const json& params, rpc::RpcContext&) {
         const std::string path = absolute_path(rpc::params::string(params, "path"));
         const fs::path file = platform::path_from_utf8(path);
@@ -1534,6 +1616,7 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
 
     router.add_method("doc.close", [&services](const json& params, rpc::RpcContext&) {
         const std::string doc_id = rpc::params::string(params, "docId");
+        services.batch.erase_doc_json(doc_id);
         if (services.watcher) {
             services.watcher->unwatch(doc_id);
         }
@@ -2219,8 +2302,17 @@ void register_fragment_handlers(rpc::RpcRouter& router, Services& services) {
 void write_description_file(Services& services, const std::string& doc_id, const json& params,
                             const std::string& path) {
     session::DocumentSession& s = services.documents.require(doc_id);
+    model::Document doc;
+    if (params.contains("document")) {
+        doc = document_param(params);
+    } else if (s.snapshot) {
+        doc = *s.snapshot;
+    } else {
+        throw rpc::invalid_params("document: missing and session has no snapshot",
+                                  json{{"field", "document"}});
+    }
     ExportRequest request;
-    request.document = exported_document(document_param(params), s.ids);
+    request.document = exported_document(std::move(doc), s.ids);
     request.path = path;
     request.force = true;
     request.xlink_prefix = s.xlinkPrefix;

@@ -18,6 +18,7 @@ export interface WorkerProgressEvent {
 
 export type WorkerOutboundMessage<TResult> =
   | { type: 'progress'; done: number; total: number; stage?: string }
+  | { type: 'request'; id: number; payload: unknown }
   | { type: 'result'; data: TResult }
   | { type: 'error'; message: string };
 
@@ -74,6 +75,7 @@ export function runWorkerTask<TPayload, TResult>(
   options: {
     signal?: AbortSignal;
     onProgress?: (event: WorkerProgressEvent) => void;
+    onRequest?: (payload: unknown) => Promise<unknown>;
     transfer?: Transferable[];
     pool?: { pool: BatchWorkerPool; key: string };
   } = {},
@@ -114,6 +116,36 @@ export function runWorkerTask<TPayload, TResult>(
       if (!msg || typeof msg !== 'object') return;
       if (msg.type === 'progress') {
         options.onProgress?.({ done: msg.done, total: msg.total, stage: msg.stage });
+        return;
+      }
+      if (msg.type === 'request') {
+        const handler = options.onRequest;
+        if (!handler) {
+          worker.postMessage({
+            type: 'response',
+            id: msg.id,
+            ok: false,
+            message: 'Worker request handler not configured',
+          });
+          return;
+        }
+        void handler(msg.payload).then(
+          (data) => {
+            if (!settled && !options.signal?.aborted) {
+              worker.postMessage({ type: 'response', id: msg.id, ok: true, data });
+            }
+          },
+          (error: unknown) => {
+            if (!settled && !options.signal?.aborted) {
+              worker.postMessage({
+                type: 'response',
+                id: msg.id,
+                ok: false,
+                message: error instanceof Error ? error.message : String(error),
+              });
+            }
+          },
+        );
         return;
       }
       if (msg.type === 'result') {
