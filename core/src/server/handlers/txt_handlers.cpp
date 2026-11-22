@@ -84,10 +84,10 @@ struct TxtExport {
     std::string text;
     std::string encoding;
     bool bom = false;
-    // D13: a ZIP archive with <stem>.txt and the book's <stem>.fbd, the FBD made in `work`.
+    // D13: a ZIP archive with <stem>.txt and the book's <stem>.fbd, pre-built on the loop thread
+    // so concurrent txt.export worker threads never touch DocumentRegistry.
     bool zip = false;
-    fs::path work;
-    std::function<void(const fs::path&)> write_fbd;
+    std::string fbd_bytes;
 };
 
 // The file's bytes and the summary's replacements (D10, D12, D16); the TXT, or the ZIP with the
@@ -115,21 +115,9 @@ json write_txt(const TxtExport& job) {
         // D13 (as the PDF export's archive, 016 D25): <stem>.txt and <stem>.fbd at the archive's
         // top, named after it; the archive replaces the target only when complete.
         const std::string stem = platform::utf8_from_path(job.path.stem());
-        std::error_code ec;
-        fs::create_directories(job.work, ec);
-        fs::path fbd = job.work / job.path.stem();
-        fbd += ".fbd";  // path-text: an ASCII extension
-        try {
-            job.write_fbd(fbd);
-            const std::string fbd_bytes = atomic_file::read_file(fbd);
-            atomic_file::write_atomic(
-                job.path, archive::zip_entries({{stem + ".txt", bytes, false, false},
-                                                {stem + ".fbd", fbd_bytes, false, false}}));
-        } catch (...) {
-            fs::remove_all(job.work, ec);
-            throw;
-        }
-        fs::remove_all(job.work, ec);
+        atomic_file::write_atomic(
+            job.path, archive::zip_entries({{stem + ".txt", bytes, false, false},
+                                            {stem + ".fbd", job.fbd_bytes, false, false}}));
     } else {
         atomic_file::write_atomic(job.path, bytes);
     }
@@ -208,18 +196,6 @@ void register_txt_handlers(rpc::RpcRouter& router, Services& services) {
         job->encoding = rpc::params::string_or(params, "encoding", "utf-8");
         job->bom = params.value("bom", false);
         job->zip = params.value("zip", false);
-        if (job->zip) {
-            // D13: the FBD is the description the interface sends, as doc.exportDescription takes
-            // it.
-            if (rpc::params::opt_field(params, "document") == nullptr) {
-                throw rpc::invalid_params("document is required for a ZIP archive",
-                                          json{{"field", "document"}});
-            }
-            job->work = services.dirs.state / "txt-export" / new_token();
-            job->write_fbd = [&services, doc_id, params](const fs::path& fbd) {
-                write_description_file(services, doc_id, params, platform::utf8_from_path(fbd));
-            };
-        }
         if (job->encoding != "utf-8" && !text::is_single_byte(job->encoding)) {
             throw rpc::invalid_params("unknown encoding", json{{"encoding", job->encoding}});
         }
@@ -229,6 +205,27 @@ void register_txt_handlers(rpc::RpcRouter& router, Services& services) {
                 throw rpc::RpcError(rpc::codes::kDocSameAsOpenFile, "",
                                     json{{"path", platform::utf8_from_path(job->path)}});
             }
+        }
+        if (job->zip) {
+            // D13: build the companion FBD on the event-loop thread while DocumentRegistry is
+            // exclusively owned here, matching mobi.write.commit (Feature 019 thread-safety fix).
+            if (rpc::params::opt_field(params, "document") == nullptr) {
+                throw rpc::invalid_params("document is required for a ZIP archive",
+                                          json{{"field", "document"}});
+            }
+            const fs::path work = services.dirs.state / "txt-export" / new_token();
+            std::error_code ec;
+            fs::create_directories(work, ec);
+            fs::path fbd = work / job->path.stem();
+            fbd += ".fbd";  // path-text: an ASCII extension
+            try {
+                write_description_file(services, doc_id, params, platform::utf8_from_path(fbd));
+                job->fbd_bytes = atomic_file::read_file(fbd);
+            } catch (...) {
+                fs::remove_all(work, ec);
+                throw;
+            }
+            fs::remove_all(work, ec);
         }
         const std::string job_id = ctx.jobs.start([job](rpc::JobControl& control) {
             control.check_cancelled();

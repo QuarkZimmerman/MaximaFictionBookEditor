@@ -236,7 +236,11 @@ json to_json(const SaveFileResult& r) {
 }
 
 json to_json(const PickFolderRequest& r) {
-    return json{{"title", r.title}};
+    json j{{"title", r.title}};
+    if (r.folder) {
+        j["folder"] = *r.folder;
+    }
+    return j;
 }
 
 json to_json(const PickFolderResult& r) {
@@ -375,8 +379,10 @@ SaveFileResult save_file_result_from_json(const json& j) {
 }
 
 PickFolderRequest pick_folder_request_from_json(const json& j) {
+    const json& o = require_object(j);
     PickFolderRequest r;
-    r.title = str_or(require_object(j), "title");
+    r.title = str_or(o, "title");
+    r.folder = opt_str(o, "folder");
     return r;
 }
 

@@ -14,6 +14,11 @@ import { MAX_HEIGHT, MAX_WIDTH, rasterise, sized, type DrawnDiagram } from './ra
 export type { DrawnDiagram };
 
 let initialised = false;
+// Feature 019 (R3): Mermaid mutates shared DOM measurement containers during render(); serialize
+// calls through an async queue and use a monotonic per-call id so parallel batch imports never
+// collide on element IDs.
+let renderQueue: Promise<void> = Promise.resolve();
+let nextRenderSeq = 0;
 
 function initialise(): void {
   if (initialised) return;
@@ -35,10 +40,21 @@ function initialise(): void {
 
 /** Draws `source`; rejects with Mermaid's reason when it cannot be drawn. */
 export async function drawDiagram(source: string, index: number): Promise<DrawnDiagram> {
-  initialise();
-  const { svg } = await mermaid.render(`mfbe-diagram-${index}`, source);
-  const drawing = sized(svg, (width, height) =>
-    Math.min(2, MAX_WIDTH / width, MAX_HEIGHT / height),
-  );
-  return rasterise(drawing.text, drawing.width, drawing.height, source, SOURCE_KEYWORD);
+  const prev = renderQueue;
+  let release!: () => void;
+  renderQueue = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await prev;
+  try {
+    initialise();
+    const seq = ++nextRenderSeq;
+    const { svg } = await mermaid.render(`mfbe-diagram-${seq}-${index}`, source);
+    const drawing = sized(svg, (width, height) =>
+      Math.min(2, MAX_WIDTH / width, MAX_HEIGHT / height),
+    );
+    return await rasterise(drawing.text, drawing.width, drawing.height, source, SOURCE_KEYWORD);
+  } finally {
+    release();
+  }
 }

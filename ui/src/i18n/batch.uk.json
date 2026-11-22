@@ -1,0 +1,193 @@
+{
+  "menu": {
+    "tools": {
+      "batchConverter": "&Пакетний конвертер..."
+    }
+  },
+  "cmd": {
+    "tools": {
+      "batchConverter": {
+        "tooltip": "Пакетний конвертер",
+        "description": "Пакетне перетворення тек із книгами FB2 та підтримуваних форматів"
+      }
+    }
+  },
+  "batch": {
+    "title": "Пакетний конвертер",
+    "direction": {
+      "group": "Напрямок",
+      "fb2ToExport": "З FB2 у формат експорту",
+      "importToFb2": "З форматів імпорту у FB2"
+    },
+    "export": {
+      "targetFormat": "Цільовий формат:",
+      "activeSettings": "Поточні налаштування експорту:",
+      "settingsButton": "Налаштування експорту...",
+      "epubDefaults": "Стандартний EPUB 3 (окремих налаштувань немає)",
+      "markdownPicturesOn": "Додавати зображення: Так",
+      "markdownPicturesOff": "Додавати зображення: Ні",
+      "markdownZipSummary": "ZIP-архів Markdown (із текою images/)",
+      "pdfSummary": "Сторінка: {{page}}, шрифт: {{font}} ({{size}}), поля: {{margins}}",
+      "txtUtf8": "Кодування: UTF-8",
+      "txtByLang": "Кодування: за мовою книги",
+      "txtBom": "з BOM",
+      "mobiSummary": "Формат: {{format}}, зміст: {{toc}}, відкривати з: {{openAt}}"
+    },
+    "import": {
+      "formatsLabel": "Формати для конвертації:",
+      "allFormats": "Усі підтримувані формати",
+      "noneSelected": "Оберіть принаймні один формат імпорту для конвертації."
+    },
+    "paths": {
+      "sourceGroup": "Джерело",
+      "sourceLabel": "Вихідна тека:",
+      "sourcePlaceholder": "Оберіть вихідну теку...",
+      "browse": "Огляд...",
+      "browseSourceTitle": "Вибір вихідної теки",
+      "includeSubfolders": "Включати підтеки",
+      "destinationGroup": "Призначення",
+      "inPlace": "Конвертація на місці (зберігати поруч із вихідним файлом)",
+      "destinationLabel": "Тека призначення:",
+      "destinationPlaceholder": "Оберіть теку призначення...",
+      "browseDestinationTitle": "Вибір теки призначення",
+      "keepTree": "Зберігати структуру тек"
+    },
+    "options": {
+      "group": "Параметри",
+      "zipOutput": "Зберігати результат у ZIP-архів",
+      "zipEpubNote": "Файли EPUB уже є ZIP-архівами",
+      "overwrite": "Перезаписувати наявні файли",
+      "parallel": "Паралельна конвертація",
+      "workersLabel": "Потоки:",
+      "workersMaxNote": "(до {{max}})",
+      "singleCoreNote": "(недоступно: на цьому комп'ютері максимум 1 потік)"
+    },
+    "validation": {
+      "missingSource": "Спочатку оберіть вихідну теку.",
+      "missingDestination": "Оберіть теку призначення або увімкніть конвертацію на місці.",
+      "noImportFormat": "Оберіть принаймні один формат імпорту."
+    },
+    "actions": {
+      "start": "Почати",
+      "cancel": "Скасувати",
+      "cancelling": "Скасування...",
+      "close": "Закрити",
+      "saveReport": "Зберегти звіт...",
+      "runAgain": "Новий пакет"
+    },
+    "progress": {
+      "scanning": "Сканування вихідної теки... (знайдено файлів: {{count}})",
+      "overall": "Загальний прогрес: {{completed}} / {{total}} ({{percent}}%)",
+      "cancellingStatus": "Скасування активних перетворень... ({{completed}} / {{total}})",
+      "counts": "Готово: {{converted}} · Пропущено: {{skipped}} · Помилок: {{failed}}",
+      "activeFiles": "Поточна конвертація:",
+      "stageReading": "Читання...",
+      "stageExtracting": "Видобування з архіву...",
+      "stageConverting": "Перетворення...",
+      "stagePrinting": "Друк PDF...",
+      "stageWriting": "Запис...",
+      "stageCancelling": "Скасування..."
+    },
+    "report": {
+      "headingCompleted": "Конвертацію завершено",
+      "headingCancelled": "Конвертацію скасовано",
+      "headingEmpty": "Відповідних файлів не знайдено",
+      "emptyMessage": "У вихідній теці не знайдено файлів, що відповідають обраним форматам.",
+      "summaryTotal": "Усього: {{count}}",
+      "summaryConverted": "Готово: {{count}}",
+      "summarySkipped": "Пропущено: {{count}}",
+      "summaryFailed": "Помилок: {{count}}",
+      "summaryCancelled": "Скасовано: {{count}}",
+      "filterAll": "Усі записи ({{count}})",
+      "filterFailed": "Помилки ({{count}})",
+      "filterSkipped": "Пропущено ({{count}})",
+      "noIssues": "Усі файли перетворено без помилок і пропусків.",
+      "noFilterMatches": "У цій категорії немає записів.",
+      "badgeFailed": "Помилка",
+      "badgeSkipped": "Пропущено",
+      "saveTitle": "Зберегти звіт пакетної конвертації",
+      "saveFilterText": "Текстові файли (*.txt)",
+      "saveFilterAll": "Усі файли (*.*)",
+      "savedMessage": "Звіт збережено до {{path}}",
+      "saveFailed": "Не вдалося зберегти звіт до {{path}}: {{reason}}"
+    },
+    "reportFile": {
+      "title": "Maxima Fiction Book Editor — Звіт пакетної конвертації",
+      "started": "Початок:",
+      "finished": "Завершення:",
+      "status": "Статус:",
+      "statusCompleted": "Завершено",
+      "statusCancelled": "Скасовано",
+      "direction": "Напрямок:",
+      "directionExport": "Експорт FB2 -> {{format}}",
+      "directionImport": "Імпорт -> FB2 [{{formats}}]",
+      "source": "Джерело:",
+      "includeSubfolders": "Включати підтеки: {{value}}",
+      "output": "Призначення:",
+      "outputDest": "{{path}} (Структура тек: {{keepTree}}; ZIP: {{zip}}; Перезапис: {{overwrite}})",
+      "outputInPlace": "На місці поруч із вихідними файлами (ZIP: {{zip}}; Перезапис: {{overwrite}})",
+      "parallel": "Паралельно:",
+      "parallelYes": "Так (потоків: {{count}})",
+      "parallelNo": "Ні (1 потік)",
+      "exportOpts": "Параметри експорту:",
+      "yes": "Так",
+      "no": "Ні",
+      "summaryHeading": "Підсумок",
+      "total": "Усього:",
+      "converted": "Готово:",
+      "skipped": "Пропущено:",
+      "failed": "Помилок:",
+      "cancelled": "Скасовано:",
+      "failedHeading": "Помилки ({{count}})",
+      "skippedHeading": "Пропущено ({{count}})",
+      "warningsHeading": "Попередження для готових файлів ({{count}})",
+      "none": "Немає.",
+      "errorPrefix": "Помилка:",
+      "reasonPrefix": "Причина:"
+    },
+    "reasons": {
+      "targetExists": "Вихідний файл уже існує.",
+      "targetBusy": "Вихідний файл зараз записується іншим потоком.",
+      "targetIsSource": "Шлях призначення збігається з вихідним файлом.",
+      "targetIsOpenBook": "Шлях призначення збігається з книгою, відкритою в редакторі.",
+      "sourceNotFound": "Вихідна тека не існує.",
+      "sourceNotDirectory": "Вказаний вихідний шлях не є текою.",
+      "sourceUnreadable": "Не вдалося прочитати вихідну теку.",
+      "invalidPath": "Некоректний або заборонений шлях до файлу.",
+      "extractFailed": "Не вдалося видобути файл із ZIP-архіву.",
+      "ioError": "Помилка файлової системи: {{detail}}",
+      "archiveEncrypted": "Архів захищено паролем.",
+      "archiveDamaged": "Архів пошкоджений або нечитабельний.",
+      "archiveTooLarge": "Файл в архіві перевищує допустимий розмір.",
+      "archiveMultiVolume": "Багатотомні архіви не підтримуються.",
+      "archiveMethod": "Архів використовує непідтримуваний метод стиснення.",
+      "unreadableDir": "Не вдалося прочитати теку.",
+      "passwordPdf": "Файл PDF захищено паролем.",
+      "encryptedMobi": "Зашифровані або захищені DRM файли MOBI не підтримуються.",
+      "encodingFailed": "Не вдалося визначити читабельне кодування тексту.",
+      "unreadableFbd": "Супутній FBD не вдалося прочитати, його пропущено: {{detail}}",
+      "unknownError": "Помилка перетворення: {{detail}}"
+    },
+    "tips": {
+      "direction": "Оберіть експорт книг FB2 або імпорт інших форматів у FB2",
+      "targetFormat": "Формат для експорту книг FB2 (використовуються параметри з Налаштування -> Експорт)",
+      "exportSettings": "Відкрити Налаштування -> Експорт для зміни параметрів обраного формату",
+      "importAll": "Конвертувати всі підтримувані формати імпорту з вихідної теки",
+      "sourceDir": "Тека з вихідними книгами для перетворення",
+      "browseSource": "Обрати вихідну теку",
+      "includeSubfolders": "Сканувати вкладені підтеки у вихідній теці",
+      "inPlace": "Зберігати кожен результат поруч із вихідним файлом замість окремої теки призначення",
+      "destinationDir": "Тека, до якої будуть збережені перетворені файли",
+      "browseDestination": "Обрати теку призначення",
+      "keepTree": "Відтворити дерево підтек вихідної теки в теці призначення",
+      "zipOutput": "Пакувати кожен перетворений файл у ZIP-архів",
+      "overwrite": "Перезаписувати наявні вихідні файли замість їх пропуску",
+      "parallel": "Конвертувати кілька книг одночасно у фонових потоках (до кількості ядер мінус 1)",
+      "workerCount": "Максимальна кількість файлів, що конвертуються одночасно (до кількості ядер мінус 1)",
+      "start": "Запустити пошук і перетворення відповідних книг",
+      "cancel": "Зупинити запуск нових файлів і перервати активні перетворення",
+      "saveReport": "Зберегти текстовий звіт UTF-8 із помилками, пропусками та попередженнями",
+      "close": "Закрити вікно пакетного конвертера"
+    }
+  }
+}

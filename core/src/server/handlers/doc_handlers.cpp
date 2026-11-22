@@ -518,8 +518,10 @@ Opened open_document(const std::string& path, const std::string& ui_language,
 }
 
 // Loop thread: fills a session with an opened document. `s` was created on the loop thread
-// (so the docId was known while the worker serialised the result).
-void fill_session(Services& services, session::DocumentSession& s, Opened& opened) {
+// (so the docId was known while the worker serialised the result). When `ephemeral` is true
+// (Feature 019 batch conversion), Recent files and remembered positions are left untouched.
+void fill_session(Services& services, session::DocumentSession& s, Opened& opened,
+                  bool ephemeral = false) {
     model::Document& doc = opened.read.document;
     doc.docId = s.docId;
     s.path = opened.path;
@@ -558,32 +560,34 @@ void fill_session(Services& services, session::DocumentSession& s, Opened& opene
     }
     s.binaries = std::move(opened.store);
     s.ids = opened.ids;
-    s.position = services.positions.get(opened.path, opened.entry);
-    if (!s.position && !opened.entry) {
-        // The one-time conversion of a release 0.0.3 caret kept in recent.json: a Body caret
-        // whose node id the freshly loaded document has (ids are deterministic in document
-        // order, so "it still fits" = the id exists) becomes a position by place and is
-        // recorded like one; any other legacy caret is ignored (resource-formats §8).
-        if (const auto legacy = services.recent.legacy_caret(opened.path)) {
-            const std::string path = model::node_path(doc, legacy->nodeId);
-            if (!path.empty()) {
-                s.position = settings::Position{path, std::max(0, legacy->offset)};
-                record_position(services, s);
+    if (!ephemeral) {
+        s.position = services.positions.get(opened.path, opened.entry);
+        if (!s.position && !opened.entry) {
+            // The one-time conversion of a release 0.0.3 caret kept in recent.json: a Body caret
+            // whose node id the freshly loaded document has (ids are deterministic in document
+            // order, so "it still fits" = the id exists) becomes a position by place and is
+            // recorded like one; any other legacy caret is ignored (resource-formats §8).
+            if (const auto legacy = services.recent.legacy_caret(opened.path)) {
+                const std::string path = model::node_path(doc, legacy->nodeId);
+                if (!path.empty()) {
+                    s.position = settings::Position{path, std::max(0, legacy->offset)};
+                    record_position(services, s);
+                }
             }
         }
+        services.recent.touch(opened.path, opened.entry);  // without the legacy caret from now on
     }
-    services.recent.touch(opened.path, opened.entry);  // without the legacy caret from now on
     s.snapshot = std::move(doc);
 }
 
 // Loop thread, synchronous path: session + result in one go.
-json register_session(Services& services, Opened&& opened) {
+json register_session(Services& services, Opened&& opened, bool ephemeral = false) {
     session::DocumentSession& s = services.documents.create();
     opened.read.document.docId = s.docId;
     json result{{"document", loaded_document_json(opened.read.document, opened.filled_in)},
                 {"warnings", issues_json(opened.read.warnings)}};
     add_source(result["document"], opened);
-    fill_session(services, s, opened);
+    fill_session(services, s, opened, ephemeral);
     return result;
 }
 
@@ -698,7 +702,8 @@ struct SaveRequest {
     std::string path;                         // absolute target
     std::string encoding;                     // canonical
     bool force = false;
-    bool backup = false;  // keep the replaced file as "<path>.bak" (feature 009, FR-001)
+    bool backup = false;     // keep the replaced file as "<path>.bak" (feature 009, FR-001)
+    bool ephemeral = false;  // feature 019: skip Recent, positions, and session.path mutation
     // Feature 009 (DP-6): write a new ZIP archive holding only the book under this name.
     std::optional<std::string> archive_entry;
     std::string xlink_prefix;
@@ -839,12 +844,16 @@ json perform_save(Services& services, SaveRequest& request, rpc::JobControl* con
     for (const auto& c : converted) {
         converted_ids.push_back(c.id);
     }
-    auto update = [&services, doc_id, path, enc, stamp, snapshot, converted_ids,
-                   archive_entry]() -> int {
-        session::DocumentSession* s = services.documents.find(doc_id);
+    const bool ephemeral = request.ephemeral;
+    auto update = [&services, doc_id, path, enc, stamp, snapshot, converted_ids, archive_entry,
+                   ephemeral]() -> int {
         for (const std::string& id : converted_ids) {
             services.previews.invalidate_prefix(doc_id + "/" + id + "@");
         }
+        if (ephemeral) {
+            return 0;
+        }
+        session::DocumentSession* s = services.documents.find(doc_id);
         if (s != nullptr) {
             s->path = path;
             // Once saved, the book is tied to the file just written: no archive after a plain
@@ -1303,10 +1312,13 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
 
     router.add_method("doc.open", [&services](const json& params, rpc::RpcContext& ctx) {
         const std::string path = absolute_path(rpc::params::string(params, "path"));
+        const bool ephemeral = rpc::params::boolean_or(params, "ephemeral", false);
         const fs::path file = platform::path_from_utf8(path);
         std::error_code ec;
         if (!fs::exists(file, ec)) {
-            services.recent.remove(path);  // prune missing files (resource-formats.md §8)
+            if (!ephemeral) {
+                services.recent.remove(path);  // prune missing files (resource-formats.md §8)
+            }
             throw io_error(path, "file not found");
         }
         std::uintmax_t size = fs::file_size(file, ec);
@@ -1337,14 +1349,14 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         if (ec || size < kJobThresholdBytes) {
             Opened opened = open_document(path, ui_language, nullptr, entry, force_encoding,
                                           clean_invalid_chars);
-            return register_session(services, std::move(opened));
+            return register_session(services, std::move(opened), ephemeral);
         }
         // The session (and its docId) exists from the start; the worker parses and builds the
         // JSON result, the loop thread only moves the data into the session at the end.
         const std::string doc_id = services.documents.create().docId;
         const std::string job_id =
             ctx.jobs.start([&services, path, doc_id, ui_language, entry, force_encoding,
-                            clean_invalid_chars](rpc::JobControl& control) -> json {
+                            clean_invalid_chars, ephemeral](rpc::JobControl& control) -> json {
                 auto opened = std::make_shared<Opened>();
                 try {
                     *opened = open_document(path, ui_language, &control, entry, force_encoding,
@@ -1366,12 +1378,12 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
                 add_source(result["document"], *opened);
                 const bool registered = on_loop_thread(
                     services,
-                    [&services, doc_id, opened] {
+                    [&services, doc_id, opened, ephemeral] {
                         session::DocumentSession* s = services.documents.find(doc_id);
                         if (s == nullptr) {
                             return false;  // closed while loading
                         }
-                        fill_session(services, *s, *opened);
+                        fill_session(services, *s, *opened, ephemeral);
                         return true;
                     },
                     &control);
@@ -1749,6 +1761,7 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
             effective_encoding(services, s, rpc::params::opt_string(params, "encoding"));
         request.force = rpc::params::boolean_or(params, "force", false);
         request.backup = rpc::params::boolean_or(params, "backup", false);
+        request.ephemeral = rpc::params::boolean_or(params, "ephemeral", false);
         if (const auto it = params.find("archive"); it != params.end() && !it->is_null()) {
             const auto name = it->is_object() ? it->find("entryName") : it->end();
             if (!it->is_object() || name == it->end() || !name->is_string() ||

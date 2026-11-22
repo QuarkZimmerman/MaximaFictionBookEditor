@@ -403,6 +403,7 @@ struct CoreServer::Impl : rpc::Notifier {
         server::register_pdf_import_handlers(router, *services);
         server::register_txt_handlers(router, *services);
         server::register_mobi_handlers(router, *services);
+        server::register_batch_handlers(router, *services);
         server::register_resources_handlers(router, *services);
         server::register_spell_handlers(router, *services);
         server::register_words_handlers(router, *services);
@@ -430,6 +431,7 @@ CoreServer::~CoreServer() {
     if (impl_->services) {
         impl_->services->watcher.reset();
         impl_->services->jobs.shutdown();
+        impl_->services->batch.cleanup_all();
     }
     // libcurl was initialised lazily by the first ai.* call, if ever (feature 005, FR-094):
     // the matching cleanup runs only when it ran, after every job thread has been joined.

@@ -34,6 +34,7 @@ import { registerMobiExportFeature } from '@/features/mobi/exportCommand';
 import { registerMobiImportFeature } from '@/features/mobi/importCommand';
 import { registerPdfImportFeature } from '@/features/pdf/importCommand';
 import { registerMarkdownImport } from '@/features/markdown/importCommand';
+import { registerBatchFeature } from '@/features/batch';
 
 /** What a feature registrar receives; keep it minimal and stable. */
 export interface FeatureContext {
@@ -120,6 +121,7 @@ export function createAppServices(options: CreateAppServicesOptions = {}): AppSe
   registerPdfImportFeature(commands, files);
   registerTxtImportFeature(commands, files);
   registerMobiImportFeature(commands, files);
+  registerBatchFeature(commands);
   registerViewCommands(commands);
   // Feature modules (editing, source tools, description, tree, spelling, images, words,
   // settings, scripts) register their commands/plugins through their own registrar file;

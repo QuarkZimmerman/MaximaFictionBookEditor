@@ -111,6 +111,7 @@ struct SaveFileResult {
 
 struct PickFolderRequest {
     std::string title;
+    std::optional<std::string> folder;  // feature 019: optional initial folder hint (UTF-8)
 };
 struct PickFolderResult {
     std::optional<std::string> path;

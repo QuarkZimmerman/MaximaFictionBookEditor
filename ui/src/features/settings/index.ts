@@ -17,6 +17,7 @@ import {
   type BeforeApplyHook,
   type SettingsPageId,
 } from '@/dialogs/SettingsDialog';
+import type { ExportFormat } from '@/dialogs/settings/ExportsPage';
 
 import { cmdKeys } from '../editing/common';
 
@@ -31,6 +32,8 @@ const isConnected = (ctx: CommandContext): boolean =>
 export interface OpenSettingsOptions {
   /** The page shown first (the AI panel's and the AI failure messages' link, feature 005). */
   initialPage?: SettingsPageId;
+  /** Feature 019: format pre-selected on the Exports tab. */
+  initialExportFormat?: ExportFormat;
   /** Asked before OK / Apply write anything (feature 005 US9); absent: the registered hook. */
   beforeApply?: BeforeApplyHook;
 }
@@ -69,6 +72,7 @@ export async function openSettingsDialog(
       feature,
       onClose: () => close(),
       initialPage: options.initialPage,
+      initialExportFormat: options.initialExportFormat,
       beforeApply: options.beforeApply ?? combinedBeforeApply,
     }),
   );

@@ -18,6 +18,8 @@ export interface DialogInstance {
   render: (close: (result: unknown) => void) => ReactNode;
   modeless: boolean;
   kind: DialogKind;
+  /** Feature 019: optional guard blocking host-level dismissal while a critical job is active. */
+  canClose?: () => boolean;
 }
 
 export interface DialogOpenOptions {
@@ -25,6 +27,8 @@ export interface DialogOpenOptions {
   modeless?: boolean;
   /** `viewer`: a modal layer over the whole window (feature 007, the picture view). */
   kind?: DialogKind;
+  /** Feature 019: when returning false, host-level Escape/dismissal is ignored. */
+  canClose?: () => boolean;
 }
 
 export class DialogService {
@@ -48,6 +52,7 @@ export class DialogService {
           render: (close) => render(close as (result: T) => void),
           modeless: (options.modeless ?? false) && options.kind !== 'viewer',
           kind: options.kind ?? 'dialog',
+          canClose: options.canClose,
         },
       ];
       this.emit();
@@ -68,6 +73,7 @@ export class DialogService {
   closeTop(result: unknown = undefined): boolean {
     const top = this.stackValue[this.stackValue.length - 1];
     if (!top) return false;
+    if (top.canClose && !top.canClose()) return false;
     this.close(top.id, result);
     return true;
   }

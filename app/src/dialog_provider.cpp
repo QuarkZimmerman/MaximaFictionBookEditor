@@ -734,6 +734,9 @@ public:
         FileDialogRequest native;
         native.mode = FileDialogMode::kFolder;
         native.title = request.title;
+        if (request.folder) {
+            native.folder = *request.folder;
+        }
         const bool posted = dialogs_->runFileDialog(native, [done](FileDialogResult result) {
             mfbe::PickFolderResult out;
             if (!result.cancelled && !result.paths.empty()) {

@@ -14,6 +14,7 @@ inline constexpr int kApiVersion = 1;
 // feature 012 = 11, feature 014 = 12 (the PDF export: specs/014-pdf-export/contracts/rpc-api.md),
 // feature 015 = 13, feature 016 = 14 (the PDF import: specs/016-pdf-import/contracts/rpc-api.md),
 // feature 017 = 15 (TXT export and import: specs/017-txt-export-import/contracts/rpc-api.md),
-// feature 018 = 16 (MOBI/KF8 export and import: specs/018-mobi-export-import/contracts/rpc-api.md).
-inline constexpr int kApiMinor = 16;
+// feature 018 = 16 (MOBI/KF8 export and import: specs/018-mobi-export-import/contracts/rpc-api.md),
+// feature 019 = 17 (Batch Converter utility: specs/019-batch-converter/contracts/rpc-api.md).
+inline constexpr int kApiMinor = 17;
 }  // namespace mfbe::version
