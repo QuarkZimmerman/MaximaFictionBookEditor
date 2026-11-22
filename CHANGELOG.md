@@ -3,7 +3,7 @@
 All notable changes to Maxima Fiction Book Editor. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## 0.0.13 - unreleased
+## 0.0.13 - 2026-11-22
 
 ### In short
 
@@ -11,13 +11,17 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 - File > Import > MOBI File... imports unencrypted MOBI, AZW3, AZW, and PRC books as new FB2 books
 - The editor's own MOBI and KF8 files round-trip back to FB2 while protecting external edits
 - Settings > Exports > MOBI sets MOBI export defaults, and Save in ZIP archive packs MOBI + FBD
+- MOBI and EPUB exports include the book's revision history on a dedicated colophon page
+- Opening a file with a wrong encoding header offers a live preview, encoding picker, and cleanup
+- Source view now shows the open document's own encoding declaration after Save As and Open
 
 ### Added
 
 - File > Export > Export as MOBI... (feature 018) writes unencrypted MOBI 7 (.mobi), joint MOBI 7 +
-  KF8 (.mobi), and KF8 (.azw3) books with native navigation index, configurable inline table of
-  contents, cover thumbnail, notes (with optional KF8 pop-up footnotes), and Save in ZIP archive
-  (uncompressed MOBI/AZW3 + compressed FBD).
+  KF8 (.mobi, default), and KF8 (.azw3) books with multi-fragment KF8 per-page splitting, native
+  navigation index, configurable inline table of contents, cover thumbnail, revision-history
+  colophon page, notes (with optional KF8 pop-up footnotes), and Save in ZIP archive (uncompressed
+  MOBI/AZW3 + compressed FBD).
 - File > Import > MOBI File... imports unencrypted MOBI 7 (uncompressed, PalmDOC, HuffCDIC; UTF-8
   and Windows-1252), joint MOBI 7 + KF8 (with automatic MOBI 7 fallback), KF8 (.azw3), and plain
   PalmDOC (.prc) books, directly or from ZIP archives with FBD support, and refuses DRM and KFX
@@ -27,6 +31,19 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 - Settings > Exports > MOBI configures format, inline table of contents placement, series in reader
   title, opening location, KF8 pop-up footnotes, and ZIP archive default; dialog choices stay with
   each open book.
+- EPUB export writes the book's revision history on a dedicated colophon page (marked as colophon in
+  the guide/navigation), and EPUB/MOBI import reads colophon history back into document-info history.
+- On-load encoding mismatch dialog: when a FictionBook file's declared XML encoding does not match
+  its actual bytes, detects candidate single-byte encodings statistically, shows a live paged text
+  preview with an encoding selector, offers default-on cleanup of hidden/invalid characters (such as
+  zero-width spaces, BOMs, soft hyphens, and U+FFFD) while leaving literal '?' intact, marks the
+  document modified on Fix without auto-saving, and keeps the encoding.mismatch warning on line 1 in
+  Validation until the file is saved.
+
+### Fixed
+
+- Source view now declares the open document's own encoding on line 1 (rather than always UTF-8 when
+  Keep encoding is off) and refreshes immediately after Save As changes the encoding.
 
 ## 0.0.12 - 2026-11-20
 
