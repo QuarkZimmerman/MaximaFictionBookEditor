@@ -134,12 +134,12 @@ test.describe('US1: Batch export FB2 to export formats @platform', () => {
     copyFileSync(fb2Sample, path.join(srcDir, 'root-book.fb2'));
     copyFileSync(fb2Sample, path.join(subDir, 'child-book.fb2'));
     // Also create a real .fb2.zip via core's ephemeral doc.save so we test ZIP input natively!
-    const tmpOpen = (await core.rpc('doc.open', {
+    const tmpOpen = await core.rpcJob<{ document: { docId: string } }>('doc.open', {
       path: fb2Sample,
       ephemeral: true,
-    })) as { document: { docId: string } };
+    });
     const zipInputPath = path.join(subDir, 'archived-book.fb2.zip');
-    await core.rpc('doc.save', {
+    await core.rpcJob('doc.save', {
       docId: tmpOpen.document.docId,
       document: tmpOpen.document,
       path: zipInputPath,

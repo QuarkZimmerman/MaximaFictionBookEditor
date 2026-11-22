@@ -70,7 +70,7 @@ export async function runFb2ToTxt(params: BatchAdapterContext): Promise<BatchAda
         fileStem: outputStem,
         version,
       },
-      { signal },
+      { signal, pool: { pool: cache.workerPool, key: 'txtExport' } },
     );
     throwIfAborted(signal);
 

@@ -48,7 +48,7 @@ async function extractDiagramSources(
 }
 
 export async function runFb2ToMarkdown(params: BatchAdapterContext): Promise<BatchAdapterOutcome> {
-  const { ctx, rpc, settings, config, item, targetPath, signal, onStage } = params;
+  const { ctx, rpc, settings, config, item, targetPath, signal, onStage, cache } = params;
 
   let docId: string | null = null;
   try {
@@ -87,7 +87,7 @@ export async function runFb2ToMarkdown(params: BatchAdapterContext): Promise<Bat
         includePictures,
         diagramSources: diagramSources.length > 0 ? diagramSources : undefined,
       },
-      { signal },
+      { signal, pool: { pool: cache.workerPool, key: 'markdownExport' } },
     );
     throwIfAborted(signal);
 

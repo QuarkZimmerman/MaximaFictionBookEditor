@@ -61,7 +61,7 @@ export async function runTxtToFb2(params: BatchAdapterContext): Promise<BatchAda
       () =>
         new Worker(new URL('../workers/txtImportWorker.ts', import.meta.url), { type: 'module' }),
       { kind: 'candidates', text },
-      { signal },
+      { signal, pool: { pool: cache.workerPool, key: 'txtImport' } },
     );
     if (candRes.kind !== 'candidates') throw new Error('Unexpected TXT worker reply');
 
@@ -104,7 +104,7 @@ export async function runTxtToFb2(params: BatchAdapterContext): Promise<BatchAda
         knownWords: knownList,
         lists,
       },
-      { signal },
+      { signal, pool: { pool: cache.workerPool, key: 'txtImport' } },
     );
     if (buildRes.kind !== 'build') throw new Error('Unexpected TXT worker reply');
     onStage('batch.progress.stageConverting', 3, 3);

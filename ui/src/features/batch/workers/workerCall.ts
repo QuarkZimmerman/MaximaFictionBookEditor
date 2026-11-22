@@ -22,8 +22,51 @@ export type WorkerOutboundMessage<TResult> =
   | { type: 'error'; message: string };
 
 /**
- * Sends `payload` to a freshly created dedicated `Worker`, streams optional `progress` events,
- * resolves with `TResult`, and always terminates the worker on completion, error, or abort.
+ * Per-batch pool of stateless Web Workers so multi-book runs avoid cold-starting and re-parsing
+ * worker bundles for every single file. Any worker that errors or is aborted is terminated
+ * immediately; `dispose()` terminates all idle workers and prevents future reuse.
+ */
+export class BatchWorkerPool {
+  private readonly idle = new Map<string, Worker[]>();
+  private disposed = false;
+
+  acquire(key: string, createWorker: () => Worker): Worker {
+    if (!this.disposed) {
+      const bucket = this.idle.get(key);
+      const cached = bucket?.pop();
+      if (cached) return cached;
+    }
+    return createWorker();
+  }
+
+  release(key: string, worker: Worker): void {
+    if (this.disposed) {
+      worker.terminate();
+      return;
+    }
+    let bucket = this.idle.get(key);
+    if (!bucket) {
+      bucket = [];
+      this.idle.set(key, bucket);
+    }
+    bucket.push(worker);
+  }
+
+  dispose(): void {
+    this.disposed = true;
+    for (const bucket of this.idle.values()) {
+      for (const worker of bucket) {
+        worker.terminate();
+      }
+    }
+    this.idle.clear();
+  }
+}
+
+/**
+ * Sends `payload` to a dedicated (or pooled) `Worker`, streams optional `progress` events,
+ * resolves with `TResult`, and terminates the worker on error or abort (returning healthy workers
+ * to `options.pool` when provided, or terminating immediately otherwise).
  */
 export function runWorkerTask<TPayload, TResult>(
   createWorker: () => Worker,
@@ -32,27 +75,34 @@ export function runWorkerTask<TPayload, TResult>(
     signal?: AbortSignal;
     onProgress?: (event: WorkerProgressEvent) => void;
     transfer?: Transferable[];
+    pool?: { pool: BatchWorkerPool; key: string };
   } = {},
 ): Promise<TResult> {
   if (options.signal?.aborted) {
     return Promise.reject(new WorkerCancelledError());
   }
   return new Promise<TResult>((resolve, reject) => {
-    const worker = createWorker();
+    const worker = options.pool
+      ? options.pool.pool.acquire(options.pool.key, createWorker)
+      : createWorker();
     let settled = false;
 
-    const cleanup = () => {
+    const cleanup = (reusable: boolean) => {
       options.signal?.removeEventListener('abort', onAbort);
       worker.onmessage = null;
       worker.onerror = null;
       worker.onmessageerror = null;
-      worker.terminate();
+      if (reusable && options.pool) {
+        options.pool.pool.release(options.pool.key, worker);
+      } else {
+        worker.terminate();
+      }
     };
 
     const onAbort = () => {
       if (settled) return;
       settled = true;
-      cleanup();
+      cleanup(false);
       reject(new WorkerCancelledError());
     };
 
@@ -68,13 +118,13 @@ export function runWorkerTask<TPayload, TResult>(
       }
       if (msg.type === 'result') {
         settled = true;
-        cleanup();
+        cleanup(true);
         resolve(msg.data);
         return;
       }
       if (msg.type === 'error') {
         settled = true;
-        cleanup();
+        cleanup(false);
         reject(new Error(msg.message || 'Worker failed'));
       }
     };
@@ -82,14 +132,14 @@ export function runWorkerTask<TPayload, TResult>(
     worker.onerror = (event: ErrorEvent) => {
       if (settled) return;
       settled = true;
-      cleanup();
+      cleanup(false);
       reject(new Error(event.message || 'Worker runtime error'));
     };
 
     worker.onmessageerror = () => {
       if (settled) return;
       settled = true;
-      cleanup();
+      cleanup(false);
       reject(new Error('Worker message serialization error'));
     };
 
@@ -102,7 +152,7 @@ export function runWorkerTask<TPayload, TResult>(
     } catch (error) {
       if (!settled) {
         settled = true;
-        cleanup();
+        cleanup(false);
         reject(error instanceof Error ? error : new Error(String(error)));
       }
     }

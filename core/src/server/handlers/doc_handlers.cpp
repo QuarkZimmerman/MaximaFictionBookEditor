@@ -1346,7 +1346,10 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         const bool clean_invalid_chars =
             rpc::params::boolean_or(params, "cleanInvalidChars", false);
         const std::string ui_language = ui_language_setting(services);
-        if (ec || size < kJobThresholdBytes) {
+        // Ephemeral batch opens always run on a worker thread so parallel batch workers parse,
+        // validate, and serialize FB2 files concurrently across CPU cores instead of blocking the
+        // single RPC event loop.
+        if (!ephemeral && (ec || size < kJobThresholdBytes)) {
             Opened opened = open_document(path, ui_language, nullptr, entry, force_encoding,
                                           clean_invalid_chars);
             return register_session(services, std::move(opened), ephemeral);
@@ -1779,7 +1782,7 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
             static_cast<std::uintmax_t>(s.binaries->total_bytes()) +
             (request.text ? request.text->size() : static_cast<std::size_t>(0));
         const bool big =
-            estimate >= kJobThresholdBytes ||
+            request.ephemeral || estimate >= kJobThresholdBytes ||
             (request.document && approximate_size(*request.document) >= kJobThresholdBytes);
         if (!big) {
             return perform_save(services, request, nullptr);

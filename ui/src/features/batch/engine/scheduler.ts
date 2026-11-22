@@ -215,6 +215,7 @@ export function startBatchRun(options: BatchSchedulerOptions): BatchRunControlle
     const startedAt = Date.now();
     const startedAtIso = new Date(startedAt).toISOString();
     let runId: string | null = null;
+    let cache: BatchSharedCache | null = null;
 
     // Heartbeat timer ensures at least 1 progress update per second while active (SC-009).
     const heartbeat = setInterval(() => {
@@ -297,7 +298,8 @@ export function startBatchRun(options: BatchSchedulerOptions): BatchRunControlle
       emitNow();
 
       const workerSlots = Math.min(effectiveWorkerCount(config, cpuCores), items.length);
-      const cache = new BatchSharedCache(rpc);
+      cache = new BatchSharedCache(rpc);
+      const activeCache = cache;
       const adapterCache = new Map<string, Promise<BatchAdapterFn>>();
       const getAdapter = (format: BatchBookFormat) => {
         const key = `${config.direction}:${format}`;
@@ -387,7 +389,7 @@ export function startBatchRun(options: BatchSchedulerOptions): BatchRunControlle
               targetPath: claim.targetPath,
               outputStem: resolved.outputStem,
               signal,
-              cache,
+              cache: activeCache,
               onStage: (stageKey, done, total) => {
                 const current = activeBySlot.get(slot);
                 if (!current) return;
@@ -481,6 +483,7 @@ export function startBatchRun(options: BatchSchedulerOptions): BatchRunControlle
       emitNow();
       throw error;
     } finally {
+      cache?.dispose();
       clearInterval(heartbeat);
       if (emitTimer !== null) {
         clearTimeout(emitTimer);

@@ -53,6 +53,17 @@ struct BatchFixture {
         }
         return json{{"event", "timeout"}};
     }
+
+    json call_maybe_job(const std::string& method, const json& params) {
+        const json reply = ws.call(method, params);
+        REQUIRE(reply.contains("result"));
+        if (reply["result"].is_object() && reply["result"].contains("jobId")) {
+            const json done = wait_job(reply["result"]["jobId"].get<std::string>());
+            REQUIRE(done["event"] == "job.done");
+            return done["result"];
+        }
+        return reply["result"];
+    }
 };
 
 }  // namespace
@@ -82,32 +93,31 @@ TEST_CASE("doc.open and doc.save with ephemeral: true leave Recent files and pos
           "[batch][ephemeral][rpc]") {
     BatchFixture f;
     const fs::path src = test::fixtures_dir() / "books" / "modern-utf8.fb2";
-    const json opened =
-        f.ws.call("doc.open", json{{"path", platform::utf8_from_path(src)}, {"ephemeral", true}});
-    REQUIRE(opened.contains("result"));
-    const std::string doc_id = opened["result"]["document"]["docId"];
-    const json document = opened["result"]["document"];
+    const json opened = f.call_maybe_job(
+        "doc.open", json{{"path", platform::utf8_from_path(src)}, {"ephemeral", true}});
+    const std::string doc_id = opened["document"]["docId"];
+    const json document = opened["document"];
 
     const fs::path bare_out = f.work.path() / "saved.fb2";
-    const json saved = f.ws.call("doc.save", json{{"docId", doc_id},
-                                                  {"document", document},
-                                                  {"path", platform::utf8_from_path(bare_out)},
-                                                  {"encoding", "utf-8"},
-                                                  {"force", true},
-                                                  {"ephemeral", true}});
-    REQUIRE(saved.contains("result"));
+    const json saved = f.call_maybe_job("doc.save", json{{"docId", doc_id},
+                                                         {"document", document},
+                                                         {"path", platform::utf8_from_path(bare_out)},
+                                                         {"encoding", "utf-8"},
+                                                         {"force", true},
+                                                         {"ephemeral", true}});
+    REQUIRE(saved.contains("path"));
     CHECK(fs::exists(bare_out));
 
     const fs::path zip_out = f.work.path() / "saved.fb2.zip";
     const json saved_zip =
-        f.ws.call("doc.save", json{{"docId", doc_id},
-                                   {"document", document},
-                                   {"path", platform::utf8_from_path(zip_out)},
-                                   {"encoding", "utf-8"},
-                                   {"archive", {{"entryName", "saved.fb2"}}},
-                                   {"force", true},
-                                   {"ephemeral", true}});
-    REQUIRE(saved_zip.contains("result"));
+        f.call_maybe_job("doc.save", json{{"docId", doc_id},
+                                          {"document", document},
+                                          {"path", platform::utf8_from_path(zip_out)},
+                                          {"encoding", "utf-8"},
+                                          {"archive", {{"entryName", "saved.fb2"}}},
+                                          {"force", true},
+                                          {"ephemeral", true}});
+    REQUIRE(saved_zip.contains("path"));
     CHECK(fs::exists(zip_out));
     const archive::Listing listing = archive::list(zip_out);
     REQUIRE(listing.books.size() == 1);
@@ -238,9 +248,9 @@ TEST_CASE("pdf.export.abort with cancelPrint: false preserves another active pri
           "[batch][pdf][rpc]") {
     BatchFixture f;
     const fs::path src = test::fixtures_dir() / "books" / "modern-utf8.fb2";
-    const json opened =
-        f.ws.call("doc.open", json{{"path", platform::utf8_from_path(src)}, {"ephemeral", true}});
-    const std::string doc_id = opened["result"]["document"]["docId"];
+    const json opened = f.call_maybe_job(
+        "doc.open", json{{"path", platform::utf8_from_path(src)}, {"ephemeral", true}});
+    const std::string doc_id = opened["document"]["docId"];
 
     const json b1 = f.ws.call("pdf.export.begin",
                               json{{"docId", doc_id},
@@ -280,19 +290,17 @@ TEST_CASE("pdf.export.abort with cancelPrint: false preserves another active pri
 TEST_CASE("concurrent txt.export ZIP jobs succeed safely without DocumentRegistry race",
           "[batch][txt][rpc]") {
     BatchFixture f;
-    // Separate observer receives every broadcast job.done notification without call() dropping it.
-    test::WsClient observer;
-    REQUIRE(observer.open(f.server->port(), "/rpc?token=" + f.server->token()) == 101);
-
     const fs::path src = test::fixtures_dir() / "books" / "modern-utf8.fb2";
     std::vector<std::pair<std::string, json>> docs;
     for (int i = 0; i < 4; ++i) {
-        const json opened = f.ws.call(
+        const json opened = f.call_maybe_job(
             "doc.open", json{{"path", platform::utf8_from_path(src)}, {"ephemeral", true}});
-        REQUIRE(opened.contains("result"));
-        docs.emplace_back(opened["result"]["document"]["docId"].get<std::string>(),
-                          opened["result"]["document"]);
+        docs.emplace_back(opened["document"]["docId"].get<std::string>(), opened["document"]);
     }
+
+    // Separate observer receives every broadcast txt.export job.done without call() dropping it.
+    test::WsClient observer;
+    REQUIRE(observer.open(f.server->port(), "/rpc?token=" + f.server->token()) == 101);
 
     std::vector<std::string> job_ids;
     std::vector<fs::path> outputs;

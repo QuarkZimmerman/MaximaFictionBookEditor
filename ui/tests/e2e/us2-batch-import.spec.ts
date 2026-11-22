@@ -44,10 +44,10 @@ async function inspectFb2(
   core: import('./fixtures/core').CoreHandle,
   fb2Path: string,
 ): Promise<{ doc: OpenedEphemeral['document']; issues: OpenedEphemeral['warnings'] }> {
-  const opened = (await core.rpc('doc.open', {
+  const opened = await core.rpcJob<OpenedEphemeral>('doc.open', {
     path: fb2Path,
     ephemeral: true,
-  })) as OpenedEphemeral;
+  });
   const doc = opened.document;
   const validated = (await core.rpc('doc.validate', { docId: doc.docId })) as {
     issues?: OpenedEphemeral['warnings'];

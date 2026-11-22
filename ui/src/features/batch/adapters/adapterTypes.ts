@@ -8,6 +8,7 @@ import type { RpcClient } from '@/rpc/client';
 import type { GenreEntry, LanguageEntry, PdfAddedFont, Settings, TxtEncodings } from '@/rpc/types';
 
 import type { BatchDiscoveredItem, BatchJobConfig } from '../engine/types';
+import { BatchWorkerPool } from '../workers/workerCall';
 import { BatchAbortError } from './fb2LoadSave';
 
 export class AsyncSemaphore {
@@ -63,8 +64,13 @@ export class BatchSharedCache {
   private pdfAddedFontsPromise: Promise<PdfAddedFont[]> | null = null;
   private appVersionPromise: Promise<string> | null = null;
   readonly pdfPrintLock = new AsyncSemaphore();
+  readonly workerPool = new BatchWorkerPool();
 
   constructor(private readonly rpc: RpcClient) {}
+
+  dispose(): void {
+    this.workerPool.dispose();
+  }
 
   getGenres(): Promise<GenreEntry[]> {
     this.genresPromise ??= this.rpc

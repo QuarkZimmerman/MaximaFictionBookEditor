@@ -280,42 +280,91 @@ export async function runJob<T>(
   params?: unknown,
   timeoutMs = 60_000,
 ): Promise<T> {
-  const first = await client.call<unknown>(method, params, timeoutMs);
+  // Subscribe BEFORE calling `method` so fast background jobs that complete before the RPC reply
+  // reaches the test harness cannot slip past `onNotification`.
+  const early = new Map<
+    string,
+    | { ok: true; result: unknown }
+    | { ok: false; error: { code: number; message: string; data?: unknown } }
+  >();
+  let targetJobId: string | null = null;
+  let settle:
+    | ((outcome: {
+        ok: boolean;
+        result?: unknown;
+        error?: { code: number; message: string; data?: unknown };
+      }) => void)
+    | null = null;
+
+  const off = client.onNotification((name, payload) => {
+    if (name !== 'job.done' && name !== 'job.failed') return;
+    const data = payload as {
+      jobId?: string;
+      result?: unknown;
+      error?: { code: number; message: string; data?: unknown };
+    };
+    if (!data?.jobId) return;
+    const outcome =
+      name === 'job.done'
+        ? { ok: true as const, result: data.result }
+        : {
+            ok: false as const,
+            error: data.error ?? { code: -32603, message: 'job failed' },
+          };
+    if (targetJobId && data.jobId === targetJobId && settle) {
+      settle(outcome);
+    } else {
+      early.set(data.jobId, outcome);
+    }
+  });
+
+  let first: unknown;
+  try {
+    first = await client.call<unknown>(method, params, timeoutMs);
+  } catch (err) {
+    off();
+    throw err;
+  }
+
   const jobId =
     typeof first === 'object' &&
     first !== null &&
     typeof (first as { jobId?: unknown }).jobId === 'string'
       ? (first as { jobId: string }).jobId
       : null;
-  if (!jobId) return first as T;
+  if (!jobId) {
+    off();
+    return first as T;
+  }
+
+  const buffered = early.get(jobId);
+  if (buffered) {
+    off();
+    if (buffered.ok) return buffered.result as T;
+    throw new RpcCallError(buffered.error.code, buffered.error.message, buffered.error.data);
+  }
+
+  targetJobId = jobId;
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => {
       off();
       reject(new Error(`${method}: job ${jobId} did not finish within ${timeoutMs} ms`));
     }, timeoutMs);
-    const off = client.onNotification((name, payload) => {
-      const data = payload as {
-        jobId?: string;
-        result?: unknown;
-        error?: { code: number; message: string; data?: unknown };
-      };
-      if (data?.jobId !== jobId) return;
-      if (name === 'job.done') {
-        clearTimeout(timer);
-        off();
-        resolve(data.result as T);
-      } else if (name === 'job.failed') {
-        clearTimeout(timer);
-        off();
+    settle = (outcome) => {
+      clearTimeout(timer);
+      off();
+      if (outcome.ok) {
+        resolve(outcome.result as T);
+      } else {
         reject(
           new RpcCallError(
-            data.error?.code ?? -32603,
-            data.error?.message ?? 'job failed',
-            data.error?.data,
+            outcome.error?.code ?? -32603,
+            outcome.error?.message ?? 'job failed',
+            outcome.error?.data,
           ),
         );
       }
-    });
+    };
   });
 }
 

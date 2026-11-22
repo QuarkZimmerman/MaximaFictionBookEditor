@@ -146,67 +146,69 @@ test.describe('US5: Parallel conversion up to CPU cores minus 1', () => {
     }
   });
 
-  test('achieves >= 1.5x multi-core speedup on a 20-book CPU-bound batch on 4+ core hosts', async ({
-    core,
-    page,
-  }) => {
-    test.skip(!core.hasCore, 'needs mfbe-core');
-    const hostCores = cpus().length;
-    test.skip(hostCores < 4, `requires >= 4 logical cores (host has ${hostCores})`);
-    test.setTimeout(180_000);
-    await core.openApp(page);
-    await core.rpc('test.setCpuCores', { cores: null });
-    await core.rpc('settings.set', { patch: { mobi: { format: 'joint', zip: false } } });
+  test(
+    'achieves >= 1.5x multi-core speedup on a 20-book CPU-bound batch on 4+ core hosts',
+    // Runs under @perf (--workers=1 on Release core) so competing Playwright workers do not saturate runner CPUs.
+    { tag: '@perf' },
+    async ({ core, page }) => {
+      test.skip(!core.hasCore, 'needs mfbe-core');
+      const hostCores = cpus().length;
+      test.skip(hostCores < 4, `requires >= 4 logical cores (host has ${hostCores})`);
+      test.setTimeout(180_000);
+      await core.openApp(page);
+      await core.rpc('test.setCpuCores', { cores: null });
+      await core.rpc('settings.set', { patch: { mobi: { format: 'joint', zip: false } } });
 
-    const work = makeTempDir('mfbe-us5-speedup');
-    const srcDir = path.join(work, 'src-20');
-    const dstSeq = path.join(work, 'dst-seq');
-    const dstPar = path.join(work, 'dst-par');
-    mkdirSync(srcDir, { recursive: true });
-    // notes-400.fb2 (584 KB) exercises real JS Web Worker + C++ compression CPU work per book.
-    const bigBook = fixtureBook('notes-400.fb2');
-    for (let i = 1; i <= 20; i++) {
-      copyFileSync(bigBook, path.join(srcDir, `book-${String(i).padStart(2, '0')}.fb2`));
-    }
+      const work = makeTempDir('mfbe-us5-speedup');
+      const srcDir = path.join(work, 'src-20');
+      const dstSeq = path.join(work, 'dst-seq');
+      const dstPar = path.join(work, 'dst-par');
+      mkdirSync(srcDir, { recursive: true });
+      // notes-400.fb2 (584 KB) exercises real JS Web Worker + C++ compression CPU work per book.
+      const bigBook = fixtureBook('notes-400.fb2');
+      for (let i = 1; i <= 20; i++) {
+        copyFileSync(bigBook, path.join(srcDir, `book-${String(i).padStart(2, '0')}.fb2`));
+      }
 
-    try {
-      // Warm up the batch-converter & mobi-export lazy chunks so both runs measure steady-state conversion.
-      await openBatchDialog(page);
-      await page.getByTestId('batch-dir-export').check();
-      await page.getByTestId('batch-export-format').selectOption('mobi');
-      await page.getByTestId('batch-source-input').fill(srcDir);
-      await page.getByTestId('batch-zip-output').uncheck();
-      await page.getByTestId('batch-overwrite').uncheck();
+      try {
+        // Warm up the batch-converter & mobi-export lazy chunks so both runs measure steady-state conversion.
+        await openBatchDialog(page);
+        await page.getByTestId('batch-dir-export').check();
+        await page.getByTestId('batch-export-format').selectOption('mobi');
+        await page.getByTestId('batch-source-input').fill(srcDir);
+        await page.getByTestId('batch-zip-output').uncheck();
+        await page.getByTestId('batch-overwrite').uncheck();
 
-      // 1) Sequential run (1 worker)
-      await page.getByTestId('batch-destination-input').fill(dstSeq);
-      await page.getByTestId('batch-parallel').uncheck();
-      const tSeqStart = Date.now();
-      await page.getByTestId('dialog-batch-converter-button-start').click();
-      await expect(page.getByTestId('batch-report-view')).toBeVisible({ timeout: 120_000 });
-      const seqMs = Date.now() - tSeqStart;
-      await expect(page.getByTestId('batch-count-converted')).toContainText('20');
-      await expect(page.getByTestId('batch-count-failed')).toContainText('0');
+        // 1) Sequential run (1 worker)
+        await page.getByTestId('batch-destination-input').fill(dstSeq);
+        await page.getByTestId('batch-parallel').uncheck();
+        const tSeqStart = Date.now();
+        await page.getByTestId('dialog-batch-converter-button-start').click();
+        await expect(page.getByTestId('batch-report-view')).toBeVisible({ timeout: 120_000 });
+        const seqMs = Date.now() - tSeqStart;
+        await expect(page.getByTestId('batch-count-converted')).toContainText('20');
+        await expect(page.getByTestId('batch-count-failed')).toContainText('0');
 
-      // 2) Parallel run (cores - 1 workers)
-      await page.getByTestId('dialog-batch-converter-button-run-again').click();
-      await page.getByTestId('batch-destination-input').fill(dstPar);
-      await page.getByTestId('batch-parallel').check();
-      await page.getByTestId('batch-worker-count').fill(String(hostCores - 1));
-      const tParStart = Date.now();
-      await page.getByTestId('dialog-batch-converter-button-start').click();
-      await expect(page.getByTestId('batch-report-view')).toBeVisible({ timeout: 120_000 });
-      const parMs = Date.now() - tParStart;
-      await expect(page.getByTestId('batch-count-converted')).toContainText('20');
-      await expect(page.getByTestId('batch-count-failed')).toContainText('0');
+        // 2) Parallel run (cores - 1 workers)
+        await page.getByTestId('dialog-batch-converter-button-run-again').click();
+        await page.getByTestId('batch-destination-input').fill(dstPar);
+        await page.getByTestId('batch-parallel').check();
+        await page.getByTestId('batch-worker-count').fill(String(hostCores - 1));
+        const tParStart = Date.now();
+        await page.getByTestId('dialog-batch-converter-button-start').click();
+        await expect(page.getByTestId('batch-report-view')).toBeVisible({ timeout: 120_000 });
+        const parMs = Date.now() - tParStart;
+        await expect(page.getByTestId('batch-count-converted')).toContainText('20');
+        await expect(page.getByTestId('batch-count-failed')).toContainText('0');
 
-      const speedup = seqMs / Math.max(1, parMs);
-      expect(
-        speedup,
-        `expected >= 1.5x speedup on ${hostCores} cores (seq=${seqMs}ms, par=${parMs}ms, speedup=${speedup.toFixed(2)}x)`,
-      ).toBeGreaterThanOrEqual(1.5);
-    } finally {
-      rmSync(work, { recursive: true, force: true });
-    }
-  });
+        const speedup = seqMs / Math.max(1, parMs);
+        expect(
+          speedup,
+          `expected >= 1.5x speedup on ${hostCores} cores (seq=${seqMs}ms, par=${parMs}ms, speedup=${speedup.toFixed(2)}x)`,
+        ).toBeGreaterThanOrEqual(1.5);
+      } finally {
+        rmSync(work, { recursive: true, force: true });
+      }
+    },
+  );
 });

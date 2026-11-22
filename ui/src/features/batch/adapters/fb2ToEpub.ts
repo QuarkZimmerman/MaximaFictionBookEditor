@@ -107,6 +107,7 @@ export async function runFb2ToEpub(params: BatchAdapterContext): Promise<BatchAd
       workerReq,
       {
         signal,
+        pool: { pool: cache.workerPool, key: 'epubExport' },
         onProgress: (p) =>
           onStage('batch.progress.stageConverting', pictures.length + p.done, pictures.length + 2),
       },

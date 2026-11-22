@@ -148,6 +148,7 @@ export async function runFb2ToMobi(params: BatchAdapterContext): Promise<BatchAd
       workerReq,
       {
         signal,
+        pool: { pool: cache.workerPool, key: 'mobiExport' },
         onProgress: (p) =>
           onStage('batch.progress.stageConverting', picList.length + p.done, picList.length + 4),
       },
