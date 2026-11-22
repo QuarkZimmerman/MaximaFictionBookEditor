@@ -232,8 +232,7 @@ export function startBatchRun(options: BatchSchedulerOptions): BatchRunControlle
             direction: config.direction,
             sourceDir: config.sourceDir.trim(),
             includeSubfolders: config.includeSubfolders,
-            formats:
-              config.direction === 'importToFb2' ? selectedImportFormats(config) : undefined,
+            formats: config.direction === 'importToFb2' ? selectedImportFormats(config) : undefined,
           }),
         {
           signal,
@@ -392,9 +391,7 @@ export function startBatchRun(options: BatchSchedulerOptions): BatchRunControlle
               onStage: (stageKey, done, total) => {
                 const current = activeBySlot.get(slot);
                 if (!current) return;
-                current.stage = signal.aborted
-                  ? t('batch.progress.stageCancelling')
-                  : t(stageKey);
+                current.stage = signal.aborted ? t('batch.progress.stageCancelling') : t(stageKey);
                 current.done = done;
                 current.total = total;
                 emitThrottled();

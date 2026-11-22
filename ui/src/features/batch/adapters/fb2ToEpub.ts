@@ -11,11 +11,7 @@ import { RpcErrorCode } from '@/rpc/types';
 import type { EpubExportWorkerRequest, EpubExportWorkerResult } from '../workers/epubExportWorker';
 import { runWorkerTask } from '../workers/workerCall';
 import type { BatchAdapterContext, BatchAdapterOutcome } from './adapterTypes';
-import {
-  closeEphemeralDoc,
-  openEphemeralFb2,
-  throwIfAborted,
-} from './fb2LoadSave';
+import { closeEphemeralDoc, openEphemeralFb2, throwIfAborted } from './fb2LoadSave';
 
 async function uploadEpubFile(
   token: string,
@@ -51,7 +47,8 @@ export async function runFb2ToEpub(params: BatchAdapterContext): Promise<BatchAd
     onStage('batch.progress.stageReading', 0, 100);
     const opened = await openEphemeralFb2(rpc, item.sourcePath, item.archiveEntry, {
       signal,
-      onProgress: (done, total) => onStage('batch.progress.stageReading', done, Math.max(total, 100)),
+      onProgress: (done, total) =>
+        onStage('batch.progress.stageReading', done, Math.max(total, 100)),
     });
     docId = opened.docId;
     const { document } = opened;
@@ -105,11 +102,13 @@ export async function runFb2ToEpub(params: BatchAdapterContext): Promise<BatchAd
       genreNames: genreEntries,
     };
     const { built, faults } = await runWorkerTask<EpubExportWorkerRequest, EpubExportWorkerResult>(
-      () => new Worker(new URL('../workers/epubExportWorker.ts', import.meta.url), { type: 'module' }),
+      () =>
+        new Worker(new URL('../workers/epubExportWorker.ts', import.meta.url), { type: 'module' }),
       workerReq,
       {
         signal,
-        onProgress: (p) => onStage('batch.progress.stageConverting', pictures.length + p.done, pictures.length + 2),
+        onProgress: (p) =>
+          onStage('batch.progress.stageConverting', pictures.length + p.done, pictures.length + 2),
       },
     );
     if (faults.length > 0) {
@@ -156,7 +155,10 @@ export async function runFb2ToEpub(params: BatchAdapterContext): Promise<BatchAd
     }
     if (isRpcError(error) && error.code === RpcErrorCode.epubWriteFailed) {
       const reason = (error.data as { reason?: string } | undefined)?.reason ?? 'epub.ioError';
-      throw new Error(ctx.t(`epub.writeFailed.${reason.replace(/^epub\./, '')}`, { path: targetPath }));
+      throw new Error(
+        ctx.t(`epub.writeFailed.${reason.replace(/^epub\./, '')}`, { path: targetPath }),
+        { cause: error },
+      );
     }
     throw error;
   } finally {

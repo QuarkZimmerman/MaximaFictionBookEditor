@@ -47,9 +47,8 @@ bool is_nested_archive_name(std::string_view name) {
 }
 
 bool is_markdown_asset(std::string_view name) {
-    static constexpr std::string_view kAssetExts[] = {".png",  ".jpg", ".jpeg", ".gif",
-                                                      ".webp", ".bmp", ".tif",  ".tiff",
-                                                      ".svg",  ".avif", ".css"};
+    static constexpr std::string_view kAssetExts[] = {
+        ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".tif", ".tiff", ".svg", ".avif", ".css"};
     for (const std::string_view ext : kAssetExts) {
         if (ends_with_ci(name, ext)) {
             return true;
@@ -70,8 +69,8 @@ bool safe_relative_entry_path(std::string_view entry, fs::path& rel_out) {
     if (entry.front() == '/' || entry.front() == '\\') {
         return false;
     }
-    if (entry.size() >= 2 &&
-        std::isalpha(static_cast<unsigned char>(entry[0])) && entry[1] == ':') {
+    if (entry.size() >= 2 && std::isalpha(static_cast<unsigned char>(entry[0])) &&
+        entry[1] == ':') {
         return false;
     }
     fs::path rel;

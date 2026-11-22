@@ -13,7 +13,10 @@ import { expect, fixtureBook, shownDocId, test, waitForBook } from './fixtures/c
 import { startPrintSeam } from './fixtures/printSeam';
 
 function makeTempDir(prefix: string): string {
-  const dir = path.join(tmpdir(), `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`);
+  const dir = path.join(
+    tmpdir(),
+    `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+  );
   mkdirSync(dir, { recursive: true });
   return dir;
 }
@@ -35,9 +38,7 @@ test.describe('US1: Batch export FB2 to export formats @platform', () => {
     // Verify Tools -> Batch Converter... sits at the bottom after a separator following Check Spelling...
     await page.getByTestId('menu-tools').click();
     const menuItems = page.locator('[data-testid^="menu-tools-"]');
-    const ids = await menuItems.evaluateAll((els) =>
-      els.map((e) => e.getAttribute('data-testid')),
-    );
+    const ids = await menuItems.evaluateAll((els) => els.map((e) => e.getAttribute('data-testid')));
     const spellIdx = ids.indexOf('menu-tools-spellcheck');
     const batchIdx = ids.indexOf('menu-tools-batchConverter');
     expect(spellIdx).toBeGreaterThanOrEqual(0);
@@ -222,9 +223,9 @@ test.describe('US1: Batch export FB2 to export formats @platform', () => {
       expect(existsSync(path.join(subDir, 'child-book.pdf'))).toBe(true);
       expect(existsSync(path.join(subDir, 'archived-book.pdf'))).toBe(true);
       // Confirm real PDF header written.
-      expect(readFileSync(path.join(srcDir, 'root-book.pdf')).subarray(0, 5).toString('ascii')).toBe(
-        '%PDF-',
-      );
+      expect(
+        readFileSync(path.join(srcDir, 'root-book.pdf')).subarray(0, 5).toString('ascii'),
+      ).toBe('%PDF-');
 
       await page.getByTestId('dialog-batch-converter-button-close').click();
       await expect(page.getByTestId('dialog-batch-converter')).toBeHidden();

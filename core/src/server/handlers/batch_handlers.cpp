@@ -101,9 +101,8 @@ void register_batch_handlers(rpc::RpcRouter& router, Services& services) {
         }
 
         const fs::path batch_root = services.dirs.state / "batch";
-        const std::string job_id =
-            ctx.jobs.start([&services, req = std::move(req), batch_root](
-                               rpc::JobControl& control) -> json {
+        const std::string job_id = ctx.jobs.start(
+            [&services, req = std::move(req), batch_root](rpc::JobControl& control) -> json {
                 control.check_cancelled();
                 control.progress("scan", 0, 0);
 
@@ -203,8 +202,7 @@ void register_batch_handlers(rpc::RpcRouter& router, Services& services) {
         const std::optional<std::string> fbd_entry = rpc::params::opt_string(params, "fbdEntry");
 
         if (format != "epub" && format != "markdown") {
-            throw rpc::invalid_params("format must be epub or markdown",
-                                      json{{"field", "format"}});
+            throw rpc::invalid_params("format must be epub or markdown", json{{"field", "format"}});
         }
 
         fs::path dest_dir;
@@ -215,30 +213,29 @@ void register_batch_handlers(rpc::RpcRouter& router, Services& services) {
         }
 
         const fs::path archive_path = platform::path_from_utf8(archive_path_str);
-        const std::string job_id =
-            ctx.jobs.start([archive_path, entry, format, fbd_entry, dest_dir](
-                               rpc::JobControl& control) -> json {
+        const std::string job_id = ctx.jobs.start([archive_path, entry, format, fbd_entry,
+                                                   dest_dir](rpc::JobControl& control) -> json {
+            control.check_cancelled();
+            control.progress("extract", 0, 1);
+            try {
+                const batch::ExtractedEntry out =
+                    batch::extract_archive_entry(archive_path, entry, format, fbd_entry, dest_dir,
+                                                 [&control]() { return control.cancelled(); });
                 control.check_cancelled();
-                control.progress("extract", 0, 1);
-                try {
-                    const batch::ExtractedEntry out = batch::extract_archive_entry(
-                        archive_path, entry, format, fbd_entry, dest_dir,
-                        [&control]() { return control.cancelled(); });
-                    control.check_cancelled();
-                    control.progress("extract", 1, 1);
-                    json res{{"tempDir", platform::utf8_from_path(out.temp_dir)},
-                             {"extractedPath", platform::utf8_from_path(out.extracted_path)}};
-                    if (out.fbd_path) {
-                        res["fbdPath"] = platform::utf8_from_path(*out.fbd_path);
-                    }
-                    return res;
-                } catch (const batch::ExtractError& e) {
-                    if (e.cancelled) {
-                        throw rpc::RpcError(rpc::codes::kCancelled, "extraction cancelled");
-                    }
-                    throw batch_error("extractFailed", e.path, e.detail);
+                control.progress("extract", 1, 1);
+                json res{{"tempDir", platform::utf8_from_path(out.temp_dir)},
+                         {"extractedPath", platform::utf8_from_path(out.extracted_path)}};
+                if (out.fbd_path) {
+                    res["fbdPath"] = platform::utf8_from_path(*out.fbd_path);
                 }
-            });
+                return res;
+            } catch (const batch::ExtractError& e) {
+                if (e.cancelled) {
+                    throw rpc::RpcError(rpc::codes::kCancelled, "extraction cancelled");
+                }
+                throw batch_error("extractFailed", e.path, e.detail);
+            }
+        });
         return json{{"jobId", job_id}};
     });
 

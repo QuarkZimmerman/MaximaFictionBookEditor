@@ -7,10 +7,7 @@
 import { createInstance } from 'i18next';
 import { describe, expect, it } from 'vitest';
 
-import {
-  defaultReportFilename,
-  formatBatchReportText,
-} from '@/features/batch/engine/reportFormat';
+import { defaultReportFilename, formatBatchReportText } from '@/features/batch/engine/reportFormat';
 import type { BatchJobConfig, BatchReport } from '@/features/batch/engine/types';
 import { initI18n } from '@/i18n';
 

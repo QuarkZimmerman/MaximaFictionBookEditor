@@ -33,8 +33,19 @@ function escapeText(value: string): string {
 }
 
 export async function runEpubToFb2(params: BatchAdapterContext): Promise<BatchAdapterOutcome> {
-  const { ctx, rpc, settings, config, runId, item, targetPath, outputStem, signal, onStage, cache } =
-    params;
+  const {
+    ctx,
+    rpc,
+    settings,
+    config,
+    runId,
+    item,
+    targetPath,
+    outputStem,
+    signal,
+    onStage,
+    cache,
+  } = params;
 
   const [
     { withFbd },
@@ -354,10 +365,7 @@ export async function runEpubToFb2(params: BatchAdapterContext): Promise<BatchAd
     const uploadedIds = new Set(added.map((b) => b.id));
     let document = {
       ...opened.document,
-      binaries: [
-        ...opened.document.binaries.filter((b) => !uploadedIds.has(b.id)),
-        ...added,
-      ],
+      binaries: [...opened.document.binaries.filter((b) => !uploadedIds.has(b.id)), ...added],
     };
 
     const extraWarnings: string[] = [];
@@ -441,6 +449,7 @@ export async function runEpubToFb2(params: BatchAdapterContext): Promise<BatchAd
       const reason = (error.data as { reason?: string } | undefined)?.reason ?? 'epub.notZip';
       throw new Error(
         ctx.t(`epub.refused.${reason.replace(/^epub\./, '')}`, { path: item.sourcePath }),
+        { cause: error },
       );
     }
     throw error;

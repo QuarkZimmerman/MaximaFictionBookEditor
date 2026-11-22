@@ -30,9 +30,9 @@ describe('the batch-converter chunk rules', () => {
 
     // Query suffixes and Windows separators do not break matching.
     expect(isBatchConverterModule(`${path.join(BATCH, 'openDialog.ts')}?v=1`)).toBe(true);
-    expect(isBatchConverterModule(path.join(BATCH, 'engine', 'paths.ts').replace(/\//g, '\\'))).toBe(
-      true,
-    );
+    expect(
+      isBatchConverterModule(path.join(BATCH, 'engine', 'paths.ts').replace(/\//g, '\\')),
+    ).toBe(true);
     expect(isBatchConverterModule(path.join(UI_ROOT, 'src', 'app', 'menus.ts'))).toBe(false);
   });
 });

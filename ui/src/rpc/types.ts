@@ -1989,7 +1989,10 @@ export interface RpcMethods {
     };
   };
   'dialog.pickFolder': {
-    params: { title: string; /** Feature 019: optional initial folder hint (UTF-8). */ folder?: string };
+    params: {
+      title: string;
+      /** Feature 019: optional initial folder hint (UTF-8). */ folder?: string;
+    };
     result: { path?: string };
   };
   'dialog.message': {
@@ -2244,7 +2247,11 @@ export interface RpcMethods {
     result:
       | { status: 'claimed'; claimId: string; targetPath: string }
       | { status: 'skipped'; reason: 'targetExists' | 'targetBusy' }
-      | { status: 'failed'; reason: 'targetIsSource' | 'targetIsOpenBook' | 'ioError'; detail?: string };
+      | {
+          status: 'failed';
+          reason: 'targetIsSource' | 'targetIsOpenBook' | 'ioError';
+          detail?: string;
+        };
   };
   'batch.releaseTarget': {
     params: { runId: string; claimId: string; succeeded?: boolean };
@@ -2267,7 +2274,10 @@ export interface RpcMethods {
   };
   'batch.cleanupItem': { params: { runId: string; itemId: string }; result: Empty };
   'batch.endRun': { params: { runId: string }; result: Empty };
-  'batch.writeReport': { params: { path: string; content: string }; result: { path: string; bytes: number } };
+  'batch.writeReport': {
+    params: { path: string; content: string };
+    result: { path: string; bytes: number };
+  };
   /** Feature 019 (--test-hooks): overrides app.info.cpuCores (null restores hardware_concurrency). */
   'test.setCpuCores': { params: { cores: number | null }; result: { cpuCores: number } };
 }

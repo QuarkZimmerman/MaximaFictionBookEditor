@@ -66,7 +66,8 @@ export async function runFb2ToMobi(params: BatchAdapterContext): Promise<BatchAd
     onStage('batch.progress.stageReading', 0, 100);
     const opened = await openEphemeralFb2(rpc, item.sourcePath, item.archiveEntry, {
       signal,
-      onProgress: (done, total) => onStage('batch.progress.stageReading', done, Math.max(total, 100)),
+      onProgress: (done, total) =>
+        onStage('batch.progress.stageReading', done, Math.max(total, 100)),
     });
     docId = opened.docId;
     const { document } = opened;
@@ -178,7 +179,8 @@ export async function runFb2ToMobi(params: BatchAdapterContext): Promise<BatchAd
         }),
       {
         signal,
-        onProgress: (done, total) => onStage('batch.progress.stageWriting', done, Math.max(total, 1)),
+        onProgress: (done, total) =>
+          onStage('batch.progress.stageWriting', done, Math.max(total, 1)),
       },
     );
 

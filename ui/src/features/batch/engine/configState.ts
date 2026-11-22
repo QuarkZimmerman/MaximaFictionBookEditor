@@ -85,9 +85,7 @@ export function normalizeBatchConfig(raw: BatchJobConfig, cpuCores: number): Bat
   const requestedWorkers = Number.isFinite(raw.workerCount)
     ? Math.floor(raw.workerCount)
     : maxWorkers;
-  const workerCount = parallelCapable
-    ? Math.min(maxWorkers, Math.max(2, requestedWorkers))
-    : 1;
+  const workerCount = parallelCapable ? Math.min(maxWorkers, Math.max(2, requestedWorkers)) : 1;
 
   return {
     direction: raw.direction,

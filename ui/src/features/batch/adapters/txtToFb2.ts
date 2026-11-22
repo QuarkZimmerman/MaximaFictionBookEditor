@@ -10,10 +10,7 @@ import { RpcErrorCode } from '@/rpc/types';
 import { normaliseGenres, normaliseLanguages } from '@/views/description/resources';
 
 import { pathBasename } from '../engine/paths';
-import type {
-  TxtImportWorkerRequest,
-  TxtImportWorkerResult,
-} from '../workers/txtImportWorker';
+import type { TxtImportWorkerRequest, TxtImportWorkerResult } from '../workers/txtImportWorker';
 import { runWorkerTask } from '../workers/workerCall';
 import type { BatchAdapterContext, BatchAdapterOutcome } from './adapterTypes';
 import {
@@ -137,9 +134,8 @@ export async function runTxtToFb2(params: BatchAdapterContext): Promise<BatchAda
     let fbdPath: string | null = null;
     if (item.archiveEntry && item.archiveFbdEntry) {
       try {
-        fbdPath = (
-          await rpc.call('txtImport.extractFbd', { token, entry: item.archiveFbdEntry })
-        ).path;
+        fbdPath = (await rpc.call('txtImport.extractFbd', { token, entry: item.archiveFbdEntry }))
+          .path;
       } catch (err) {
         warnings.push(
           ctx.t('batch.reasons.unreadableFbd', {
@@ -159,8 +155,7 @@ export async function runTxtToFb2(params: BatchAdapterContext): Promise<BatchAda
       if (applied.error) {
         warnings.push(
           ctx.t('batch.reasons.unreadableFbd', {
-            detail:
-              applied.error instanceof Error ? applied.error.message : pathBasename(fbdPath),
+            detail: applied.error instanceof Error ? applied.error.message : pathBasename(fbdPath),
           }),
         );
       } else {
@@ -181,9 +176,9 @@ export async function runTxtToFb2(params: BatchAdapterContext): Promise<BatchAda
   } catch (error) {
     if (isRpcError(error) && error.code === RpcErrorCode.textImportRefused) {
       const reason = (error.data as { reason?: string } | undefined)?.reason ?? 'binary';
-      throw new Error(
-        ctx.t(`txt.refused.${reason}`, { defaultValue: error.message || reason }),
-      );
+      throw new Error(ctx.t(`txt.refused.${reason}`, { defaultValue: error.message || reason }), {
+        cause: error,
+      });
     }
     throw error;
   } finally {

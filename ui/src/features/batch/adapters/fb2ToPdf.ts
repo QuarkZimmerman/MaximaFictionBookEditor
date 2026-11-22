@@ -54,7 +54,8 @@ export async function runFb2ToPdf(params: BatchAdapterContext): Promise<BatchAda
     onStage('batch.progress.stageReading', 0, 100);
     const opened = await openEphemeralFb2(rpc, item.sourcePath, item.archiveEntry, {
       signal,
-      onProgress: (done, total) => onStage('batch.progress.stageReading', done, Math.max(total, 100)),
+      onProgress: (done, total) =>
+        onStage('batch.progress.stageReading', done, Math.max(total, 100)),
     });
     docId = opened.docId;
     const { document } = opened;
@@ -70,9 +71,7 @@ export async function runFb2ToPdf(params: BatchAdapterContext): Promise<BatchAda
     throwIfAborted(signal);
 
     const textFont = settings?.pdf?.textFont ?? 'noto-serif';
-    const addedFonts = /^[0-9a-f]{64}(-\d+)?$/.test(textFont)
-      ? await cache.getPdfAddedFonts()
-      : [];
+    const addedFonts = /^[0-9a-f]{64}(-\d+)?$/.test(textFont) ? await cache.getPdfAddedFonts() : [];
     const added = addedFonts.find((f) => f.id === textFont);
 
     onStage('batch.progress.stageConverting', 0, 100);
@@ -83,7 +82,8 @@ export async function runFb2ToPdf(params: BatchAdapterContext): Promise<BatchAda
       addedFont: added ? { id: added.id, kind: added.kind } : undefined,
       cancelled: () => signal.aborted,
       limits: begun.limits,
-      progress: (done, total) => onStage('batch.progress.stageConverting', done, Math.max(total, 1)),
+      progress: (done, total) =>
+        onStage('batch.progress.stageConverting', done, Math.max(total, 1)),
     });
     throwIfAborted(signal);
 
@@ -133,7 +133,10 @@ export async function runFb2ToPdf(params: BatchAdapterContext): Promise<BatchAda
     const genresList = await cache.getGenres();
     const language = wordsLanguage(titleInfo.lang);
     const genreMap = new Map(
-      genresList.map((entry) => [entry.code, entry.names[language] ?? entry.names.en ?? entry.code]),
+      genresList.map((entry) => [
+        entry.code,
+        entry.names[language] ?? entry.names.en ?? entry.code,
+      ]),
     );
 
     const finishToken = token;
@@ -150,7 +153,8 @@ export async function runFb2ToPdf(params: BatchAdapterContext): Promise<BatchAda
         }),
       {
         signal,
-        onProgress: (done, total) => onStage('batch.progress.stageWriting', done, Math.max(total, 1)),
+        onProgress: (done, total) =>
+          onStage('batch.progress.stageWriting', done, Math.max(total, 1)),
       },
     );
     token = null;
@@ -164,9 +168,7 @@ export async function runFb2ToPdf(params: BatchAdapterContext): Promise<BatchAda
       ...paged.linksAsText.map((detail) => ctx.t('pdf.summary.linkAsText', { detail })),
       ...paged.idsTwice.map((detail) => ctx.t('pdf.summary.idTwice', { detail })),
       ...paged.rawParts.map((detail) => ctx.t('pdf.summary.rawPart', { detail })),
-      ...(titleInfo.bookTitle?.trim()
-        ? []
-        : [ctx.t('pdf.summary.noTitle', { detail: fileTitle })]),
+      ...(titleInfo.bookTitle?.trim() ? [] : [ctx.t('pdf.summary.noTitle', { detail: fileTitle })]),
       ...(titleInfo.lang?.trim() ? [] : [ctx.t('pdf.summary.noLanguage')]),
       ...(finished.fallback
         ? [

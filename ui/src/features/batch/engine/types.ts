@@ -18,12 +18,7 @@ export const BATCH_BOOK_FORMATS: readonly BatchBookFormat[] = [
 export type BatchPhase = 'idle' | 'scanning' | 'converting' | 'cancelling' | 'finished';
 
 export type BatchWorkStatus =
-  | 'queued'
-  | 'running'
-  | 'converted'
-  | 'skipped'
-  | 'failed'
-  | 'cancelled';
+  'queued' | 'running' | 'converted' | 'skipped' | 'failed' | 'cancelled';
 
 export type BatchSkipReason = 'targetExists' | 'targetBusy';
 

@@ -125,11 +125,13 @@ describe('batch import format filters and output paths (US2)', () => {
       archiveStem: 'bundle',
       sizeBytes: 500,
     };
-    expect(resolveBatchTargetPath(multiZip, { ...base, keepTree: true, zipOutput: false }, null).targetPath).toBe(
-      '/out/shelf/bundle/part1/book.fb2',
-    );
-    expect(resolveBatchTargetPath(multiZip, { ...base, keepTree: false, zipOutput: true }, null).targetPath).toBe(
-      '/out/bundle/book.fb2.zip',
-    );
+    expect(
+      resolveBatchTargetPath(multiZip, { ...base, keepTree: true, zipOutput: false }, null)
+        .targetPath,
+    ).toBe('/out/shelf/bundle/part1/book.fb2');
+    expect(
+      resolveBatchTargetPath(multiZip, { ...base, keepTree: false, zipOutput: true }, null)
+        .targetPath,
+    ).toBe('/out/bundle/book.fb2.zip');
   });
 });

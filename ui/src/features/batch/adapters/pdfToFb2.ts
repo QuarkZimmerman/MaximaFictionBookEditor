@@ -205,9 +205,7 @@ export async function runPdfToFb2(params: BatchAdapterContext): Promise<BatchAda
       }
 
       const layout =
-        tagged &&
-        sum(taggedLetters.values()) >= sum(pageLetters) * 0.97 &&
-        inOrder >= pairs * 0.97
+        tagged && sum(taggedLetters.values()) >= sum(pageLetters) * 0.97 && inOrder >= pairs * 0.97
           ? null
           : layoutParts(models, {
               outline: pdfDoc.outline,
@@ -403,10 +401,11 @@ export async function runPdfToFb2(params: BatchAdapterContext): Promise<BatchAda
     if (isRpcError(error) && error.code === RpcErrorCode.pdfImportFailed) {
       const reason = (error.data as { reason?: string } | undefined)?.reason ?? 'damaged';
       if (reason === 'passwordCancelled' || reason === 'copyForbidden') {
-        throw new Error(ctx.t('batch.reasons.passwordPdf'));
+        throw new Error(ctx.t('batch.reasons.passwordPdf'), { cause: error });
       }
       throw new Error(
         ctx.t(`pdfImport.refused.${reason}`, { defaultValue: error.message || reason }),
+        { cause: error },
       );
     }
     throw error;

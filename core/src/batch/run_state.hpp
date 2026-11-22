@@ -29,7 +29,7 @@ struct ClaimOutcome {
     Status status = Status::failed;
     std::string claim_id;     // set when claimed
     std::string target_path;  // normalized UTF-8 target path
-    std::string reason;       // targetExists | targetBusy | targetIsSource | targetIsOpenBook | ioError
+    std::string reason;  // targetExists | targetBusy | targetIsSource | targetIsOpenBook | ioError
     std::string detail;
 };
 
@@ -37,9 +37,9 @@ struct RunState {
     std::string run_id;
     std::filesystem::path temp_root;
     std::uint64_t next_claim_id = 0;
-    std::unordered_map<std::string, std::string> active_claims;     // canonicalKey -> claimId
-    std::unordered_map<std::string, std::string> claim_to_key;      // claimId -> canonicalKey
-    std::unordered_set<std::string> completed_targets;              // canonicalKeys finished
+    std::unordered_map<std::string, std::string> active_claims;  // canonicalKey -> claimId
+    std::unordered_map<std::string, std::string> claim_to_key;   // claimId -> canonicalKey
+    std::unordered_set<std::string> completed_targets;           // canonicalKeys finished
     std::unordered_map<std::string, std::filesystem::path> item_dirs;
 };
 

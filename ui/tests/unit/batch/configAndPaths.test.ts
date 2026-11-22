@@ -202,17 +202,22 @@ describe('batch output path resolution (data-model.md §4)', () => {
     };
 
     // Mirrored EPUB
-    expect(resolveBatchTargetPath(item, { ...base, exportFormat: 'epub', keepTree: true }, settings).targetPath).toBe(
-      '/dst/a/b/novel.epub',
-    );
+    expect(
+      resolveBatchTargetPath(item, { ...base, exportFormat: 'epub', keepTree: true }, settings)
+        .targetPath,
+    ).toBe('/dst/a/b/novel.epub');
     // Flat EPUB
-    expect(resolveBatchTargetPath(item, { ...base, exportFormat: 'epub', keepTree: false }, settings).targetPath).toBe(
-      '/dst/novel.epub',
-    );
+    expect(
+      resolveBatchTargetPath(item, { ...base, exportFormat: 'epub', keepTree: false }, settings)
+        .targetPath,
+    ).toBe('/dst/novel.epub');
     // In-place MOBI (kf8 -> .azw3; mobi7/joint -> .mobi; zip -> .zip)
     expect(
-      resolveBatchTargetPath(item, { ...base, exportFormat: 'mobi', inPlace: true, zipOutput: false }, settings)
-        .targetPath,
+      resolveBatchTargetPath(
+        item,
+        { ...base, exportFormat: 'mobi', inPlace: true, zipOutput: false },
+        settings,
+      ).targetPath,
     ).toBe('/src/a/b/novel.azw3');
     expect(
       resolveBatchTargetPath(
@@ -222,28 +227,40 @@ describe('batch output path resolution (data-model.md §4)', () => {
       ).targetPath,
     ).toBe('/src/a/b/novel.mobi');
     expect(
-      resolveBatchTargetPath(item, { ...base, exportFormat: 'mobi', inPlace: true, zipOutput: true }, settings)
-        .targetPath,
+      resolveBatchTargetPath(
+        item,
+        { ...base, exportFormat: 'mobi', inPlace: true, zipOutput: true },
+        settings,
+      ).targetPath,
     ).toBe('/src/a/b/novel.zip');
     // PDF & TXT bare vs ZIP
-    expect(resolveBatchTargetPath(item, { ...base, exportFormat: 'pdf', zipOutput: false }, settings).targetPath).toBe(
-      '/dst/a/b/novel.pdf',
-    );
-    expect(resolveBatchTargetPath(item, { ...base, exportFormat: 'pdf', zipOutput: true }, settings).targetPath).toBe(
-      '/dst/a/b/novel.zip',
-    );
-    expect(resolveBatchTargetPath(item, { ...base, exportFormat: 'txt', zipOutput: false }, settings).targetPath).toBe(
-      '/dst/a/b/novel.txt',
-    );
-    expect(resolveBatchTargetPath(item, { ...base, exportFormat: 'txt', zipOutput: true }, settings).targetPath).toBe(
-      '/dst/a/b/novel.zip',
-    );
+    expect(
+      resolveBatchTargetPath(item, { ...base, exportFormat: 'pdf', zipOutput: false }, settings)
+        .targetPath,
+    ).toBe('/dst/a/b/novel.pdf');
+    expect(
+      resolveBatchTargetPath(item, { ...base, exportFormat: 'pdf', zipOutput: true }, settings)
+        .targetPath,
+    ).toBe('/dst/a/b/novel.zip');
+    expect(
+      resolveBatchTargetPath(item, { ...base, exportFormat: 'txt', zipOutput: false }, settings)
+        .targetPath,
+    ).toBe('/dst/a/b/novel.txt');
+    expect(
+      resolveBatchTargetPath(item, { ...base, exportFormat: 'txt', zipOutput: true }, settings)
+        .targetPath,
+    ).toBe('/dst/a/b/novel.zip');
     // Markdown bare vs .md.zip
     expect(
-      resolveBatchTargetPath(item, { ...base, exportFormat: 'markdown', zipOutput: false }, settings).targetPath,
+      resolveBatchTargetPath(
+        item,
+        { ...base, exportFormat: 'markdown', zipOutput: false },
+        settings,
+      ).targetPath,
     ).toBe('/dst/a/b/novel.md');
     expect(
-      resolveBatchTargetPath(item, { ...base, exportFormat: 'markdown', zipOutput: true }, settings).targetPath,
+      resolveBatchTargetPath(item, { ...base, exportFormat: 'markdown', zipOutput: true }, settings)
+        .targetPath,
     ).toBe('/dst/a/b/novel.md.zip');
   });
 
@@ -268,9 +285,9 @@ describe('batch output path resolution (data-model.md §4)', () => {
       archiveStem: 'my-book',
       sizeBytes: 50,
     };
-    expect(resolveBatchTargetPath(singleZip, { ...base, keepTree: true }, settings).targetPath).toBe(
-      '/dst/sub/my-book.epub',
-    );
+    expect(
+      resolveBatchTargetPath(singleZip, { ...base, keepTree: true }, settings).targetPath,
+    ).toBe('/dst/sub/my-book.epub');
 
     // Multi-book .zip writes into <archiveStem>/ (mirroring internal subfolders when keepTree && !inPlace).
     const multiZip: BatchDiscoveredItem = {
@@ -287,12 +304,13 @@ describe('batch output path resolution (data-model.md §4)', () => {
     expect(resolveBatchTargetPath(multiZip, { ...base, keepTree: true }, settings).targetPath).toBe(
       '/dst/sub/pack/vol1/ch1.epub',
     );
-    expect(resolveBatchTargetPath(multiZip, { ...base, keepTree: false }, settings).targetPath).toBe(
-      '/dst/pack/ch1.epub',
-    );
-    expect(resolveBatchTargetPath(multiZip, { ...base, inPlace: true, keepTree: false }, settings).targetPath).toBe(
-      '/src/sub/pack/ch1.epub',
-    );
+    expect(
+      resolveBatchTargetPath(multiZip, { ...base, keepTree: false }, settings).targetPath,
+    ).toBe('/dst/pack/ch1.epub');
+    expect(
+      resolveBatchTargetPath(multiZip, { ...base, inPlace: true, keepTree: false }, settings)
+        .targetPath,
+    ).toBe('/src/sub/pack/ch1.epub');
   });
 });
 

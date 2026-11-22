@@ -85,7 +85,8 @@ bool is_zip_bomb_entry(const archive::Entry& e) {
     if (e.size > archive::kMaxBookBytes) {
         return true;
     }
-    if (e.size >= kBombSizeThreshold && e.compressed > 0 && (e.size / e.compressed) > kBombMaxRatio) {
+    if (e.size >= kBombSizeThreshold && e.compressed > 0 &&
+        (e.size / e.compressed) > kBombMaxRatio) {
         return true;
     }
     return false;
@@ -316,10 +317,9 @@ ScanResult scan_directory(const ScanRequest& req, const ScanCallbacks& callbacks
             std::error_code it_ec;
             fs::directory_iterator it(dir, it_ec);
             if (it_ec) {
-                result.scan_errors.push_back(ScanError{platform::utf8_from_path(dir),
-                                                       rel_dir.empty() ? result.source_dir : rel_dir,
-                                                       "scan.unreadableDir",
-                                                       platform::utf8_error_message(it_ec)});
+                result.scan_errors.push_back(ScanError{
+                    platform::utf8_from_path(dir), rel_dir.empty() ? result.source_dir : rel_dir,
+                    "scan.unreadableDir", platform::utf8_error_message(it_ec)});
                 return;
             }
 
@@ -329,8 +329,8 @@ ScanResult scan_directory(const ScanRequest& req, const ScanCallbacks& callbacks
             };
             std::vector<NamedEntry> entries;
             for (const fs::directory_entry& de : it) {
-                entries.push_back(NamedEntry{platform::utf8_from_path(de.path().filename()),
-                                             de.path()});
+                entries.push_back(
+                    NamedEntry{platform::utf8_from_path(de.path().filename()), de.path()});
             }
             std::sort(entries.begin(), entries.end(),
                       [](const NamedEntry& a, const NamedEntry& b) { return a.name < b.name; });

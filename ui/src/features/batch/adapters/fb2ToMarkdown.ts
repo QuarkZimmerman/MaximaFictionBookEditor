@@ -27,9 +27,8 @@ async function extractDiagramSources(
     (b) => /^mermaid-\d+$/.test(b.id) || /^formula-\d+$/.test(b.id),
   );
   if (candidates.length === 0) return [];
-  const { diagramSource, FORMULA_KEYWORD, SOURCE_KEYWORD } = await import(
-    '@/features/markdown/diagrams/files'
-  );
+  const { diagramSource, FORMULA_KEYWORD, SOURCE_KEYWORD } =
+    await import('@/features/markdown/diagrams/files');
   const sources: [string, string][] = [];
   for (const binary of candidates) {
     throwIfAborted(signal);
@@ -56,7 +55,8 @@ export async function runFb2ToMarkdown(params: BatchAdapterContext): Promise<Bat
     onStage('batch.progress.stageReading', 0, 100);
     const opened = await openEphemeralFb2(rpc, item.sourcePath, item.archiveEntry, {
       signal,
-      onProgress: (done, total) => onStage('batch.progress.stageReading', done, Math.max(total, 100)),
+      onProgress: (done, total) =>
+        onStage('batch.progress.stageReading', done, Math.max(total, 100)),
     });
     docId = opened.docId;
     const { document } = opened;
@@ -105,15 +105,14 @@ export async function runFb2ToMarkdown(params: BatchAdapterContext): Promise<Bat
         }),
       {
         signal,
-        onProgress: (done, total) => onStage('batch.progress.stageWriting', done, Math.max(total, 1)),
+        onProgress: (done, total) =>
+          onStage('batch.progress.stageWriting', done, Math.max(total, 1)),
       },
     );
 
     const warnings: string[] = [];
     for (const lo of serialized.leftOut) {
-      warnings.push(
-        lo.id ? `${lo.kind} (${lo.id}): ${lo.reason}` : `${lo.kind}: ${lo.reason}`,
-      );
+      warnings.push(lo.id ? `${lo.kind} (${lo.id}): ${lo.reason}` : `${lo.kind}: ${lo.reason}`);
     }
     for (const skippedPic of result.skipped ?? []) {
       warnings.push(ctx.t('pdf.summary.pictureLeftOut', { detail: skippedPic }));

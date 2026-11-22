@@ -72,10 +72,7 @@ self.onmessage = (event: MessageEvent<TxtImportWorkerRequest>) => {
 
     const known = new Set(req.knownWords);
     const paragraphs = foreignParagraphs(req.text, (word) => known.has(word));
-    const xml = bookXml(
-      templateDescription(req.template, req.stem),
-      bodyXml(paragraphs.items),
-    );
+    const xml = bookXml(templateDescription(req.template, req.stem), bodyXml(paragraphs.items));
     self.postMessage({
       type: 'result',
       data: {

@@ -613,6 +613,60 @@ book at*, *Pop-up footnotes (KF8)*, and *Save in ZIP archive*, each showing its 
 the open book for subsequent exports until another book takes the window or the editor restarts. The MOBI
 export and import modules load on demand only when used.
 
+## Batch Converter
+
+*Tools > Batch Converter…* converts whole folders and folder trees of e-books unattended without altering
+the book currently open in the editor, Recent files, or remembered Open/Save As folders. The utility and
+each format converter load on demand only when used.
+
+- **Two directions across five full-book formats** (**EPUB**, **MOBI / KF8**, **PDF**, **TXT**, and
+  **Markdown**; standalone FBD is excluded):
+  - **FB2 to export format**: converts bare `.fb2` files and `.fb2.zip`/`.zip` archives holding FB2 books
+    into one chosen target format, applying the saved defaults from *Settings > Exports* (shown as a
+    compact summary with an *Export settings…* button that opens *Settings > Exports* on that format and
+    refreshes the summary on return) and the same safe export-time repairs as single-file export.
+  - **Import formats to FB2**: converts either *All supported formats* (checked by default) or any chosen
+    subset of individual formats (such as MOBI and PDF) into valid UTF-8 FB2 2.1 books with JPEG/PNG-only
+    pictures, preserving reversible round-trip fidelity for editor-made files and applying companion `.fbd`
+    files automatically without prompting.
+- **ZIP archive inputs and *Save output in ZIP archive***:
+  - Both directions discover bare files and `.zip` archives (including `.md.zip` bundles with local images
+    and stylesheets and `.epub` inside `.zip`; nested archives, non-book files, and bookless `.zip`
+    archives are ignored silently, while damaged, encrypted, or unsafe archives are reported as Failed).
+  - A single-book `.zip` names its output after the archive (stripping compound extensions such as
+    `.fb2.zip` and `.md.zip`); a multi-book `.zip` places its outputs in a subfolder named after the
+    archive (mirroring internal subfolders when *Keep folder tree structure* is checked).
+  - *Save output in ZIP archive* writes `<name>.fb2.zip` in *Import -> FB2* (off by default), `<name>.zip`
+    with companion `.fbd` for PDF, TXT, and MOBI/KF8 (initialized from *Settings > Exports*), `<name>.md.zip`
+    for Markdown (off by default), and is disabled and unchecked for EPUB.
+- **Folders, tree layout, in-place, and overwrite**:
+  - *Include subfolders* is checked by default (with symlink/junction cycle protection). *Keep folder tree
+    structure* mirrors the source tree in the destination folder and is enabled only while *Include
+    subfolders* is checked and *In-place conversion* is unchecked. *In-place conversion* writes outputs
+    beside each input file and disables Destination path, Destination *Browse…*, and *Keep folder tree
+    structure*.
+  - *Overwrite existing files* starts unchecked every time the dialog opens (other non-destructive options
+    are remembered in memory for the current session only and reset on restart). When unchecked, existing
+    outputs are preserved and recorded as Skipped; when checked, existing outputs are replaced atomically
+    once conversion succeeds, while overwriting an input file with itself or overwriting the currently open
+    editor book is always refused and reported as Failed.
+- **Parallel conversion, modal lock, and *Cancel***:
+  - *Parallel conversion* runs multiple conversions concurrently with a worker-count selector defaulting to
+    `logical CPU cores - 1` (adjustable from `2` up to `cores - 1`; disabled on 1–2 core systems). When
+    two parallel workers resolve to the same target output path, the second is skipped cleanly rather than
+    racing.
+  - While scanning or converting, an overall progress bar sits above a compact scrollable list of active
+    worker rows, and every action besides *Cancel* (including closing the dialog or main window) is locked.
+    Clicking *Cancel* during scanning returns to the editable form with zero files written; clicking
+    *Cancel* during conversion aborts active work promptly, removes all partial and temporary files, keeps
+    already-completed outputs intact, and shows the partial Cancelled report.
+- **Unattended errors and *Save report…***:
+  - Individual failures (corrupt files, password-protected PDFs, DRM/encrypted MOBI/EPUB files) never halt
+    the batch. At completion, the on-screen report lists summary counts plus Failed and Skipped entries
+    with filter buttons. *Save report…* writes a UTF-8 plain-text report atomically to disk containing run
+    options, summary counts, Failed, Skipped, and *Warnings on converted files* (non-fatal warnings from
+    succeeded books).
+
 ## The Styles view
 
 *View > Styles*, after the Source view, shows the book's stylesheets - each a group with its type, the

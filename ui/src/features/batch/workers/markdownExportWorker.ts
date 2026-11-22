@@ -3,10 +3,7 @@
  */
 
 import type { Document } from '@/model/document';
-import {
-  serializeMarkdown,
-  type SerializedExport,
-} from '@/features/markdown/export/serialize';
+import { serializeMarkdown, type SerializedExport } from '@/features/markdown/export/serialize';
 
 export interface MarkdownExportWorkerRequest {
   document: Document;

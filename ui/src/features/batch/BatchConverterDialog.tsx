@@ -7,7 +7,15 @@
  * `overwrite` unchecked.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MutableRefObject,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { CommandContext } from '@/app/commands';
@@ -74,7 +82,13 @@ export function BatchConverterDialog({
 }: BatchConverterDialogProps) {
   const { t } = useTranslation();
   const [settings, setSettings] = useState<Settings | null>(initialSettings);
-  const [pdfCustomFontName, setPdfCustomFontName] = useState<string | undefined>(undefined);
+  const [resolvedPdfFont, setResolvedPdfFont] = useState<{
+    id: string;
+    name: string | undefined;
+  } | null>(null);
+  const activePdfFontId = settings?.pdf?.textFont ?? 'noto-serif';
+  const pdfCustomFontName =
+    resolvedPdfFont?.id === activePdfFontId ? resolvedPdfFont.name : undefined;
 
   const initialMemory = useMemo(() => getBatchSessionMemory(), []);
   const zipOverridesRef = useRef<Partial<Record<string, boolean>>>({
@@ -100,7 +114,9 @@ export function BatchConverterDialog({
     progress.phase === 'cancelling';
 
   // Keep host-level and Dialog-level close guard strictly synchronized with running state.
-  canCloseRef.current = !running;
+  useLayoutEffect(() => {
+    canCloseRef.current = !running;
+  }, [canCloseRef, running]);
 
   // Persist non-destructive configuration choices in session-only memory whenever config changes.
   useEffect(() => {
@@ -118,9 +134,7 @@ export function BatchConverterDialog({
 
   // Resolve custom added PDF font display name when active font is a hash id.
   useEffect(() => {
-    const fontId = settings?.pdf?.textFont ?? 'noto-serif';
-    if (!ctx.rpc || !/^[0-9a-f]{64}(-\d+)?$/.test(fontId)) {
-      setPdfCustomFontName(undefined);
+    if (!ctx.rpc || !/^[0-9a-f]{64}(-\d+)?$/.test(activePdfFontId)) {
       return;
     }
     let cancelled = false;
@@ -128,16 +142,16 @@ export function BatchConverterDialog({
       .call('pdf.fonts.list', {})
       .then((list) => {
         if (cancelled) return;
-        const found = list.added.find((f) => f.id === fontId);
-        setPdfCustomFontName(found?.name);
+        const found = list.added.find((f) => f.id === activePdfFontId);
+        setResolvedPdfFont({ id: activePdfFontId, name: found?.name });
       })
       .catch(() => {
-        if (!cancelled) setPdfCustomFontName(undefined);
+        if (!cancelled) setResolvedPdfFont({ id: activePdfFontId, name: undefined });
       });
     return () => {
       cancelled = true;
     };
-  }, [ctx.rpc, settings?.pdf?.textFont]);
+  }, [ctx.rpc, activePdfFontId]);
 
   const dispatch = useCallback(
     (action: BatchConfigAction, overrideSettings?: Settings | null) => {
@@ -542,9 +556,7 @@ export function BatchConverterDialog({
                 value={config.sourceDir}
                 placeholder={t('batch.paths.sourcePlaceholder')}
                 disabled={running}
-                onChange={(event) =>
-                  dispatch({ type: 'setSourceDir', path: event.target.value })
-                }
+                onChange={(event) => dispatch({ type: 'setSourceDir', path: event.target.value })}
                 {...tip(t('batch.tips.sourceDir'))}
               />
               <button
@@ -899,9 +911,7 @@ export function BatchConverterDialog({
 
           {reportSaveNotice ? (
             <div
-              className={
-                reportSaveNotice.kind === 'error' ? 'mfbe-batch-error' : 'mfbe-batch-info'
-              }
+              className={reportSaveNotice.kind === 'error' ? 'mfbe-batch-error' : 'mfbe-batch-info'}
               role={reportSaveNotice.kind === 'error' ? 'alert' : 'status'}
               data-testid="batch-report-save-notice"
             >

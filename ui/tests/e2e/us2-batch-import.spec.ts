@@ -31,7 +31,13 @@ interface OpenedEphemeral {
       };
     };
   };
-  warnings: Array<{ code: string; severity: string; message?: string; path?: string; line?: number }>;
+  warnings: Array<{
+    code: string;
+    severity: string;
+    message?: string;
+    path?: string;
+    line?: number;
+  }>;
 }
 
 async function inspectFb2(
@@ -205,10 +211,16 @@ test.describe('US2: Batch import formats to FB2', () => {
       expect(rtMobiIssues.filter((i) => i.severity === 'error')).toEqual([]);
 
       // Verify sibling .fbd AND archive .fbd were applied unattended.
-      const { doc: txtWithFbdDoc } = await inspectFb2(core, path.join(outAll, 'plain-with-fbd.fb2'));
+      const { doc: txtWithFbdDoc } = await inspectFb2(
+        core,
+        path.join(outAll, 'plain-with-fbd.fb2'),
+      );
       expect(txtWithFbdDoc.description?.titleInfo?.bookTitle).toBe('Только описание');
       expect(txtWithFbdDoc.schemaHint).toBe('2.1');
-      const { doc: archiveFbdDoc } = await inspectFb2(core, path.join(outAll, 'bundle', 'first.fb2'));
+      const { doc: archiveFbdDoc } = await inspectFb2(
+        core,
+        path.join(outAll, 'bundle', 'first.fb2'),
+      );
       expect(archiveFbdDoc.description?.titleInfo?.bookTitle).toBe('Только описание');
       expect(archiveFbdDoc.schemaHint).toBe('2.1');
 
@@ -248,9 +260,9 @@ test.describe('US2: Batch import formats to FB2', () => {
       expect(reopenedMobi.schemaHint).toBe('2.1');
       const { doc: reopenedPdf, issues: pdfIssues } = await inspectFb2(core, pdfZipOut);
       expect(reopenedPdf.sourceEncoding.toLowerCase()).toBe('utf-8');
-      expect(
-        pdfIssues.filter((i) => i.severity === 'error' && i.code !== 'genre.unknown'),
-      ).toEqual([]);
+      expect(pdfIssues.filter((i) => i.severity === 'error' && i.code !== 'genre.unknown')).toEqual(
+        [],
+      );
     } finally {
       rmSync(work, { recursive: true, force: true });
     }

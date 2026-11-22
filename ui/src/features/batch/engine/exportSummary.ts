@@ -55,8 +55,7 @@ export function formatActiveExportSummary(
     case 'txt': {
       const txt = settings?.txt;
       const mode = txt?.encodingMode ?? 'utf-8';
-      const base =
-        mode === 'language' ? t('batch.export.txtByLang') : t('batch.export.txtUtf8');
+      const base = mode === 'language' ? t('batch.export.txtByLang') : t('batch.export.txtUtf8');
       if (mode === 'utf-8' && txt?.bom) {
         return `${base}, ${t('batch.export.txtBom')}`;
       }

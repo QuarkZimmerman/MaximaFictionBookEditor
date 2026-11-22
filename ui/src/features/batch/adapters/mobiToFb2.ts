@@ -337,12 +337,13 @@ export async function runMobiToFb2(params: BatchAdapterContext): Promise<BatchAd
     if (isRpcError(error) && error.code === RpcErrorCode.mobiRefused) {
       const reason = (error.data as { reason?: string } | undefined)?.reason ?? 'damaged';
       if (reason === 'encrypted') {
-        throw new Error(ctx.t('batch.reasons.encryptedMobi'));
+        throw new Error(ctx.t('batch.reasons.encryptedMobi'), { cause: error });
       }
       throw new Error(
         ctx.t(`mobi.refused.${reason}`, {
           defaultValue: error.message || reason,
         }),
+        { cause: error },
       );
     }
     throw error;

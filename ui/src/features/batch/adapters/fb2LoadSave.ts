@@ -177,7 +177,10 @@ export async function saveEphemeralFb2(
 }
 
 /** Best-effort close of a temporary core document session. */
-export async function closeEphemeralDoc(rpc: RpcClient, docId: string | null | undefined): Promise<void> {
+export async function closeEphemeralDoc(
+  rpc: RpcClient,
+  docId: string | null | undefined,
+): Promise<void> {
   if (!docId) return;
   await rpc.call('doc.close', { docId }).catch(() => undefined);
 }

@@ -9,7 +9,12 @@
  */
 
 import { uploadBinary } from '@/features/images/binaries';
-import type { ConvertOptions, ConvertResult, MarkdownStylesheet, SummaryItem } from '@/features/markdown/convert';
+import type {
+  ConvertOptions,
+  ConvertResult,
+  MarkdownStylesheet,
+  SummaryItem,
+} from '@/features/markdown/convert';
 import { isRpcError } from '@/rpc/client';
 import { RpcErrorCode } from '@/rpc/types';
 
@@ -309,10 +314,7 @@ export async function runMarkdownToFb2(params: BatchAdapterContext): Promise<Bat
     const uploadedIds = new Set(picOutcome.added.map((b) => b.id));
     book = {
       ...book,
-      binaries: [
-        ...book.binaries.filter((b) => !uploadedIds.has(b.id)),
-        ...picOutcome.added,
-      ],
+      binaries: [...book.binaries.filter((b) => !uploadedIds.has(b.id)), ...picOutcome.added],
     };
 
     const extraWarnings: string[] = [];
@@ -355,10 +357,10 @@ export async function runMarkdownToFb2(params: BatchAdapterContext): Promise<Bat
     return { warnings };
   } catch (error) {
     if (isRpcError(error) && error.code === RpcErrorCode.importNotText) {
-      throw new Error(ctx.t('markdown.notText'));
+      throw new Error(ctx.t('markdown.notText'), { cause: error });
     }
     if (isRpcError(error) && error.code === RpcErrorCode.importTooLarge) {
-      throw new Error(ctx.t('markdown.tooLarge'));
+      throw new Error(ctx.t('markdown.tooLarge'), { cause: error });
     }
     throw error;
   } finally {

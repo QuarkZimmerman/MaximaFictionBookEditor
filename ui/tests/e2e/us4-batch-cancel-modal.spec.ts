@@ -173,7 +173,10 @@ test.describe('US4: Strict modal lock and clean cancellation', () => {
         const reportPath = path.join(work, `report-${mode}.txt`);
         await core.enqueueDialog('dialog.saveFile', { path: reportPath });
         await page.getByTestId('dialog-batch-converter-button-save-report').click();
-        await expect(page.getByTestId('batch-report-save-notice')).toHaveAttribute('role', 'status');
+        await expect(page.getByTestId('batch-report-save-notice')).toHaveAttribute(
+          'role',
+          'status',
+        );
         const reportBody = readFileSync(reportPath, 'utf8');
         expect(reportBody).toContain('Cancelled');
         expect(reportBody).toMatch(new RegExp(`Cancelled:\\s+${cancelledCount}`));

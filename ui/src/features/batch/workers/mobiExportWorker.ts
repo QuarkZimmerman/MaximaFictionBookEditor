@@ -4,12 +4,7 @@
  */
 
 import type { Document } from '@/model/document';
-import type {
-  MobiFormat,
-  MobiOpenAt,
-  MobiSeriesInTitle,
-  MobiTocPlacement,
-} from '@/rpc/types';
+import type { MobiFormat, MobiOpenAt, MobiSeriesInTitle, MobiTocPlacement } from '@/rpc/types';
 import { buildKf8 } from '@/features/mobi/export/kf8';
 import {
   buildExportPlan,
@@ -39,7 +34,11 @@ export interface MobiExportWorkerResult {
   kf8Css?: string;
   mfbeJson: string;
   nav: { label: string; anchorId: string; depth: number }[];
-  guide: { type: 'cover' | 'title-page' | 'toc' | 'text' | 'colophon'; title: string; anchorId: string }[];
+  guide: {
+    type: 'cover' | 'title-page' | 'toc' | 'text' | 'colophon';
+    title: string;
+    anchorId: string;
+  }[];
 }
 
 self.onmessage = (event: MessageEvent<MobiExportWorkerRequest>) => {
@@ -66,8 +65,7 @@ self.onmessage = (event: MessageEvent<MobiExportWorkerRequest>) => {
       req.format === 'mobi7' || req.format === 'joint' ? buildMobi7(opts, plan) : null;
     self.postMessage({ type: 'progress', done: 2, total: 4 });
 
-    const kf8Result =
-      req.format === 'kf8' || req.format === 'joint' ? buildKf8(opts, plan) : null;
+    const kf8Result = req.format === 'kf8' || req.format === 'joint' ? buildKf8(opts, plan) : null;
     self.postMessage({ type: 'progress', done: 3, total: 4 });
 
     const mfbe = buildMfbeRoundTripRecord(req.document, pictures, plan.attrs);

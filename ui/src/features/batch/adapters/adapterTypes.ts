@@ -5,13 +5,7 @@
 
 import type { CommandContext } from '@/app/commands';
 import type { RpcClient } from '@/rpc/client';
-import type {
-  GenreEntry,
-  LanguageEntry,
-  PdfAddedFont,
-  Settings,
-  TxtEncodings,
-} from '@/rpc/types';
+import type { GenreEntry, LanguageEntry, PdfAddedFont, Settings, TxtEncodings } from '@/rpc/types';
 
 import type { BatchDiscoveredItem, BatchJobConfig } from '../engine/types';
 import { BatchAbortError } from './fb2LoadSave';
