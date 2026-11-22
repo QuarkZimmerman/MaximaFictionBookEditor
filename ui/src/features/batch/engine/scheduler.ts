@@ -328,7 +328,7 @@ export function startBatchRun(options: BatchSchedulerOptions): BatchRunControlle
             done: 0,
             total: 0,
           });
-          emitThrottled();
+          emitNow();
 
           let claimId: string | null = null;
           let claimSucceeded = false;

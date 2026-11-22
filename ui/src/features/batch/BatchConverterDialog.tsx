@@ -683,31 +683,29 @@ export function BatchConverterDialog({
                 />
                 <span>{t('batch.options.parallel')}</span>
               </label>
+              <label htmlFor="batch-worker-count">{t('batch.options.workersLabel')}</label>
+              <input
+                id="batch-worker-count"
+                type="number"
+                className="mfbe-batch-workers-input"
+                data-testid="batch-worker-count"
+                min={parallelSupported ? 2 : 1}
+                max={maxWorkers}
+                step={1}
+                value={config.workerCount}
+                disabled={running || !parallelSupported || !config.parallel}
+                onChange={(event) =>
+                  dispatch({
+                    type: 'setWorkerCount',
+                    count: Number.parseInt(event.target.value, 10) || 2,
+                  })
+                }
+                {...tip(t('batch.tips.workerCount'))}
+              />
               {parallelSupported ? (
-                <>
-                  <label htmlFor="batch-worker-count">{t('batch.options.workersLabel')}</label>
-                  <input
-                    id="batch-worker-count"
-                    type="number"
-                    className="mfbe-batch-workers-input"
-                    data-testid="batch-worker-count"
-                    min={2}
-                    max={maxWorkers}
-                    step={1}
-                    value={config.workerCount}
-                    disabled={running || !config.parallel}
-                    onChange={(event) =>
-                      dispatch({
-                        type: 'setWorkerCount',
-                        count: Number.parseInt(event.target.value, 10) || 2,
-                      })
-                    }
-                    {...tip(t('batch.tips.workerCount'))}
-                  />
-                  <span className="mfbe-batch-note">
-                    {t('batch.options.workersMaxNote', { max: maxWorkers })}
-                  </span>
-                </>
+                <span className="mfbe-batch-note">
+                  {t('batch.options.workersMaxNote', { max: maxWorkers })}
+                </span>
               ) : (
                 <span className="mfbe-batch-note" data-testid="batch-single-core-note">
                   {t('batch.options.singleCoreNote')}
