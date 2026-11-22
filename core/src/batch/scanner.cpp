@@ -112,6 +112,32 @@ struct MatchedArchiveBook {
     std::string format;
 };
 
+bool is_safe_archive_entry_name(std::string_view name) {
+    if (name.empty() || name.find('\0') != std::string_view::npos) {
+        return false;
+    }
+    if (name.front() == '/' || name.front() == '\\') {
+        return false;
+    }
+    if (name.size() >= 2 && std::isalpha(static_cast<unsigned char>(name[0])) && name[1] == ':') {
+        return false;
+    }
+    std::size_t pos = 0;
+    while (pos < name.size()) {
+        const std::size_t next = name.find_first_of("/\\", pos);
+        const std::string_view part =
+            next == std::string_view::npos ? name.substr(pos) : name.substr(pos, next - pos);
+        if (part.empty() || part == "." || part == "..") {
+            return false;
+        }
+        if (next == std::string_view::npos) {
+            break;
+        }
+        pos = next + 1;
+    }
+    return true;
+}
+
 void scan_zip_file(const fs::path& file_path, const std::string& rel_dir,
                    const std::string& rel_file_display, const std::string& filename_utf8,
                    const ScanRequest& req, const std::unordered_set<std::string>& allowed,
@@ -153,11 +179,19 @@ void scan_zip_file(const fs::path& file_path, const std::string& rel_dir,
             continue;
         }
         if (req.direction == Direction::import_to_fb2 && ends_with_ci(entry.name, ".fbd")) {
-            fbd_entries.push_back(entry.name);
+            if (is_safe_archive_entry_name(entry.name)) {
+                fbd_entries.push_back(entry.name);
+            }
             continue;
         }
         const auto fmt = detect_book_format(entry.name, req.direction, allowed);
         if (!fmt) {
+            continue;
+        }
+        if (!is_safe_archive_entry_name(entry.name)) {
+            result.scan_errors.push_back(ScanError{source_utf8,
+                                                   rel_file_display + " :: " + entry.name,
+                                                   "archive.damaged", "unsafe archive entry path"});
             continue;
         }
         if ((entry.flags & 0x1u) != 0) {

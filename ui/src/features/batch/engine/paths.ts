@@ -42,7 +42,7 @@ export function joinPath(base: string, ...parts: string[]): string {
     const segments = raw
       .replace(/[\\/]+/g, '/')
       .split('/')
-      .filter((s) => s.length > 0 && s !== '.');
+      .filter((s) => s.length > 0 && s !== '.' && s !== '..');
     for (const seg of segments) {
       if (!result) {
         result = seg;
