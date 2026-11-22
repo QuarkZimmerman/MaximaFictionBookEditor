@@ -23,13 +23,16 @@
 - (void)followRequest:(const mfbe::shell::FileDialogRequest&)request;
 - (void)typeChosen:(NSPopUpButton*)sender;
 - (void)zipToggled:(NSButton*)sender;
+- (void)selectChosen:(NSPopUpButton*)sender;
 @end
 
 @implementation MFBEFileTypeSwitch {
     mfbe::shell::FileDialogRequest _request;
+    std::string _activePlainExt;
 }
 - (void)followRequest:(const mfbe::shell::FileDialogRequest&)request {
     _request = request;
+    _activePlainExt = mfbe::shell::activeSelectExtension(request);
 }
 - (void)showType:(NSInteger)index {
     if (index >= 0 && index < static_cast<NSInteger>(self.typesPerFilter.count)) {
@@ -42,10 +45,40 @@
         return;
     }
     const std::string renamed =
-        mfbe::shell::zipFollowName(_request, std::string(name.UTF8String), zip);
+        _activePlainExt.empty()
+            ? mfbe::shell::zipFollowName(_request, std::string(name.UTF8String), zip)
+            : mfbe::shell::selectFollowName(_request, std::string(name.UTF8String), _activePlainExt,
+                                            zip);
     NSString* shown = [NSString stringWithUTF8String:renamed.c_str()];
     if (shown != nil && ![shown isEqualToString:name]) {
         self.panel.nameFieldStringValue = shown;
+    }
+}
+- (void)selectChosen:(NSPopUpButton*)sender {
+    const NSInteger selIdx = sender.tag;
+    const NSInteger choiceIdx = sender.indexOfSelectedItem;
+    if (selIdx < 0 || static_cast<std::size_t>(selIdx) >= _request.selects.size() ||
+        choiceIdx < 0) {
+        return;
+    }
+    const auto& sel = _request.selects[static_cast<std::size_t>(selIdx)];
+    if (static_cast<std::size_t>(choiceIdx) >= sel.choices.size()) {
+        return;
+    }
+    const std::string& ext = sel.choices[static_cast<std::size_t>(choiceIdx)].extension;
+    if (ext.empty()) {
+        return;
+    }
+    _activePlainExt = mfbe::shell::bareExtension(ext);
+    const BOOL zip = self.zipBox != nil && self.zipBox.state == NSControlStateValueOn;
+    if (!zip) {
+        [self renameFor:NO];
+        if (self.typePopup != nil) {
+            const NSInteger index = static_cast<NSInteger>(
+                mfbe::shell::selectFollowFilter(_request, _activePlainExt, false));
+            [self.typePopup selectItemAtIndex:index];
+            [self showType:index];
+        }
     }
 }
 - (void)typeChosen:(NSPopUpButton*)sender {
@@ -64,7 +97,10 @@
     const BOOL zip = sender.state == NSControlStateValueOn;
     [self renameFor:zip];
     if (self.typePopup != nil && _request.zip_filter >= 0) {
-        const NSInteger index = static_cast<NSInteger>(mfbe::shell::zipFollowFilter(_request, zip));
+        const NSInteger index = static_cast<NSInteger>(
+            _activePlainExt.empty()
+                ? mfbe::shell::zipFollowFilter(_request, zip)
+                : mfbe::shell::selectFollowFilter(_request, _activePlainExt, zip));
         [self.typePopup selectItemAtIndex:index];
         [self showType:index];
     }
@@ -180,7 +216,46 @@ bool runPlatformFileDialog(std::uintptr_t owner, const FileDialogRequest& reques
         row.orientation = NSUserInterfaceLayoutOrientationHorizontal;
         [rows addObject:row];
     }
-    // Feature 009 (DP-8): the "save as ZIP archive" checkbox, below the encoding choice.
+    // Feature 018 (DP-5): select dropdowns inside the Save accessory view.
+    NSMutableArray<NSPopUpButton*>* select_popups = [NSMutableArray array];
+    NSMutableArray<NSStackView*>* select_rows = [NSMutableArray array];
+    std::vector<std::string> select_ids;
+    std::vector<std::vector<std::string>> select_values;
+    if (mode == FileDialogMode::kSave && !request.selects.empty()) {
+        if (type_switch == nil) {
+            type_switch = [[MFBEFileTypeSwitch alloc] init];
+            type_switch.panel = panel;
+            [type_switch followRequest:request];
+        }
+        for (std::size_t s = 0; s < request.selects.size(); ++s) {
+            const auto& sel = request.selects[s];
+            if (sel.choices.empty()) {
+                continue;
+            }
+            NSPopUpButton* popup = [[NSPopUpButton alloc] initWithFrame:NSZeroRect pullsDown:NO];
+            std::vector<std::string> values;
+            for (const auto& ch : sel.choices) {
+                [popup addItemWithTitle:toNSString(ch.label)];
+                values.push_back(ch.value);
+            }
+            [popup selectItemAtIndex:static_cast<NSInteger>(selectedSelectChoiceIndex(sel))];
+            popup.tag = static_cast<NSInteger>(s);
+            popup.target = type_switch;
+            popup.action = @selector(selectChosen:);
+            NSTextField* label = [NSTextField labelWithString:toNSString(sel.label)];
+            NSStackView* row = [NSStackView stackViewWithViews:@[ label, popup ]];
+            row.orientation = NSUserInterfaceLayoutOrientationHorizontal;
+            row.alignment = NSLayoutAttributeCenterY;
+            row.spacing = 8;
+            [select_popups addObject:popup];
+            [select_rows addObject:row];
+            select_ids.push_back(sel.id);
+            select_values.push_back(std::move(values));
+            [rows addObject:row];
+        }
+    }
+    // Feature 009 (DP-8): the "save as ZIP archive" checkbox; shares the row with a lone select
+    // dropdown (MOBI export) so the Save sheet stays compact and aligned.
     NSButton* zip_box = nil;
     if (mode == FileDialogMode::kSave && !request.zip_label.empty()) {
         zip_box = [NSButton checkboxWithTitle:toNSString(request.zip_label) target:nil action:nil];
@@ -195,7 +270,11 @@ bool runPlatformFileDialog(std::uintptr_t owner, const FileDialogRequest& reques
             zip_box.target = type_switch;
             zip_box.action = @selector(zipToggled:);
         }
-        [rows addObject:zip_box];
+        if (select_rows.count == 1 && encoding_popup == nil && request.checks.empty()) {
+            [select_rows[0] addArrangedSubview:zip_box];
+        } else {
+            [rows addObject:zip_box];
+        }
     }
     // Feature 017 (DP-5): the further boxes, one checkbox each, below the ZIP box.
     NSMutableArray<NSButton*>* check_boxes = [NSMutableArray array];
@@ -261,6 +340,17 @@ bool runPlatformFileDialog(std::uintptr_t owner, const FileDialogRequest& reques
                                              check_boxes[k].state == NSControlStateValueOn);
               }
               result.checks_shown = true;
+          }
+          if (select_popups.count > 0) {
+              for (NSUInteger k = 0; k < select_popups.count; ++k) {
+                  const NSInteger idx = select_popups[k].indexOfSelectedItem;
+                  const auto& vals = select_values[k];
+                  if (idx >= 0 && static_cast<std::size_t>(idx) < vals.size()) {
+                      result.selects.emplace_back(select_ids[k],
+                                                  vals[static_cast<std::size_t>(idx)]);
+                  }
+              }
+              result.selects_shown = true;
           }
       }
       (void)type_switch;  // the pop-up's and the ZIP box's target lives as long as the panel

@@ -53,6 +53,19 @@ struct FileDialogRequest {
         bool checked = false;
     };
     std::vector<Check> checks;
+    // Feature 018 (DP-5, contracts/rpc-api.md §4): multi-select dropdowns inside the Save dialog.
+    struct SelectChoice {
+        std::string value;
+        std::string label;
+        std::string extension;  // optional bare plain-file extension (e.g. "mobi", "azw3")
+    };
+    struct Select {
+        std::string id;
+        std::string label;
+        std::vector<SelectChoice> choices;
+        std::string selected;
+    };
+    std::vector<Select> selects;
 };
 
 struct FileDialogResult {
@@ -64,6 +77,9 @@ struct FileDialogResult {
     // dialog could not show them (the interface then asks in its own window).
     std::vector<std::pair<std::string, bool>> checks;
     bool checks_shown = false;
+    // Feature 018 (DP-5): final select values by id; `selects_shown` false when unavailable.
+    std::vector<std::pair<std::string, std::string>> selects;
+    bool selects_shown = false;
 };
 
 using FileDialogCallback = std::function<void(FileDialogResult)>;
@@ -125,6 +141,28 @@ std::size_t selectedEncodingIndex(const FileDialogRequest& request);
 inline constexpr unsigned kEncodingItemBase = 1100;
 // The encoding of an item id; "" when the id names none.
 std::string encodingOfItem(const FileDialogRequest& request, unsigned item_id);
+
+// Feature 018 (DP-5): multi-select dropdown helpers (Windows item ids, live extension & filter
+// switching for Save dialogs with format selects + ZIP checkbox).
+inline constexpr unsigned kSelectGroupBase = 1200;
+inline constexpr unsigned kSelectComboBase = 1300;
+inline constexpr unsigned kSelectItemBase = 2000;
+inline constexpr unsigned kSelectItemStride = 100;
+
+std::size_t selectedSelectChoiceIndex(const FileDialogRequest::Select& select);
+unsigned selectItemId(std::size_t select_index, std::size_t choice_index);
+std::string selectValueOfItem(const FileDialogRequest::Select& select, std::size_t select_index,
+                              unsigned item_id);
+// Extension of the currently selected choice (if any select defines extensions), else "".
+std::string activeSelectExtension(
+    const FileDialogRequest& request,
+    const std::vector<std::pair<std::string, std::string>>& current_values = {});
+// Updates filename when a select choice carrying `new_ext` is chosen or ZIP is toggled.
+std::string selectFollowName(const FileDialogRequest& request, const std::string& name,
+                             const std::string& plain_ext, bool zip);
+// Picks the filter index matching `plain_ext` (or `zip_filter` when `zip` is true).
+std::size_t selectFollowFilter(const FileDialogRequest& request, const std::string& plain_ext,
+                               bool zip);
 
 // CEF's own dialog (the fallback) accepts only ".ext" filters - CEF 150 passes "Name|.ext"
 // unchanged to Chromium, which drops it: the selected type's extensions; none for all files.

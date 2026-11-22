@@ -30,6 +30,8 @@ import { registerEpubFeature } from '@/features/epub';
 import { registerPdfFeature } from '@/features/pdf';
 import { registerTxtExportFeature } from '@/features/txt/exportCommand';
 import { registerTxtImportFeature } from '@/features/txt/importCommand';
+import { registerMobiExportFeature } from '@/features/mobi/exportCommand';
+import { registerMobiImportFeature } from '@/features/mobi/importCommand';
 import { registerPdfImportFeature } from '@/features/pdf/importCommand';
 import { registerMarkdownImport } from '@/features/markdown/importCommand';
 
@@ -114,8 +116,10 @@ export function createAppServices(options: CreateAppServicesOptions = {}): AppSe
   registerEpubFeature(commands, files);
   registerPdfFeature(commands);
   registerTxtExportFeature(commands);
+  registerMobiExportFeature(commands);
   registerPdfImportFeature(commands, files);
   registerTxtImportFeature(commands, files);
+  registerMobiImportFeature(commands, files);
   registerViewCommands(commands);
   // Feature modules (editing, source tools, description, tree, spelling, images, words,
   // settings, scripts) register their commands/plugins through their own registrar file;

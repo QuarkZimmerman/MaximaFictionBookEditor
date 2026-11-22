@@ -7,7 +7,10 @@
 export const RPC_API_VERSION = 1;
 /**
  * Additive contract revision within RPC_API_VERSION (`app.info().apiMinor`; absent = 0). The
- * revision this UI was written for (14 since feature 016: `pdfImport.*`, the routes
+ * revision this UI was written for (16 since feature 018: `mobi.write.*`, `mobiImport.*`, the
+ * routes `/mobi-write/{token}/...` and `/mobi-import/{token}/...`, `dialog.saveFile` `selects`,
+ * `mobi.*` settings, and errors `1117`–`1119`; 15 since feature 017: `txt.*` and `txtImport.*`;
+ * 14 since feature 016: `pdfImport.*`, the routes
  * `/pdf-import/{token}/...` and `pdf.export.begin`'s `zip`; 13 since feature 015: `resources.addGenre`,
  * `resources.passedOver`, `scripts.list` scanning again after a change; 12 since feature 014: the `pdf.export.*` and `pdf.fonts.*` methods,
  * the routes `/pdf/{token}/part/{n}`, `/pdf/{token}/print/{n}` and `/pdf/fonts/...`, the settings `pdf.*`,
@@ -33,4 +36,4 @@ export const RPC_API_VERSION = 1;
  * and requires >= 5 since feature 006 (`AI_REQUIRED_API_MINOR` in `ui/src/ai/index.ts`; 4
  * before).
  */
-export const RPC_API_MINOR = 15;
+export const RPC_API_MINOR = 16;

@@ -271,4 +271,60 @@ describe("the EPUB import: the FB2 converter's marks and the links (D21, D22)", 
     expect(xml).toContain(' missing</p>');
     expect(book.summary).toContainEqual({ kind: 'linkAsText', detail: 'b.xhtml#nowhere' });
   });
+
+  it('extracts editor and safe text-only foreign colophon pages into historyXml, keeping unsafe ones in body', async () => {
+    // Editor-exported history page: omits fb2-doc-version and excludes page from bodyXml
+    const editorBook = await convert([
+      page('OEBPS/a.xhtml', '<body><h1>Chapter</h1><p>Body text.</p></body>'),
+      page(
+        'OEBPS/history.xhtml',
+        '<body><section class="fb2-history-page" epub:type="colophon">' +
+          '<p class="fb2-doc-version">Version 2.1</p>' +
+          '<div class="fb2-history"><p>Initial release.</p><p>Fixed <strong>typo</strong>.</p></div>' +
+          '</section></body>',
+        { role: 'colophon' },
+      ),
+    ]);
+    expect(editorBook.historyXml).toBe(
+      '<history><p>Initial release.</p><p>Fixed <strong>typo</strong>.</p></history>',
+    );
+    expect(editorBook.bodyXml).not.toContain('Initial release.');
+    expect(editorBook.bodyXml).not.toContain('Version 2.1');
+
+    // Foreign text-only colophon (marked by role="colophon" or epub:type="colophon") -> historyXml
+    const foreignSafe = await convert([
+      page('OEBPS/a.xhtml', '<body><h1>Chapter</h1><p>Main story.</p></body>'),
+      page(
+        'OEBPS/colophon.xhtml',
+        '<body><section epub:type="colophon"><h2>Colophon</h2><p>Set in Garamond.</p></section></body>',
+      ),
+    ]);
+    expect(foreignSafe.historyXml).toBe(
+      '<history><subtitle>Colophon</subtitle><p>Set in Garamond.</p></history>',
+    );
+    expect(foreignSafe.bodyXml).not.toContain('Set in Garamond.');
+
+    // Foreign colophon containing a block picture -> kept in bodyXml (no loss of block figures)
+    const foreignImage = await convert([
+      page('OEBPS/a.xhtml', '<body><h1>Chapter</h1><p>Main story.</p></body>'),
+      page(
+        'OEBPS/colophon.xhtml',
+        '<body><section epub:type="colophon"><figure><img src="images/pic.png" alt="Logo"/></figure><p>Press mark.</p></section></body>',
+        { role: 'colophon' },
+      ),
+    ]);
+    expect(foreignImage.historyXml).toBeNull();
+    expect(foreignImage.bodyXml).toContain('Press mark.');
+
+    // Sole content page marked colophon -> kept in bodyXml so the book is never emptied
+    const soleColophon = await convert([
+      page(
+        'OEBPS/colophon.xhtml',
+        '<body><section epub:type="colophon"><p>Only text.</p></section></body>',
+        { role: 'colophon' },
+      ),
+    ]);
+    expect(soleColophon.historyXml).toBeNull();
+    expect(soleColophon.bodyXml).toContain('Only text.');
+  });
 });

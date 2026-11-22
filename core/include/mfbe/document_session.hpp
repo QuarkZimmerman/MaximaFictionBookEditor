@@ -35,7 +35,10 @@ struct DocumentSession {
     std::string sourceEncoding = "utf-8";
     std::string xlinkPrefix = "l";  // xlink namespace prefix of the opened file (kept on save)
     model::SchemaHint schemaHint = model::SchemaHint::unknown;
-    bool sourceOnly = false;                     // malformed file opened in Source-only mode
+    bool sourceOnly = false;  // malformed file opened in Source-only mode
+    // Open-time warnings that persist on disk until saved (such as `encoding.mismatch`), reported
+    // by `doc.validate` alongside model validation and cleared once `doc.save` succeeds.
+    std::vector<model::ValidationIssue> openWarnings;
     std::optional<std::int64_t> lastKnownMtime;  // seconds since epoch (file time)
     std::optional<std::uintmax_t> lastKnownSize;
     bool watching = false;  // doc.watch enabled

@@ -80,6 +80,12 @@ const char* error_name(int code) {
             return "ai.scriptExists";
         case codes::kScriptBackupNotFound:
             return "script.backupNotFound";
+        case codes::kMobiRefused:
+            return "mobi.refused";
+        case codes::kMobiWriteFailed:
+            return "mobi.writeFailed";
+        case codes::kMobiUnknownToken:
+            return "mobi.unknownToken";
         default:
             return "";
     }

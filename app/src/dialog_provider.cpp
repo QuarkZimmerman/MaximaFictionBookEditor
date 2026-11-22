@@ -695,6 +695,16 @@ public:
         for (const auto& check : request.checks) {
             native.checks.push_back({check.id, check.label, check.checked});
         }
+        for (const auto& sel : request.selects) {
+            FileDialogRequest::Select dst;
+            dst.id = sel.id;
+            dst.label = sel.label;
+            dst.selected = sel.selected;
+            for (const auto& ch : sel.choices) {
+                dst.choices.push_back({ch.value, ch.label, ch.extension.value_or(std::string())});
+            }
+            native.selects.push_back(std::move(dst));
+        }
         const bool posted = dialogs_->runFileDialog(native, [done](FileDialogResult result) {
             mfbe::SaveFileResult out;
             if (!result.cancelled && !result.paths.empty()) {
@@ -707,6 +717,9 @@ public:
                 }
                 if (result.checks_shown) {
                     out.checks = std::move(result.checks);
+                }
+                if (result.selects_shown) {
+                    out.selects = std::move(result.selects);
                 }
             }
             done(std::move(out));

@@ -110,6 +110,12 @@ export const RpcErrorCode = {
   textImportRefused: 1115,
   /** Feature 017: an unknown or ended txtImport token. */
   txtImportUnknownToken: 1116,
+  /** Feature 018: `mobiImport.*` refused the file ({reason, path?, kind?, limit?, pixels?}). */
+  mobiRefused: 1117,
+  /** Feature 018: `mobi.write.*` failed to write ({reason, path?, detail?}). */
+  mobiWriteFailed: 1118,
+  /** Feature 018: an unknown or ended `mobi.write` or `mobiImport` token ({token}). */
+  mobiUnknownToken: 1119,
   spellDictionaryUnavailable: 1020,
   scriptNotFound: 1030,
   scriptInvalidManifest: 1031,
@@ -284,6 +290,27 @@ export type StatusBarPane =
 export type PdfPageSizeId =
   'a4' | 'b5' | 'a5' | 'b6' | 'a6' | 'legal' | 'letter' | 'executive' | 'statement';
 
+/** Feature 018 (contracts/settings.md): MOBI export format, TOC placement, series prefix, and open-at point. */
+export type MobiFormat = 'mobi7' | 'joint' | 'kf8';
+export type MobiTocPlacement = 'afterTitle' | 'end' | 'none';
+export type MobiSeriesInTitle = 'off' | 'numberBefore' | 'seriesAndNumber';
+export type MobiOpenAt = 'titlePage' | 'mainText';
+
+/** Feature 018 (contracts/rpc-api.md §4): multi-select dropdown inside `dialog.saveFile`. */
+export interface SaveFileSelectChoice {
+  value: string;
+  label: string;
+  /** Optional plain-file extension without dot (e.g. "mobi", "azw3") for live filename/filter updates. */
+  extension?: string;
+}
+
+export interface SaveFileSelect {
+  id: string;
+  label: string;
+  choices: SaveFileSelectChoice[];
+  selected: string;
+}
+
 export interface Settings {
   schemaVersion: 1;
   view: {
@@ -385,6 +412,15 @@ export interface Settings {
     encodingMode: 'utf-8' | 'language';
     encodings: { en: string; ru: string; uk: string; other: string };
     bom: boolean;
+    zip: boolean;
+  };
+  /** Feature 018 (contracts/settings.md): the MOBI export's defaults. */
+  mobi?: {
+    format: MobiFormat;
+    tocPlacement: MobiTocPlacement;
+    seriesInTitle: MobiSeriesInTitle;
+    openAt: MobiOpenAt;
+    kf8PopupFootnotes: boolean;
     zip: boolean;
   };
   session: {
@@ -1304,11 +1340,30 @@ export interface RpcMethods {
    * with several books and no `entry` answers `needsChoice`; the UI shows the book chooser.
    */
   'doc.open': {
-    params: { path: string; entry?: string };
+    params: {
+      path: string;
+      entry?: string;
+      encoding?: string;
+      cleanInvalidChars?: boolean;
+    };
     result: MaybeJob<
       | { document: Document & LoadReport; warnings: ValidationIssue[] }
       | { needsChoice: ArchiveChoice }
     >;
+  };
+  'doc.encodingPreview': {
+    params: {
+      path: string;
+      entry?: string;
+      encoding: string;
+      cleanInvalidChars?: boolean;
+    };
+    result: {
+      blocks: string[];
+      initialBlock: number;
+      undecodableCount: number;
+      invalidCharCount: number;
+    };
   };
   'doc.openSource': {
     params: { path: string; entry?: string };
@@ -1546,6 +1601,115 @@ export interface RpcMethods {
   };
   'epub.write.commit': { params: { token: string }; result: { bytes: number } };
   'epub.write.abort': { params: { token: string }; result: Record<string, never> };
+  /** Feature 018 (contracts/rpc-api.md §2): MOBI / KF8 export session. */
+  'mobi.write.begin': {
+    params: { docId: string; path: string; format: MobiFormat; zip: boolean };
+    result: { token: string };
+  };
+  'mobi.write.picture': {
+    params: { token: string; docId: string; binaryId: string; isCover?: boolean };
+    result: {
+      recindex: number;
+      mediaType: 'image/jpeg' | 'image/png';
+      width: number;
+      height: number;
+      converted: boolean;
+      downscaled: boolean;
+    };
+  };
+  'mobi.write.commit': {
+    params: {
+      token: string;
+      metadata: {
+        title: string;
+        updatedTitle?: string;
+        authors: string[];
+        contributors: string[];
+        publisher?: string;
+        description?: string;
+        isbn?: string;
+        subjects: string[];
+        date?: string;
+        language: string;
+        identifier: string;
+        openAtAnchorId?: string;
+      };
+      nav: { label: string; anchorId: string; depth: number }[];
+      guide: {
+        type: 'cover' | 'title-page' | 'toc' | 'text' | 'colophon';
+        title: string;
+        anchorId: string;
+      }[];
+      kf8Fragments?: { id: string; skeletonIndex: number; startByte: number; endByte: number }[];
+      document?: Document;
+    };
+    result: {
+      path: string;
+      bytes: number;
+      format: MobiFormat;
+      zip: boolean;
+      mfbeSkipped: boolean;
+    };
+  };
+  'mobi.write.abort': { params: { token: string }; result: Record<string, never> };
+  'mobiImport.begin': {
+    params: { path: string; entry?: string };
+    result:
+      | { token: string }
+      | {
+          archive: {
+            mobis: { entry: string; size: number }[];
+            fbds: { entry: string; size: number }[];
+          };
+        };
+  };
+  'mobiImport.read': {
+    params: { token: string };
+    result: MaybeJob<{
+      containerKind: 'mobi7' | 'joint' | 'kf8' | 'palmdoc';
+      activePart: 'mobi7' | 'kf8' | 'palmdoc';
+      fellBackToMobi7: boolean;
+      encoding: 'utf-8' | 'windows-1252';
+      cssFlowCount: number;
+      metadata: {
+        title: string;
+        updatedTitle?: string;
+        authors: string[];
+        contributors: string[];
+        publisher?: string;
+        description?: string;
+        isbn?: string;
+        subjects: string[];
+        date?: string;
+        language: string;
+        identifier: string;
+        rights?: string;
+      };
+      navigation: { label: string; anchorId: string; depth: number; offset: number }[];
+      guide: { type: string; title: string; anchorId: string; offset: number }[];
+      pictures: {
+        index: number;
+        contentType: string;
+        width?: number;
+        height?: number;
+        size: number;
+        tooLarge: boolean;
+      }[];
+      coverIndex?: number;
+      thumbnailIndex?: number;
+      mfbeStatus: 'none' | 'valid' | 'externallyModified' | 'corrupt';
+      mfbeHtmlMatches: boolean;
+      mfbeMetaMatches: boolean;
+      mfbe?: unknown;
+    }>;
+  };
+  'mobiImport.picture': {
+    params: { token: string; index: number; docId: string; suggestedId?: string };
+    result: { binary: BinaryMeta; from: string; converted: boolean };
+  };
+  'mobiImport.extractFbd': { params: { token: string; entry: string }; result: { path: string } };
+  'mobiImport.recordFbd': { params: { token: string }; result: { path: string } };
+  'mobiImport.end': { params: { token: string }; result: Record<string, never> };
   /**
    * Feature 014 (specs/014-pdf-export/contracts/rpc-api.md): a PDF export of the book `docId` to
    * `path` (chosen with dialog.saveFile) in one of the nine page sizes; errors 1112 pdfExportFailed.
@@ -1795,11 +1959,19 @@ export interface RpcMethods {
       };
       /** Feature 017 (DP-5): further boxes after the ZIP box (the TXT export's byte-order mark). */
       checks?: { id: string; label: string; checked: boolean }[];
+      /** Feature 018 (DP-5): dropdown selects inside the native Save dialog (e.g. MOBI format, TOC). */
+      selects?: SaveFileSelect[];
       /** Feature 011 (D32): only `document` (Save As) keeps the chosen folder. */
       role?: 'document';
     };
-    /** `zip` and `checks` are absent when the dialog could not carry the boxes (features 009, 017). */
-    result: { path?: string; encoding?: string; zip?: boolean; checks?: Record<string, boolean> };
+    /** `zip`, `checks`, and `selects` are absent when the dialog could not carry them (features 009, 017, 018). */
+    result: {
+      path?: string;
+      encoding?: string;
+      zip?: boolean;
+      checks?: Record<string, boolean>;
+      selects?: Record<string, string>;
+    };
   };
   'dialog.pickFolder': { params: { title: string }; result: { path?: string } };
   'dialog.message': {

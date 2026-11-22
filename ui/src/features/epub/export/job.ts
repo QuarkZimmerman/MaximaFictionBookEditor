@@ -46,6 +46,7 @@ export function usedPictures(document: Document): string[] {
     if (Array.isArray(node.content)) for (const child of node.content) visit(child);
   };
   if (document.description.titleInfo.annotation) visit(document.description.titleInfo.annotation);
+  if (document.description.documentInfo.history) visit(document.description.documentInfo.history);
   for (const body of document.bodies) visit(body);
   return used;
 }

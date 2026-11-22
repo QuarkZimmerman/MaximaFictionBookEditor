@@ -194,6 +194,29 @@ test.describe('US1 (feature 012) - the EPUB export', () => {
     expect(entry(allAlt, 'EPUB/package.opf')).toContain(
       '<meta property="schema:accessibilityFeature">alternativeText</meta>',
     );
+
+    // Book with documentInfo.history + version writes a closing colophon page (EPUBCheck-checked)
+    await openBook(core, page, 'modern-utf8.fb2');
+    const modern = path.join(OUT, 'modern-utf8.epub');
+    await exportEpub(core, page, modern);
+    await expect(page.getByTestId('status-message')).toContainText('modern-utf8.epub', {
+      timeout: 30_000,
+    });
+    const historyPage = entry(modern, 'EPUB/text/history.xhtml');
+    expect(historyPage).toContain('class="fb2-history-page" epub:type="colophon"');
+    expect(historyPage).toContain('Версия 2.1');
+    expect(historyPage).toContain('v2.1 — вычитка');
+    const modernOpf = entry(modern, 'EPUB/package.opf');
+    expect(modernOpf).toContain('<itemref idref="p-history"/>');
+    expect(modernOpf).toContain(
+      '<reference type="colophon" title="История изменений" href="text/history.xhtml"/>',
+    );
+    const mfbeDesc = modernOpf.match(/property="mfbe:fb2-description">([^<]+)<\/meta>/);
+    expect(mfbeDesc).not.toBeNull();
+    expect(mfbeDesc![1]).not.toContain('v2.1 — вычитка');
+    const modernNav = entry(modern, 'EPUB/nav.xhtml');
+    expect(modernNav).toContain('epub:type="colophon" href="text/history.xhtml"');
+    expect(modernNav).toContain('>История изменений</a>');
   });
 
   test('a book that fails validation still gives a valid EPUB, with the gaps listed (D4)', async ({

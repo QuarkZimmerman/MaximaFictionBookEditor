@@ -65,6 +65,11 @@
 #                               openbox and xdotool): File > Import > TXT File... on
 #                               tests/fixtures/txt/layouts/german-book.per-line.txt through the GTK Open
 #                               dialog, then File > Exit; the shell must end within 20 s (SC-014)
+#   MFBE_SMOKE_MOBI             1 = MOBI export and import through the real shell (feature 018, real UI
+#                               with MFBE_SMOKE_OPEN_FILE; needs openbox and xdotool): File > Export >
+#                               Export as MOBI... through the GTK Save dialog, File > Import > MOBI File...
+#                               back in through the GTK Open dialog, then File > Exit; the shell and all
+#                               helper processes must end within 20 s (SC-008)
 #   MFBE_SMOKE_PORTABLE         1 = portable copy (real UI only, feature 002): a `user` folder
 #                               created next to the shell (and removed afterwards) must receive
 #                               the browser profile (cef/) and the logs (logs/), and no per-user
@@ -222,9 +227,12 @@ if [[ "${MFBE_SMOKE_ABOUT:-0}" == "1" ]] &&
 fi
 
 TMP=$(mktemp -d -t mfbe-smoke.XXXXXX)
-# MFBE_SMOKE_PDF: the book is opened from a copy, so that the PDF the Save dialog proposes beside it
-# lands in this run's folder.
-if [[ "${MFBE_SMOKE_PDF:-0}" == "1" && -n "${MFBE_SMOKE_OPEN_FILE:-}" ]]; then
+# MFBE_SMOKE_PDF / MFBE_SMOKE_MOBI: the book is opened from a copy, so that the file the Save dialog
+# proposes beside it lands in this run's folder.
+if [[ "${MFBE_SMOKE_MOBI:-0}" == "1" && -z "${MFBE_SMOKE_OPEN_FILE:-}" ]]; then
+  MFBE_SMOKE_OPEN_FILE="$ROOT/tests/fixtures/books/reference-all-elements.fb2"
+fi
+if [[ ( "${MFBE_SMOKE_PDF:-0}" == "1" || "${MFBE_SMOKE_MOBI:-0}" == "1" ) && -n "${MFBE_SMOKE_OPEN_FILE:-}" ]]; then
   mkdir -p "$TMP/books"
   cp "$MFBE_SMOKE_OPEN_FILE" "$TMP/books/"
   MFBE_SMOKE_OPEN_FILE="$TMP/books/$(basename "$MFBE_SMOKE_OPEN_FILE")"
@@ -585,7 +593,8 @@ fi
 # XAUTHORITY of xvfb-run) for shell-smoke.mjs, shell-smoke-pdf.mjs and shell-smoke-pdf-import.mjs,
 # which drive xdotool.
 if [[ "$CLOSE" == "1" || "$SAVE_AS" == "1" || "$ENGINE_KEYS" == "1" || "${MFBE_SMOKE_PDF:-0}" == "1" ||
-      "${MFBE_SMOKE_PDF_IMPORT:-0}" == "1" || "${MFBE_SMOKE_TXT:-0}" == "1" ]]; then
+      "${MFBE_SMOKE_PDF_IMPORT:-0}" == "1" || "${MFBE_SMOKE_TXT:-0}" == "1" ||
+      "${MFBE_SMOKE_MOBI:-0}" == "1" ]]; then
   export MFBE_SMOKE_DISPLAY_FILE="$TMP/display.env"
   cat >"$TMP/launch.sh" <<SH
 #!/bin/bash
@@ -1105,6 +1114,44 @@ if [[ "${MFBE_SMOKE_TXT:-0}" == "1" ]]; then
   wait "$APP_PID" || true
   APP_PID=""
   echo "shell-smoke: the TXT import, then File > Exit - the shell ended: OK"
+fi
+
+if [[ "${MFBE_SMOKE_MOBI:-0}" == "1" ]]; then
+  # --- MOBI export + import through the real shell (feature 018, T046; SC-008) --------------------
+  # File > Export > Export as MOBI... through the GTK Save dialog, then File > Import > MOBI File...
+  # through the GTK Open dialog, then File > Exit: the shell and all helper processes must end
+  # within 20 s.
+  MOBI_OUT_DIR="${TMP}/books"
+  if [[ -n "${MFBE_SMOKE_OPEN_FILE:-}" ]]; then
+    MOBI_OUT_DIR="$(dirname "$MFBE_SMOKE_OPEN_FILE")"
+  fi
+  mkdir -p "$MOBI_OUT_DIR"
+  node "$ROOT/tools/shell-smoke-mobi.mjs" "$CDP_PORT" "$MOBI_OUT_DIR" || exit 1
+  for _ in $(seq 1 80); do
+    kill -0 "$APP_PID" 2>/dev/null || break
+    sleep 0.25
+  done
+  if kill -0 "$APP_PID" 2>/dev/null; then
+    echo "shell-smoke: the shell is still running 20 s after File > Exit following MOBI export/import" >&2
+    exit 1
+  fi
+  wait "$APP_PID" || true
+  APP_PID=""
+  EXE_REAL=$(readlink -f "$MFBE_APP_BIN")
+  LEFT=""
+  for _ in $(seq 1 80); do
+    LEFT=""
+    for proc in /proc/[0-9]*; do
+      [[ "$(readlink "$proc/exe" 2>/dev/null)" == "$EXE_REAL" ]] && LEFT+="${proc#/proc/} "
+    done
+    [[ -z "$LEFT" ]] && break
+    sleep 0.25
+  done
+  if [[ -n "$LEFT" ]]; then
+    echo "shell-smoke: processes of $EXE_REAL still running 20 s after File > Exit (MOBI): $LEFT" >&2
+    exit 1
+  fi
+  echo "shell-smoke: MOBI export and import, then File > Exit - the shell ended: OK"
 fi
 
 if [[ "$ENGINE_KEYS" == "1" ]]; then

@@ -204,6 +204,33 @@ describe('Source view (T050)', () => {
     expect(rpc.calls.map((c) => c.method)).not.toContain('doc.toXml');
     expect(screen.getByTestId('view-source')).toHaveAttribute('aria-selected', 'true');
   });
+
+  it('reloads doc.toXml when Save As changes the open document encoding while Source view is active', async () => {
+    const { store, rpc, user } = await renderApp({
+      'doc.toXml': (params: unknown) => {
+        const doc = (params as { document?: { sourceEncoding?: string } }).document;
+        const enc = doc?.sourceEncoding ?? 'utf-8';
+        return {
+          text: `<?xml version="1.0" encoding="${enc}"?>\n<FictionBook><body/></FictionBook>\n`,
+        };
+      },
+    });
+    const doc = { ...fakeDocument(), sourceEncoding: 'utf-8' };
+    act(() => actions.setDocument(store, doc));
+    await user.click(screen.getByTestId('view-source'));
+    const view = await screen.findByTestId('source-view');
+    await waitFor(() => expect(view).toHaveAttribute('data-status', 'ready'));
+    expect(screen.getByTestId('source-editor')).toHaveTextContent('encoding="utf-8"');
+
+    // Simulate Save As changing the saved encoding to windows-1251 on the same docId.
+    act(() => {
+      store.setState({ document: { ...doc, sourceEncoding: 'windows-1251' } });
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId('source-editor')).toHaveTextContent('encoding="windows-1251"'),
+    );
+    expect(rpc.calls.filter((c) => c.method === 'doc.toXml')).toHaveLength(2);
+  });
 });
 
 describe('ValidationPanel (T053)', () => {

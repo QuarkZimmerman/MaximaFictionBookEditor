@@ -238,6 +238,139 @@ std::string encodingOfItem(const FileDialogRequest& request, unsigned item_id) {
     return request.encodings[item_id - kEncodingItemBase];
 }
 
+std::size_t selectedSelectChoiceIndex(const FileDialogRequest::Select& select) {
+    for (std::size_t i = 0; i < select.choices.size(); ++i) {
+        if (select.choices[i].value == select.selected) {
+            return i;
+        }
+    }
+    return 0;
+}
+
+unsigned selectItemId(std::size_t select_index, std::size_t choice_index) {
+    return kSelectItemBase + static_cast<unsigned>(select_index) * kSelectItemStride +
+           static_cast<unsigned>(choice_index);
+}
+
+std::string selectValueOfItem(const FileDialogRequest::Select& select, std::size_t select_index,
+                              unsigned item_id) {
+    const unsigned base = kSelectItemBase + static_cast<unsigned>(select_index) * kSelectItemStride;
+    if (item_id < base || item_id - base >= select.choices.size()) {
+        return {};
+    }
+    return select.choices[item_id - base].value;
+}
+
+std::string activeSelectExtension(
+    const FileDialogRequest& request,
+    const std::vector<std::pair<std::string, std::string>>& current_values) {
+    for (const auto& select : request.selects) {
+        std::string selected = select.selected;
+        for (const auto& [id, val] : current_values) {
+            if (id == select.id) {
+                selected = val;
+                break;
+            }
+        }
+        for (const auto& choice : select.choices) {
+            if (choice.value == selected && !choice.extension.empty()) {
+                const std::string ext = bareExtension(choice.extension);
+                return ext == "*" ? std::string() : ext;
+            }
+        }
+        if (!select.choices.empty() && !select.choices.front().extension.empty()) {
+            const std::string ext = bareExtension(select.choices.front().extension);
+            return ext == "*" ? std::string() : ext;
+        }
+    }
+    return {};
+}
+
+std::string selectFollowName(const FileDialogRequest& request, const std::string& name,
+                             const std::string& plain_ext, bool zip) {
+    if (name.empty()) {
+        return name;
+    }
+    const std::string effective_plain =
+        plain_ext.empty() ? plainExtension(request) : bareExtension(plain_ext);
+    // Collect all known replaceable plain extensions (select choices + non-zip filters).
+    std::vector<std::string> known_exts;
+    if (!effective_plain.empty() && effective_plain != "*") {
+        known_exts.push_back(effective_plain);
+    }
+    for (const auto& sel : request.selects) {
+        for (const auto& ch : sel.choices) {
+            if (!ch.extension.empty()) {
+                const std::string ext = bareExtension(ch.extension);
+                if (ext != "*") {
+                    known_exts.push_back(ext);
+                }
+            }
+        }
+    }
+    for (std::size_t i = 0; i < request.filters.size(); ++i) {
+        if (request.zip_filter >= 0 && i == static_cast<std::size_t>(request.zip_filter)) {
+            continue;
+        }
+        for (const auto& raw_ext : request.filters[i].extensions) {
+            const std::string ext = bareExtension(raw_ext);
+            if (ext != "*" && ext != "zip") {
+                known_exts.push_back(ext);
+            }
+        }
+    }
+
+    auto strip_known = [&](const std::string& input) -> std::string {
+        if (endsWithNoCase(input, ".zip")) {
+            return input.substr(0, input.size() - 4);
+        }
+        for (const auto& ext : known_exts) {
+            if (endsWithNoCase(input, "." + ext)) {
+                return input.substr(0, input.size() - ext.size() - 1);
+            }
+        }
+        return input;
+    };
+
+    if (zip) {
+        if (request.zip_rename == FileDialogRequest::ZipRename::kAppend) {
+            return endsWithNoCase(name, ".zip") ? name : name + ".zip";
+        }
+        if (request.zip_rename == FileDialogRequest::ZipRename::kReplace) {
+            return endsWithNoCase(name, ".zip") ? name : strip_known(name) + ".zip";
+        }
+        return name;
+    }
+
+    if (effective_plain.empty() || effective_plain == "*") {
+        return endsWithNoCase(name, ".zip") ? name.substr(0, name.size() - 4) : name;
+    }
+    return strip_known(name) + "." + effective_plain;
+}
+
+std::size_t selectFollowFilter(const FileDialogRequest& request, const std::string& plain_ext,
+                               bool zip) {
+    if (zip && request.zip_filter >= 0 &&
+        static_cast<std::size_t>(request.zip_filter) < request.filters.size()) {
+        return static_cast<std::size_t>(request.zip_filter);
+    }
+    const std::string target = bareExtension(plain_ext);
+    if (!plain_ext.empty() && target != "*") {
+        for (std::size_t i = 0; i < request.filters.size(); ++i) {
+            if (request.zip_filter >= 0 && i == static_cast<std::size_t>(request.zip_filter)) {
+                continue;
+            }
+            for (const auto& ext : request.filters[i].extensions) {
+                const std::string candidate = bareExtension(ext);
+                if (candidate.size() == target.size() && endsWithNoCase(candidate, target)) {
+                    return i;
+                }
+            }
+        }
+    }
+    return zipFollowFilter(request, false);
+}
+
 std::vector<std::string> cefAcceptFilters(const FileDialogRequest& request) {
     std::vector<std::string> filters;
     const FileFilter* filter = selectedFilter(request);

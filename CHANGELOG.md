@@ -3,6 +3,31 @@
 All notable changes to Maxima Fiction Book Editor. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.0.13 - unreleased
+
+### In short
+
+- File > Export > Export as MOBI... writes MOBI 7, joint MOBI 7 + KF8, and KF8 (AZW3) books
+- File > Import > MOBI File... imports unencrypted MOBI, AZW3, AZW, and PRC books as new FB2 books
+- The editor's own MOBI and KF8 files round-trip back to FB2 while protecting external edits
+- Settings > Exports > MOBI sets MOBI export defaults, and Save in ZIP archive packs MOBI + FBD
+
+### Added
+
+- File > Export > Export as MOBI... (feature 018) writes unencrypted MOBI 7 (.mobi), joint MOBI 7 +
+  KF8 (.mobi), and KF8 (.azw3) books with native navigation index, configurable inline table of
+  contents, cover thumbnail, notes (with optional KF8 pop-up footnotes), and Save in ZIP archive
+  (uncompressed MOBI/AZW3 + compressed FBD).
+- File > Import > MOBI File... imports unencrypted MOBI 7 (uncompressed, PalmDOC, HuffCDIC; UTF-8
+  and Windows-1252), joint MOBI 7 + KF8 (with automatic MOBI 7 fallback), KF8 (.azw3), and plain
+  PalmDOC (.prc) books, directly or from ZIP archives with FBD support, and refuses DRM and KFX
+  files; File > Open refuses MOBI files and points to the import.
+- Reversible round-trip for the editor's own MOBI and KF8 exports via a verified embedded MFBE
+  metadata record, with automatic fallback when the file was edited externally.
+- Settings > Exports > MOBI configures format, inline table of contents placement, series in reader
+  title, opening location, KF8 pop-up footnotes, and ZIP archive default; dialog choices stay with
+  each open book.
+
 ## 0.0.12 - 2026-11-20
 
 ### In short

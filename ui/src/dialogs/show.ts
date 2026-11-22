@@ -10,6 +10,11 @@ import { createElement } from 'react';
 
 import type { DialogService } from './DialogService';
 import { EncodingDialog } from './EncodingDialog';
+import {
+  EncodingMismatchDialog,
+  type EncodingMismatchAnswer,
+  type EncodingPreviewData,
+} from './EncodingMismatchDialog';
 import { InputDialog } from './InputDialog';
 import { MessageBox } from './MessageBox';
 import { SaveChangesPrompt, type SaveChangesAnswer } from './SaveChangesPrompt';
@@ -75,6 +80,23 @@ export function showEncodingDialog(
 ): Promise<string | null> {
   return dialogs.openCustom<string | null>((close) =>
     createElement(EncodingDialog, { ...options, onClose: close }),
+  );
+}
+
+/** On-load encoding mismatch dialog with live preview and invalid-character cleanup choice. */
+export function showEncodingMismatchDialog(
+  dialogs: Dialogs,
+  options: {
+    path: string;
+    declared: string;
+    detected: string;
+    confident: boolean;
+    candidates: string[];
+    fetchPreview: (encoding: string, cleanInvalidChars: boolean) => Promise<EncodingPreviewData>;
+  },
+): Promise<EncodingMismatchAnswer> {
+  return dialogs.openCustom<EncodingMismatchAnswer>((close) =>
+    createElement(EncodingMismatchDialog, { ...options, onClose: close }),
   );
 }
 

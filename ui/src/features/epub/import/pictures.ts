@@ -18,10 +18,13 @@ import type { BinaryMeta } from '@/model/document';
 import { isRpcError, type RpcClient } from '@/rpc/client';
 import { RpcErrorCode } from '@/rpc/types';
 
-import { GRAPHICS, type ImportSummaryItem } from './convert';
+import { pictureFormat, singleFramedImageHrefFromXml } from '../../ebookShared/svg';
+import type { ImportSummaryItem } from './convert';
 import { MAX_PICTURE_PIXELS, type Yielder } from './limits';
 import { resolvePath } from './package';
 import { decodePage } from './parse';
+
+export { pictureFormat };
 
 export interface PictureSource {
   token: string;
@@ -32,8 +35,6 @@ export interface PictureSource {
   quality: number;
   yielder?: Yielder;
 }
-
-const XLINK = 'http://www.w3.org/1999/xlink';
 
 const FORMAT_NAMES: Readonly<Record<string, string>> = {
   'image/gif': 'GIF',
@@ -60,32 +61,14 @@ export async function entryBytes(token: string, name: string): Promise<Uint8Arra
   return new Uint8Array(await response.arrayBuffer());
 }
 
-/** D23: PNG when a pixel is transparent or the picture has 256 colours or fewer, else JPEG. */
-export function pictureFormat(rgba: Uint8ClampedArray): 'image/png' | 'image/jpeg' {
-  const colours = new Set<number>();
-  let many = false;
-  for (let at = 0; at + 3 < rgba.length; at += 4) {
-    if (rgba[at + 3]! < 255) return 'image/png';
-    if (!many) {
-      colours.add((rgba[at]! << 16) | (rgba[at + 1]! << 8) | rgba[at + 2]!);
-      many = colours.size > 256;
-    }
-  }
-  return many ? 'image/jpeg' : 'image/png';
-}
-
 /** D23: the path of the one picture an SVG does nothing but frame, as cover pages often do. */
 export function framedPicture(
   svg: string,
   svgPath: string,
   images: ReadonlyMap<string, string>,
 ): string | null {
-  const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');
-  if (doc.getElementsByTagName('parsererror').length > 0) return null;
-  const all = Array.from(doc.getElementsByTagName('*'));
-  const framed = all.filter((element) => element.localName === 'image');
-  if (framed.length !== 1 || all.some((element) => GRAPHICS.has(element.localName))) return null;
-  const href = framed[0]!.getAttributeNS(XLINK, 'href') ?? framed[0]!.getAttribute('href') ?? '';
+  const href = singleFramedImageHrefFromXml(svg);
+  if (!href) return null;
   const path = resolvePath(svgPath, href);
   const type = images.get(path);
   return type && type !== 'image/svg+xml' ? path : null;

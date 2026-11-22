@@ -99,6 +99,15 @@ inline constexpr int kPdfImportUnknownToken = 1114;
 inline constexpr int kTextImportRefused = 1115;
 // Feature 017: an unknown or ended txtImport token.
 inline constexpr int kTxtImportUnknownToken = 1116;
+// Feature 018 (mobiImport.*, contracts/rpc-api.md): a MOBI/KF8/PalmDOC file refused before import
+// {reason: notMobi | encrypted | kfx | tooLarge | tooManyRecords | decompressBomb |
+// pictureTooLarge | damaged | fictionBook | noMobiInArchive | otherArchive | ..., path?}.
+inline constexpr int kMobiRefused = 1117;
+// Feature 018 (mobi.write.*, contracts/rpc-api.md): a MOBI/KF8 export that cannot be written
+// {reason: targetIsSource | checkFailed | ioError | badPart, path?, detail?}.
+inline constexpr int kMobiWriteFailed = 1118;
+// Feature 018: an unknown or ended mobi.write or mobiImport token {token}.
+inline constexpr int kMobiUnknownToken = 1119;
 // Feature 005 (ai.*): the target cannot be resolved to a service the call may contact -
 // {reason: disabled | unknownService | emptyAddress | noModel | noAgreement, id?, service?}.
 inline constexpr int kAiNoService = 1200;

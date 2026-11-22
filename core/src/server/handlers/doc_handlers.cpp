@@ -70,6 +70,7 @@
 #include <mfbe/images.hpp>
 #include <mfbe/json_codec.hpp>
 #include <mfbe/log.hpp>
+#include <mfbe/mobi.hpp>
 #include <mfbe/node_ids.hpp>
 #include <mfbe/platform.hpp>
 #include <mfbe/templates.hpp>
@@ -249,6 +250,23 @@ std::string effective_encoding(Services& services, const session::DocumentSessio
     return name;
 }
 
+// Encoding declared by Source view (`doc.toXml`): the document's own encoding (the opened or last
+// saved file's), regardless of whether "Keep encoding" is enabled for a future plain Save.
+std::string document_encoding(Services& services, const session::DocumentSession& s) {
+    std::string name;
+    if (!s.sourceEncoding.empty()) {
+        name = encoding::normalize_name(s.sourceEncoding).value_or("utf-8");
+    } else {
+        name =
+            encoding::normalize_name(services.settings.get_string("other.defaultEncoding", "utf-8"))
+                .value_or("utf-8");
+    }
+    if (name.rfind("utf-16", 0) == 0) {
+        name = "utf-16";
+    }
+    return name;
+}
+
 /* ----------------------------------------------------------------------------------------- */
 /* Remembered position (feature 004 US8)                                                      */
 /* ----------------------------------------------------------------------------------------- */
@@ -290,6 +308,8 @@ struct Opened {
     std::optional<std::string> entry;
     // Document details filled in on load (see the header).
     std::vector<std::string> filled_in;
+    // Set when `doc.open` explicitly forced an encoding (e.g. from the encoding mismatch dialog).
+    std::optional<std::string> forced_encoding;
 };
 
 // Feature 009: the document's `source` (rpc-api §1) for a book from a ZIP archive.
@@ -365,6 +385,10 @@ ArchiveChoice choose_entry(const std::string& path, const std::optional<std::str
                 !data.contains("reason")) {
                 data["reason"] = "txtInArchive";
             }
+            // Feature 018 (FR-020): a MOBI/KF8/PalmDOC and no FB2/FBD points to the MOBI import.
+            if (mobi::is_mobi_extension(name) && !data.contains("reason")) {
+                data["reason"] = "mobiInArchive";
+            }
         }
         throw rpc::RpcError(rpc::codes::kArchiveNoBook, "the archive holds no FictionBook book",
                             data);
@@ -419,6 +443,15 @@ void refuse_other_archives(const fs::path& file) {
     if (extension == ".txt") {
         throw not_fictionbook(platform::utf8_from_path(file), "txt");
     }
+    // Feature 018 (FR-020): MOBI / KF8 / PalmDOC files are refused by extension or PalmDB magic
+    // and come in through File > Import > MOBI File.
+    const std::string_view head_view(head, static_cast<std::size_t>(in.gcount()));
+    const mobi::ContainerKind mobi_kind = mobi::sniff_bytes(head_view).kind;
+    if (mobi::is_mobi_extension(extension) || mobi_kind == mobi::ContainerKind::mobi7 ||
+        mobi_kind == mobi::ContainerKind::joint || mobi_kind == mobi::ContainerKind::kf8 ||
+        mobi_kind == mobi::ContainerKind::palmdoc) {
+        throw not_fictionbook(platform::utf8_from_path(file), "mobi");
+    }
 }
 
 // The document JSON of a loaded document, with the details filled in on load.
@@ -430,10 +463,10 @@ json loaded_document_json(const model::Document& doc, const std::vector<std::str
 
 // Reads a book with the hardened parser; the reader's failures become Open's errors 1004 /
 // 1001 / 1002 (the description import reuses them, rpc-api §3.2).
-fb2::ReadResult read_book(const std::string& path, BinaryStore& store,
-                          model::NodeIdAllocator& ids) {
+fb2::ReadResult read_book(const std::string& path, BinaryStore& store, model::NodeIdAllocator& ids,
+                          const fb2::ReadOptions& options = {}) {
     try {
-        return fb2::read_file(platform::path_from_utf8(path), store, ids);
+        return fb2::read_file(platform::path_from_utf8(path), store, ids, options);
     } catch (const fb2::NotFictionBookFailure& e) {
         throw not_fictionbook(path, e.reason);
     } catch (const fb2::ParseFailure& e) {
@@ -446,18 +479,26 @@ fb2::ReadResult read_book(const std::string& path, BinaryStore& store,
 // `ui_language` is the interface language setting for the filled-in date (see above). With
 // `entry`, `path` is a ZIP archive and the book is that entry (feature 009).
 Opened open_document(const std::string& path, const std::string& ui_language,
-                     rpc::JobControl* control, const std::optional<std::string>& entry = {}) {
+                     rpc::JobControl* control, const std::optional<std::string>& entry = {},
+                     const std::optional<std::string>& force_encoding = {},
+                     bool clean_invalid_chars = false) {
     Opened opened;
     opened.path = path;
     opened.entry = entry;
+    opened.forced_encoding = force_encoding;
     opened.stamp = platform::stamp_of(platform::path_from_utf8(path));
     if (control != nullptr) {
         control->progress("read", 0, 100);
     }
+    fb2::ReadOptions read_options;
+    if (force_encoding && !force_encoding->empty()) {
+        read_options.force_encoding = *force_encoding;
+    }
+    read_options.clean_invalid_chars = clean_invalid_chars;
     if (entry) {
         const std::string bytes = archive_book_bytes(path, *entry);
         try {
-            opened.read = fb2::read_bytes(bytes, *opened.store, opened.ids, {}, path);
+            opened.read = fb2::read_bytes(bytes, *opened.store, opened.ids, read_options, path);
         } catch (const fb2::NotFictionBookFailure& e) {
             throw not_fictionbook(path, e.reason);
         } catch (const fb2::ParseFailure& e) {
@@ -465,7 +506,7 @@ Opened open_document(const std::string& path, const std::string& ui_language,
         }
         opened.read.document.fileKind = file_kind_of(*entry);
     } else {
-        opened.read = read_book(path, *opened.store, opened.ids);
+        opened.read = read_book(path, *opened.store, opened.ids, read_options);
     }
     opened.filled_in = model::fill_in_document_details(
         opened.read.document, model::details_context_now(false, ui_language));
@@ -488,6 +529,29 @@ void fill_session(Services& services, session::DocumentSession& s, Opened& opene
     s.xlinkPrefix = opened.read.xlink_prefix;
     s.schemaHint = doc.schemaHint;
     s.sourceOnly = false;
+    s.openWarnings.clear();
+    for (const auto& w : opened.read.warnings) {
+        if (w.code == "encoding.mismatch") {
+            s.openWarnings.push_back(w);
+        }
+    }
+    if (s.openWarnings.empty() && opened.forced_encoding &&
+        !opened.read.declared_encoding.empty()) {
+        const auto decl = encoding::normalize_name(opened.read.declared_encoding);
+        const bool same =
+            decl && (*decl == doc.sourceEncoding ||
+                     (*decl == "utf-16" && doc.sourceEncoding.rfind("utf-16", 0) == 0));
+        if (!same) {
+            model::ValidationIssue issue;
+            issue.severity = model::Severity::warning;
+            issue.code = "encoding.mismatch";
+            issue.line = 1;
+            issue.params = {{"declared", decl.value_or(opened.read.declared_encoding)},
+                            {"detected", doc.sourceEncoding},
+                            {"reason", "user-selected"}};
+            s.openWarnings.push_back(std::move(issue));
+        }
+    }
     if (opened.stamp.exists) {
         s.lastKnownMtime = opened.stamp.mtime;
         s.lastKnownSize = opened.stamp.size;
@@ -657,6 +721,11 @@ json converted_json(const std::vector<images::Converted>& converted) {
 // Rewrites (or inserts) the encoding of the XML declaration of Source-only text.
 std::string with_declared_encoding(std::string text, const std::string& encoding) {
     std::size_t pos = 0;
+    if (text.size() >= 3 && static_cast<unsigned char>(text[0]) == 0xEF &&
+        static_cast<unsigned char>(text[1]) == 0xBB &&
+        static_cast<unsigned char>(text[2]) == 0xBF) {
+        pos = 3;
+    }
     while (pos < text.size() &&
            (text[pos] == ' ' || text[pos] == '\n' || text[pos] == '\r' || text[pos] == '\t')) {
         ++pos;
@@ -783,6 +852,7 @@ json perform_save(Services& services, SaveRequest& request, rpc::JobControl* con
             s->archiveEntry = archive_entry;
             s->fileKind = file_kind_of(archive_entry ? *archive_entry : path);
             s->sourceEncoding = enc;
+            s->openWarnings.clear();
             if (stamp.exists) {
                 s->lastKnownMtime = stamp.mtime;
                 s->lastKnownSize = stamp.size;
@@ -1251,19 +1321,34 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
             entry = choice.entry;
             size = static_cast<std::uintmax_t>(choice.size);
         }
+        std::optional<std::string> force_encoding;
+        if (const auto requested = rpc::params::opt_string(params, "encoding");
+            requested && !requested->empty()) {
+            const auto canonical = encoding::normalize_name(*requested);
+            if (!canonical || !encoding::is_supported(*canonical)) {
+                throw rpc::invalid_params("unsupported encoding: " + *requested,
+                                          json{{"field", "encoding"}});
+            }
+            force_encoding = *canonical;
+        }
+        const bool clean_invalid_chars =
+            rpc::params::boolean_or(params, "cleanInvalidChars", false);
         const std::string ui_language = ui_language_setting(services);
         if (ec || size < kJobThresholdBytes) {
-            Opened opened = open_document(path, ui_language, nullptr, entry);
+            Opened opened = open_document(path, ui_language, nullptr, entry, force_encoding,
+                                          clean_invalid_chars);
             return register_session(services, std::move(opened));
         }
         // The session (and its docId) exists from the start; the worker parses and builds the
         // JSON result, the loop thread only moves the data into the session at the end.
         const std::string doc_id = services.documents.create().docId;
-        const std::string job_id = ctx.jobs.start(
-            [&services, path, doc_id, ui_language, entry](rpc::JobControl& control) -> json {
+        const std::string job_id =
+            ctx.jobs.start([&services, path, doc_id, ui_language, entry, force_encoding,
+                            clean_invalid_chars](rpc::JobControl& control) -> json {
                 auto opened = std::make_shared<Opened>();
                 try {
-                    *opened = open_document(path, ui_language, &control, entry);
+                    *opened = open_document(path, ui_language, &control, entry, force_encoding,
+                                            clean_invalid_chars);
                 } catch (...) {
                     on_loop_thread(
                         services,
@@ -1298,6 +1383,43 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
                 return result;
             });
         return json{{"jobId", job_id}};
+    });
+
+    router.add_method("doc.encodingPreview", [](const json& params, rpc::RpcContext&) {
+        const std::string path = absolute_path(rpc::params::string(params, "path"));
+        const fs::path file = platform::path_from_utf8(path);
+        const std::string requested = rpc::params::string(params, "encoding");
+        const auto canonical = encoding::normalize_name(requested);
+        if (!canonical || !encoding::is_supported(*canonical)) {
+            throw rpc::invalid_params("unsupported encoding: " + requested,
+                                      json{{"field", "encoding"}});
+        }
+        const bool clean_invalid = rpc::params::boolean_or(params, "cleanInvalidChars", false);
+        const auto entry = rpc::params::opt_string(params, "entry");
+        // Read slightly past preview_encoding_bytes()'s 512 KiB window so it can detect truncation
+        // and avoid splitting a multi-byte UTF-8 sequence at the boundary.
+        constexpr std::size_t kPreviewBytes = 512 * 1024 + 4;
+        std::string sample;
+        if (entry && !entry->empty()) {
+            sample = archive_book_bytes(path, *entry);
+            if (sample.size() > kPreviewBytes) {
+                sample.resize(kPreviewBytes);
+            }
+        } else {
+            std::ifstream in(file, std::ios::binary);
+            if (!in) {
+                throw io_error(path, "cannot open file for preview");
+            }
+            sample.resize(kPreviewBytes);
+            in.read(sample.data(), static_cast<std::streamsize>(sample.size()));
+            sample.resize(static_cast<std::size_t>(in.gcount()));
+        }
+        const fb2::EncodingPreview preview =
+            fb2::preview_encoding_bytes(sample, *canonical, clean_invalid);
+        return json{{"blocks", preview.blocks},
+                    {"initialBlock", preview.initial_block},
+                    {"undecodableCount", preview.undecodable_count},
+                    {"invalidCharCount", preview.invalid_char_count}};
     });
 
     router.add_method("doc.openSource", [&services](const json& params, rpc::RpcContext&) {
@@ -1416,7 +1538,7 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         options.elide_binaries = rpc::params::boolean_or(params, "elideBinaries", false);
         options.positions = rpc::params::boolean_or(params, "positions", false);
         options.xlink_prefix = s.xlinkPrefix;
-        options.encoding = effective_encoding(services, s, std::nullopt);
+        options.encoding = document_encoding(services, s);
         update_reference_counts(doc, *s.binaries);
         fb2::WriteResult written = fb2::write_document(doc, s.binaries.get(), options);
         json result{{"text", written.text}};
@@ -1699,15 +1821,27 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
             services.documents.require(rpc::params::string(params, "docId"));
         const std::string xlink = s.xlinkPrefix;
         std::shared_ptr<BinaryStore> store = s.binaries;
+        const std::vector<model::ValidationIssue> open_warnings = s.openWarnings;
+        const auto with_open_warnings = [](model::ValidationReport report,
+                                           const std::vector<model::ValidationIssue>& extra) {
+            if (!extra.empty()) {
+                report.issues.insert(report.issues.end(), extra.begin(), extra.end());
+                validation::finalize_report(report);
+            }
+            return report;
+        };
         if (auto text = rpc::params::opt_string(params, "text")) {
             if (text->size() < kJobThresholdBytes) {
-                return model::to_json(validate_text_with_model(*text, store, xlink));
+                return model::to_json(with_open_warnings(
+                    validate_text_with_model(*text, store, xlink), open_warnings));
             }
             auto shared = std::make_shared<std::string>(std::move(*text));
             const std::string job_id =
-                ctx.jobs.start([shared, store, xlink](rpc::JobControl& control) {
+                ctx.jobs.start([shared, store, xlink, open_warnings,
+                                with_open_warnings](rpc::JobControl& control) {
                     control.progress("validate", 0, 100);
-                    return model::to_json(validate_text_with_model(*shared, store, xlink));
+                    return model::to_json(with_open_warnings(
+                        validate_text_with_model(*shared, store, xlink), open_warnings));
                 });
             return json{{"jobId", job_id}};
         }
@@ -1723,14 +1857,17 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
                          approximate_size(doc) >= kJobThresholdBytes;
         if (!big) {
             update_reference_counts(doc, *store);
-            return model::to_json(validation::validate_document(doc, store.get(), xlink));
+            return model::to_json(with_open_warnings(
+                validation::validate_document(doc, store.get(), xlink), open_warnings));
         }
         auto shared = std::make_shared<model::Document>(std::move(doc));
-        const std::string job_id = ctx.jobs.start([shared, store, xlink](rpc::JobControl& control) {
-            control.progress("validate", 0, 100);
-            update_reference_counts(*shared, *store);
-            return model::to_json(validation::validate_document(*shared, store.get(), xlink));
-        });
+        const std::string job_id = ctx.jobs.start(
+            [shared, store, xlink, open_warnings, with_open_warnings](rpc::JobControl& control) {
+                control.progress("validate", 0, 100);
+                update_reference_counts(*shared, *store);
+                return model::to_json(with_open_warnings(
+                    validation::validate_document(*shared, store.get(), xlink), open_warnings));
+            });
         return json{{"jobId", job_id}};
     });
 

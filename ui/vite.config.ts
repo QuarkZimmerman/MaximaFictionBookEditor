@@ -189,6 +189,43 @@ export function isEpubExportModule(id: string): boolean {
   return id.split('?')[0].replace(/\\/g, '/').startsWith(epubExportFolder);
 }
 
+// Feature 018 (DP-1, FR-050): MOBI export and import are two lazy chunks (`mobi-export`,
+// `mobi-import`), plus small lazy helpers `mobi-shared` and neutral `ebook-shared` (shared by EPUB
+// and MOBI without coupling the two format chunks). Static entries (`exportCommand.ts`,
+// `importCommand.ts`, `MobiExportOptions.tsx`) and `MobiPage.tsx` stay in the main bundle.
+const mobiExportFolder = fileURLToPath(
+  new URL('./src/features/mobi/export/', import.meta.url),
+).replace(/\\/g, '/');
+const mobiImportFolder = fileURLToPath(
+  new URL('./src/features/mobi/import/', import.meta.url),
+).replace(/\\/g, '/');
+const mobiSharedFolder = fileURLToPath(
+  new URL('./src/features/mobi/shared/', import.meta.url),
+).replace(/\\/g, '/');
+const ebookSharedFolder = fileURLToPath(
+  new URL('./src/features/ebookShared/', import.meta.url),
+).replace(/\\/g, '/');
+
+/** True for a module of the `mobi-export` chunk (exported for the unit test of the rule). */
+export function isMobiExportModule(id: string): boolean {
+  return id.split('?')[0].replace(/\\/g, '/').startsWith(mobiExportFolder);
+}
+
+/** True for a module of the `mobi-import` chunk (exported for the unit test of the rule). */
+export function isMobiImportModule(id: string): boolean {
+  return id.split('?')[0].replace(/\\/g, '/').startsWith(mobiImportFolder);
+}
+
+/** True for a module of the `mobi-shared` chunk (exported for the unit test of the rule). */
+export function isMobiSharedModule(id: string): boolean {
+  return id.split('?')[0].replace(/\\/g, '/').startsWith(mobiSharedFolder);
+}
+
+/** True for a module of the neutral `ebook-shared` chunk (exported for the unit test of the rule). */
+export function isEbookSharedModule(id: string): boolean {
+  return id.split('?')[0].replace(/\\/g, '/').startsWith(ebookSharedFolder);
+}
+
 // Kept as a plain object (not a callback) so vitest.config.ts can merge it.
 export default defineConfig({
   plugins: [
@@ -299,6 +336,26 @@ export default defineConfig({
             {
               name: 'import-shared',
               test: isImportSharedModule,
+              includeDependenciesRecursively: false,
+            },
+            {
+              name: 'ebook-shared',
+              test: isEbookSharedModule,
+              includeDependenciesRecursively: false,
+            },
+            {
+              name: 'mobi-export',
+              test: isMobiExportModule,
+              includeDependenciesRecursively: false,
+            },
+            {
+              name: 'mobi-import',
+              test: isMobiImportModule,
+              includeDependenciesRecursively: false,
+            },
+            {
+              name: 'mobi-shared',
+              test: isMobiSharedModule,
               includeDependenciesRecursively: false,
             },
           ],

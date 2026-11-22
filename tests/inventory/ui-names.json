@@ -130,6 +130,11 @@
       "tooltip": "Export as Markdown ZIP",
       "description": "Write the book as a ZIP archive holding a Markdown file and its pictures"
     },
+    "file.exportMobi": {
+      "label": "Export as &MOBI...",
+      "tooltip": "Export as MOBI",
+      "description": "Write the book as an unencrypted MOBI 7, joint MOBI 7 + KF8, or KF8 (AZW3) e-book with cover thumbnail, native navigation, notes, and optional ZIP + FBD archive"
+    },
     "file.exportPdf": {
       "label": "Expor&t as PDF...",
       "tooltip": "Export as PDF",
@@ -154,6 +159,11 @@
       "label": "&Markdown File...",
       "tooltip": "Import Markdown",
       "description": "Make a new book from a Markdown file: its headings become sections, its pictures and notes come along"
+    },
+    "file.importMobi": {
+      "label": "MO&BI File...",
+      "tooltip": "Import MOBI",
+      "description": "Make a new book from an unencrypted MOBI, AZW3, AZW, or PRC file (or a ZIP archive holding one); the editor's own exports round-trip whole"
     },
     "file.importPdf": {
       "label": "PDF Fi&le...",
@@ -872,6 +882,11 @@
       "tooltip": "Экспорт в Markdown ZIP",
       "description": "Записать книгу ZIP-архивом с файлом Markdown и его картинками"
     },
+    "file.exportMobi": {
+      "label": "Экспорт в &MOBI...",
+      "tooltip": "Экспорт в MOBI",
+      "description": "Записать книгу в незашифрованный файл MOBI 7, объединённый MOBI 7 + KF8 или KF8 (AZW3) с миниатюрой обложки, оглавлением, примечаниями и возможностью сохранения в ZIP-архив с FBD"
+    },
     "file.exportPdf": {
       "label": "Экспор&т в PDF...",
       "tooltip": "Экспорт в PDF",
@@ -896,6 +911,11 @@
       "label": "Файл &Markdown...",
       "tooltip": "Импорт Markdown",
       "description": "Создать новую книгу из файла Markdown: заголовки становятся секциями, картинки и сноски переносятся"
+    },
+    "file.importMobi": {
+      "label": "Файл MO&BI...",
+      "tooltip": "Импорт MOBI",
+      "description": "Создать новую книгу из незашифрованного файла MOBI, AZW3, AZW или PRC (или ZIP-архива с ним); собственные файлы редактора возвращаются целиком"
     },
     "file.importPdf": {
       "label": "Фай&л PDF...",
@@ -1614,6 +1634,11 @@
       "tooltip": "Експорт у Markdown ZIP",
       "description": "Записати книгу ZIP-архівом із файлом Markdown і його зображеннями"
     },
+    "file.exportMobi": {
+      "label": "Експорт у &MOBI...",
+      "tooltip": "Експорт у MOBI",
+      "description": "Записати книжку в незашифрований файл MOBI 7, об'єднаний MOBI 7 + KF8 або KF8 (AZW3) з мініатюрою обкладинки, змістом, примітками та можливістю збереження в ZIP-архів із FBD"
+    },
     "file.exportPdf": {
       "label": "Експор&т у PDF...",
       "tooltip": "Експорт у PDF",
@@ -1638,6 +1663,11 @@
       "label": "Файл &Markdown...",
       "tooltip": "Імпорт Markdown",
       "description": "Створити нову книгу з файлу Markdown: заголовки стають секціями, малюнки й виноски переносяться"
+    },
+    "file.importMobi": {
+      "label": "Файл MO&BI...",
+      "tooltip": "Імпорт MOBI",
+      "description": "Створити нову книжку з незашифрованого файлу MOBI, AZW3, AZW або PRC (або ZIP-архіву з ним); власні файли редактора повертаються цілими"
     },
     "file.importPdf": {
       "label": "Фай&л PDF...",

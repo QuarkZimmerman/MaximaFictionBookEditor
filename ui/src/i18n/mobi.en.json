@@ -1,0 +1,180 @@
+{
+  "$comment": "MOBI / KF8 export and import (feature 018): File > Export > Export as MOBI..., File > Import > MOBI File..., File > Open's refusal of a MOBI, the export's Save dialog and fallback options window, Settings > Exports > MOBI, archive/FBD prompts, refusals, progress, and summaries. Feature catalogue merged into en.json by i18n/index.ts.",
+  "menu": {
+    "file": {
+      "exportMobi": "Export as &MOBI...",
+      "importMobi": "MO&BI File..."
+    }
+  },
+  "cmd": {
+    "file": {
+      "exportMobi": {
+        "tooltip": "Export as MOBI",
+        "description": "Write the book as an unencrypted MOBI 7, joint MOBI 7 + KF8, or KF8 (AZW3) e-book with cover thumbnail, native navigation, notes, and optional ZIP + FBD archive"
+      },
+      "importMobi": {
+        "tooltip": "Import MOBI",
+        "description": "Make a new book from an unencrypted MOBI, AZW3, AZW, or PRC file (or a ZIP archive holding one); the editor's own exports round-trip whole"
+      }
+    }
+  },
+  "exports": {
+    "settings": {
+      "formats": {
+        "mobi": "MOBI"
+      }
+    }
+  },
+  "mobi": {
+    "filterMobi": "MOBI books (*.mobi)",
+    "filterAzw3": "KF8 books (*.azw3)",
+    "filterZip": "ZIP archives (*.zip)",
+    "filterImportAll": "MOBI books and ZIP archives (*.mobi, *.azw3, *.azw, *.prc, *.zip)",
+    "filterImportBooks": "MOBI books (*.mobi, *.azw3, *.azw, *.prc)",
+    "filterAnyFile": "All files",
+    "formatLabel": "Format:",
+    "zipChoice": "Save in ZIP archive",
+    "formats": {
+      "mobi7": "MOBI 7 (.mobi)",
+      "joint": "MOBI 7 + KF8 (joint .mobi)",
+      "kf8": "KF8 (.azw3)"
+    },
+    "saveFormats": {
+      "joint": "MOBI 7 + KF8",
+      "mobi7": "MOBI 7",
+      "kf8": "KF8 (.azw3)"
+    },
+    "tocPlacements": {
+      "afterTitle": "After title page",
+      "end": "At the end",
+      "none": "None"
+    },
+    "seriesModes": {
+      "off": "Off",
+      "numberBefore": "Number before title (3_Title)",
+      "seriesAndNumber": "Series and number (Series #3 — Title)"
+    },
+    "openAtModes": {
+      "titlePage": "Title page",
+      "mainText": "Start of main text"
+    },
+    "exportTitle": "Export as MOBI",
+    "exportCaption": "MOBI export",
+    "optionsCaption": "MOBI export options",
+    "exporting": "Exporting as MOBI…",
+    "exportDone": "Exported to {{path}}: {{sections}} sections, {{pictures}} pictures, {{tables}} tables, {{notes}} notes.",
+    "exportCancelled": "The MOBI export was cancelled; no file was written.",
+    "exportFailed": "{{path}} was not written: {{detail}}",
+    "exportSummaryIntro": "Not everything was carried over as written:",
+    "summaryMore": "… and {{count}} more",
+    "exportSummary": {
+      "pictureConverted": "Picture converted to JPEG or PNG: {{detail}}",
+      "pictureDownscaled": "Picture downscaled to stay under 10 MB: {{detail}}",
+      "pictureLeftOut": "Picture left out: {{detail}}",
+      "linkAsText": "Link written as text: {{detail}}",
+      "cssDropped": "Stylesheet rule left out: {{detail}}",
+      "stylesheetDropped": "Non-CSS stylesheet left out: {{detail}}",
+      "gapFilled": "Filled in the exported file only: {{detail}}",
+      "idMadeUnique": "Duplicate id made unique in the exported file: {{detail}}",
+      "mfbeSkipped": "Embedded round-trip record omitted: metadata exceeded the 48 KB header budget"
+    },
+    "gap": {
+      "title": "the book's title",
+      "language": "the book's language (English used for added labels)",
+      "identifier": "the book's identifier"
+    },
+    "writeFailed": {
+      "targetIsSource": "it is the book's own file, or the archive it was opened from.",
+      "checkFailed": "the finished file failed its own check ({{detail}}).",
+      "ioError": "the file could not be written ({{detail}}).",
+      "badPart": "a required part of the book was missing.",
+      "unknownToken": "the export session was no longer known to the core."
+    },
+    "openRefused": "{{path}} is a MOBI e-book. File > Open takes FictionBook (FB2) books, FBD files and ZIP archives holding FB2 books; a MOBI book is imported with File > Import > MOBI File....",
+    "openRefusedInArchive": "{{path}} holds a MOBI e-book but no FictionBook book. A MOBI book is imported with File > Import > MOBI File....",
+    "openTitle": "Import a MOBI book",
+    "importCaption": "MOBI import",
+    "importing": "Importing the MOBI book…",
+    "importDone": "Imported from MOBI: {{sections}} sections, {{pictures}} pictures, {{tables}} tables, {{notes}} notes.",
+    "importCancelled": "The MOBI import was cancelled; the book in the window is unchanged.",
+    "importFailed": "{{path}} could not be imported: {{reason}}",
+    "importSummaryIntro": "Not everything came over as written:",
+    "importSummary": {
+      "fallbackMobi7": "The KF8 part of the joint file was damaged; imported the MOBI 7 part instead.",
+      "mfbeExternallyModified": "The file was modified outside the editor; edited parts were imported from the MOBI content.",
+      "mfbeCorrupt": "The editor's embedded round-trip record could not be read; imported as a regular MOBI book.",
+      "pictureConverted": "Picture converted to JPEG or PNG: {{detail}}",
+      "pictureLeftOut": "Picture not added: {{detail}}",
+      "pictureTooLarge": "Picture larger than 100 megapixels, not added: {{detail}}",
+      "linkAsText": "Link to a missing target, written as text: {{detail}}",
+      "remote": "Remote resource not fetched: {{detail}}",
+      "dropped": "Left out (FB2 has no place for it): {{detail}}",
+      "listedData": "Metadata without an FB2 field: {{detail}}",
+      "cssDropped": "Style not supported by FB2 stylesheets, left out: {{detail}}",
+      "formulaAsText": "Formula could not be rasterised, kept as text: {{detail}}",
+      "drawingLeftOut": "Drawing could not be rasterised, left out: {{detail}}",
+      "nestingFlattened": "Nesting deeper than {{detail}} levels, flattened into paragraphs",
+      "droppedScripts": "Scripts, left out and never run: {{detail}}",
+      "droppedMedia": "Audio, video, or embedded objects, left out: {{detail}}",
+      "droppedFonts": "Embedded fonts, left out: {{detail}}",
+      "droppedChar": "Unsupported private-use or control characters, left out: {{detail}}",
+      "mended": "Adjusted to keep the imported FB2 valid: {{detail}}",
+      "fbd": "The description, cover included, was taken from {{name}}."
+    },
+    "refused": {
+      "notMobi": "it is not a MOBI, KF8, or PalmDOC book.",
+      "encrypted": "the book is encrypted or DRM-protected and cannot be imported.",
+      "kfx": "Amazon KFX files are not supported.",
+      "tooLarge": "the file is larger than 150 MB.",
+      "tooManyRecords": "the file holds too many PalmDB records.",
+      "decompressBomb": "the compressed text expands past safe limits and was refused.",
+      "pictureTooLarge": "a picture exceeds 100 megapixels.",
+      "damaged": "the file is damaged and could not be read.",
+      "fictionBook": "it is a FictionBook file — open it with File > Open.",
+      "noMobiInArchive": "the archive holds no MOBI, AZW3, AZW, or PRC file.",
+      "otherArchive": "only ZIP archives are read.",
+      "encryptedArchive": "the archive is protected by a password.",
+      "method": "the archive uses a compression method the editor does not read.",
+      "multiVolume": "the archive is one volume of a multi-part archive.",
+      "missing": "the chosen file is no longer in the archive.",
+      "cancelled": "the import was cancelled."
+    },
+    "fbd": {
+      "whichBook": "The archive holds several MOBI books. Choose one to import:",
+      "whichFbd": "The archive holds FBD description files. Choose one to apply, or None:",
+      "whichDescription": "{{mobi}} carries its book's description, and {{fbd}} holds another one. Which description should the book take?",
+      "theMobis": "The &MOBI's",
+      "theFbds": "The &FBD's",
+      "none": "None — keep the MOBI's own description",
+      "unreadable": "{{name}} could not be read ({{reason}}); the book comes in without it."
+    },
+    "settings": {
+      "group": "MOBI export",
+      "format": "&Format:",
+      "tocPlacement": "&Table of contents:",
+      "seriesInTitle": "&Series in reader title:",
+      "openAt": "&Open book at:",
+      "kf8PopupFootnotes": "&Pop-up footnotes (KF8)",
+      "kf8PopupFootnotesHint": "Works on modern Kindles (KF8 and joint files); older MOBI 7 readers always jump to the end.",
+      "zip": "Save in &ZIP archive",
+      "on": "On",
+      "off": "Off"
+    }
+  },
+  "tip": {
+    "mobi": {
+      "format": "MOBI 7 + KF8 works on both old and modern readers; MOBI 7 is for older devices; KF8 (.azw3) is for modern Kindles",
+      "zip": "Pack the exported book and its FBD description together in a ZIP archive"
+    },
+    "settings": {
+      "mobi": {
+        "format": "File format selected by default: MOBI 7 + KF8 works on both old and modern readers",
+        "tocPlacement": "Where to put a table of contents page inside the book (the reader's own menu is always included)",
+        "seriesInTitle": "Adds the book's series name or number to the title shown in your reader's library list (the title page stays unchanged)",
+        "openAt": "Which page the reader shows when opening the book for the first time",
+        "kf8PopupFootnotes": "Show footnotes in a pop-up on modern Kindles (older MOBI 7 readers jump to the end of the book)",
+        "zip": "Pack the exported book and its FBD description together in a ZIP archive by default"
+      }
+    }
+  }
+}

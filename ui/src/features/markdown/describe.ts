@@ -251,14 +251,64 @@ function stylesheetsXml(stylesheets: readonly MarkdownStylesheet[]): string {
     .join('');
 }
 
+/** Inserts parsed `<annotation>` or `<history>` XML into `parent` at its FB2 schema slot. */
+function injectRichElement(
+  doc: Document,
+  parent: Element,
+  tag: 'annotation' | 'history',
+  xml: string,
+  beforeTags: readonly string[],
+): void {
+  const parsed = new DOMParser().parseFromString(
+    `<FictionBook xmlns="${FB2_NS}" xmlns:l="${XLINK_NS}">${xml}</FictionBook>`,
+    'application/xml',
+  );
+  if (parsed.getElementsByTagName('parsererror').length > 0) return;
+  const imported = parsed.getElementsByTagNameNS(FB2_NS, tag)[0];
+  if (!imported) return;
+  for (const existing of Array.from(parent.children)) {
+    if (existing.localName === tag) parent.removeChild(existing);
+  }
+  const before =
+    Array.from(parent.children).find((child) => beforeTags.includes(child.localName)) ?? null;
+  parent.insertBefore(doc.importNode(imported, true), before);
+}
+
 /** The whole FB2 text of the imported book (without its pictures, which follow by RPC). */
-export function buildBook(templateXml: string, result: ConvertResult): string {
+export function buildBook(
+  templateXml: string,
+  result: ConvertResult,
+  extra?: { annotationXml?: string | null; historyXml?: string | null },
+): string {
   const doc = new DOMParser().parseFromString(templateXml, 'application/xml');
   const description = doc.getElementsByTagNameNS(FB2_NS, 'description')[0];
   const titleInfo = description?.getElementsByTagNameNS(FB2_NS, 'title-info')[0];
   if (!description || !titleInfo) throw new Error('the template has no description');
   applyDescription(doc, titleInfo, result.description);
   applyOtherParts(doc, description, result.description);
+  if (extra?.annotationXml) {
+    injectRichElement(doc, titleInfo, 'annotation', extra.annotationXml, [
+      'keywords',
+      'date',
+      'coverpage',
+      'lang',
+      'src-lang',
+      'translator',
+      'sequence',
+    ]);
+  }
+  if (extra?.historyXml) {
+    let docInfo = Array.from(description.children).find(
+      (child) => child.localName === 'document-info',
+    );
+    if (!docInfo) {
+      docInfo = element(doc, 'document-info');
+      const ref =
+        Array.from(description.children).find((c) => c.localName === 'src-title-info') ?? titleInfo;
+      description.insertBefore(docInfo, ref.nextSibling);
+    }
+    injectRichElement(doc, docInfo, 'history', extra.historyXml, ['publisher']);
+  }
   const descriptionXml = new XMLSerializer().serializeToString(description);
   return (
     `<?xml version="1.0" encoding="utf-8"?>\n<FictionBook xmlns="${FB2_NS}" xmlns:l="${XLINK_NS}">` +

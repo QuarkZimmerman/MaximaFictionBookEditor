@@ -44,6 +44,8 @@ std::string_view plain_form(char32_t c) {
         case 0x201B:
         case 0x02BC:
             return "'";
+        case 0x2010:
+        case 0x2011:
         case 0x2014:
         case 0x2013:
         case 0x2012:
@@ -54,6 +56,8 @@ std::string_view plain_form(char32_t c) {
         case 0x00A0:
         case 0x2007:
         case 0x202F:
+        case 0xE088:
+        case 0xF04A:
             return " ";
         case 0x2116:
             return "No.";
@@ -81,8 +85,8 @@ std::string_view plain_form(char32_t c) {
 // Invisible formatting characters, left out when the encoding cannot write them.
 bool invisible(char32_t c) {
     return (c >= 0x200B && c <= 0x200F) || (c >= 0x2028 && c <= 0x202E) ||
-           (c >= 0x2060 && c <= 0x2064) || c == 0xFEFF || (c >= 0xFE00 && c <= 0xFE0F) ||
-           (c >= 0xE0100 && c <= 0xE01EF);
+           (c >= 0x2060 && c <= 0x2064) || c == 0xFEFF || c == 0xFFFC || c == 0xE06E ||
+           (c >= 0xFE00 && c <= 0xFE0F) || (c >= 0xE0100 && c <= 0xE01EF);
 }
 
 // Reads one code point at `i`; an invalid sequence gives U+FFFD and advances one byte.

@@ -186,6 +186,24 @@ json to_json(const SaveFileRequest& r) {
         }
         j["checks"] = checks;
     }
+    if (!r.selects.empty()) {
+        json selects = json::array();
+        for (const auto& s : r.selects) {
+            json choices = json::array();
+            for (const auto& ch : s.choices) {
+                json item = {{"value", ch.value}, {"label", ch.label}};
+                if (ch.extension) {
+                    item["extension"] = *ch.extension;
+                }
+                choices.push_back(std::move(item));
+            }
+            selects.push_back(json{{"id", s.id},
+                                   {"label", s.label},
+                                   {"choices", std::move(choices)},
+                                   {"selected", s.selected}});
+        }
+        j["selects"] = std::move(selects);
+    }
     return j;
 }
 
@@ -206,6 +224,13 @@ json to_json(const SaveFileResult& r) {
             checks[id] = value;
         }
         j["checks"] = checks;
+    }
+    if (r.selects) {
+        json selects = json::object();
+        for (const auto& [id, value] : *r.selects) {
+            selects[id] = value;
+        }
+        j["selects"] = std::move(selects);
     }
     return j;
 }
@@ -293,6 +318,30 @@ SaveFileRequest save_file_request_from_json(const json& j) {
             }
         }
     }
+    // Feature 018 (DP-5): multi-select dropdowns.
+    if (const auto it = o.find("selects"); it != o.end() && it->is_array()) {
+        for (const auto& s : *it) {
+            if (!s.is_object() || !s.contains("id") || !s["id"].is_string()) {
+                continue;
+            }
+            SaveFileRequest::Select sel;
+            sel.id = s["id"].get<std::string>();
+            sel.label = str_or(s, "label");
+            sel.selected = str_or(s, "selected");
+            if (const auto ch_it = s.find("choices"); ch_it != s.end() && ch_it->is_array()) {
+                for (const auto& ch : *ch_it) {
+                    if (ch.is_object() && ch.contains("value") && ch["value"].is_string()) {
+                        sel.choices.push_back(SaveFileRequest::SelectChoice{
+                            ch["value"].get<std::string>(), str_or(ch, "label"),
+                            opt_str(ch, "extension")});
+                    }
+                }
+            }
+            if (!sel.choices.empty()) {
+                r.selects.push_back(std::move(sel));
+            }
+        }
+    }
     return r;
 }
 
@@ -312,6 +361,15 @@ SaveFileResult save_file_result_from_json(const json& j) {
             }
         }
         r.checks = std::move(checks);
+    }
+    if (const auto it = o.find("selects"); it != o.end() && it->is_object()) {
+        std::vector<std::pair<std::string, std::string>> selects;
+        for (const auto& [id, value] : it->items()) {
+            if (value.is_string()) {
+                selects.emplace_back(id, value.get<std::string>());
+            }
+        }
+        r.selects = std::move(selects);
     }
     return r;
 }

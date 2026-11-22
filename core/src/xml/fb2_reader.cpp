@@ -166,11 +166,13 @@ struct Ctx {
     // Ranges of the DOM nodes when positions are recorded (null otherwise).
     const std::vector<NodeRange>* ranges = nullptr;
 
-    void warn(const std::string& code, std::map<std::string, json> params) {
+    void warn(const std::string& code, std::map<std::string, json> params,
+              std::optional<int> line = std::nullopt) {
         model::ValidationIssue issue;
         issue.severity = model::Severity::warning;
         issue.code = code;
         issue.params = std::move(params);
+        issue.line = line;
         warnings->push_back(std::move(issue));
     }
 };
@@ -1308,9 +1310,13 @@ ReadResult read_bytes(std::string_view bytes, BinaryStore& store, model::NodeIdA
             bytes.remove_prefix(encoding::detect_bom(bytes).length);
         }
         if (detection.mismatch) {
-            ctx.warn("encoding.mismatch", {{"declared", detection.declared},
-                                           {"detected", detection.detected},
-                                           {"reason", detection.reason}});
+            ctx.warn("encoding.mismatch",
+                     {{"declared", detection.declared},
+                      {"detected", detection.detected},
+                      {"reason", detection.reason},
+                      {"confident", detection.confident},
+                      {"candidates", detection.candidates}},
+                     1);
         }
     }
     doc.sourceEncoding = encoding;
@@ -1383,6 +1389,9 @@ ReadResult read_bytes(std::string_view bytes, BinaryStore& store, model::NodeIdA
         doc.path = ec ? display_path : platform::utf8_from_path(abs);
     }
     doc.fileKind = options.file_kind.value_or(kind_from_path(display_path));
+    if (options.clean_invalid_chars) {
+        (void)clean_document_invalid_chars(doc);
+    }
     model::assign_node_ids(doc, ids);
     if (options.record_positions) {
         // The ranges rode along on the model nodes; now that the ids exist they become the
@@ -1471,9 +1480,12 @@ SourceText read_source_bytes(const std::string& bytes) {
         model::ValidationIssue issue;
         issue.severity = model::Severity::warning;
         issue.code = "encoding.mismatch";
+        issue.line = 1;
         issue.params = {{"declared", detection.declared},
                         {"detected", detection.detected},
-                        {"reason", detection.reason}};
+                        {"reason", detection.reason},
+                        {"confident", detection.confident},
+                        {"candidates", detection.candidates}};
         out.warnings.push_back(std::move(issue));
     }
     encoding::DecodeResult decoded = encoding::decode_to_utf8(bytes, detection.detected);
@@ -1611,6 +1623,453 @@ FragmentResult read_fragment(std::string_view xml, const std::string& parent_ele
         result.nodes = std::move(holder.content);
     }
     return result;
+}
+
+/* ----------------------------------------------------------------------------------------- */
+/* Invalid/invisible character cleanup and encoding preview                                   */
+/* ----------------------------------------------------------------------------------------- */
+
+namespace {
+
+bool is_whitespace_only(std::string_view s) {
+    for (const char c : s) {
+        if (c != ' ' && c != '\t' && c != '\r' && c != '\n') {
+            return false;
+        }
+    }
+    return true;
+}
+
+std::size_t clean_str(std::string& s) {
+    std::size_t changed = 0;
+    std::string cleaned = encoding::clean_invalid_utf8(s, &changed);
+    if (changed > 0) {
+        s = std::move(cleaned);
+    }
+    return changed;
+}
+
+std::size_t clean_opt(std::optional<std::string>& s) {
+    return s ? clean_str(*s) : 0;
+}
+
+std::size_t clean_person(model::Person& p) {
+    std::size_t n = 0;
+    n += clean_opt(p.firstName);
+    n += clean_opt(p.middleName);
+    n += clean_opt(p.lastName);
+    n += clean_opt(p.nickname);
+    for (std::string& hp : p.homePages) {
+        n += clean_str(hp);
+    }
+    for (std::string& em : p.emails) {
+        n += clean_str(em);
+    }
+    n += clean_opt(p.id);
+    return n;
+}
+
+std::size_t clean_sequence(model::Sequence& seq) {
+    std::size_t n = clean_str(seq.name);
+    for (model::Sequence& child : seq.children) {
+        n += clean_sequence(child);
+    }
+    return n;
+}
+
+bool allows_empty_line_child(const std::string& parent_type) {
+    return parent_type == "section" || parent_type == "annotation" || parent_type == "epigraph" ||
+           parent_type == "cite";
+}
+
+std::size_t clean_node_tree(model::Node& node, const std::string& parent_type) {
+    std::size_t total = 0;
+    if (node.is_text()) {
+        return clean_str(node.text);
+    }
+    const bool had_children = !node.content.empty();
+    for (model::Node& child : node.content) {
+        total += clean_node_tree(child, node.type);
+    }
+    // Remove text children that became completely empty after stripping invisible junk, and if a
+    // paragraph originally held only invisible junk (like <p>&#x200B;</p>) in a container that
+    // admits <empty-line/>, turn it into an <empty-line/> node.
+    if (total > 0 && had_children) {
+        node.content.erase(std::remove_if(node.content.begin(), node.content.end(),
+                                          [](const model::Node& child) {
+                                              return child.is_text() && child.text.empty();
+                                          }),
+                           node.content.end());
+    }
+    if (total > 0 && node.type == "p" && had_children) {
+        bool has_non_text = false;
+        bool has_visible_text = false;
+        for (const model::Node& child : node.content) {
+            if (!child.is_text()) {
+                has_non_text = true;
+            } else if (!is_whitespace_only(child.text)) {
+                has_visible_text = true;
+            }
+        }
+        if (!has_non_text && !has_visible_text && allows_empty_line_child(parent_type)) {
+            node.type = "empty-line";
+            node.content.clear();
+            node.attrs.erase("lang");
+            node.attrs.erase("style");
+        }
+    }
+    return total;
+}
+
+std::size_t clean_title_info(model::TitleInfo& ti) {
+    std::size_t n = 0;
+    for (model::Person& a : ti.authors) {
+        n += clean_person(a);
+    }
+    n += clean_str(ti.bookTitle);
+    if (ti.annotation) {
+        n += clean_node_tree(*ti.annotation, "title-info");
+    }
+    n += clean_opt(ti.keywords);
+    if (ti.date) {
+        n += clean_str(ti.date->text);
+    }
+    for (model::ImageRef& img : ti.coverpage) {
+        n += clean_opt(img.alt);
+        n += clean_opt(img.title);
+    }
+    for (model::Person& tr : ti.translators) {
+        n += clean_person(tr);
+    }
+    for (model::Sequence& seq : ti.sequences) {
+        n += clean_sequence(seq);
+    }
+    return n;
+}
+
+void append_utf8_cp(std::string& out, char32_t cp) {
+    if (cp == 0 || cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF)) {
+        return;
+    }
+    if (cp < 0x80) {
+        out.push_back(static_cast<char>(cp));
+    } else if (cp < 0x800) {
+        out.push_back(static_cast<char>(0xC0 | (cp >> 6)));
+        out.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+    } else if (cp < 0x10000) {
+        out.push_back(static_cast<char>(0xE0 | (cp >> 12)));
+        out.push_back(static_cast<char>(0x80 | ((cp >> 6) & 0x3F)));
+        out.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+    } else {
+        out.push_back(static_cast<char>(0xF0 | (cp >> 18)));
+        out.push_back(static_cast<char>(0x80 | ((cp >> 12) & 0x3F)));
+        out.push_back(static_cast<char>(0x80 | ((cp >> 6) & 0x3F)));
+        out.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+    }
+}
+
+std::string collapse_ascii_ws(std::string_view text) {
+    std::string collapsed;
+    collapsed.reserve(text.size());
+    bool space = false;
+    for (const char c : text) {
+        if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+            if (!collapsed.empty()) {
+                space = true;
+            }
+        } else {
+            if (space) {
+                collapsed.push_back(' ');
+                space = false;
+            }
+            collapsed.push_back(c);
+        }
+    }
+    return collapsed;
+}
+
+std::string decode_xml_entities_and_strip_tags(std::string_view xml) {
+    std::string out;
+    out.reserve(xml.size());
+    bool in_tag = false;
+    for (std::size_t i = 0; i < xml.size(); ++i) {
+        const char c = xml[i];
+        if (c == '<') {
+            in_tag = true;
+            continue;
+        }
+        if (in_tag) {
+            if (c == '>') {
+                in_tag = false;
+            }
+            continue;
+        }
+        if (c == '&') {
+            const std::size_t semi = xml.find(';', i + 1);
+            if (semi != std::string_view::npos && semi - i <= 12) {
+                const std::string_view ent = xml.substr(i + 1, semi - i - 1);
+                if (ent == "lt") {
+                    out.push_back('<');
+                    i = semi;
+                    continue;
+                }
+                if (ent == "gt") {
+                    out.push_back('>');
+                    i = semi;
+                    continue;
+                }
+                if (ent == "amp") {
+                    out.push_back('&');
+                    i = semi;
+                    continue;
+                }
+                if (ent == "quot") {
+                    out.push_back('"');
+                    i = semi;
+                    continue;
+                }
+                if (ent == "apos") {
+                    out.push_back('\'');
+                    i = semi;
+                    continue;
+                }
+                if (ent == "nbsp") {
+                    out.append("\xC2\xA0");
+                    i = semi;
+                    continue;
+                }
+                if (!ent.empty() && ent[0] == '#') {
+                    char32_t cp = 0;
+                    bool ok = false;
+                    if (ent.size() >= 3 && (ent[1] == 'x' || ent[1] == 'X')) {
+                        ok = true;
+                        for (std::size_t k = 2; k < ent.size(); ++k) {
+                            const char h = ent[k];
+                            cp <<= 4;
+                            if (h >= '0' && h <= '9') {
+                                cp |= static_cast<char32_t>(h - '0');
+                            } else if (h >= 'a' && h <= 'f') {
+                                cp |= static_cast<char32_t>(h - 'a' + 10);
+                            } else if (h >= 'A' && h <= 'F') {
+                                cp |= static_cast<char32_t>(h - 'A' + 10);
+                            } else {
+                                ok = false;
+                                break;
+                            }
+                        }
+                    } else if (ent.size() >= 2) {
+                        ok = true;
+                        for (std::size_t k = 1; k < ent.size(); ++k) {
+                            const char d = ent[k];
+                            if (d >= '0' && d <= '9') {
+                                cp = cp * 10 + static_cast<char32_t>(d - '0');
+                            } else {
+                                ok = false;
+                                break;
+                            }
+                        }
+                    }
+                    if (ok && cp > 0 && cp <= 0x10FFFF) {
+                        append_utf8_cp(out, cp);
+                        i = semi;
+                        continue;
+                    }
+                }
+            }
+        }
+        out.push_back(c);
+    }
+    return collapse_ascii_ws(out);
+}
+
+bool contains_non_ascii(std::string_view s) {
+    return std::any_of(s.begin(), s.end(),
+                       [](char c) { return static_cast<unsigned char>(c) >= 0x80; });
+}
+
+std::string lower_tag_name(std::string_view s) {
+    std::string out;
+    out.reserve(s.size());
+    for (const char c : s) {
+        out.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+    }
+    return out;
+}
+
+}  // namespace
+
+std::size_t clean_document_invalid_chars(model::Document& doc) {
+    std::size_t total = 0;
+    total += clean_title_info(doc.description.titleInfo);
+    if (doc.description.srcTitleInfo) {
+        total += clean_title_info(*doc.description.srcTitleInfo);
+    }
+    for (model::Person& a : doc.description.documentInfo.authors) {
+        total += clean_person(a);
+    }
+    total += clean_opt(doc.description.documentInfo.programUsed);
+    total += clean_str(doc.description.documentInfo.date.text);
+    for (std::string& u : doc.description.documentInfo.srcUrls) {
+        total += clean_str(u);
+    }
+    total += clean_opt(doc.description.documentInfo.srcOcr);
+    total += clean_str(doc.description.documentInfo.id);
+    total += clean_str(doc.description.documentInfo.version);
+    if (doc.description.documentInfo.history) {
+        total += clean_node_tree(*doc.description.documentInfo.history, "document-info");
+    }
+    for (model::Person& p : doc.description.documentInfo.publishers) {
+        total += clean_person(p);
+    }
+    if (doc.description.publishInfo) {
+        auto& pi = *doc.description.publishInfo;
+        total += clean_opt(pi.bookName);
+        total += clean_opt(pi.publisher);
+        total += clean_opt(pi.city);
+        total += clean_opt(pi.year);
+        total += clean_opt(pi.isbn);
+        for (model::Sequence& seq : pi.sequences) {
+            total += clean_sequence(seq);
+        }
+    }
+    for (model::CustomInfo& ci : doc.description.customInfo) {
+        total += clean_str(ci.infoType);
+        total += clean_str(ci.text);
+    }
+    for (model::Node& body : doc.bodies) {
+        total += clean_node_tree(body, "FictionBook");
+    }
+    return total;
+}
+
+EncodingPreview preview_encoding_bytes(std::string_view raw_bytes, std::string_view encoding,
+                                       bool clean_invalid, std::size_t max_blocks) {
+    EncodingPreview out;
+    constexpr std::size_t kMaxSampleBytes = 512 * 1024;
+    std::string_view slice = raw_bytes.substr(0, std::min(raw_bytes.size(), kMaxSampleBytes));
+    const auto canonical = encoding::normalize_name(encoding).value_or("utf-8");
+    const bool utf16 = canonical.rfind("utf-16", 0) == 0;
+    if (slice.size() < raw_bytes.size()) {
+        if (utf16) {
+            if ((slice.size() & 1u) != 0) {
+                slice.remove_suffix(1);
+            }
+        } else if (canonical == "utf-8") {
+            // Avoid splitting a multi-byte UTF-8 sequence at the sample boundary.
+            std::size_t end = slice.size();
+            while (end > 0 && static_cast<unsigned char>(slice[end - 1]) >= 0x80) {
+                --end;
+            }
+            if (end > slice.size() / 2) {
+                slice = slice.substr(0, end);
+            }
+        }
+    }
+    const encoding::DecodeResult decoded = encoding::decode_to_utf8(slice, canonical);
+    out.undecodable_count = decoded.replacements;
+    std::string_view text = decoded.utf8;
+    // Truncate before <binary so base64 payloads never enter the preview or invalid counts.
+    for (std::size_t i = 0; i + 7 <= text.size(); ++i) {
+        if (text[i] == '<' && lower_tag_name(text.substr(i, 7)) == "<binary") {
+            text = text.substr(0, i);
+            break;
+        }
+    }
+
+    // Extract text from <book-title>, <p>, <v>, <subtitle> blocks (plus count invalid chars across
+    // the whole text sample so the UI knows whether invalid/invisible chars exist).
+    std::size_t pos = 0;
+    bool found_initial = false;
+    while (pos < text.size()) {
+        const std::size_t lt = text.find('<', pos);
+        if (lt == std::string_view::npos) {
+            break;
+        }
+        const std::size_t gt = text.find('>', lt + 1);
+        if (gt == std::string_view::npos) {
+            break;
+        }
+        pos = gt + 1;
+        if (lt + 1 >= gt || text[lt + 1] == '/' || text[lt + 1] == '!' || text[lt + 1] == '?') {
+            continue;
+        }
+        // Self-closing tag.
+        if (text[gt - 1] == '/') {
+            continue;
+        }
+        std::size_t name_end = lt + 1;
+        while (name_end < gt && text[name_end] != ' ' && text[name_end] != '\t' &&
+               text[name_end] != '\r' && text[name_end] != '\n') {
+            ++name_end;
+        }
+        const std::string tag = lower_tag_name(text.substr(lt + 1, name_end - (lt + 1)));
+        if (tag != "book-title" && tag != "p" && tag != "v" && tag != "subtitle") {
+            continue;
+        }
+        const std::string close_tag = "</" + tag;
+        std::size_t close_at = std::string_view::npos;
+        for (std::size_t k = pos; k + close_tag.size() < text.size(); ++k) {
+            if (text[k] == '<' && text[k + 1] == '/' &&
+                lower_tag_name(text.substr(k, close_tag.size())) == close_tag) {
+                const char after = text[k + close_tag.size()];
+                if (after == '>' || after == ' ' || after == '\t' || after == '\r' ||
+                    after == '\n') {
+                    close_at = k;
+                    break;
+                }
+            }
+        }
+        if (close_at == std::string_view::npos) {
+            break;
+        }
+        const std::string_view inner = text.substr(pos, close_at - pos);
+        const std::size_t close_gt = text.find('>', close_at);
+        pos = close_gt == std::string_view::npos ? text.size() : close_gt + 1;
+        std::string plain = decode_xml_entities_and_strip_tags(inner);
+        out.invalid_char_count += encoding::count_invalid_utf8(plain);
+        if (clean_invalid) {
+            plain = collapse_ascii_ws(encoding::clean_invalid_utf8(plain));
+        }
+        if (plain.empty()) {
+            continue;
+        }
+        if (out.blocks.size() < max_blocks) {
+            if (!found_initial && contains_non_ascii(plain)) {
+                out.initial_block = out.blocks.size();
+                found_initial = true;
+            }
+            out.blocks.push_back(std::move(plain));
+        }
+    }
+
+    // Fallback when no recognised block tags appeared in the sample.
+    if (out.blocks.empty()) {
+        std::string plain = decode_xml_entities_and_strip_tags(text);
+        out.invalid_char_count = encoding::count_invalid_utf8(plain);
+        if (clean_invalid) {
+            plain = encoding::clean_invalid_utf8(plain);
+        }
+        if (!plain.empty()) {
+            constexpr std::size_t kChunk = 400;
+            std::size_t p = 0;
+            while (p < plain.size() && out.blocks.size() < max_blocks) {
+                std::size_t end = std::min(plain.size(), p + kChunk);
+                // Don't split a UTF-8 code point in half.
+                while (end < plain.size() &&
+                       (static_cast<unsigned char>(plain[end]) & 0xC0u) == 0x80u) {
+                    ++end;
+                }
+                std::string chunk = plain.substr(p, end - p);
+                if (!found_initial && contains_non_ascii(chunk)) {
+                    out.initial_block = out.blocks.size();
+                    found_initial = true;
+                }
+                out.blocks.push_back(std::move(chunk));
+                p = end;
+            }
+        }
+    }
+    return out;
 }
 
 }  // namespace mfbe::fb2

@@ -33,6 +33,12 @@
     "exports.settings.formats.epub",
     "exports.settings.formats.markdown",
     "exports.settings.formats.txt",
+    "exports.settings.formats.mobi",
+    "mobi.formats.mobi7",
+    "mobi.formats.kf8",
+    "mobi.saveFormats.joint",
+    "mobi.saveFormats.mobi7",
+    "mobi.saveFormats.kf8",
     "dialog.settings.other.passedOver.rule.genres",
     "dialog.settings.other.passedOver.rule.template"
   ]

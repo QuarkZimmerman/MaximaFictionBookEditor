@@ -595,4 +595,120 @@ test.describe('US1 - open, review and save a book without loss', () => {
     await page.keyboard.press('Escape');
     await page.keyboard.press('Escape');
   });
+
+  test('8. encoding mismatch dialog previews, pages, cleans invisible chars, marks modified without auto-saving, and Source view reflects saved encoding', async ({
+    core,
+    page,
+  }) => {
+    // A valid FB2 book whose XML header wrongly declares utf-8 while its bytes are windows-1251,
+    // plus numeric U+200B entities in text and an invisible-only paragraph.
+    const xml = `<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+<description>
+<title-info>
+<genre>prose_classic</genre>
+<author><first-name>Иван</first-name><last-name>Петров</last-name></author>
+<book-title>Неверная декларация</book-title>
+<lang>ru</lang>
+</title-info>
+<document-info>
+<author><nickname>maker</nickname></author>
+<date value="2026-01-01">2026</date>
+<id>mismatch-e2e-0001</id>
+<version>1.0</version>
+</document-info>
+</description>
+<body>
+<section>
+<title><p>Глава первая</p></title>
+<p>Привет&#x200B; мир?</p>
+<p>&#x200B;</p>
+<p>Второй абзац книги.</p>
+</section>
+</body>
+</FictionBook>
+`;
+    const file = path.join(dir, 'scenario8-mismatch.fb2');
+    const originalBytes = encodeCp1251(xml);
+    writeFileSync(file, originalBytes);
+
+    await core.openApp(page);
+    await expect(page.getByTestId('status-message')).toHaveText(
+      await pageText(page, 'status.ready'),
+    );
+    const startTitle = await page.title();
+
+    // 1. Open -> mismatch dialog appears -> inspect preview, paging, bad encoding warning -> Cancel.
+    await openViaDialog(core, page, file);
+    const dialog = page.getByTestId('dialog-encoding-mismatch');
+    await expect(dialog).toBeVisible();
+    const select = page.getByTestId('dialog-encoding-mismatch-select');
+    await expect(select).toHaveValue('windows-1251');
+    await expect(page.getByTestId('dialog-encoding-mismatch-clean')).toBeChecked();
+    await expect(page.getByTestId('dialog-encoding-mismatch-preview')).toContainText(
+      'Неверная декларация',
+    );
+    await expect(page.getByTestId('dialog-encoding-mismatch-undecodable')).toHaveCount(0);
+
+    await page.getByTestId('dialog-encoding-mismatch-next').click();
+    await expect(page.getByTestId('dialog-encoding-mismatch-preview')).toContainText(
+      'Глава первая',
+    );
+    await page.getByTestId('dialog-encoding-mismatch-prev').click();
+    await expect(page.getByTestId('dialog-encoding-mismatch-preview')).toContainText(
+      'Неверная декларация',
+    );
+
+    await select.selectOption('utf-8');
+    await expect(page.getByTestId('dialog-encoding-mismatch-undecodable')).toBeVisible();
+    await select.selectOption('windows-1251');
+    await expect(page.getByTestId('dialog-encoding-mismatch-undecodable')).toHaveCount(0);
+
+    await page.getByTestId('dialog-encoding-mismatch-button-cancel').click();
+    await expect(dialog).toBeHidden();
+    await expect(page).toHaveTitle(startTitle);
+
+    // 2. Load as is -> opens unmodified, encoding.mismatch persists in Validation.
+    await openViaDialog(core, page, file);
+    await expect(dialog).toBeVisible();
+    await page.getByTestId('dialog-encoding-mismatch-button-asIs').click();
+    await expect(dialog).toBeHidden();
+    await expect(page).toHaveTitle(`scenario8-mismatch.fb2 - ${APP_TITLE}`);
+    await page.getByTestId('menu-file').click();
+    await page.getByTestId('menu-file-validate').click();
+    await expect(page.getByTestId('validation-panel')).toBeVisible();
+    await expect(page.getByTestId('validation-panel')).toContainText('1');
+    await page.getByTestId('validation-close').click();
+
+    // 3. Close via New, open again -> Fix -> opens modified without auto-saving, U+200B cleaned, '?' kept.
+    await page.getByTestId('toolbar-file.new').click();
+    await expect(page).toHaveTitle(await untitledTitle(page));
+    await openViaDialog(core, page, file);
+    await expect(dialog).toBeVisible();
+    await page.getByTestId('dialog-encoding-mismatch-button-fix').click();
+    await expect(dialog).toBeHidden();
+    await expect(page).toHaveTitle(`scenario8-mismatch.fb2* - ${APP_TITLE}`);
+    expect(readFileSync(file).equals(originalBytes)).toBe(true);
+    const bodyText = await page.getByTestId('body-editor').innerText();
+    expect(bodyText).toContain('Привет мир?');
+    expect(bodyText).not.toContain('\u200B');
+
+    // 4. Save As windows-1251 -> clears mismatch warning and Source view declares windows-1251.
+    const savedCp1251 = path.join(dir, 'scenario8-saved-cp1251.fb2');
+    await core.enqueueDialog('dialog.saveFile', { path: savedCp1251, encoding: 'windows-1251' });
+    await page.getByTestId('menu-file').click();
+    await page.getByTestId('menu-file-saveAs').click();
+    await expect(page.getByTestId('status-message')).toHaveText(
+      await pageText(page, 'status.savedNoErrors'),
+    );
+    await expect(page).toHaveTitle(`scenario8-saved-cp1251.fb2 - ${APP_TITLE}`);
+    await page.getByTestId('view-source').click();
+    await expect(page.getByTestId('source-view')).toHaveAttribute('data-status', 'ready');
+    await expect(page.getByTestId('source-editor')).toContainText('encoding="windows-1251"');
+    await page.getByTestId('menu-file').click();
+    await page.getByTestId('menu-file-validate').click();
+    await expect(page.getByTestId('validation-summary')).toContainText(
+      await pageText(page, 'status.noErrors'),
+    );
+  });
 });

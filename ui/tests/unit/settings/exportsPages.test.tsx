@@ -86,6 +86,7 @@ describe('Settings > Exports (feature 017)', () => {
       'EPUB',
       'Markdown',
       'TXT',
+      'MOBI',
     ]);
     expect(format).toHaveValue('pdf');
     expect(screen.getByTestId('settings-pdf-zip')).not.toBeChecked();

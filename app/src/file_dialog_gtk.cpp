@@ -256,6 +256,9 @@ struct OpenDialog {
     // Feature 017 (DP-5): the further boxes, by their ids (choices "check-<id>").
     bool offers_checks = false;
     std::vector<std::string> check_ids;
+    // Feature 018 (DP-5): multi-select dropdowns, by their ids (choices "select-<id>").
+    bool offers_selects = false;
+    std::vector<std::string> select_ids;
     FileDialogCallback done;
 };
 
@@ -308,6 +311,16 @@ void onResponse(void* chooser, int response, void* data) {
                 result.checks.emplace_back(id, value != nullptr && std::string(value) == "true");
             }
             result.checks_shown = true;
+        }
+        if (dialog->offers_selects) {
+            for (const std::string& id : dialog->select_ids) {
+                const char* value =
+                    api.gtk_file_chooser_get_choice(chooser, ("select-" + id).c_str());
+                if (value != nullptr) {
+                    result.selects.emplace_back(id, value);
+                }
+            }
+            result.selects_shown = true;
         }
     }
     result.cancelled = result.paths.empty();
@@ -408,6 +421,36 @@ bool addChecks(const GtkApi& api, void* chooser, const FileDialogRequest& reques
     return true;
 }
 
+// Feature 018 (DP-5): multi-select dropdowns via gtk_file_chooser_add_choice("select-<id>", ...).
+bool addSelects(const GtkApi& api, void* chooser, const FileDialogRequest& request,
+                std::vector<std::string>* ids) {
+    if (request.mode != FileDialogMode::kSave || request.selects.empty() || !api.offersChoices()) {
+        return false;
+    }
+    for (const auto& sel : request.selects) {
+        if (sel.choices.empty()) {
+            continue;
+        }
+        std::vector<const char*> options;
+        std::vector<const char*> labels;
+        options.reserve(sel.choices.size() + 1);
+        labels.reserve(sel.choices.size() + 1);
+        for (const auto& ch : sel.choices) {
+            options.push_back(ch.value.c_str());
+            labels.push_back(ch.label.c_str());
+        }
+        options.push_back(nullptr);
+        labels.push_back(nullptr);
+        const std::string id = "select-" + sel.id;
+        api.gtk_file_chooser_add_choice(chooser, id.c_str(), sel.label.c_str(), options.data(),
+                                        labels.data());
+        const std::size_t idx = selectedSelectChoiceIndex(sel);
+        api.gtk_file_chooser_set_choice(chooser, id.c_str(), sel.choices[idx].value.c_str());
+        ids->push_back(sel.id);
+    }
+    return !ids->empty();
+}
+
 }  // namespace
 
 bool runPlatformFileDialog(std::uintptr_t owner, const FileDialogRequest& request,
@@ -448,6 +491,7 @@ bool runPlatformFileDialog(std::uintptr_t owner, const FileDialogRequest& reques
     dialog->chooser = chooser;
     dialog->window_widget = api->findsDialogWindow() ? chooserWindow(*api, before) : nullptr;
     dialog->offers_encodings = addEncodings(*api, chooser, request);
+    dialog->offers_selects = addSelects(*api, chooser, request, &dialog->select_ids);
     dialog->offers_zip = addZipChoice(*api, chooser, request);
     if (dialog->offers_zip && request.zip_filter >= 0 &&
         static_cast<std::size_t>(request.zip_filter) < types.size()) {

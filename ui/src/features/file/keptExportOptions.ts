@@ -6,6 +6,8 @@
  * defaults of Settings > Exports serve again. Never stored anywhere.
  */
 
+import type { MobiFormat } from '@/rpc/types';
+
 export interface PdfKept {
   pageSize: string;
   zip: boolean;
@@ -18,10 +20,15 @@ export interface TxtKept {
   bom: boolean;
   zip: boolean;
 }
+export interface MobiKept {
+  format: MobiFormat;
+  zip: boolean;
+}
 export interface KeptByFormat {
   pdf: PdfKept;
   markdown: MarkdownKept;
   txt: TxtKept;
+  mobi: MobiKept;
 }
 export type ExportFormat = keyof KeptByFormat;
 

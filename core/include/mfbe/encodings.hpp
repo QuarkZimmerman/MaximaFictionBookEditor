@@ -74,14 +74,25 @@ struct Detection {
     std::string detected;  // encoding to decode with (canonical, always supported)
     bool bom = false;
     bool mismatch = false;  // detected differs from what the file claims
+    bool confident = true;  // false when multiple single-byte encodings remain plausible
     std::string reason;     // "bom" | "invalid-bytes" | "utf8-bytes" | "unsupported" | ""
+    std::vector<std::string> candidates;  // ranked plausible encodings when mismatch is true
 };
 
 // Decides how to decode a file: BOM first, then the declaration, verified against a sample
 // of the bytes. When the declared encoding cannot decode the sample cleanly (or is unknown)
-// the first candidate that can is chosen (utf-8, windows-1251, koi8-r, windows-1252,
-// iso-8859-1) and `mismatch` is set so the caller can emit warning `encoding.mismatch`.
+// UTF-8 is checked first and otherwise the statistical text judge ranks the supported
+// single-byte encodings (setting `confident` and `candidates`) and `mismatch` is set so the
+// caller can emit warning `encoding.mismatch`.
 Detection detect_encoding(std::string_view bytes, std::size_t sample_bytes = 256 * 1024);
+
+// Cleans hidden formatting, converter private-use junk and replacement characters (U+200B..200F,
+// U+2028..202E, U+2060..2064, U+00AD, U+FEFF, U+FFFC, U+FFFD, U+E06E, variation selectors) and
+// normalizes exotic Unicode spaces/hyphens (U+2000..200A, U+202F, U+2010, U+2011, U+2015,
+// U+E088, U+F04A) that turn into '?' in legacy encodings. Sets `*changed` to the number of code
+// points removed or normalized when non-null.
+std::string clean_invalid_utf8(std::string_view utf8, std::size_t* changed = nullptr);
+std::size_t count_invalid_utf8(std::string_view utf8);
 
 // Registers the table converters with a libxml2 parser context (xmlCtxtSetCharEncConvImpl).
 // libxml2 keeps using its built-in UTF-8/UTF-16/ISO-8859-x converters; ours answer for the

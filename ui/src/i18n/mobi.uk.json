@@ -1,0 +1,180 @@
+{
+  "$comment": "MOBI / KF8 export and import (feature 018): Ukrainian locale catalogue merged into uk.json by i18n/index.ts.",
+  "menu": {
+    "file": {
+      "exportMobi": "Експорт у &MOBI...",
+      "importMobi": "Файл MO&BI..."
+    }
+  },
+  "cmd": {
+    "file": {
+      "exportMobi": {
+        "tooltip": "Експорт у MOBI",
+        "description": "Записати книжку в незашифрований файл MOBI 7, об'єднаний MOBI 7 + KF8 або KF8 (AZW3) з мініатюрою обкладинки, змістом, примітками та можливістю збереження в ZIP-архів із FBD"
+      },
+      "importMobi": {
+        "tooltip": "Імпорт MOBI",
+        "description": "Створити нову книжку з незашифрованого файлу MOBI, AZW3, AZW або PRC (або ZIP-архіву з ним); власні файли редактора повертаються цілими"
+      }
+    }
+  },
+  "exports": {
+    "settings": {
+      "formats": {
+        "mobi": "MOBI"
+      }
+    }
+  },
+  "mobi": {
+    "filterMobi": "Книжки MOBI (*.mobi)",
+    "filterAzw3": "Книжки KF8 (*.azw3)",
+    "filterZip": "ZIP-архіви (*.zip)",
+    "filterImportAll": "Книжки MOBI та ZIP-архіви (*.mobi, *.azw3, *.azw, *.prc, *.zip)",
+    "filterImportBooks": "Книжки MOBI (*.mobi, *.azw3, *.azw, *.prc)",
+    "filterAnyFile": "Усі файли",
+    "formatLabel": "Формат:",
+    "zipChoice": "Зберегти в ZIP-архів",
+    "formats": {
+      "mobi7": "MOBI 7 (.mobi)",
+      "joint": "MOBI 7 + KF8 (об'єднаний .mobi)",
+      "kf8": "KF8 (.azw3)"
+    },
+    "saveFormats": {
+      "joint": "MOBI 7 + KF8",
+      "mobi7": "MOBI 7",
+      "kf8": "KF8 (.azw3)"
+    },
+    "tocPlacements": {
+      "afterTitle": "Після титульної сторінки",
+      "end": "Наприкінці",
+      "none": "Немає"
+    },
+    "seriesModes": {
+      "off": "Вимкнено",
+      "numberBefore": "Номер перед назвою (3_Назва)",
+      "seriesAndNumber": "Серія та номер (Серія #3 — Назва)"
+    },
+    "openAtModes": {
+      "titlePage": "Титульна сторінка",
+      "mainText": "Початок основного тексту"
+    },
+    "exportTitle": "Експорт у MOBI",
+    "exportCaption": "Експорт у MOBI",
+    "optionsCaption": "Параметри експорту в MOBI",
+    "exporting": "Експорт у MOBI…",
+    "exportDone": "Експортовано до {{path}}: розділів {{sections}}, ілюстрацій {{pictures}}, таблиць {{tables}}, приміток {{notes}}.",
+    "exportCancelled": "Експорт у MOBI скасовано; файл не записано.",
+    "exportFailed": "{{path}} не записано: {{detail}}",
+    "exportSummaryIntro": "Не все вдалося перенести без змін:",
+    "summaryMore": "… і ще {{count}}",
+    "exportSummary": {
+      "pictureConverted": "Ілюстрацію перетворено на JPEG або PNG: {{detail}}",
+      "pictureDownscaled": "Ілюстрацію зменшено, щоб уміститися в 10 МБ: {{detail}}",
+      "pictureLeftOut": "Ілюстрацію пропущено: {{detail}}",
+      "linkAsText": "Посилання записано текстом: {{detail}}",
+      "cssDropped": "Правило таблиці стилів пропущено: {{detail}}",
+      "stylesheetDropped": "Таблицю стилів не-CSS пропущено: {{detail}}",
+      "gapFilled": "Заповнено лише в експортованому файлі: {{detail}}",
+      "idMadeUnique": "Повторюваний ідентифікатор зроблено унікальним в експортованому файлі: {{detail}}",
+      "mfbeSkipped": "Вбудований запис повернення пропущено: метадані перевищили межу заголовка 48 КБ"
+    },
+    "gap": {
+      "title": "назву книжки",
+      "language": "мову книжки (для доданих підписів обрано англійську)",
+      "identifier": "ідентифікатор книжки"
+    },
+    "writeFailed": {
+      "targetIsSource": "це власний файл книжки або архів, з якого її відкрито.",
+      "checkFailed": "готовий файл не пройшов самоперевірки ({{detail}}).",
+      "ioError": "не вдалося записати файл ({{detail}}).",
+      "badPart": "бракує обов'язкової частини книжки.",
+      "unknownToken": "ядро вже не знає цього сеансу експорту."
+    },
+    "openRefused": "{{path}} — книжка MOBI. «Файл > Відкрити» відкриває книжки FictionBook (FB2), файли FBD і ZIP-архіви з книжками FB2; книжки MOBI імпортуються командою «Файл > Імпорт > Файл MOBI...».",
+    "openRefusedInArchive": "{{path}} містить книжку MOBI, але не книжку FictionBook. Книжки MOBI імпортуються командою «Файл > Імпорт > Файл MOBI...».",
+    "openTitle": "Імпорт книжки MOBI",
+    "importCaption": "Імпорт MOBI",
+    "importing": "Імпорт книжки MOBI…",
+    "importDone": "Імпортовано з MOBI: розділів {{sections}}, ілюстрацій {{pictures}}, таблиць {{tables}}, приміток {{notes}}.",
+    "importCancelled": "Імпорт MOBI скасовано; книжка у вікні не змінилася.",
+    "importFailed": "Не вдалося імпортувати {{path}}: {{reason}}",
+    "importSummaryIntro": "Не все вдалося перенести без змін:",
+    "importSummary": {
+      "fallbackMobi7": "Частина KF8 в об'єднаному файлі пошкоджена; імпортовано частину MOBI 7.",
+      "mfbeExternallyModified": "Файл змінено поза редактором; змінені частини імпортовано із вмісту MOBI.",
+      "mfbeCorrupt": "Не вдалося прочитати вбудований запис повернення редактора; книжку імпортовано як звичайний файл MOBI.",
+      "pictureConverted": "Ілюстрацію перетворено на JPEG або PNG: {{detail}}",
+      "pictureLeftOut": "Ілюстрацію не додано: {{detail}}",
+      "pictureTooLarge": "Ілюстрація більша за 100 мегапікселів, не додано: {{detail}}",
+      "linkAsText": "Посилання на відсутню ціль записано текстом: {{detail}}",
+      "remote": "Зовнішній мережевий ресурс не завантажувався: {{detail}}",
+      "dropped": "Пропущено (у FB2 немає відповідного елемента): {{detail}}",
+      "listedData": "Метадані без поля FB2: {{detail}}",
+      "cssDropped": "Стиль, не підтримуваний таблицями стилів FB2, пропущено: {{detail}}",
+      "formulaAsText": "Формулу не вдалося растеризувати, залишено текстом: {{detail}}",
+      "drawingLeftOut": "Малюнок не вдалося растеризувати, пропущено: {{detail}}",
+      "nestingFlattened": "Вкладеність глибше {{detail}} рівнів зведено до абзаців",
+      "droppedScripts": "Скрипти пропущено й не виконувалися: {{detail}}",
+      "droppedMedia": "Аудіо, відео або вбудовані об'єкти пропущено: {{detail}}",
+      "droppedFonts": "Вбудовані шрифти пропущено: {{detail}}",
+      "droppedChar": "Непідтримувані службові або приватні символи пропущено: {{detail}}",
+      "mended": "Виправлено для збереження коректності FB2: {{detail}}",
+      "fbd": "Опис разом з обкладинкою взято з {{name}}."
+    },
+    "refused": {
+      "notMobi": "це не книжка MOBI, KF8 або PalmDOC.",
+      "encrypted": "книжку зашифровано або захищено DRM і її не можна імпортувати.",
+      "kfx": "файли Amazon KFX не підтримуються.",
+      "tooLarge": "файл більший за 150 МБ.",
+      "tooManyRecords": "у файлі забагато записів PalmDB.",
+      "decompressBomb": "стиснений текст розгортається понад безпечні межі й був відхилений.",
+      "pictureTooLarge": "ілюстрація перевищує 100 мегапікселів.",
+      "damaged": "файл пошкоджено й не можна прочитати.",
+      "fictionBook": "це файл FictionBook — відкрийте його командою «Файл > Відкрити».",
+      "noMobiInArchive": "в архіві немає файлу MOBI, AZW3, AZW або PRC.",
+      "otherArchive": "читаються лише ZIP-архіви.",
+      "encryptedArchive": "архів захищено паролем.",
+      "method": "архів використовує непідтримуваний метод стиснення.",
+      "multiVolume": "архів є частиною багатотомного архіву.",
+      "missing": "вибраного файлу більше немає в архіві.",
+      "cancelled": "імпорт було скасовано."
+    },
+    "fbd": {
+      "whichBook": "В архіві кілька книжок MOBI. Виберіть книжку для імпорту:",
+      "whichFbd": "В архіві є файли опису FBD. Виберіть файл або «Жоден»:",
+      "whichDescription": "{{mobi}} містить власний опис книжки, а {{fbd}} — інший. Який опис узяти?",
+      "theMobis": "Із &MOBI",
+      "theFbds": "Із &FBD",
+      "none": "Жоден — залишити опис із MOBI",
+      "unreadable": "{{name}} не читається ({{reason}}); книжка імпортується без нього."
+    },
+    "settings": {
+      "group": "Експорт у MOBI",
+      "format": "&Формат:",
+      "tocPlacement": "&Зміст:",
+      "seriesInTitle": "&Серія в назві для читалки:",
+      "openAt": "Ві&дкривати книжку з:",
+      "kf8PopupFootnotes": "С&пливні виноски (KF8)",
+      "kf8PopupFootnotesHint": "Працює на сучасних Kindle (KF8 і об'єднані файли); старі читалки MOBI 7 завжди переходять наприкінець.",
+      "zip": "Зберігати в &ZIP-архів",
+      "on": "Увімкнено",
+      "off": "Вимкнено"
+    }
+  },
+  "tip": {
+    "mobi": {
+      "format": "MOBI 7 + KF8 працює і на старих, і на нових читалках; MOBI 7 — для старих пристроїв; KF8 (.azw3) — для сучасних Kindle",
+      "zip": "Запакувати експортовану книжку разом із її файлом опису FBD у ZIP-архів"
+    },
+    "settings": {
+      "mobi": {
+        "format": "Формат файлу за замовчуванням: MOBI 7 + KF8 працює і на старих, і на нових читалках",
+        "tocPlacement": "Куди вставляти сторінку зі змістом усередині книжки (власне меню читалки додається завжди)",
+        "seriesInTitle": "Додає назву або номер серії до заголовка книжки в бібліотеці читалки (титульна сторінка не змінюється)",
+        "openAt": "Яку сторінку читалка покаже під час першого відкриття книжки",
+        "kf8PopupFootnotes": "Показувати виноски у спливному вікні на сучасних Kindle (старі читалки MOBI 7 переходять у кінець книжки)",
+        "zip": "Пакувати експортовану книжку та її файл опису FBD у ZIP-архів за замовчуванням"
+      }
+    }
+  }
+}

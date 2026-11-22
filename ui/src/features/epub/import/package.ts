@@ -305,3 +305,31 @@ export function readNavigation(xml: string, path: string, ncx: boolean): NavEntr
   walk(toc ? children(toc, 'ol')[0] : undefined, 1);
   return entries;
 }
+
+/** EPUB 3 landmarks (`<nav epub:type="landmarks">`), mapping resolved target path to its primary type. */
+export function readLandmarks(xml: string, path: string): Map<string, string> {
+  const out = new Map<string, string>();
+  const doc = new DOMParser().parseFromString(xml, 'application/xhtml+xml');
+  if (doc.getElementsByTagName('parsererror').length > 0) return out;
+  const nav = Array.from(doc.getElementsByTagName('nav')).find((n) =>
+    (n.getAttributeNS('http://www.idpf.org/2007/ops', 'type') ?? n.getAttribute('epub:type') ?? '')
+      .split(/\s+/)
+      .includes('landmarks'),
+  );
+  if (!nav) return out;
+  for (const anchor of Array.from(nav.getElementsByTagName('a'))) {
+    const types = (
+      anchor.getAttributeNS('http://www.idpf.org/2007/ops', 'type') ??
+      anchor.getAttribute('epub:type') ??
+      ''
+    )
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(Boolean);
+    const target = resolvePath(path, anchor.getAttribute('href') ?? '');
+    if (types.length > 0 && target && !out.has(target)) {
+      out.set(target, types[0]!);
+    }
+  }
+  return out;
+}

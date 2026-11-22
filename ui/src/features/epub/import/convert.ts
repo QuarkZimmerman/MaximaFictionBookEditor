@@ -84,6 +84,8 @@ export interface Drawing {
 export interface ConvertedBook {
   bodyXml: string;
   notesXml: string | null;
+  /** Structured `<history>...</history>` from the editor's colophon page or safe foreign colophon. */
+  historyXml: string | null;
   /** Every picture the book names, by its path in the container, with its FB2 binary id. */
   pictures: Map<string, string>;
   /** The cover picture's path, when a cover page shows one. */
@@ -1320,6 +1322,70 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
     ...input.pages.filter((page) => page.linear),
     ...input.pages.filter((page) => !page.linear),
   ];
+  const renderHistoryContainer = (container: Element): string | null => {
+    const inner =
+      Array.from(container.children).find((c) => classes(c).includes('fb2-history')) ?? container;
+    const parts: string[] = [];
+    const visit = (parent: Element): void => {
+      for (const child of Array.from(parent.children)) {
+        const name = local(child);
+        const kind = classes(child);
+        if (DROPPED.has(name) || name === 'nav' || kind.includes('fb2-doc-version')) continue;
+        if (epubTypes(child).includes('pagebreak')) continue;
+        if (kind.includes('fb2-empty-line') || name === 'hr') {
+          parts.push('<empty-line/>');
+        } else if (
+          name === 'poem' ||
+          kind.includes('fb2-poem') ||
+          kind.includes('poem') ||
+          epubTypes(child).includes('poem')
+        ) {
+          const p = poemXml(child);
+          if (p) parts.push(p);
+        } else if (name === 'blockquote' || kind.includes('fb2-cite')) {
+          parts.push(`<cite>${quotedBlocks(child, false)}</cite>`);
+        } else if (kind.includes('fb2-subtitle') || headingLevel(child) !== null) {
+          parts.push(...paragraphsOf(child, 'subtitle'));
+        } else if (name === 'table') {
+          const tbl = tableXml(child);
+          if (tbl) parts.push(tbl);
+        } else if (name === 'ul' || name === 'ol') {
+          let idx = 1;
+          for (const li of Array.from(child.children)) {
+            if (local(li) !== 'li') continue;
+            const prefix = name === 'ol' ? `${idx}. ` : '\u2022 ';
+            const inline = inlineOf(li).trim();
+            if (inline) parts.push(`<p>${escapeText(prefix)}${inline}</p>`);
+            idx++;
+          }
+        } else if (
+          (name === 'div' || name === 'section') &&
+          Array.from(child.children).some((gc) => BLOCKS.has(local(gc)))
+        ) {
+          visit(child);
+        } else {
+          parts.push(...paragraphsOf(child, 'p'));
+        }
+      }
+    };
+    visit(inner);
+    if (parts.length === 0) parts.push(...paragraphsOf(inner, 'p'));
+    if (parts.length === 0) return null;
+    const histId = idFor(currentPage, inner);
+    const idAttr = histId ? ` id="${escapeAttr(histId)}"` : '';
+    const lang = inner.getAttribute('xml:lang') ?? inner.getAttribute('lang') ?? '';
+    const langAttr = lang ? ` xml:lang="${escapeAttr(lang)}"` : '';
+    return `<history${idAttr}${langAttr}>${parts.join('')}</history>`;
+  };
+
+  let historyXml: string | null = null;
+  const nonMetaPageCount = ordered.filter((p) => {
+    const r = p.role ?? '';
+    return (
+      r !== 'cover' && r !== 'title-page' && r !== 'titlepage' && r !== 'toc' && r !== 'colophon'
+    );
+  }).length;
+
   for (const [index, page] of ordered.entries()) {
     await input.yielder?.step();
     currentPage = page;
@@ -1371,6 +1437,35 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
       text.length < 4000
     )
       continue;
+    // Closing Revision history / colophon page: editor exports restore `<document-info><history>`
+    // directly from it; foreign EPUB colophons map to `<history>` when short/text-only back-matter.
+    const historyEl =
+      Array.from(body.children).find((c) => classes(c).includes('fb2-history-page')) ?? null;
+    if (historyEl || (input.editorBook && page.role === 'colophon')) {
+      historyXml = renderHistoryContainer(historyEl ?? body);
+      continue;
+    }
+    const colophonEl =
+      page.role === 'colophon' || epubTypes(body).includes('colophon')
+        ? body
+        : (Array.from(body.children).find((c) => epubTypes(c).includes('colophon')) ?? null);
+    if (!input.editorBook && !historyXml && colophonEl && nonMetaPageCount > 0) {
+      const hasBlockImg =
+        colophonEl.querySelector('figure, svg') !== null ||
+        Array.from(colophonEl.getElementsByTagName('img')).some(
+          (img) => (img.parentElement?.textContent ?? '').trim().length === 0,
+        );
+      const hasSubsections =
+        colophonEl.getElementsByTagName('section').length > 1 ||
+        colophonEl.querySelectorAll('h1, h2, h3').length > 1;
+      if (!hasBlockImg && !hasSubsections) {
+        const extracted = renderHistoryContainer(colophonEl);
+        if (extracted) {
+          historyXml = extracted;
+          continue;
+        }
+      }
+    }
     // D34: in the editor's own EPUB a body begins where the pages' body mark changes. A further body
     // becomes a top-level section of the one FB2 allows, holding the body's own title, epigraphs
     // and picture when it has them, with its sections one level down.
@@ -1459,7 +1554,19 @@ export async function convertPages(input: ConvertInput): Promise<ConvertedBook> 
     });
   bodyXml = resolveLinks(bodyXml);
   if (notesXml) notesXml = resolveLinks(notesXml);
-  return { bodyXml, notesXml, pictures, coverPath, formulas, drawings, chars, stats, summary };
+  if (historyXml) historyXml = resolveLinks(historyXml);
+  return {
+    bodyXml,
+    notesXml,
+    historyXml,
+    pictures,
+    coverPath,
+    formulas,
+    drawings,
+    chars,
+    stats,
+    summary,
+  };
 }
 
 /** The folder of the package, for tests. */

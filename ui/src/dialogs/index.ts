@@ -4,6 +4,8 @@ export type { DialogButton, DialogProps, ViewerFrameProps } from './Dialog';
 export { DialogService, useDialogStack } from './DialogService';
 export type { DialogInstance, DialogKind } from './DialogService';
 export { EncodingDialog } from './EncodingDialog';
+export { EncodingMismatchDialog } from './EncodingMismatchDialog';
+export type { EncodingMismatchAnswer, EncodingPreviewData } from './EncodingMismatchDialog';
 export { ENCODING_CHOICES, normalizeEncoding } from './encodings';
 export { InputDialog } from './InputDialog';
 export { MessageBox } from './MessageBox';
@@ -12,6 +14,7 @@ export type { SaveChangesAnswer } from './SaveChangesPrompt';
 export {
   createDialogs,
   showEncodingDialog,
+  showEncodingMismatchDialog,
   showInput,
   showMessage,
   showMessageWithResult,

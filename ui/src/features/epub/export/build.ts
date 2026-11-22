@@ -234,6 +234,8 @@ export function buildEpub(input: BuildInput): BuiltEpub {
   };
   for (const body of document.bodies) forEachNode(body, claim);
   if (titleInfo.annotation) forEachNode(titleInfo.annotation, claim);
+  const docInfo = document.description.documentInfo;
+  if (docInfo.history) forEachNode(docInfo.history, claim);
   let sectionCount = 0;
   for (const body of document.bodies) {
     forEachNode(body, (node) => {
@@ -446,6 +448,32 @@ export function buildEpub(input: BuildInput): BuiltEpub {
     });
   }
 
+  // Closing Revision history + version page (colophon, matching PDF e84f1f81 & MOBI).
+  const hasHistoryPage = Boolean(docInfo.history && docInfo.history.content.length > 0);
+  if (hasHistoryPage && docInfo.history) {
+    const historyPageId = ids.allocate('fb2-history');
+    const ver = (docInfo.version ?? '').trim();
+    const verHtml = ver ? `<p class="fb2-doc-version">${text(`${words.version} ${ver}`)}</p>` : '';
+    const histId = elementIds.get(docInfo.history.attrs.nodeId);
+    const histIdAttr = histId ? ` id="${attr(histId)}"` : '';
+    const histLang = docInfo.history.attrs.lang
+      ? ` xml:lang="${attr(docInfo.history.attrs.lang)}" lang="${attr(docInfo.history.attrs.lang)}"`
+      : '';
+    const histInner = docInfo.history.content.map((child) => renderBlock(child, ctx, 2)).join('');
+    drafts.push({
+      name: 'EPUB/text/history.xhtml',
+      title: words.revisionHistory,
+      html:
+        `<div id="${historyPageId}" class="fb2-history-page" epub:type="colophon">` +
+        `${verHtml}<div${histIdAttr} class="fb2-history"${histLang}>${histInner}</div></div>`,
+    });
+    toc.push({
+      label: words.revisionHistory,
+      target: anchorLink(historyPageId),
+      children: [],
+    });
+  }
+
   // Every placeholder resolved now that every page has its name.
   const anchorPage = new Map<string, string>();
   for (const draft of drafts)
@@ -503,6 +531,10 @@ export function buildEpub(input: BuildInput): BuiltEpub {
   if (notesBodies.size > 0)
     landmarks.push(
       `<li><a epub:type="endnotes" href="text/notes.xhtml">${text(words.notes)}</a></li>`,
+    );
+  if (hasHistoryPage)
+    landmarks.push(
+      `<li><a epub:type="colophon" href="text/history.xhtml">${text(words.revisionHistory)}</a></li>`,
     );
   files.push({
     name: navName,
@@ -668,9 +700,16 @@ export function buildEpub(input: BuildInput): BuiltEpub {
       ? words.summaryAllAlt
       : words.summarySomeAlt;
   meta.push(`<meta property="schema:accessibilitySummary">${text(summaryText)}</meta>`);
-  // D7: the whole description, for the editor's own import (research DP-9).
+  // D7: the whole description, for the editor's own import (research DP-9); omit non-empty
+  // history now that it is written on its own structured colophon page (EPUB/text/history.xhtml).
+  const storedDescription = hasHistoryPage
+    ? {
+        ...document.description,
+        documentInfo: { ...document.description.documentInfo, history: undefined },
+      }
+    : document.description;
   meta.push(
-    `<meta property="mfbe:fb2-description">${text(JSON.stringify(document.description))}</meta>`,
+    `<meta property="mfbe:fb2-description">${text(JSON.stringify(storedDescription))}</meta>`,
   );
   // D34: the book's stylesheets as they are, so that the editor's own import gives them back exactly
   // (the EPUB's CSS is a translation of them).
@@ -689,6 +728,10 @@ export function buildEpub(input: BuildInput): BuiltEpub {
   guide.push(
     `<reference type="text" title="${attr(words.start)}" href="${attr(relativePath('EPUB/package.opf', firstTextPage))}"/>`,
   );
+  if (hasHistoryPage)
+    guide.push(
+      `<reference type="colophon" title="${attr(words.revisionHistory)}" href="text/history.xhtml"/>`,
+    );
 
   files.push({
     name: 'EPUB/package.opf',

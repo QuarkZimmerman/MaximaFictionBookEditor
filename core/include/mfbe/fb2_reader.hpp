@@ -95,6 +95,10 @@ struct ReadOptions {
     // Record the position map of the mapped nodes (`ReadResult::positions`); meaningful for
     // UTF-8 input (`force_encoding = "utf-8"`), whose decoded bytes are the given bytes.
     bool record_positions = false;
+    // Strip invisible/junk/replacement characters (U+200B, U+FFFD, exotic spaces, etc.) from
+    // text nodes after parsing (and turn paragraphs that held only invisible junk into
+    // empty-line nodes).
+    bool clean_invalid_chars = false;
 };
 
 struct ReadResult {
@@ -117,6 +121,23 @@ ReadResult read_file(const std::filesystem::path& path, BinaryStore& store,
 // Parses in-memory bytes (`display_path` only feeds fileKind/path and error messages).
 ReadResult read_bytes(std::string_view bytes, BinaryStore& store, model::NodeIdAllocator& ids,
                       const ReadOptions& options = {}, const std::string& display_path = "");
+
+// Cleans invisible/invalid Unicode characters from every text field/node of `doc` (turning
+// paragraphs that only contained invisible junk into empty-line nodes). Returns count of
+// characters removed or normalized.
+std::size_t clean_document_invalid_chars(model::Document& doc);
+
+struct EncodingPreview {
+    std::vector<std::string> blocks;     // readable text blocks decoded in the chosen encoding
+    std::size_t initial_block = 0;       // index of first block containing non-ASCII text
+    std::size_t undecodable_count = 0;   // U+FFFD replacements in the decoded sample
+    std::size_t invalid_char_count = 0;  // invisible/invalid chars found in the text sample
+};
+
+// Decodes a bounded prefix (up to 512 KiB, stopping before <binary>) in `encoding` and extracts
+// readable text blocks for the encoding-mismatch preview dialog.
+EncodingPreview preview_encoding_bytes(std::string_view raw_bytes, std::string_view encoding,
+                                       bool clean_invalid = false, std::size_t max_blocks = 20);
 
 struct SourceText {
     std::string text;                 // UTF-8, BOM removed

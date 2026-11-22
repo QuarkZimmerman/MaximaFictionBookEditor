@@ -91,3 +91,22 @@ export function dictionaryFileTypes(t: TFunction): FileFilter[] {
     fileType(t('fileDialogs.types.all'), ['*']),
   ];
 }
+
+/** Feature 018: File > Export > Export as MOBI... Save dialog filters (MOBI, KF8, ZIP). */
+export function mobiExportFileTypes(t: TFunction): FileFilter[] {
+  return [
+    { name: t('mobi.filterMobi'), extensions: ['mobi'] },
+    { name: t('mobi.filterAzw3'), extensions: ['azw3'] },
+    { name: t('mobi.filterZip'), extensions: ['zip'] },
+  ];
+}
+
+/** Feature 018: File > Import > MOBI File... Open dialog filters. */
+export function mobiImportFileTypes(t: TFunction): FileFilter[] {
+  return [
+    { name: t('mobi.filterImportAll'), extensions: ['mobi', 'azw3', 'azw', 'prc', 'zip'] },
+    { name: t('mobi.filterImportBooks'), extensions: ['mobi', 'azw3', 'azw', 'prc'] },
+    { name: t('mobi.filterZip'), extensions: ['zip'] },
+    fileType(t('mobi.filterAnyFile'), ['*']),
+  ];
+}

@@ -60,7 +60,7 @@ function shownIf(shown: boolean): CSSProperties | undefined {
 }
 
 /** The sections of the draft the pages edit (`session` is never part of the dialog). */
-type DraftSection = 'view' | 'other' | 'words' | 'pdf' | 'ai' | 'markdown' | 'txt';
+type DraftSection = 'view' | 'other' | 'words' | 'pdf' | 'ai' | 'markdown' | 'txt' | 'mobi';
 
 /**
  * The pre-apply hook (feature 005 R8.8): asked with the validated draft before anything is
