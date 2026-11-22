@@ -173,6 +173,7 @@
       "targetFormat": "Format to convert FB2 books into (uses Settings -> Exports defaults)",
       "exportSettings": "Open Settings -> Exports to adjust defaults for the selected format",
       "importAll": "Convert every supported import format found in the source folder",
+      "importFormat": "Include {{format}} files when importing to FB2",
       "sourceDir": "Folder containing the source books to convert",
       "browseSource": "Browse for the source folder",
       "includeSubfolders": "Scan nested subfolders inside the source folder",
@@ -187,6 +188,9 @@
       "start": "Start scanning and converting matching books",
       "cancel": "Stop scheduling new files and abort active conversions",
       "saveReport": "Save a UTF-8 report with failures, skips, and per-book warnings",
+      "filterAll": "Show both failed and skipped entries in the report list",
+      "filterFailed": "Show only failed entries in the report list",
+      "filterSkipped": "Show only skipped entries in the report list",
       "close": "Close the Batch Converter dialog"
     }
   }

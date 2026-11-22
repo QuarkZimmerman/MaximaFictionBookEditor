@@ -440,6 +440,7 @@ export function BatchConverterDialog({
                   disabled={running}
                   data-testid="batch-dir-export"
                   onChange={() => dispatch({ type: 'setDirection', direction: 'fb2ToExport' })}
+                  {...tip(t('batch.tips.direction'))}
                 />
                 <span>{t('batch.direction.fb2ToExport')}</span>
               </label>
@@ -451,6 +452,7 @@ export function BatchConverterDialog({
                   disabled={running}
                   data-testid="batch-dir-import"
                   onChange={() => dispatch({ type: 'setDirection', direction: 'importToFb2' })}
+                  {...tip(t('batch.tips.direction'))}
                 />
                 <span>{t('batch.direction.importToFb2')}</span>
               </label>
@@ -510,28 +512,35 @@ export function BatchConverterDialog({
                     onChange={(event) =>
                       dispatch({ type: 'setImportAll', checked: event.target.checked })
                     }
+                    {...tip(t('batch.tips.importAll'))}
                   />
                   <span>{t('batch.import.allFormats')}</span>
                 </label>
                 <div className="mfbe-batch-formats-grid">
-                  {BATCH_BOOK_FORMATS.map((fmt) => (
-                    <label key={fmt} className="mfbe-batch-check">
-                      <input
-                        type="checkbox"
-                        checked={config.importFormats[fmt]}
-                        disabled={running}
-                        data-testid={`batch-import-fmt-${fmt}`}
-                        onChange={(event) =>
-                          dispatch({
-                            type: 'setImportFormat',
-                            format: fmt,
-                            checked: event.target.checked,
-                          })
-                        }
-                      />
-                      <span>{t(`exports.settings.formats.${fmt}`)}</span>
-                    </label>
-                  ))}
+                  {BATCH_BOOK_FORMATS.map((fmt) => {
+                    const fmtTip = t('batch.tips.importFormat', {
+                      format: t(`exports.settings.formats.${fmt}`),
+                    });
+                    return (
+                      <label key={fmt} className="mfbe-batch-check" {...tip(fmtTip)}>
+                        <input
+                          type="checkbox"
+                          checked={config.importFormats[fmt]}
+                          disabled={running}
+                          data-testid={`batch-import-fmt-${fmt}`}
+                          onChange={(event) =>
+                            dispatch({
+                              type: 'setImportFormat',
+                              format: fmt,
+                              checked: event.target.checked,
+                            })
+                          }
+                          {...tip(fmtTip)}
+                        />
+                        <span>{t(`exports.settings.formats.${fmt}`)}</span>
+                      </label>
+                    );
+                  })}
                 </div>
                 {noImportFormatSelected ? (
                   <div className="mfbe-batch-error" role="alert" data-testid="batch-no-format-hint">
@@ -579,6 +588,7 @@ export function BatchConverterDialog({
                 onChange={(event) =>
                   dispatch({ type: 'setIncludeSubfolders', checked: event.target.checked })
                 }
+                {...tip(t('batch.tips.includeSubfolders'))}
               />
               <span>{t('batch.paths.includeSubfolders')}</span>
             </label>
@@ -595,6 +605,7 @@ export function BatchConverterDialog({
                 onChange={(event) =>
                   dispatch({ type: 'setInPlace', checked: event.target.checked })
                 }
+                {...tip(t('batch.tips.inPlace'))}
               />
               <span>{t('batch.paths.inPlace')}</span>
             </label>
@@ -638,6 +649,7 @@ export function BatchConverterDialog({
                 onChange={(event) =>
                   dispatch({ type: 'setKeepTree', checked: event.target.checked })
                 }
+                {...tip(t('batch.tips.keepTree'))}
               />
               <span>{t('batch.paths.keepTree')}</span>
             </label>
@@ -658,6 +670,7 @@ export function BatchConverterDialog({
                   onChange={(event) =>
                     dispatch({ type: 'setZipOutput', checked: event.target.checked })
                   }
+                  {...tip(t('batch.tips.zipOutput'))}
                 />
                 <span>{t('batch.options.zipOutput')}</span>
               </label>
@@ -675,6 +688,7 @@ export function BatchConverterDialog({
                 onChange={(event) =>
                   dispatch({ type: 'setOverwrite', checked: event.target.checked })
                 }
+                {...tip(t('batch.tips.overwrite'))}
               />
               <span>{t('batch.options.overwrite')}</span>
             </label>
@@ -692,6 +706,7 @@ export function BatchConverterDialog({
                   onChange={(event) =>
                     dispatch({ type: 'setParallel', checked: event.target.checked })
                   }
+                  {...tip(t('batch.tips.parallel'))}
                 />
                 <span>{t('batch.options.parallel')}</span>
               </label>
@@ -850,6 +865,7 @@ export function BatchConverterDialog({
                       aria-pressed={reportFilter === 'all'}
                       data-testid="batch-filter-all"
                       onClick={() => setReportFilter('all')}
+                      {...tip(t('batch.tips.filterAll'))}
                     >
                       {t('batch.report.filterAll', { count: totalIssueCount })}
                     </button>
@@ -859,6 +875,7 @@ export function BatchConverterDialog({
                       aria-pressed={reportFilter === 'failed'}
                       data-testid="batch-filter-failed"
                       onClick={() => setReportFilter('failed')}
+                      {...tip(t('batch.tips.filterFailed'))}
                     >
                       {t('batch.report.filterFailed', { count: report.failed.length })}
                     </button>
@@ -868,6 +885,7 @@ export function BatchConverterDialog({
                       aria-pressed={reportFilter === 'skipped'}
                       data-testid="batch-filter-skipped"
                       onClick={() => setReportFilter('skipped')}
+                      {...tip(t('batch.tips.filterSkipped'))}
                     >
                       {t('batch.report.filterSkipped', { count: report.skipped.length })}
                     </button>
