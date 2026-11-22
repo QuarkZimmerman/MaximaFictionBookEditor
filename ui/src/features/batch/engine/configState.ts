@@ -261,16 +261,16 @@ export function reduceBatchConfig(
  */
 export function validateBatchConfig(config: BatchJobConfig): string | null {
   if (!config.sourceDir.trim()) {
-    return 'batch.validation.sourceRequired';
+    return 'batch.validation.missingSource';
   }
   if (!config.inPlace && !config.destinationDir.trim()) {
-    return 'batch.validation.destinationRequired';
+    return 'batch.validation.missingDestination';
   }
   if (
     config.direction === 'importToFb2' &&
     !BATCH_BOOK_FORMATS.some((fmt) => config.importFormats[fmt])
   ) {
-    return 'batch.validation.noImportFormats';
+    return 'batch.validation.noImportFormat';
   }
   return null;
 }

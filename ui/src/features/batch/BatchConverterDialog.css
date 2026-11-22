@@ -1,0 +1,325 @@
+/* Feature 019 (T036): Batch Converter modal dialog layout & theme-aware styles. */
+
+.mfbe-batch-dialog {
+  width: min(680px, calc(100vw - 32px));
+  max-width: min(680px, calc(100vw - 32px));
+}
+
+.mfbe-batch-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mfbe-batch-fieldset {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--mfbe-color-border, #c8c8c8);
+  border-radius: 3px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mfbe-batch-fieldset legend {
+  padding: 0 4px;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.mfbe-batch-radio-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.mfbe-batch-check,
+.mfbe-batch-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.mfbe-batch-check.disabled,
+.mfbe-batch-radio.disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.mfbe-batch-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mfbe-batch-row label.mfbe-batch-label {
+  min-width: 120px;
+  flex-shrink: 0;
+}
+
+.mfbe-batch-path-input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  border: 1px solid var(--mfbe-color-border-strong, #707070);
+  background: var(--mfbe-color-input-bg, #fff);
+  color: var(--mfbe-color-fg, #000);
+  font: inherit;
+}
+
+.mfbe-batch-path-input:disabled {
+  opacity: 0.6;
+}
+
+.mfbe-batch-select {
+  padding: 4px 6px;
+  border: 1px solid var(--mfbe-color-border-strong, #707070);
+  background: var(--mfbe-color-input-bg, #fff);
+  color: var(--mfbe-color-fg, #000);
+  font: inherit;
+}
+
+.mfbe-batch-defaults-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 5px 8px;
+  background: var(--mfbe-color-surface-alt, rgba(128, 128, 128, 0.08));
+  border: 1px solid var(--mfbe-color-border, #c8c8c8);
+  border-radius: 2px;
+  font-size: 12px;
+}
+
+.mfbe-batch-defaults-text {
+  flex: 1;
+  min-width: 180px;
+}
+
+.mfbe-batch-formats-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding-left: 18px;
+}
+
+.mfbe-batch-note {
+  font-size: 12px;
+  opacity: 0.78;
+}
+
+.mfbe-batch-error {
+  padding: 6px 8px;
+  border: 1px solid var(--mfbe-color-danger, #c42b1c);
+  background: rgba(196, 43, 28, 0.1);
+  color: var(--mfbe-color-danger, #c42b1c);
+  border-radius: 2px;
+  font-size: 12px;
+}
+
+.mfbe-batch-info {
+  padding: 6px 8px;
+  border: 1px solid var(--mfbe-color-border, #c8c8c8);
+  background: var(--mfbe-color-surface-alt, rgba(128, 128, 128, 0.08));
+  border-radius: 2px;
+  font-size: 12px;
+}
+
+.mfbe-batch-workers-input {
+  width: 60px;
+  padding: 3px 6px;
+  border: 1px solid var(--mfbe-color-border-strong, #707070);
+  background: var(--mfbe-color-input-bg, #fff);
+  color: var(--mfbe-color-fg, #000);
+  font: inherit;
+}
+
+/* Progress area (double bar + compact scrollable active worker rows) */
+.mfbe-batch-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mfbe-batch-progress-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mfbe-batch-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.mfbe-batch-progress-counts {
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.mfbe-batch-bar {
+  width: 100%;
+  height: 14px;
+}
+
+.mfbe-batch-workers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 210px;
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--mfbe-color-border, #c8c8c8);
+  background: var(--mfbe-color-surface-alt, rgba(128, 128, 128, 0.06));
+  border-radius: 2px;
+}
+
+.mfbe-batch-worker-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px 6px;
+  background: var(--mfbe-color-dialog-bg, #f0f0f0);
+  border: 1px solid var(--mfbe-color-border, #c8c8c8);
+  border-radius: 2px;
+}
+
+.mfbe-batch-worker-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.mfbe-batch-worker-file {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.mfbe-batch-worker-stage {
+  flex-shrink: 0;
+  opacity: 0.82;
+}
+
+.mfbe-batch-worker-bar {
+  width: 100%;
+  height: 10px;
+}
+
+/* End-of-run report panel */
+.mfbe-batch-report {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mfbe-batch-report-heading {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.mfbe-batch-summary-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.mfbe-batch-pill {
+  padding: 3px 8px;
+  border-radius: 3px;
+  border: 1px solid var(--mfbe-color-border, #c8c8c8);
+  background: var(--mfbe-color-surface-alt, rgba(128, 128, 128, 0.08));
+}
+
+.mfbe-batch-filter-bar {
+  display: flex;
+  gap: 6px;
+}
+
+.mfbe-batch-filter-btn {
+  padding: 3px 9px;
+  border: 1px solid var(--mfbe-color-border-strong, #707070);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 2px;
+}
+
+.mfbe-batch-filter-btn[aria-pressed='true'] {
+  background: var(--mfbe-color-accent, #0067c0);
+  color: var(--mfbe-color-on-accent, #fff);
+  border-color: var(--mfbe-color-accent, #0067c0);
+}
+
+.mfbe-batch-issues-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--mfbe-color-border, #c8c8c8);
+  background: var(--mfbe-color-input-bg, #fff);
+  border-radius: 2px;
+  list-style: none;
+  margin: 0;
+}
+
+.mfbe-batch-issue-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--mfbe-color-border, #e0e0e0);
+  font-size: 12px;
+}
+
+.mfbe-batch-issue-item:last-child {
+  border-bottom: none;
+}
+
+.mfbe-batch-issue-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mfbe-batch-badge {
+  padding: 1px 6px;
+  border-radius: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.mfbe-batch-badge-failed {
+  background: rgba(196, 43, 28, 0.16);
+  color: var(--mfbe-color-danger, #c42b1c);
+}
+
+.mfbe-batch-badge-skipped {
+  background: rgba(180, 120, 0, 0.16);
+  color: var(--mfbe-color-warning, #8a5a00);
+}
+
+.mfbe-batch-issue-path {
+  font-weight: 500;
+  word-break: break-all;
+}
+
+.mfbe-batch-issue-reason {
+  opacity: 0.85;
+  padding-left: 2px;
+}
