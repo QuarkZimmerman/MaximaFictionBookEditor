@@ -24,6 +24,7 @@ import {
   effectiveWorkerCount,
   isZipOutputSupported,
   reduceBatchConfig,
+  selectedImportFormats,
   validateBatchConfig,
   zipOverrideKey,
   type BatchConfigAction,
@@ -308,6 +309,8 @@ export function BatchConverterDialog({
   const parallelSupported = canRunParallel(cpuCores);
   const zipSupported = isZipOutputSupported(config.direction, config.exportFormat);
   const keepTreeEnabled = !running && config.includeSubfolders && !config.inPlace;
+  const noImportFormatSelected =
+    config.direction === 'importToFb2' && selectedImportFormats(config).length === 0;
 
   const activeExportSummary = useMemo(
     () =>
@@ -363,6 +366,7 @@ export function BatchConverterDialog({
       {
         id: 'start',
         label: t('batch.actions.start'),
+        disabled: noImportFormatSelected,
         title: t('batch.tips.start'),
         onClick: () => void handleStart(),
       },
@@ -374,7 +378,7 @@ export function BatchConverterDialog({
       },
     ];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [running, progress.phase, report, config, settings, t]);
+  }, [running, progress.phase, report, config, settings, noImportFormatSelected, t]);
 
   const overallPercent =
     progress.totalCount > 0
@@ -515,6 +519,11 @@ export function BatchConverterDialog({
                     </label>
                   ))}
                 </div>
+                {noImportFormatSelected ? (
+                  <div className="mfbe-batch-error" role="alert" data-testid="batch-no-format-hint">
+                    {t('batch.validation.noImportFormat')}
+                  </div>
+                ) : null}
               </div>
             )}
           </fieldset>

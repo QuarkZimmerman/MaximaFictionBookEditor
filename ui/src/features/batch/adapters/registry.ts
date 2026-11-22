@@ -25,6 +25,16 @@ export async function loadBatchAdapter(
         return (await import('./fb2ToMarkdown')).runFb2ToMarkdown;
     }
   }
-  // Import adapters wired in Phase 4 (T040–T045).
-  throw new Error(`Import adapter for "${format}" is not yet installed`);
+  switch (format) {
+    case 'epub':
+      return (await import('./epubToFb2')).runEpubToFb2;
+    case 'mobi':
+      return (await import('./mobiToFb2')).runMobiToFb2;
+    case 'pdf':
+      return (await import('./pdfToFb2')).runPdfToFb2;
+    case 'txt':
+      return (await import('./txtToFb2')).runTxtToFb2;
+    case 'markdown':
+      return (await import('./markdownToFb2')).runMarkdownToFb2;
+  }
 }
