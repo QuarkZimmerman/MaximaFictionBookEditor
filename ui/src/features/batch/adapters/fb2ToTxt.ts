@@ -31,6 +31,8 @@ export async function runFb2ToTxt(params: BatchAdapterContext): Promise<BatchAda
   try {
     onStage('batch.progress.stageReading', 0, 100);
     const opened = await openEphemeralFb2(rpc, item.sourcePath, item.archiveEntry, {
+      fixBroken: config.fixBroken,
+      t: ctx.t,
       signal,
       onProgress: (done, total) =>
         onStage('batch.progress.stageReading', done, Math.max(total, 100)),
@@ -104,7 +106,7 @@ export async function runFb2ToTxt(params: BatchAdapterContext): Promise<BatchAda
       ),
       ...(layout.missingTitle ? [ctx.t('txt.summary.noTitle', { detail: outputStem })] : []),
     ];
-    return { warnings };
+    return { warnings, ...(opened.repairedReason ? { fixedReason: opened.repairedReason } : {}) };
   } finally {
     await closeEphemeralDoc(rpc, docId);
   }

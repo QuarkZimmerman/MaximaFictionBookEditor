@@ -6,7 +6,11 @@
 #include "server/services.hpp"
 
 #include <mfbe/atomic_file.hpp>
+#include <mfbe/log.hpp>
 #include <mfbe/rpc.hpp>
+#include <mfbe/settings.hpp>
+#include <mfbe/store_lock.hpp>
+#include <mfbe/unicode.hpp>
 #include <mfbe/utf8_paths.hpp>
 
 #include <chrono>
@@ -86,6 +90,98 @@ json scan_error_to_json(const batch::ScanError& err) {
         j["detail"] = err.detail;
     }
     return j;
+}
+
+constexpr int kBatchSettingsSchemaVersion = 1;
+
+bool is_valid_book_format(const std::string& fmt) {
+    return fmt == "epub" || fmt == "mobi" || fmt == "pdf" || fmt == "txt" || fmt == "markdown";
+}
+
+bool read_bool_or(const json& obj, const char* key, bool fallback) {
+    auto it = obj.find(key);
+    return (it != obj.end() && it->is_boolean()) ? it->get<bool>() : fallback;
+}
+
+std::string read_utf8_string_or(const json& obj, const char* key, const std::string& fallback) {
+    auto it = obj.find(key);
+    if (it != obj.end() && it->is_string()) {
+        const std::string s = it->get<std::string>();
+        if (unicode::is_valid_utf8(s)) {
+            return s;
+        }
+    }
+    return fallback;
+}
+
+json sanitize_batch_settings(const json& raw, const json& global_settings, bool has_stored) {
+    json out = raw.is_object() ? raw : json::object();
+    out["schemaVersion"] = kBatchSettingsSchemaVersion;
+
+    const std::string dir = read_utf8_string_or(out, "direction", "fb2ToExport");
+    out["direction"] = (dir == "fb2ToExport" || dir == "importToFb2") ? dir : "fb2ToExport";
+
+    const std::string fmt = read_utf8_string_or(out, "exportFormat", "epub");
+    out["exportFormat"] = is_valid_book_format(fmt) ? fmt : "epub";
+
+    json import_formats = json::object();
+    const json* raw_formats = (out.contains("importFormats") && out["importFormats"].is_object())
+                                  ? &out["importFormats"]
+                                  : nullptr;
+    if (raw_formats != nullptr) {
+        for (auto it = raw_formats->begin(); it != raw_formats->end(); ++it) {
+            if (it->is_boolean()) {
+                import_formats[it.key()] = it->get<bool>();
+            }
+        }
+    }
+    bool all_selected = true;
+    for (const char* name : {"epub", "mobi", "pdf", "txt", "markdown"}) {
+        const bool checked = raw_formats != nullptr ? read_bool_or(*raw_formats, name, true) : true;
+        import_formats[name] = checked;
+        if (!checked) {
+            all_selected = false;
+        }
+    }
+    out["importFormats"] = std::move(import_formats);
+    out["importAll"] = all_selected;
+
+    out["sourceDir"] = read_utf8_string_or(out, "sourceDir", "");
+    out["destinationDir"] = read_utf8_string_or(out, "destinationDir", "");
+    out["includeSubfolders"] = read_bool_or(out, "includeSubfolders", true);
+    out["inPlace"] = read_bool_or(out, "inPlace", true);
+    out["keepTree"] = read_bool_or(out, "keepTree", true);
+    out["fixBroken"] = read_bool_or(out, "fixBroken", true);
+    out["overwrite"] = read_bool_or(out, "overwrite", false);
+
+    if (auto it = out.find("parallel"); it != out.end() && !it->is_boolean()) {
+        out.erase(it);
+    }
+    if (auto it = out.find("workerCount");
+        it != out.end() && (!it->is_number_integer() || it->get<long long>() < 1)) {
+        out.erase(it);
+    }
+
+    json zip_overrides = json::object();
+    if (auto it = out.find("zipOverrides"); it != out.end() && it->is_object()) {
+        for (auto z = it->begin(); z != it->end(); ++z) {
+            if (z->is_boolean()) {
+                zip_overrides[z.key()] = z->get<bool>();
+            }
+        }
+    }
+    out["zipOverrides"] = std::move(zip_overrides);
+
+    if (has_stored) {
+        const json stored_exports =
+            (out.contains("exportSettings") && out["exportSettings"].is_object())
+                ? out["exportSettings"]
+                : json::object();
+        out["exportSettings"] = settings::sanitize_export_sections(stored_exports, global_settings);
+    } else {
+        out["exportSettings"] = settings::export_sections_copy(global_settings);
+    }
+    return out;
 }
 
 }  // namespace
@@ -300,6 +396,77 @@ void register_batch_handlers(rpc::RpcRouter& router, Services& services) {
             throw batch_error("ioError", e.path, e.reason);
         }
         return json{{"path", platform::utf8_from_path(target)}, {"bytes", content.size()}};
+    });
+
+    router.add_method("batch.settings.get", [&services](const json&, rpc::RpcContext&) {
+        const fs::path file = services.dirs.config / "batch-converter.json";
+        json raw = json::object();
+        bool has_stored = false;
+        std::error_code ec;
+        if (fs::exists(file, ec)) {
+            store_lock::StoreLock lock(file);
+            try {
+                json parsed = json::parse(atomic_file::read_file(file), nullptr, true, true);
+                if (parsed.is_object()) {
+                    raw = std::move(parsed);
+                    has_stored = true;
+                }
+            } catch (const std::exception&) {
+                log::warning("core", "batch.settings.unreadable",
+                             "batch-converter.json could not be read; defaults used",
+                             log::extras({{"path", platform::utf8_from_path(file)}}));
+            }
+        }
+        return json{
+            {"hasStored", has_stored},
+            {"settings", sanitize_batch_settings(raw, services.settings.get(), has_stored)}};
+    });
+
+    router.add_method("batch.settings.save", [&services](const json& params, rpc::RpcContext&) {
+        auto it = params.find("settings");
+        if (it == params.end() || !it->is_object()) {
+            throw rpc::invalid_params("settings must be an object", json{{"field", "settings"}});
+        }
+
+        const fs::path file = services.dirs.config / "batch-converter.json";
+        std::error_code ec;
+        fs::create_directories(file.parent_path(), ec);
+        if (ec) {
+            throw batch_error("ioError", platform::utf8_from_path(file),
+                              platform::utf8_error_message(ec));
+        }
+
+        store_lock::StoreLock lock(file);
+        json incoming = *it;
+        // On 1-2 core hosts the UI omits parallel/workerCount so previously stored multi-core
+        // settings survive if the user shares a config folder across machines.
+        if ((!incoming.contains("parallel") || !incoming.contains("workerCount")) &&
+            fs::exists(file, ec)) {
+            try {
+                json on_disk = json::parse(atomic_file::read_file(file), nullptr, false, true);
+                if (on_disk.is_object()) {
+                    if (!incoming.contains("parallel") && on_disk.contains("parallel") &&
+                        on_disk["parallel"].is_boolean()) {
+                        incoming["parallel"] = on_disk["parallel"];
+                    }
+                    if (!incoming.contains("workerCount") && on_disk.contains("workerCount") &&
+                        on_disk["workerCount"].is_number_integer() &&
+                        on_disk["workerCount"].get<long long>() >= 1) {
+                        incoming["workerCount"] = on_disk["workerCount"];
+                    }
+                }
+            } catch (const std::exception&) {
+                // Unreadable prior file; proceed with incoming settings.
+            }
+        }
+
+        json out = sanitize_batch_settings(incoming, services.settings.get(), true);
+        try {
+            atomic_file::write_atomic(file, out.dump(2) + "\n");
+        } catch (const atomic_file::WriteError& e) {
+            throw batch_error("ioError", e.path, e.reason);
+        }
+        return json{{"settings", std::move(out)}};
     });
 }
 

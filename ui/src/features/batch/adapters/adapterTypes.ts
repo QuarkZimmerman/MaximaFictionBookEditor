@@ -123,6 +123,8 @@ export interface BatchAdapterContext {
 
 export interface BatchAdapterOutcome {
   warnings: string[];
+  /** Present when broken FB2 XML was repaired in memory before conversion. */
+  fixedReason?: string;
 }
 
 export type BatchAdapterFn = (params: BatchAdapterContext) => Promise<BatchAdapterOutcome>;

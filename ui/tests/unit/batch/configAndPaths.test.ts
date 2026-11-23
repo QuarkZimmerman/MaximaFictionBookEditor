@@ -150,21 +150,32 @@ describe('batch configState & sessionState', () => {
     expect(cfg.zipOutput).toBe(false);
   });
 
-  it('remembers non-destructive choices and batch-only export overrides in session memory and ALWAYS resets overwrite to false', () => {
+  it('persists all choices (including fixBroken, overwrite, and batch-only export settings with unknown future keys) without mutating global settings', () => {
     const settings = makeSettings();
     let cfg = createInitialBatchConfig(8, settings);
+    expect(cfg.fixBroken).toBe(true);
+    expect(cfg.overwrite).toBe(false);
+
     cfg = reduceBatchConfig(cfg, { type: 'setExportFormat', format: 'txt' }, 8, settings);
     cfg = reduceBatchConfig(cfg, { type: 'setInPlace', checked: false }, 8, settings);
     cfg = reduceBatchConfig(cfg, { type: 'setSourceDir', path: '/books/in' }, 8, settings);
     cfg = reduceBatchConfig(cfg, { type: 'setDestinationDir', path: '/books/out' }, 8, settings);
     cfg = reduceBatchConfig(cfg, { type: 'setWorkerCount', count: 3 }, 8, settings);
+    cfg = reduceBatchConfig(cfg, { type: 'setFixBroken', checked: false }, 8, settings);
     cfg = reduceBatchConfig(cfg, { type: 'setOverwrite', checked: true }, 8, settings);
     expect(cfg.overwrite).toBe(true);
+    expect(cfg.fixBroken).toBe(false);
 
     saveBatchSessionMemory(
       cfg,
       { 'fb2ToExport:txt': false },
-      { mobi: { format: 'mobi7' }, markdown: { includePictures: false } },
+      {
+        mobi: { format: 'mobi7' },
+        markdown: { includePictures: false },
+        pdf: { defaultPageSize: 'a5', futureOpt: 'keep' } as unknown as NonNullable<
+          Settings['pdf']
+        >,
+      },
     );
     const memory = getBatchSessionMemory();
     const restored = createInitialBatchConfig(8, settings, memory);
@@ -174,12 +185,15 @@ describe('batch configState & sessionState', () => {
     expect(restored.destinationDir).toBe('/books/out');
     expect(restored.workerCount).toBe(3);
     expect(restored.zipOutput).toBe(false);
-    expect(restored.overwrite).toBe(false);
+    expect(restored.fixBroken).toBe(false);
+    expect(restored.overwrite).toBe(true);
 
-    // Merging batch-only overrides produces effective settings without mutating global settings.
+    // Merging batch-only overrides produces effective settings (and keeps future keys) without
+    // mutating global settings.
     const merged = mergeBatchExportSettings(settings, memory?.exportSettingsOverrides);
     expect(merged?.mobi?.format).toBe('mobi7');
     expect(merged?.markdown?.includePictures).toBe(false);
+    expect((merged?.pdf as unknown as Record<string, unknown>)?.futureOpt).toBe('keep');
     expect(settings.mobi?.format).toBe('kf8');
     expect(settings.markdown?.includePictures).toBe(true);
   });

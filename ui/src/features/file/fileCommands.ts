@@ -954,7 +954,9 @@ export class FileFeature {
         return false;
       }
       const parseError = parseErrorData(error);
-      if (parseError) return this.openSourceOnly(ctx, path, parseError, entry);
+      if (parseError) {
+        return this.handleMalformedXml(ctx, path, parseError, entry, pending);
+      }
       // Core-side failures (I/O, parse) are logged by the core; log the client-side ones.
       if (isClientSideError(error)) {
         void logUiError(rpc, {
@@ -976,26 +978,159 @@ export class FileFeature {
     }
   }
 
-  /** Malformed XML: report line/column, then open the raw text in Source-only mode. */
-  private async openSourceOnly(
+  /**
+   * Malformed XML on interactive Open: let the user choose between in-memory XML recovery
+   * (marks modified; original file untouched until Save), opening raw XML in Source view,
+   * or Cancel.
+   */
+  private async handleMalformedXml(
     ctx: CommandContext,
     path: string,
     parseError: DocParseErrorData,
-    entry?: string,
+    entry: string | undefined,
+    pending: StructuralPosition | null,
   ): Promise<boolean> {
     const { store, rpc } = ctx;
     if (!rpc) return false;
-    await ctx.dialogs.showMessage({
-      text: ctx.t('msg.xmlParseError', {
+    const choice = await ctx.dialogs.showMessage({
+      text: ctx.t('msg.xmlParseErrorChoice', {
         where: fileName(path),
         line: parseError.line,
         column: parseError.column,
         message: parseError.message,
       }),
       caption: ctx.t('msg.xmlParseErrorCaption'),
-      icon: 'error',
+      buttons: 'yesNoCancel',
+      defaultButton: 'yes',
+      icon: 'warning',
       testId: 'dialog-parse-error',
+      labels: {
+        yes: ctx.t('dialog.buttons.repairAndOpen'),
+        no: ctx.t('dialog.buttons.openSourceView'),
+        cancel: ctx.t('dialog.buttons.cancel'),
+      },
     });
+    if (choice === 'no') {
+      return this.openSourceOnly(ctx, path, parseError, entry, false);
+    }
+    if (choice !== 'yes') return false;
+
+    // Choice === 'yes': repair in memory via doc.open({ recover: true }).
+    try {
+      let result = await rpc.runJob(
+        'doc.open',
+        { path, ...(entry ? { entry } : {}), recover: true },
+        { onProgress: (progress) => actions.setProgress(store, progress) },
+      );
+      if ('needsChoice' in result) return false;
+      const mismatch = result.warnings.find((w) => w.code === 'encoding.mismatch');
+      if (mismatch) {
+        const params = mismatch.params as Record<string, unknown>;
+        const declared = String(params.declared ?? '');
+        const detected = String(params.detected ?? result.document.sourceEncoding);
+        const confident = params.confident !== false;
+        const rawCandidates = params.candidates;
+        const candidates = Array.isArray(rawCandidates)
+          ? rawCandidates.filter((c): c is string => typeof c === 'string')
+          : [detected];
+        const answer = await showEncodingMismatchDialog(ctx.dialogs, {
+          path: entry ? `${path} (${entry})` : path,
+          declared,
+          detected,
+          confident,
+          candidates,
+          fetchPreview: (encoding, cleanInvalidChars) =>
+            rpc.call('doc.encodingPreview', {
+              path,
+              ...(entry ? { entry } : {}),
+              encoding,
+              cleanInvalidChars,
+            }),
+        });
+        if (answer.action === 'cancel') {
+          await rpc.call('doc.close', { docId: result.document.docId }).catch(() => {});
+          return false;
+        }
+        if (answer.action === 'fix' && (answer.encoding !== detected || answer.cleanInvalidChars)) {
+          await rpc.call('doc.close', { docId: result.document.docId }).catch(() => {});
+          const reopened = await rpc.runJob(
+            'doc.open',
+            {
+              path,
+              ...(entry ? { entry } : {}),
+              encoding: answer.encoding,
+              cleanInvalidChars: answer.cleanInvalidChars,
+              recover: true,
+            },
+            { onProgress: (progress) => actions.setProgress(store, progress) },
+          );
+          if ('needsChoice' in reopened) return false;
+          result = reopened;
+        }
+      }
+      await this.closeCurrentDocument(ctx);
+      this.loadDocument(ctx, result.document);
+      // Repaired in memory only: mark modified so the disk file stays untouched until saved.
+      actions.setModified(store, true);
+      const repaired = result.warnings.find((w) => w.code === 'xml.repaired');
+      const rParams = (repaired?.params ?? {}) as Record<string, unknown>;
+      const count = Number(rParams.errorCount ?? 1);
+      const line = Number(rParams.line ?? parseError.line);
+      const column = Number(rParams.column ?? parseError.column);
+      actions.setStatusMessage(store, ctx.t('status.openedRepairedXml', { count, line, column }));
+      await this.watch(ctx, result.document.docId, !result.document.source);
+      void this.recent.refresh(rpc);
+      void restorePosition(ctx, result.document.docId, pending);
+      return true;
+    } catch (repairErr) {
+      const stillBroken = parseErrorData(repairErr);
+      if (stillBroken) {
+        await ctx.dialogs.showMessage({
+          text: ctx.t('msg.xmlRepairFailed', {
+            where: fileName(path),
+            line: stillBroken.line,
+            column: stillBroken.column,
+            message: stillBroken.message,
+          }),
+          caption: ctx.t('msg.xmlParseErrorCaption'),
+          icon: 'error',
+          testId: 'dialog-repair-failed',
+        });
+        return this.openSourceOnly(ctx, path, stillBroken, entry, false);
+      }
+      await ctx.dialogs.showMessage({
+        text: ctx.t('msg.openFailed', { path, reason: errorReason(repairErr) }),
+        caption: ctx.t('dialog.error.caption'),
+        icon: 'error',
+        testId: 'dialog-open-failed',
+      });
+      return false;
+    }
+  }
+
+  /** Malformed XML: report line/column (unless already shown), then open raw text in Source-only mode. */
+  private async openSourceOnly(
+    ctx: CommandContext,
+    path: string,
+    parseError: DocParseErrorData,
+    entry?: string,
+    showAlert = true,
+  ): Promise<boolean> {
+    const { store, rpc } = ctx;
+    if (!rpc) return false;
+    if (showAlert) {
+      await ctx.dialogs.showMessage({
+        text: ctx.t('msg.xmlParseError', {
+          where: fileName(path),
+          line: parseError.line,
+          column: parseError.column,
+          message: parseError.message,
+        }),
+        caption: ctx.t('msg.xmlParseErrorCaption'),
+        icon: 'error',
+        testId: 'dialog-parse-error',
+      });
+    }
     try {
       const source = await rpc.call('doc.openSource', entry ? { path, entry } : { path });
       if ('needsChoice' in source) return false;

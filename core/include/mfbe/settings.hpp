@@ -94,4 +94,19 @@ private:
 void merge_patch(nlohmann::json& target, const nlohmann::json& patch,
                  const nlohmann::json& defaults);
 
+// Export format sections mirrored as an independent persistent copy by Batch Converter.
+// New parameters added to these sections in defaults()/schema() automatically receive their
+// default values when older batch-converter.json files are loaded.
+const std::vector<std::string>& export_section_names();
+
+// Deep copy of every export format section from `full_settings` (missing keys filled from
+// defaults()).
+nlohmann::json export_sections_copy(const nlohmann::json& full_settings);
+
+// Sanitizes Batch Converter's stored `exportSettings` against the global schema: valid stored
+// values and unknown future keys/sections are preserved, newly added parameters take defaults(),
+// and sections absent from `stored_exports` inherit from `fallback_global` (or defaults()).
+nlohmann::json sanitize_export_sections(const nlohmann::json& stored_exports,
+                                        const nlohmann::json& fallback_global);
+
 }  // namespace mfbe::settings

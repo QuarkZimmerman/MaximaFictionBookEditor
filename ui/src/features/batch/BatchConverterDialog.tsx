@@ -3,8 +3,9 @@
  *
  * Strictly modal: while scanning, converting, or cancelling, every non-Cancel control is disabled
  * and `canClose()` returns `false` (blocking Escape, the title-bar close box, and host-level
- * dismissal). Session-only memory restores non-destructive choices on reopen while ALWAYS starting
- * `overwrite` unchecked.
+ * dismissal). All configuration choices and batch-local export format settings persist in
+ * `<Config>/batch-converter.json` via `batch.settings.get` / `batch.settings.save` (last closed
+ * dialog wins).
  */
 
 import {
@@ -22,15 +23,17 @@ import { useTranslation } from 'react-i18next';
 import type { CommandContext } from '@/app/commands';
 import { tip } from '@/app/tooltips';
 import { Dialog, type DialogButton } from '@/dialogs/Dialog';
-import type { Settings } from '@/rpc/types';
+import type { BatchPersistedExportSettings, BatchPersistedSettings, Settings } from '@/rpc/types';
 
 import { BatchExportSettingsDialog } from './BatchExportSettingsDialog';
 import {
+  applyBatchExportSettingsPatch,
   canRunParallel,
   cloneExportSettingsOverrides,
   computeMaxWorkers,
   createInitialBatchConfig,
   effectiveWorkerCount,
+  extractExportSettingsFromGlobal,
   isZipOutputSupported,
   mergeBatchExportSettings,
   reduceBatchConfig,
@@ -50,6 +53,7 @@ import {
   type BatchJobConfig,
   type BatchProgressSnapshot,
   type BatchReport,
+  type BatchSessionMemory,
 } from './engine/types';
 import { getBatchSessionMemory, saveBatchSessionMemory } from './sessionState';
 
@@ -57,15 +61,35 @@ import './BatchConverterDialog.css';
 
 const DIRECTION_TABS: readonly BatchDirection[] = ['fb2ToExport', 'importToFb2'] as const;
 
+const KNOWN_PERSISTED_KEYS = new Set([
+  'schemaVersion',
+  'direction',
+  'exportFormat',
+  'importAll',
+  'importFormats',
+  'sourceDir',
+  'destinationDir',
+  'includeSubfolders',
+  'keepTree',
+  'inPlace',
+  'fixBroken',
+  'overwrite',
+  'parallel',
+  'workerCount',
+  'zipOverrides',
+  'exportSettings',
+]);
+
 export interface BatchConverterDialogProps {
   ctx: CommandContext;
   cpuCores: number;
   initialSettings: Settings | null;
+  initialPersisted?: BatchPersistedSettings | null;
   canCloseRef: MutableRefObject<boolean>;
   onClose: () => void;
 }
 
-type IssueFilter = 'all' | 'failed' | 'skipped';
+type IssueFilter = 'all' | 'failed' | 'skipped' | 'fixed';
 
 const INITIAL_PROGRESS: BatchProgressSnapshot = {
   phase: 'idle',
@@ -73,31 +97,81 @@ const INITIAL_PROGRESS: BatchProgressSnapshot = {
   totalCount: 0,
   completedCount: 0,
   convertedCount: 0,
+  fixedCount: 0,
   skippedCount: 0,
   failedCount: 0,
   cancelledCount: 0,
   activeWorkers: [],
 };
 
+function memoryFromPersisted(persisted: BatchPersistedSettings): BatchSessionMemory {
+  return {
+    direction: persisted.direction,
+    exportFormat: persisted.exportFormat,
+    importAll: persisted.importAll,
+    importFormats: { ...persisted.importFormats },
+    sourceDir: persisted.sourceDir,
+    destinationDir: persisted.destinationDir,
+    includeSubfolders: persisted.includeSubfolders,
+    keepTree: persisted.keepTree,
+    inPlace: persisted.inPlace,
+    fixBroken: persisted.fixBroken,
+    overwrite: persisted.overwrite,
+    ...(persisted.parallel !== undefined ? { parallel: persisted.parallel } : {}),
+    ...(persisted.workerCount !== undefined ? { workerCount: persisted.workerCount } : {}),
+    zipOverrides: { ...persisted.zipOverrides },
+  };
+}
+
 export function BatchConverterDialog({
   ctx,
   cpuCores,
   initialSettings,
+  initialPersisted = null,
   canCloseRef,
   onClose,
 }: BatchConverterDialogProps) {
   const { t } = useTranslation();
   const baseSettings = initialSettings;
-  const initialMemory = useMemo(() => getBatchSessionMemory(), []);
+
+  const storedExtraRef = useRef<Record<string, unknown>>(
+    (() => {
+      const extras: Record<string, unknown> = {};
+      if (initialPersisted) {
+        for (const [k, v] of Object.entries(initialPersisted)) {
+          if (!KNOWN_PERSISTED_KEYS.has(k)) {
+            extras[k] = v;
+          }
+        }
+      }
+      return extras;
+    })(),
+  );
+
+  const initialMemory = useMemo<BatchSessionMemory | null>(
+    () => (initialPersisted ? memoryFromPersisted(initialPersisted) : getBatchSessionMemory()),
+    [initialPersisted],
+  );
+
   const zipOverridesRef = useRef<Partial<Record<string, boolean>>>({
     ...(initialMemory?.zipOverrides ?? {}),
   });
-  const [exportOverrides, setExportOverrides] = useState<BatchExportSettingsOverrides>(() =>
-    cloneExportSettingsOverrides(initialMemory?.exportSettingsOverrides),
-  );
+
+  const [exportSettings, setExportSettings] = useState<BatchPersistedExportSettings>(() => {
+    if (initialPersisted?.exportSettings) {
+      return cloneExportSettingsOverrides(
+        initialPersisted.exportSettings,
+      ) as BatchPersistedExportSettings;
+    }
+    const seed = extractExportSettingsFromGlobal(baseSettings);
+    return initialMemory?.exportSettingsOverrides
+      ? applyBatchExportSettingsPatch(seed, initialMemory.exportSettingsOverrides)
+      : seed;
+  });
+
   const effectiveSettings = useMemo(
-    () => mergeBatchExportSettings(baseSettings, exportOverrides),
-    [baseSettings, exportOverrides],
+    () => mergeBatchExportSettings(baseSettings, exportSettings),
+    [baseSettings, exportSettings],
   );
   const [resolvedPdfFont, setResolvedPdfFont] = useState<{
     id: string;
@@ -108,7 +182,7 @@ export function BatchConverterDialog({
     resolvedPdfFont?.id === activePdfFontId ? resolvedPdfFont.name : undefined;
 
   const [config, setConfig] = useState<BatchJobConfig>(() =>
-    createInitialBatchConfig(cpuCores, baseSettings, initialMemory),
+    createInitialBatchConfig(cpuCores, effectiveSettings, initialMemory),
   );
   const [progress, setProgress] = useState<BatchProgressSnapshot>(INITIAL_PROGRESS);
   const [report, setReport] = useState<BatchReport | null>(null);
@@ -118,6 +192,10 @@ export function BatchConverterDialog({
     kind: 'ok' | 'error';
     text: string;
   } | null>(null);
+
+  const configRef = useRef(config);
+  const exportSettingsRef = useRef(exportSettings);
+  const closingRef = useRef(false);
 
   const runRef = useRef<BatchRunController | null>(null);
   const running =
@@ -130,10 +208,81 @@ export function BatchConverterDialog({
     canCloseRef.current = !running;
   }, [canCloseRef, running]);
 
-  // Persist non-destructive configuration choices and batch-only export overrides in session memory.
+  // Keep refs synchronized synchronously after commit so immediate Close/Start never reads stale state.
+  useLayoutEffect(() => {
+    configRef.current = config;
+    exportSettingsRef.current = exportSettings;
+  }, [config, exportSettings]);
+
+  // Keep in-memory fallback synchronized with live dialog edits.
   useEffect(() => {
-    saveBatchSessionMemory(config, zipOverridesRef.current, exportOverrides);
-  }, [config, exportOverrides]);
+    saveBatchSessionMemory(config, zipOverridesRef.current, exportSettings);
+  }, [config, exportSettings]);
+
+  const buildPersistedPayload = useCallback(
+    (
+      nextConfig: BatchJobConfig,
+      nextExportSettings: BatchPersistedExportSettings,
+    ): BatchPersistedSettings => {
+      const zipOverrides: Record<string, boolean> = {};
+      for (const [k, v] of Object.entries(zipOverridesRef.current)) {
+        if (typeof v === 'boolean') zipOverrides[k] = v;
+      }
+      const payload: BatchPersistedSettings = {
+        ...storedExtraRef.current,
+        schemaVersion: 1,
+        direction: nextConfig.direction,
+        exportFormat: nextConfig.exportFormat,
+        importAll: nextConfig.importAll,
+        importFormats: { ...nextConfig.importFormats },
+        sourceDir: nextConfig.sourceDir,
+        destinationDir: nextConfig.destinationDir,
+        includeSubfolders: nextConfig.includeSubfolders,
+        keepTree: nextConfig.keepTree,
+        inPlace: nextConfig.inPlace,
+        fixBroken: nextConfig.fixBroken,
+        overwrite: nextConfig.overwrite,
+        zipOverrides,
+        exportSettings: cloneExportSettingsOverrides(
+          nextExportSettings,
+        ) as BatchPersistedExportSettings,
+      };
+      // Only persist parallel/workerCount on multi-core hosts so 1-2 core runs never clobber
+      // stored multi-core settings or default `cores - 1` behavior.
+      if (canRunParallel(cpuCores)) {
+        payload.parallel = nextConfig.parallel;
+        payload.workerCount = nextConfig.workerCount;
+      }
+      return payload;
+    },
+    [cpuCores],
+  );
+
+  const persistSettings = useCallback(
+    async (
+      nextConfig: BatchJobConfig,
+      nextExportSettings: BatchPersistedExportSettings,
+    ): Promise<void> => {
+      saveBatchSessionMemory(nextConfig, zipOverridesRef.current, nextExportSettings);
+      if (!ctx.rpc) return;
+      try {
+        await ctx.rpc.call('batch.settings.save', {
+          settings: buildPersistedPayload(nextConfig, nextExportSettings),
+        });
+      } catch {
+        // Best-effort persistence: never block closing or starting a batch run on a config write error.
+      }
+    },
+    [buildPersistedPayload, ctx.rpc],
+  );
+
+  const handleClose = useCallback(() => {
+    if (running || closingRef.current) return;
+    closingRef.current = true;
+    void persistSettings(configRef.current, exportSettingsRef.current).finally(() => {
+      onClose();
+    });
+  }, [onClose, persistSettings, running]);
 
   // Cancel any in-flight batch run defensively on unmount so zero workers/temp dirs linger.
   useEffect(() => {
@@ -206,33 +355,25 @@ export function BatchConverterDialog({
   const handleOpenExportSettings = async () => {
     if (running || config.exportFormat === 'epub') return;
     const format = config.exportFormat;
-    const patch = await ctx.dialogs.openCustom<BatchExportSettingsOverrides | null>((close) =>
+    const applyPatchAndPersist = async (patch: BatchExportSettingsOverrides) => {
+      const updated = applyBatchExportSettingsPatch(exportSettingsRef.current, patch);
+      exportSettingsRef.current = updated;
+      setExportSettings(updated);
+      await persistSettings(configRef.current, updated);
+    };
+    await ctx.dialogs.openCustom<void>((close) =>
       createElement(BatchExportSettingsDialog, {
         ctx,
         format,
         effectiveSettings,
-        onSave: (result) => close(result),
-        onCancel: () => close(null),
+        onApply: (patch) => applyPatchAndPersist(patch),
+        onSave: async (patch) => {
+          await applyPatchAndPersist(patch);
+          close();
+        },
+        onCancel: () => close(),
       }),
     );
-    if (!patch) return;
-    setExportOverrides((prev) => ({
-      ...prev,
-      ...(patch.pdf ? { pdf: { ...prev.pdf, ...patch.pdf } } : {}),
-      ...(patch.txt
-        ? {
-            txt: {
-              ...prev.txt,
-              ...patch.txt,
-              ...(patch.txt.encodings
-                ? { encodings: { ...prev.txt?.encodings, ...patch.txt.encodings } }
-                : {}),
-            },
-          }
-        : {}),
-      ...(patch.mobi ? { mobi: { ...prev.mobi, ...patch.mobi } } : {}),
-      ...(patch.markdown ? { markdown: { ...prev.markdown, ...patch.markdown } } : {}),
-    }));
   };
 
   const handleStart = async () => {
@@ -246,9 +387,10 @@ export function BatchConverterDialog({
     setReport(null);
     setReportSaveNotice(null);
     setReportFilter('all');
+    void persistSettings(configRef.current, exportSettingsRef.current);
 
     const latestBaseSettings = ctx.store.getState().settings ?? baseSettings;
-    const runSettings = mergeBatchExportSettings(latestBaseSettings, exportOverrides);
+    const runSettings = mergeBatchExportSettings(latestBaseSettings, exportSettingsRef.current);
     const openDocId = ctx.store.getState().docId ?? undefined;
 
     const controller = startBatchRun({
@@ -388,7 +530,7 @@ export function BatchConverterDialog({
           id: 'close',
           label: t('batch.actions.close'),
           title: t('batch.tips.close'),
-          onClick: onClose,
+          onClick: handleClose,
         },
       ];
       return list;
@@ -405,11 +547,20 @@ export function BatchConverterDialog({
         id: 'close',
         label: t('batch.actions.close'),
         title: t('batch.tips.close'),
-        onClick: onClose,
+        onClick: handleClose,
       },
     ];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [running, progress.phase, report, config, effectiveSettings, noImportFormatSelected, t]);
+  }, [
+    running,
+    progress.phase,
+    report,
+    config,
+    effectiveSettings,
+    noImportFormatSelected,
+    handleClose,
+    t,
+  ]);
 
   const overallPercent =
     progress.totalCount > 0
@@ -420,12 +571,15 @@ export function BatchConverterDialog({
     if (!report) return [];
     const failedItems = report.failed.map((entry) => ({ kind: 'failed' as const, entry }));
     const skippedItems = report.skipped.map((entry) => ({ kind: 'skipped' as const, entry }));
+    const fixedItems = report.fixed.map((entry) => ({ kind: 'fixed' as const, entry }));
     if (reportFilter === 'failed') return failedItems;
     if (reportFilter === 'skipped') return skippedItems;
-    return [...failedItems, ...skippedItems];
+    if (reportFilter === 'fixed') return fixedItems;
+    return [...failedItems, ...skippedItems, ...fixedItems];
   }, [report, reportFilter]);
 
-  const totalIssueCount = (report?.failed.length ?? 0) + (report?.skipped.length ?? 0);
+  const totalIssueCount =
+    (report?.failed.length ?? 0) + (report?.skipped.length ?? 0) + (report?.fixed.length ?? 0);
 
   return (
     <Dialog
@@ -551,6 +705,19 @@ export function BatchConverterDialog({
                       <span className="mfbe-batch-note">{t('batch.options.zipEpubNote')}</span>
                     ) : null}
                   </div>
+                  <label className="mfbe-batch-check" {...tip(t('batch.tips.fixBroken'))}>
+                    <input
+                      type="checkbox"
+                      checked={config.fixBroken}
+                      disabled={running}
+                      data-testid="batch-fix-broken"
+                      onChange={(event) =>
+                        dispatch({ type: 'setFixBroken', checked: event.target.checked })
+                      }
+                      {...tip(t('batch.tips.fixBroken'))}
+                    />
+                    <span>{t('batch.options.fixBroken')}</span>
+                  </label>
                   <div className="mfbe-batch-defaults-bar" data-testid="batch-export-defaults">
                     <span className="mfbe-batch-defaults-text">
                       <strong>{t('batch.export.activeSettings')}</strong> {activeExportSummary}
@@ -846,6 +1013,7 @@ export function BatchConverterDialog({
               <div className="mfbe-batch-progress-counts" data-testid="batch-live-counts">
                 {t('batch.progress.counts', {
                   converted: progress.convertedCount,
+                  fixed: progress.fixedCount,
                   skipped: progress.skippedCount,
                   failed: progress.failedCount,
                 })}
@@ -913,6 +1081,9 @@ export function BatchConverterDialog({
                 <span className="mfbe-batch-pill" data-testid="batch-count-converted">
                   {t('batch.report.summaryConverted', { count: report.counts.converted })}
                 </span>
+                <span className="mfbe-batch-pill" data-testid="batch-count-fixed">
+                  {t('batch.report.summaryFixed', { count: report.counts.fixed })}
+                </span>
                 <span className="mfbe-batch-pill" data-testid="batch-count-skipped">
                   {t('batch.report.summarySkipped', { count: report.counts.skipped })}
                 </span>
@@ -963,6 +1134,16 @@ export function BatchConverterDialog({
                     >
                       {t('batch.report.filterSkipped', { count: report.skipped.length })}
                     </button>
+                    <button
+                      type="button"
+                      className="mfbe-batch-filter-btn"
+                      aria-pressed={reportFilter === 'fixed'}
+                      data-testid="batch-filter-fixed"
+                      onClick={() => setReportFilter('fixed')}
+                      {...tip(t('batch.tips.filterFixed'))}
+                    >
+                      {t('batch.report.filterFixed', { count: report.fixed.length })}
+                    </button>
                   </div>
 
                   {visibleIssues.length === 0 ? (
@@ -980,13 +1161,17 @@ export function BatchConverterDialog({
                               className={`mfbe-batch-badge ${
                                 item.kind === 'failed'
                                   ? 'mfbe-batch-badge-failed'
-                                  : 'mfbe-batch-badge-skipped'
+                                  : item.kind === 'skipped'
+                                    ? 'mfbe-batch-badge-skipped'
+                                    : 'mfbe-batch-badge-fixed'
                               }`}
                             >
                               {t(
                                 item.kind === 'failed'
                                   ? 'batch.report.badgeFailed'
-                                  : 'batch.report.badgeSkipped',
+                                  : item.kind === 'skipped'
+                                    ? 'batch.report.badgeSkipped'
+                                    : 'batch.report.badgeFixed',
                               )}
                             </span>
                             <span className="mfbe-batch-issue-path">{item.entry.displayPath}</span>

@@ -1,7 +1,6 @@
 /**
- * Feature 019 (T022; data-model.md §3): session-only in-memory persistence of non-destructive
- * Batch Converter choices. Cleared on editor restart; never writes to settings.json or storage,
- * and intentionally never retains `overwrite`.
+ * Feature 019 (T022; data-model.md §3): in-memory fallback mirror of Batch Converter settings
+ * (authoritative persistence lives in `<Config>/batch-converter.json` via `batch.settings.*`).
  */
 
 import { cloneExportSettingsOverrides } from './engine/configState';
@@ -38,6 +37,8 @@ export function saveBatchSessionMemory(
     includeSubfolders: config.includeSubfolders,
     keepTree: config.keepTree,
     inPlace: config.inPlace,
+    fixBroken: config.fixBroken,
+    overwrite: config.overwrite,
     parallel: config.parallel,
     workerCount: config.workerCount,
     zipOverrides: { ...zipOverrides },

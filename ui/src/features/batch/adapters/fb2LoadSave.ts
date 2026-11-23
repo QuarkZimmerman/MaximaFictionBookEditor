@@ -5,15 +5,63 @@
  * ever touched.
  */
 
+import type { TFunction } from 'i18next';
+
 import type { Description, Document, ValidationIssue } from '@/model/document';
-import type { RpcClient } from '@/rpc/client';
-import { isJobStart, type BinaryMeta, type SaveResult } from '@/rpc/types';
+import { isRpcError, type RpcClient, type RpcError } from '@/rpc/client';
+import { isJobStart, RpcErrorCode, type BinaryMeta, type SaveResult } from '@/rpc/types';
 
 export class BatchAbortError extends Error {
   constructor(message = 'Batch item cancelled') {
     super(message);
     this.name = 'BatchAbortError';
   }
+}
+
+export class BatchSkippedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'BatchSkippedError';
+  }
+}
+
+function formatBrokenXmlSkipped(error: RpcError, t?: TFunction): string {
+  const data = (error.data ?? {}) as { line?: number; column?: number; message?: string };
+  const line = typeof data.line === 'number' ? data.line : 0;
+  const column = typeof data.column === 'number' ? data.column : 0;
+  const message = (data.message ?? error.message ?? '').trim();
+  if (t) {
+    return line > 0
+      ? t('batch.reasons.brokenXmlSkipped', { line, column, message })
+      : t('batch.reasons.brokenXmlSkippedGeneric', { message });
+  }
+  return line > 0
+    ? `Broken XML skipped (line ${line}, column ${column}): ${message}`
+    : `Broken XML skipped: ${message}`;
+}
+
+function extractXmlRepairedReason(warnings: ValidationIssue[], t?: TFunction): string | undefined {
+  const issue = warnings.find((w) => w.code === 'xml.repaired');
+  if (!issue) return undefined;
+  const params = (issue.params ?? {}) as {
+    line?: number;
+    column?: number;
+    message?: string;
+    errorCount?: number;
+  };
+  const line = typeof params.line === 'number' ? params.line : (issue.line ?? 0);
+  const column = typeof params.column === 'number' ? params.column : (issue.column ?? 0);
+  const message = typeof params.message === 'string' ? params.message.trim() : '';
+  const count =
+    typeof params.errorCount === 'number' && params.errorCount > 0 ? params.errorCount : 1;
+  if (t) {
+    return line > 0
+      ? t('batch.reasons.brokenXmlFixed', { line, column, message, count })
+      : t('batch.reasons.brokenXmlFixedGeneric', { message, count });
+  }
+  return line > 0
+    ? `Repaired broken XML in memory (line ${line}, column ${column}): ${message}`
+    : `Repaired broken XML in memory: ${message}`;
 }
 
 export function throwIfAborted(signal?: AbortSignal): void {
@@ -71,6 +119,7 @@ export interface EphemeralOpenedBook {
   docId: string;
   document: Document;
   warnings: ValidationIssue[];
+  repairedReason?: string;
 }
 
 export interface EphemeralHeadlessBook {
@@ -78,6 +127,7 @@ export interface EphemeralHeadlessBook {
   description: Description;
   binaryCount: number;
   warnings: ValidationIssue[];
+  repairedReason?: string;
 }
 
 /**
@@ -90,54 +140,84 @@ export async function openEphemeralFb2Headless(
   path: string,
   archiveEntry: string | undefined,
   options: {
+    fixBroken?: boolean;
+    t?: TFunction;
     signal?: AbortSignal;
     onProgress?: (done: number, total: number, phase: string) => void;
   } = {},
 ): Promise<EphemeralHeadlessBook> {
-  return runCancellableRpcJob(
-    rpc,
-    () =>
-      rpc.call('batch.openDoc', {
-        path,
-        entry: archiveEntry,
-        cleanInvalidChars: true,
-      }),
-    options,
-  );
+  const fixBroken = options.fixBroken ?? true;
+  try {
+    const answer = await runCancellableRpcJob(
+      rpc,
+      () =>
+        rpc.call('batch.openDoc', {
+          path,
+          entry: archiveEntry,
+          cleanInvalidChars: true,
+          recover: fixBroken,
+        }),
+      options,
+    );
+    const repairedReason = extractXmlRepairedReason(answer.warnings, options.t);
+    return {
+      ...answer,
+      ...(repairedReason ? { repairedReason } : {}),
+    };
+  } catch (error) {
+    if (!fixBroken && isRpcError(error) && error.code === RpcErrorCode.docParseError) {
+      throw new BatchSkippedError(formatBrokenXmlSkipped(error, options.t));
+    }
+    throw error;
+  }
 }
 
 /**
  * Opens an FB2 file (or an entry inside a ZIP archive) headlessly in a temporary core session.
- * Automatically retries with `cleanInvalidChars: true` on repairable invalid-XML-character errors
- * so unattended batch export recovers every file the interactive editor can repair.
+ * When `fixBroken` is true (default), repairs malformed FB2 XML in memory without touching the
+ * source file; when false, malformed XML raises `BatchSkippedError` so the file is skipped.
  */
 export async function openEphemeralFb2(
   rpc: RpcClient,
   path: string,
   archiveEntry: string | undefined,
   options: {
+    fixBroken?: boolean;
+    t?: TFunction;
     signal?: AbortSignal;
     onProgress?: (done: number, total: number, phase: string) => void;
   } = {},
 ): Promise<EphemeralOpenedBook> {
-  const answer = await runCancellableRpcJob(
-    rpc,
-    () =>
-      rpc.call('doc.open', {
-        path,
-        entry: archiveEntry,
-        cleanInvalidChars: true,
-        ephemeral: true,
-      }),
-    options,
-  );
+  const fixBroken = options.fixBroken ?? true;
+  let answer;
+  try {
+    answer = await runCancellableRpcJob(
+      rpc,
+      () =>
+        rpc.call('doc.open', {
+          path,
+          entry: archiveEntry,
+          cleanInvalidChars: true,
+          recover: fixBroken,
+          ephemeral: true,
+        }),
+      options,
+    );
+  } catch (error) {
+    if (!fixBroken && isRpcError(error) && error.code === RpcErrorCode.docParseError) {
+      throw new BatchSkippedError(formatBrokenXmlSkipped(error, options.t));
+    }
+    throw error;
+  }
   if ('needsChoice' in answer) {
     throw new Error('Archive requires an explicit book entry');
   }
+  const repairedReason = extractXmlRepairedReason(answer.warnings, options.t);
   return {
     docId: answer.document.docId,
     document: answer.document,
     warnings: answer.warnings,
+    ...(repairedReason ? { repairedReason } : {}),
   };
 }
 

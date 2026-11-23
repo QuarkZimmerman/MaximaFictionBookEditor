@@ -2,7 +2,7 @@
  * Feature 019 (T020; data-model.md §1–§6): shared data-model types for the Batch Converter.
  */
 
-import type { Settings } from '@/rpc/types';
+import type { BatchPersistedExportSettings, Settings } from '@/rpc/types';
 
 export type BatchDirection = 'fb2ToExport' | 'importToFb2';
 
@@ -13,14 +13,15 @@ export type BatchBookFormat = 'epub' | 'mobi' | 'pdf' | 'txt' | 'markdown';
 export type BatchConfigurableExportFormat = 'mobi' | 'pdf' | 'txt' | 'markdown';
 
 /**
- * Session-only per-format export option overrides edited inside Batch Converter's
- * batch-only Export settings dialog; never written to global settings.json.
+ * Per-format export option overrides edited inside Batch Converter's batch-only Export settings
+ * dialog; persisted in `<Config>/batch-converter.json` and never written to global settings.json.
  */
 export interface BatchExportSettingsOverrides {
   pdf?: Partial<NonNullable<Settings['pdf']>>;
   txt?: Partial<NonNullable<Settings['txt']>>;
   mobi?: Partial<NonNullable<Settings['mobi']>>;
   markdown?: Partial<NonNullable<Settings['markdown']>>;
+  [section: string]: Record<string, unknown> | undefined;
 }
 
 export const BATCH_BOOK_FORMATS: readonly BatchBookFormat[] = [
@@ -44,6 +45,7 @@ export interface BatchJobConfig {
   importAll: boolean;
   importFormats: Record<BatchBookFormat, boolean>;
   zipOutput: boolean;
+  fixBroken: boolean;
   sourceDir: string;
   includeSubfolders: boolean;
   inPlace: boolean;
@@ -55,8 +57,8 @@ export interface BatchJobConfig {
 }
 
 /**
- * Session-only UI memory (data-model.md §3). Never written to settings.json; `overwrite` is
- * intentionally excluded so reopening the dialog always starts with overwrite unchecked.
+ * Persistent UI memory (loaded from `<Config>/batch-converter.json` via `batch.settings.get` and
+ * mirrored in memory as fallback when RPC is absent).
  */
 export interface BatchSessionMemory {
   direction: BatchDirection;
@@ -68,10 +70,13 @@ export interface BatchSessionMemory {
   includeSubfolders: boolean;
   keepTree: boolean;
   inPlace: boolean;
-  parallel: boolean;
-  workerCount: number;
+  fixBroken?: boolean;
+  overwrite?: boolean;
+  parallel?: boolean;
+  workerCount?: number;
   zipOverrides: Partial<Record<string, boolean>>;
   exportSettingsOverrides?: BatchExportSettingsOverrides;
+  exportSettings?: BatchPersistedExportSettings;
 }
 
 export interface BatchDiscoveredItem {
@@ -109,6 +114,7 @@ export interface BatchProgressSnapshot {
   totalCount: number;
   completedCount: number;
   convertedCount: number;
+  fixedCount: number;
   skippedCount: number;
   failedCount: number;
   cancelledCount: number;
@@ -139,10 +145,12 @@ export interface BatchReport {
   counts: {
     total: number;
     converted: number;
+    fixed: number;
     skipped: number;
     failed: number;
     cancelled: number;
   };
+  fixed: BatchReportEntry[];
   failed: BatchReportEntry[];
   skipped: BatchReportEntry[];
   warnings: BatchReportWarningEntry[];

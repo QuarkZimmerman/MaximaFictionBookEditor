@@ -50,6 +50,8 @@ export async function runFb2ToMobi(params: BatchAdapterContext): Promise<BatchAd
   try {
     onStage('batch.progress.stageReading', 0, 100);
     const opened = await openEphemeralFb2Headless(rpc, item.sourcePath, item.archiveEntry, {
+      fixBroken: config.fixBroken,
+      t: ctx.t,
       signal,
       onProgress: (done, total) =>
         onStage('batch.progress.stageReading', done, Math.max(total, 100)),
@@ -190,7 +192,7 @@ export async function runFb2ToMobi(params: BatchAdapterContext): Promise<BatchAd
       const line = ctx.t(`mobi.exportSummary.${kind}`, { detail: resolvedDetail });
       return count > 1 ? `${line} (\u00d7${count})` : line;
     });
-    return { warnings };
+    return { warnings, ...(opened.repairedReason ? { fixedReason: opened.repairedReason } : {}) };
   } catch (error) {
     if (token) {
       await rpc.call('mobi.write.abort', { token }).catch(() => undefined);

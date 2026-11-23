@@ -3,7 +3,7 @@
  * Uses pure-Node stored ZIP creation so tests stay cross-platform (@platform) with zero OS tool dependencies.
  */
 
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -30,6 +30,13 @@ export async function openBatchDialog(page: Page): Promise<void> {
   await page.getByTestId('menu-tools').click();
   await page.getByTestId('menu-tools-batchConverter').click();
   await expect(page.getByTestId('dialog-batch-converter')).toBeVisible();
+}
+
+/** Removes persisted `<dataDir>/batch-converter.json` so a test starts from fresh-install state. */
+export function resetBatchSettings(dataDir: string | undefined): void {
+  if (!dataDir) return;
+  rmSync(path.join(dataDir, 'batch-converter.json'), { force: true });
+  rmSync(path.join(dataDir, 'batch-converter.json.lock'), { force: true });
 }
 
 const CRC_TABLE = (() => {

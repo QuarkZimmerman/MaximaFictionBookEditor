@@ -9,7 +9,13 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSyn
 import path from 'node:path';
 
 import { expect, fixtureBook, test, waitForBook } from './fixtures/core';
-import { makeTempDir, openBatchDialog, repoFixture, writeStoredZip } from './fixtures/batchHelpers';
+import {
+  makeTempDir,
+  openBatchDialog,
+  repoFixture,
+  resetBatchSettings,
+  writeStoredZip,
+} from './fixtures/batchHelpers';
 
 /**
  * Takes a real MOBI file and flips the PalmDOC/MOBI header encryption field (offset +12 in
@@ -23,12 +29,13 @@ function makeEncryptedMobiFrom(mobiBytes: Buffer): Buffer {
 }
 
 test.describe('US3: Error resilience, Overwrite/Skip, Report & Save report @platform', () => {
-  test('continues past bad/encrypted files, skips or overwrites atomically, filters on-screen report, saves full UTF-8 report with warnings, and resets Overwrite on reopen', async ({
+  test('continues past bad/encrypted files, skips or overwrites atomically, filters on-screen report, saves full UTF-8 report with warnings, and persists settings on reopen', async ({
     core,
     page,
   }) => {
     test.skip(!core.hasCore, 'needs mfbe-core');
     test.setTimeout(180_000);
+    resetBatchSettings(core.dataDir);
     await core.openApp(page);
 
     const work = makeTempDir('mfbe-us3-errors');
@@ -170,14 +177,128 @@ test.describe('US3: Error resilience, Overwrite/Skip, Report & Save report @plat
       expect(overwrittenContent).not.toBe(sentinelText);
       expect(overwrittenContent).toContain('Freshly converted body text.');
 
-      // Close and reopen dialog: session memory restores paths & direction, while Overwrite ALWAYS resets to unchecked!
+      // Close and reopen dialog: persistent batch-converter.json restores direction, paths, and Overwrite!
       await page.getByTestId('dialog-batch-converter-button-close').click();
       await expect(page.getByTestId('dialog-batch-converter')).toBeHidden();
       await openBatchDialog(page);
       await expect(page.getByTestId('batch-dir-import')).toHaveAttribute('aria-selected', 'true');
       await expect(page.getByTestId('batch-source-input')).toHaveValue(srcDir);
       await expect(page.getByTestId('batch-destination-input')).toHaveValue(dstDir);
-      await expect(page.getByTestId('batch-overwrite')).not.toBeChecked();
+      await expect(page.getByTestId('batch-overwrite')).toBeChecked();
+      await page.getByTestId('dialog-batch-converter-button-close').click();
+    } finally {
+      rmSync(work, { recursive: true, force: true });
+    }
+  });
+
+  test('Fix broken checkbox repairs malformed FB2 XML in memory when checked and skips broken XML when unchecked without popups', async ({
+    core,
+    page,
+  }) => {
+    test.skip(!core.hasCore, 'needs mfbe-core');
+    test.setTimeout(120_000);
+    resetBatchSettings(core.dataDir);
+    await core.openApp(page);
+
+    const work = makeTempDir('mfbe-us3-fix-broken');
+    try {
+      const srcDir = path.join(work, 'src');
+      const outFixed = path.join(work, 'out-fixed');
+      const outSkipped = path.join(work, 'out-skipped');
+      mkdirSync(srcDir, { recursive: true });
+      mkdirSync(outFixed, { recursive: true });
+      mkdirSync(outSkipped, { recursive: true });
+
+      copyFileSync(fixtureBook('modern-utf8.fb2'), path.join(srcDir, '01-valid.fb2'));
+      copyFileSync(fixtureBook('malformed.fb2'), path.join(srcDir, '02-malformed.fb2'));
+      const crossedXml =
+        '<?xml version="1.0" encoding="utf-8"?>\n' +
+        '<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">\n' +
+        '<description><title-info><genre>prose</genre><author><last-name>Tester</last-name></author>' +
+        '<book-title>Crossed Tags</book-title><lang>en</lang></title-info></description>\n' +
+        '<body><section><p>Start <emphasis>unclosed emphasis</p>' +
+        '<p>Preserved second paragraph</p></section></body>\n' +
+        '</FictionBook>\n';
+      const crossedPath = path.join(srcDir, '03-crossed.fb2');
+      writeFileSync(crossedPath, crossedXml, 'utf8');
+      writeFileSync(path.join(srcDir, '04-empty.fb2'), Buffer.alloc(0));
+
+      const malformedOrig = readFileSync(path.join(srcDir, '02-malformed.fb2'));
+      const crossedOrig = readFileSync(crossedPath);
+
+      // Run 1: Fix broken CHECKED (default) -> both broken FB2 files repaired in memory, converted,
+      // logged in Fixed summary & Fixed report section; source files untouched; zero popups!
+      await openBatchDialog(page);
+      await page.getByTestId('batch-dir-export').click();
+      await page.getByTestId('batch-export-format').selectOption('txt');
+      await page.getByTestId('batch-zip-output').uncheck();
+      await expect(page.getByTestId('batch-fix-broken')).toBeChecked();
+      await page.getByTestId('batch-source-input').fill(srcDir);
+      await page.getByTestId('batch-in-place').uncheck();
+      await page.getByTestId('batch-destination-input').fill(outFixed);
+      await page.getByTestId('dialog-batch-converter-button-start').click();
+
+      await expect(page.getByTestId('batch-report-view')).toBeVisible({ timeout: 60_000 });
+      await expect(page.getByTestId('dialog-parse-error')).toHaveCount(0);
+      await expect(page.getByTestId('batch-count-total')).toContainText('4');
+      await expect(page.getByTestId('batch-count-converted')).toContainText('3');
+      await expect(page.getByTestId('batch-count-fixed')).toContainText('2');
+      await expect(page.getByTestId('batch-count-skipped')).toContainText('0');
+      await expect(page.getByTestId('batch-count-failed')).toContainText('1');
+
+      // Converted output preserved both paragraphs; source files untouched on disk!
+      const crossedTxt = readFileSync(path.join(outFixed, '03-crossed.txt'), 'utf8');
+      expect(crossedTxt).toContain('unclosed emphasis');
+      expect(crossedTxt).toContain('Preserved second paragraph');
+      expect(readFileSync(path.join(srcDir, '02-malformed.fb2')).equals(malformedOrig)).toBe(true);
+      expect(readFileSync(crossedPath).equals(crossedOrig)).toBe(true);
+
+      // Fixed filter lists both repaired files.
+      await page.getByTestId('batch-filter-fixed').click();
+      await expect(
+        page.getByTestId('batch-issues-list').locator('[data-testid="batch-issue-fixed"]'),
+      ).toHaveCount(2);
+
+      // Saved report contains Fixed summary count and Fixed (2) section.
+      const fixedReportPath = path.join(work, 'report-fixed.txt');
+      await core.enqueueDialog('dialog.saveFile', { path: fixedReportPath });
+      await page.getByTestId('dialog-batch-converter-button-save-report').click();
+      await expect(page.getByTestId('batch-report-save-notice')).toHaveAttribute('role', 'status');
+      const fixedReportText = readFileSync(fixedReportPath, 'utf8');
+      expect(fixedReportText).toMatch(/Fixed:\s+2/);
+      expect(fixedReportText).toContain('Fixed (2)');
+      expect(fixedReportText).toContain('02-malformed.fb2');
+      expect(fixedReportText).toContain('03-crossed.fb2');
+
+      // Run 2: Fix broken UNCHECKED -> both broken XML files skipped (not converted, not failed);
+      // 0-byte non-FB2 still fails; zero popups!
+      await page.getByTestId('dialog-batch-converter-button-run-again').click();
+      await page.getByTestId('batch-fix-broken').uncheck();
+      await page.getByTestId('batch-destination-input').fill(outSkipped);
+      await page.getByTestId('dialog-batch-converter-button-start').click();
+
+      await expect(page.getByTestId('batch-report-view')).toBeVisible({ timeout: 60_000 });
+      await expect(page.getByTestId('dialog-parse-error')).toHaveCount(0);
+      await expect(page.getByTestId('batch-count-total')).toContainText('4');
+      await expect(page.getByTestId('batch-count-converted')).toContainText('1');
+      await expect(page.getByTestId('batch-count-fixed')).toContainText('0');
+      await expect(page.getByTestId('batch-count-skipped')).toContainText('2');
+      await expect(page.getByTestId('batch-count-failed')).toContainText('1');
+
+      expect(existsSync(path.join(outSkipped, '01-valid.txt'))).toBe(true);
+      expect(existsSync(path.join(outSkipped, '02-malformed.txt'))).toBe(false);
+      expect(existsSync(path.join(outSkipped, '03-crossed.txt'))).toBe(false);
+
+      const skippedReportPath = path.join(work, 'report-skipped.txt');
+      await core.enqueueDialog('dialog.saveFile', { path: skippedReportPath });
+      await page.getByTestId('dialog-batch-converter-button-save-report').click();
+      await expect(page.getByTestId('batch-report-save-notice')).toHaveAttribute('role', 'status');
+      const skippedReportText = readFileSync(skippedReportPath, 'utf8');
+      expect(skippedReportText).toMatch(/Skipped:\s+2/);
+      expect(skippedReportText).toContain('Skipped (2)');
+      expect(skippedReportText).toContain('02-malformed.fb2');
+      expect(skippedReportText).toContain('03-crossed.fb2');
+
       await page.getByTestId('dialog-batch-converter-button-close').click();
     } finally {
       rmSync(work, { recursive: true, force: true });

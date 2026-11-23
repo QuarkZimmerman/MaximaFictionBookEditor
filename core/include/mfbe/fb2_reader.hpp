@@ -99,14 +99,19 @@ struct ReadOptions {
     // text nodes after parsing (and turn paragraphs that held only invisible junk into
     // empty-line nodes).
     bool clean_invalid_chars = false;
+    // When true and strict XML parsing fails on a FictionBook document, retry in memory with
+    // libxml2 XML_PARSE_RECOVER (without modifying the file on disk) and record `xml.repaired`.
+    bool recover = false;
 };
 
 struct ReadResult {
     model::Document document;
-    std::vector<model::ValidationIssue> warnings;    // encoding.mismatch, binary.* ...
+    std::vector<model::ValidationIssue> warnings;  // encoding.mismatch, binary.*, xml.repaired ...
     std::string xlink_prefix = kDefaultXlinkPrefix;  // the input's prefix for the xlink namespace
     std::string declared_encoding;                   // "" when the file had no declaration
     bool bom = false;
+    bool xml_repaired = false;
+    std::vector<ParseError> xml_repair_errors;
     // Issues from the schemaHint validation of the input (informational; empty for "2.1").
     std::vector<model::ValidationIssue> schema_issues;
     // With `ReadOptions::record_positions`: the map of the given bytes, keyed by the assigned

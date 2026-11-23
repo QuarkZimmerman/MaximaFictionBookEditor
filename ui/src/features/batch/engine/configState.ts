@@ -3,7 +3,7 @@
  * Batch Converter dialog.
  */
 
-import type { Settings } from '@/rpc/types';
+import type { BatchPersistedExportSettings, Settings } from '@/rpc/types';
 
 import {
   BATCH_BOOK_FORMATS,
@@ -44,56 +44,122 @@ const DEFAULT_MARKDOWN_SETTINGS: NonNullable<Settings['markdown']> = {
   includePictures: true,
 };
 
+const DEFAULT_EXPORT_SECTIONS: Record<string, Record<string, unknown>> = {
+  pdf: DEFAULT_PDF_SETTINGS as unknown as Record<string, unknown>,
+  txt: DEFAULT_TXT_SETTINGS as unknown as Record<string, unknown>,
+  mobi: DEFAULT_MOBI_SETTINGS as unknown as Record<string, unknown>,
+  markdown: DEFAULT_MARKDOWN_SETTINGS as unknown as Record<string, unknown>,
+};
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function deepCloneRecord<T extends Record<string, unknown>>(obj: T): T {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (isPlainObject(v)) {
+      out[k] = deepCloneRecord(v);
+    } else if (Array.isArray(v)) {
+      out[k] = v.map((item) => (isPlainObject(item) ? deepCloneRecord(item) : item));
+    } else {
+      out[k] = v;
+    }
+  }
+  return out as T;
+}
+
+/**
+ * Recursively merges `patch` onto `base` without mutating either input, preserving all unknown
+ * future keys and nested objects.
+ */
+export function deepMergeRecord(
+  base: Record<string, unknown>,
+  patch: Record<string, unknown>,
+): Record<string, unknown> {
+  const out = deepCloneRecord(base);
+  for (const [k, v] of Object.entries(patch)) {
+    if (v === undefined) continue;
+    if (isPlainObject(v) && isPlainObject(out[k])) {
+      out[k] = deepMergeRecord(out[k] as Record<string, unknown>, v);
+    } else if (isPlainObject(v)) {
+      out[k] = deepCloneRecord(v);
+    } else if (Array.isArray(v)) {
+      out[k] = v.map((item) => (isPlainObject(item) ? deepCloneRecord(item) : item));
+    } else {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
 export function cloneExportSettingsOverrides(
-  overrides?: BatchExportSettingsOverrides | null,
+  overrides?: BatchExportSettingsOverrides | BatchPersistedExportSettings | null,
 ): BatchExportSettingsOverrides {
   if (!overrides) return {};
   const out: BatchExportSettingsOverrides = {};
-  if (overrides.pdf) out.pdf = { ...overrides.pdf };
-  if (overrides.txt) {
-    out.txt = {
-      ...overrides.txt,
-      ...(overrides.txt.encodings ? { encodings: { ...overrides.txt.encodings } } : {}),
-    };
+  for (const [section, value] of Object.entries(overrides)) {
+    if (isPlainObject(value)) {
+      out[section] = deepCloneRecord(value);
+    }
   }
-  if (overrides.mobi) out.mobi = { ...overrides.mobi };
-  if (overrides.markdown) out.markdown = { ...overrides.markdown };
   return out;
 }
 
 /**
- * Merges session-only batch export overrides over global Settings without mutating `base`.
+ * Builds a complete Batch Converter export-settings snapshot from global Settings (used as the
+ * fallback seed when `batch.settings.get` has no stored file yet or RPC is unavailable).
+ */
+export function extractExportSettingsFromGlobal(
+  base: Settings | null,
+): BatchPersistedExportSettings {
+  const out: BatchPersistedExportSettings = {};
+  for (const [section, def] of Object.entries(DEFAULT_EXPORT_SECTIONS)) {
+    const raw = (base as Record<string, unknown> | null)?.[section];
+    out[section] = isPlainObject(raw) ? deepMergeRecord(def, raw) : deepCloneRecord(def);
+  }
+  return out;
+}
+
+/**
+ * Merges a batch export-settings patch onto an existing export-settings copy without mutating
+ * either argument, preserving all existing and future parameters across every section.
+ */
+export function applyBatchExportSettingsPatch(
+  current: BatchPersistedExportSettings,
+  patch: BatchExportSettingsOverrides,
+): BatchPersistedExportSettings {
+  const out = cloneExportSettingsOverrides(current) as BatchPersistedExportSettings;
+  for (const [section, sectionPatch] of Object.entries(patch)) {
+    if (!isPlainObject(sectionPatch)) continue;
+    const baseSec = isPlainObject(out[section])
+      ? (out[section] as Record<string, unknown>)
+      : (DEFAULT_EXPORT_SECTIONS[section] ?? {});
+    out[section] = deepMergeRecord(baseSec, sectionPatch);
+  }
+  return out;
+}
+
+/**
+ * Merges batch export settings/overrides over global Settings without mutating `base`.
  */
 export function mergeBatchExportSettings(
   base: Settings | null,
-  overrides?: BatchExportSettingsOverrides | null,
+  overrides?: BatchExportSettingsOverrides | BatchPersistedExportSettings | null,
 ): Settings | null {
-  if (!overrides || (!overrides.pdf && !overrides.txt && !overrides.mobi && !overrides.markdown)) {
-    return base;
+  if (!overrides) return base;
+  const entries = Object.entries(overrides).filter(([, value]) => isPlainObject(value));
+  if (entries.length === 0) return base;
+
+  const merged = { ...(base ?? ({ schemaVersion: 1 } as Settings)) } as Record<string, unknown>;
+  for (const [section, sectionOverrides] of entries) {
+    const def = DEFAULT_EXPORT_SECTIONS[section] ?? {};
+    const baseSection = isPlainObject(merged[section])
+      ? deepMergeRecord(def, merged[section] as Record<string, unknown>)
+      : deepCloneRecord(def);
+    merged[section] = deepMergeRecord(baseSection, sectionOverrides as Record<string, unknown>);
   }
-  const merged = { ...(base ?? ({ schemaVersion: 1 } as Settings)) };
-  if (overrides.pdf) {
-    merged.pdf = { ...DEFAULT_PDF_SETTINGS, ...base?.pdf, ...overrides.pdf };
-  }
-  if (overrides.txt) {
-    merged.txt = {
-      ...DEFAULT_TXT_SETTINGS,
-      ...base?.txt,
-      ...overrides.txt,
-      encodings: {
-        ...DEFAULT_TXT_SETTINGS.encodings,
-        ...base?.txt?.encodings,
-        ...overrides.txt.encodings,
-      },
-    };
-  }
-  if (overrides.mobi) {
-    merged.mobi = { ...DEFAULT_MOBI_SETTINGS, ...base?.mobi, ...overrides.mobi };
-  }
-  if (overrides.markdown) {
-    merged.markdown = { ...DEFAULT_MARKDOWN_SETTINGS, ...base?.markdown, ...overrides.markdown };
-  }
-  return merged;
+  return merged as unknown as Settings;
 }
 
 export function computeMaxWorkers(cpuCores: number): number {
@@ -176,6 +242,7 @@ export function normalizeBatchConfig(raw: BatchJobConfig, cpuCores: number): Bat
     importAll,
     importFormats,
     zipOutput,
+    fixBroken: raw.fixBroken !== false,
     sourceDir: raw.sourceDir,
     includeSubfolders,
     inPlace,
@@ -217,15 +284,17 @@ export function createInitialBatchConfig(
         ? { ...memory.importFormats }
         : allImportFormatsRecord(true),
       zipOutput,
+      // Requester (2026-11-23): Fix broken XML in memory is enabled by default.
+      fixBroken: memory?.fixBroken ?? true,
       sourceDir: memory?.sourceDir ?? '',
       includeSubfolders: memory?.includeSubfolders ?? true,
       // Requester (2026-11-23): In-place conversion is checked by default.
       inPlace: memory?.inPlace ?? true,
       destinationDir: memory?.destinationDir ?? '',
       keepTree: memory?.keepTree ?? true,
-      // FR-003 / FR-012: Overwrite always starts unchecked when the dialog opens.
-      overwrite: false,
-      parallel: memory !== undefined && memory !== null ? memory.parallel : maxWorkers >= 2,
+      // Requester (2026-11-23): All batch converter settings persist across restarts; default false.
+      overwrite: memory?.overwrite ?? false,
+      parallel: memory?.parallel !== undefined ? memory.parallel : maxWorkers >= 2,
       workerCount: memory?.workerCount ?? maxWorkers,
     },
     cpuCores,
@@ -238,6 +307,7 @@ export type BatchConfigAction =
   | { type: 'setImportAll'; checked: boolean }
   | { type: 'setImportFormat'; format: BatchBookFormat; checked: boolean }
   | { type: 'setZipOutput'; checked: boolean }
+  | { type: 'setFixBroken'; checked: boolean }
   | { type: 'setSourceDir'; path: string }
   | { type: 'setIncludeSubfolders'; checked: boolean }
   | { type: 'setInPlace'; checked: boolean }
@@ -295,6 +365,9 @@ export function reduceBatchConfig(
     }
     case 'setZipOutput':
       next = { ...state, zipOutput: action.checked };
+      break;
+    case 'setFixBroken':
+      next = { ...state, fixBroken: action.checked };
       break;
     case 'setSourceDir':
       next = { ...state, sourceDir: action.path };

@@ -9,7 +9,16 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { expect, fixtureBook, shownDocId, test, waitForBook } from './fixtures/core';
+import {
+  expect,
+  fixtureBook,
+  shownDocId,
+  startCoreWith,
+  test,
+  waitForBook,
+  waitForStartupDocument,
+} from './fixtures/core';
+import { resetBatchSettings } from './fixtures/batchHelpers';
 import { startPrintSeam } from './fixtures/printSeam';
 
 function makeTempDir(prefix: string): string {
@@ -33,6 +42,7 @@ test.describe('US1: Batch export FB2 to export formats @platform', () => {
     page,
   }) => {
     test.skip(!core.hasCore, 'needs mfbe-core');
+    resetBatchSettings(core.dataDir);
     await core.openApp(page);
 
     // Verify Tools -> Batch Converter... sits at the bottom after a separator following Check Spelling...
@@ -61,6 +71,7 @@ test.describe('US1: Batch export FB2 to export formats @platform', () => {
 
     await expect(page.getByTestId('batch-zip-output')).toBeDisabled();
     await expect(page.getByTestId('batch-zip-output')).not.toBeChecked();
+    await expect(page.getByTestId('batch-fix-broken')).toBeChecked();
     await expect(page.getByTestId('batch-export-settings-btn')).toBeDisabled();
     await expect(page.getByTestId('batch-include-subfolders')).toBeChecked();
     await expect(page.getByTestId('batch-in-place')).toBeChecked();
@@ -117,6 +128,9 @@ test.describe('US1: Batch export FB2 to export formats @platform', () => {
     await expect(page.getByTestId('batch-export-settings-scope-note')).toBeVisible();
     await expect(page.getByTestId('settings-mobi-zip')).toHaveCount(0);
     await page.getByTestId('settings-mobi-format').selectOption('kf8');
+    await page.getByTestId('dialog-batch-export-settings-button-apply').click();
+    await expect(page.getByTestId('dialog-batch-export-settings')).toBeVisible();
+    await page.getByTestId('settings-mobi-tocPlacement').selectOption('end');
     await page.getByTestId('dialog-batch-export-settings-button-ok').click();
     await expect(page.getByTestId('dialog-batch-export-settings')).toBeHidden();
     await expect(page.getByTestId('batch-export-defaults')).toContainText(/KF8/i);
@@ -148,6 +162,7 @@ test.describe('US1: Batch export FB2 to export formats @platform', () => {
   }) => {
     test.skip(!core.hasCore, 'needs mfbe-core');
     test.setTimeout(180_000);
+    resetBatchSettings(core.dataDir);
     await core.openApp(page);
 
     // Open a book in the editor first to prove Batch Converter leaves it and Recent files untouched.
@@ -276,6 +291,102 @@ test.describe('US1: Batch export FB2 to export formats @platform', () => {
       expect(recentsAfter).toEqual(recentsBefore);
     } finally {
       await seam.stop();
+      rmSync(work, { recursive: true, force: true });
+    }
+  });
+
+  test('persists all Batch Converter settings and format copies across restart with last-to-close wins', async ({
+    core,
+    page,
+    context,
+  }) => {
+    const coreBin = process.env.MFBE_CORE_BIN;
+    test.skip(!core.hasCore || !coreBin, 'needs MFBE_CORE_BIN');
+    test.setTimeout(90_000);
+
+    const work = makeTempDir('mfbe-us1-persist');
+    const dedicatedDataDir = path.join(work, 'core-data');
+    mkdirSync(dedicatedDataDir, { recursive: true });
+    const srcA = path.join(work, 'src-a');
+    const dstA = path.join(work, 'dst-a');
+    const srcB = path.join(work, 'src-b');
+
+    let instance1: { url: string; stop: () => Promise<void> } | null = null;
+    let instance2: { url: string; stop: () => Promise<void> } | null = null;
+    try {
+      // 1) Start core #1, customize all controls + batch-only MOBI export settings (Apply + OK), close, and stop core #1.
+      instance1 = await startCoreWith(coreBin!, dedicatedDataDir, []);
+      await page.goto(instance1.url);
+      await waitForStartupDocument(page);
+
+      await openBatchDialog(page);
+      await page.getByTestId('batch-export-format').selectOption('mobi');
+      await page.getByTestId('batch-zip-output').check();
+      await page.getByTestId('batch-fix-broken').uncheck();
+      await page.getByTestId('batch-in-place').uncheck();
+      await page.getByTestId('batch-source-input').fill(srcA);
+      await page.getByTestId('batch-destination-input').fill(dstA);
+      await page.getByTestId('batch-overwrite').check();
+      await page.getByTestId('batch-export-settings-btn').click();
+      await expect(page.getByTestId('dialog-batch-export-settings')).toBeVisible();
+      await page.getByTestId('settings-mobi-format').selectOption('kf8');
+      await page.getByTestId('dialog-batch-export-settings-button-apply').click();
+      await page.getByTestId('settings-mobi-tocPlacement').selectOption('end');
+      await page.getByTestId('dialog-batch-export-settings-button-ok').click();
+      await expect(page.getByTestId('dialog-batch-export-settings')).toBeHidden();
+      await page.getByTestId('dialog-batch-converter-button-close').click();
+      await expect(page.getByTestId('dialog-batch-converter')).toBeHidden();
+      await instance1.stop();
+      instance1 = null;
+
+      // 2) Start core #2 on the same data directory -> ALL batch settings & format copy restored across restart!
+      instance2 = await startCoreWith(coreBin!, dedicatedDataDir, []);
+      await page.goto(instance2.url);
+      await waitForStartupDocument(page);
+
+      await openBatchDialog(page);
+      await expect(page.getByTestId('batch-export-format')).toHaveValue('mobi');
+      await expect(page.getByTestId('batch-zip-output')).toBeChecked();
+      await expect(page.getByTestId('batch-fix-broken')).not.toBeChecked();
+      await expect(page.getByTestId('batch-in-place')).not.toBeChecked();
+      await expect(page.getByTestId('batch-source-input')).toHaveValue(srcA);
+      await expect(page.getByTestId('batch-destination-input')).toHaveValue(dstA);
+      await expect(page.getByTestId('batch-overwrite')).toBeChecked();
+      await expect(page.getByTestId('batch-export-defaults')).toContainText(/KF8/i);
+      await page.getByTestId('batch-export-settings-btn').click();
+      await expect(page.getByTestId('settings-mobi-format')).toHaveValue('kf8');
+      await expect(page.getByTestId('settings-mobi-tocPlacement')).toHaveValue('end');
+      await page.getByTestId('dialog-batch-export-settings-button-cancel').click();
+      await page.getByTestId('dialog-batch-converter-button-close').click();
+
+      // 3) Last-to-close wins across two simultaneously open Batch Converter dialogs!
+      const page2 = await context.newPage();
+      try {
+        await page2.goto(instance2.url);
+        await waitForStartupDocument(page2);
+
+        await openBatchDialog(page);
+        await openBatchDialog(page2);
+        await page.getByTestId('batch-source-input').fill(path.join(work, 'first-closed'));
+        await page2.getByTestId('batch-source-input').fill(srcB);
+        await page2.getByTestId('batch-fix-broken').check();
+
+        // Close dialog 1 first, then dialog 2 last -> dialog 2's settings win!
+        await page.getByTestId('dialog-batch-converter-button-close').click();
+        await expect(page.getByTestId('dialog-batch-converter')).toBeHidden();
+        await page2.getByTestId('dialog-batch-converter-button-close').click();
+        await expect(page2.getByTestId('dialog-batch-converter')).toBeHidden();
+
+        await openBatchDialog(page);
+        await expect(page.getByTestId('batch-source-input')).toHaveValue(srcB);
+        await expect(page.getByTestId('batch-fix-broken')).toBeChecked();
+        await page.getByTestId('dialog-batch-converter-button-close').click();
+      } finally {
+        await page2.close();
+      }
+    } finally {
+      await instance1?.stop().catch(() => undefined);
+      await instance2?.stop().catch(() => undefined);
       rmSync(work, { recursive: true, force: true });
     }
   });

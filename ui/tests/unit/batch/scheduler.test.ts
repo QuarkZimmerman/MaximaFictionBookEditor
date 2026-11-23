@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { CommandContext } from '@/app/commands';
 import type { BatchAdapterFn } from '@/features/batch/adapters/adapterTypes';
+import { BatchSkippedError } from '@/features/batch/adapters/fb2LoadSave';
 import { startBatchRun } from '@/features/batch/engine/scheduler';
 import type {
   BatchDiscoveredItem,
@@ -49,6 +50,7 @@ function makeConfig(overrides: Partial<BatchJobConfig> = {}): BatchJobConfig {
     keepTree: true,
     inPlace: false,
     zipOutput: false,
+    fixBroken: true,
     overwrite: false,
     parallel: false,
     workerCount: 3,
@@ -160,6 +162,7 @@ describe('startBatchRun scheduler', () => {
     expect(report!.counts).toEqual({
       total: 6,
       converted: 6,
+      fixed: 0,
       skipped: 0,
       failed: 0,
       cancelled: 0,
@@ -261,8 +264,14 @@ describe('startBatchRun scheduler', () => {
       if (item.itemId === 'item-02') {
         throw new Error('corrupt input stream');
       }
+      if (item.itemId === 'item-05') {
+        throw new BatchSkippedError('Broken XML skipped because Fix broken is off');
+      }
       return {
         warnings: item.itemId === 'item-04' ? ['minor warning'] : [],
+        ...(item.itemId === 'item-06'
+          ? { fixedReason: 'Broken XML repaired in memory (line 12, column 4): mismatch' }
+          : {}),
       };
     };
 
@@ -278,21 +287,28 @@ describe('startBatchRun scheduler', () => {
     const report = await run.promise;
     expect(report!.counts).toEqual({
       total: 6,
-      converted: 4,
-      skipped: 1,
+      converted: 3,
+      fixed: 1,
+      skipped: 2,
       failed: 1,
       cancelled: 0,
     });
     expect(report!.failed).toHaveLength(1);
     expect(report!.failed[0]!.displayPath).toBe('book-02.fb2');
-    expect(report!.skipped).toHaveLength(1);
-    expect(report!.skipped[0]!.displayPath).toBe('book-03.fb2');
+    expect(report!.skipped).toHaveLength(2);
+    expect(report!.skipped.map((s) => s.displayPath).sort()).toEqual([
+      'book-03.fb2',
+      'book-05.fb2',
+    ]);
+    expect(report!.fixed).toHaveLength(1);
+    expect(report!.fixed[0]!.displayPath).toBe('book-06.fb2');
     expect(report!.warnings).toHaveLength(1);
     expect(report!.warnings[0]!.displayPath).toBe('book-04.fb2');
 
-    // Every claimed item (5: all except skipped book-03) released; every item cleaned up; run ended.
+    // Every claimed item (5: all except claim-skipped book-03) released; failed item-02 and
+    // adapter-skipped item-05 released with succeeded=false; every item cleaned up; run ended.
     expect(rpcState.released).toHaveLength(5);
-    expect(rpcState.released.filter((r) => !r.succeeded)).toHaveLength(1);
+    expect(rpcState.released.filter((r) => !r.succeeded)).toHaveLength(2);
     expect(rpcState.cleaned).toHaveLength(6);
     expect(rpcState.endedRuns).toEqual(['run-mock-1']);
   });

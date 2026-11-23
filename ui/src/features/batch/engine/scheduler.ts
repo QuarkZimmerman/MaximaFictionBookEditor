@@ -17,7 +17,7 @@ import {
   type BatchAdapterContext,
   type BatchAdapterFn,
 } from '../adapters/adapterTypes';
-import { BatchAbortError, runCancellableRpcJob } from '../adapters/fb2LoadSave';
+import { BatchAbortError, BatchSkippedError, runCancellableRpcJob } from '../adapters/fb2LoadSave';
 import { loadBatchAdapter } from '../adapters/registry';
 import { WorkerCancelledError } from '../workers/workerCall';
 import { effectiveWorkerCount, selectedImportFormats } from './configState';
@@ -153,6 +153,7 @@ export function startBatchRun(options: BatchSchedulerOptions): BatchRunControlle
   let scannedCount = 0;
   let totalCount = 0;
   let convertedCount = 0;
+  let fixedCount = 0;
   let skippedCount = 0;
   let failedCount = 0;
   let cancelledCount = 0;
@@ -168,6 +169,7 @@ export function startBatchRun(options: BatchSchedulerOptions): BatchRunControlle
     totalCount,
     completedCount: convertedCount + skippedCount + failedCount + cancelledCount,
     convertedCount,
+    fixedCount,
     skippedCount,
     failedCount,
     cancelledCount,
@@ -250,6 +252,7 @@ export function startBatchRun(options: BatchSchedulerOptions): BatchRunControlle
       }
 
       const items: BatchDiscoveredItem[] = scanRes.items;
+      const fixed: BatchReportEntry[] = [];
       const failed: BatchReportEntry[] = [];
       const skipped: BatchReportEntry[] = [];
       const warnings: BatchReportWarningEntry[] = [];
@@ -284,10 +287,12 @@ export function startBatchRun(options: BatchSchedulerOptions): BatchRunControlle
           counts: {
             total: totalCount,
             converted: 0,
+            fixed: 0,
             skipped: 0,
             failed: failedCount,
             cancelled: 0,
           },
+          fixed,
           failed,
           skipped,
           warnings,
@@ -410,6 +415,15 @@ export function startBatchRun(options: BatchSchedulerOptions): BatchRunControlle
             const outcome = await adapter(adapterParams);
             claimSucceeded = true;
             convertedCount++;
+            if (outcome.fixedReason) {
+              fixedCount++;
+              fixed.push({
+                displayPath: item.displayPath,
+                sourcePath: item.sourcePath,
+                targetPath: claim.targetPath,
+                reason: outcome.fixedReason,
+              });
+            }
             if (outcome.warnings.length > 0) {
               warnings.push({
                 displayPath: item.displayPath,
@@ -421,6 +435,14 @@ export function startBatchRun(options: BatchSchedulerOptions): BatchRunControlle
           } catch (error) {
             if (signal.aborted || isAbortLikeError(error)) {
               cancelledCount++;
+            } else if (error instanceof BatchSkippedError) {
+              skippedCount++;
+              skipped.push({
+                displayPath: item.displayPath,
+                sourcePath: item.sourcePath,
+                targetPath: resolved.targetPath,
+                reason: error.message,
+              });
             } else {
               failedCount++;
               failed.push({
@@ -479,10 +501,12 @@ export function startBatchRun(options: BatchSchedulerOptions): BatchRunControlle
         counts: {
           total: totalCount,
           converted: convertedCount,
+          fixed: fixedCount,
           skipped: skippedCount,
           failed: failedCount,
           cancelled: cancelledCount,
         },
+        fixed,
         failed,
         skipped,
         warnings,

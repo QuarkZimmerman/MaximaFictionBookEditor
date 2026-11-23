@@ -401,6 +401,11 @@
   color: var(--mfbe-color-warning, #8a5a00);
 }
 
+.mfbe-batch-badge-fixed {
+  background: rgba(16, 124, 65, 0.16);
+  color: var(--mfbe-color-success, #107c41);
+}
+
 .mfbe-batch-issue-path {
   font-weight: 500;
   word-break: break-all;

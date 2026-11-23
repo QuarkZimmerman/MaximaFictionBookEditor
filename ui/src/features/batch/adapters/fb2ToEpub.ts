@@ -27,7 +27,7 @@ const createEpubExportWorker = () =>
   new Worker(new URL('../workers/epubExportWorker.ts', import.meta.url), { type: 'module' });
 
 export async function runFb2ToEpub(params: BatchAdapterContext): Promise<BatchAdapterOutcome> {
-  const { ctx, rpc, item, targetPath, signal, onStage, cache } = params;
+  const { ctx, rpc, config, item, targetPath, signal, onStage, cache } = params;
   const { wordsLanguage } = await import('@/features/epub/shared/words');
 
   let docId: string | null = null;
@@ -36,6 +36,8 @@ export async function runFb2ToEpub(params: BatchAdapterContext): Promise<BatchAd
   try {
     onStage('batch.progress.stageReading', 0, 100);
     const opened = await openEphemeralFb2Headless(rpc, item.sourcePath, item.archiveEntry, {
+      fixBroken: config.fixBroken,
+      t: ctx.t,
       signal,
       onProgress: (done, total) =>
         onStage('batch.progress.stageReading', done, Math.max(total, 100)),
@@ -134,7 +136,7 @@ export async function runFb2ToEpub(params: BatchAdapterContext): Promise<BatchAd
       const line = ctx.t(`epub.summary.${kind}`, { detail: resolvedDetail });
       return count > 1 ? `${line} (\u00d7${count})` : line;
     });
-    return { warnings };
+    return { warnings, ...(opened.repairedReason ? { fixedReason: opened.repairedReason } : {}) };
   } catch (error) {
     if (token) {
       await rpc.call('epub.write.abort', { token }).catch(() => undefined);

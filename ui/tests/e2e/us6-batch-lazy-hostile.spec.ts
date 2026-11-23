@@ -157,8 +157,10 @@ test.describe('US6: On-demand loading, hostile inputs, and clean shutdown', () =
         '<section><p><image l:href="https://198.51.100.42/tracker.png"/><a l:href="http://198.51.100.42/ping">link</a></p></section></body>',
       );
       writeFileSync(path.join(srcDir, 'remote-refs.fb2'), remoteUrlFb2, 'utf8');
-      // 3) Malformed XML .fb2
-      copyFileSync(fixtureBook('malformed.fb2'), path.join(srcDir, 'malformed.fb2'));
+      // 3) Malformed XML .fb2 (repaired in memory when Fix broken is on; source bytes stay untouched)
+      const malformedPath = path.join(srcDir, 'malformed.fb2');
+      copyFileSync(fixtureBook('malformed.fb2'), malformedPath);
+      const malformedOrigBytes = readFileSync(malformedPath);
       // 4) 0-byte files across formats (distinct stems so each format adapter runs individually)
       for (const ext of ['fb2', 'epub', 'mobi', 'pdf']) {
         writeFileSync(path.join(srcDir, `empty-${ext}.${ext}`), Buffer.alloc(0));
@@ -195,8 +197,12 @@ test.describe('US6: On-demand loading, hostile inputs, and clean shutdown', () =
       const unicodeOut = path.join(outEpub, 'Книги', 'Українська', 'Їжак і Сонце.epub');
       expect(existsSync(unicodeOut), `expected Cyrillic/Ukrainian output ${unicodeOut}`).toBe(true);
       expect(existsSync(path.join(outEpub, 'remote-refs.epub'))).toBe(true);
+      expect(existsSync(path.join(outEpub, 'malformed.epub'))).toBe(true);
+      expect(readFileSync(malformedPath).equals(malformedOrigBytes)).toBe(true);
+      await expect(page.getByTestId('batch-count-fixed')).toContainText('1');
+      // 0-byte and random-binary .fb2 files are still unrecoverable and fail safely.
       const exportFailedText = (await page.getByTestId('batch-count-failed').textContent()) ?? '';
-      expect(Number(/(\d+)/.exec(exportFailedText)?.[1] ?? '0')).toBeGreaterThanOrEqual(3);
+      expect(Number(/(\d+)/.exec(exportFailedText)?.[1] ?? '0')).toBeGreaterThanOrEqual(2);
       expect(batchStateEntries(dedicatedDataDir)).toEqual([]);
 
       // Pass B: Import -> FB2 (All formats) over hostile tree (hostile.md succeeds; bad epub/mobi/pdf/zip fail safely).

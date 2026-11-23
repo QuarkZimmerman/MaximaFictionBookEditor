@@ -53,6 +53,8 @@ export async function runFb2ToPdf(params: BatchAdapterContext): Promise<BatchAda
   try {
     onStage('batch.progress.stageReading', 0, 100);
     const opened = await openEphemeralFb2(rpc, item.sourcePath, item.archiveEntry, {
+      fixBroken: config.fixBroken,
+      t: ctx.t,
       signal,
       onProgress: (done, total) =>
         onStage('batch.progress.stageReading', done, Math.max(total, 100)),
@@ -182,7 +184,7 @@ export async function runFb2ToPdf(params: BatchAdapterContext): Promise<BatchAda
         ? [ctx.t('pdf.summary.systemFont', { detail: [...finished.uncovered].join(' ') })]
         : []),
     ];
-    return { warnings };
+    return { warnings, ...(opened.repairedReason ? { fixedReason: opened.repairedReason } : {}) };
   } catch (error) {
     if (token) {
       // Only cancel pending PrintService jobs if this worker owned the active print slot or the

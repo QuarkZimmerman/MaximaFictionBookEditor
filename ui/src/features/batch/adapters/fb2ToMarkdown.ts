@@ -54,6 +54,8 @@ export async function runFb2ToMarkdown(params: BatchAdapterContext): Promise<Bat
   try {
     onStage('batch.progress.stageReading', 0, 100);
     const opened = await openEphemeralFb2(rpc, item.sourcePath, item.archiveEntry, {
+      fixBroken: config.fixBroken,
+      t: ctx.t,
       signal,
       onProgress: (done, total) =>
         onStage('batch.progress.stageReading', done, Math.max(total, 100)),
@@ -117,7 +119,7 @@ export async function runFb2ToMarkdown(params: BatchAdapterContext): Promise<Bat
     for (const skippedPic of result.skipped ?? []) {
       warnings.push(ctx.t('pdf.summary.pictureLeftOut', { detail: skippedPic }));
     }
-    return { warnings };
+    return { warnings, ...(opened.repairedReason ? { fixedReason: opened.repairedReason } : {}) };
   } finally {
     await closeEphemeralDoc(rpc, docId);
   }

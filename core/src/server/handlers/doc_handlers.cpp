@@ -481,7 +481,7 @@ fb2::ReadResult read_book(const std::string& path, BinaryStore& store, model::No
 Opened open_document(const std::string& path, const std::string& ui_language,
                      rpc::JobControl* control, const std::optional<std::string>& entry = {},
                      const std::optional<std::string>& force_encoding = {},
-                     bool clean_invalid_chars = false) {
+                     bool clean_invalid_chars = false, bool recover = false) {
     Opened opened;
     opened.path = path;
     opened.entry = entry;
@@ -495,6 +495,7 @@ Opened open_document(const std::string& path, const std::string& ui_language,
         read_options.force_encoding = *force_encoding;
     }
     read_options.clean_invalid_chars = clean_invalid_chars;
+    read_options.recover = recover;
     if (entry) {
         const std::string bytes = archive_book_bytes(path, *entry);
         try {
@@ -1345,58 +1346,59 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         }
         const bool clean_invalid_chars =
             rpc::params::boolean_or(params, "cleanInvalidChars", false);
+        const bool recover = rpc::params::boolean_or(params, "recover", false);
         const std::string ui_language = ui_language_setting(services);
         // Ephemeral batch opens always run on a worker thread so parallel batch workers parse,
         // validate, and serialize FB2 files concurrently across CPU cores instead of blocking the
         // single RPC event loop.
         if (!ephemeral && (ec || size < kJobThresholdBytes)) {
             Opened opened = open_document(path, ui_language, nullptr, entry, force_encoding,
-                                          clean_invalid_chars);
+                                          clean_invalid_chars, recover);
             return register_session(services, std::move(opened), ephemeral);
         }
         // The session (and its docId) exists from the start; the worker parses and builds the
         // JSON result, the loop thread only moves the data into the session at the end.
         const std::string doc_id = services.documents.create().docId;
-        const std::string job_id =
-            ctx.jobs.start([&services, path, doc_id, ui_language, entry, force_encoding,
-                            clean_invalid_chars, ephemeral](rpc::JobControl& control) -> json {
-                auto opened = std::make_shared<Opened>();
-                try {
-                    *opened = open_document(path, ui_language, &control, entry, force_encoding,
-                                            clean_invalid_chars);
-                } catch (...) {
-                    on_loop_thread(
-                        services,
-                        [&services, doc_id] {
-                            services.documents.close(doc_id);
-                            return 0;
-                        },
-                        &control);
-                    throw;
-                }
-                opened->read.document.docId = doc_id;
-                json result{
-                    {"document", loaded_document_json(opened->read.document, opened->filled_in)},
-                    {"warnings", issues_json(opened->read.warnings)}};
-                add_source(result["document"], *opened);
-                const bool registered = on_loop_thread(
+        const std::string job_id = ctx.jobs.start([&services, path, doc_id, ui_language, entry,
+                                                   force_encoding, clean_invalid_chars, recover,
+                                                   ephemeral](rpc::JobControl& control) -> json {
+            auto opened = std::make_shared<Opened>();
+            try {
+                *opened = open_document(path, ui_language, &control, entry, force_encoding,
+                                        clean_invalid_chars, recover);
+            } catch (...) {
+                on_loop_thread(
                     services,
-                    [&services, doc_id, opened, ephemeral] {
-                        session::DocumentSession* s = services.documents.find(doc_id);
-                        if (s == nullptr) {
-                            return false;  // closed while loading
-                        }
-                        fill_session(services, *s, *opened, ephemeral);
-                        return true;
+                    [&services, doc_id] {
+                        services.documents.close(doc_id);
+                        return 0;
                     },
                     &control);
-                if (!registered) {
-                    throw rpc::RpcError(rpc::codes::kCancelled, "document was closed while loading",
-                                        json{{"docId", doc_id}});
-                }
-                control.progress("done", 100, 100);
-                return result;
-            });
+                throw;
+            }
+            opened->read.document.docId = doc_id;
+            json result{
+                {"document", loaded_document_json(opened->read.document, opened->filled_in)},
+                {"warnings", issues_json(opened->read.warnings)}};
+            add_source(result["document"], *opened);
+            const bool registered = on_loop_thread(
+                services,
+                [&services, doc_id, opened, ephemeral] {
+                    session::DocumentSession* s = services.documents.find(doc_id);
+                    if (s == nullptr) {
+                        return false;  // closed while loading
+                    }
+                    fill_session(services, *s, *opened, ephemeral);
+                    return true;
+                },
+                &control);
+            if (!registered) {
+                throw rpc::RpcError(rpc::codes::kCancelled, "document was closed while loading",
+                                    json{{"docId", doc_id}});
+            }
+            control.progress("done", 100, 100);
+            return result;
+        });
         return json{{"jobId", job_id}};
     });
 
@@ -1409,12 +1411,13 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         const std::optional<std::string> requested_entry = rpc::params::opt_string(params, "entry");
         const bool clean_invalid_chars =
             rpc::params::boolean_or(params, "cleanInvalidChars", false);
+        const bool recover = rpc::params::boolean_or(params, "recover", false);
         const std::string ui_language = ui_language_setting(services);
 
         const std::string doc_id = services.documents.create().docId;
         const std::string job_id =
             ctx.jobs.start([&services, path, file, doc_id, ui_language, requested_entry,
-                            clean_invalid_chars](rpc::JobControl& control) -> json {
+                            clean_invalid_chars, recover](rpc::JobControl& control) -> json {
                 auto cleanup_doc = [&services, &doc_id, &control] {
                     services.batch.erase_doc_json(doc_id);
                     on_loop_thread(
@@ -1443,7 +1446,7 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
                         entry = choice.entry;
                     }
                     *opened = open_document(path, ui_language, &control, entry, std::nullopt,
-                                            clean_invalid_chars);
+                                            clean_invalid_chars, recover);
                 } catch (...) {
                     cleanup_doc();
                     throw;

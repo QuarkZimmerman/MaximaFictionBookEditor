@@ -1,7 +1,7 @@
 /**
  * Batch-only export options modal for the selected format (PDF, MOBI / KF8, TXT, Markdown).
- * Reuses the Settings -> Exports page components against a local draft copy so edits apply
- * solely to Batch Converter in this session and never modify global settings.json.
+ * Reuses the Settings -> Exports page components against a local draft copy so edits persist
+ * solely to Batch Converter (`batch-converter.json`) and never modify global settings.json.
  */
 
 import { useState } from 'react';
@@ -16,14 +16,15 @@ import { TxtPage } from '@/dialogs/settings/TxtPage';
 import '@/dialogs/settings/settings.css';
 import type { Settings } from '@/rpc/types';
 
-import { mergeBatchExportSettings } from './engine/configState';
+import { cloneExportSettingsOverrides, mergeBatchExportSettings } from './engine/configState';
 import type { BatchConfigurableExportFormat, BatchExportSettingsOverrides } from './engine/types';
 
 export interface BatchExportSettingsDialogProps {
   ctx: CommandContext;
   format: BatchConfigurableExportFormat;
   effectiveSettings: Settings | null;
-  onSave: (patch: BatchExportSettingsOverrides) => void;
+  onApply: (patch: BatchExportSettingsOverrides) => Promise<void> | void;
+  onSave: (patch: BatchExportSettingsOverrides) => Promise<void> | void;
   onCancel: () => void;
 }
 
@@ -31,33 +32,20 @@ function buildInitialDraft(
   format: BatchConfigurableExportFormat,
   effectiveSettings: Settings | null,
 ): Settings {
-  const seed: BatchExportSettingsOverrides = {};
-  switch (format) {
-    case 'pdf':
-      seed.pdf = {};
-      break;
-    case 'txt':
-      seed.txt = {};
-      break;
-    case 'mobi':
-      seed.mobi = {};
-      break;
-    case 'markdown':
-      seed.markdown = {};
-      break;
-  }
-  return mergeBatchExportSettings(effectiveSettings, seed)!;
+  return mergeBatchExportSettings(effectiveSettings, { [format]: {} })!;
 }
 
 export function BatchExportSettingsDialog({
   ctx,
   format,
   effectiveSettings,
+  onApply,
   onSave,
   onCancel,
 }: BatchExportSettingsDialogProps) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState<Settings>(() => buildInitialDraft(format, effectiveSettings));
+  const [busy, setBusy] = useState(false);
 
   const updateSection = <S extends BatchConfigurableExportFormat>(
     section: S,
@@ -69,53 +57,39 @@ export function BatchExportSettingsDialog({
     }));
   };
 
-  const handleOk = () => {
-    // ZIP output is controlled by the single checkbox beside Target format in BatchConverterDialog;
-    // omit `zip` here so per-format options never fight with that checkbox.
-    switch (format) {
-      case 'pdf':
-        if (draft.pdf) {
-          onSave({
-            pdf: {
-              defaultPageSize: draft.pdf.defaultPageSize,
-              textFont: draft.pdf.textFont,
-              textSize: draft.pdf.textSize,
-              margins: draft.pdf.margins,
-              customTextSize: draft.pdf.customTextSize,
-              customMargin: draft.pdf.customMargin,
-            },
-          });
-        }
-        break;
-      case 'txt':
-        if (draft.txt) {
-          onSave({
-            txt: {
-              encodingMode: draft.txt.encodingMode,
-              encodings: { ...draft.txt.encodings },
-              bom: draft.txt.bom,
-            },
-          });
-        }
-        break;
-      case 'mobi':
-        if (draft.mobi) {
-          onSave({
-            mobi: {
-              format: draft.mobi.format,
-              tocPlacement: draft.mobi.tocPlacement,
-              seriesInTitle: draft.mobi.seriesInTitle,
-              openAt: draft.mobi.openAt,
-              kf8PopupFootnotes: draft.mobi.kf8PopupFootnotes,
-            },
-          });
-        }
-        break;
-      case 'markdown':
-        if (draft.markdown) {
-          onSave({ markdown: { includePictures: draft.markdown.includePictures } });
-        }
-        break;
+  const buildSectionPatch = (): BatchExportSettingsOverrides => {
+    const rawSection = (draft as unknown as Record<string, unknown>)[format];
+    if (!rawSection || typeof rawSection !== 'object') return {};
+    // Clone the entire format section generically so any future parameter added to global export
+    // settings is preserved and persisted automatically. Omit `zip`, which is managed by Batch
+    // Converter's own Save-in-ZIP checkbox (`hideZip`).
+    const cloned = cloneExportSettingsOverrides({
+      [format]: rawSection as Record<string, unknown>,
+    });
+    const sectionObj = cloned[format];
+    if (sectionObj && typeof sectionObj === 'object') {
+      delete (sectionObj as Record<string, unknown>).zip;
+    }
+    return cloned;
+  };
+
+  const handleOk = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await onSave(buildSectionPatch());
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleApply = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await onApply(buildSectionPatch());
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -123,12 +97,20 @@ export function BatchExportSettingsDialog({
     {
       id: 'ok',
       label: t('dialog.buttons.ok'),
-      onClick: handleOk,
+      disabled: busy,
+      onClick: () => void handleOk(),
     },
     {
       id: 'cancel',
       label: t('dialog.buttons.cancel'),
+      disabled: busy,
       onClick: onCancel,
+    },
+    {
+      id: 'apply',
+      label: t('dialog.settings.apply'),
+      disabled: busy,
+      onClick: () => void handleApply(),
     },
   ];
 

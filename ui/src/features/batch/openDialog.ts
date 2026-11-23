@@ -1,7 +1,7 @@
 /**
  * Feature 019 (T036, T053): lazy entry point of the `batch-converter` chunk.
- * Queries `app.info` (for `cpuCores`) and ensures `settings` are populated before opening the
- * strictly modal `BatchConverterDialog`.
+ * Queries `app.info` (for `cpuCores`), ensures `settings` are populated, and loads persisted
+ * Batch Converter settings fresh from disk (`batch.settings.get`) before opening the modal dialog.
  */
 
 import { createElement } from 'react';
@@ -15,7 +15,7 @@ export async function openBatchConverterDialog(ctx: CommandContext): Promise<voi
   const { rpc, store } = ctx;
   if (!rpc) return;
 
-  const [info, loadedSettings] = await Promise.all([
+  const [info, loadedSettings, batchPersisted] = await Promise.all([
     rpc.call('app.info').catch(() => null),
     store.getState().settings
       ? Promise.resolve(store.getState().settings)
@@ -26,6 +26,7 @@ export async function openBatchConverterDialog(ctx: CommandContext): Promise<voi
             return s;
           })
           .catch(() => null),
+    rpc.call('batch.settings.get', {}).catch(() => null),
   ]);
 
   const cpuCores = info?.cpuCores ?? 1;
@@ -37,6 +38,7 @@ export async function openBatchConverterDialog(ctx: CommandContext): Promise<voi
         ctx,
         cpuCores,
         initialSettings: loadedSettings,
+        initialPersisted: batchPersisted?.settings ?? null,
         canCloseRef,
         onClose: () => close(),
       }),

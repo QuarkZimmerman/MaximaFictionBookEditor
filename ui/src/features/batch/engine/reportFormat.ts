@@ -80,8 +80,11 @@ export function formatBatchReportText(
       : t('batch.reportFile.parallelNo');
   lines.push(`${padLabel(t('batch.reportFile.parallel'))}${parallelText}`);
 
-  if (report.config.direction === 'fb2ToExport' && report.exportDefaultsSummary) {
-    lines.push(`${padLabel(t('batch.reportFile.exportOpts'))}${report.exportDefaultsSummary}`);
+  if (report.config.direction === 'fb2ToExport') {
+    lines.push(`${padLabel(t('batch.reportFile.fixBroken'))}${yesNo(report.config.fixBroken)}`);
+    if (report.exportDefaultsSummary) {
+      lines.push(`${padLabel(t('batch.reportFile.exportOpts'))}${report.exportDefaultsSummary}`);
+    }
   }
 
   // Summary section
@@ -91,6 +94,7 @@ export function formatBatchReportText(
   lines.push('-'.repeat(summaryHeading.length));
   lines.push(`${padLabel(t('batch.reportFile.total'))}${report.counts.total}`);
   lines.push(`${padLabel(t('batch.reportFile.converted'))}${report.counts.converted}`);
+  lines.push(`${padLabel(t('batch.reportFile.fixed'))}${report.counts.fixed}`);
   lines.push(`${padLabel(t('batch.reportFile.skipped'))}${report.counts.skipped}`);
   lines.push(`${padLabel(t('batch.reportFile.failed'))}${report.counts.failed}`);
   lines.push(`${padLabel(t('batch.reportFile.cancelled'))}${report.counts.cancelled}`);
@@ -122,6 +126,21 @@ export function formatBatchReportText(
       const targetSuffix = entry.targetPath ? ` -> ${entry.targetPath}` : '';
       lines.push(`${idx + 1}. ${entry.displayPath}${targetSuffix}`);
       lines.push(`   ${t('batch.reportFile.reasonPrefix')} ${entry.reason}`);
+    });
+  }
+
+  // Fixed section (broken XML repaired in memory without changing source files)
+  lines.push('');
+  const fixedHeading = t('batch.reportFile.fixedHeading', { count: report.fixed.length });
+  lines.push(fixedHeading);
+  lines.push('-'.repeat(fixedHeading.length));
+  if (report.fixed.length === 0) {
+    lines.push(t('batch.reportFile.none'));
+  } else {
+    report.fixed.forEach((entry, idx) => {
+      const targetSuffix = entry.targetPath ? ` -> ${entry.targetPath}` : '';
+      lines.push(`${idx + 1}. ${entry.displayPath}${targetSuffix}`);
+      lines.push(`   ${t('batch.reportFile.repairedPrefix')} ${entry.reason}`);
     });
   }
 

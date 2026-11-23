@@ -46,22 +46,26 @@ xmlParserErrors deny_resource(void* /*ctxt*/, const char* /*url*/, const char* /
 
 }  // namespace
 
-int hardened_parse_options() {
+int hardened_parse_options(bool recover) {
     // (XML_PARSE_NOERROR would also silence the structured error handler, so errors are routed
     // through xmlCtxtSetErrorHandler instead.)
-    return XML_PARSE_NONET | XML_PARSE_NO_XXE | XML_PARSE_NO_SYS_CATALOG | XML_PARSE_BIG_LINES |
-           XML_PARSE_NOCDATA;
+    int opts = XML_PARSE_NONET | XML_PARSE_NO_XXE | XML_PARSE_NO_SYS_CATALOG | XML_PARSE_BIG_LINES |
+               XML_PARSE_NOCDATA;
+    if (recover) {
+        opts |= XML_PARSE_RECOVER;
+    }
+    return opts;
 }
 
 void ensure_libxml_initialised() {
     std::call_once(g_init_once, [] { xmlInitParser(); });
 }
 
-void harden_context(xmlParserCtxtPtr ctxt, std::vector<CollectedError>* errors) {
+void harden_context(xmlParserCtxtPtr ctxt, std::vector<CollectedError>* errors, bool recover) {
     if (ctxt == nullptr) {
         return;
     }
-    xmlCtxtSetOptions(ctxt, hardened_parse_options());
+    xmlCtxtSetOptions(ctxt, hardened_parse_options(recover));
     xmlCtxtSetResourceLoader(ctxt, deny_resource, nullptr);
     xmlCtxtSetMaxAmplification(ctxt, 5);
     if (errors != nullptr) {
@@ -70,8 +74,18 @@ void harden_context(xmlParserCtxtPtr ctxt, std::vector<CollectedError>* errors) 
     encoding::install_libxml_handlers(ctxt);
 }
 
+namespace {
+
+bool is_unrecoverable_limit_error(const CollectedError& e) {
+    return e.code == XML_ERR_RESOURCE_LIMIT || e.code == XML_ERR_ENTITY_LOOP ||
+           e.code == XML_ERR_NO_MEMORY;
+}
+
+}  // namespace
+
 xmlDocPtr parse_memory(std::string_view bytes, const char* url, const char* encoding,
-                       std::vector<CollectedError>& errors, const xmlSAXHandler* sax, void* priv) {
+                       std::vector<CollectedError>& errors, const xmlSAXHandler* sax, void* priv,
+                       bool recover) {
     ensure_libxml_initialised();
     if (bytes.size() > kMaxDocumentBytes) {
         errors.push_back(CollectedError{1, 1, XML_ERR_RESOURCE_LIMIT,
@@ -84,12 +98,19 @@ xmlDocPtr parse_memory(std::string_view bytes, const char* url, const char* enco
         return nullptr;
     }
     xmlCtxtSetPrivate(ctxt, priv);
-    harden_context(ctxt, &errors);
+    harden_context(ctxt, &errors, recover);
     xmlDocPtr doc = xmlCtxtReadMemory(ctxt, bytes.data(), static_cast<int>(bytes.size()), url,
-                                      encoding, hardened_parse_options());
+                                      encoding, hardened_parse_options(recover));
     const bool well_formed = (xmlCtxtGetStatus(ctxt) & XML_STATUS_NOT_WELL_FORMED) == 0;
     xmlFreeParserCtxt(ctxt);
-    if (doc != nullptr && !well_formed) {
+    bool blocked_by_limit = false;
+    for (const auto& e : errors) {
+        if (is_unrecoverable_limit_error(e)) {
+            blocked_by_limit = true;
+            break;
+        }
+    }
+    if (doc != nullptr && (blocked_by_limit || (!well_formed && !recover))) {
         xmlFreeDoc(doc);
         doc = nullptr;
     }

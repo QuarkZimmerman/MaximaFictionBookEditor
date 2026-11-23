@@ -35,22 +35,25 @@ struct CollectedError {
     bool fatal = false;
 };
 
-// Parser options for untrusted FB2 input (see the policy above).
-int hardened_parse_options();
+// Parser options for untrusted FB2 input (see the policy above). `recover` adds XML_PARSE_RECOVER
+// while keeping every security barrier (NO_XXE, NONET, NO_SYS_CATALOG, amplification limit) intact.
+int hardened_parse_options(bool recover = false);
 
 // Makes sure libxml2 is initialised (idempotent, thread-safe).
 void ensure_libxml_initialised();
 
 // Applies the policy to a context: options, resource loader, amplification limit, structured
 // error collection into `errors`, and the table-based legacy encodings.
-void harden_context(xmlParserCtxtPtr ctxt, std::vector<CollectedError>* errors);
+void harden_context(xmlParserCtxtPtr ctxt, std::vector<CollectedError>* errors,
+                    bool recover = false);
 
 // Parses `bytes` into a DOM. `encoding` overrides BOM/declaration detection when non-null.
 // `sax` lets the caller wrap the default SAX2 handlers (binary stripping); `priv` becomes
-// xmlCtxtGetPrivate(). Returns nullptr when the input is not well-formed (errors filled).
+// xmlCtxtGetPrivate(). Returns nullptr when the input is not well-formed unless `recover` is true
+// (resource-limit and entity-loop errors are never recovered).
 xmlDocPtr parse_memory(std::string_view bytes, const char* url, const char* encoding,
                        std::vector<CollectedError>& errors, const xmlSAXHandler* sax = nullptr,
-                       void* priv = nullptr);
+                       void* priv = nullptr, bool recover = false);
 
 // First fatal error (or first error) as line/column/message; a generic message when none.
 CollectedError primary_error(const std::vector<CollectedError>& errors);

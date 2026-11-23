@@ -543,3 +543,192 @@ TEST_CASE("concurrent batch.openDoc calls validate and serialize in parallel saf
         f.ws.call("doc.close", json{{"docId", doc_id}});
     }
 }
+
+TEST_CASE("batch.openDoc respects recover flag on malformed FB2", "[batch][rpc]") {
+    BatchFixture f;
+    const fs::path broken_src = test::fixtures_dir() / "books" / "malformed.fb2";
+    const std::string broken_utf8 = platform::utf8_from_path(broken_src);
+
+    // Without recover (Fix broken unchecked): fails with 1001 doc.parseError.
+    {
+        const json reply = f.ws.call("batch.openDoc", json{{"path", broken_utf8}, {"recover", false}});
+        REQUIRE(reply.contains("result"));
+        const std::string jid = reply["result"]["jobId"].get<std::string>();
+        bool saw_failed = false;
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(15);
+        while (!saw_failed && std::chrono::steady_clock::now() < deadline) {
+            auto msg = f.ws.receive_json(5000);
+            REQUIRE(msg.has_value());
+            if (msg->value("method", "") == "job.failed" &&
+                (*msg)["params"]["jobId"].get<std::string>() == jid) {
+                CHECK((*msg)["params"]["error"]["code"] == 1001);
+                saw_failed = true;
+            }
+        }
+        REQUIRE(saw_failed);
+    }
+
+    // With recover=true (Fix broken checked): succeeds in memory with xml.repaired warning.
+    {
+        const json res =
+            f.call_maybe_job("batch.openDoc", json{{"path", broken_utf8}, {"recover", true}});
+        REQUIRE(res.contains("docId"));
+        const std::string doc_id = res["docId"].get<std::string>();
+        bool saw_repaired = false;
+        for (const auto& w : res["warnings"]) {
+            if (w.value("code", "") == "xml.repaired") {
+                saw_repaired = true;
+                CHECK(w["params"]["line"] == 20);
+            }
+        }
+        CHECK(saw_repaired);
+        const auto get = test::http_get(f.server->port(),
+                                        "/batch/doc/" + doc_id + "?token=" + f.server->token());
+        REQUIRE(get.status == 200);
+        const json doc_json = json::parse(get.body);
+        CHECK(doc_json["description"]["titleInfo"]["bookTitle"] == "Malformed");
+        f.ws.call("doc.close", json{{"docId", doc_id}});
+    }
+}
+
+TEST_CASE("batch.settings.get and batch.settings.save persist copy of global exports with forward compatibility and last-to-close wins",
+          "[batch][rpc]") {
+    BatchFixture f;
+    const fs::path batch_file = f.data.path() / "batch-converter.json";
+    REQUIRE_FALSE(fs::exists(batch_file));
+
+    // 1. Customise global Settings -> Exports first; first batch.settings.get copies them
+    // without creating batch-converter.json.
+    REQUIRE(f.ws
+                .call("settings.set",
+                      json{{"patch",
+                            {{"pdf", {{"defaultPageSize", "a5"}, {"customMargin", 30}}},
+                             {"mobi", {{"format", "kf8"}, {"tocPlacement", "end"}}},
+                             {"txt", {{"encodingMode", "language"}, {"bom", true}}},
+                             {"markdown", {{"includePictures", false}}}}}})
+                .contains("result"));
+
+    const json first = f.ws.call("batch.settings.get", json::object());
+    REQUIRE(first.contains("result"));
+    CHECK(first["result"]["hasStored"] == false);
+    CHECK_FALSE(fs::exists(batch_file));
+    const json& s0 = first["result"]["settings"];
+    CHECK(s0["direction"] == "fb2ToExport");
+    CHECK(s0["inPlace"] == true);
+    CHECK(s0["fixBroken"] == true);
+    CHECK(s0["overwrite"] == false);
+    CHECK(s0["exportSettings"]["pdf"]["defaultPageSize"] == "a5");
+    CHECK(s0["exportSettings"]["pdf"]["customMargin"] == 30);
+    CHECK(s0["exportSettings"]["mobi"]["format"] == "kf8");
+    CHECK(s0["exportSettings"]["mobi"]["tocPlacement"] == "end");
+    CHECK(s0["exportSettings"]["txt"]["encodingMode"] == "language");
+    CHECK(s0["exportSettings"]["txt"]["bom"] == true);
+    CHECK(s0["exportSettings"]["markdown"]["includePictures"] == false);
+
+    // 2. Save modified batch settings; global settings.json MUST remain untouched!
+    json modified = s0;
+    modified["direction"] = "importToFb2";
+    modified["exportFormat"] = "mobi";
+    modified["inPlace"] = false;
+    modified["fixBroken"] = false;
+    modified["overwrite"] = true;
+    modified["sourceDir"] = "/tmp/src";
+    modified["destinationDir"] = "/tmp/dst";
+    modified["parallel"] = true;
+    modified["workerCount"] = 5;
+    modified["zipOverrides"] = json{{"fb2ToExport:mobi", true}, {"importToFb2", true}};
+    modified["exportSettings"]["mobi"]["format"] = "mobi7";
+    modified["exportSettings"]["pdf"]["defaultPageSize"] = "letter";
+
+    const json saved = f.ws.call("batch.settings.save", json{{"settings", modified}});
+    REQUIRE(saved.contains("result"));
+    REQUIRE(fs::exists(batch_file));
+
+    const json reloaded = f.ws.call("batch.settings.get", json::object());
+    REQUIRE(reloaded.contains("result"));
+    CHECK(reloaded["result"]["hasStored"] == true);
+    CHECK(reloaded["result"]["settings"]["direction"] == "importToFb2");
+    CHECK(reloaded["result"]["settings"]["inPlace"] == false);
+    CHECK(reloaded["result"]["settings"]["fixBroken"] == false);
+    CHECK(reloaded["result"]["settings"]["overwrite"] == true);
+    CHECK(reloaded["result"]["settings"]["parallel"] == true);
+    CHECK(reloaded["result"]["settings"]["workerCount"] == 5);
+    CHECK(reloaded["result"]["settings"]["zipOverrides"]["fb2ToExport:mobi"] == true);
+    CHECK(reloaded["result"]["settings"]["exportSettings"]["mobi"]["format"] == "mobi7");
+    CHECK(reloaded["result"]["settings"]["exportSettings"]["pdf"]["defaultPageSize"] == "letter");
+
+    const json global_after = f.ws.call("settings.get", json::object());
+    REQUIRE(global_after.contains("result"));
+    CHECK(global_after["result"]["mobi"]["format"] == "kf8");
+    CHECK(global_after["result"]["pdf"]["defaultPageSize"] == "a5");
+
+    // 3. Forward compatibility: older batch-converter.json missing newly-added format parameters
+    // (e.g. pdf.customMargin, mobi.kf8PopupFootnotes, txt.encodings.uk, fixBroken) plus unknown
+    // future keys -> old values preserved, newly-added keys take schema defaults (NOT global
+    // overrides), unknown keys survive, and saving persists the full updated schema.
+    const json older_file{
+        {"schemaVersion", 1},
+        {"direction", "fb2ToExport"},
+        {"exportFormat", "pdf"},
+        {"futureTopLevel", "keep-me"},
+        {"exportSettings",
+         {{"pdf", {{"defaultPageSize", "b5"}, {"textFont", "noto-sans"}, {"futurePdfOpt", 42}}},
+          {"mobi", {{"format", "mobi7"}}},
+          {"txt", {{"encodingMode", "language"}, {"encodings", {{"ru", "koi8-r"}}}}},
+          {"futureFormat", {{"enabled", true}}}}}};
+    atomic_file::write_atomic(batch_file, older_file.dump(2));
+
+    const json upgraded = f.ws.call("batch.settings.get", json::object());
+    REQUIRE(upgraded.contains("result"));
+    CHECK(upgraded["result"]["hasStored"] == true);
+    const json& u = upgraded["result"]["settings"];
+    CHECK(u["fixBroken"] == true);
+    CHECK(u["inPlace"] == true);
+    CHECK(u["futureTopLevel"] == "keep-me");
+    // Old values loaded fully:
+    CHECK(u["exportSettings"]["pdf"]["defaultPageSize"] == "b5");
+    CHECK(u["exportSettings"]["pdf"]["textFont"] == "noto-sans");
+    CHECK(u["exportSettings"]["pdf"]["futurePdfOpt"] == 42);
+    CHECK(u["exportSettings"]["mobi"]["format"] == "mobi7");
+    CHECK(u["exportSettings"]["txt"]["encodingMode"] == "language");
+    CHECK(u["exportSettings"]["txt"]["encodings"]["ru"] == "koi8-r");
+    CHECK(u["exportSettings"]["futureFormat"]["enabled"] == true);
+    // Missing/new parameters inside existing sections take schema defaults (not global overrides!):
+    CHECK(u["exportSettings"]["pdf"]["customMargin"] == 22);
+    CHECK(u["exportSettings"]["pdf"]["customTextSize"] == 115);
+    CHECK(u["exportSettings"]["mobi"]["tocPlacement"] == "afterTitle");
+    CHECK(u["exportSettings"]["mobi"]["kf8PopupFootnotes"] == true);
+    CHECK(u["exportSettings"]["txt"]["encodings"]["en"] == "windows-1252");
+    CHECK(u["exportSettings"]["txt"]["encodings"]["uk"] == "windows-1251");
+    CHECK(u["exportSettings"]["txt"]["bom"] == false);
+    // Missing whole section (`markdown`) inherits from global copy (`includePictures: false`):
+    CHECK(u["exportSettings"]["markdown"]["includePictures"] == false);
+
+    // Save upgraded settings (e.g. after OK/Apply) -> full updated structure persisted to disk.
+    const json save_upgraded = f.ws.call("batch.settings.save", json{{"settings", u}});
+    REQUIRE(save_upgraded.contains("result"));
+    const json on_disk = json::parse(atomic_file::read_file(batch_file));
+    CHECK(on_disk["exportSettings"]["pdf"]["defaultPageSize"] == "b5");
+    CHECK(on_disk["exportSettings"]["pdf"]["customMargin"] == 22);
+    CHECK(on_disk["exportSettings"]["pdf"]["futurePdfOpt"] == 42);
+    CHECK(on_disk["exportSettings"]["txt"]["encodings"]["ru"] == "koi8-r");
+    CHECK(on_disk["exportSettings"]["txt"]["encodings"]["uk"] == "windows-1251");
+    CHECK(on_disk["futureTopLevel"] == "keep-me");
+
+    // 4. Last-to-close wins across concurrent dialogs + 1-2 core omission preserves parallel:
+    json dialog_a = f.ws.call("batch.settings.get", json::object())["result"]["settings"];
+    json dialog_b = f.ws.call("batch.settings.get", json::object())["result"]["settings"];
+    dialog_a["sourceDir"] = "/dialog-a";
+    dialog_a["parallel"] = true;
+    dialog_a["workerCount"] = 6;
+    dialog_b["sourceDir"] = "/dialog-b";
+    dialog_b.erase("parallel");
+    dialog_b.erase("workerCount");
+    REQUIRE(f.ws.call("batch.settings.save", json{{"settings", dialog_a}}).contains("result"));
+    REQUIRE(f.ws.call("batch.settings.save", json{{"settings", dialog_b}}).contains("result"));
+
+    const json winner = f.ws.call("batch.settings.get", json::object())["result"]["settings"];
+    CHECK(winner["sourceDir"] == "/dialog-b");
+    CHECK(winner["parallel"] == true);
+    CHECK(winner["workerCount"] == 6);
+}

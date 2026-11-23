@@ -1349,6 +1349,8 @@ export interface RpcMethods {
       entry?: string;
       encoding?: string;
       cleanInvalidChars?: boolean;
+      /** Attempt in-memory XML recovery on malformed FictionBook files without modifying disk. */
+      recover?: boolean;
       /** Feature 019: when true, skip Recent files and remembered positions. */
       ephemeral?: boolean;
     };
@@ -2262,6 +2264,7 @@ export interface RpcMethods {
       path: string;
       entry?: string;
       cleanInvalidChars?: boolean;
+      recover?: boolean;
     };
     result: MaybeJob<{
       docId: string;
@@ -2291,8 +2294,46 @@ export interface RpcMethods {
     params: { path: string; content: string };
     result: { path: string; bytes: number };
   };
+  'batch.settings.get': {
+    params: Record<string, never> | void;
+    result: { hasStored: boolean; settings: BatchPersistedSettings };
+  };
+  'batch.settings.save': {
+    params: { settings: BatchPersistedSettings };
+    result: { settings: BatchPersistedSettings };
+  };
   /** Feature 019 (--test-hooks): overrides app.info.cpuCores (null restores hardware_concurrency). */
   'test.setCpuCores': { params: { cores: number | null }; result: { cpuCores: number } };
+}
+
+/** Persistent copy of global export format settings stored in `<Config>/batch-converter.json`. */
+export interface BatchPersistedExportSettings {
+  pdf?: NonNullable<Settings['pdf']>;
+  txt?: NonNullable<Settings['txt']>;
+  mobi?: NonNullable<Settings['mobi']>;
+  markdown?: NonNullable<Settings['markdown']>;
+  [section: string]: Record<string, unknown> | undefined;
+}
+
+/** Persistent Batch Converter configuration stored in `<Config>/batch-converter.json`. */
+export interface BatchPersistedSettings {
+  schemaVersion?: number;
+  direction: 'fb2ToExport' | 'importToFb2';
+  exportFormat: 'epub' | 'mobi' | 'pdf' | 'txt' | 'markdown';
+  importAll: boolean;
+  importFormats: Record<'epub' | 'mobi' | 'pdf' | 'txt' | 'markdown', boolean>;
+  sourceDir: string;
+  destinationDir: string;
+  includeSubfolders: boolean;
+  keepTree: boolean;
+  inPlace: boolean;
+  fixBroken: boolean;
+  overwrite: boolean;
+  parallel?: boolean;
+  workerCount?: number;
+  zipOverrides: Record<string, boolean>;
+  exportSettings: BatchPersistedExportSettings;
+  [extra: string]: unknown;
 }
 
 export type RpcMethodName = keyof RpcMethods;

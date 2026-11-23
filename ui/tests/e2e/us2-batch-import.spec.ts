@@ -14,6 +14,7 @@ import {
   makeTempDir,
   openBatchDialog,
   repoFixture,
+  resetBatchSettings,
   TINY_PNG_BYTES,
   writeStoredZip,
 } from './fixtures/batchHelpers';
@@ -63,6 +64,7 @@ test.describe('US2: Batch import formats to FB2', () => {
   }) => {
     test.skip(!core.hasCore, 'needs mfbe-core');
     test.setTimeout(180_000);
+    resetBatchSettings(core.dataDir);
     await core.openApp(page);
 
     const work = makeTempDir('mfbe-us2-import');

@@ -622,10 +622,17 @@ each format converter load on demand only when used.
 - **Two direction tabs across five full-book formats** (**EPUB**, **MOBI / KF8**, **PDF**, **TXT**, and
   **Markdown**; standalone FBD is excluded):
   - **From FB2**: converts bare `.fb2` files and `.fb2.zip`/`.zip` archives holding FB2 books
-    into one chosen target format, starting from the saved defaults in *Settings > Exports* (shown as a
-    compact summary with an *Export settings…* button that opens a batch-only options dialog for that
-    format without modifying global *Settings > Exports*; disabled for EPUB, which has no format-specific
-    options) and applying the same safe export-time repairs as single-file export.
+    into one chosen target format, using Batch Converter's own persistent copy of export format
+    settings (initialized on first open from *Settings > Exports*, shown as a compact summary with
+    an *Export settings…* button supporting *OK*, *Apply*, and *Cancel* without modifying global
+    *Settings > Exports*; disabled for EPUB, which has no format-specific options) and applying the
+    same safe export-time repairs as single-file export.
+  - **Fix broken XML in memory** (checked by default on *From FB2*): when checked, malformed FB2
+    XML files (such as mismatched or unclosed tags) are repaired in memory before conversion without
+    ever altering the source files on disk, and logged under **Fixed** in the report summary and
+    details; when unchecked, broken XML files are skipped cleanly and logged under **Skipped** (with
+    no interactive prompts). Unrecoverable non-FB2, 0-byte, or binary files are still reported as
+    *Failed*.
   - **To FB2**: converts either *All supported formats* (checked by default) or any chosen
     subset of individual formats (such as MOBI and PDF) into valid UTF-8 FB2 2.1 books with JPEG/PNG-only
     pictures, preserving reversible round-trip fidelity for editor-made files and applying companion `.fbd`
@@ -647,11 +654,14 @@ each format converter load on demand only when used.
     Destination *Browse…*, and *Keep folder tree structure*. Unchecking *In-place conversion* enables
     Destination and defaults *Keep folder tree structure* to checked while *Include subfolders* is checked
     (mirroring the source tree in the destination folder).
-  - *Overwrite existing files* starts unchecked every time the dialog opens (other non-destructive options
-    are remembered in memory for the current session only and reset on restart). When unchecked, existing
-    outputs are preserved and recorded as Skipped; when checked, existing outputs are replaced atomically
-    once conversion succeeds, while overwriting an input file with itself or overwriting the currently open
-    editor book is always refused and reported as Failed.
+  - *Overwrite existing files* starts unchecked on first open. All Batch Converter settings — paths,
+    direction, formats, *In-place*, *Fix broken*, *Overwrite*, ZIP choices, parallel thread count,
+    and per-format export settings — are persisted in `batch-converter.json` across restarts (when
+    multiple converter dialogs are open, the last dialog closed wins), while global `settings.json`
+    is never modified. When *Overwrite existing files* is unchecked, existing outputs are preserved
+    and recorded as Skipped; when checked, existing outputs are replaced atomically once conversion
+    succeeds, while overwriting an input file with itself or overwriting the currently open editor
+    book is always refused and reported as Failed.
 - **Parallel conversion, modal lock, and *Cancel***:
   - *Parallel conversion* runs multiple conversions concurrently with a worker-count selector defaulting to
     `logical CPU cores - 1` (adjustable from `2` up to `cores - 1`; disabled on 1–2 core systems). When
@@ -664,10 +674,10 @@ each format converter load on demand only when used.
     already-completed outputs intact, and shows the partial Cancelled report.
 - **Unattended errors and *Save report…***:
   - Individual failures (corrupt files, password-protected PDFs, DRM/encrypted MOBI/EPUB files) never halt
-    the batch. At completion, the on-screen report lists summary counts plus Failed and Skipped entries
-    with filter buttons. *Save report…* writes a UTF-8 plain-text report atomically to disk containing run
-    options, summary counts, Failed, Skipped, and *Warnings on converted files* (non-fatal warnings from
-    succeeded books).
+    the batch. At completion, the on-screen report lists summary counts (Total, Converted, Fixed,
+    Skipped, Failed) plus Failed, Skipped, and Fixed entries with filter buttons. *Save report…* writes
+    a UTF-8 plain-text report atomically to disk containing run options, summary counts, Failed,
+    Skipped, Fixed, and *Warnings on converted files* (non-fatal warnings from succeeded books).
 
 ## The Styles view
 
@@ -780,8 +790,14 @@ deleting and dragging text are steps of their own; a command's step carries the 
 
 ## A file that cannot be opened
 
-When a file turns out not to be a book - not FictionBook, broken, an archive without a book -, the
-book open in the window stays as it was, with its unsaved changes and its Undo history, and a
+When a FictionBook file contains broken XML (such as mismatched or unclosed tags), opening it offers
+three choices: **Repair and open** (repairs the broken XML in memory so the book opens normally in
+Body, Description, and Source views, marked as modified while leaving the file on disk untouched
+until you save), **Open in Source view** (opens the raw XML directly in Source-only mode), or
+**Cancel** (leaves the open book untouched).
+
+When a file turns out not to be a book - not FictionBook, an archive without a book, or unreadable -,
+the book open in the window stays as it was, with its unsaved changes and its Undo history, and a
 message says why the file was refused.
 
 ## The AI assistant's thinking effort

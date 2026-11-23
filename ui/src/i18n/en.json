@@ -18,6 +18,8 @@
     "savedBackupNotKept": "Document saved - no backup copy of the previous version was kept: {{reason}}",
     "openedWithWarnings_one": "Document opened with {{count}} warning.",
     "openedWithWarnings_other": "Document opened with {{count}} warnings.",
+    "openedRepairedXml_one": "Repaired {{count}} XML error in memory (line {{line}}, column {{column}}). Save to keep the repaired file.",
+    "openedRepairedXml_other": "Repaired {{count}} XML errors in memory (first at line {{line}}, column {{column}}). Save to keep the repaired file.",
     "incrementalSearch": "Incremental Search: {{text}}",
     "failingIncrementalSearch": "Failing Incremental Search: {{text}}",
     "progress": "{{phase}}: {{done}} of {{total}}",
@@ -705,7 +707,9 @@
       "ignore": "&Ignore",
       "yes": "&Yes",
       "no": "&No",
-      "close": "Close"
+      "close": "Close",
+      "repairAndOpen": "&Repair and open",
+      "openSourceView": "Open in &Source view"
     },
     "input": {
       "caption": "Input",
@@ -1058,6 +1062,8 @@
     "xmlParseErrorCaption": "XML Parse Error",
     "xmlParseError": "At {{where}}, line {{line}}, column {{column}}: {{message}}",
     "xmlParseErrorShort": "At {{where}}: {{message}}",
+    "xmlParseErrorChoice": "At {{where}}, line {{line}}, column {{column}}: {{message}}\n\nThis file has broken XML structure. You can repair it in memory and open it in the editor (the original file on disk will not be modified until you save), or open the raw XML in Source view to fix it manually.",
+    "xmlRepairFailed": "Could not repair {{where}} automatically (line {{line}}, column {{column}}: {{message}}). Opening the raw XML in Source view instead.",
     "genresFileError": "Can't open genres file {{path}}",
     "wordExists": "This word is already in list!",
     "wordAddErrorCaption": "Error adding word",

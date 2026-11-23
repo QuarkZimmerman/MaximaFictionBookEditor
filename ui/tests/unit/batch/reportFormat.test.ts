@@ -23,6 +23,7 @@ function baseConfig(overrides: Partial<BatchJobConfig> = {}): BatchJobConfig {
     keepTree: true,
     inPlace: false,
     zipOutput: false,
+    fixBroken: true,
     overwrite: false,
     parallel: true,
     workerCount: 4,
@@ -38,7 +39,15 @@ function sampleReport(overrides: Partial<BatchReport> = {}): BatchReport {
     cancelled: false,
     config: baseConfig(),
     exportDefaultsSummary: 'EPUB 3.3',
-    counts: { total: 5, converted: 2, skipped: 1, failed: 1, cancelled: 1 },
+    counts: { total: 5, converted: 2, fixed: 1, skipped: 1, failed: 1, cancelled: 1 },
+    fixed: [
+      {
+        displayPath: 'repaired/broken.fb2',
+        sourcePath: '/books/src/repaired/broken.fb2',
+        targetPath: '/books/out/repaired/broken.epub',
+        reason: 'Broken XML repaired in memory (line 209, column 15): tag mismatch',
+      },
+    ],
     failed: [
       {
         displayPath: 'bad/corrupt.fb2',
@@ -90,23 +99,28 @@ describe('formatBatchReportText', () => {
     expect(text).toContain('Skipped (1)');
     expect(text).toContain('1. dup/existing.fb2 -> /books/out/dup/existing.epub');
     expect(text).toContain('Output file already exists.');
+    expect(text).toContain('Fixed (1)');
+    expect(text).toContain('1. repaired/broken.fb2 -> /books/out/repaired/broken.epub');
+    expect(text).toContain('Broken XML repaired in memory');
     expect(text).toContain('Warnings on converted files (1)');
     expect(text).toContain('1. warn/old.fb2 -> /books/out/warn/old.epub');
     expect(text).toContain('   - Missing picture omitted: cover.jpg');
     expect(text).toContain('   - Broken internal link (x2)');
 
-    // Fixed section order: Summary -> Failed -> Skipped -> Warnings on converted files
+    // Fixed section order: Summary -> Failed -> Skipped -> Fixed -> Warnings on converted files
     const idxSummary = text.indexOf('Summary');
     const idxFailed = text.indexOf('Failed (1)');
     const idxSkipped = text.indexOf('Skipped (1)');
+    const idxFixed = text.indexOf('Fixed (1)');
     const idxWarnings = text.indexOf('Warnings on converted files (1)');
     expect(idxSummary).toBeGreaterThan(0);
     expect(idxFailed).toBeGreaterThan(idxSummary);
     expect(idxSkipped).toBeGreaterThan(idxFailed);
-    expect(idxWarnings).toBeGreaterThan(idxSkipped);
+    expect(idxFixed).toBeGreaterThan(idxSkipped);
+    expect(idxWarnings).toBeGreaterThan(idxFixed);
   });
 
-  it('emits (0) and localised None. for empty Failed, Skipped, and Warnings sections and handles Cancelled + in-place Import', async () => {
+  it('emits (0) and localised None. for empty Failed, Skipped, Fixed, and Warnings sections and handles Cancelled + in-place Import', async () => {
     const inst = await initI18n({ instance: createInstance(), react: false, language: 'en' });
     const report = sampleReport({
       cancelled: true,
@@ -118,7 +132,8 @@ describe('formatBatchReportText', () => {
         importFormats: { epub: false, mobi: true, pdf: true, txt: false, markdown: false },
       }),
       exportDefaultsSummary: undefined,
-      counts: { total: 4, converted: 1, skipped: 0, failed: 0, cancelled: 3 },
+      counts: { total: 4, converted: 1, fixed: 0, skipped: 0, failed: 0, cancelled: 3 },
+      fixed: [],
       failed: [],
       skipped: [],
       warnings: [],
@@ -128,8 +143,9 @@ describe('formatBatchReportText', () => {
     expect(text).toContain('Cancelled');
     expect(text).toContain('Failed (0)');
     expect(text).toContain('Skipped (0)');
+    expect(text).toContain('Fixed (0)');
     expect(text).toContain('Warnings on converted files (0)');
-    expect(text.match(/None\./g)?.length).toBe(3);
+    expect(text.match(/None\./g)?.length).toBe(4);
     expect(text).not.toContain('Export opts');
   });
 

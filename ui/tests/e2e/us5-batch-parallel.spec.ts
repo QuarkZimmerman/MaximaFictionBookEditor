@@ -10,7 +10,7 @@ import { cpus } from 'node:os';
 import path from 'node:path';
 
 import { expect, fixtureBook, test } from './fixtures/core';
-import { makeTempDir, openBatchDialog } from './fixtures/batchHelpers';
+import { makeTempDir, openBatchDialog, resetBatchSettings } from './fixtures/batchHelpers';
 
 test.describe('US5: Parallel conversion up to CPU cores minus 1', () => {
   test('enforces CPU-core worker bounds (1, 2, 4, 8 cores), active worker rows, and parallel targetBusy collision skip', async ({
@@ -19,6 +19,7 @@ test.describe('US5: Parallel conversion up to CPU cores minus 1', () => {
   }) => {
     test.skip(!core.hasCore, 'needs mfbe-core');
     test.setTimeout(120_000);
+    resetBatchSettings(core.dataDir);
     await core.openApp(page);
 
     try {
@@ -156,6 +157,7 @@ test.describe('US5: Parallel conversion up to CPU cores minus 1', () => {
       const hostCores = cpus().length;
       test.skip(hostCores < 4, `requires >= 4 logical cores (host has ${hostCores})`);
       test.setTimeout(180_000);
+      resetBatchSettings(core.dataDir);
       await core.openApp(page);
       await core.rpc('test.setCpuCores', { cores: null });
       await core.rpc('settings.set', { patch: { mobi: { format: 'joint', zip: false } } });

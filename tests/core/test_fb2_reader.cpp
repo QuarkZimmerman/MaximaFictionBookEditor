@@ -397,6 +397,111 @@ TEST_CASE("reader: malformed XML reports line and column and does not crash", "[
     }
 }
 
+TEST_CASE("reader: recover mode repairs broken FB2 XML in memory without weakening security",
+          "[reader]") {
+    // 1. Fixture malformed.fb2 (unclosed <p> inside <section>).
+    {
+        MemoryBinaryStore store;
+        model::NodeIdAllocator ids;
+        fb2::ReadOptions opts;
+        opts.recover = true;
+        const fb2::ReadResult res = fb2::read_file(book("malformed.fb2"), store, ids, opts);
+        CHECK(res.xml_repaired);
+        REQUIRE_FALSE(res.xml_repair_errors.empty());
+        CHECK(res.xml_repair_errors[0].line == 20);
+        CHECK(res.document.description.titleInfo.bookTitle == "Malformed");
+        REQUIRE(res.document.bodies.size() == 1);
+        CHECK_THAT(all_text(res.document.bodies[0]),
+                   ContainsSubstring("This paragraph is never closed"));
+        const auto it =
+            std::find_if(res.warnings.begin(), res.warnings.end(),
+                         [](const model::ValidationIssue& w) { return w.code == "xml.repaired"; });
+        REQUIRE(it != res.warnings.end());
+        CHECK(it->params.at("line") == 20);
+    }
+
+    // 2. Real-world broken inline tag mismatch (<emphasis> not closed before </p>) + bare '&'
+    //    + <binary> captured without duplication across the strict->recover retry.
+    {
+        const std::string broken =
+            "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+            "<FictionBook xmlns=\"http://www.gribuser.ru/xml/fictionbook/2.0\""
+            " xmlns:l=\"http://www.w3.org/1999/xlink\">\n"
+            "<description><title-info><book-title>Broken Inline</book-title><lang>ru</lang>"
+            "</title-info></description>\n"
+            "<body><section>\n"
+            "<p>Start <emphasis>unclosed emphasis</p>\n"
+            "<p>Tom & Jerry and <strong>bold <emphasis>crossed</strong> tail</emphasis></p>\n"
+            "</section></body>\n"
+            "<binary id=\"px.png\" content-type=\"image/png\">"
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+            "</binary>\n"
+            "</FictionBook>\n";
+        MemoryBinaryStore store;
+        model::NodeIdAllocator ids;
+        fb2::ReadOptions opts;
+        opts.recover = true;
+        const fb2::ReadResult res = fb2::read_bytes(broken, store, ids, opts, "broken.fb2");
+        CHECK(res.xml_repaired);
+        CHECK(res.document.description.titleInfo.bookTitle == "Broken Inline");
+        REQUIRE(res.document.bodies.size() == 1);
+        const std::string body = all_text(res.document.bodies[0]);
+        CHECK_THAT(body, ContainsSubstring("unclosed emphasis"));
+        CHECK_THAT(body, ContainsSubstring("Tom"));
+        CHECK_THAT(body, ContainsSubstring("Jerry"));
+        CHECK_THAT(body, ContainsSubstring("crossed"));
+        // Strict pass had not duplicated the binary; exactly one px.png stored.
+        CHECK(store.size() == 1);
+        CHECK(store.contains("px.png"));
+    }
+
+    // 3. Valid FB2 with recover=true stays cleanly non-repaired (no xml.repaired warning).
+    {
+        MemoryBinaryStore store;
+        model::NodeIdAllocator ids;
+        fb2::ReadOptions opts;
+        opts.recover = true;
+        const fb2::ReadResult res = fb2::read_file(book("modern-utf8.fb2"), store, ids, opts);
+        CHECK_FALSE(res.xml_repaired);
+        CHECK(res.xml_repair_errors.empty());
+        const auto it =
+            std::find_if(res.warnings.begin(), res.warnings.end(),
+                         [](const model::ValidationIssue& w) { return w.code == "xml.repaired"; });
+        CHECK(it == res.warnings.end());
+    }
+
+    // 4. Non-FB2 garbage / binary / empty input STILL fails NotFictionBookFailure even with recover.
+    {
+        MemoryBinaryStore store;
+        model::NodeIdAllocator ids;
+        fb2::ReadOptions opts;
+        opts.recover = true;
+        CHECK_THROWS_AS(fb2::read_bytes("", store, ids, opts), fb2::NotFictionBookFailure);
+        CHECK_THROWS_AS(fb2::read_bytes(std::string("\xde\xad\x00\xbe\xef", 5), store, ids, opts),
+                        fb2::NotFictionBookFailure);
+        CHECK_THROWS_AS(fb2::read_bytes("<html><body>not fb2</body></html>", store, ids, opts),
+                        fb2::NotFictionBookFailure);
+    }
+
+    // 5. External entity / billion laughs still blocked with recover=true.
+    {
+        const std::string xxe =
+            "<?xml version=\"1.0\"?><!DOCTYPE x [<!ENTITY ext SYSTEM \"file:///etc/passwd\">]>"
+            "<FictionBook xmlns=\"http://www.gribuser.ru/xml/fictionbook/2.0\">"
+            "<body><section><p>&ext;<emphasis>unclosed</p></section></body></FictionBook>";
+        MemoryBinaryStore store;
+        model::NodeIdAllocator ids;
+        fb2::ReadOptions opts;
+        opts.recover = true;
+        try {
+            const auto res = fb2::read_bytes(xxe, store, ids, opts);
+            CHECK(all_text(res.document.bodies[0]).find("root:") == std::string::npos);
+        } catch (const fb2::ParseFailure&) {
+            SUCCEED("hostile document rejected");
+        }
+    }
+}
+
 TEST_CASE("reader: unknown elements and attributes are preserved as raw-xml", "[reader]") {
     auto l = load("unknown-elements.fb2");
     const model::Document& doc = l->result.document;

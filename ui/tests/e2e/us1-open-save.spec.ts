@@ -356,9 +356,9 @@ test.describe('US1 - open, review and save a book without loss', () => {
     const error = page.getByTestId('dialog-parse-error');
     await expect(error).toBeVisible();
     await expect(page.getByTestId('dialog-parse-error-text')).toHaveText(
-      await pagePattern(page, 'msg.xmlParseError'),
+      await pagePattern(page, 'msg.xmlParseErrorChoice'),
     );
-    await page.getByTestId('dialog-parse-error-button-ok').click();
+    await page.getByTestId('dialog-parse-error-button-no').click();
 
     await expect(page.getByTestId('view-source')).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByTestId('source-only-notice')).toBeVisible();
@@ -387,6 +387,43 @@ test.describe('US1 - open, review and save a book without loss', () => {
     await expect(page.getByTestId('body-view')).toBeVisible();
     await expect(page.getByTestId('body-editor')).toContainText('This paragraph is now closed');
     await expect(page.getByTestId('view-body')).toHaveAttribute('aria-selected', 'true');
+  });
+
+  test('3b. malformed XML offers Repair and open in memory (marks modified, source untouched) and Cancel', async ({
+    core,
+    page,
+  }) => {
+    const brokenXml =
+      '<?xml version="1.0" encoding="utf-8"?>\n' +
+      '<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">\n' +
+      '<description><title-info><genre>prose</genre><author><last-name>Doe</last-name></author>' +
+      '<book-title>Broken Emphasis</book-title><lang>en</lang></title-info></description>\n' +
+      '<body><section><p>Start <emphasis>unclosed emphasis</p>' +
+      '<p>Preserved second paragraph</p></section></body>\n' +
+      '</FictionBook>\n';
+    const brokenFile = path.join(dir, 'broken-emphasis.fb2');
+    writeFileSync(brokenFile, brokenXml, 'utf8');
+    const originalBytes = readFileSync(brokenFile);
+
+    await core.openApp(page);
+    // Cancel leaves the startup document untouched.
+    await openViaDialog(core, page, brokenFile);
+    await expect(page.getByTestId('dialog-parse-error')).toBeVisible();
+    await page.getByTestId('dialog-parse-error-button-cancel').click();
+    await expect(page.getByTestId('dialog-parse-error')).toBeHidden();
+    await expect(page).not.toHaveTitle(/broken-emphasis\.fb2/);
+
+    // Repair and open repairs XML in memory, opens Body view with all paragraphs intact, marks
+    // modified (`*`), and leaves the file on disk untouched until Save.
+    await openViaDialog(core, page, brokenFile);
+    await expect(page.getByTestId('dialog-parse-error')).toBeVisible();
+    await page.getByTestId('dialog-parse-error-button-yes').click();
+    await expect(page.getByTestId('body-view')).toBeVisible();
+    await expect(page.getByTestId('view-body')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByTestId('body-editor')).toContainText('unclosed emphasis');
+    await expect(page.getByTestId('body-editor')).toContainText('Preserved second paragraph');
+    await expect(page).toHaveTitle(`broken-emphasis.fb2* - ${APP_TITLE}`);
+    expect(readFileSync(brokenFile).equals(originalBytes)).toBe(true);
   });
 
   test('3a. files that are not FictionBook documents are refused with a message and never opened', async ({
