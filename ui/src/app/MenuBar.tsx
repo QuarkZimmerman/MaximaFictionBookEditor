@@ -42,7 +42,7 @@ import {
 } from './menus';
 import { fitPopupInViewport, refitSubmenus, revealItem } from './popupFit';
 import { useAppRevision, useAppServices, useCommandContext, type AppServices } from './services';
-import { actions, useAppState } from '@/model/store';
+import { actions } from '@/model/store';
 
 export interface MenuBarProps {
   menus?: readonly MenuSpec[];
@@ -264,21 +264,19 @@ export function MenuBar({ menus = MAIN_MENU, dynamicItems = {}, onOpenDynamic }:
     setSubmenuByHover(false);
   }, []);
 
-  // Feature 010 (US1, D1): before the start-up document is shown, the menus open nothing.
-  const starting = useAppState((state) => state.startup, services.store) === 'starting';
-  const startingRef = useRef(starting);
-  useEffect(() => {
-    startingRef.current = starting;
-  }, [starting]);
-
-  const open = useCallback((menuId: string, viaKeyboard: boolean) => {
-    if (startingRef.current) return;
-    setOpenMenuId(menuId);
-    setOpenSubmenu(-1);
-    setSubHighlight(-1);
-    setSubmenuByHover(false);
-    setHighlight(viaKeyboard ? 0 : -1);
-  }, []);
+  // Feature 010 (US1, D1): before the start-up document is shown, the menus open nothing. Read the
+  // store synchronously so a click right after setDocument() never races a passive effect.
+  const open = useCallback(
+    (menuId: string, viaKeyboard: boolean) => {
+      if (services.store.getState().startup === 'starting') return;
+      setOpenMenuId(menuId);
+      setOpenSubmenu(-1);
+      setSubHighlight(-1);
+      setSubmenuByHover(false);
+      setHighlight(viaKeyboard ? 0 : -1);
+    },
+    [services.store],
+  );
 
   // Focus the popup when opened so keyboard events land on it; close on outside clicks; a
   // window that changes its size keeps the menu and its submenu inside it.
