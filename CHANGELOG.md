@@ -3,6 +3,34 @@
 All notable changes to Maxima Fiction Book Editor. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.0.14 - unreleased
+
+### In short
+
+- Tools > Batch Converter... converts whole folders of books without touching the open book
+- Export FB2 / FB2.ZIP collections to EPUB, MOBI / KF8, PDF, TXT, or Markdown (bare or ZIP)
+- Import EPUB, MOBI / KF8, PDF, Markdown, and TXT folders (and ZIP archives with FBD) to FB2
+- Parallel multi-core conversion up to CPU cores minus 1, with live per-worker progress and Cancel
+- Unattended error resilience, overwrite protection, and saveable UTF-8 batch conversion reports
+
+### Added
+
+- Tools > Batch Converter... (feature 019) runs unattended folder-wide conversions in both
+  directions (FB2 to EPUB, MOBI / KF8, PDF, TXT, or Markdown; and selected EPUB, MOBI / KF8, PDF,
+  Markdown, or TXT sources to UTF-8 FB2 / FB2.ZIP) without modifying the currently open document,
+  Recent files, or remembered positions.
+- Supports recursive subfolder scanning, single-book and multi-book ZIP archives (including
+  companion .fbd descriptions), mirrored folder trees, flat destination output, in-place saving
+  beside each source file, and reusing Settings > Exports defaults with an inline summary and
+  per-run Save output in ZIP archive override.
+- Parallel conversion runs up to logical CPU cores minus 1 workers (with adjustable worker count,
+  pooled Web Workers, parallel C++ XSD validation, and atomic per-target locking) beneath an
+  overall progress bar and scrollable active-worker progress list.
+- Strict modal progress lock with responsive Cancel (stopping queued work immediately and aborting
+  in-flight conversions without partial files), per-file error isolation, Overwrite existing files
+  defaulting off on every open, and an end-of-run summary with Failed/Skipped filtering and
+  Save report... (including non-fatal conversion warnings).
+
 ## 0.0.13 - 2026-11-22
 
 ### In short
