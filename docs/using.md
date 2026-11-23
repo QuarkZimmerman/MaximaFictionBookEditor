@@ -619,13 +619,14 @@ export and import modules load on demand only when used.
 the book currently open in the editor, Recent files, or remembered Open/Save As folders. The utility and
 each format converter load on demand only when used.
 
-- **Two directions across five full-book formats** (**EPUB**, **MOBI / KF8**, **PDF**, **TXT**, and
+- **Two direction tabs across five full-book formats** (**EPUB**, **MOBI / KF8**, **PDF**, **TXT**, and
   **Markdown**; standalone FBD is excluded):
-  - **FB2 to export format**: converts bare `.fb2` files and `.fb2.zip`/`.zip` archives holding FB2 books
-    into one chosen target format, applying the saved defaults from *Settings > Exports* (shown as a
-    compact summary with an *Export settings…* button that opens *Settings > Exports* on that format and
-    refreshes the summary on return) and the same safe export-time repairs as single-file export.
-  - **Import formats to FB2**: converts either *All supported formats* (checked by default) or any chosen
+  - **From FB2**: converts bare `.fb2` files and `.fb2.zip`/`.zip` archives holding FB2 books
+    into one chosen target format, starting from the saved defaults in *Settings > Exports* (shown as a
+    compact summary with an *Export settings…* button that opens a batch-only options dialog for that
+    format without modifying global *Settings > Exports*; disabled for EPUB, which has no format-specific
+    options) and applying the same safe export-time repairs as single-file export.
+  - **To FB2**: converts either *All supported formats* (checked by default) or any chosen
     subset of individual formats (such as MOBI and PDF) into valid UTF-8 FB2 2.1 books with JPEG/PNG-only
     pictures, preserving reversible round-trip fidelity for editor-made files and applying companion `.fbd`
     files automatically without prompting.
@@ -636,15 +637,16 @@ each format converter load on demand only when used.
   - A single-book `.zip` names its output after the archive (stripping compound extensions such as
     `.fb2.zip` and `.md.zip`); a multi-book `.zip` places its outputs in a subfolder named after the
     archive (mirroring internal subfolders when *Keep folder tree structure* is checked).
-  - *Save output in ZIP archive* writes `<name>.fb2.zip` in *Import -> FB2* (off by default), `<name>.zip`
-    with companion `.fbd` for PDF, TXT, and MOBI/KF8 (initialized from *Settings > Exports*), `<name>.md.zip`
-    for Markdown (off by default), and is disabled and unchecked for EPUB.
+  - *Save output in ZIP archive* sits right inside the format area on both tabs: it writes `<name>.fb2.zip`
+    on *To FB2* (off by default), `<name>.zip` with companion `.fbd` for PDF, TXT, and MOBI/KF8
+    (initialized from *Settings > Exports*), `<name>.md.zip` for Markdown (off by default), and is
+    disabled and unchecked for EPUB.
 - **Folders, tree layout, in-place, and overwrite**:
-  - *Include subfolders* is checked by default (with symlink/junction cycle protection). *Keep folder tree
-    structure* mirrors the source tree in the destination folder and is enabled only while *Include
-    subfolders* is checked and *In-place conversion* is unchecked. *In-place conversion* writes outputs
-    beside each input file and disables Destination path, Destination *Browse…*, and *Keep folder tree
-    structure*.
+  - *Include subfolders* and *In-place conversion* are checked by default (with symlink/junction cycle
+    protection). *In-place conversion* writes outputs beside each input file and disables Destination path,
+    Destination *Browse…*, and *Keep folder tree structure*. Unchecking *In-place conversion* enables
+    Destination and defaults *Keep folder tree structure* to checked while *Include subfolders* is checked
+    (mirroring the source tree in the destination folder).
   - *Overwrite existing files* starts unchecked every time the dialog opens (other non-destructive options
     are remembered in memory for the current session only and reset on restart). When unchecked, existing
     outputs are preserved and recorded as Skipped; when checked, existing outputs are replaced atomically

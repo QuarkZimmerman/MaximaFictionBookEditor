@@ -46,9 +46,10 @@ export interface PdfPageProps {
   draft: Settings;
   onChange: (patch: Partial<PdfSettings>) => void;
   ctx: CommandContext;
+  hideZip?: boolean;
 }
 
-export function PdfPage({ draft, onChange, ctx }: PdfPageProps) {
+export function PdfPage({ draft, onChange, ctx, hideZip = false }: PdfPageProps) {
   const { t } = useTranslation();
   const rpc = ctx.rpc;
   const values: PdfSettings = { ...PDF_DEFAULTS, ...draft.pdf };
@@ -425,27 +426,42 @@ export function PdfPage({ draft, onChange, ctx }: PdfPageProps) {
           {resetButton('margins', t(`pdf.settings.marginSizes.${PDF_DEFAULTS.margins}`))}
         </FieldRow>
 
-        <FieldRow label={t('txt.settings.pdfZip')} tooltip={t('tip.settings.txt.pdfZip')}>
-          <input
-            type="checkbox"
-            data-testid="settings-pdf-zip"
-            {...tip(t('tip.settings.txt.pdfZip'))}
-            checked={!!values.zip}
-            onChange={(event) => onChange({ zip: event.target.checked })}
-          />
-          {defaultNote(t('txt.settings.off'))}
-          {resetButton('zip', t('txt.settings.off'))}
-        </FieldRow>
+        {!hideZip ? (
+          <FieldRow label={t('txt.settings.pdfZip')} tooltip={t('tip.settings.txt.pdfZip')}>
+            <input
+              type="checkbox"
+              data-testid="settings-pdf-zip"
+              {...tip(t('tip.settings.txt.pdfZip'))}
+              checked={!!values.zip}
+              onChange={(event) => onChange({ zip: event.target.checked })}
+            />
+            {defaultNote(t('txt.settings.off'))}
+            {resetButton('zip', t('txt.settings.off'))}
+          </FieldRow>
+        ) : null}
 
         <div className="mfbe-settings-row mfbe-settings-buttons">
           <button
             type="button"
             className="mfbe-button"
             data-testid="settings-pdf-reset-all"
-            disabled={(Object.keys(PDF_DEFAULTS) as (keyof PdfSettings)[]).every(
-              (key) => values[key] === PDF_DEFAULTS[key],
-            )}
-            onClick={() => onChange({ ...PDF_DEFAULTS })}
+            disabled={(Object.keys(PDF_DEFAULTS) as (keyof PdfSettings)[])
+              .filter((key) => !hideZip || key !== 'zip')
+              .every((key) => values[key] === PDF_DEFAULTS[key])}
+            onClick={() =>
+              onChange(
+                hideZip
+                  ? {
+                      defaultPageSize: PDF_DEFAULTS.defaultPageSize,
+                      textFont: PDF_DEFAULTS.textFont,
+                      textSize: PDF_DEFAULTS.textSize,
+                      margins: PDF_DEFAULTS.margins,
+                      customTextSize: PDF_DEFAULTS.customTextSize,
+                      customMargin: PDF_DEFAULTS.customMargin,
+                    }
+                  : { ...PDF_DEFAULTS },
+              )
+            }
             {...tip(t('tip.settings.pdf.resetAll'))}
           >
             {t('pdf.settings.resetAll')}

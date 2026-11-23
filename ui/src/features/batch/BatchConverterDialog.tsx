@@ -8,6 +8,7 @@
  */
 
 import {
+  createElement,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -21,16 +22,17 @@ import { useTranslation } from 'react-i18next';
 import type { CommandContext } from '@/app/commands';
 import { tip } from '@/app/tooltips';
 import { Dialog, type DialogButton } from '@/dialogs/Dialog';
-import { getSettingsFeature, openSettingsDialog } from '@/features/settings';
-import { actions } from '@/model/store';
 import type { Settings } from '@/rpc/types';
 
+import { BatchExportSettingsDialog } from './BatchExportSettingsDialog';
 import {
   canRunParallel,
+  cloneExportSettingsOverrides,
   computeMaxWorkers,
   createInitialBatchConfig,
   effectiveWorkerCount,
   isZipOutputSupported,
+  mergeBatchExportSettings,
   reduceBatchConfig,
   selectedImportFormats,
   validateBatchConfig,
@@ -43,6 +45,8 @@ import { mapBatchError, startBatchRun, type BatchRunController } from './engine/
 import {
   BATCH_BOOK_FORMATS,
   type BatchBookFormat,
+  type BatchDirection,
+  type BatchExportSettingsOverrides,
   type BatchJobConfig,
   type BatchProgressSnapshot,
   type BatchReport,
@@ -50,6 +54,8 @@ import {
 import { getBatchSessionMemory, saveBatchSessionMemory } from './sessionState';
 
 import './BatchConverterDialog.css';
+
+const DIRECTION_TABS: readonly BatchDirection[] = ['fb2ToExport', 'importToFb2'] as const;
 
 export interface BatchConverterDialogProps {
   ctx: CommandContext;
@@ -81,22 +87,28 @@ export function BatchConverterDialog({
   onClose,
 }: BatchConverterDialogProps) {
   const { t } = useTranslation();
-  const [settings, setSettings] = useState<Settings | null>(initialSettings);
-  const [resolvedPdfFont, setResolvedPdfFont] = useState<{
-    id: string;
-    name: string | undefined;
-  } | null>(null);
-  const activePdfFontId = settings?.pdf?.textFont ?? 'noto-serif';
-  const pdfCustomFontName =
-    resolvedPdfFont?.id === activePdfFontId ? resolvedPdfFont.name : undefined;
-
+  const baseSettings = initialSettings;
   const initialMemory = useMemo(() => getBatchSessionMemory(), []);
   const zipOverridesRef = useRef<Partial<Record<string, boolean>>>({
     ...(initialMemory?.zipOverrides ?? {}),
   });
+  const [exportOverrides, setExportOverrides] = useState<BatchExportSettingsOverrides>(() =>
+    cloneExportSettingsOverrides(initialMemory?.exportSettingsOverrides),
+  );
+  const effectiveSettings = useMemo(
+    () => mergeBatchExportSettings(baseSettings, exportOverrides),
+    [baseSettings, exportOverrides],
+  );
+  const [resolvedPdfFont, setResolvedPdfFont] = useState<{
+    id: string;
+    name: string | undefined;
+  } | null>(null);
+  const activePdfFontId = effectiveSettings?.pdf?.textFont ?? 'noto-serif';
+  const pdfCustomFontName =
+    resolvedPdfFont?.id === activePdfFontId ? resolvedPdfFont.name : undefined;
 
   const [config, setConfig] = useState<BatchJobConfig>(() =>
-    createInitialBatchConfig(cpuCores, initialSettings, initialMemory),
+    createInitialBatchConfig(cpuCores, baseSettings, initialMemory),
   );
   const [progress, setProgress] = useState<BatchProgressSnapshot>(INITIAL_PROGRESS);
   const [report, setReport] = useState<BatchReport | null>(null);
@@ -118,10 +130,10 @@ export function BatchConverterDialog({
     canCloseRef.current = !running;
   }, [canCloseRef, running]);
 
-  // Persist non-destructive configuration choices in session-only memory whenever config changes.
+  // Persist non-destructive configuration choices and batch-only export overrides in session memory.
   useEffect(() => {
-    saveBatchSessionMemory(config, zipOverridesRef.current);
-  }, [config]);
+    saveBatchSessionMemory(config, zipOverridesRef.current, exportOverrides);
+  }, [config, exportOverrides]);
 
   // Cancel any in-flight batch run defensively on unmount so zero workers/temp dirs linger.
   useEffect(() => {
@@ -155,17 +167,17 @@ export function BatchConverterDialog({
 
   const dispatch = useCallback(
     (action: BatchConfigAction, overrideSettings?: Settings | null) => {
-      const effectiveSettings = overrideSettings !== undefined ? overrideSettings : settings;
+      const targetSettings = overrideSettings !== undefined ? overrideSettings : effectiveSettings;
       setValidationError(null);
       if (action.type === 'setZipOutput') {
         const key = zipOverrideKey(config.direction, config.exportFormat);
         zipOverridesRef.current = { ...zipOverridesRef.current, [key]: action.checked };
       }
       setConfig((prev) =>
-        reduceBatchConfig(prev, action, cpuCores, effectiveSettings, zipOverridesRef.current),
+        reduceBatchConfig(prev, action, cpuCores, targetSettings, zipOverridesRef.current),
       );
     },
-    [config.direction, config.exportFormat, cpuCores, settings],
+    [config.direction, config.exportFormat, cpuCores, effectiveSettings],
   );
 
   const handleBrowse = async (kind: 'source' | 'destination') => {
@@ -192,31 +204,35 @@ export function BatchConverterDialog({
   };
 
   const handleOpenExportSettings = async () => {
-    if (!ctx.rpc || running) return;
-    const settingsFeature = getSettingsFeature(ctx.store);
-    if (!settingsFeature) return;
-    const key = zipOverrideKey('fb2ToExport', config.exportFormat);
-    await openSettingsDialog(ctx, settingsFeature, {
-      initialPage: 'exports',
-      initialExportFormat: config.exportFormat,
-    });
-    // Reload active settings from core/store so the summary and ZIP default reflect any changes.
-    try {
-      const fresh = await ctx.rpc.call('settings.get');
-      actions.setSettings(ctx.store, fresh);
-      setSettings(fresh);
-      // Clear manual zip override for this format so newly changed Settings -> Exports ZIP default applies.
-      const nextOverrides = { ...zipOverridesRef.current };
-      delete nextOverrides[key];
-      zipOverridesRef.current = nextOverrides;
-      dispatch({ type: 'syncExportSettings' }, fresh);
-    } catch {
-      const latest = ctx.store.getState().settings;
-      if (latest) {
-        setSettings(latest);
-        dispatch({ type: 'syncExportSettings' }, latest);
-      }
-    }
+    if (running || config.exportFormat === 'epub') return;
+    const format = config.exportFormat;
+    const patch = await ctx.dialogs.openCustom<BatchExportSettingsOverrides | null>((close) =>
+      createElement(BatchExportSettingsDialog, {
+        ctx,
+        format,
+        effectiveSettings,
+        onSave: (result) => close(result),
+        onCancel: () => close(null),
+      }),
+    );
+    if (!patch) return;
+    setExportOverrides((prev) => ({
+      ...prev,
+      ...(patch.pdf ? { pdf: { ...prev.pdf, ...patch.pdf } } : {}),
+      ...(patch.txt
+        ? {
+            txt: {
+              ...prev.txt,
+              ...patch.txt,
+              ...(patch.txt.encodings
+                ? { encodings: { ...prev.txt?.encodings, ...patch.txt.encodings } }
+                : {}),
+            },
+          }
+        : {}),
+      ...(patch.mobi ? { mobi: { ...prev.mobi, ...patch.mobi } } : {}),
+      ...(patch.markdown ? { markdown: { ...prev.markdown, ...patch.markdown } } : {}),
+    }));
   };
 
   const handleStart = async () => {
@@ -231,13 +247,14 @@ export function BatchConverterDialog({
     setReportSaveNotice(null);
     setReportFilter('all');
 
-    const latestSettings = ctx.store.getState().settings ?? settings;
+    const latestBaseSettings = ctx.store.getState().settings ?? baseSettings;
+    const runSettings = mergeBatchExportSettings(latestBaseSettings, exportOverrides);
     const openDocId = ctx.store.getState().docId ?? undefined;
 
     const controller = startBatchRun({
       ctx,
       config,
-      settings: latestSettings,
+      settings: runSettings,
       cpuCores,
       openDocId,
       onProgress: (snap) => setProgress(snap),
@@ -330,12 +347,12 @@ export function BatchConverterDialog({
     () =>
       formatActiveExportSummary(
         config.exportFormat,
-        settings,
+        effectiveSettings,
         config.zipOutput,
         t,
         pdfCustomFontName,
       ),
-    [config.exportFormat, config.zipOutput, pdfCustomFontName, settings, t],
+    [config.exportFormat, config.zipOutput, effectiveSettings, pdfCustomFontName, t],
   );
 
   // Dialog footer buttons strictly enforce FR-015 (only Cancel enabled while running).
@@ -392,7 +409,7 @@ export function BatchConverterDialog({
       },
     ];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [running, progress.phase, report, config, settings, noImportFormatSelected, t]);
+  }, [running, progress.phase, report, config, effectiveSettings, noImportFormatSelected, t]);
 
   const overallPercent =
     progress.totalCount > 0
@@ -429,127 +446,202 @@ export function BatchConverterDialog({
             </div>
           ) : null}
 
-          <fieldset className="mfbe-batch-fieldset">
-            <legend>{t('batch.direction.group')}</legend>
-            <div className="mfbe-batch-radio-row" {...tip(t('batch.tips.direction'))}>
-              <label className="mfbe-batch-radio">
-                <input
-                  type="radio"
-                  name="batch-direction"
-                  checked={config.direction === 'fb2ToExport'}
-                  disabled={running}
-                  data-testid="batch-dir-export"
-                  onChange={() => dispatch({ type: 'setDirection', direction: 'fb2ToExport' })}
-                  {...tip(t('batch.tips.direction'))}
-                />
-                <span>{t('batch.direction.fb2ToExport')}</span>
-              </label>
-              <label className="mfbe-batch-radio">
-                <input
-                  type="radio"
-                  name="batch-direction"
-                  checked={config.direction === 'importToFb2'}
-                  disabled={running}
-                  data-testid="batch-dir-import"
-                  onChange={() => dispatch({ type: 'setDirection', direction: 'importToFb2' })}
-                  {...tip(t('batch.tips.direction'))}
-                />
-                <span>{t('batch.direction.importToFb2')}</span>
-              </label>
+          <div className="mfbe-batch-direction-section">
+            <div className="mfbe-batch-tabs" role="tablist" aria-label={t('batch.direction.group')}>
+              {DIRECTION_TABS.map((dir) => {
+                const isExport = dir === 'fb2ToExport';
+                const selected = config.direction === dir;
+                const tabId = isExport ? 'batch-tab-export' : 'batch-tab-import';
+                return (
+                  <button
+                    key={dir}
+                    id={tabId}
+                    type="button"
+                    role="tab"
+                    aria-selected={selected}
+                    aria-controls="batch-direction-panel"
+                    tabIndex={selected ? 0 : -1}
+                    disabled={running}
+                    className="mfbe-batch-tab"
+                    data-testid={isExport ? 'batch-dir-export' : 'batch-dir-import'}
+                    onClick={() => dispatch({ type: 'setDirection', direction: dir })}
+                    onKeyDown={(event) => {
+                      const idx = DIRECTION_TABS.indexOf(config.direction);
+                      let next: BatchDirection | null = null;
+                      if (event.key === 'ArrowRight') {
+                        next = DIRECTION_TABS[(idx + 1) % DIRECTION_TABS.length]!;
+                      } else if (event.key === 'ArrowLeft') {
+                        next =
+                          DIRECTION_TABS[
+                            (idx + DIRECTION_TABS.length - 1) % DIRECTION_TABS.length
+                          ]!;
+                      } else if (event.key === 'Home') {
+                        next = DIRECTION_TABS[0]!;
+                      } else if (event.key === 'End') {
+                        next = DIRECTION_TABS[DIRECTION_TABS.length - 1]!;
+                      }
+                      if (!next) return;
+                      event.preventDefault();
+                      dispatch({ type: 'setDirection', direction: next });
+                      const nextId =
+                        next === 'fb2ToExport' ? 'batch-tab-export' : 'batch-tab-import';
+                      event.currentTarget.parentElement
+                        ?.querySelector<HTMLButtonElement>(`#${nextId}`)
+                        ?.focus();
+                    }}
+                    {...tip(t(isExport ? 'batch.tips.tabFromFb2' : 'batch.tips.tabToFb2'))}
+                  >
+                    {t(isExport ? 'batch.direction.fb2ToExport' : 'batch.direction.importToFb2')}
+                  </button>
+                );
+              })}
             </div>
 
-            {config.direction === 'fb2ToExport' ? (
-              <>
-                <div className="mfbe-batch-row">
-                  <label className="mfbe-batch-label" htmlFor="batch-target-format">
-                    {t('batch.export.targetFormat')}
-                  </label>
-                  <select
-                    id="batch-target-format"
-                    className="mfbe-batch-select"
-                    data-testid="batch-export-format"
-                    value={config.exportFormat}
-                    disabled={running}
-                    onChange={(event) =>
-                      dispatch({
-                        type: 'setExportFormat',
-                        format: event.target.value as BatchBookFormat,
-                      })
-                    }
-                    {...tip(t('batch.tips.targetFormat'))}
-                  >
-                    {BATCH_BOOK_FORMATS.map((fmt) => (
-                      <option key={fmt} value={fmt}>
-                        {t(`exports.settings.formats.${fmt}`)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="mfbe-batch-defaults-bar" data-testid="batch-export-defaults">
-                  <span className="mfbe-batch-defaults-text">
-                    <strong>{t('batch.export.activeSettings')}</strong> {activeExportSummary}
-                  </span>
-                  <button
-                    type="button"
-                    className="mfbe-button"
-                    data-testid="batch-export-settings-btn"
-                    disabled={running}
-                    onClick={() => void handleOpenExportSettings()}
-                    {...tip(t('batch.tips.exportSettings'))}
-                  >
-                    {t('batch.export.settingsButton')}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div data-testid="batch-import-formats-panel">
-                <label className="mfbe-batch-check" {...tip(t('batch.tips.importAll'))}>
-                  <input
-                    type="checkbox"
-                    checked={config.importAll}
-                    disabled={running}
-                    data-testid="batch-import-all"
-                    onChange={(event) =>
-                      dispatch({ type: 'setImportAll', checked: event.target.checked })
-                    }
-                    {...tip(t('batch.tips.importAll'))}
-                  />
-                  <span>{t('batch.import.allFormats')}</span>
-                </label>
-                <div className="mfbe-batch-formats-grid">
-                  {BATCH_BOOK_FORMATS.map((fmt) => {
-                    const fmtTip = t('batch.tips.importFormat', {
-                      format: t(`exports.settings.formats.${fmt}`),
-                    });
-                    return (
-                      <label key={fmt} className="mfbe-batch-check" {...tip(fmtTip)}>
-                        <input
-                          type="checkbox"
-                          checked={config.importFormats[fmt]}
-                          disabled={running}
-                          data-testid={`batch-import-fmt-${fmt}`}
-                          onChange={(event) =>
-                            dispatch({
-                              type: 'setImportFormat',
-                              format: fmt,
-                              checked: event.target.checked,
-                            })
-                          }
-                          {...tip(fmtTip)}
-                        />
-                        <span>{t(`exports.settings.formats.${fmt}`)}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-                {noImportFormatSelected ? (
-                  <div className="mfbe-batch-error" role="alert" data-testid="batch-no-format-hint">
-                    {t('batch.validation.noImportFormat')}
+            <div
+              id="batch-direction-panel"
+              role="tabpanel"
+              aria-labelledby={
+                config.direction === 'fb2ToExport' ? 'batch-tab-export' : 'batch-tab-import'
+              }
+              className="mfbe-batch-tab-panel"
+            >
+              {config.direction === 'fb2ToExport' ? (
+                <>
+                  <div className="mfbe-batch-format-row">
+                    <label className="mfbe-batch-label" htmlFor="batch-target-format">
+                      {t('batch.export.targetFormat')}
+                    </label>
+                    <select
+                      id="batch-target-format"
+                      className="mfbe-batch-select"
+                      data-testid="batch-export-format"
+                      value={config.exportFormat}
+                      disabled={running}
+                      onChange={(event) =>
+                        dispatch({
+                          type: 'setExportFormat',
+                          format: event.target.value as BatchBookFormat,
+                        })
+                      }
+                      {...tip(t('batch.tips.targetFormat'))}
+                    >
+                      {BATCH_BOOK_FORMATS.map((fmt) => (
+                        <option key={fmt} value={fmt}>
+                          {t(`exports.settings.formats.${fmt}`)}
+                        </option>
+                      ))}
+                    </select>
+                    <label
+                      className={`mfbe-batch-check mfbe-batch-zip-inline${!zipSupported ? ' disabled' : ''}`}
+                      {...tip(t('batch.tips.zipOutput'))}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={config.zipOutput}
+                        disabled={running || !zipSupported}
+                        data-testid="batch-zip-output"
+                        onChange={(event) =>
+                          dispatch({ type: 'setZipOutput', checked: event.target.checked })
+                        }
+                        {...tip(t('batch.tips.zipOutput'))}
+                      />
+                      <span>{t('batch.options.zipOutput')}</span>
+                    </label>
+                    {!zipSupported ? (
+                      <span className="mfbe-batch-note">{t('batch.options.zipEpubNote')}</span>
+                    ) : null}
                   </div>
-                ) : null}
-              </div>
-            )}
-          </fieldset>
+                  <div className="mfbe-batch-defaults-bar" data-testid="batch-export-defaults">
+                    <span className="mfbe-batch-defaults-text">
+                      <strong>{t('batch.export.activeSettings')}</strong> {activeExportSummary}
+                    </span>
+                    <button
+                      type="button"
+                      className="mfbe-button"
+                      data-testid="batch-export-settings-btn"
+                      disabled={running || config.exportFormat === 'epub'}
+                      onClick={() => void handleOpenExportSettings()}
+                      {...tip(
+                        t(
+                          config.exportFormat === 'epub'
+                            ? 'batch.tips.exportSettingsEpub'
+                            : 'batch.tips.exportSettings',
+                        ),
+                      )}
+                    >
+                      {t('batch.export.settingsButton')}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="mfbe-batch-import-panel" data-testid="batch-import-formats-panel">
+                  <label className="mfbe-batch-check" {...tip(t('batch.tips.importAll'))}>
+                    <input
+                      type="checkbox"
+                      checked={config.importAll}
+                      disabled={running}
+                      data-testid="batch-import-all"
+                      onChange={(event) =>
+                        dispatch({ type: 'setImportAll', checked: event.target.checked })
+                      }
+                      {...tip(t('batch.tips.importAll'))}
+                    />
+                    <span>{t('batch.import.allFormats')}</span>
+                  </label>
+                  <div className="mfbe-batch-formats-grid">
+                    {BATCH_BOOK_FORMATS.map((fmt) => {
+                      const fmtTip = t('batch.tips.importFormat', {
+                        format: t(`exports.settings.formats.${fmt}`),
+                      });
+                      return (
+                        <label key={fmt} className="mfbe-batch-check" {...tip(fmtTip)}>
+                          <input
+                            type="checkbox"
+                            checked={config.importFormats[fmt]}
+                            disabled={running}
+                            data-testid={`batch-import-fmt-${fmt}`}
+                            onChange={(event) =>
+                              dispatch({
+                                type: 'setImportFormat',
+                                format: fmt,
+                                checked: event.target.checked,
+                              })
+                            }
+                            {...tip(fmtTip)}
+                          />
+                          <span>{t(`exports.settings.formats.${fmt}`)}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  {noImportFormatSelected ? (
+                    <div
+                      className="mfbe-batch-error"
+                      role="alert"
+                      data-testid="batch-no-format-hint"
+                    >
+                      {t('batch.validation.noImportFormat')}
+                    </div>
+                  ) : null}
+                  <div className="mfbe-batch-import-zip-row">
+                    <label className="mfbe-batch-check" {...tip(t('batch.tips.zipOutput'))}>
+                      <input
+                        type="checkbox"
+                        checked={config.zipOutput}
+                        disabled={running}
+                        data-testid="batch-zip-output"
+                        onChange={(event) =>
+                          dispatch({ type: 'setZipOutput', checked: event.target.checked })
+                        }
+                        {...tip(t('batch.tips.zipOutput'))}
+                      />
+                      <span>{t('batch.options.zipOutput')}</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
 
           <fieldset className="mfbe-batch-fieldset">
             <legend>{t('batch.paths.sourceGroup')}</legend>
@@ -657,28 +749,6 @@ export function BatchConverterDialog({
 
           <fieldset className="mfbe-batch-fieldset">
             <legend>{t('batch.options.group')}</legend>
-            <div className="mfbe-batch-row">
-              <label
-                className={`mfbe-batch-check${!zipSupported ? ' disabled' : ''}`}
-                {...tip(t('batch.tips.zipOutput'))}
-              >
-                <input
-                  type="checkbox"
-                  checked={config.zipOutput}
-                  disabled={running || !zipSupported}
-                  data-testid="batch-zip-output"
-                  onChange={(event) =>
-                    dispatch({ type: 'setZipOutput', checked: event.target.checked })
-                  }
-                  {...tip(t('batch.tips.zipOutput'))}
-                />
-                <span>{t('batch.options.zipOutput')}</span>
-              </label>
-              {!zipSupported ? (
-                <span className="mfbe-batch-note">{t('batch.options.zipEpubNote')}</span>
-              ) : null}
-            </div>
-
             <label className="mfbe-batch-check" {...tip(t('batch.tips.overwrite'))}>
               <input
                 type="checkbox"

@@ -24,6 +24,7 @@ describe('the batch-converter chunk rules', () => {
     expect(isBatchConverterModule(path.join(BATCH, 'index.ts'))).toBe(false);
     expect(isBatchConverterModule(path.join(BATCH, 'openDialog.ts'))).toBe(true);
     expect(isBatchConverterModule(path.join(BATCH, 'BatchConverterDialog.tsx'))).toBe(true);
+    expect(isBatchConverterModule(path.join(BATCH, 'BatchExportSettingsDialog.tsx'))).toBe(true);
     expect(isBatchConverterModule(path.join(BATCH, 'engine', 'scheduler.ts'))).toBe(true);
     expect(isBatchConverterModule(path.join(BATCH, 'adapters', 'fb2ToEpub.ts'))).toBe(true);
     expect(isBatchConverterModule(path.join(BATCH, 'adapters', 'pdfToFb2.ts'))).toBe(true);

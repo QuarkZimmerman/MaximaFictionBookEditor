@@ -15,14 +15,14 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 
 ### Added
 
-- Tools > Batch Converter... (feature 019) runs unattended folder-wide conversions in both
-  directions (FB2 to EPUB, MOBI / KF8, PDF, TXT, or Markdown; and selected EPUB, MOBI / KF8, PDF,
-  Markdown, or TXT sources to UTF-8 FB2 / FB2.ZIP) without modifying the currently open document,
-  Recent files, or remembered positions.
+- Tools > Batch Converter... (feature 019) runs unattended folder-wide conversions across two
+  direction tabs (From FB2 to EPUB, MOBI / KF8, PDF, TXT, or Markdown; and To FB2 from selected
+  EPUB, MOBI / KF8, PDF, Markdown, or TXT sources into UTF-8 FB2 / FB2.ZIP) without modifying the
+  currently open document, Recent files, remembered positions, or global Settings.
 - Supports recursive subfolder scanning, single-book and multi-book ZIP archives (including
-  companion .fbd descriptions), mirrored folder trees, flat destination output, in-place saving
-  beside each source file, and reusing Settings > Exports defaults with an inline summary and
-  per-run Save output in ZIP archive override.
+  companion .fbd descriptions), in-place saving beside each source file (default), mirrored folder
+  trees or flat destination output, Save output in ZIP archive right alongside format selection,
+  and batch-only Export settings... initialized from Settings > Exports defaults.
 - Parallel conversion runs up to logical CPU cores minus 1 workers (with adjustable worker count,
   pooled Web Workers, parallel C++ XSD validation, and atomic per-target locking) beneath an
   overall progress bar and scrollable active-worker progress list.

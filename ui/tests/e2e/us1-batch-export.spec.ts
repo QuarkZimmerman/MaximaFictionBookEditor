@@ -48,8 +48,11 @@ test.describe('US1: Batch export FB2 to export formats @platform', () => {
     await page.getByTestId('menu-tools-batchConverter').click();
     await expect(page.getByTestId('dialog-batch-converter')).toBeVisible();
 
-    // Defaults: FB2 -> Export, 5 full-book formats (no FBD), EPUB ZIP disabled, Include subfolders + Keep tree checked, In-place & Overwrite unchecked.
-    await expect(page.getByTestId('batch-dir-export')).toBeChecked();
+    // Defaults: From FB2 tab active, 5 full-book formats (no FBD), EPUB ZIP & Export settings disabled,
+    // Include subfolders & In-place checked by default, Destination & Keep tree disabled, Overwrite unchecked.
+    await expect(page.getByTestId('batch-dir-export')).toHaveAttribute('role', 'tab');
+    await expect(page.getByTestId('batch-dir-export')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByTestId('batch-dir-import')).toHaveAttribute('aria-selected', 'false');
     const formatOptions = await page
       .getByTestId('batch-export-format')
       .locator('option')
@@ -58,11 +61,30 @@ test.describe('US1: Batch export FB2 to export formats @platform', () => {
 
     await expect(page.getByTestId('batch-zip-output')).toBeDisabled();
     await expect(page.getByTestId('batch-zip-output')).not.toBeChecked();
+    await expect(page.getByTestId('batch-export-settings-btn')).toBeDisabled();
     await expect(page.getByTestId('batch-include-subfolders')).toBeChecked();
+    await expect(page.getByTestId('batch-in-place')).toBeChecked();
+    await expect(page.getByTestId('batch-destination-input')).toBeDisabled();
+    await expect(page.getByTestId('batch-destination-browse')).toBeDisabled();
+    await expect(page.getByTestId('batch-keep-tree')).toBeDisabled();
+    await expect(page.getByTestId('batch-keep-tree')).not.toBeChecked();
+    await expect(page.getByTestId('batch-overwrite')).not.toBeChecked();
+
+    // Switching to To FB2 tab shows import formats with Save output in ZIP archive inside the same tab panel.
+    await page.getByTestId('batch-dir-import').click();
+    await expect(page.getByTestId('batch-dir-import')).toHaveAttribute('aria-selected', 'true');
+    await expect(
+      page.getByTestId('batch-import-formats-panel').getByTestId('batch-zip-output'),
+    ).toBeVisible();
+    await page.getByTestId('batch-dir-export').click();
+    await expect(page.getByTestId('batch-dir-export')).toHaveAttribute('aria-selected', 'true');
+
+    // Unchecking In-place enables destination input, Browse, and enables + checks Keep tree.
+    await page.getByTestId('batch-in-place').uncheck();
+    await expect(page.getByTestId('batch-destination-input')).toBeEnabled();
+    await expect(page.getByTestId('batch-destination-browse')).toBeEnabled();
     await expect(page.getByTestId('batch-keep-tree')).toBeEnabled();
     await expect(page.getByTestId('batch-keep-tree')).toBeChecked();
-    await expect(page.getByTestId('batch-in-place')).not.toBeChecked();
-    await expect(page.getByTestId('batch-overwrite')).not.toBeChecked();
 
     // Unchecking Include subfolders disables & unchecks Keep tree.
     await page.getByTestId('batch-include-subfolders').uncheck();
@@ -74,7 +96,7 @@ test.describe('US1: Batch export FB2 to export formats @platform', () => {
     await expect(page.getByTestId('batch-keep-tree')).toBeEnabled();
     await page.getByTestId('batch-keep-tree').check();
 
-    // Checking In-place disables destination input, Browse, and Keep tree while keeping Include subfolders active.
+    // Re-checking In-place disables destination input, Browse, and Keep tree while keeping Include subfolders active.
     await page.getByTestId('batch-in-place').check();
     await expect(page.getByTestId('batch-destination-input')).toBeDisabled();
     await expect(page.getByTestId('batch-destination-browse')).toBeDisabled();
@@ -83,16 +105,27 @@ test.describe('US1: Batch export FB2 to export formats @platform', () => {
     await expect(page.getByTestId('batch-include-subfolders')).toBeEnabled();
     await page.getByTestId('batch-in-place').uncheck();
 
-    // Switch to MOBI and click Export settings... -> opens Settings -> Exports on MOBI and refreshes summary.
+    // Switch to MOBI and click Export settings... -> opens batch-only options modal (NOT global Settings),
+    // hides duplicate ZIP checkbox, refreshes summary, and leaves global Settings -> Exports untouched!
+    await core.rpc('settings.set', { patch: { mobi: { format: 'joint', zip: false } } });
     await page.getByTestId('batch-export-format').selectOption('mobi');
     await expect(page.getByTestId('batch-zip-output')).toBeEnabled();
+    await expect(page.getByTestId('batch-export-settings-btn')).toBeEnabled();
     await page.getByTestId('batch-export-settings-btn').click();
-    await expect(page.getByTestId('dialog-settings')).toBeVisible();
-    await expect(page.getByTestId('settings-exports-format')).toHaveValue('mobi');
+    await expect(page.getByTestId('dialog-batch-export-settings')).toBeVisible();
+    await expect(page.getByTestId('dialog-settings')).toHaveCount(0);
+    await expect(page.getByTestId('batch-export-settings-scope-note')).toBeVisible();
+    await expect(page.getByTestId('settings-mobi-zip')).toHaveCount(0);
     await page.getByTestId('settings-mobi-format').selectOption('kf8');
-    await page.getByTestId('dialog-settings-button-ok').click();
-    await expect(page.getByTestId('dialog-settings')).toBeHidden();
+    await page.getByTestId('dialog-batch-export-settings-button-ok').click();
+    await expect(page.getByTestId('dialog-batch-export-settings')).toBeHidden();
     await expect(page.getByTestId('batch-export-defaults')).toContainText(/KF8/i);
+
+    // Confirm global settings.json was NOT altered by batch-only Export settings!
+    const globalSettingsAfter = (await core.rpc('settings.get')) as {
+      mobi?: { format?: string };
+    };
+    expect(globalSettingsAfter.mobi?.format).toBe('joint');
 
     // 0-matching-files empty source directory completes cleanly without writing anything.
     const emptySrc = makeTempDir('mfbe-us1-empty-src');
@@ -160,7 +193,7 @@ test.describe('US1: Batch export FB2 to export formats @platform', () => {
       // 1) FB2 -> EPUB (mirrored tree)
       const epubDst = path.join(work, 'out-epub');
       await openBatchDialog(page);
-      await page.getByTestId('batch-dir-export').check();
+      await page.getByTestId('batch-dir-export').click();
       await page.getByTestId('batch-export-format').selectOption('epub');
       await page.getByTestId('batch-source-input').fill(srcDir);
       await page.getByTestId('batch-in-place').uncheck();
@@ -189,16 +222,23 @@ test.describe('US1: Batch export FB2 to export formats @platform', () => {
       expect(existsSync(path.join(txtDst, 'child-book.zip'))).toBe(true);
       expect(existsSync(path.join(txtDst, 'archived-book.zip'))).toBe(true);
 
-      // 3) FB2 -> MOBI (bare .mobi)
+      // 3) FB2 -> MOBI with batch-only KF8 override (.azw3) while global Settings -> Exports stays 'joint'
       const mobiDst = path.join(work, 'out-mobi');
       await page.getByTestId('dialog-batch-converter-button-run-again').click();
       await page.getByTestId('batch-export-format').selectOption('mobi');
       await page.getByTestId('batch-zip-output').uncheck();
+      await page.getByTestId('batch-export-settings-btn').click();
+      await expect(page.getByTestId('dialog-batch-export-settings')).toBeVisible();
+      await page.getByTestId('settings-mobi-format').selectOption('kf8');
+      await page.getByTestId('dialog-batch-export-settings-button-ok').click();
+      await expect(page.getByTestId('dialog-batch-export-settings')).toBeHidden();
       await page.getByTestId('batch-destination-input').fill(mobiDst);
       await page.getByTestId('dialog-batch-converter-button-start').click();
       await expect(page.getByTestId('batch-report-view')).toBeVisible({ timeout: 60_000 });
       await expect(page.getByTestId('batch-count-converted')).toContainText('3');
-      expect(existsSync(path.join(mobiDst, 'root-book.mobi'))).toBe(true);
+      expect(existsSync(path.join(mobiDst, 'root-book.azw3'))).toBe(true);
+      const settingsCheck = (await core.rpc('settings.get')) as { mobi?: { format?: string } };
+      expect(settingsCheck.mobi?.format).toBe('joint');
 
       // 4) FB2 -> Markdown (.md.zip)
       const mdDst = path.join(work, 'out-md-zip');

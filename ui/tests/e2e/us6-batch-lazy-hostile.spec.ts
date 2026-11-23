@@ -92,10 +92,11 @@ test.describe('US6: On-demand loading, hostile inputs, and clean shutdown', () =
     copyFileSync(sample, path.join(srcDir, 'tiny.fb2'));
     try {
       await openBatchDialog(page);
-      await page.getByTestId('batch-dir-export').check();
+      await page.getByTestId('batch-dir-export').click();
       await page.getByTestId('batch-export-format').selectOption('txt');
       await page.getByTestId('batch-zip-output').uncheck();
       await page.getByTestId('batch-source-input').fill(srcDir);
+      await page.getByTestId('batch-in-place').uncheck();
       await page.getByTestId('batch-destination-input').fill(dstDir);
       await page.getByTestId('dialog-batch-converter-button-start').click();
       await expect(page.getByTestId('batch-report-view')).toBeVisible({ timeout: 30_000 });
@@ -181,9 +182,10 @@ test.describe('US6: On-demand loading, hostile inputs, and clean shutdown', () =
       // Pass A: FB2 -> EPUB over hostile tree (valid Unicode book & remote-refs succeed; bad FB2s & bomb ZIP fail safely).
       const outEpub = path.join(work, 'out-epub');
       await openBatchDialog(page);
-      await page.getByTestId('batch-dir-export').check();
+      await page.getByTestId('batch-dir-export').click();
       await page.getByTestId('batch-export-format').selectOption('epub');
       await page.getByTestId('batch-source-input').fill(srcDir);
+      await page.getByTestId('batch-in-place').uncheck();
       await page.getByTestId('batch-destination-input').fill(outEpub);
       await page.getByTestId('batch-include-subfolders').check();
       await page.getByTestId('batch-keep-tree').check();
@@ -200,7 +202,7 @@ test.describe('US6: On-demand loading, hostile inputs, and clean shutdown', () =
       // Pass B: Import -> FB2 (All formats) over hostile tree (hostile.md succeeds; bad epub/mobi/pdf/zip fail safely).
       const outFb2 = path.join(work, 'out-fb2');
       await page.getByTestId('dialog-batch-converter-button-run-again').click();
-      await page.getByTestId('batch-dir-import').check();
+      await page.getByTestId('batch-dir-import').click();
       await page.getByTestId('batch-import-all').check();
       await page.getByTestId('batch-destination-input').fill(outFb2);
       await page.getByTestId('batch-zip-output').uncheck();

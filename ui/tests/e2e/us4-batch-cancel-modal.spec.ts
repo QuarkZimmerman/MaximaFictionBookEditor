@@ -42,9 +42,10 @@ test.describe('US4: Strict modal lock and clean cancellation', () => {
     await core.rpc('test.slowJobs', { millisecondsPerStep: 600 });
     try {
       await openBatchDialog(page);
-      await page.getByTestId('batch-dir-export').check();
+      await page.getByTestId('batch-dir-export').click();
       await page.getByTestId('batch-export-format').selectOption('txt');
       await page.getByTestId('batch-source-input').fill(srcDir);
+      await page.getByTestId('batch-in-place').uncheck();
       await page.getByTestId('batch-destination-input').fill(dstDir);
       await page.getByTestId('batch-zip-output').uncheck();
       await page.getByTestId('dialog-batch-converter-button-start').click();
@@ -104,9 +105,10 @@ test.describe('US4: Strict modal lock and clean cancellation', () => {
         mkdirSync(dstDir, { recursive: true });
 
         await openBatchDialog(page);
-        await page.getByTestId('batch-dir-export').check();
+        await page.getByTestId('batch-dir-export').click();
         await page.getByTestId('batch-export-format').selectOption('epub');
         await page.getByTestId('batch-source-input').fill(srcDir);
+        await page.getByTestId('batch-in-place').uncheck();
         await page.getByTestId('batch-destination-input').fill(dstDir);
         await page.getByTestId('batch-overwrite').uncheck();
 

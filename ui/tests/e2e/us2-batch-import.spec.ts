@@ -76,9 +76,10 @@ test.describe('US2: Batch import formats to FB2', () => {
       await core.rpc('settings.set', { patch: { mobi: { format: 'joint', zip: false } } });
 
       await openBatchDialog(page);
-      await page.getByTestId('batch-dir-export').check();
+      await page.getByTestId('batch-dir-export').click();
       await page.getByTestId('batch-export-format').selectOption('mobi');
       await page.getByTestId('batch-source-input').fill(seedSrc);
+      await page.getByTestId('batch-in-place').uncheck();
       await page.getByTestId('batch-destination-input').fill(seedMobiOut);
       await page.getByTestId('batch-zip-output').uncheck();
       await page.getByTestId('dialog-batch-converter-button-start').click();
@@ -143,9 +144,9 @@ test.describe('US2: Batch import formats to FB2', () => {
       writeFileSync(path.join(srcDir, 'loose-image.png'), TINY_PNG_BYTES);
 
       // Total convertible books: 7 single-book inputs + 2 inside bundle.zip = 9 books.
-      // Step 2: Switch to Import -> FB2 and verify format filter defaults & 0-selected guard.
+      // Step 2: Switch to To FB2 tab and verify format filter defaults & 0-selected guard.
       await page.getByTestId('dialog-batch-converter-button-run-again').click();
-      await page.getByTestId('batch-dir-import').check();
+      await page.getByTestId('batch-dir-import').click();
       await expect(page.getByTestId('batch-import-all')).toBeChecked();
       for (const fmt of ['epub', 'mobi', 'pdf', 'txt', 'markdown']) {
         await expect(page.getByTestId(`batch-import-fmt-${fmt}`)).toBeChecked();

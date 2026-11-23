@@ -4,7 +4,12 @@
  * and intentionally never retains `overwrite`.
  */
 
-import type { BatchJobConfig, BatchSessionMemory } from './engine/types';
+import { cloneExportSettingsOverrides } from './engine/configState';
+import type {
+  BatchExportSettingsOverrides,
+  BatchJobConfig,
+  BatchSessionMemory,
+} from './engine/types';
 
 let sessionMemory: BatchSessionMemory | null = null;
 
@@ -14,12 +19,14 @@ export function getBatchSessionMemory(): BatchSessionMemory | null {
     ...sessionMemory,
     importFormats: { ...sessionMemory.importFormats },
     zipOverrides: { ...sessionMemory.zipOverrides },
+    exportSettingsOverrides: cloneExportSettingsOverrides(sessionMemory.exportSettingsOverrides),
   };
 }
 
 export function saveBatchSessionMemory(
   config: BatchJobConfig,
   zipOverrides: Partial<Record<string, boolean>>,
+  exportSettingsOverrides?: BatchExportSettingsOverrides,
 ): void {
   sessionMemory = {
     direction: config.direction,
@@ -34,6 +41,7 @@ export function saveBatchSessionMemory(
     parallel: config.parallel,
     workerCount: config.workerCount,
     zipOverrides: { ...zipOverrides },
+    exportSettingsOverrides: cloneExportSettingsOverrides(exportSettingsOverrides),
   };
 }
 

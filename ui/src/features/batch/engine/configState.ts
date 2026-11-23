@@ -9,9 +9,92 @@ import {
   BATCH_BOOK_FORMATS,
   type BatchBookFormat,
   type BatchDirection,
+  type BatchExportSettingsOverrides,
   type BatchJobConfig,
   type BatchSessionMemory,
 } from './types';
+
+const DEFAULT_PDF_SETTINGS: NonNullable<Settings['pdf']> = {
+  defaultPageSize: 'a4',
+  textFont: 'noto-serif',
+  textSize: 'standard',
+  margins: 'standard',
+  customTextSize: 115,
+  customMargin: 22,
+  zip: false,
+};
+
+const DEFAULT_TXT_SETTINGS: NonNullable<Settings['txt']> = {
+  encodingMode: 'utf-8',
+  encodings: { en: 'windows-1252', ru: 'windows-1251', uk: 'windows-1251', other: 'utf-8' },
+  bom: false,
+  zip: false,
+};
+
+const DEFAULT_MOBI_SETTINGS: NonNullable<Settings['mobi']> = {
+  format: 'joint',
+  tocPlacement: 'afterTitle',
+  seriesInTitle: 'seriesAndNumber',
+  openAt: 'titlePage',
+  kf8PopupFootnotes: true,
+  zip: false,
+};
+
+const DEFAULT_MARKDOWN_SETTINGS: NonNullable<Settings['markdown']> = {
+  includePictures: true,
+};
+
+export function cloneExportSettingsOverrides(
+  overrides?: BatchExportSettingsOverrides | null,
+): BatchExportSettingsOverrides {
+  if (!overrides) return {};
+  const out: BatchExportSettingsOverrides = {};
+  if (overrides.pdf) out.pdf = { ...overrides.pdf };
+  if (overrides.txt) {
+    out.txt = {
+      ...overrides.txt,
+      ...(overrides.txt.encodings ? { encodings: { ...overrides.txt.encodings } } : {}),
+    };
+  }
+  if (overrides.mobi) out.mobi = { ...overrides.mobi };
+  if (overrides.markdown) out.markdown = { ...overrides.markdown };
+  return out;
+}
+
+/**
+ * Merges session-only batch export overrides over global Settings without mutating `base`.
+ */
+export function mergeBatchExportSettings(
+  base: Settings | null,
+  overrides?: BatchExportSettingsOverrides | null,
+): Settings | null {
+  if (!overrides || (!overrides.pdf && !overrides.txt && !overrides.mobi && !overrides.markdown)) {
+    return base;
+  }
+  const merged = { ...(base ?? ({ schemaVersion: 1 } as Settings)) };
+  if (overrides.pdf) {
+    merged.pdf = { ...DEFAULT_PDF_SETTINGS, ...base?.pdf, ...overrides.pdf };
+  }
+  if (overrides.txt) {
+    merged.txt = {
+      ...DEFAULT_TXT_SETTINGS,
+      ...base?.txt,
+      ...overrides.txt,
+      encodings: {
+        ...DEFAULT_TXT_SETTINGS.encodings,
+        ...base?.txt?.encodings,
+        ...overrides.txt.encodings,
+      },
+    };
+  }
+  if (overrides.mobi) {
+    merged.mobi = { ...DEFAULT_MOBI_SETTINGS, ...base?.mobi, ...overrides.mobi };
+  }
+  if (overrides.markdown) {
+    merged.markdown = { ...DEFAULT_MARKDOWN_SETTINGS, ...base?.markdown, ...overrides.markdown };
+  }
+  return merged;
+}
 
 export function computeMaxWorkers(cpuCores: number): number {
   const safeCores = Number.isFinite(cpuCores) ? Math.floor(cpuCores) : 1;
@@ -136,7 +219,8 @@ export function createInitialBatchConfig(
       zipOutput,
       sourceDir: memory?.sourceDir ?? '',
       includeSubfolders: memory?.includeSubfolders ?? true,
-      inPlace: memory?.inPlace ?? false,
+      // Requester (2026-11-23): In-place conversion is checked by default.
+      inPlace: memory?.inPlace ?? true,
       destinationDir: memory?.destinationDir ?? '',
       keepTree: memory?.keepTree ?? true,
       // FR-003 / FR-012: Overwrite always starts unchecked when the dialog opens.
@@ -223,10 +307,12 @@ export function reduceBatchConfig(
       };
       break;
     case 'setInPlace':
+      // Unchecking In-place while Include subfolders is on defaults Keep folder tree structure
+      // to checked so destination-folder runs preserve tree layout unless explicitly flattened.
       next = {
         ...state,
         inPlace: action.checked,
-        keepTree: action.checked ? false : state.keepTree,
+        keepTree: action.checked ? false : state.includeSubfolders,
       };
       break;
     case 'setDestinationDir':

@@ -2,10 +2,26 @@
  * Feature 019 (T020; data-model.md §1–§6): shared data-model types for the Batch Converter.
  */
 
+import type { Settings } from '@/rpc/types';
+
 export type BatchDirection = 'fb2ToExport' | 'importToFb2';
 
 /** The five full-book formats supported in both directions (Q2: FBD excluded). */
 export type BatchBookFormat = 'epub' | 'mobi' | 'pdf' | 'txt' | 'markdown';
+
+/** Export formats that expose format-specific options (EPUB has none). */
+export type BatchConfigurableExportFormat = 'mobi' | 'pdf' | 'txt' | 'markdown';
+
+/**
+ * Session-only per-format export option overrides edited inside Batch Converter's
+ * batch-only Export settings dialog; never written to global settings.json.
+ */
+export interface BatchExportSettingsOverrides {
+  pdf?: Partial<NonNullable<Settings['pdf']>>;
+  txt?: Partial<NonNullable<Settings['txt']>>;
+  mobi?: Partial<NonNullable<Settings['mobi']>>;
+  markdown?: Partial<NonNullable<Settings['markdown']>>;
+}
 
 export const BATCH_BOOK_FORMATS: readonly BatchBookFormat[] = [
   'epub',
@@ -55,6 +71,7 @@ export interface BatchSessionMemory {
   parallel: boolean;
   workerCount: number;
   zipOverrides: Partial<Record<string, boolean>>;
+  exportSettingsOverrides?: BatchExportSettingsOverrides;
 }
 
 export interface BatchDiscoveredItem {

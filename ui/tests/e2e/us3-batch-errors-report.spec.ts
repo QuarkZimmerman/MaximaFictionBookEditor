@@ -41,9 +41,10 @@ test.describe('US3: Error resilience, Overwrite/Skip, Report & Save report @plat
       await core.rpc('settings.set', { patch: { mobi: { format: 'joint', zip: false } } });
 
       await openBatchDialog(page);
-      await page.getByTestId('batch-dir-export').check();
+      await page.getByTestId('batch-dir-export').click();
       await page.getByTestId('batch-export-format').selectOption('mobi');
       await page.getByTestId('batch-source-input').fill(seedSrc);
+      await page.getByTestId('batch-in-place').uncheck();
       await page.getByTestId('batch-destination-input').fill(seedOut);
       await page.getByTestId('batch-zip-output').uncheck();
       await page.getByTestId('dialog-batch-converter-button-start').click();
@@ -87,7 +88,7 @@ test.describe('US3: Error resilience, Overwrite/Skip, Report & Save report @plat
 
       // Run 1: Import -> FB2 with Overwrite existing files UNCHECKED.
       await page.getByTestId('dialog-batch-converter-button-run-again').click();
-      await page.getByTestId('batch-dir-import').check();
+      await page.getByTestId('batch-dir-import').click();
       await page.getByTestId('batch-import-all').check();
       await page.getByTestId('batch-source-input').fill(srcDir);
       await page.getByTestId('batch-destination-input').fill(dstDir);
@@ -173,7 +174,7 @@ test.describe('US3: Error resilience, Overwrite/Skip, Report & Save report @plat
       await page.getByTestId('dialog-batch-converter-button-close').click();
       await expect(page.getByTestId('dialog-batch-converter')).toBeHidden();
       await openBatchDialog(page);
-      await expect(page.getByTestId('batch-dir-import')).toBeChecked();
+      await expect(page.getByTestId('batch-dir-import')).toHaveAttribute('aria-selected', 'true');
       await expect(page.getByTestId('batch-source-input')).toHaveValue(srcDir);
       await expect(page.getByTestId('batch-destination-input')).toHaveValue(dstDir);
       await expect(page.getByTestId('batch-overwrite')).not.toBeChecked();
@@ -215,11 +216,11 @@ test.describe('US3: Error resilience, Overwrite/Skip, Report & Save report @plat
       );
 
       await openBatchDialog(page);
-      await page.getByTestId('batch-dir-import').check();
+      await page.getByTestId('batch-dir-import').click();
       await page.getByTestId('batch-import-all').check();
       await page.getByTestId('batch-source-input').fill(openBookSrc);
-      await page.getByTestId('batch-destination-input').fill(openBookDir);
       await page.getByTestId('batch-in-place').uncheck();
+      await page.getByTestId('batch-destination-input').fill(openBookDir);
       await page.getByTestId('batch-zip-output').uncheck();
       await page.getByTestId('batch-overwrite').check();
       await page.getByTestId('dialog-batch-converter-button-start').click();
@@ -240,7 +241,7 @@ test.describe('US3: Error resilience, Overwrite/Skip, Report & Save report @plat
       const originalZipBytes = readFileSync(selfZipPath);
 
       await page.getByTestId('dialog-batch-converter-button-run-again').click();
-      await page.getByTestId('batch-dir-export').check();
+      await page.getByTestId('batch-dir-export').click();
       await page.getByTestId('batch-export-format').selectOption('txt');
       await page.getByTestId('batch-source-input').fill(selfDir);
       await page.getByTestId('batch-in-place').check();

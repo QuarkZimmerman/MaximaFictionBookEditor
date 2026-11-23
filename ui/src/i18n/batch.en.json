@@ -16,13 +16,15 @@
     "title": "Batch Converter",
     "direction": {
       "group": "Direction",
-      "fb2ToExport": "FB2 to export format",
-      "importToFb2": "Import formats to FB2"
+      "fb2ToExport": "From FB2",
+      "importToFb2": "To FB2"
     },
     "export": {
       "targetFormat": "Target format:",
-      "activeSettings": "Active export defaults:",
+      "activeSettings": "Export settings:",
       "settingsButton": "Export settings...",
+      "settingsDialogTitle": "Batch export settings — {{format}}",
+      "settingsDialogNote": "Changes here apply only to Batch Converter in this session and do not change Settings -> Exports.",
       "epubDefaults": "Standard EPUB 3 (no format-specific settings)",
       "markdownPicturesOn": "Include pictures: Yes",
       "markdownPicturesOff": "Include pictures: No",
@@ -169,9 +171,11 @@
       "unknownError": "Conversion failed: {{detail}}"
     },
     "tips": {
-      "direction": "Choose whether to export FB2 books or import other e-book formats to FB2",
-      "targetFormat": "Format to convert FB2 books into (uses Settings -> Exports defaults)",
-      "exportSettings": "Open Settings -> Exports to adjust defaults for the selected format",
+      "tabFromFb2": "Convert FB2 books to another supported e-book format",
+      "tabToFb2": "Convert other supported e-book formats to FB2",
+      "targetFormat": "Format to convert FB2 books into (starts from Settings -> Exports defaults)",
+      "exportSettings": "Adjust export options for this batch session (does not modify global Settings)",
+      "exportSettingsEpub": "EPUB has no format-specific export settings",
       "importAll": "Convert every supported import format found in the source folder",
       "importFormat": "Include {{format}} files when importing to FB2",
       "sourceDir": "Folder containing the source books to convert",

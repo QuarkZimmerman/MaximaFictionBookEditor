@@ -5,10 +5,105 @@
   max-width: min(680px, calc(100vw - 32px));
 }
 
+.mfbe-batch-export-settings-dialog {
+  width: min(640px, calc(100vw - 32px));
+  max-width: none;
+}
+
+.mfbe-batch-export-settings-dialog .mfbe-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mfbe-batch-export-settings-dialog .mfbe-settings-page {
+  min-height: 0;
+}
+
 .mfbe-batch-form {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.mfbe-batch-direction-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.mfbe-batch-tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--mfbe-color-border, #c8c8c8);
+}
+
+.mfbe-batch-tab {
+  padding: 5px 16px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 3px 3px 0 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.mfbe-batch-tab:hover:not(:disabled):not([aria-selected='true']) {
+  background: var(--mfbe-color-surface-alt, rgba(128, 128, 128, 0.08));
+}
+
+.mfbe-batch-tab[aria-selected='true'] {
+  border-color: var(--mfbe-color-border, #c8c8c8);
+  background: var(--mfbe-color-bg, #fff);
+  font-weight: 600;
+  margin-bottom: -1px;
+  position: relative;
+  z-index: 1;
+}
+
+.mfbe-batch-tab:focus-visible {
+  outline: 2px solid var(--mfbe-color-accent, #0078d4);
+  outline-offset: -2px;
+}
+
+/* Fixed min-height keeps the dialog from jumping when switching between From FB2 and To FB2. */
+.mfbe-batch-tab-panel {
+  border: 1px solid var(--mfbe-color-border, #c8c8c8);
+  border-top: 0;
+  border-radius: 0 0 3px 3px;
+  background: var(--mfbe-color-bg, #fff);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 92px;
+}
+
+.mfbe-batch-format-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.mfbe-batch-format-row label.mfbe-batch-label {
+  min-width: 104px;
+  flex-shrink: 0;
+}
+
+.mfbe-batch-zip-inline {
+  margin-left: 4px;
+}
+
+.mfbe-batch-import-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mfbe-batch-import-zip-row {
+  padding-top: 4px;
+  border-top: 1px solid var(--mfbe-color-border, #e0e0e0);
 }
 
 .mfbe-batch-fieldset {
@@ -27,22 +122,14 @@
   font-size: 12px;
 }
 
-.mfbe-batch-radio-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.mfbe-batch-check,
-.mfbe-batch-radio {
+.mfbe-batch-check {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   cursor: pointer;
 }
 
-.mfbe-batch-check.disabled,
-.mfbe-batch-radio.disabled {
+.mfbe-batch-check.disabled {
   opacity: 0.6;
   cursor: default;
 }

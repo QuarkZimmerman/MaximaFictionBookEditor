@@ -73,6 +73,8 @@ describe('batch import format filters and output paths (US2)', () => {
         ...createInitialBatchConfig(4, null),
         sourceDir: '/in',
         destinationDir: '/out',
+        inPlace: false,
+        keepTree: true,
       },
       { type: 'setDirection', direction: 'importToFb2' },
       4,

@@ -91,10 +91,11 @@ test.describe('US5: Parallel conversion up to CPU cores minus 1', () => {
         // Observe sequential mode: strictly 1 active worker row (`batch-worker-row-0`).
         // Markdown export always runs a multi-step C++ job (`markdown.export`), so `slowJobs`
         // pauses every file reliably for deterministic active-worker and collision observation.
-        await page.getByTestId('batch-dir-export').check();
+        await page.getByTestId('batch-dir-export').click();
         await page.getByTestId('batch-export-format').selectOption('markdown');
         await page.getByTestId('batch-zip-output').uncheck();
         await page.getByTestId('batch-source-input').fill(collisionSrc);
+        await page.getByTestId('batch-in-place').uncheck();
         await page.getByTestId('batch-destination-input').fill(dstSeq);
         await page.getByTestId('batch-include-subfolders').check();
         await page.getByTestId('batch-keep-tree').check();
@@ -173,9 +174,10 @@ test.describe('US5: Parallel conversion up to CPU cores minus 1', () => {
       try {
         // Warm up the batch-converter & mobi-export lazy chunks so both runs measure steady-state conversion.
         await openBatchDialog(page);
-        await page.getByTestId('batch-dir-export').check();
+        await page.getByTestId('batch-dir-export').click();
         await page.getByTestId('batch-export-format').selectOption('mobi');
         await page.getByTestId('batch-source-input').fill(srcDir);
+        await page.getByTestId('batch-in-place').uncheck();
         await page.getByTestId('batch-zip-output').uncheck();
         await page.getByTestId('batch-overwrite').uncheck();
 

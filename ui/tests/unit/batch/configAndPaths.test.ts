@@ -16,6 +16,7 @@ import {
   defaultZipOutput,
   effectiveWorkerCount,
   isZipOutputSupported,
+  mergeBatchExportSettings,
   reduceBatchConfig,
   validateBatchConfig,
 } from '@/features/batch/engine/configState';
@@ -98,12 +99,18 @@ describe('batch configState & sessionState', () => {
     expect(effectiveWorkerCount(seq, 8)).toBe(1);
   });
 
-  it('enforces Include subfolders / Keep tree / In-place coupling invariants', () => {
+  it('enforces Include subfolders / Keep tree / In-place coupling invariants with In-place default on', () => {
     const settings = makeSettings();
     let cfg = createInitialBatchConfig(4, settings);
     expect(cfg.includeSubfolders).toBe(true);
-    expect(cfg.keepTree).toBe(true);
+    expect(cfg.inPlace).toBe(true);
+    expect(cfg.keepTree).toBe(false);
+
+    // Unchecking In-place while Include subfolders is on defaults Keep tree to true.
+    cfg = reduceBatchConfig(cfg, { type: 'setInPlace', checked: false }, 4, settings);
     expect(cfg.inPlace).toBe(false);
+    expect(cfg.includeSubfolders).toBe(true);
+    expect(cfg.keepTree).toBe(true);
 
     // Unchecking Include subfolders forces Keep tree off.
     cfg = reduceBatchConfig(cfg, { type: 'setIncludeSubfolders', checked: false }, 4, settings);
@@ -115,7 +122,7 @@ describe('batch configState & sessionState', () => {
     cfg = reduceBatchConfig(cfg, { type: 'setKeepTree', checked: true }, 4, settings);
     expect(cfg.keepTree).toBe(true);
 
-    // Enabling In-place forces Keep tree off while preserving Include subfolders.
+    // Re-enabling In-place forces Keep tree off while preserving Include subfolders.
     cfg = reduceBatchConfig(cfg, { type: 'setInPlace', checked: true }, 4, settings);
     expect(cfg.inPlace).toBe(true);
     expect(cfg.includeSubfolders).toBe(true);
@@ -143,24 +150,38 @@ describe('batch configState & sessionState', () => {
     expect(cfg.zipOutput).toBe(false);
   });
 
-  it('remembers non-destructive choices in session memory and ALWAYS resets overwrite to false', () => {
+  it('remembers non-destructive choices and batch-only export overrides in session memory and ALWAYS resets overwrite to false', () => {
     const settings = makeSettings();
     let cfg = createInitialBatchConfig(8, settings);
     cfg = reduceBatchConfig(cfg, { type: 'setExportFormat', format: 'txt' }, 8, settings);
+    cfg = reduceBatchConfig(cfg, { type: 'setInPlace', checked: false }, 8, settings);
     cfg = reduceBatchConfig(cfg, { type: 'setSourceDir', path: '/books/in' }, 8, settings);
     cfg = reduceBatchConfig(cfg, { type: 'setDestinationDir', path: '/books/out' }, 8, settings);
     cfg = reduceBatchConfig(cfg, { type: 'setWorkerCount', count: 3 }, 8, settings);
     cfg = reduceBatchConfig(cfg, { type: 'setOverwrite', checked: true }, 8, settings);
     expect(cfg.overwrite).toBe(true);
 
-    saveBatchSessionMemory(cfg, { 'fb2ToExport:txt': false });
-    const restored = createInitialBatchConfig(8, settings, getBatchSessionMemory());
+    saveBatchSessionMemory(
+      cfg,
+      { 'fb2ToExport:txt': false },
+      { mobi: { format: 'mobi7' }, markdown: { includePictures: false } },
+    );
+    const memory = getBatchSessionMemory();
+    const restored = createInitialBatchConfig(8, settings, memory);
     expect(restored.exportFormat).toBe('txt');
+    expect(restored.inPlace).toBe(false);
     expect(restored.sourceDir).toBe('/books/in');
     expect(restored.destinationDir).toBe('/books/out');
     expect(restored.workerCount).toBe(3);
     expect(restored.zipOutput).toBe(false);
     expect(restored.overwrite).toBe(false);
+
+    // Merging batch-only overrides produces effective settings without mutating global settings.
+    const merged = mergeBatchExportSettings(settings, memory?.exportSettingsOverrides);
+    expect(merged?.mobi?.format).toBe('mobi7');
+    expect(merged?.markdown?.includePictures).toBe(false);
+    expect(settings.mobi?.format).toBe('kf8');
+    expect(settings.markdown?.includePictures).toBe(true);
   });
 
   it('validates required paths and non-empty import format selection', () => {
@@ -168,8 +189,11 @@ describe('batch configState & sessionState', () => {
     let cfg = createInitialBatchConfig(4, settings);
     expect(validateBatchConfig(cfg)).toBe('batch.validation.missingSource');
     cfg = reduceBatchConfig(cfg, { type: 'setSourceDir', path: '/src' }, 4, settings);
+    // In-place defaults to true, so Source alone is valid immediately.
+    expect(validateBatchConfig(cfg)).toBeNull();
+    cfg = reduceBatchConfig(cfg, { type: 'setInPlace', checked: false }, 4, settings);
     expect(validateBatchConfig(cfg)).toBe('batch.validation.missingDestination');
-    cfg = reduceBatchConfig(cfg, { type: 'setInPlace', checked: true }, 4, settings);
+    cfg = reduceBatchConfig(cfg, { type: 'setDestinationDir', path: '/dst' }, 4, settings);
     expect(validateBatchConfig(cfg)).toBeNull();
   });
 });
@@ -199,6 +223,8 @@ describe('batch output path resolution (data-model.md §4)', () => {
       ...createInitialBatchConfig(4, settings),
       sourceDir: '/src',
       destinationDir: '/dst',
+      inPlace: false,
+      keepTree: true,
     };
 
     // Mirrored EPUB
@@ -269,6 +295,8 @@ describe('batch output path resolution (data-model.md §4)', () => {
       ...createInitialBatchConfig(4, settings),
       sourceDir: '/src',
       destinationDir: '/dst',
+      inPlace: false,
+      keepTree: true,
       exportFormat: 'epub' as const,
       zipOutput: false,
     };

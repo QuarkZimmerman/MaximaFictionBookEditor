@@ -38,9 +38,10 @@ const OPEN_AT_OPTIONS: readonly MobiOpenAt[] = ['titlePage', 'mainText'];
 export interface MobiPageProps {
   draft: Settings;
   onChange: (patch: Partial<MobiSettings>) => void;
+  hideZip?: boolean;
 }
 
-export function MobiPage({ draft, onChange }: MobiPageProps) {
+export function MobiPage({ draft, onChange, hideZip = false }: MobiPageProps) {
   const { t } = useTranslation();
   const values: MobiSettings = {
     ...MOBI_DEFAULTS,
@@ -71,7 +72,7 @@ export function MobiPage({ draft, onChange }: MobiPageProps) {
     values.seriesInTitle === MOBI_DEFAULTS.seriesInTitle &&
     values.openAt === MOBI_DEFAULTS.openAt &&
     values.kf8PopupFootnotes === MOBI_DEFAULTS.kf8PopupFootnotes &&
-    values.zip === MOBI_DEFAULTS.zip;
+    (hideZip || values.zip === MOBI_DEFAULTS.zip);
 
   return (
     <div className="mfbe-settings-page" data-testid="settings-page-mobi">
@@ -209,22 +210,24 @@ export function MobiPage({ draft, onChange }: MobiPageProps) {
           {t('mobi.settings.kf8PopupFootnotesHint')}
         </p>
 
-        <FieldRow label={t('mobi.settings.zip')} tooltip={t('tip.settings.mobi.zip')}>
-          <input
-            type="checkbox"
-            data-testid="settings-mobi-zip"
-            {...tip(t('tip.settings.mobi.zip'))}
-            checked={values.zip}
-            onChange={(event) => onChange({ zip: event.target.checked })}
-          />
-          {defaultNote(boolLabel(MOBI_DEFAULTS.zip))}
-          {resetButton(
-            values.zip === MOBI_DEFAULTS.zip,
-            () => onChange({ zip: MOBI_DEFAULTS.zip }),
-            boolLabel(MOBI_DEFAULTS.zip),
-            'zip',
-          )}
-        </FieldRow>
+        {!hideZip ? (
+          <FieldRow label={t('mobi.settings.zip')} tooltip={t('tip.settings.mobi.zip')}>
+            <input
+              type="checkbox"
+              data-testid="settings-mobi-zip"
+              {...tip(t('tip.settings.mobi.zip'))}
+              checked={values.zip}
+              onChange={(event) => onChange({ zip: event.target.checked })}
+            />
+            {defaultNote(boolLabel(MOBI_DEFAULTS.zip))}
+            {resetButton(
+              values.zip === MOBI_DEFAULTS.zip,
+              () => onChange({ zip: MOBI_DEFAULTS.zip }),
+              boolLabel(MOBI_DEFAULTS.zip),
+              'zip',
+            )}
+          </FieldRow>
+        ) : null}
 
         <div className="mfbe-settings-row mfbe-settings-buttons">
           <button
@@ -232,7 +235,19 @@ export function MobiPage({ draft, onChange }: MobiPageProps) {
             className="mfbe-button"
             data-testid="settings-mobi-reset-all"
             disabled={same}
-            onClick={() => onChange({ ...MOBI_DEFAULTS })}
+            onClick={() =>
+              onChange(
+                hideZip
+                  ? {
+                      format: MOBI_DEFAULTS.format,
+                      tocPlacement: MOBI_DEFAULTS.tocPlacement,
+                      seriesInTitle: MOBI_DEFAULTS.seriesInTitle,
+                      openAt: MOBI_DEFAULTS.openAt,
+                      kf8PopupFootnotes: MOBI_DEFAULTS.kf8PopupFootnotes,
+                    }
+                  : { ...MOBI_DEFAULTS },
+              )
+            }
             {...tip(t('tip.settings.pdf.resetAll'))}
           >
             {t('pdf.settings.resetAll')}
