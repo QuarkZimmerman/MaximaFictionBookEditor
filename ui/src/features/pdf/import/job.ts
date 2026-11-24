@@ -307,8 +307,14 @@ export async function importPdf(
             page = run.page;
           }
       }
+      const hasOcrPages = models.some(
+        (model) => model.ocrUsed || (model.ocrImages?.length ?? 0) > 0,
+      );
       const layout =
-        tagged && sum(taggedLetters.values()) >= sum(pageLetters) * 0.97 && inOrder >= pairs * 0.97
+        !hasOcrPages &&
+        tagged &&
+        sum(taggedLetters.values()) >= sum(pageLetters) * 0.97 &&
+        inOrder >= pairs * 0.97
           ? null
           : layoutParts(models, {
               outline: document.outline,
@@ -389,7 +395,6 @@ export async function importPdf(
       };
       const link = (run: { uri?: string }): { href: string; note: boolean } | null =>
         run.uri ? { href: run.uri, note: false } : null;
-      const body = textBody(parts, link, picture);
       const words = parts.flatMap((part) => part.runs.flatMap((run) => run.text.split(/\s+/)));
       const guessedLang = await guessLanguage(words, misspelled);
       const language = resolveImportLanguage({
@@ -398,6 +403,7 @@ export async function importPdf(
         totalPages: document.pages,
         guessedLang,
       });
+      const body = textBody(parts, link, picture, { bookLang: language });
       const stem = baseName(originPath).replace(/\.pdf$/i, '');
       xml =
         `<?xml version="1.0" encoding="UTF-8"?>\n<FictionBook xmlns="${FB2_NS}" xmlns:l="${XLINK_NS}">` +

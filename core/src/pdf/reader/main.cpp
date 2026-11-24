@@ -5,6 +5,7 @@
 #include "mfbe/utf8_paths.hpp"
 #include "mfbe/version.hpp"
 #include "pdf/reader/ocr.hpp"
+#include "pdf/reader/ocr_layout.hpp"
 #include "pdf/reader/reader.hpp"
 
 #include <Error.h>
@@ -385,6 +386,8 @@ int main(int argc, char** argv) {
             all.tokens >= mfbe::pdf_reader::kGarbledDocumentTokens &&
             share < mfbe::pdf_reader::kGarbledShare;
         std::vector<int> full_ocr_pages;
+        std::vector<mfbe::pdf_reader::EmbeddedImageCandidate> embedded_candidates;
+        std::map<int, nlohmann::json> page_models;
         for (int n = 1; n <= pages; ++n) {
             const std::string& kind = page_kinds[static_cast<std::size_t>(n)];
             if (kind == "pictureShowingText" || kind == "garbled" ||
@@ -395,11 +398,23 @@ int main(int argc, char** argv) {
                 if (!page1_cover) {
                     full_ocr_pages.push_back(n);
                 }
+            } else if (kind == "text" && !whole_doc_garbled) {
+                nlohmann::json pj = load_page_json(options.out, n);
+                if (pj.contains("pictures") && pj["pictures"].is_array() &&
+                    !pj["pictures"].empty()) {
+                    auto cands = mfbe::pdf_reader::find_embedded_ocr_candidates(*doc, n, pj);
+                    if (!cands.empty()) {
+                        page_models.emplace(n, std::move(pj));
+                        for (auto& c : cands) {
+                            embedded_candidates.push_back(std::move(c));
+                        }
+                    }
+                }
             }
         }
 
-        if (full_ocr_pages.empty()) {
-            // Strict zero-OCR fast path when no page needs OCR.
+        if (full_ocr_pages.empty() && embedded_candidates.empty()) {
+            // Strict zero-OCR fast path when no page or embedded image needs OCR.
             ocr_done_summary = {{"used", false},
                                 {"pagesRecognized", 0},
                                 {"imageBlocksRecognized", 0},
@@ -408,7 +423,6 @@ int main(int argc, char** argv) {
                                 {"primaryLang", ""},
                                 {"languages", nlohmann::json::array()}};
         } else {
-            std::map<int, nlohmann::json> page_models;
             for (int p : full_ocr_pages) {
                 page_models.emplace(p, load_page_json(options.out, p));
             }
@@ -418,61 +432,107 @@ int main(int argc, char** argv) {
                 return 1;
             }
 
-            // Pass 2: sample up to 3 spread pages to determine document primary language.
-            std::vector<int> sample_pages;
-            if (full_ocr_pages.size() <= 3) {
-                sample_pages = full_ocr_pages;
-            } else {
-                sample_pages = {full_ocr_pages.front(),
-                                full_ocr_pages[full_ocr_pages.size() / 2],
-                                full_ocr_pages.back()};
-            }
-            const auto diag = runtime.detect_document_language(
-                *doc, sample_pages, page_models, [](int done, int total) {
-                    mfbe::pdf_reader::emit(
-                        mfbe::pdf_reader::dumped({{"event", "ocr-stage"},
-                                                  {"stage", "detect"},
-                                                  {"done", done},
-                                                  {"total", total}}));
-                });
-
-            // Pass 3: recognize target pages concurrently via sequential Poppler -> worker pool.
+            mfbe::pdf_reader::OcrDiagnosis diag;
             std::map<int, mfbe::pdf_reader::OcrPageResult> results;
             int ocr_done = 0;
-            const int ocr_total = static_cast<int>(full_ocr_pages.size());
+            const int ocr_total =
+                static_cast<int>(full_ocr_pages.size() + embedded_candidates.size());
             std::atomic<bool> cancelled{false};
 
-            runtime.recognize_pages_parallel(
-                *doc, full_ocr_pages, page_models, diag.primary_pack,
-                [&](mfbe::pdf_reader::OcrPageResult&& res) {
-                    const int p = res.page;
-                    const bool usable = res.usable;
-                    const std::string plang = res.primary_lang;
-                    if (usable) {
-                        write_ocr_page_json(options.out, res, nlohmann::json::array());
-                    }
-                    results.emplace(p, std::move(res));
-                    ++ocr_done;
-                    nlohmann::json ev{{"event", "ocr-page"},
-                                      {"n", p},
-                                      {"done", ocr_done},
-                                      {"total", ocr_total},
-                                      {"kind", usable ? "ocr" : "ocrFallback"}};
-                    if (!plang.empty()) {
-                        ev["lang"] = plang;
-                    }
-                    mfbe::pdf_reader::emit(mfbe::pdf_reader::dumped(ev));
-                },
-                cancelled);
+            if (!full_ocr_pages.empty()) {
+                // Pass 2: sample up to 3 spread pages to determine document primary language.
+                std::vector<int> sample_pages;
+                if (full_ocr_pages.size() <= 3) {
+                    sample_pages = full_ocr_pages;
+                } else {
+                    sample_pages = {full_ocr_pages.front(),
+                                    full_ocr_pages[full_ocr_pages.size() / 2],
+                                    full_ocr_pages.back()};
+                }
+                diag = runtime.detect_document_language(
+                    *doc, sample_pages, page_models, [](int done, int total) {
+                        mfbe::pdf_reader::emit(
+                            mfbe::pdf_reader::dumped({{"event", "ocr-stage"},
+                                                      {"stage", "detect"},
+                                                      {"done", done},
+                                                      {"total", total}}));
+                    });
+
+                // Pass 3: recognize target pages concurrently via sequential Poppler -> worker pool.
+                runtime.recognize_pages_parallel(
+                    *doc, full_ocr_pages, page_models, diag.primary_pack,
+                    [&](mfbe::pdf_reader::OcrPageResult&& res) {
+                        const int p = res.page;
+                        const bool usable = res.usable;
+                        const std::string plang = res.primary_lang;
+                        if (usable) {
+                            write_ocr_page_json(options.out, res, nlohmann::json::array());
+                        }
+                        results.emplace(p, std::move(res));
+                        ++ocr_done;
+                        nlohmann::json ev{{"event", "ocr-page"},
+                                          {"n", p},
+                                          {"done", ocr_done},
+                                          {"total", ocr_total},
+                                          {"kind", usable ? "ocr" : "ocrFallback"}};
+                        if (!plang.empty()) {
+                            ev["lang"] = plang;
+                        }
+                        mfbe::pdf_reader::emit(mfbe::pdf_reader::dumped(ev));
+                    },
+                    cancelled);
+            }
 
             if (cancelled.load()) {
                 return 1;
             }
 
+            // Embedded text-bearing raster images on searchable pages (T036).
+            int image_blocks_recognized = 0;
+            std::map<int, nlohmann::json> embedded_blocks_by_page;
+            std::map<std::string, int> lang_word_counts;
+            for (const auto& cand : embedded_candidates) {
+#ifndef _WIN32
+                if (getppid() == 1) {
+                    return 1;
+                }
+#endif
+                constexpr int kEmbeddedDpi = 240;
+                auto region = mfbe::pdf_reader::OcrRuntime::render_region_gray(
+                    *doc, cand.page, cand.box_pts, kEmbeddedDpi);
+                const auto block = runtime.recognize_embedded_region(
+                    region.get(), kEmbeddedDpi, cand.box_pts, diag.primary_pack);
+                ++ocr_done;
+                nlohmann::json ev{{"event", "ocr-page"},
+                                  {"n", cand.page},
+                                  {"done", ocr_done},
+                                  {"total", ocr_total},
+                                  {"kind", "ocrImage"}};
+                if (block.usable) {
+                    ++image_blocks_recognized;
+                    if (!block.fb2_lang.empty()) {
+                        ev["lang"] = block.fb2_lang;
+                        lang_word_counts[block.fb2_lang] += static_cast<int>(block.words.size());
+                    }
+                    auto& arr = embedded_blocks_by_page[cand.page];
+                    if (!arr.is_array()) {
+                        arr = nlohmann::json::array();
+                    }
+                    arr.push_back(mfbe::pdf_reader::build_ocr_image_block_json(cand, block));
+                }
+                mfbe::pdf_reader::emit(mfbe::pdf_reader::dumped(ev));
+            }
+            for (auto& [p, blocks] : embedded_blocks_by_page) {
+                nlohmann::json pj = page_models.contains(p) ? page_models[p]
+                                                            : load_page_json(options.out, p);
+                pj["ocrImages"] = std::move(blocks);
+                std::ofstream(options.out / ("page-" + std::to_string(p) + ".json"))
+                    << mfbe::pdf_reader::dumped(pj);
+            }
+
             int pages_recognized = 0;
             int low_conf_pages = 0;
             std::vector<int> fallback_pages;
-            std::map<std::string, int> lang_word_counts;
             std::map<std::string, float> script_votes;
             if (!diag.dominant_osd_script.empty() && diag.dominant_osd_script_conf > 0.0f) {
                 script_votes[diag.dominant_osd_script] += diag.dominant_osd_script_conf;
@@ -491,13 +551,19 @@ int main(int argc, char** argv) {
                             lang_word_counts[w.lang]++;
                         }
                     }
+                    // Crop distinct non-text inline illustrations on scanned pages (T036).
+                    nlohmann::json cropped = mfbe::pdf_reader::crop_scanned_inline_illustrations(
+                        *doc, r, options.quality, options.out, prewritten_pictures);
+                    if (!cropped.empty()) {
+                        write_ocr_page_json(options.out, r, cropped);
+                    }
                 } else {
                     fallback_pages.push_back(p);
                 }
             }
 
             const int usable_searchable = whole_doc_garbled ? 0 : clean_text_pages;
-            if (usable_searchable == 0 && pages_recognized == 0) {
+            if (usable_searchable == 0 && pages_recognized == 0 && image_blocks_recognized == 0) {
                 std::string best_script;
                 float best_votes = 0.0f;
                 for (const auto& [script, votes] : script_votes) {
@@ -577,13 +643,16 @@ int main(int argc, char** argv) {
             const std::string primary_lang =
                 !doc_langs.empty() ? doc_langs.front() : diag.primary_lang;
 
-            ocr_done_summary = {{"used", true},
+            const bool any_ocr_output =
+                pages_recognized > 0 || image_blocks_recognized > 0 || saved_fallbacks > 0;
+            ocr_done_summary = {{"used", any_ocr_output},
                                 {"pagesRecognized", pages_recognized},
-                                {"imageBlocksRecognized", 0},
+                                {"imageBlocksRecognized", image_blocks_recognized},
                                 {"fallbackPages", saved_fallbacks},
                                 {"lowConfidencePages", low_conf_pages},
-                                {"primaryLang", primary_lang},
-                                {"languages", doc_langs}};
+                                {"primaryLang", any_ocr_output ? primary_lang : ""},
+                                {"languages", any_ocr_output ? nlohmann::json(doc_langs)
+                                                             : nlohmann::json::array()}};
         }
     }
 

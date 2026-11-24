@@ -238,8 +238,11 @@ Look look_of(PDFDoc& doc, int n) {
 }  // namespace
 
 std::string page_kind(PDFDoc& doc, int n, const nlohmann::json& page) {
-    const bool words = !page.value("words", nlohmann::json::array()).empty();
-    const double area = page.value("width", 0.0) * page.value("height", 0.0);
+    const auto words = page.value("words", nlohmann::json::array());
+    const bool has_words = !words.empty();
+    const double page_w = page.value("width", 0.0);
+    const double page_h = page.value("height", 0.0);
+    const double area = page_w * page_h;
     bool large = false;
     for (const auto& picture : page.value("pictures", nlohmann::json::array())) {
         const auto& box = picture["box"];
@@ -247,8 +250,36 @@ std::string page_kind(PDFDoc& doc, int n, const nlohmann::json& page) {
             large = true;
         }
     }
-    if (words) {
-        return large ? "pictureWithLayer" : "text";
+    if (has_words) {
+        if (!large) {
+            return "text";
+        }
+        // Feature 020 (T034, research.md R4): a scanned page carrying ONLY stray searchable
+        // furniture (e.g. a lone page number or running header: <= 15 tokens or < 15% vertical
+        // span) while its raster image shows printed body text classifies as `pictureShowingText`.
+        // Garbled layers stay `pictureWithLayer` here so text.cpp's readability check marks them
+        // `garbled`, and clean ABBYY-style OCR layers (> 15 tokens and >= 15% span) stay untouched.
+        const Readability r = readability(words);
+        const bool is_garbled =
+            r.tokens >= kGarbledPageTokens && r.plain < kGarbledShare * r.tokens;
+        if (!is_garbled) {
+            double min_y = page_h;
+            double max_y = 0.0;
+            for (const auto& w : words) {
+                if (w.contains("box") && w["box"].size() == 4) {
+                    const double y0 = w["box"][1].get<double>();
+                    const double h = w["box"][3].get<double>();
+                    min_y = std::min(min_y, y0);
+                    max_y = std::max(max_y, y0 + h);
+                }
+            }
+            const double v_coverage =
+                (page_h > 1.0 && max_y > min_y) ? (max_y - min_y) / page_h : 0.0;
+            if ((words.size() <= 15 || v_coverage < 0.15) && look_of(doc, n) == Look::text) {
+                return "pictureShowingText";
+            }
+        }
+        return "pictureWithLayer";
     }
     if (!large && page.value("pictures", nlohmann::json::array()).empty()) {
         return "blank";

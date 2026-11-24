@@ -13,6 +13,11 @@ export interface TextBody {
   counts: { sections: number; pictures: number; tables: number; notes: number };
 }
 
+export interface TextBodyOptions {
+  /** Primary FB2 `<title-info><lang>` of the book; matching `xml:lang` attributes are omitted. */
+  bookLang?: string | null;
+}
+
 /**
  * `link` maps a run's target to an FB2 reference; `picture` gives the binary id of a picture part or run
  * (null leaves it out).
@@ -21,7 +26,13 @@ export function textBody(
   parts: readonly Part[],
   link: (run: Run) => { href: string; note: boolean } | null,
   picture: (page: number, alt: string, readerId?: string) => string | null,
+  options: TextBodyOptions = {},
 ): TextBody {
+  const bookLang = options.bookLang?.trim().toLowerCase() || null;
+  const normLang = (lang: string | undefined): string | undefined => {
+    const v = lang?.trim().toLowerCase();
+    return v || undefined;
+  };
   const counts = { sections: 0, pictures: 0, tables: 0, notes: 0 };
   const pictureRun = (run: Run): string | null => {
     const id = picture(run.page, run.picture?.alt ?? '');
@@ -30,10 +41,21 @@ export function textBody(
   };
   // The sections as a tree first: FB2 lets a section hold either its own text or subsections after its
   // title, never both, and a section must hold more than a title (the library's PDFs, D32).
+  interface ContentItem {
+    tag: 'p' | 'image' | 'table';
+    xml?: string;
+    inner?: string;
+    lang?: string;
+    style?: string;
+  }
+  interface TitleLine {
+    inner: string;
+    lang?: string;
+  }
   interface Section {
     level: number;
-    title: string[];
-    content: string[];
+    title: TitleLine[];
+    content: ContentItem[];
     children: Section[];
   }
   const top: Section[] = [];
@@ -55,7 +77,10 @@ export function textBody(
       const section = inTitle && current?.level === level ? current : openSection(level);
       inTitle = true;
       // A title's bold or italic over the whole line is its look, not markup.
-      section.title.push(`<p>${inline(stripWhole(part.runs), [], link, pictureRun)}</p>`);
+      section.title.push({
+        inner: inline(stripWhole(part.runs), [], link, pictureRun),
+        lang: normLang(part.lang),
+      });
       continue;
     }
     inTitle = false;
@@ -65,11 +90,14 @@ export function textBody(
       if (id) {
         counts.pictures++;
         const alt = part.alt ? ` alt="${attr(part.alt)}"` : '';
-        section.content.push(`<image l:href="#${attr(id)}"${alt}/>`);
+        section.content.push({ tag: 'image', xml: `<image l:href="#${attr(id)}"${alt}/>` });
       }
       // Its caption, a paragraph under it: its words are the book's (D32).
       if (part.caption?.some((run) => run.text.trim()))
-        section.content.push(`<p>${inline(part.caption, [], link, pictureRun)}</p>`);
+        section.content.push({
+          tag: 'p',
+          inner: inline(part.caption, [], link, pictureRun),
+        });
       continue;
     }
     if (part.kind === 'table') {
@@ -88,35 +116,91 @@ export function textBody(
             })
             .join('')}</tr>`,
       );
-      section.content.push(`<table>${rows.join('')}</table>`);
+      section.content.push({ tag: 'table', xml: `<table>${rows.join('')}</table>` });
       continue;
     }
-    const lang = part.lang ? ` xml:lang="${attr(part.lang)}"` : '';
-    section.content.push(`<p${lang}>${inline(part.runs, [], link, pictureRun)}</p>`);
+    section.content.push({
+      tag: 'p',
+      inner: inline(part.runs, [], link, pictureRun),
+      lang: normLang(part.lang),
+      style: part.style,
+    });
   }
+
+  // Feature 020 (contracts/page-model.md §2): promote xml:lang onto `<section>` when every
+  // text-bearing child shares the same non-primary language; otherwise keep xml:lang on individual
+  // foreign-language `<p>` elements and omit it whenever matching the book's primary `<lang>`.
+  const uniformSectionLang = (section: Section): string | null => {
+    let found: string | null = null;
+    const visit = (sec: Section): boolean => {
+      for (const t of sec.title) {
+        if (!t.lang) return false;
+        if (found === null) found = t.lang;
+        else if (found !== t.lang) return false;
+      }
+      for (const item of sec.content) {
+        if (item.tag !== 'p') continue;
+        if (!item.lang) return false;
+        if (found === null) found = item.lang;
+        else if (found !== item.lang) return false;
+      }
+      for (const child of sec.children) {
+        if (!visit(child)) return false;
+      }
+      return true;
+    };
+    return visit(section) && found && found !== bookLang ? found : null;
+  };
+
+  const renderItem = (item: ContentItem, inheritedLang: string | null): string => {
+    if (item.tag !== 'p') return item.xml ?? '';
+    const styleAttr = item.style ? ` style="${attr(item.style)}"` : '';
+    const langAttr =
+      item.lang && item.lang !== bookLang && item.lang !== inheritedLang
+        ? ` xml:lang="${attr(item.lang)}"`
+        : '';
+    return `<p${styleAttr}${langAttr}>${item.inner ?? ''}</p>`;
+  };
+
   // A section's text: one picture may stand at its top, but the text itself starts with a paragraph, a
   // table or an empty line - never a picture (FB2's sectionType) - and is never empty.
-  const contentOf = (content: readonly string[]): string => {
+  const contentOf = (content: readonly ContentItem[], inheritedLang: string | null): string => {
     if (content.length === 0) return '<empty-line/>';
-    if (!content[0].startsWith('<image')) return content.join('');
-    const [top, ...rest] = content;
+    const rendered = content.map((item) => renderItem(item, inheritedLang));
+    if (content[0].tag !== 'image') return rendered.join('');
+    const [topItem, ...rest] = rendered;
     return (
-      top +
-      (rest.length === 0 || rest[0].startsWith('<image') ? '<empty-line/>' : '') +
+      topItem +
+      (rest.length === 0 || content[1]?.tag === 'image' ? '<empty-line/>' : '') +
       rest.join('')
     );
   };
-  const render = (section: Section): string => {
-    const title = section.title.length ? `<title>${section.title.join('')}</title>` : '';
+  const render = (section: Section, parentLang: string | null): string => {
+    const promoted = parentLang === null ? uniformSectionLang(section) : null;
+    const activeLang = promoted ?? parentLang;
+    const title = section.title.length
+      ? `<title>${section.title
+          .map((t) => {
+            const langAttr =
+              t.lang && t.lang !== bookLang && t.lang !== activeLang
+                ? ` xml:lang="${attr(t.lang)}"`
+                : '';
+            return `<p${langAttr}>${t.inner}</p>`;
+          })
+          .join('')}</title>`
+      : '';
     let inner: string;
-    if (section.children.length === 0) inner = contentOf(section.content);
+    if (section.children.length === 0) inner = contentOf(section.content, activeLang);
     else {
       // Its own text before its subsections goes into an untitled first subsection.
-      const own = section.content.length ? `<section>${contentOf(section.content)}</section>` : '';
-      inner = own + section.children.map(render).join('');
+      const own = section.content.length
+        ? `<section>${contentOf(section.content, activeLang)}</section>`
+        : '';
+      inner = own + section.children.map((child) => render(child, activeLang)).join('');
     }
-    return `<section>${title}${inner}</section>`;
+    const secLangAttr = promoted ? ` xml:lang="${attr(promoted)}"` : '';
+    return `<section${secLangAttr}>${title}${inner}</section>`;
   };
-  const out = top.map(render).join('');
+  const out = top.map((section) => render(section, null)).join('');
   return { xml: `<body>${out || '<section><empty-line/></section>'}</body>`, counts };
 }
