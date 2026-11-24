@@ -1,6 +1,7 @@
 // Internal: everything RPC handlers need, bundled (not part of the public API).
 #pragma once
 
+#include "batch/run_state.hpp"
 #include "mobi/mobi_reader.hpp"
 #include "mobi/mobi_writer.hpp"
 #include "pdf/import/session.hpp"
@@ -51,6 +52,8 @@ struct Services {
     // Feature 010 (test.holdStartup, test hooks only): the next connection's requests are
     // answered after this many milliseconds; taken by that connection.
     std::atomic<int> hold_next_connection_ms{0};
+    // Feature 019 (test.setCpuCores, test hooks only): 0 = real hardware_concurrency().
+    std::atomic<int> cpu_cores_override{0};
 
     settings::SettingsStore settings;
     settings::RecentFiles recent;
@@ -132,6 +135,9 @@ struct Services {
         std::map<std::string, std::shared_ptr<MobiImportSession>> imports;
         bool cleaned = false;
     } mobi;
+
+    // Feature 019 (batch.*): per-run target locks and temporary extraction directories.
+    batch::BatchState batch;
 
     rpc::Notifier& notifier;
     rpc::JobManager jobs;
@@ -228,6 +234,8 @@ void register_pdf_import_handlers(rpc::RpcRouter& router, Services& services);
 void register_txt_handlers(rpc::RpcRouter& router, Services& services);
 // Feature 018: mobi.write.* and mobiImport.* (mobi_handlers.cpp).
 void register_mobi_handlers(rpc::RpcRouter& router, Services& services);
+// Feature 019: batch.* (batch_handlers.cpp).
+void register_batch_handlers(rpc::RpcRouter& router, Services& services);
 // Feature 017 (D13): the FBD of the book `doc_id`, the description of `params["document"]`, written
 // at `path` as doc.exportDescription writes it (forced); defined with the doc handlers.
 void write_description_file(Services& services, const std::string& doc_id,

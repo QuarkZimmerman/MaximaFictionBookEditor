@@ -244,7 +244,14 @@ export const MAIN_MENU: readonly MenuSpec[] = [
   {
     id: 'tools',
     labelKey: 'menu.tools.caption',
-    items: [cmd('tools.words'), cmd('tools.settings'), sep, cmd('tools.spellcheck')],
+    items: [
+      cmd('tools.words'),
+      cmd('tools.settings'),
+      sep,
+      cmd('tools.spellcheck'),
+      sep,
+      cmd('tools.batchConverter'),
+    ],
   },
   {
     id: 'scripts',

@@ -20,6 +20,10 @@
     "openedWithWarnings_few": "Документ відкрито з {{count}} попередженнями.",
     "openedWithWarnings_many": "Документ відкрито з {{count}} попередженнями.",
     "openedWithWarnings_other": "Документ відкрито з {{count}} попередженнями.",
+    "openedRepairedXml_one": "Виправлено {{count}} помилку XML у пам'яті (рядок {{line}}, стовпець {{column}}). Збережіть файл, щоб записати виправлення.",
+    "openedRepairedXml_few": "Виправлено {{count}} помилки XML у пам'яті (перша: рядок {{line}}, стовпець {{column}}). Збережіть файл, щоб записати виправлення.",
+    "openedRepairedXml_many": "Виправлено {{count}} помилок XML у пам'яті (перша: рядок {{line}}, стовпець {{column}}). Збережіть файл, щоб записати виправлення.",
+    "openedRepairedXml_other": "Виправлено {{count}} помилок XML у пам'яті (перша: рядок {{line}}, стовпець {{column}}). Збережіть файл, щоб записати виправлення.",
     "incrementalSearch": "Інкрементальний пошук: {{text}}",
     "failingIncrementalSearch": "Інкрементальний пошук (не знайдено): {{text}}",
     "progress": "{{phase}}: {{done}} з {{total}}",
@@ -719,7 +723,9 @@
       "ignore": "&Ігнорувати",
       "yes": "&Так",
       "no": "&Ні",
-      "close": "Закрити"
+      "close": "Закрити",
+      "repairAndOpen": "&Відновити й відкрити",
+      "openSourceView": "Відкрити в «&Коді»"
     },
     "input": {
       "caption": "Введення",
@@ -1084,6 +1090,8 @@
     "xmlParseErrorCaption": "Помилка розбору XML",
     "xmlParseError": "У {{where}}, рядок {{line}}, стовпець {{column}}: {{message}}",
     "xmlParseErrorShort": "У {{where}}: {{message}}",
+    "xmlParseErrorChoice": "У {{where}}, рядок {{line}}, стовпець {{column}}: {{message}}\n\nУ файлі порушено структуру XML. Його можна відновити в пам'яті та відкрити в редакторі (вихідний файл на диску не зміниться, доки ви його не збережете), або відкрити сирий XML у режимі «Код» для ручного виправлення.",
+    "xmlRepairFailed": "Не вдалося автоматично відновити {{where}} (рядок {{line}}, стовпець {{column}}: {{message}}). Файл буде відкрито в режимі «Код».",
     "genresFileError": "Не знайдено файлу зі списком жанрів {{path}}",
     "wordExists": "Це слово вже є у списку!",
     "wordAddErrorCaption": "Помилка додавання слова",

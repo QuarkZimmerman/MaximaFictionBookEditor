@@ -976,4 +976,43 @@ int SettingsStore::get_int(const std::string& dotted_path, int fallback) const {
     return (v != nullptr && v->is_number_integer()) ? v->get<int>() : fallback;
 }
 
+const std::vector<std::string>& export_section_names() {
+    static const std::vector<std::string> names = {"pdf", "markdown", "txt", "mobi"};
+    return names;
+}
+
+json export_sections_copy(const json& full_settings) {
+    return sanitize_export_sections(json::object(), full_settings);
+}
+
+json sanitize_export_sections(const json& stored_exports, const json& fallback_global) {
+    const json def = defaults();
+    json synth = def;
+    const auto& names = export_section_names();
+    for (const std::string& sec : names) {
+        const json& sec_def = def.at(sec);
+        if (stored_exports.is_object() && stored_exports.contains(sec) &&
+            stored_exports.at(sec).is_object()) {
+            merge_patch(synth[sec], stored_exports.at(sec), sec_def);
+        } else if (fallback_global.is_object() && fallback_global.contains(sec) &&
+                   fallback_global.at(sec).is_object()) {
+            merge_patch(synth[sec], fallback_global.at(sec), sec_def);
+        }
+    }
+    sanitize(synth);
+
+    json out = json::object();
+    for (const std::string& sec : names) {
+        out[sec] = std::move(synth[sec]);
+    }
+    if (stored_exports.is_object()) {
+        for (auto it = stored_exports.begin(); it != stored_exports.end(); ++it) {
+            if (!out.contains(it.key()) && it->is_object()) {
+                out[it.key()] = it.value();
+            }
+        }
+    }
+    return out;
+}
+
 }  // namespace mfbe::settings

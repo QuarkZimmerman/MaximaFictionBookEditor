@@ -116,6 +116,8 @@ export const RpcErrorCode = {
   mobiWriteFailed: 1118,
   /** Feature 018: an unknown or ended `mobi.write` or `mobiImport` token ({token}). */
   mobiUnknownToken: 1119,
+  /** Feature 019: `batch.*` failure ({reason, path?, detail?}). */
+  batchError: 1120,
   spellDictionaryUnavailable: 1020,
   scriptNotFound: 1030,
   scriptInvalidManifest: 1031,
@@ -273,10 +275,12 @@ export interface AppInfo {
   apiVersion: number;
   /**
    * Additive contract revision (feature 002: 1, feature 003: 2, feature 004: 3, feature 005:
-   * 4); the UI accepts minor >= 1 and, with a core that answers no `serial`, switches views
-   * without mapping; the AI assistant requires >= 4 and registers nothing with an older core.
+   * 4, ..., feature 019: 17); the UI accepts minor >= 1 and, with a core that answers no `serial`,
+   * switches views without mapping; the AI assistant requires >= 4 and registers nothing with an older core.
    */
   apiMinor: number;
+  /** Feature 019 (contracts/rpc-api.md §2.1): host logical CPU core count (>= 1). */
+  cpuCores?: number;
 }
 
 export type ImageFormat = 'jpeg' | 'png';
@@ -1345,6 +1349,10 @@ export interface RpcMethods {
       entry?: string;
       encoding?: string;
       cleanInvalidChars?: boolean;
+      /** Attempt in-memory XML recovery on malformed FictionBook files without modifying disk. */
+      recover?: boolean;
+      /** Feature 019: when true, skip Recent files and remembered positions. */
+      ephemeral?: boolean;
     };
     result: MaybeJob<
       | { document: Document & LoadReport; warnings: ValidationIssue[] }
@@ -1426,6 +1434,8 @@ export interface RpcMethods {
       backup?: boolean;
       /** Write a new ZIP archive holding only the book under `entryName` (feature 009, DP-6). */
       archive?: { entryName: string };
+      /** Feature 019: when true, skip Recent files, positions, and session path updates. */
+      ephemeral?: boolean;
     };
     result: MaybeJob<SaveResult | SaveNeedsConfirmation>;
   };
@@ -1760,7 +1770,14 @@ export interface RpcMethods {
       fallbackFont?: string;
     };
   };
-  'pdf.export.abort': { params: { token: string }; result: { known: boolean } };
+  'pdf.export.abort': {
+    params: {
+      token: string;
+      /** Feature 019: when false, clean up only this token without cancelling active PrintService jobs. */
+      cancelPrint?: boolean;
+    };
+    result: { known: boolean };
+  };
   /** Feature 014 (T050, DP-4..DP-7): the fonts of Settings > PDF export. */
   'pdf.fonts.list': {
     params: Record<string, never>;
@@ -1973,7 +1990,13 @@ export interface RpcMethods {
       selects?: Record<string, string>;
     };
   };
-  'dialog.pickFolder': { params: { title: string }; result: { path?: string } };
+  'dialog.pickFolder': {
+    params: {
+      title: string;
+      /** Feature 019: optional initial folder hint (UTF-8). */ folder?: string;
+    };
+    result: { path?: string };
+  };
   'dialog.message': {
     params: { text: string; caption: string; buttons: MessageButtonSet };
     result: { button: MessageButtonId };
@@ -2183,6 +2206,134 @@ export interface RpcMethods {
   'test.setAiResolve': { params: { entries: string[] }; result: Empty };
   /** The connect and total time-outs (ms, positive) until the core exits; a start restores 20 s / 120 s. */
   'test.setAiTimeouts': { params: { connectMs: number; totalMs: number }; result: Empty };
+
+  // Feature 019 — Batch Converter (specs/019-batch-converter/contracts/rpc-api.md)
+  'batch.scan': {
+    params: {
+      direction: 'fb2ToExport' | 'importToFb2';
+      sourceDir: string;
+      includeSubfolders: boolean;
+      formats?: ('epub' | 'mobi' | 'pdf' | 'txt' | 'markdown')[];
+    };
+    result: MaybeJob<{
+      runId: string;
+      sourceDir: string;
+      items: {
+        itemId: string;
+        sourcePath: string;
+        relativeDir: string;
+        displayPath: string;
+        format: 'fb2' | 'epub' | 'mobi' | 'pdf' | 'txt' | 'markdown';
+        archiveEntry?: string;
+        archiveMultiBook: boolean;
+        archiveStem?: string;
+        archiveFbdEntry?: string;
+        sizeBytes: number;
+      }[];
+      scanErrors: {
+        sourcePath: string;
+        displayPath: string;
+        reasonCode: string;
+        detail?: string;
+      }[];
+    }>;
+  };
+  'batch.claimTarget': {
+    params: {
+      runId: string;
+      sourcePath: string;
+      targetPath: string;
+      openDocId?: string;
+      overwrite: boolean;
+    };
+    result:
+      | { status: 'claimed'; claimId: string; targetPath: string }
+      | { status: 'skipped'; reason: 'targetExists' | 'targetBusy' }
+      | {
+          status: 'failed';
+          reason: 'targetIsSource' | 'targetIsOpenBook' | 'ioError';
+          detail?: string;
+        };
+  };
+  'batch.releaseTarget': {
+    params: { runId: string; claimId: string; succeeded?: boolean };
+    result: Empty;
+  };
+  'batch.openDoc': {
+    params: {
+      path: string;
+      entry?: string;
+      cleanInvalidChars?: boolean;
+      recover?: boolean;
+    };
+    result: MaybeJob<{
+      docId: string;
+      description: Description;
+      binaryCount: number;
+      warnings: ValidationIssue[];
+    }>;
+  };
+  'batch.extractEntry': {
+    params: {
+      runId: string;
+      itemId: string;
+      archivePath: string;
+      entry: string;
+      format: 'epub' | 'markdown';
+      fbdEntry?: string;
+    };
+    result: MaybeJob<{
+      tempDir: string;
+      extractedPath: string;
+      fbdPath?: string;
+    }>;
+  };
+  'batch.cleanupItem': { params: { runId: string; itemId: string }; result: Empty };
+  'batch.endRun': { params: { runId: string }; result: Empty };
+  'batch.writeReport': {
+    params: { path: string; content: string };
+    result: { path: string; bytes: number };
+  };
+  'batch.settings.get': {
+    params: Record<string, never> | void;
+    result: { hasStored: boolean; settings: BatchPersistedSettings };
+  };
+  'batch.settings.save': {
+    params: { settings: BatchPersistedSettings };
+    result: { settings: BatchPersistedSettings };
+  };
+  /** Feature 019 (--test-hooks): overrides app.info.cpuCores (null restores hardware_concurrency). */
+  'test.setCpuCores': { params: { cores: number | null }; result: { cpuCores: number } };
+}
+
+/** Persistent copy of global export format settings stored in `<Config>/batch-converter.json`. */
+export interface BatchPersistedExportSettings {
+  pdf?: NonNullable<Settings['pdf']>;
+  txt?: NonNullable<Settings['txt']>;
+  mobi?: NonNullable<Settings['mobi']>;
+  markdown?: NonNullable<Settings['markdown']>;
+  [section: string]: Record<string, unknown> | undefined;
+}
+
+/** Persistent Batch Converter configuration stored in `<Config>/batch-converter.json`. */
+export interface BatchPersistedSettings {
+  schemaVersion?: number;
+  direction: 'fb2ToExport' | 'importToFb2';
+  exportFormat: 'epub' | 'mobi' | 'pdf' | 'txt' | 'markdown';
+  importAll: boolean;
+  importFormats: Record<'epub' | 'mobi' | 'pdf' | 'txt' | 'markdown', boolean>;
+  sourceDir: string;
+  destinationDir: string;
+  includeSubfolders: boolean;
+  keepTree: boolean;
+  inPlace: boolean;
+  fixBroken: boolean;
+  overwrite: boolean;
+  parallel?: boolean;
+  workerCount?: number;
+  zipOverrides: Record<string, boolean>;
+  exportSettings: BatchPersistedExportSettings;
+  [extra: string]: unknown;
 }
 
 export type RpcMethodName = keyof RpcMethods;

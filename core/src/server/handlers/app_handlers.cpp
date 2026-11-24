@@ -11,9 +11,11 @@
 #include <mfbe/utf8_paths.hpp>
 #include <mfbe/version.hpp>
 
+#include <algorithm>
 #include <filesystem>
 #include <optional>
 #include <system_error>
+#include <thread>
 
 namespace mfbe::server {
 
@@ -81,6 +83,10 @@ void register_app_handlers(rpc::RpcRouter& router, Services& services) {
         info["resourceLayers"] = services.layers.report();
         info["testHooks"] = services.test_hooks;
         info["uptimeMs"] = services.uptime_ms();
+        const int override_cores = services.cpu_cores_override.load();
+        info["cpuCores"] = override_cores > 0
+                               ? override_cores
+                               : std::max(1, static_cast<int>(std::thread::hardware_concurrency()));
         return info;
     });
 

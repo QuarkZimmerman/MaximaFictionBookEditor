@@ -895,7 +895,7 @@ test.describe('US8 - opening routes, fallbacks and the record', () => {
     await page.getByTestId('menu-file-open').click();
     const parseError = page.getByTestId('dialog-parse-error');
     await expect(parseError).toBeVisible();
-    await parseError.getByTestId('dialog-parse-error-button-ok').click();
+    await parseError.getByTestId('dialog-parse-error-button-no').click();
     await waitForBook(page, malformed);
     await expect(page.getByTestId('view-source')).toHaveAttribute('aria-selected', 'true');
     expect(await positionOfOpenDocument(core.rpc, page).catch(() => null)).toBeNull();

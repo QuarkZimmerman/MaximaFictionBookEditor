@@ -610,6 +610,11 @@
       "tooltip": "Toggle header row",
       "description": "Make the cells of the caret's row header cells, or normal cells when all already are"
     },
+    "tools.batchConverter": {
+      "label": "&Batch Converter...",
+      "tooltip": "Batch Converter",
+      "description": "Convert folders of FB2 and supported e-book formats in batch"
+    },
     "tools.settings": {
       "label": "&Settings...",
       "tooltip": "Display options",
@@ -1362,6 +1367,11 @@
       "tooltip": "Переключить строку заголовков",
       "description": "Сделать ячейки строки с курсором ячейками заголовка или, если все они уже такие, обычными ячейками"
     },
+    "tools.batchConverter": {
+      "label": "&Пакетный конвертер...",
+      "tooltip": "Пакетный конвертер",
+      "description": "Пакетное преобразование папок с книгами FB2 и поддерживаемых форматов"
+    },
     "tools.settings": {
       "label": "&Настройки...",
       "tooltip": "Настройки",
@@ -2113,6 +2123,11 @@
       "label": "Перемкнути р&ядок заголовків",
       "tooltip": "Перемкнути рядок заголовків",
       "description": "Зробити клітинки рядка з курсором клітинками заголовка або, якщо всі вони вже такі, звичайними клітинками"
+    },
+    "tools.batchConverter": {
+      "label": "&Пакетний конвертер...",
+      "tooltip": "Пакетний конвертер",
+      "description": "Пакетне перетворення тек із книгами FB2 та підтримуваних форматів"
     },
     "tools.settings": {
       "label": "&Налаштування...",

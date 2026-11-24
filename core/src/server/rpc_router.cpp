@@ -86,6 +86,8 @@ const char* error_name(int code) {
             return "mobi.writeFailed";
         case codes::kMobiUnknownToken:
             return "mobi.unknownToken";
+        case codes::kBatchError:
+            return "batch.error";
         default:
             return "";
     }

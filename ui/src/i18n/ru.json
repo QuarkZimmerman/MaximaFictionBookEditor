@@ -20,6 +20,10 @@
     "openedWithWarnings_few": "Документ открыт с {{count}} предупреждениями.",
     "openedWithWarnings_many": "Документ открыт с {{count}} предупреждениями.",
     "openedWithWarnings_other": "Документ открыт с {{count}} предупреждениями.",
+    "openedRepairedXml_one": "Исправлена {{count}} ошибка XML в памяти (строка {{line}}, столбец {{column}}). Сохраните файл, чтобы записать исправления.",
+    "openedRepairedXml_few": "Исправлены {{count}} ошибки XML в памяти (первая: строка {{line}}, столбец {{column}}). Сохраните файл, чтобы записать исправления.",
+    "openedRepairedXml_many": "Исправлено {{count}} ошибок XML в памяти (первая: строка {{line}}, столбец {{column}}). Сохраните файл, чтобы записать исправления.",
+    "openedRepairedXml_other": "Исправлено {{count}} ошибок XML в памяти (первая: строка {{line}}, столбец {{column}}). Сохраните файл, чтобы записать исправления.",
     "incrementalSearch": "Инкрементальный поиск: {{text}}",
     "failingIncrementalSearch": "Инкрементальный поиск (не найдено): {{text}}",
     "progress": "{{phase}}: {{done}} из {{total}}",
@@ -719,7 +723,9 @@
       "ignore": "&Игнорировать",
       "yes": "&Да",
       "no": "&Нет",
-      "close": "Закрыть"
+      "close": "Закрыть",
+      "repairAndOpen": "&Восстановить и открыть",
+      "openSourceView": "Открыть в «&Коде»"
     },
     "input": {
       "caption": "Ввод",
@@ -1084,6 +1090,8 @@
     "xmlParseErrorCaption": "Ошибка разбора XML",
     "xmlParseError": "В {{where}}, строка {{line}}, столбец {{column}}: {{message}}",
     "xmlParseErrorShort": "В {{where}}: {{message}}",
+    "xmlParseErrorChoice": "В {{where}}, строка {{line}}, столбец {{column}}: {{message}}\n\nВ файле нарушена структура XML. Его можно восстановить в памяти и открыть в редакторе (исходный файл на диске не изменится, пока вы не сохраните его), либо открыть исходный XML в режиме «Код» для ручного исправления.",
+    "xmlRepairFailed": "Не удалось автоматически восстановить {{where}} (строка {{line}}, столбец {{column}}: {{message}}). Файл будет открыт в режиме «Код».",
     "genresFileError": "Не найден файл со списком жанров {{path}}",
     "wordExists": "Это слово уже есть в списке!",
     "wordAddErrorCaption": "Ошибка добавления слова",

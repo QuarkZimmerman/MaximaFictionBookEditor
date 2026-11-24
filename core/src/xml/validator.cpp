@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <cctype>
 #include <chrono>
+#include <cstdint>
 #include <functional>
 #include <mutex>
 #include <set>
@@ -43,16 +44,24 @@ using nlohmann::json;
 
 struct SchemaCache {
     std::mutex mutex;
+    // Serializes one-time XSD compilation for extra worker pool slots without blocking active
+    // validations or schema returns.
+    std::mutex parse_mutex;
     fs::path dir;
+    fs::path main_file;
     bool loaded = false;
-    xmlSchemaPtr schema = nullptr;
+    bool schema_ok = false;
+    std::uint64_t generation = 0;
+    // Pool of compiled xmlSchemaPtr instances so concurrent threads validate in parallel while
+    // each xmlSchemaPtr stays owned by a single thread during xmlSchemaValidateDoc.
+    std::vector<xmlSchemaPtr> pool;
     std::string error;
     std::vector<std::string> genres;
     GenreCheck genre_check;
 
     ~SchemaCache() {
-        if (schema != nullptr) {
-            xmlSchemaFree(schema);
+        for (xmlSchemaPtr s : pool) {
+            xmlSchemaFree(s);
         }
     }
 };
@@ -155,6 +164,23 @@ void load_genres_locked(SchemaCache& c) {
     c.genres.assign(codes.begin(), codes.end());
 }
 
+xmlSchemaPtr compile_schema(const fs::path& main, std::string& error_out) {
+    std::vector<SchemaError> errors;
+    // libxml2 reads file names as UTF-8 (wide API on Windows).
+    xmlSchemaParserCtxtPtr pctxt = xmlSchemaNewParserCtxt(platform::utf8_from_path(main).c_str());
+    if (pctxt == nullptr) {
+        error_out = "cannot create schema parser";
+        return nullptr;
+    }
+    xmlSchemaSetParserStructuredErrors(pctxt, collect_parser_error, &errors);
+    xmlSchemaPtr compiled = xmlSchemaParse(pctxt);
+    xmlSchemaFreeParserCtxt(pctxt);
+    if (compiled == nullptr) {
+        error_out = errors.empty() ? "schema could not be compiled" : errors.front().message;
+    }
+    return compiled;
+}
+
 // Requires c.mutex held.
 void load_locked(SchemaCache& c) {
     if (c.loaded) {
@@ -173,22 +199,21 @@ void load_locked(SchemaCache& c) {
                    log::extras({{"path", platform::utf8_from_path(main)}}));
         return;
     }
-    std::vector<SchemaError> errors;
-    // libxml2 reads file names as UTF-8 (wide API on Windows).
-    xmlSchemaParserCtxtPtr pctxt = xmlSchemaNewParserCtxt(platform::utf8_from_path(main).c_str());
-    if (pctxt == nullptr) {
-        c.error = "cannot create schema parser";
-        return;
+    std::string compile_error;
+    xmlSchemaPtr compiled = nullptr;
+    {
+        std::lock_guard<std::mutex> parse_lock(c.parse_mutex);
+        compiled = compile_schema(main, compile_error);
     }
-    xmlSchemaSetParserStructuredErrors(pctxt, collect_parser_error, &errors);
-    c.schema = xmlSchemaParse(pctxt);
-    xmlSchemaFreeParserCtxt(pctxt);
-    if (c.schema == nullptr) {
-        c.error = errors.empty() ? "schema could not be compiled" : errors.front().message;
+    if (compiled == nullptr) {
+        c.error = compile_error;
         log::error("core", "validation.schemaInvalid", "FictionBook.xsd could not be compiled",
                    log::extras({{"path", platform::utf8_from_path(main)}, {"reason", c.error}}));
         return;
     }
+    c.main_file = main;
+    c.schema_ok = true;
+    c.pool.push_back(compiled);
     load_genres_locked(c);
 }
 
@@ -300,14 +325,52 @@ void attach_table_lines(std::vector<ValidationIssue>& issues, const fb2::LineMap
 
 std::vector<SchemaError> schema_validate(xmlDocPtr doc) {
     SchemaCache& c = cache();
-    std::lock_guard<std::mutex> lock(c.mutex);
-    load_locked(c);
+    xmlSchemaPtr schema = nullptr;
+    fs::path main_file;
+    std::uint64_t gen = 0;
     std::vector<SchemaError> errors;
-    if (c.schema == nullptr) {
-        errors.push_back(SchemaError{0, 0, 0, c.error, ""});
-        return errors;
+    {
+        std::lock_guard<std::mutex> lock(c.mutex);
+        load_locked(c);
+        if (!c.schema_ok) {
+            errors.push_back(SchemaError{0, 0, 0, c.error, ""});
+            return errors;
+        }
+        gen = c.generation;
+        main_file = c.main_file;
+        if (!c.pool.empty()) {
+            schema = c.pool.back();
+            c.pool.pop_back();
+        }
     }
-    xmlSchemaValidCtxtPtr vctxt = xmlSchemaNewValidCtxt(c.schema);
+    if (schema == nullptr) {
+        std::string compile_error;
+        std::lock_guard<std::mutex> parse_lock(c.parse_mutex);
+        schema = compile_schema(main_file, compile_error);
+        if (schema == nullptr) {
+            errors.push_back(SchemaError{0, 0, 0, compile_error, ""});
+            return errors;
+        }
+    }
+    struct SchemaReturn {
+        SchemaCache& cache_ref;
+        xmlSchemaPtr ptr;
+        std::uint64_t generation;
+        ~SchemaReturn() {
+            if (ptr == nullptr) {
+                return;
+            }
+            std::lock_guard<std::mutex> lock(cache_ref.mutex);
+            constexpr std::size_t kMaxPooledSchemas = 32;
+            if (cache_ref.generation == generation && cache_ref.pool.size() < kMaxPooledSchemas) {
+                cache_ref.pool.push_back(ptr);
+            } else {
+                xmlSchemaFree(ptr);
+            }
+        }
+    } guard{c, schema, gen};
+
+    xmlSchemaValidCtxtPtr vctxt = xmlSchemaNewValidCtxt(schema);
     if (vctxt == nullptr) {
         errors.push_back(SchemaError{0, 0, 0, "cannot create validation context", ""});
         return errors;
@@ -358,10 +421,13 @@ void set_schema_dir(const fs::path& dir) {
     if (c.loaded && c.dir == dir) {
         return;
     }
-    if (c.schema != nullptr) {
-        xmlSchemaFree(c.schema);
-        c.schema = nullptr;
+    ++c.generation;
+    for (xmlSchemaPtr s : c.pool) {
+        xmlSchemaFree(s);
     }
+    c.pool.clear();
+    c.main_file.clear();
+    c.schema_ok = false;
     c.loaded = false;
     c.error.clear();
     c.genres.clear();
@@ -384,7 +450,7 @@ bool schema_ready(std::string* error) {
     if (error != nullptr) {
         *error = c.error;
     }
-    return c.schema != nullptr;
+    return c.schema_ok;
 }
 
 const std::vector<std::string>& schema_genres() {

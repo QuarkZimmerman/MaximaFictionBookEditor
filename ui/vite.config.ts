@@ -226,6 +226,21 @@ export function isEbookSharedModule(id: string): boolean {
   return id.split('?')[0].replace(/\\/g, '/').startsWith(ebookSharedFolder);
 }
 
+// Feature 019 (DP-6, FR-022): Batch Converter lives in the lazy chunk `batch-converter`; only
+// `src/features/batch/index.ts` (static Tools menu command registration) stays in the main bundle.
+const batchFolder = fileURLToPath(new URL('./src/features/batch/', import.meta.url)).replace(
+  /\\/g,
+  '/',
+);
+const batchStaticModules = new Set(['index.ts']);
+
+/** True for a module of the `batch-converter` chunk (exported for the unit test of the rule). */
+export function isBatchConverterModule(id: string): boolean {
+  const path = id.split('?')[0].replace(/\\/g, '/');
+  if (!path.startsWith(batchFolder)) return false;
+  return !batchStaticModules.has(path.slice(batchFolder.length));
+}
+
 // Kept as a plain object (not a callback) so vitest.config.ts can merge it.
 export default defineConfig({
   plugins: [
@@ -356,6 +371,11 @@ export default defineConfig({
             {
               name: 'mobi-shared',
               test: isMobiSharedModule,
+              includeDependenciesRecursively: false,
+            },
+            {
+              name: 'batch-converter',
+              test: isBatchConverterModule,
               includeDependenciesRecursively: false,
             },
           ],

@@ -17,7 +17,7 @@ import { PdfPage } from './PdfPage';
 import { TxtPage } from './TxtPage';
 
 const FORMATS = ['pdf', 'epub', 'markdown', 'txt', 'mobi'] as const;
-type ExportFormat = (typeof FORMATS)[number];
+export type ExportFormat = (typeof FORMATS)[number];
 
 export interface ExportsPageProps {
   draft: Settings;
@@ -26,11 +26,13 @@ export interface ExportsPageProps {
     patch: Partial<NonNullable<Settings[S]>>,
   ) => void;
   ctx: CommandContext;
+  /** Feature 019: pre-selects a specific export format when opened from Batch Converter. */
+  initialFormat?: ExportFormat;
 }
 
-export function ExportsPage({ draft, onChange, ctx }: ExportsPageProps) {
+export function ExportsPage({ draft, onChange, ctx, initialFormat = 'pdf' }: ExportsPageProps) {
   const { t } = useTranslation();
-  const [format, setFormat] = useState<ExportFormat>('pdf');
+  const [format, setFormat] = useState<ExportFormat>(initialFormat);
   return (
     <div className="mfbe-settings-page" data-testid="settings-page-exports">
       <div className="mfbe-settings-row">

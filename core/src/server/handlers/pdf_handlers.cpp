@@ -875,6 +875,7 @@ void register_pdf_handlers(rpc::RpcRouter& router, Services& services) {
 
     router.add_method("pdf.export.abort", [&services](const json& params, rpc::RpcContext&) {
         const std::string token = rpc::params::string(params, "token");
+        const bool cancel_print = rpc::params::boolean_or(params, "cancelPrint", true);
         fs::path work;
         {
             std::lock_guard lock(services.pdf.mutex);
@@ -885,8 +886,10 @@ void register_pdf_handlers(rpc::RpcRouter& router, Services& services) {
             work = it->second.work;
             services.pdf.exports.erase(it);
         }
-        if (std::shared_ptr<PrintService> printer = services.print_service()) {
-            printer->cancel();
+        if (cancel_print) {
+            if (std::shared_ptr<PrintService> printer = services.print_service()) {
+                printer->cancel();
+            }
         }
         remove_work(work);
         return json{{"known", true}};

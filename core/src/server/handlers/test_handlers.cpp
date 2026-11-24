@@ -82,6 +82,31 @@ void register_test_handlers(rpc::RpcRouter& router, Services& services) {
         return json::object();
     });
 
+    // Feature 019 (contracts/rpc-api.md §4.1): overrides app.info.cpuCores for deterministic
+    // testing of 1-core, 2-core, and multi-core batch converter behavior.
+    router.add_method("test.setCpuCores", [&services](const json& params, rpc::RpcContext&) {
+        const json* field = rpc::params::opt_field(params, "cores");
+        if (field == nullptr || field->is_null()) {
+            services.cpu_cores_override.store(0);
+        } else {
+            if (!field->is_number_integer()) {
+                throw rpc::invalid_params("cores must be an integer or null",
+                                          json{{"field", "cores"}});
+            }
+            const int value = field->get<int>();
+            if (value < 1 || value > 256) {
+                throw rpc::invalid_params("cores must be between 1 and 256",
+                                          json{{"field", "cores"}});
+            }
+            services.cpu_cores_override.store(value);
+        }
+        const int override_cores = services.cpu_cores_override.load();
+        const int effective =
+            override_cores > 0 ? override_cores
+                               : std::max(1, static_cast<int>(std::thread::hardware_concurrency()));
+        return json{{"cpuCores", effective}};
+    });
+
     router.add_method("test.enqueueDialog", [&services](const json& params, rpc::RpcContext&) {
         const std::string method = rpc::params::string(params, "method");
         if (method.rfind("dialog.", 0) != 0) {

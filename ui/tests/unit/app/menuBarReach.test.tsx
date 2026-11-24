@@ -13,7 +13,7 @@
  *    their highlight into view.
  */
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { AppProvider } from '@/app/AppContext';
@@ -21,7 +21,7 @@ import { MenuBar } from '@/app/MenuBar';
 import type { MenuSpec } from '@/app/menus';
 import { createAppServices } from '@/app/services';
 import { changeLanguage, initI18n } from '@/i18n';
-import { createAppStore } from '@/model/store';
+import { actions, createAppStore } from '@/model/store';
 
 /** The items of the long menu: 20 commands (unregistered: shown disabled, still navigable). */
 const LONG = Array.from({ length: 20 }, (_, index) => `test.i${index}`);
@@ -193,5 +193,28 @@ describe('the menu bar within reach (feature 007)', () => {
       delete (root as unknown as Record<string, unknown>).clientWidth;
       delete (root as unknown as Record<string, unknown>).clientHeight;
     }
+  });
+
+  it('reads startup state synchronously so a menu click right after startup becomes ready is never dropped', async () => {
+    await initI18n({ language: 'en' });
+    await changeLanguage('en');
+    const store = createAppStore({ startup: 'starting' });
+    const services = createAppServices({ store, platform: 'linux' });
+    render(
+      <AppProvider services={services}>
+        <MenuBar menus={MENUS} />
+      </AppProvider>,
+    );
+
+    const trigger = screen.getByTestId('menu-test');
+    fireEvent.mouseDown(trigger);
+    expect(screen.queryByTestId('menu-test-popup')).not.toBeInTheDocument();
+
+    // Flip startup to ready and dispatch mouseDown in the same tick, before any passive effect runs.
+    act(() => {
+      actions.setStartupReady(store);
+      fireEvent.mouseDown(trigger);
+    });
+    expect(screen.getByTestId('menu-test-popup')).toBeInTheDocument();
   });
 });

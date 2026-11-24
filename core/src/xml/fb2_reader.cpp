@@ -1245,6 +1245,449 @@ ParseError to_parse_error(const xml::CollectedError& e) {
     return ParseError{e.line, e.column, e.message};
 }
 
+// Linear-time in-memory XML repair for malformed FictionBook files (used only when strict parsing
+// fails and ReadOptions::recover is true). Balances unclosed/mismatched/crossed tags without
+// dropping prose, escapes bare '&' and stray '<', converts common undefined HTML entities, removes
+// illegal XML 1.0 control characters, drops duplicate attributes, and preserves <binary> payloads.
+bool is_xml_10_codepoint(unsigned long cp) {
+    return cp == 0x09 || cp == 0x0A || cp == 0x0D || (cp >= 0x20 && cp <= 0xD7FF) ||
+           (cp >= 0xE000 && cp <= 0xFFFD) || (cp >= 0x10000 && cp <= 0x10FFFF);
+}
+
+bool is_name_start(unsigned char c) {
+    return std::isalpha(c) != 0 || c == '_' || c == ':' || c >= 0x80;
+}
+
+bool is_name_char(unsigned char c) {
+    return std::isalnum(c) != 0 || c == '_' || c == ':' || c == '-' || c == '.' || c >= 0x80;
+}
+
+std::string_view local_tag_name(std::string_view qname) {
+    const std::size_t colon = qname.rfind(':');
+    return colon == std::string_view::npos ? qname : qname.substr(colon + 1);
+}
+
+bool is_fb2_inline_tag(std::string_view qname) {
+    const std::string_view n = local_tag_name(qname);
+    return n == "emphasis" || n == "strong" || n == "strikethrough" || n == "sub" || n == "sup" ||
+           n == "code" || n == "style" || n == "a";
+}
+
+bool is_fb2_block_container(std::string_view qname) {
+    const std::string_view n = local_tag_name(qname);
+    return n == "p" || n == "v" || n == "subtitle" || n == "text-author" || n == "empty-line" ||
+           n == "section" || n == "title" || n == "epigraph" || n == "annotation" || n == "cite" ||
+           n == "poem" || n == "stanza" || n == "table" || n == "tr" || n == "td" || n == "th" ||
+           n == "body" || n == "description" || n == "binary" || n == "FictionBook";
+}
+
+bool is_fb2_paragraph_tag(std::string_view qname) {
+    const std::string_view n = local_tag_name(qname);
+    return n == "p" || n == "v" || n == "subtitle" || n == "text-author";
+}
+
+// Appends sanitized text or attribute content from `in[pos]` handling '&' entities and illegal
+// XML 1.0 control bytes. Returns the next index after consuming one token.
+std::size_t append_sanitized_amp(std::string_view in, std::size_t pos, std::string& out) {
+    const std::size_t semi = in.find(';', pos + 1);
+    if (semi != std::string_view::npos && semi > pos + 1 && semi - pos <= 16) {
+        const std::string_view ent = in.substr(pos + 1, semi - pos - 1);
+        if (ent == "amp" || ent == "lt" || ent == "gt" || ent == "quot" || ent == "apos") {
+            out.append(in.substr(pos, semi - pos + 1));
+            return semi + 1;
+        }
+        if (ent.size() >= 2 && ent[0] == '#') {
+            unsigned long cp = 0;
+            bool ok = false;
+            if ((ent[1] == 'x' || ent[1] == 'X') && ent.size() >= 3) {
+                ok = true;
+                for (std::size_t i = 2; i < ent.size(); ++i) {
+                    const unsigned char ch = static_cast<unsigned char>(ent[i]);
+                    if (!std::isxdigit(ch)) {
+                        ok = false;
+                        break;
+                    }
+                    cp = cp * 16 + (std::isdigit(ch)
+                                        ? static_cast<unsigned long>(ch - '0')
+                                        : static_cast<unsigned long>(std::tolower(ch) - 'a' + 10));
+                    if (cp > 0x10FFFF) {
+                        ok = false;
+                        break;
+                    }
+                }
+            } else {
+                ok = true;
+                for (std::size_t i = 1; i < ent.size(); ++i) {
+                    const unsigned char ch = static_cast<unsigned char>(ent[i]);
+                    if (!std::isdigit(ch)) {
+                        ok = false;
+                        break;
+                    }
+                    cp = cp * 10 + static_cast<unsigned long>(ch - '0');
+                    if (cp > 0x10FFFF) {
+                        ok = false;
+                        break;
+                    }
+                }
+            }
+            if (ok) {
+                if (is_xml_10_codepoint(cp)) {
+                    out.append(in.substr(pos, semi - pos + 1));
+                }
+                return semi + 1;
+            }
+        }
+        // Common HTML named entities found in real-world FB2 files without a DTD.
+        static const std::pair<const char*, const char*> kHtmlEntities[] = {
+            {"nbsp", "&#160;"},   {"mdash", "&#8212;"},  {"ndash", "&#8211;"},
+            {"laquo", "&#171;"},  {"raquo", "&#187;"},   {"hellip", "&#8230;"},
+            {"copy", "&#169;"},   {"shy", "&#173;"},     {"ldquo", "&#8220;"},
+            {"rdquo", "&#8221;"}, {"lsquo", "&#8216;"},  {"rsquo", "&#8217;"},
+            {"bull", "&#8226;"},  {"deg", "&#176;"},     {"times", "&#215;"},
+            {"sect", "&#167;"},   {"numero", "&#8470;"},
+        };
+        for (const auto& [name, replacement] : kHtmlEntities) {
+            if (ent == name) {
+                out.append(replacement);
+                return semi + 1;
+            }
+        }
+    }
+    out.append("&amp;");
+    return pos + 1;
+}
+
+void append_if_legal_char(char c, std::string& out) {
+    const unsigned char u = static_cast<unsigned char>(c);
+    if (u >= 0x20 || u == '\t' || u == '\n' || u == '\r') {
+        out.push_back(c);
+    }
+}
+
+struct OpenTagEntry {
+    std::string name;
+    std::string open_tag;  // preserved so crossed inline tags can be reopened cleanly
+};
+
+std::string repair_broken_fb2_xml(std::string_view in) {
+    std::string out;
+    out.reserve(in.size() + 256);
+    std::vector<OpenTagEntry> stack;
+    std::size_t i = 0;
+    const std::size_t n = in.size();
+
+    auto emit_close = [&](std::string_view tag_name) {
+        out.append("</");
+        out.append(tag_name);
+        out.push_back('>');
+    };
+
+    while (i < n) {
+        const char c = in[i];
+        if (c != '<') {
+            if (c == '&') {
+                i = append_sanitized_amp(in, i, out);
+            } else {
+                append_if_legal_char(c, out);
+                ++i;
+            }
+            continue;
+        }
+
+        // Comment <!-- ... -->
+        if (i + 3 < n && in.compare(i, 4, "<!--") == 0) {
+            const std::size_t end = in.find("-->", i + 4);
+            const std::size_t stop = end == std::string_view::npos ? n : end;
+            out.append("<!--");
+            // XML forbids "--" inside comments; break runs gently while keeping text.
+            for (std::size_t k = i + 4; k < stop; ++k) {
+                if (in[k] == '-' && k + 1 < stop && in[k + 1] == '-') {
+                    out.append("- ");
+                } else {
+                    append_if_legal_char(in[k], out);
+                }
+            }
+            if (!out.empty() && out.back() == '-') {
+                out.push_back(' ');
+            }
+            out.append("-->");
+            i = end == std::string_view::npos ? n : end + 3;
+            continue;
+        }
+
+        // CDATA <![CDATA[ ... ]]>
+        if (i + 8 < n && in.compare(i, 9, "<![CDATA[") == 0) {
+            const std::size_t end = in.find("]]>", i + 9);
+            const std::size_t stop = end == std::string_view::npos ? n : end;
+            out.append("<![CDATA[");
+            for (std::size_t k = i + 9; k < stop; ++k) {
+                append_if_legal_char(in[k], out);
+            }
+            out.append("]]>");
+            i = end == std::string_view::npos ? n : end + 3;
+            continue;
+        }
+
+        // Processing instruction <? ... ?>
+        if (i + 1 < n && in[i + 1] == '?') {
+            const std::size_t end = in.find("?>", i + 2);
+            const std::size_t stop = end == std::string_view::npos ? n : end + 2;
+            // Omit XML declaration encoding mismatch; libxml2 receives explicit "UTF-8" encoding.
+            out.append(in.substr(i, stop - i));
+            i = stop;
+            continue;
+        }
+
+        // DOCTYPE / declaration <! ... >
+        if (i + 1 < n && in[i + 1] == '!') {
+            std::size_t k = i + 2;
+            int bracket_depth = 0;
+            char quote = 0;
+            while (k < n) {
+                const char ch = in[k];
+                if (quote != 0) {
+                    if (ch == quote) {
+                        quote = 0;
+                    }
+                } else if (ch == '"' || ch == '\'') {
+                    quote = ch;
+                } else if (ch == '[') {
+                    ++bracket_depth;
+                } else if (ch == ']' && bracket_depth > 0) {
+                    --bracket_depth;
+                } else if (ch == '>' && bracket_depth == 0) {
+                    ++k;
+                    break;
+                }
+                ++k;
+            }
+            out.append(in.substr(i, k - i));
+            i = k;
+            continue;
+        }
+
+        // Closing tag </name>
+        if (i + 1 < n && in[i + 1] == '/') {
+            std::size_t k = i + 2;
+            while (k < n && std::isspace(static_cast<unsigned char>(in[k])) != 0) {
+                ++k;
+            }
+            const std::size_t name_start = k;
+            if (k < n && is_name_start(static_cast<unsigned char>(in[k]))) {
+                ++k;
+                while (k < n && is_name_char(static_cast<unsigned char>(in[k]))) {
+                    ++k;
+                }
+            }
+            const std::string_view name = in.substr(name_start, k - name_start);
+            while (k < n && std::isspace(static_cast<unsigned char>(in[k])) != 0) {
+                ++k;
+            }
+            if (name.empty() || k >= n || in[k] != '>') {
+                out.append("&lt;");
+                ++i;
+                continue;
+            }
+            i = k + 1;
+
+            // Search stack from top down for matching open element.
+            std::size_t match = stack.size();
+            for (std::size_t idx = stack.size(); idx > 0; --idx) {
+                if (stack[idx - 1].name == name) {
+                    match = idx - 1;
+                    break;
+                }
+            }
+            if (match == stack.size()) {
+                // Orphan closing tag with no open counterpart: drop safely.
+                continue;
+            }
+
+            // Close any unclosed inner elements above `match`. When closing an inline element
+            // that was crossed with another inline element, reopen the inner inline elements
+            // immediately after so formatting and subsequent closing tags remain balanced.
+            std::vector<OpenTagEntry> reopen;
+            const bool closing_inline = is_fb2_inline_tag(name);
+            while (stack.size() > match + 1) {
+                OpenTagEntry top = std::move(stack.back());
+                stack.pop_back();
+                emit_close(top.name);
+                if (closing_inline && is_fb2_inline_tag(top.name)) {
+                    reopen.push_back(std::move(top));
+                }
+            }
+            emit_close(stack.back().name);
+            stack.pop_back();
+            for (auto it = reopen.rbegin(); it != reopen.rend(); ++it) {
+                out.append(it->open_tag);
+                stack.push_back(std::move(*it));
+            }
+            continue;
+        }
+
+        // Start tag <name ... [/]>
+        if (i + 1 >= n || !is_name_start(static_cast<unsigned char>(in[i + 1]))) {
+            out.append("&lt;");
+            ++i;
+            continue;
+        }
+        std::size_t k = i + 2;
+        while (k < n && is_name_char(static_cast<unsigned char>(in[k]))) {
+            ++k;
+        }
+        const std::string tag_name(in.substr(i + 1, k - (i + 1)));
+
+        // Parse attributes cleanly up to '>' or '/>'; bail out as escaped '<' if another
+        // unquoted '<' appears before '>'.
+        std::string built_tag;
+        built_tag.reserve(64);
+        built_tag.push_back('<');
+        built_tag.append(tag_name);
+        std::set<std::string> seen_attrs;
+        bool self_closing = false;
+        bool tag_ok = false;
+
+        while (k < n) {
+            const std::size_t ws_start = k;
+            while (k < n && std::isspace(static_cast<unsigned char>(in[k])) != 0) {
+                ++k;
+            }
+            if (k >= n) {
+                break;
+            }
+            if (in[k] == '>') {
+                ++k;
+                tag_ok = true;
+                break;
+            }
+            if (in[k] == '/' && k + 1 < n && in[k + 1] == '>') {
+                k += 2;
+                self_closing = true;
+                tag_ok = true;
+                break;
+            }
+            if (in[k] == '<') {
+                // Stray '<' earlier in text rather than a real start tag.
+                break;
+            }
+            if (ws_start == k || !is_name_start(static_cast<unsigned char>(in[k]))) {
+                // Skip stray garbage character inside a broken start tag.
+                ++k;
+                continue;
+            }
+            const std::size_t attr_start = k;
+            ++k;
+            while (k < n && is_name_char(static_cast<unsigned char>(in[k]))) {
+                ++k;
+            }
+            const std::string attr_name(in.substr(attr_start, k - attr_start));
+            while (k < n && std::isspace(static_cast<unsigned char>(in[k])) != 0) {
+                ++k;
+            }
+            std::string attr_val;
+            char attr_quote = '"';
+            if (k < n && in[k] == '=') {
+                ++k;
+                while (k < n && std::isspace(static_cast<unsigned char>(in[k])) != 0) {
+                    ++k;
+                }
+                if (k < n && (in[k] == '"' || in[k] == '\'')) {
+                    attr_quote = in[k++];
+                    while (k < n && in[k] != attr_quote) {
+                        if (in[k] == '&') {
+                            k = append_sanitized_amp(in, k, attr_val);
+                        } else if (in[k] == '<') {
+                            attr_val.append("&lt;");
+                            ++k;
+                        } else {
+                            append_if_legal_char(in[k], attr_val);
+                            ++k;
+                        }
+                    }
+                    if (k < n && in[k] == attr_quote) {
+                        ++k;
+                    }
+                } else {
+                    // Unquoted attribute value: read until whitespace, '>', or '/>'.
+                    while (k < n && std::isspace(static_cast<unsigned char>(in[k])) == 0 &&
+                           in[k] != '>' && !(in[k] == '/' && k + 1 < n && in[k + 1] == '>')) {
+                        if (in[k] == '&') {
+                            k = append_sanitized_amp(in, k, attr_val);
+                        } else if (in[k] == '"') {
+                            attr_val.append("&quot;");
+                            ++k;
+                        } else if (in[k] == '<') {
+                            attr_val.append("&lt;");
+                            ++k;
+                        } else {
+                            append_if_legal_char(in[k], attr_val);
+                            ++k;
+                        }
+                    }
+                }
+            }
+            if (seen_attrs.insert(attr_name).second) {
+                built_tag.push_back(' ');
+                built_tag.append(attr_name);
+                built_tag.push_back('=');
+                built_tag.push_back(attr_quote);
+                built_tag.append(attr_val);
+                built_tag.push_back(attr_quote);
+            }
+        }
+
+        if (!tag_ok) {
+            out.append("&lt;");
+            ++i;
+            continue;
+        }
+        if (self_closing) {
+            built_tag.append("/>");
+        } else {
+            built_tag.push_back('>');
+        }
+        i = k;
+
+        // If a block element opens while inline formatting tags (or an unclosed paragraph) are
+        // still open, auto-close them first so sibling blocks never get swallowed inside a <p>.
+        if (is_fb2_block_container(tag_name)) {
+            while (!stack.empty() && is_fb2_inline_tag(stack.back().name)) {
+                emit_close(stack.back().name);
+                stack.pop_back();
+            }
+            if (!stack.empty() && is_fb2_paragraph_tag(stack.back().name) &&
+                local_tag_name(tag_name) != "image") {
+                emit_close(stack.back().name);
+                stack.pop_back();
+            }
+        }
+
+        out.append(built_tag);
+        if (!self_closing) {
+            if (local_tag_name(tag_name) == "binary") {
+                // Fast-path <binary> payload verbatim up to its closing tag.
+                const std::string close_marker = "</" + tag_name + ">";
+                const std::size_t bin_end = in.find(close_marker, i);
+                const std::size_t stop = bin_end == std::string_view::npos ? n : bin_end;
+                for (std::size_t b = i; b < stop; ++b) {
+                    append_if_legal_char(in[b], out);
+                }
+                emit_close(tag_name);
+                i = bin_end == std::string_view::npos ? n : bin_end + close_marker.size();
+            } else {
+                stack.push_back(OpenTagEntry{tag_name, std::move(built_tag)});
+            }
+        }
+    }
+
+    // Close any remaining unclosed elements at EOF.
+    while (!stack.empty()) {
+        emit_close(stack.back().name);
+        stack.pop_back();
+    }
+    return out;
+}
+
 }  // namespace
 
 /* ----------------------------------------------------------------------------------------- */
@@ -1322,40 +1765,106 @@ ReadResult read_bytes(std::string_view bytes, BinaryStore& store, model::NodeIdA
     doc.sourceEncoding = encoding;
 
     // 2. Parse (binaries stripped into the store on the fly).
+    const std::size_t base_warning_count = result.warnings.size();
     SaxState sax_state;
-    std::memset(&sax_state.base, 0, sizeof(sax_state.base));
-    xml::ensure_libxml_initialised();
-    xmlSAXVersion(&sax_state.base, 2);
-    sax_state.store = &store;
-    sax_state.placeholder_source = options.placeholder_source;
-    sax_state.warnings = &result.warnings;
-    sax_state.record_positions = options.record_positions;
-    sax_state.text = bytes;
-    xmlSAXHandler sax = sax_state.base;
-    sax.startElementNs = sax_start_element;
-    sax.endElementNs = sax_end_element;
-    sax.characters = sax_characters;
-    sax.ignorableWhitespace = sax_characters;
-    sax.cdataBlock = sax_cdata;
-    if (options.record_positions) {
-        sax.comment = sax_comment;
-        sax.processingInstruction = sax_processing_instruction;
-        ctx.ranges = &sax_state.ranges;
-    }
+    auto init_sax = [&](bool record_pos) -> xmlSAXHandler {
+        sax_state = SaxState{};
+        std::memset(&sax_state.base, 0, sizeof(sax_state.base));
+        xml::ensure_libxml_initialised();
+        xmlSAXVersion(&sax_state.base, 2);
+        sax_state.store = &store;
+        sax_state.placeholder_source = options.placeholder_source;
+        sax_state.warnings = &result.warnings;
+        sax_state.record_positions = record_pos;
+        sax_state.text = bytes;
+        xmlSAXHandler handler = sax_state.base;
+        handler.startElementNs = sax_start_element;
+        handler.endElementNs = sax_end_element;
+        handler.characters = sax_characters;
+        handler.ignorableWhitespace = sax_characters;
+        handler.cdataBlock = sax_cdata;
+        if (record_pos) {
+            handler.comment = sax_comment;
+            handler.processingInstruction = sax_processing_instruction;
+            ctx.ranges = &sax_state.ranges;
+        } else {
+            ctx.ranges = nullptr;
+        }
+        return handler;
+    };
 
+    xmlSAXHandler sax = init_sax(options.record_positions);
     std::vector<xml::CollectedError> errors;
     const char* libxml_encoding = encoding.c_str();
     // libxml2 has its own (identical) converters for these; passing the canonical name keeps
     // its BOM handling and declaration checks on the normal path.
     xmlDocPtr xml_doc =
         xml::parse_memory(bytes, display_path.empty() ? nullptr : display_path.c_str(),
-                          libxml_encoding, errors, &sax, &sax_state);
+                          libxml_encoding, errors, &sax, &sax_state, false);
     if (xml_doc == nullptr) {
-        // Malformed XML opens in Source-only mode only when it is at least a FictionBook file.
+        // Malformed XML opens in Source-only mode (or recovers) only when it is at least a
+        // FictionBook file.
         if (const auto reason = not_fictionbook_reason(bytes)) {
             throw NotFictionBookFailure(*reason);
         }
-        throw ParseFailure(to_parse_error(xml::primary_error(errors)));
+        if (!options.recover) {
+            throw ParseFailure(to_parse_error(xml::primary_error(errors)));
+        }
+
+        // Retry in memory after balancing broken tags / entities on the decoded UTF-8 text and
+        // clearing any partial state from the failed strict pass so binaries and warnings are never
+        // duplicated. Source bytes on disk are never modified.
+        const std::vector<xml::CollectedError> strict_errors = std::move(errors);
+        store.clear();
+        result.warnings.resize(base_warning_count);
+        const encoding::DecodeResult decoded = encoding::decode_to_utf8(bytes, encoding);
+        const std::string repaired_utf8 = repair_broken_fb2_xml(decoded.utf8);
+        xmlSAXHandler recover_sax = init_sax(false);
+        sax_state.text = repaired_utf8;
+        std::vector<xml::CollectedError> recover_errors;
+        xml_doc =
+            xml::parse_memory(repaired_utf8, display_path.empty() ? nullptr : display_path.c_str(),
+                              "UTF-8", recover_errors, &recover_sax, &sax_state, true);
+        if (sax_state.capture.active) {
+            finish_binary(sax_state);
+        }
+        xmlNodePtr recovered_root = xml_doc != nullptr ? xmlDocGetRootElement(xml_doc) : nullptr;
+        if (xml_doc == nullptr || recovered_root == nullptr ||
+            xmlStrEqual(recovered_root->name, X("FictionBook")) == 0) {
+            if (xml_doc != nullptr) {
+                xmlFreeDoc(xml_doc);
+            }
+            throw ParseFailure(to_parse_error(xml::primary_error(strict_errors)));
+        }
+        result.xml_repaired = true;
+        const auto& source_errors = !recover_errors.empty() ? recover_errors : strict_errors;
+        for (const auto& e : source_errors) {
+            if (!e.fatal) {
+                continue;
+            }
+            if (result.xml_repair_errors.size() < 20) {
+                result.xml_repair_errors.push_back(to_parse_error(e));
+            }
+        }
+        if (result.xml_repair_errors.empty()) {
+            result.xml_repair_errors.push_back(to_parse_error(xml::primary_error(strict_errors)));
+        }
+        const ParseError& primary = result.xml_repair_errors.front();
+        int fatal_count = 0;
+        for (const auto& e : source_errors) {
+            if (e.fatal) {
+                ++fatal_count;
+            }
+        }
+        if (fatal_count == 0) {
+            fatal_count = 1;
+        }
+        ctx.warn("xml.repaired",
+                 {{"line", primary.line},
+                  {"column", primary.column},
+                  {"message", primary.message},
+                  {"errorCount", fatal_count}},
+                 primary.line);
     }
     struct DocGuard {
         xmlDocPtr d;

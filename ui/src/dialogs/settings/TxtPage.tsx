@@ -32,9 +32,10 @@ export interface TxtPageProps {
   draft: Settings;
   onChange: (patch: Partial<TxtSettings>) => void;
   ctx: CommandContext;
+  hideZip?: boolean;
 }
 
-export function TxtPage({ draft, onChange, ctx }: TxtPageProps) {
+export function TxtPage({ draft, onChange, ctx, hideZip = false }: TxtPageProps) {
   const { t } = useTranslation();
   const values: TxtSettings = {
     ...TXT_DEFAULTS,
@@ -65,7 +66,11 @@ export function TxtPage({ draft, onChange, ctx }: TxtPageProps) {
   );
   const setList = (key: ListKey, name: string) =>
     onChange({ encodings: { ...values.encodings, [key]: name } });
-  const same = JSON.stringify(values) === JSON.stringify(TXT_DEFAULTS);
+  const same =
+    values.encodingMode === TXT_DEFAULTS.encodingMode &&
+    values.bom === TXT_DEFAULTS.bom &&
+    (hideZip || values.zip === TXT_DEFAULTS.zip) &&
+    LISTS.every((k) => values.encodings[k] === TXT_DEFAULTS.encodings[k]);
   return (
     <div className="mfbe-settings-page" data-testid="settings-page-txt">
       <GroupBox title={t('txt.settings.group')}>
@@ -130,7 +135,7 @@ export function TxtPage({ draft, onChange, ctx }: TxtPageProps) {
             )}
           </FieldRow>
         ))}
-        {(['bom', 'zip'] as const).map((key) => (
+        {(hideZip ? (['bom'] as const) : (['bom', 'zip'] as const)).map((key) => (
           <FieldRow
             key={key}
             label={t(`txt.settings.${key}`)}
@@ -158,7 +163,17 @@ export function TxtPage({ draft, onChange, ctx }: TxtPageProps) {
             className="mfbe-button"
             data-testid="settings-txt-reset-all"
             disabled={same}
-            onClick={() => onChange({ ...TXT_DEFAULTS, encodings: { ...TXT_DEFAULTS.encodings } })}
+            onClick={() =>
+              onChange(
+                hideZip
+                  ? {
+                      encodingMode: TXT_DEFAULTS.encodingMode,
+                      encodings: { ...TXT_DEFAULTS.encodings },
+                      bom: TXT_DEFAULTS.bom,
+                    }
+                  : { ...TXT_DEFAULTS, encodings: { ...TXT_DEFAULTS.encodings } },
+              )
+            }
             {...tip(t('tip.settings.pdf.resetAll'))}
           >
             {t('pdf.settings.resetAll')}

@@ -58,6 +58,8 @@ export class PdfLimitError extends Error {
 }
 
 export interface PaginateOptions {
+  /** Feature 019: explicit docId for headless batch pagination (defaults to active store docId). */
+  docId?: string;
   /** DP-19, from pdf.export.begin. */
   limits?: { pages: number; notes: number; nesting: number; pixels?: number };
   pageSize: PdfPageSize;
@@ -379,7 +381,7 @@ export async function paginate(
   options: PaginateOptions,
 ): Promise<Paginated> {
   const layout: PrintLayout = layoutFor(options.pageSize, options.settings, options.addedFont);
-  const docId = ctx.store.getState().docId ?? '';
+  const docId = options.docId ?? ctx.store.getState().docId ?? '';
   const frame = await createPrintFrame(book, docId, layout, options.limits?.pixels);
   try {
     const { doc, root, css } = frame;

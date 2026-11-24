@@ -401,24 +401,30 @@ describe('file flows (T052)', () => {
     expect(ctx.store.getState().document).toBeNull();
   });
 
-  it('Open: malformed XML reports line/column and opens the raw text in Source-only mode', async () => {
-    const { feature, rpc, dialogs } = setup({
-      'doc.open': rpcError(1001, 'parse', { line: 20, column: 3, message: 'mismatch' }),
-      'doc.openSource': {
-        docId: 'doc-9',
-        text: '<FictionBook><p>broken</FictionBook>',
-        encoding: 'utf-8',
-        error: { line: 20, column: 3, message: 'mismatch' },
+  it('Open: malformed XML lets user open raw text in Source-only mode without a second popup', async () => {
+    const { feature, rpc, dialogs } = setup(
+      {
+        'doc.open': rpcError(1001, 'parse', { line: 20, column: 3, message: 'mismatch' }),
+        'doc.openSource': {
+          docId: 'doc-9',
+          text: '<FictionBook><p>broken</FictionBook>',
+          encoding: 'utf-8',
+          error: { line: 20, column: 3, message: 'mismatch' },
+        },
       },
-    });
+      [['no']],
+    );
     const ctx = await makeContext({ rpc: rpc.client, dialogs });
     actions.setConnection(ctx.store, 'connected');
     expect(await feature.openDocument(ctx, '/books/bad.fb2')).toBe(true);
+    expect(dialogs.shown).toHaveLength(1);
     expect(dialogs.shown[0]).toMatchObject({
       testId: 'dialog-parse-error',
       caption: 'XML Parse Error',
+      buttons: 'yesNoCancel',
+      defaultButton: 'yes',
     });
-    expect(dialogs.shown[0]!.text).toBe('At bad.fb2, line 20, column 3: mismatch');
+    expect(dialogs.shown[0]!.text).toContain('At bad.fb2, line 20, column 3: mismatch');
     const state = ctx.store.getState();
     expect(state).toMatchObject({
       docId: 'doc-9',
@@ -431,6 +437,52 @@ describe('file flows (T052)', () => {
     expect(sourceSession(ctx.store).text).toBe('<FictionBook><p>broken</FictionBook>');
     expect(sourceSession(ctx.store).pendingCaret).toEqual({ line: 20, column: 3 });
     expect(rpc.calls.map((c) => c.method)).toContain('doc.watch');
+  });
+
+  it('Open: malformed XML Repair and open recovers in memory and marks modified; Cancel leaves editor untouched', async () => {
+    const repairedDoc = fakeDocument({ docId: 'doc-repaired', path: '/books/bad.fb2' });
+    const { feature, rpc, dialogs } = setup(
+      {
+        'doc.open': (params: { recover?: boolean }) => {
+          if (params.recover) {
+            return {
+              document: repairedDoc,
+              warnings: [
+                {
+                  code: 'xml.repaired',
+                  severity: 'warning',
+                  line: 20,
+                  params: { line: 20, column: 3, message: 'mismatch', errorCount: 2 },
+                },
+              ],
+            };
+          }
+          throw new RpcError(RpcErrorCode.docParseError, 'parse', {
+            line: 20,
+            column: 3,
+            message: 'mismatch',
+          });
+        },
+      },
+      [['yes', 'cancel']],
+    );
+    const ctx = await makeContext({ rpc: rpc.client, dialogs });
+    actions.setConnection(ctx.store, 'connected');
+
+    expect(await feature.openDocument(ctx, '/books/bad.fb2')).toBe(true);
+    const openCalls = rpc.calls.filter((c) => c.method === 'doc.open');
+    expect(openCalls).toHaveLength(2);
+    expect(openCalls[1]!.params).toMatchObject({ path: '/books/bad.fb2', recover: true });
+    expect(ctx.store.getState()).toMatchObject({
+      docId: 'doc-repaired',
+      sourceOnly: false,
+      modified: true,
+    });
+    expect(ctx.store.getState().statusMessage).toContain('2');
+
+    // Cancel leaves the currently open repaired document untouched.
+    expect(await feature.openDocument(ctx, '/books/other-bad.fb2')).toBe(false);
+    expect(ctx.store.getState().docId).toBe('doc-repaired');
   });
 
   it('Save: plain save sends the explicit encoding (default / keep) and marks the document clean', async () => {
@@ -972,12 +1024,15 @@ describe('file flows (T052)', () => {
   });
 
   it('start-up: a malformed file opens in the Source view, without a new document', async () => {
-    const { feature, rpc, dialogs } = setup({
-      'app.info': {},
-      'doc.open': rpcError(1001, 'doc.parseError', { line: 2, column: 3, message: 'mismatch' }),
-      'doc.openSource': { docId: 'doc-9', text: '<FictionBook>', encoding: 'utf-8' },
-      'doc.new': fakeDocument({ docId: 'doc-10', path: undefined }),
-    });
+    const { feature, rpc, dialogs } = setup(
+      {
+        'app.info': {},
+        'doc.open': rpcError(1001, 'doc.parseError', { line: 2, column: 3, message: 'mismatch' }),
+        'doc.openSource': { docId: 'doc-9', text: '<FictionBook>', encoding: 'utf-8' },
+        'doc.new': fakeDocument({ docId: 'doc-10', path: undefined }),
+      },
+      [['no']],
+    );
     const ctx = await makeContext({ rpc: rpc.client, dialogs });
     actions.setConnection(ctx.store, 'connected');
     const off = feature.subscribeNotifications(rpc.client, () => ctx);
@@ -1103,6 +1158,7 @@ describe('Keyboard layout on open (feature 004 US11)', () => {
       'doc.open': rpcError(1001, 'doc.parseError', { line: 2, column: 3, message: 'mismatch' }),
       'doc.openSource': { docId: 'doc-9', text: '<FictionBook>', encoding: 'utf-8' },
     });
+    malformed.dialogs.messageAnswers.push('no');
     expect(await malformed.feature.openDocument(malformed.ctx, '/books/broken.fb2')).toBe(true);
     expect(malformed.ctx.store.getState().sourceOnly).toBe(true);
     await vi.waitFor(() => expect(switches(malformed.rpc)).toEqual([{ id: 'test-ru' }]));

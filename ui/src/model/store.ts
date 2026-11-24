@@ -443,7 +443,10 @@ export const actions = {
    */
   setDocument(store: AppStore, given: Document, options: { sourceOnly?: boolean } = {}): void {
     const document = ensureUniqueNodeIds(given); // feature 008, FR-021
+    // Once a document is installed and shown, startup is ready immediately so menus and commands
+    // never drop clicks while post-open background calls (doc.watch / doc.position) settle.
     store.setState({
+      startup: 'ready',
       document,
       docId: document.docId,
       path: document.path ?? null,

@@ -175,6 +175,11 @@ export interface DialogProps {
    * anchored at the selection (the AI assistant's popup, feature 005 FR-030).
    */
   position?: { left: number; top: number };
+  /**
+   * Feature 019: optional guard blocking Escape and the title-bar close box while returning false
+   * (used by Batch Converter during active scan/convert/cancel phases).
+   */
+  canClose?: () => boolean;
 }
 
 const FOCUSABLE = [
@@ -260,6 +265,7 @@ export function Dialog({
   closeLabel,
   modeless = false,
   position,
+  canClose,
 }: DialogProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -315,6 +321,11 @@ export function Dialog({
       if (!root) return;
 
       if (event.key === 'Escape') {
+        if (canClose && !canClose()) {
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
         if (cancelButton && !cancelButton.disabled) {
           event.preventDefault();
           event.stopPropagation();
@@ -352,7 +363,7 @@ export function Dialog({
         }
       }
     },
-    [buttons, cancelButton, defaultButton],
+    [buttons, canClose, cancelButton, defaultButton],
   );
 
   // The dialog is dragged by its title bar with the primary button or a touch (the close box
@@ -441,7 +452,11 @@ export function Dialog({
             title={closeLabel ?? parseAccelerator(cancelButton.label).text}
             data-testid={`${testId}-close`}
             tabIndex={-1}
-            onClick={cancelButton.onClick}
+            disabled={cancelButton.disabled || (canClose ? !canClose() : false)}
+            onClick={() => {
+              if (canClose && !canClose()) return;
+              if (!cancelButton.disabled) cancelButton.onClick();
+            }}
           >
             <span aria-hidden="true">{'\u00D7'}</span>
           </button>

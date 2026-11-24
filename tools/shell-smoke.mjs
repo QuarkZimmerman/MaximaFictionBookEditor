@@ -1474,21 +1474,60 @@ async function saveThroughGtkDialog(page, env, dialogTitle, file, typed) {
     // no question: the book is valid
   }
   const dialog = await waitForWindow(env, dialogTitle);
-  xdotool(env, 'windowactivate', '--sync', dialog);
-  await sleep(500);
-  if (typed) {
-    xdotool(env, 'key', '--clearmodifiers', 'ctrl+a');
-    await sleep(200);
-    xdotool(env, 'type', '--delay', '60', typed);
-    await sleep(300);
-  }
-  xdotool(env, 'key', '--clearmodifiers', 'Return');
+  const submitDialog = async () => {
+    xdotool(env, 'windowactivate', '--sync', dialog);
+    try {
+      xdotool(env, 'windowfocus', '--sync', dialog);
+    } catch {
+      // windowfocus may fail if the window manager handles focus asynchronously
+    }
+    await sleep(800);
+    if (typed) {
+      xdotool(env, 'key', '--clearmodifiers', 'ctrl+a');
+      await sleep(200);
+      xdotool(env, 'key', '--clearmodifiers', 'BackSpace');
+      await sleep(150);
+      xdotool(env, 'type', '--clearmodifiers', '--delay', '60', typed);
+      await sleep(300);
+    }
+    xdotool(env, 'key', '--clearmodifiers', 'Return');
+  };
+  await submitDialog();
   const prompt = page.locator('[data-testid="dialog-validation-failed"]');
-  await waitUntil(
-    `the file ${file} or the validation prompt`,
-    async () => fs.existsSync(file) || (await prompt.count()) > 0,
-    timeoutMs,
-  );
+  // On a loaded Xvfb runner the GTK Save As dialog can still be populating its folder listing
+  // when the first keystrokes land; if the dialog stays open after 8 s, re-submit once.
+  const deadline = Date.now() + timeoutMs;
+  let retried = false;
+  while (Date.now() < deadline) {
+    if (fs.existsSync(file) || (await prompt.count()) > 0) {
+      break;
+    }
+    if (!retried && deadline - Date.now() < timeoutMs - 8000) {
+      retried = true;
+      let stillOpen = false;
+      try {
+        const pattern = `^${dialogTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`;
+        stillOpen = xdotool(env, 'search', '--onlyvisible', '--name', pattern).trim().length > 0;
+      } catch {
+        stillOpen = false;
+      }
+      if (stillOpen) {
+        await submitDialog();
+      }
+    }
+    await sleep(100);
+  }
+  if (!fs.existsSync(file) && (await prompt.count()) === 0) {
+    let entries = [];
+    try {
+      entries = fs.readdirSync(path.dirname(file));
+    } catch {
+      // ignore
+    }
+    throw new Error(
+      `the file ${file} or the validation prompt did not happen within ${timeoutMs} ms (folder holds ${JSON.stringify(entries)})`,
+    );
+  }
   if ((await prompt.count()) > 0) {
     await prompt.locator('[data-testid="dialog-validation-failed-button-yes"]').click();
   }

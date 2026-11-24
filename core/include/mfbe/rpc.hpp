@@ -108,6 +108,10 @@ inline constexpr int kMobiRefused = 1117;
 inline constexpr int kMobiWriteFailed = 1118;
 // Feature 018: an unknown or ended mobi.write or mobiImport token {token}.
 inline constexpr int kMobiUnknownToken = 1119;
+// Feature 019 (batch.*, contracts/rpc-api.md): a batch converter operation failure
+// {reason: sourceNotFound | sourceNotDirectory | sourceUnreadable | invalidPath | unknownRun |
+// extractFailed | ioError, path?, detail?}.
+inline constexpr int kBatchError = 1120;
 // Feature 005 (ai.*): the target cannot be resolved to a service the call may contact -
 // {reason: disabled | unknownService | emptyAddress | noModel | noAgreement, id?, service?}.
 inline constexpr int kAiNoService = 1200;

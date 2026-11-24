@@ -40,7 +40,7 @@ import { createScratchHotkeys, sameUserBindings } from './settings/hotkeysModel'
 import { validateSettings, type SettingsValidationError } from './settings/model';
 import { OtherPage } from './settings/OtherPage';
 import { ViewPage } from './settings/ViewPage';
-import { ExportsPage } from './settings/ExportsPage';
+import { ExportsPage, type ExportFormat } from './settings/ExportsPage';
 import { WordsPage } from './settings/WordsPage';
 
 import './settings/settings.css';
@@ -78,6 +78,8 @@ export interface SettingsDialogProps {
   onClose: () => void;
   /** Page shown first (tests, the AI panel's and the failure messages' link to the AI page). */
   initialPage?: SettingsPageId;
+  /** Feature 019: format pre-selected on the Exports tab (opened from Batch Converter). */
+  initialExportFormat?: ExportFormat;
   /** Asked before OK / Apply write anything; absent: apply. */
   beforeApply?: BeforeApplyHook;
   /**
@@ -105,6 +107,7 @@ export function SettingsDialog({
   feature,
   onClose,
   initialPage = 'view',
+  initialExportFormat,
   beforeApply,
   reloadPage,
 }: SettingsDialogProps) {
@@ -403,6 +406,7 @@ export function SettingsDialog({
               draft={draft}
               onChange={(section, patch) => update(section, patch)}
               ctx={ctx}
+              initialFormat={initialExportFormat}
             />
           </div>
           <div role="tabpanel" id="settings-page-ai" style={shownIf(page === 'ai')}>

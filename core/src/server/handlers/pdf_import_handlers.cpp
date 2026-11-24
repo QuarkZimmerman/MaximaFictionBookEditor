@@ -26,7 +26,9 @@
 
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <fstream>
+#include <future>
 #include <random>
 
 namespace mfbe::server {
@@ -301,14 +303,15 @@ void register_pdf_import_handlers(rpc::RpcRouter& router, Services& services) {
         "pdfImport.addPictures", [&services](const json& params, rpc::RpcContext& ctx) {
             auto session = find(services, params);
             const std::string doc_id = rpc::params::string(params, "docId");
-            services.documents.require(doc_id);
+            // Capture the thread-safe BinaryStore on the event-loop thread so the worker never
+            // accesses the loop-thread-only DocumentRegistry directly (Feature 019 R3).
+            std::shared_ptr<BinaryStore> binaries = services.documents.require(doc_id).binaries;
             const json pictures = params.value("pictures", json::array());
             // A job: the reader is asked for each picture in turn, which takes long in a book of
             // many - the core serves every other call meanwhile (D32's library run: the loop
             // waited, and the next import with it).
-            const std::string job_id = ctx.jobs.start([session, &services, doc_id,
+            const std::string job_id = ctx.jobs.start([session, &services, doc_id, binaries,
                                                        pictures](rpc::JobControl& control) -> json {
-                session::DocumentSession& doc = services.documents.require(doc_id);
                 json added = json::array(), not_added = json::array();
                 std::lock_guard lock(session->mutex());
                 const int total = static_cast<int>(pictures.size());
@@ -326,13 +329,29 @@ void register_pdf_import_handlers(rpc::RpcRouter& router, Services& services) {
                     std::string bytes{std::istreambuf_iterator<char>(in), {}};
                     const std::string suggested = wanted.value("suggestedId", "picture");
                     const std::string binary_id =
-                        doc.binaries->unique_id(suggested.empty() ? "picture" : suggested);
-                    const model::BinaryMeta meta = doc.binaries->put(
+                        binaries->unique_id(suggested.empty() ? "picture" : suggested);
+                    const model::BinaryMeta meta = binaries->put(
                         binary_id, event.value("contentType", "image/jpeg"), std::move(bytes));
                     added.push_back({{"id", id}, {"binary", model::to_json(meta)}});
                 }
-                if (doc.snapshot) {
-                    sync_binaries(*doc.snapshot, *doc.binaries);
+                if (services.post) {
+                    auto synced = std::make_shared<std::promise<void>>();
+                    auto future = synced->get_future();
+                    if (services.post([&services, doc_id, binaries, synced] {
+                            if (session::DocumentSession* doc = services.documents.find(doc_id);
+                                doc != nullptr && doc->snapshot) {
+                                sync_binaries(*doc->snapshot, *binaries);
+                            }
+                            synced->set_value();
+                        })) {
+                        while (future.wait_for(std::chrono::milliseconds(50)) !=
+                               std::future_status::ready) {
+                            control.check_cancelled();
+                        }
+                    }
+                } else if (session::DocumentSession* doc = services.documents.find(doc_id);
+                           doc != nullptr && doc->snapshot) {
+                    sync_binaries(*doc->snapshot, *binaries);
                 }
                 return json{{"added", added}, {"failed", not_added}};
             });

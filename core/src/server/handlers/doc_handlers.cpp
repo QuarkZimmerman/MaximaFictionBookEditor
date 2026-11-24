@@ -481,7 +481,7 @@ fb2::ReadResult read_book(const std::string& path, BinaryStore& store, model::No
 Opened open_document(const std::string& path, const std::string& ui_language,
                      rpc::JobControl* control, const std::optional<std::string>& entry = {},
                      const std::optional<std::string>& force_encoding = {},
-                     bool clean_invalid_chars = false) {
+                     bool clean_invalid_chars = false, bool recover = false) {
     Opened opened;
     opened.path = path;
     opened.entry = entry;
@@ -495,6 +495,7 @@ Opened open_document(const std::string& path, const std::string& ui_language,
         read_options.force_encoding = *force_encoding;
     }
     read_options.clean_invalid_chars = clean_invalid_chars;
+    read_options.recover = recover;
     if (entry) {
         const std::string bytes = archive_book_bytes(path, *entry);
         try {
@@ -518,8 +519,10 @@ Opened open_document(const std::string& path, const std::string& ui_language,
 }
 
 // Loop thread: fills a session with an opened document. `s` was created on the loop thread
-// (so the docId was known while the worker serialised the result).
-void fill_session(Services& services, session::DocumentSession& s, Opened& opened) {
+// (so the docId was known while the worker serialised the result). When `ephemeral` is true
+// (Feature 019 batch conversion), Recent files and remembered positions are left untouched.
+void fill_session(Services& services, session::DocumentSession& s, Opened& opened,
+                  bool ephemeral = false) {
     model::Document& doc = opened.read.document;
     doc.docId = s.docId;
     s.path = opened.path;
@@ -558,32 +561,34 @@ void fill_session(Services& services, session::DocumentSession& s, Opened& opene
     }
     s.binaries = std::move(opened.store);
     s.ids = opened.ids;
-    s.position = services.positions.get(opened.path, opened.entry);
-    if (!s.position && !opened.entry) {
-        // The one-time conversion of a release 0.0.3 caret kept in recent.json: a Body caret
-        // whose node id the freshly loaded document has (ids are deterministic in document
-        // order, so "it still fits" = the id exists) becomes a position by place and is
-        // recorded like one; any other legacy caret is ignored (resource-formats §8).
-        if (const auto legacy = services.recent.legacy_caret(opened.path)) {
-            const std::string path = model::node_path(doc, legacy->nodeId);
-            if (!path.empty()) {
-                s.position = settings::Position{path, std::max(0, legacy->offset)};
-                record_position(services, s);
+    if (!ephemeral) {
+        s.position = services.positions.get(opened.path, opened.entry);
+        if (!s.position && !opened.entry) {
+            // The one-time conversion of a release 0.0.3 caret kept in recent.json: a Body caret
+            // whose node id the freshly loaded document has (ids are deterministic in document
+            // order, so "it still fits" = the id exists) becomes a position by place and is
+            // recorded like one; any other legacy caret is ignored (resource-formats §8).
+            if (const auto legacy = services.recent.legacy_caret(opened.path)) {
+                const std::string path = model::node_path(doc, legacy->nodeId);
+                if (!path.empty()) {
+                    s.position = settings::Position{path, std::max(0, legacy->offset)};
+                    record_position(services, s);
+                }
             }
         }
+        services.recent.touch(opened.path, opened.entry);  // without the legacy caret from now on
     }
-    services.recent.touch(opened.path, opened.entry);  // without the legacy caret from now on
     s.snapshot = std::move(doc);
 }
 
 // Loop thread, synchronous path: session + result in one go.
-json register_session(Services& services, Opened&& opened) {
+json register_session(Services& services, Opened&& opened, bool ephemeral = false) {
     session::DocumentSession& s = services.documents.create();
     opened.read.document.docId = s.docId;
     json result{{"document", loaded_document_json(opened.read.document, opened.filled_in)},
                 {"warnings", issues_json(opened.read.warnings)}};
     add_source(result["document"], opened);
-    fill_session(services, s, opened);
+    fill_session(services, s, opened, ephemeral);
     return result;
 }
 
@@ -698,7 +703,8 @@ struct SaveRequest {
     std::string path;                         // absolute target
     std::string encoding;                     // canonical
     bool force = false;
-    bool backup = false;  // keep the replaced file as "<path>.bak" (feature 009, FR-001)
+    bool backup = false;     // keep the replaced file as "<path>.bak" (feature 009, FR-001)
+    bool ephemeral = false;  // feature 019: skip Recent, positions, and session.path mutation
     // Feature 009 (DP-6): write a new ZIP archive holding only the book under this name.
     std::optional<std::string> archive_entry;
     std::string xlink_prefix;
@@ -839,12 +845,16 @@ json perform_save(Services& services, SaveRequest& request, rpc::JobControl* con
     for (const auto& c : converted) {
         converted_ids.push_back(c.id);
     }
-    auto update = [&services, doc_id, path, enc, stamp, snapshot, converted_ids,
-                   archive_entry]() -> int {
-        session::DocumentSession* s = services.documents.find(doc_id);
+    const bool ephemeral = request.ephemeral;
+    auto update = [&services, doc_id, path, enc, stamp, snapshot, converted_ids, archive_entry,
+                   ephemeral]() -> int {
         for (const std::string& id : converted_ids) {
             services.previews.invalidate_prefix(doc_id + "/" + id + "@");
         }
+        if (ephemeral) {
+            return 0;
+        }
+        session::DocumentSession* s = services.documents.find(doc_id);
         if (s != nullptr) {
             s->path = path;
             // Once saved, the book is tied to the file just written: no archive after a plain
@@ -1303,10 +1313,13 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
 
     router.add_method("doc.open", [&services](const json& params, rpc::RpcContext& ctx) {
         const std::string path = absolute_path(rpc::params::string(params, "path"));
+        const bool ephemeral = rpc::params::boolean_or(params, "ephemeral", false);
         const fs::path file = platform::path_from_utf8(path);
         std::error_code ec;
         if (!fs::exists(file, ec)) {
-            services.recent.remove(path);  // prune missing files (resource-formats.md §8)
+            if (!ephemeral) {
+                services.recent.remove(path);  // prune missing files (resource-formats.md §8)
+            }
             throw io_error(path, "file not found");
         }
         std::uintmax_t size = fs::file_size(file, ec);
@@ -1333,23 +1346,80 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         }
         const bool clean_invalid_chars =
             rpc::params::boolean_or(params, "cleanInvalidChars", false);
+        const bool recover = rpc::params::boolean_or(params, "recover", false);
         const std::string ui_language = ui_language_setting(services);
-        if (ec || size < kJobThresholdBytes) {
+        // Ephemeral batch opens always run on a worker thread so parallel batch workers parse,
+        // validate, and serialize FB2 files concurrently across CPU cores instead of blocking the
+        // single RPC event loop.
+        if (!ephemeral && (ec || size < kJobThresholdBytes)) {
             Opened opened = open_document(path, ui_language, nullptr, entry, force_encoding,
-                                          clean_invalid_chars);
-            return register_session(services, std::move(opened));
+                                          clean_invalid_chars, recover);
+            return register_session(services, std::move(opened), ephemeral);
         }
         // The session (and its docId) exists from the start; the worker parses and builds the
         // JSON result, the loop thread only moves the data into the session at the end.
         const std::string doc_id = services.documents.create().docId;
+        const std::string job_id = ctx.jobs.start([&services, path, doc_id, ui_language, entry,
+                                                   force_encoding, clean_invalid_chars, recover,
+                                                   ephemeral](rpc::JobControl& control) -> json {
+            auto opened = std::make_shared<Opened>();
+            try {
+                *opened = open_document(path, ui_language, &control, entry, force_encoding,
+                                        clean_invalid_chars, recover);
+            } catch (...) {
+                on_loop_thread(
+                    services,
+                    [&services, doc_id] {
+                        services.documents.close(doc_id);
+                        return 0;
+                    },
+                    &control);
+                throw;
+            }
+            opened->read.document.docId = doc_id;
+            json result{
+                {"document", loaded_document_json(opened->read.document, opened->filled_in)},
+                {"warnings", issues_json(opened->read.warnings)}};
+            add_source(result["document"], *opened);
+            const bool registered = on_loop_thread(
+                services,
+                [&services, doc_id, opened, ephemeral] {
+                    session::DocumentSession* s = services.documents.find(doc_id);
+                    if (s == nullptr) {
+                        return false;  // closed while loading
+                    }
+                    fill_session(services, *s, *opened, ephemeral);
+                    return true;
+                },
+                &control);
+            if (!registered) {
+                throw rpc::RpcError(rpc::codes::kCancelled, "document was closed while loading",
+                                    json{{"docId", doc_id}});
+            }
+            control.progress("done", 100, 100);
+            return result;
+        });
+        return json{{"jobId", job_id}};
+    });
+
+    // Feature 019: headless ephemeral open for batch export workers. Serializes the full Document
+    // JSON on the C++ worker thread into services.batch (served once via GET /batch/doc/:docId)
+    // so parallel Web Workers fetch and parse the AST off the browser main thread.
+    router.add_method("batch.openDoc", [&services](const json& params, rpc::RpcContext& ctx) {
+        const std::string path = absolute_path(rpc::params::string(params, "path"));
+        const fs::path file = platform::path_from_utf8(path);
+        const std::optional<std::string> requested_entry = rpc::params::opt_string(params, "entry");
+        const bool clean_invalid_chars =
+            rpc::params::boolean_or(params, "cleanInvalidChars", false);
+        const bool recover = rpc::params::boolean_or(params, "recover", false);
+        const std::string ui_language = ui_language_setting(services);
+
+        const std::string doc_id = services.documents.create().docId;
         const std::string job_id =
-            ctx.jobs.start([&services, path, doc_id, ui_language, entry, force_encoding,
-                            clean_invalid_chars](rpc::JobControl& control) -> json {
-                auto opened = std::make_shared<Opened>();
-                try {
-                    *opened = open_document(path, ui_language, &control, entry, force_encoding,
-                                            clean_invalid_chars);
-                } catch (...) {
+            ctx.jobs.start([&services, path, file, doc_id, ui_language, requested_entry,
+                            clean_invalid_chars, recover](rpc::JobControl& control) -> json {
+                auto cleanup_doc = [&services, &doc_id, &control] {
+                    services.batch.erase_doc_json(doc_id);
                     on_loop_thread(
                         services,
                         [&services, doc_id] {
@@ -1357,30 +1427,60 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
                             return 0;
                         },
                         &control);
+                };
+                auto opened = std::make_shared<Opened>();
+                try {
+                    std::error_code ec;
+                    if (!fs::exists(file, ec)) {
+                        throw io_error(path, "file not found");
+                    }
+                    refuse_other_archives(file);
+                    std::optional<std::string> entry = requested_entry;
+                    if (archive::detect_kind(file) == archive::Kind::zip) {
+                        ArchiveChoice choice = choose_entry(path, requested_entry);
+                        if (!choice.needs_choice.is_null()) {
+                            throw rpc::RpcError(rpc::codes::kArchiveEntryMissing,
+                                                "archive requires an explicit book entry",
+                                                json{{"path", path}});
+                        }
+                        entry = choice.entry;
+                    }
+                    *opened = open_document(path, ui_language, &control, entry, std::nullopt,
+                                            clean_invalid_chars, recover);
+                } catch (...) {
+                    cleanup_doc();
                     throw;
                 }
                 opened->read.document.docId = doc_id;
-                json result{
-                    {"document", loaded_document_json(opened->read.document, opened->filled_in)},
-                    {"warnings", issues_json(opened->read.warnings)}};
-                add_source(result["document"], *opened);
+                json full_doc = loaded_document_json(opened->read.document, opened->filled_in);
+                add_source(full_doc, *opened);
+                std::string wire = full_doc.dump();
+                json description = model::to_json(opened->read.document.description);
+                const std::size_t binary_count = opened->read.document.binaries.size();
+                json warnings = issues_json(opened->read.warnings);
+                // Store before registering so the HTTP route is ready immediately upon job.done.
+                services.batch.store_doc_json(doc_id, std::move(wire));
                 const bool registered = on_loop_thread(
                     services,
                     [&services, doc_id, opened] {
                         session::DocumentSession* s = services.documents.find(doc_id);
                         if (s == nullptr) {
-                            return false;  // closed while loading
+                            return false;
                         }
-                        fill_session(services, *s, *opened);
+                        fill_session(services, *s, *opened, true);
                         return true;
                     },
                     &control);
                 if (!registered) {
+                    services.batch.erase_doc_json(doc_id);
                     throw rpc::RpcError(rpc::codes::kCancelled, "document was closed while loading",
                                         json{{"docId", doc_id}});
                 }
                 control.progress("done", 100, 100);
-                return result;
+                return json{{"docId", doc_id},
+                            {"description", std::move(description)},
+                            {"binaryCount", binary_count},
+                            {"warnings", std::move(warnings)}};
             });
         return json{{"jobId", job_id}};
     });
@@ -1519,6 +1619,7 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
 
     router.add_method("doc.close", [&services](const json& params, rpc::RpcContext&) {
         const std::string doc_id = rpc::params::string(params, "docId");
+        services.batch.erase_doc_json(doc_id);
         if (services.watcher) {
             services.watcher->unwatch(doc_id);
         }
@@ -1749,6 +1850,7 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
             effective_encoding(services, s, rpc::params::opt_string(params, "encoding"));
         request.force = rpc::params::boolean_or(params, "force", false);
         request.backup = rpc::params::boolean_or(params, "backup", false);
+        request.ephemeral = rpc::params::boolean_or(params, "ephemeral", false);
         if (const auto it = params.find("archive"); it != params.end() && !it->is_null()) {
             const auto name = it->is_object() ? it->find("entryName") : it->end();
             if (!it->is_object() || name == it->end() || !name->is_string() ||
@@ -1766,7 +1868,7 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
             static_cast<std::uintmax_t>(s.binaries->total_bytes()) +
             (request.text ? request.text->size() : static_cast<std::size_t>(0));
         const bool big =
-            estimate >= kJobThresholdBytes ||
+            request.ephemeral || estimate >= kJobThresholdBytes ||
             (request.document && approximate_size(*request.document) >= kJobThresholdBytes);
         if (!big) {
             return perform_save(services, request, nullptr);
@@ -2203,8 +2305,17 @@ void register_fragment_handlers(rpc::RpcRouter& router, Services& services) {
 void write_description_file(Services& services, const std::string& doc_id, const json& params,
                             const std::string& path) {
     session::DocumentSession& s = services.documents.require(doc_id);
+    model::Document doc;
+    if (params.contains("document")) {
+        doc = document_param(params);
+    } else if (s.snapshot) {
+        doc = *s.snapshot;
+    } else {
+        throw rpc::invalid_params("document: missing and session has no snapshot",
+                                  json{{"field", "document"}});
+    }
     ExportRequest request;
-    request.document = exported_document(document_param(params), s.ids);
+    request.document = exported_document(std::move(doc), s.ids);
     request.path = path;
     request.force = true;
     request.xlink_prefix = s.xlinkPrefix;

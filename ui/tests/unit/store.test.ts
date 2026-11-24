@@ -331,6 +331,14 @@ describe('store', () => {
     expect(renders).toBe(2);
   });
 
+  it('marks startup ready atomically when setDocument installs a document', () => {
+    const store = createAppStore({ startup: 'starting' });
+    expect(store.getState().startup).toBe('starting');
+    actions.setDocument(store, fakeDocument());
+    expect(store.getState().startup).toBe('ready');
+    expect(store.getState().docId).toBe('doc-1');
+  });
+
   it('derives file kind and file name from paths', () => {
     expect(kindFromPath('/a/b.FB2')).toBe('fb2');
     expect(kindFromPath('C:\\books\\x.fbd')).toBe('fbd');

@@ -1760,7 +1760,7 @@ test.describe('US1 (feature 006) - create a table where it is needed', () => {
     await core.enqueueDialog('dialog.openFile', { paths: [fixtureBook('malformed.fb2')] });
     await menu(page, 'file', 'open');
     const discard = page.getByTestId('dialog-save-changes-button-no');
-    const parseError = page.getByTestId('dialog-parse-error-button-ok');
+    const parseError = page.getByTestId('dialog-parse-error-button-no');
     await expect(discard.or(parseError)).toBeVisible();
     if (await discard.isVisible()) await discard.click();
     await parseError.click();
