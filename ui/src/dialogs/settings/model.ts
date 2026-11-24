@@ -19,6 +19,7 @@ import type {
   AiServicesResult,
   AiTestResult,
   KeyboardLayoutList,
+  OcrCatalogReport,
   Settings,
   SpellDictionaryFolder,
   SpellRejectedDictionary,
@@ -193,7 +194,11 @@ export interface SettingsValidationError {
 }
 
 /** Validates the editable fields of a draft; an empty list means the draft can be applied. */
-export function validateSettings(draft: Settings, t: TFunction): SettingsValidationError[] {
+export function validateSettings(
+  draft: Settings,
+  t: TFunction,
+  ocrReport?: OcrCatalogReport | null,
+): SettingsValidationError[] {
   const errors: SettingsValidationError[] = [];
   if (!isIntegerInRange(draft.view.bodyFontSize, BODY_FONT_SIZE_RANGE)) {
     errors.push({
@@ -242,6 +247,25 @@ export function validateSettings(draft: Settings, t: TFunction): SettingsValidat
     }
     if (!(draft.ai.custom?.model ?? '').trim()) {
       errors.push({ field: 'ai.custom.model', message: t('dialog.settings.ai.custom.modelError') });
+    }
+  }
+  // Feature 020 (data-model.md §1.2): require at least one currently installed OCR pack to be
+  // enabled in Settings.ocr.enabledLanguages before saving.
+  if (draft.ocr) {
+    const enabled = draft.ocr.enabledLanguages ?? [];
+    if (ocrReport && ocrReport.packs.length > 0) {
+      const installed = new Set(ocrReport.packs.map((pack) => pack.code.toLowerCase()));
+      if (!enabled.some((code) => installed.has(code.toLowerCase()))) {
+        errors.push({
+          field: 'ocr.enabledLanguages',
+          message: t('ocr.settings.noEnabledInstalled'),
+        });
+      }
+    } else if (enabled.length === 0) {
+      errors.push({
+        field: 'ocr.enabledLanguages',
+        message: t('ocr.settings.noEnabledInstalled'),
+      });
     }
   }
   return errors;
