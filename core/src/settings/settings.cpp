@@ -4,6 +4,7 @@
 #include <mfbe/ai_address.hpp>
 #include <mfbe/atomic_file.hpp>
 #include <mfbe/log.hpp>
+#include <mfbe/ocr.hpp>
 #include <mfbe/settings.hpp>
 #include <mfbe/single_byte.hpp>
 #include <mfbe/store_lock.hpp>
@@ -13,6 +14,7 @@
 #include <algorithm>
 #include <cctype>
 #include <functional>
+#include <set>
 #include <system_error>
 
 namespace mfbe::settings {
@@ -45,7 +47,9 @@ enum class Kind {
     verified_record,  // {fingerprint: "" | 64 lower-case hex, model <= 256 chars, at: "" | UTC}
     agreement_list,   // [{service, host, at}] - replaced whole; malformed elements dropped on load
     // Feature 010 (US11, resource-formats §2):
-    effort_record  // null, or {target: "free:<id>" | "custom", model, value, param?}
+    effort_record,  // null, or {target: "free:<id>" | "custom", model, value, param?}
+    // Feature 020 (data-model.md §1.2): non-empty unique list of valid Tesseract pack codes.
+    ocr_language_list
 };
 
 struct Field {
@@ -143,6 +147,11 @@ const std::vector<Field>& schema() {
         enumeration("mobi.openAt", {"titlePage", "mainText"}),
         field("mobi.kf8PopupFootnotes", Kind::boolean),
         field("mobi.zip", Kind::boolean),
+        // Feature 020 (data-model.md §1): PDF import OCR defaults and global OCR settings.
+        field("imports.pdf.useOcr", Kind::boolean),
+        field("ocr.folder", Kind::string),
+        field("ocr.autoDetect", Kind::boolean),
+        field("ocr.enabledLanguages", Kind::ocr_language_list),
         enumeration("other.defaultEncoding", supported_encodings()),
         field("other.keepEncoding", Kind::boolean),
         // A backup of the previous version beside the saved file (feature 009, FR-006).
@@ -551,6 +560,29 @@ std::string check_value(const Field& field, const json& value) {
             }
             return "";
         }
+        case Kind::ocr_language_list: {
+            if (!value.is_array() || value.empty()) {
+                return "expected a non-empty array of OCR language codes";
+            }
+            std::set<std::string> seen;
+            for (const auto& item : value) {
+                if (!item.is_string()) {
+                    return "expected an array of strings";
+                }
+                const std::string code = item.get<std::string>();
+                if (!ocr::is_valid_pack_code(code)) {
+                    return "invalid OCR language code";
+                }
+                std::string key = code;
+                std::transform(key.begin(), key.end(), key.begin(), [](unsigned char c) {
+                    return static_cast<char>(std::tolower(c));
+                });
+                if (!seen.insert(key).second) {
+                    return "duplicate OCR language code";
+                }
+            }
+            return "";
+        }
     }
     return "invalid";
 }
@@ -693,6 +725,11 @@ json defaults() {
           {"openAt", "titlePage"},
           {"kf8PopupFootnotes", true},
           {"zip", false}}},
+        {"imports", {{"pdf", {{"useOcr", true}}}}},
+        {"ocr",
+         {{"folder", ""},
+          {"autoDetect", true},
+          {"enabledLanguages", json::array({"eng", "rus"})}}},
         {"session",
          {{"windowGeometry", nullptr},
           {"toolbars",
@@ -804,7 +841,7 @@ void validate_patch(const json& patch) {
         }
     }
     // Sections must stay objects.
-    for (const char* section : {"view", "other", "words", "session", "ai"}) {
+    for (const char* section : {"view", "other", "words", "session", "ai", "imports", "ocr"}) {
         auto it = patch.find(section);
         if (it != patch.end() && !it->is_null() && !it->is_object()) {
             throw SettingsError(section, "expected an object");

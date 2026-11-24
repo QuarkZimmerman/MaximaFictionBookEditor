@@ -20,7 +20,7 @@
 
 namespace mfbe::resources {
 
-enum class Kind { genres, scripts, dictionaries };
+enum class Kind { genres, scripts, dictionaries, ocr };
 enum class LayerName { settings, user, portable, bundled };
 
 const char* to_string(Kind kind);
@@ -71,6 +71,7 @@ struct Roots {
     std::filesystem::path settings_genres;          // settings other.genresFolder ("" = none)
     std::filesystem::path settings_scripts;         // settings other.scriptsFolder ("" = none)
     std::filesystem::path settings_dictionaries;    // settings other.dictionariesFolder ("")
+    std::filesystem::path settings_ocr;             // settings ocr.folder ("" = none)
 };
 
 // Decides the id of a directory entry for a kind (nullopt = not an entry of this kind).

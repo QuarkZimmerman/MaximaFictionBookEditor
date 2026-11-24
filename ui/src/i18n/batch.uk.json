@@ -40,6 +40,17 @@
       "allFormats": "Усі підтримувані формати",
       "noneSelected": "Оберіть принаймні один формат імпорту для конвертації."
     },
+    "ocr": {
+      "group": "OCR для PDF",
+      "useOcr": "Використовувати OCR для відсканованих або растрових PDF",
+      "autoDetect": "Автоматично визначати мову (серед обраних мов)",
+      "languagesLabel": "Мови OCR:",
+      "noLanguages": "Оберіть принаймні одну встановлену мову OCR для розпізнавання PDF.",
+      "disabledNote": "Увімкніть PDF у списку форматів імпорту, щоб налаштувати OCR.",
+      "summaryPages": "сторінок: {{pages}}",
+      "summaryImages": "зображень: {{images}}",
+      "summaryWithLangs": "{{parts}} ({{languages}})"
+    },
     "paths": {
       "sourceGroup": "Джерело",
       "sourceLabel": "Вихідна тека:",
@@ -68,7 +79,8 @@
     "validation": {
       "missingSource": "Спочатку оберіть вихідну теку.",
       "missingDestination": "Оберіть теку призначення або увімкніть конвертацію на місці.",
-      "noImportFormat": "Оберіть принаймні один формат імпорту."
+      "noImportFormat": "Оберіть принаймні один формат імпорту.",
+      "noOcrLanguage": "Оберіть принаймні одну встановлену мову OCR або вимкніть OCR."
     },
     "actions": {
       "start": "Почати",
@@ -88,6 +100,8 @@
       "stageExtracting": "Видобування з архіву...",
       "stageConverting": "Перетворення...",
       "stagePrinting": "Друк PDF...",
+      "stageOcrDetect": "Визначення мови OCR...",
+      "stageOcr": "Розпізнавання OCR...",
       "stageWriting": "Запис...",
       "stageCancelling": "Скасування..."
     },
@@ -99,6 +113,7 @@
       "summaryTotal": "Усього: {{count}}",
       "summaryConverted": "Готово: {{count}}",
       "summaryFixed": "Виправлено: {{count}}",
+      "summaryOcr": "OCR: {{count}}",
       "summarySkipped": "Пропущено: {{count}}",
       "summaryFailed": "Помилок: {{count}}",
       "summaryCancelled": "Скасовано: {{count}}",
@@ -106,11 +121,13 @@
       "filterFailed": "Помилки ({{count}})",
       "filterSkipped": "Пропущено ({{count}})",
       "filterFixed": "Виправлено ({{count}})",
+      "filterOcr": "OCR ({{count}})",
       "noIssues": "Усі файли перетворено без помилок, пропусків і виправлень.",
       "noFilterMatches": "У цій категорії немає записів.",
       "badgeFailed": "Помилка",
       "badgeSkipped": "Пропущено",
       "badgeFixed": "Виправлено",
+      "badgeOcr": "OCR",
       "saveTitle": "Зберегти звіт пакетної конвертації",
       "saveFilterText": "Текстові файли (*.txt)",
       "saveFilterAll": "Усі файли (*.*)",
@@ -143,17 +160,20 @@
       "total": "Усього:",
       "converted": "Готово:",
       "fixed": "Виправлено:",
+      "ocr": "OCR:",
       "skipped": "Пропущено:",
       "failed": "Помилок:",
       "cancelled": "Скасовано:",
       "failedHeading": "Помилки ({{count}})",
       "skippedHeading": "Пропущено ({{count}})",
       "fixedHeading": "Виправлено ({{count}})",
+      "ocrHeading": "OCR ({{count}})",
       "warningsHeading": "Попередження для готових файлів ({{count}})",
       "none": "Немає.",
       "errorPrefix": "Помилка:",
       "reasonPrefix": "Причина:",
-      "repairedPrefix": "Виправлення:"
+      "repairedPrefix": "Виправлення:",
+      "ocrDetailPrefix": "OCR:"
     },
     "reasons": {
       "targetExists": "Вихідний файл уже існує.",
@@ -209,6 +229,10 @@
       "filterFailed": "Показати у списку лише записи з помилками",
       "filterSkipped": "Показати у списку лише пропущені файли",
       "filterFixed": "Показати у списку лише виправлені в пам'яті файли",
+      "filterOcr": "Показати у списку лише файли, оброблені за допомогою OCR",
+      "pdfUseOcr": "Запускати локальний OCR для відсканованих або растрових сторінок PDF в автоматичному режимі",
+      "ocrAutoDetect": "Автоматично визначати мову OCR серед обраних для пакету мов",
+      "ocrLanguages": "Встановлені мови OCR для пакетної конвертації (зберігаються окремо від загальних Налаштувань)",
       "close": "Закрити вікно пакетного конвертера"
     }
   }

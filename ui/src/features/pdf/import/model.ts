@@ -85,6 +85,10 @@ export interface PdfWord {
   s: number;
   c: string;
   base: number;
+  /** Feature 020: detected FB2 language code for this word's OCR block. */
+  lang?: string;
+  /** Feature 020: OCR recognition confidence (0..100). */
+  conf?: number;
 }
 
 export interface PdfFont {
@@ -109,6 +113,19 @@ export interface PdfPicture {
   w: number;
   h: number;
   jpeg: boolean;
+  /** Feature 020: cropped non-text inline illustration extracted from a scanned page. */
+  ocrCrop?: boolean;
+  /** Feature 020: full-page fallback image retained when OCR yielded no usable text on this page. */
+  ocrFallback?: boolean;
+}
+
+/** Feature 020 (data-model.md §3.3): OCR text extracted from an embedded raster image on a searchable page. */
+export interface PdfOcrImageBlock {
+  pictureId: string;
+  box: [number, number, number, number];
+  lang: string;
+  meanConf: number;
+  paragraphs: { text: string; lang?: string; words: PdfWord[] }[];
 }
 
 export interface PdfPageModel {
@@ -125,6 +142,20 @@ export interface PdfPageModel {
   drawings?: { id: string; box: [number, number, number, number] }[];
   /** Form fields in labelled rows: each label (the text before it) and value (D16). */
   forms?: { box: number[]; label: string; value: string; labelBox: number[] }[];
+  /** Feature 020: full-page OCR ran on this page. */
+  ocrUsed?: boolean;
+  /** Feature 020: primary detected FB2 language code for this OCR'd page. */
+  ocrLang?: string;
+  /** Feature 020: distinct FB2 language codes detected across blocks on this page. */
+  ocrLanguages?: string[];
+  /** Feature 020: clockwise rotation correction applied before OCR. */
+  ocrRotation?: 0 | 90 | 180 | 270;
+  /** Feature 020: mean OCR word confidence (0..100). */
+  ocrMeanConf?: number;
+  /** Feature 020: best-effort low-confidence OCR output flag. */
+  ocrLowConfidence?: boolean;
+  /** Feature 020: embedded text-bearing raster image OCR blocks on a searchable page. */
+  ocrImages?: PdfOcrImageBlock[];
 }
 
 /** The editor's hints (014 contracts/pdf-file.md `mfbe:fb2Hints`, version 1). */

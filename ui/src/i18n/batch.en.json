@@ -40,6 +40,17 @@
       "allFormats": "All supported formats",
       "noneSelected": "Select at least one import format to convert."
     },
+    "ocr": {
+      "group": "PDF OCR",
+      "useOcr": "Use OCR for scanned or image-based PDFs",
+      "autoDetect": "Auto-detect language (within selected languages)",
+      "languagesLabel": "OCR languages:",
+      "noLanguages": "Select at least one installed OCR language for PDF OCR.",
+      "disabledNote": "Enable PDF in Formats to convert to configure PDF OCR.",
+      "summaryPages": "{{pages}} pages",
+      "summaryImages": "{{images}} images",
+      "summaryWithLangs": "{{parts}} ({{languages}})"
+    },
     "paths": {
       "sourceGroup": "Source",
       "sourceLabel": "Source folder:",
@@ -68,7 +79,8 @@
     "validation": {
       "missingSource": "Choose a source folder first.",
       "missingDestination": "Choose a destination folder or enable in-place conversion.",
-      "noImportFormat": "Select at least one import format."
+      "noImportFormat": "Select at least one import format.",
+      "noOcrLanguage": "Select at least one installed OCR language or uncheck Use OCR."
     },
     "actions": {
       "start": "Start",
@@ -88,6 +100,8 @@
       "stageExtracting": "Extracting from archive...",
       "stageConverting": "Converting...",
       "stagePrinting": "Printing PDF...",
+      "stageOcrDetect": "Detecting OCR language...",
+      "stageOcr": "Running OCR...",
       "stageWriting": "Writing...",
       "stageCancelling": "Cancelling..."
     },
@@ -99,6 +113,7 @@
       "summaryTotal": "Total: {{count}}",
       "summaryConverted": "Converted: {{count}}",
       "summaryFixed": "Fixed: {{count}}",
+      "summaryOcr": "OCR: {{count}}",
       "summarySkipped": "Skipped: {{count}}",
       "summaryFailed": "Failed: {{count}}",
       "summaryCancelled": "Cancelled: {{count}}",
@@ -106,11 +121,13 @@
       "filterFailed": "Failed ({{count}})",
       "filterSkipped": "Skipped ({{count}})",
       "filterFixed": "Fixed ({{count}})",
+      "filterOcr": "OCR ({{count}})",
       "noIssues": "All files converted cleanly with no failures, skips, or repairs.",
       "noFilterMatches": "No items in this category.",
       "badgeFailed": "Failed",
       "badgeSkipped": "Skipped",
       "badgeFixed": "Fixed",
+      "badgeOcr": "OCR",
       "saveTitle": "Save batch conversion report",
       "saveFilterText": "Text files (*.txt)",
       "saveFilterAll": "All files (*.*)",
@@ -143,17 +160,20 @@
       "total": "Total:",
       "converted": "Converted:",
       "fixed": "Fixed:",
+      "ocr": "OCR:",
       "skipped": "Skipped:",
       "failed": "Failed:",
       "cancelled": "Cancelled:",
       "failedHeading": "Failed ({{count}})",
       "skippedHeading": "Skipped ({{count}})",
       "fixedHeading": "Fixed ({{count}})",
+      "ocrHeading": "OCR ({{count}})",
       "warningsHeading": "Warnings on converted files ({{count}})",
       "none": "None.",
       "errorPrefix": "Error:",
       "reasonPrefix": "Reason:",
-      "repairedPrefix": "Repaired:"
+      "repairedPrefix": "Repaired:",
+      "ocrDetailPrefix": "OCR:"
     },
     "reasons": {
       "targetExists": "Output file already exists.",
@@ -209,6 +229,10 @@
       "filterFailed": "Show only failed entries in the report list",
       "filterSkipped": "Show only skipped entries in the report list",
       "filterFixed": "Show only repaired (fixed in memory) entries in the report list",
+      "filterOcr": "Show only files where offline PDF OCR ran",
+      "pdfUseOcr": "Run offline OCR on scanned or image-based PDF pages during unattended batch conversion",
+      "ocrAutoDetect": "Automatically detect OCR language within the checked batch languages",
+      "ocrLanguages": "Installed OCR languages available for this batch run (saved separately from global Settings)",
       "close": "Close the Batch Converter dialog"
     }
   }

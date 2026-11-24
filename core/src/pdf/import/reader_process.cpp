@@ -3,8 +3,13 @@
 
 #include "mfbe/utf8_paths.hpp"
 
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
+
+#ifdef __linux__
+extern char** environ;
+#endif
 
 #ifdef _WIN32
 // clang-format off: windows.h must come first
@@ -42,6 +47,30 @@ std::vector<std::string> arguments(const ReaderOptions& o) {
     if (!o.fonts.empty()) {
         args.push_back("--fonts");
         args.push_back(platform::utf8_from_path(o.fonts));
+    }
+    if (o.ocr.enabled) {
+        args.push_back("--ocr");
+        args.push_back("--ocr-auto");
+        args.push_back(o.ocr.auto_detect ? "1" : "0");
+        if (!o.ocr.languages.empty()) {
+            std::string joined;
+            for (std::size_t i = 0; i < o.ocr.languages.size(); ++i) {
+                if (i > 0) {
+                    joined += ',';
+                }
+                joined += o.ocr.languages[i];
+            }
+            args.push_back("--ocr-langs");
+            args.push_back(std::move(joined));
+        }
+        for (const auto& dir : o.ocr.dirs) {
+            if (!dir.empty()) {
+                args.push_back("--ocr-dir");
+                args.push_back(platform::utf8_from_path(dir));
+            }
+        }
+        args.push_back("--ocr-threads");
+        args.push_back(std::to_string(std::clamp(o.ocr.threads, 1, 8)));
     }
     args.insert(args.end(), o.extra_args.begin(), o.extra_args.end());
     return args;
@@ -268,6 +297,29 @@ std::unique_ptr<ReaderProcess> ReaderProcess::start(const ReaderOptions& o, std:
         argv.push_back(const_cast<char*>(a.c_str()));
     }
     argv.push_back(nullptr);
+#ifdef __linux__
+    // Build the child environment before fork() so the child stays strictly async-signal-safe.
+    // Under --ocr, multi-threaded Tesseract workers cause glibc malloc to reserve large virtual
+    // arenas; capping arenas to 2 and raising RLIMIT_AS to 4096 MiB avoids false bad_alloc while
+    // check_limits() continues enforcing physical RSS <= max_memory_mb.
+    std::vector<std::string> env_strings;
+    std::vector<char*> envp;
+    if (o.ocr.enabled) {
+        if (environ != nullptr) {
+            for (char** e = environ; *e != nullptr; ++e) {
+                if (std::strncmp(*e, "MALLOC_ARENA_MAX=", 17) != 0) {
+                    env_strings.emplace_back(*e);
+                }
+            }
+        }
+        env_strings.emplace_back("MALLOC_ARENA_MAX=2");
+        envp.reserve(env_strings.size() + 1);
+        for (auto& s : env_strings) {
+            envp.push_back(s.data());
+        }
+        envp.push_back(nullptr);
+    }
+#endif
     const pid_t parent = getpid();
     const pid_t pid = fork();
     if (pid < 0) {
@@ -280,8 +332,10 @@ std::unique_ptr<ReaderProcess> ReaderProcess::start(const ReaderOptions& o, std:
         if (getppid() != parent) {
             _exit(1);
         }
+        const std::size_t as_limit_mb =
+            o.ocr.enabled ? std::max<std::size_t>(o.max_memory_mb, 4096) : o.max_memory_mb;
         rlimit limit{};
-        limit.rlim_cur = limit.rlim_max = static_cast<rlim_t>(o.max_memory_mb) * 1024 * 1024;
+        limit.rlim_cur = limit.rlim_max = static_cast<rlim_t>(as_limit_mb) * 1024 * 1024;
         setrlimit(RLIMIT_AS, &limit);
 #else
         (void)parent;
@@ -291,7 +345,15 @@ std::unique_ptr<ReaderProcess> ReaderProcess::start(const ReaderOptions& o, std:
         for (int fd : {in_pipe[0], in_pipe[1], out_pipe[0], out_pipe[1]}) {
             close(fd);
         }
+#ifdef __linux__
+        if (!envp.empty()) {
+            execve(argv[0], argv.data(), envp.data());
+        } else {
+            execv(argv[0], argv.data());
+        }
+#else
         execv(argv[0], argv.data());
+#endif
         _exit(127);
     }
     close(in_pipe[0]);

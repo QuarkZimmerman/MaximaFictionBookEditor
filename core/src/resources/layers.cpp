@@ -1,5 +1,6 @@
 // Layered resource lookup (T020). See mfbe/resources.hpp.
 #include <mfbe/log.hpp>
+#include <mfbe/ocr.hpp>
 #include <mfbe/resources.hpp>
 #include <mfbe/utf8_paths.hpp>
 
@@ -82,6 +83,8 @@ const char* to_string(Kind kind) {
             return "scripts";
         case Kind::dictionaries:
             return "dictionaries";
+        case Kind::ocr:
+            return "ocr";
     }
     return "genres";
 }
@@ -109,6 +112,9 @@ std::optional<Kind> kind_from_string(std::string_view text) {
     }
     if (text == "dictionaries") {
         return Kind::dictionaries;
+    }
+    if (text == "ocr") {
+        return Kind::ocr;
     }
     return std::nullopt;
 }
@@ -153,6 +159,21 @@ IdFunction default_id_function(Kind kind) {
                     return std::nullopt;
                 }
                 return platform::utf8_from_path(e.path().filename());
+            };
+        case Kind::ocr:
+            return [](const fs::directory_entry& e) -> std::optional<std::string> {
+                std::error_code ec;
+                if (!e.is_regular_file(ec)) {
+                    return std::nullopt;
+                }
+                if (lower(platform::utf8_from_path(e.path().extension())) != ".traineddata") {
+                    return std::nullopt;
+                }
+                const std::string stem = platform::utf8_from_path(e.path().stem());
+                if (!ocr::is_valid_pack_code(stem)) {
+                    return std::nullopt;
+                }
+                return stem;
             };
     }
     return [](const fs::directory_entry&) { return std::nullopt; };
@@ -262,6 +283,9 @@ std::vector<Layer> ResourceLayers::layers(Kind kind) const {
         case Kind::dictionaries:
             settings_folder = roots_.settings_dictionaries;
             break;
+        case Kind::ocr:
+            settings_folder = roots_.settings_ocr;
+            break;
     }
     add(LayerName::settings, settings_folder);
     add(LayerName::user, roots_.user_data.empty() ? fs::path() : roots_.user_data / sub);
@@ -365,6 +389,26 @@ std::vector<PassedOver> ResourceLayers::passed_over(Kind kind) const {
                     }
                     break;
                 }
+                case Kind::ocr: {
+                    const std::string ext = lower(platform::utf8_from_path(e.path().extension()));
+                    if (name == "license.txt" || name == "sources.txt" || ext == ".txt") {
+                        break;  // shipped/user notice files are ignored quietly
+                    }
+                    if (is_dir || ext != ".traineddata") {
+                        add(e.path(), "unsupportedFile");
+                        break;
+                    }
+                    const std::string stem = platform::utf8_from_path(e.path().stem());
+                    if (!ocr::is_valid_traineddata_stem(stem)) {
+                        add(e.path(), "unsupportedFile");
+                        break;
+                    }
+                    const std::string err = ocr::validate_traineddata_file(e.path());
+                    if (!err.empty()) {
+                        add(e.path(), err.c_str());
+                    }
+                    break;
+                }
             }
         }
     }
@@ -373,7 +417,7 @@ std::vector<PassedOver> ResourceLayers::passed_over(Kind kind) const {
 
 std::vector<Layer> ResourceLayers::all_layers() const {
     std::vector<Layer> result;
-    for (Kind kind : {Kind::genres, Kind::scripts, Kind::dictionaries}) {
+    for (Kind kind : {Kind::genres, Kind::scripts, Kind::dictionaries, Kind::ocr}) {
         auto layers_of_kind = layers(kind);
         result.insert(result.end(), layers_of_kind.begin(), layers_of_kind.end());
     }
@@ -395,17 +439,24 @@ nlohmann::json ResourceLayers::report() const {
 
 std::vector<Entry> ResourceLayers::list(Kind kind, const IdFunction& id_of,
                                         std::vector<Conflict>* conflicts) const {
-    // Resolution order: bundled first (always wins), then settings, user, portable.
+    // Resolution order: bundled first (always wins) for genres/scripts/dictionaries;
+    // OCR packs allow higher layers (settings > user > portable) to override bundled packs.
     const auto all = layers(kind);
     std::vector<const Layer*> order;
-    for (const auto& l : all) {
-        if (l.layer == LayerName::bundled) {
+    if (kind == Kind::ocr) {
+        for (const auto& l : all) {
             order.push_back(&l);
         }
-    }
-    for (const auto& l : all) {
-        if (l.layer != LayerName::bundled) {
-            order.push_back(&l);
+    } else {
+        for (const auto& l : all) {
+            if (l.layer == LayerName::bundled) {
+                order.push_back(&l);
+            }
+        }
+        for (const auto& l : all) {
+            if (l.layer != LayerName::bundled) {
+                order.push_back(&l);
+            }
         }
     }
     std::vector<Entry> result;
@@ -481,7 +532,7 @@ void ResourceLayers::place_readmes() const {
         return;
     }
     place_readme(roots_.user_data, readme_source(std::nullopt));
-    for (Kind kind : {Kind::genres, Kind::scripts, Kind::dictionaries}) {
+    for (Kind kind : {Kind::genres, Kind::scripts, Kind::dictionaries, Kind::ocr}) {
         place_readme(roots_.user_data / to_string(kind), readme_source(kind));
     }
 }

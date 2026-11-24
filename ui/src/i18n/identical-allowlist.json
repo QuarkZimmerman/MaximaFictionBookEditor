@@ -40,6 +40,14 @@
     "mobi.saveFormats.mobi7",
     "mobi.saveFormats.kf8",
     "dialog.settings.other.passedOver.rule.genres",
-    "dialog.settings.other.passedOver.rule.template"
+    "dialog.settings.other.passedOver.rule.template",
+    "dialog.settings.other.passedOver.rule.ocr",
+    "dialog.settings.pages.ocr",
+    "batch.report.summaryOcr",
+    "batch.report.filterOcr",
+    "batch.report.badgeOcr",
+    "batch.reportFile.ocr",
+    "batch.reportFile.ocrHeading",
+    "batch.reportFile.ocrDetailPrefix"
   ]
 }

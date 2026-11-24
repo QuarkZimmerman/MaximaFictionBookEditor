@@ -63,7 +63,7 @@ TEST_CASE("layers: report lists settings/user/portable/bundled per kind", "[laye
     CHECK(dicts[3].path == tmp / "bundled" / "dictionaries");
 
     const json report = layers.report();
-    REQUIRE(report.size() == 12);
+    REQUIRE(report.size() == 16);
     CHECK(report[0] == json{{"kind", "genres"},
                             {"layer", "settings"},
                             {"path", (tmp / "custom-genres").string()},
@@ -73,6 +73,8 @@ TEST_CASE("layers: report lists settings/user/portable/bundled per kind", "[laye
     CHECK(report[1]["readable"] == true);  // <Data>/genres exists and can be listed
     CHECK(report[11]["kind"] == "dictionaries");
     CHECK(report[11]["layer"] == "bundled");
+    CHECK(report[15]["kind"] == "ocr");
+    CHECK(report[15]["layer"] == "bundled");
 }
 
 TEST_CASE(

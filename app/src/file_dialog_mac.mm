@@ -276,11 +276,11 @@ bool runPlatformFileDialog(std::uintptr_t owner, const FileDialogRequest& reques
             [rows addObject:zip_box];
         }
     }
-    // Feature 017 (DP-5): the further boxes, one checkbox each, below the ZIP box.
+    // Feature 017 / Feature 020: checkboxes in both Save and Open accessory views.
     NSMutableArray<NSButton*>* check_boxes = [NSMutableArray array];
     std::vector<std::string>
         check_ids;  // copied into the completion block (the request may not outlive it)
-    if (mode == FileDialogMode::kSave) {
+    if (mode != FileDialogMode::kFolder) {
         for (const auto& check : request.checks) {
             check_ids.push_back(check.id);
             NSButton* box = [NSButton checkboxWithTitle:toNSString(check.label)

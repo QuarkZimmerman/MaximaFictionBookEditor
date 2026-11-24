@@ -252,6 +252,8 @@ void register_styles_handlers(rpc::RpcRouter& router, Services& services);
 void register_fragment_handlers(rpc::RpcRouter& router, Services& services);
 void register_binary_handlers(rpc::RpcRouter& router, Services& services);
 void register_resources_handlers(rpc::RpcRouter& router, Services& services);
+// Feature 020: ocr.report (ocr_handlers.cpp).
+void register_ocr_handlers(rpc::RpcRouter& router, Services& services);
 void register_spell_handlers(rpc::RpcRouter& router, Services& services);
 void register_words_handlers(rpc::RpcRouter& router, Services& services);
 void register_scripts_handlers(rpc::RpcRouter& router, Services& services);

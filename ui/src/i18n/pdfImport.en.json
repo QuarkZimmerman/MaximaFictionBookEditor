@@ -23,6 +23,17 @@
     "ownerPasswordPrompt": "{{name}} does not allow copying its text. Enter its owner password to import it:",
     "wrongPassword": "The password is not right. Try again:",
     "importing": "Importing the PDF book…",
+    "useOcrLabel": "Use OCR for scanned or image-based text",
+    "optionsDialog": {
+      "title": "PDF Import Options",
+      "description": "Choose whether to recognize scanned or image-based text with offline OCR.",
+      "ok": "Import",
+      "cancel": "Cancel"
+    },
+    "progress": {
+      "ocrDetect": "Detecting OCR language…",
+      "ocr": "Recognizing scanned text (OCR)…"
+    },
     "importCaption": "PDF import",
     "importDone": "Imported from PDF: {{pages}} pages, {{sections}} sections, {{pictures}} pictures, {{tables}} tables, {{notes}} notes.",
     "importDoneCover": "Imported from PDF: {{pages}} pages, {{sections}} sections, {{pictures}} pictures and the cover, {{tables}} tables, {{notes}} notes.",
@@ -48,7 +59,11 @@
       "cancelled": "the import was cancelled.",
       "method": "the archive uses a compression the editor does not read.",
       "multiVolume": "the archive is one part of several; the editor reads whole archives only.",
-      "missing": "the PDF is no longer in the archive."
+      "missing": "the PDF is no longer in the archive.",
+      "ocrNoLanguages": "no installed OCR languages are enabled. Enable at least one language in Tools -> Settings -> OCR.",
+      "ocrLanguageDisabled": "no usable text was recognized. The detected script ({{script}}) matches installed language pack(s) that are currently disabled ({{languages}}); enable them in Tools -> Settings -> OCR.",
+      "ocrLanguageMissing": "no usable text was recognized. No installed OCR language pack supports the detected script ({{script}}); install a matching .traineddata pack in Tools -> Settings -> OCR.",
+      "ocrUnreadable": "no usable text could be recognized from the scanned pages."
     },
     "summaryIntro": "Not everything came over as the PDF has it:",
     "summary": {
@@ -58,6 +73,11 @@
       "platesImported": "Pages without text whose picture came in: {{count}}",
       "garbledPages": "Pages whose text layer reads as garbage, imported as it is: {{count}}",
       "mended": "Parts the FB2 schema does not allow, set right so that the book is valid FB2: {{count}}",
+      "ocrPages": "Pages recognized with OCR: {{count}}",
+      "ocrImageBlocks": "Embedded images with text recognized with OCR (marked with style \"ocr-image\"): {{count}}",
+      "ocrLanguages": "Detected OCR language(s): {{languages}}",
+      "ocrFallbackPages": "Unreadable scanned pages kept as pictures: {{count}}",
+      "ocrLowConfidence": "Pages with low-confidence OCR output (please review): {{count}}",
       "dropped": {
         "comments": "Comments and other notes on the pages, left out: {{count}}",
         "attachments": "Attached files, left out: {{count}}",

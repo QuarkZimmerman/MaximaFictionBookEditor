@@ -182,15 +182,15 @@ TEST_CASE("server: app.info / settings round trip / notifications over WebSocket
     // Additive contract revision: feature 002 = 1, feature 003 = 2, feature 004 = 3,
     // feature 005 = 4, feature 006 = 5, feature 007 = 6, ..., feature 011 = 10, feature 012 = 11,
     // feature 014 = 12, feature 015 = 13, feature 016 = 14, feature 017 = 15, feature 018 = 16,
-    // feature 019 = 17.
-    CHECK(r["apiMinor"] == 17);
+    // feature 019 = 17, feature 020 = 18.
+    CHECK(r["apiMinor"] == 18);
     CHECK(r["apiMinor"] == version::kApiMinor);
     CHECK(r["platform"].is_string());
     CHECK(r["uiLanguage"] == "system");
     CHECK(r["dataDir"] == f.data.path().string());
     CHECK(r["logDir"] == (f.data.path() / "logs").string());
     CHECK(r["resourceLayers"].is_array());
-    CHECK(r["resourceLayers"].size() == 12);
+    CHECK(r["resourceLayers"].size() == 16);
     CHECK(r["testHooks"] == true);
     CHECK(r["port"] == f.port());
 
@@ -545,7 +545,7 @@ TEST_CASE("server: a custom DialogProvider attached in-process answers dialogs a
         void open_file(const OpenFileRequest& req, Callback<OpenFileResult> done) override {
             std::thread([req, done] {
                 std::this_thread::sleep_for(std::chrono::milliseconds(20));
-                done(OpenFileResult{{"/async/" + req.title}});
+                done(OpenFileResult{{"/async/" + req.title}, std::nullopt});
             }).detach();
         }
         void save_file(const SaveFileRequest&, Callback<SaveFileResult> done) override {

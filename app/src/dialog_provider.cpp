@@ -658,9 +658,15 @@ public:
         native.folder = request.folder.value_or(std::string());
         native.default_path = request.defaultPath.value_or(std::string());
         native.document_dialog = request.documentDialog;
+        for (const auto& check : request.checks) {
+            native.checks.push_back({check.id, check.label, check.checked});
+        }
         const bool posted = dialogs_->runFileDialog(native, [done](FileDialogResult result) {
             mfbe::OpenFileResult out;
             out.paths = std::move(result.paths);
+            if (!result.cancelled && !out.paths.empty() && result.checks_shown) {
+                out.checks = std::move(result.checks);
+            }
             done(std::move(out));
         });
         if (!posted) {

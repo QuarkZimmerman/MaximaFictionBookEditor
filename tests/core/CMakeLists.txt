@@ -16,7 +16,9 @@ endif()
 
 file(GLOB MFBE_CORE_TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/test_*.cpp")
 if(MFBE_CORE_TEST_SOURCES)
-  add_executable(mfbe_core_tests ${MFBE_CORE_TEST_SOURCES})
+  add_executable(mfbe_core_tests
+    ${MFBE_CORE_TEST_SOURCES}
+    "${CMAKE_SOURCE_DIR}/core/src/pdf/reader/ocr_lang.cpp")
   target_link_libraries(mfbe_core_tests PRIVATE
     mfbe::core Catch2::Catch2WithMain unofficial::uwebsockets::uwebsockets LibXml2::LibXml2
     LibArchive::LibArchive PkgConfig::POPPLER)
