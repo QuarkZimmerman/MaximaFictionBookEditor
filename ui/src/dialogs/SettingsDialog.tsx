@@ -31,13 +31,15 @@ import {
 import { getSpellFeature } from '@/features/spell';
 import { actions } from '@/model/store';
 import { RpcError } from '@/rpc/client';
-import { RpcErrorCode, type Settings } from '@/rpc/types';
+import { RpcErrorCode, type OcrCatalogReport, type Settings } from '@/rpc/types';
 
 import { AiPage } from './settings/AiPage';
 import { Dialog, type DialogButton } from './Dialog';
 import { HotkeysPage } from './settings/HotkeysPage';
 import { createScratchHotkeys, sameUserBindings } from './settings/hotkeysModel';
+import { ImportsPage } from './settings/ImportsPage';
 import { validateSettings, type SettingsValidationError } from './settings/model';
+import { OcrPage } from './settings/OcrPage';
 import { OtherPage } from './settings/OtherPage';
 import { ViewPage } from './settings/ViewPage';
 import { ExportsPage, type ExportFormat } from './settings/ExportsPage';
@@ -46,9 +48,19 @@ import { WordsPage } from './settings/WordsPage';
 import './settings/settings.css';
 import { tip } from '@/app/tooltips';
 
-export type SettingsPageId = 'view' | 'other' | 'hotkeys' | 'words' | 'exports' | 'ai';
+export type SettingsPageId =
+  'view' | 'other' | 'hotkeys' | 'words' | 'imports' | 'ocr' | 'exports' | 'ai';
 
-const PAGES: readonly SettingsPageId[] = ['view', 'other', 'hotkeys', 'words', 'exports', 'ai'];
+const PAGES: readonly SettingsPageId[] = [
+  'view',
+  'other',
+  'hotkeys',
+  'words',
+  'imports',
+  'ocr',
+  'exports',
+  'ai',
+];
 
 /**
  * A page not shown keeps its room, invisible - not focusable, not read out - so that every page stands in the one
@@ -60,7 +72,8 @@ function shownIf(shown: boolean): CSSProperties | undefined {
 }
 
 /** The sections of the draft the pages edit (`session` is never part of the dialog). */
-type DraftSection = 'view' | 'other' | 'words' | 'pdf' | 'ai' | 'markdown' | 'txt' | 'mobi';
+type DraftSection =
+  'view' | 'other' | 'words' | 'imports' | 'ocr' | 'pdf' | 'ai' | 'markdown' | 'txt' | 'mobi';
 
 /**
  * The pre-apply hook (feature 005 R8.8): asked with the validated draft before anything is
@@ -122,6 +135,42 @@ export function SettingsDialog({
   const [loadFailed, setLoadFailed] = useState(false);
   const [errors, setErrors] = useState<SettingsValidationError[]>([]);
   const [busy, setBusy] = useState(false);
+  const [ocrReport, setOcrReport] = useState<OcrCatalogReport | null>(null);
+  const [ocrReportKnown, setOcrReportKnown] = useState(!rpc);
+
+  const refreshOcrReport = useCallback(async () => {
+    if (!rpc) {
+      setOcrReportKnown(true);
+      return;
+    }
+    try {
+      const report = await rpc.call('ocr.report');
+      setOcrReport(report);
+    } catch {
+      // Older core or disconnected: keep previous report state and mark known.
+    } finally {
+      setOcrReportKnown(true);
+    }
+  }, [rpc]);
+
+  useEffect(() => {
+    if (!rpc) return;
+    let cancelled = false;
+    rpc
+      .call('ocr.report')
+      .then((report) => {
+        if (!cancelled) setOcrReport(report);
+      })
+      .catch(() => {
+        // Older core or disconnected: keep previous report state.
+      })
+      .finally(() => {
+        if (!cancelled) setOcrReportKnown(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [rpc]);
 
   // The Hotkeys page edits a scratch copy of the live map.
   const registry = useMemo(() => feature.commands ?? createCommandRegistry(), [feature]);
@@ -170,9 +219,9 @@ export function SettingsDialog({
     };
   }, [draft, rpc, store]);
 
-  const update = <S extends DraftSection>(section: S, patch: Partial<Settings[S]>) => {
+  const update = <S extends DraftSection>(section: S, patch: Partial<NonNullable<Settings[S]>>) => {
     setDraft((current) =>
-      current ? { ...current, [section]: { ...current[section], ...patch } } : current,
+      current ? { ...current, [section]: { ...(current[section] ?? {}), ...patch } } : current,
     );
     setErrors([]);
   };
@@ -219,7 +268,7 @@ export function SettingsDialog({
 
   const apply = async (): Promise<ApplyOutcome> => {
     if (!draft || !original) return { ok: false, restartRequired: false };
-    const problems = validateSettings(draft, t);
+    const problems = validateSettings(draft, t, ocrReport);
     if (problems.length > 0) {
       setErrors(problems);
       return { ok: false, restartRequired: false };
@@ -279,9 +328,12 @@ export function SettingsDialog({
         persisted ? t('msg.hotkeysApplied') : t('dialog.settings.hotkeys.notPersisted'),
       );
     }
-    // Feature 003 US4: dictionaries copied into a folder are picked up on Apply, also when no
-    // setting changed (the store hook of the settings runtime covers the other case).
-    if (rpc) void getSpellFeature(store).refreshDictionaries(rpc);
+    // Feature 003 US4 & Feature 020 US3: dictionaries and OCR language packs copied into a folder
+    // are picked up live on Apply, even when no setting field changed.
+    if (rpc) {
+      void getSpellFeature(store).refreshDictionaries(rpc);
+      await refreshOcrReport();
+    }
     return { ok: true, restartRequired };
   };
 
@@ -400,6 +452,18 @@ export function SettingsDialog({
           </div>
           <div role="tabpanel" id="settings-page-words" style={shownIf(page === 'words')}>
             <WordsPage draft={draft} onChange={(patch) => update('words', patch)} ctx={ctx} />
+          </div>
+          <div role="tabpanel" id="settings-page-imports" style={shownIf(page === 'imports')}>
+            <ImportsPage draft={draft} onChange={(patch) => update('imports', patch)} />
+          </div>
+          <div role="tabpanel" id="settings-page-ocr" style={shownIf(page === 'ocr')}>
+            <OcrPage
+              draft={draft}
+              onChange={(patch) => update('ocr', patch)}
+              ctx={ctx}
+              report={ocrReport}
+              reportKnown={ocrReportKnown}
+            />
           </div>
           <div role="tabpanel" id="settings-page-exports-panel" style={shownIf(page === 'exports')}>
             <ExportsPage

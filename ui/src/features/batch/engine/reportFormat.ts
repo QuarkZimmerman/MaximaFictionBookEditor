@@ -95,6 +95,12 @@ export function formatBatchReportText(
   lines.push(`${padLabel(t('batch.reportFile.total'))}${report.counts.total}`);
   lines.push(`${padLabel(t('batch.reportFile.converted'))}${report.counts.converted}`);
   lines.push(`${padLabel(t('batch.reportFile.fixed'))}${report.counts.fixed}`);
+  if (
+    report.counts.ocr !== undefined &&
+    (report.config.direction === 'importToFb2' || report.counts.ocr > 0)
+  ) {
+    lines.push(`${padLabel(t('batch.reportFile.ocr'))}${report.counts.ocr}`);
+  }
   lines.push(`${padLabel(t('batch.reportFile.skipped'))}${report.counts.skipped}`);
   lines.push(`${padLabel(t('batch.reportFile.failed'))}${report.counts.failed}`);
   lines.push(`${padLabel(t('batch.reportFile.cancelled'))}${report.counts.cancelled}`);
@@ -142,6 +148,25 @@ export function formatBatchReportText(
       lines.push(`${idx + 1}. ${entry.displayPath}${targetSuffix}`);
       lines.push(`   ${t('batch.reportFile.repairedPrefix')} ${entry.reason}`);
     });
+  }
+
+  // OCR section (present for import runs or whenever OCR ran on at least one file)
+  if (
+    report.ocr !== undefined &&
+    (report.config.direction === 'importToFb2' || report.ocr.length > 0)
+  ) {
+    lines.push('');
+    const ocrHeading = t('batch.reportFile.ocrHeading', { count: report.ocr.length });
+    lines.push(ocrHeading);
+    lines.push('-'.repeat(ocrHeading.length));
+    if (report.ocr.length === 0) {
+      lines.push(t('batch.reportFile.none'));
+    } else {
+      report.ocr.forEach((entry, idx) => {
+        lines.push(`${idx + 1}. ${entry.displayPath} -> ${entry.targetPath}`);
+        lines.push(`   ${t('batch.reportFile.ocrDetailPrefix')} ${entry.reason}`);
+      });
+    }
   }
 
   // Warnings on converted files section (always present in saved file, never shown on screen)

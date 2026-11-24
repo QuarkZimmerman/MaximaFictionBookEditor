@@ -212,6 +212,31 @@ export function allImportFormatsRecord(value: boolean): Record<BatchBookFormat, 
   };
 }
 
+const DEFAULT_OCR_LANGUAGES: readonly string[] = ['eng', 'rus'];
+
+function normalizeOcrLanguages(raw: readonly string[] | undefined): string[] {
+  if (!Array.isArray(raw)) return [...DEFAULT_OCR_LANGUAGES];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const item of raw) {
+    if (typeof item !== 'string') continue;
+    const code = item.trim();
+    const key = code.toLowerCase();
+    if (!code || key === 'osd' || seen.has(key)) continue;
+    seen.add(key);
+    out.push(code);
+  }
+  return out;
+}
+
+export function isBatchPdfOcrControlsEnabled(config: BatchJobConfig): boolean {
+  return config.direction === 'importToFb2' && config.importFormats.pdf;
+}
+
+export function isBatchPdfOcrLanguagesEnabled(config: BatchJobConfig): boolean {
+  return isBatchPdfOcrControlsEnabled(config) && config.pdfUseOcr;
+}
+
 export function normalizeBatchConfig(raw: BatchJobConfig, cpuCores: number): BatchJobConfig {
   const importFormats: Record<BatchBookFormat, boolean> = {
     epub: Boolean(raw.importFormats.epub),
@@ -251,6 +276,9 @@ export function normalizeBatchConfig(raw: BatchJobConfig, cpuCores: number): Bat
     overwrite: Boolean(raw.overwrite),
     parallel,
     workerCount,
+    pdfUseOcr: raw.pdfUseOcr !== false,
+    ocrAutoDetect: raw.ocrAutoDetect !== false,
+    ocrLanguages: normalizeOcrLanguages(raw.ocrLanguages),
   };
 }
 
@@ -296,6 +324,12 @@ export function createInitialBatchConfig(
       overwrite: memory?.overwrite ?? false,
       parallel: memory?.parallel !== undefined ? memory.parallel : maxWorkers >= 2,
       workerCount: memory?.workerCount ?? maxWorkers,
+      pdfUseOcr: memory?.pdfUseOcr ?? settings?.imports?.pdf?.useOcr ?? true,
+      ocrAutoDetect: memory?.ocrAutoDetect ?? settings?.ocr?.autoDetect ?? true,
+      ocrLanguages:
+        memory?.ocrLanguages !== undefined
+          ? [...memory.ocrLanguages]
+          : [...(settings?.ocr?.enabledLanguages ?? DEFAULT_OCR_LANGUAGES)],
     },
     cpuCores,
   );
@@ -316,6 +350,9 @@ export type BatchConfigAction =
   | { type: 'setOverwrite'; checked: boolean }
   | { type: 'setParallel'; checked: boolean }
   | { type: 'setWorkerCount'; count: number }
+  | { type: 'setPdfUseOcr'; checked: boolean }
+  | { type: 'setOcrAutoDetect'; checked: boolean }
+  | { type: 'setOcrLanguages'; languages: string[] }
   | { type: 'syncExportSettings' };
 
 export function reduceBatchConfig(
@@ -403,6 +440,15 @@ export function reduceBatchConfig(
     case 'setWorkerCount':
       next = { ...state, workerCount: action.count };
       break;
+    case 'setPdfUseOcr':
+      next = { ...state, pdfUseOcr: action.checked };
+      break;
+    case 'setOcrAutoDetect':
+      next = { ...state, ocrAutoDetect: action.checked };
+      break;
+    case 'setOcrLanguages':
+      next = { ...state, ocrLanguages: action.languages };
+      break;
     case 'syncExportSettings':
       next = {
         ...state,
@@ -416,7 +462,10 @@ export function reduceBatchConfig(
 /**
  * Returns an i18n error key when configuration cannot be started, or `null` when valid.
  */
-export function validateBatchConfig(config: BatchJobConfig): string | null {
+export function validateBatchConfig(
+  config: BatchJobConfig,
+  installedOcrCodes?: readonly string[] | null,
+): string | null {
   if (!config.sourceDir.trim()) {
     return 'batch.validation.missingSource';
   }
@@ -428,6 +477,14 @@ export function validateBatchConfig(config: BatchJobConfig): string | null {
     !BATCH_BOOK_FORMATS.some((fmt) => config.importFormats[fmt])
   ) {
     return 'batch.validation.noImportFormat';
+  }
+  if (isBatchPdfOcrLanguagesEnabled(config)) {
+    const activeCodes = installedOcrCodes
+      ? config.ocrLanguages.filter((code) => installedOcrCodes.includes(code))
+      : config.ocrLanguages;
+    if (activeCodes.length === 0) {
+      return 'batch.validation.noOcrLanguage';
+    }
   }
   return null;
 }

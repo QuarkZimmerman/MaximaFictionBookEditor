@@ -38,6 +38,7 @@ each copyright file) and in the npm registry; they are not repeated here.
 | giflib | 6.1.3 | MIT | `build/vcpkg_installed/<triplet>/share/giflib/copyright` |  |
 | hunspell | 1.7.5 | LGPL-2.1-or-later | `build/vcpkg_installed/<triplet>/share/hunspell/copyright` | MPL-1.1/GPL-2.0-or-later/LGPL-2.1-or-later tri-licence (LGPL-2.1-or-later used; MPL-1.1 alone is not compatible with GPL-3.0) |
 | lcms | 2.19.1 | MIT | `build/vcpkg_installed/<triplet>/share/lcms/copyright` | transitive dependency |
+| leptonica | 1.87.0 | BSD-2-Clause | `build/vcpkg_installed/<triplet>/share/leptonica/copyright` |  |
 | libarchive | 3.8.9 | BSD-2-Clause | `build/vcpkg_installed/<triplet>/share/libarchive/copyright` |  |
 | libjpeg-turbo | 3.2.1 | BSD-3-Clause AND IJG | `build/vcpkg_installed/<triplet>/share/libjpeg-turbo/copyright` |  |
 | liblzma | 5.8.4 | 0BSD | `build/vcpkg_installed/<triplet>/share/liblzma/copyright` | transitive dependency |
@@ -53,6 +54,7 @@ each copyright file) and in the npm registry; they are not repeated here.
 | spdlog | 1.17.0 | MIT | `build/vcpkg_installed/<triplet>/share/spdlog/copyright` |  |
 | stb | 2026-08-02 | Unlicense AND MIT | `build/vcpkg_installed/<triplet>/share/stb/copyright` |  |
 | stduuid | 1.2.3 | MIT | `build/vcpkg_installed/<triplet>/share/stduuid/copyright` |  |
+| tesseract | 5.5.4 | Apache-2.0 | `build/vcpkg_installed/<triplet>/share/tesseract/copyright` |  |
 | tiff | 4.7.2 | libtiff | `build/vcpkg_installed/<triplet>/share/tiff/copyright` |  |
 | usockets | 0.8.8 | Apache-2.0 | `build/vcpkg_installed/<triplet>/share/usockets/copyright` | transitive dependency |
 | uwebsockets | 20.81.0 | Apache-2.0 AND MIT | `build/vcpkg_installed/<triplet>/share/uwebsockets/copyright` |  |
@@ -293,6 +295,7 @@ distributed and are therefore not listed.
 | Hunspell dictionary uk_UA (dict_uk) | dict_uk release v6.8.6 | MPL-1.1 | `resources/dictionaries/uk_UA.txt` | uk_UA.aff and uk_UA.dic are read at run time by Hunspell and not combined into the program (aggregate, GPLv3 section 5; decision D16); the upstream generator notice also names GPL-3.0-or-later and LGPL-2.1-or-later; notice installed as share/mfbe/resources/dictionaries/uk_UA.txt and shown in About |
 | Mozilla CA certificate bundle (cacert.pem, as published by the curl project) | Mozilla root store as of 2026-10-20; SHA-256 796f1389bfea | MPL-2.0 | `resources/certs/cacert.NOTICE.txt` | cacert.pem is read at run time by libcurl, on Linux only and only when neither the environment nor the distribution provides a CA bundle, and is not combined into the program (aggregate, GPLv3 section 5; decision D16); the Linux packages ship it with its notice as share/mfbe/resources/certs/, Windows and macOS use the system stores and carry nothing of it; the notice is shown in About on Linux; the MPL-2.0 text is resources/certs/MPL-2.0.txt, exported next to the notice |
 | Noto fonts (Noto Serif, Noto Sans, and their Georgian and Armenian families), static instances | notofonts.github.io commit 4cf78353cd16 | OFL-1.1 | `resources/fonts/OFL.txt` | read at run time by the PDF export and embedded as subsets in the PDF files it writes; not combined into the program (aggregate, GPLv3 section 5); installed as share/mfbe/resources/fonts/ with OFL.txt |
+| Tesseract OCR language packs (tessdata_fast: eng, rus, ukr, deu, fra, spa, ita, por, pol, bel; tessdata: osd) | tessdata_fast 874164186573, tessdata ced78752cc61 | Apache-2.0 | `resources/ocr/LICENSE.txt` | read at run time by mfbe-pdf-reader for offline PDF OCR (aggregate, GPLv3 section 5); installed as share/mfbe/resources/ocr/ with LICENSE.txt |
 
 Data files the editor's libraries read at run time and that are never combined into the
 program: aggregates in the sense of GPLv3 section 5 (constitution principle VI, decision
@@ -321,11 +324,11 @@ ship with the Linux packages only (resources/certs/, refreshed by tools/refresh-
 |---|---|
 | MIT | 138 |
 | ISC | 36 |
-| Apache-2.0 | 16 |
+| Apache-2.0 | 18 |
 | BSD-3-Clause | 13 |
 | BSL-1.0 | 7 |
+| BSD-2-Clause | 5 |
 | OFL-1.1 | 5 |
-| BSD-2-Clause | 4 |
 | Apache-2.0 AND MIT | 2 |
 | GPL-2.0-or-later | 2 |
 | 0BSD | 1 |

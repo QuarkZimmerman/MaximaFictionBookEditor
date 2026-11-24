@@ -57,7 +57,7 @@ test.describe('US3 (feature 016) - scanned books with a text layer', () => {
       core,
       page,
     }) => {
-      const before = await importPdfViaMenu(core, page, pdf(name));
+      const before = await importPdfViaMenu(core, page, pdf(name), { useOcr: false });
       const refused = await pdfImportDone(page, before).then(
         () => '',
         (error: unknown) => (error instanceof PdfImportFailed ? error.message : String(error)),

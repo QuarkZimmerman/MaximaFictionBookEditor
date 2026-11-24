@@ -41,6 +41,12 @@ struct FileFilter {
     std::vector<std::string> extensions;  // without dot, e.g. {"fb2", "fbd"}
 };
 
+struct DialogCheck {
+    std::string id;
+    std::string label;
+    bool checked = false;
+};
+
 struct OpenFileRequest {
     std::string title;
     std::vector<FileFilter> filters;
@@ -49,9 +55,14 @@ struct OpenFileRequest {
     std::optional<std::string> folder;       // where the dialog opens (UTF-8); default: last used
     std::optional<std::string> defaultPath;  // the file proposed: its folder, its name filled in
     bool documentDialog = false;             // `role: "document"`: Open (feature 011, D32)
+    // Feature 020: optional checkboxes inside the Open dialog (e.g. PDF import "Use OCR").
+    using Check = DialogCheck;
+    std::vector<Check> checks;
 };
 struct OpenFileResult {
     std::vector<std::string> paths;  // empty = cancelled
+    // Feature 020: checkbox states by id; nullopt when the dialog could not show them.
+    std::optional<std::vector<std::pair<std::string, bool>>> checks;
 };
 
 struct SaveFileRequest {
@@ -77,11 +88,7 @@ struct SaveFileRequest {
     int zipFilter = -1;
     // Feature 017 (DP-5): further boxes (the TXT export's "Byte-order mark"), each with its id,
     // label and starting state.
-    struct Check {
-        std::string id;
-        std::string label;
-        bool checked = false;
-    };
+    using Check = DialogCheck;
     std::vector<Check> checks;
     // Feature 018 (DP-5, contracts/rpc-api.md §4): multi-select dropdowns inside the Save dialog.
     struct SelectChoice {

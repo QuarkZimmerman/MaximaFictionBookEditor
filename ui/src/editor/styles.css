@@ -311,6 +311,17 @@
     text-decoration-color: color-mix(in srgb, var(--mfbe-color-accent) 65%, transparent);
     text-underline-offset: 3px;
   }
+
+  /* Feature 020 (FR-006, T038): editor-only subtle tint for paragraphs recognized from embedded
+   raster images on searchable pages (style="ocr-image"). Adapts to Light and Dark themes via
+   --mfbe-color-accent and disappears automatically when the user removes the style attribute. */
+  .fb-editor [data-style='ocr-image'] {
+    background: color-mix(in srgb, var(--mfbe-color-accent) 12%, transparent);
+    border-left: 3px solid color-mix(in srgb, var(--mfbe-color-accent) 55%, transparent);
+    padding: 0.15em 0.45em;
+    border-radius: 2px;
+    text-decoration: none;
+  }
 }
 
 @layer fb-look {

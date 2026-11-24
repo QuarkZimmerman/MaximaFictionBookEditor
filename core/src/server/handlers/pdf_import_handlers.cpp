@@ -21,6 +21,7 @@
 #include <mfbe/archive.hpp>
 #include <mfbe/binary_store.hpp>
 #include <mfbe/json_codec.hpp>
+#include <mfbe/ocr.hpp>
 #include <mfbe/rpc.hpp>
 #include <mfbe/utf8_paths.hpp>
 
@@ -29,7 +30,9 @@
 #include <chrono>
 #include <fstream>
 #include <future>
+#include <map>
 #include <random>
+#include <thread>
 
 namespace mfbe::server {
 
@@ -261,8 +264,70 @@ void register_pdf_import_handlers(rpc::RpcRouter& router, Services& services) {
     });
     router.add_method("pdfImport.inspect", [&services](const json& params, rpc::RpcContext&) {
         auto session = find(services, params);
+        pdf_import::ReaderOcrOptions ocr_opts;
+        if (params.is_object() && params.contains("ocr") && params["ocr"].is_object()) {
+            const json& ocr = params["ocr"];
+            if (ocr.value("enabled", false)) {
+                services.refresh_layers();
+                const std::string custom = services.settings.get_string("ocr.folder");
+                const ocr::CatalogReport catalog = ocr::build_catalog(services.layers, custom);
+                std::map<std::string, std::string> installed_by_lower;
+                for (const auto& pack : catalog.packs) {
+                    installed_by_lower.emplace(lower(pack.code), pack.code);
+                }
+
+                std::vector<std::string> requested;
+                if (ocr.contains("languages") && ocr["languages"].is_array()) {
+                    for (const auto& item : ocr["languages"]) {
+                        if (item.is_string()) {
+                            requested.push_back(item.get<std::string>());
+                        }
+                    }
+                } else {
+                    const json& all_settings = services.settings.get();
+                    if (all_settings.contains("ocr") && all_settings["ocr"].is_object() &&
+                        all_settings["ocr"].contains("enabledLanguages") &&
+                        all_settings["ocr"]["enabledLanguages"].is_array()) {
+                        for (const auto& item : all_settings["ocr"]["enabledLanguages"]) {
+                            if (item.is_string()) {
+                                requested.push_back(item.get<std::string>());
+                            }
+                        }
+                    }
+                }
+
+                std::vector<std::string> active_langs;
+                for (const std::string& code : requested) {
+                    const auto it = installed_by_lower.find(lower(code));
+                    if (it != installed_by_lower.end() &&
+                        std::find(active_langs.begin(), active_langs.end(), it->second) ==
+                            active_langs.end()) {
+                        active_langs.push_back(it->second);
+                    }
+                }
+                if (active_langs.empty()) {
+                    throw failed("ocrNoLanguages");
+                }
+
+                ocr_opts.enabled = true;
+                ocr_opts.auto_detect = ocr.contains("autoDetect") && ocr["autoDetect"].is_boolean()
+                                           ? ocr["autoDetect"].get<bool>()
+                                           : services.settings.get_bool("ocr.autoDetect", true);
+                ocr_opts.languages = std::move(active_langs);
+                ocr_opts.dirs = ocr::active_ocr_dirs(services.layers);
+                if (ocr.contains("maxThreads") && ocr["maxThreads"].is_number_integer()) {
+                    ocr_opts.threads = std::clamp(ocr["maxThreads"].get<int>(), 1, 8);
+                } else {
+                    const int override_cores = services.cpu_cores_override.load();
+                    const int cores = override_cores > 0
+                                          ? override_cores
+                                          : static_cast<int>(std::thread::hardware_concurrency());
+                    ocr_opts.threads = std::clamp(cores - 1, 1, 4);
+                }
+            }
+        }
         std::lock_guard lock(session->mutex());
-        return checked(session->inspect());
+        return checked(session->inspect(ocr_opts));
     });
     router.add_method("pdfImport.password", [&services](const json& params, rpc::RpcContext&) {
         auto session = find(services, params);
@@ -276,10 +341,12 @@ void register_pdf_import_handlers(rpc::RpcRouter& router, Services& services) {
             json read;
             int pages = 0;
             const std::string reason = session->read(
-                [&control, &pages](int n, int total) {
-                    pages = total;
-                    if (n > 0) {
-                        control.progress("read", n, total);
+                [&control, &pages](const std::string& phase, int done, int total) {
+                    if (phase == "read" && total > 0) {
+                        pages = total;
+                    }
+                    if (done > 0) {
+                        control.progress(phase, done, total);
                     }
                     return !control.cancelled();
                 },
@@ -288,14 +355,28 @@ void register_pdf_import_handlers(rpc::RpcRouter& router, Services& services) {
                 control.check_cancelled();
             }
             if (!reason.empty()) {
-                // D19: a refusal says how many pages it concerns (FR-032).
-                throw failed(reason, read.contains("pages") ? json{{"pages", read["pages"]}}
-                                                            : json::object());
+                // D19 & Feature 020: forward refusal detail fields (pages, script,
+                // suggestedLanguages).
+                json data = json::object();
+                if (read.contains("pages")) {
+                    data["pages"] = read["pages"];
+                }
+                if (read.contains("script")) {
+                    data["script"] = read["script"];
+                }
+                if (read.contains("suggestedLanguages")) {
+                    data["suggestedLanguages"] = read["suggestedLanguages"];
+                }
+                throw failed(reason, std::move(data));
             }
-            return json{{"pages", pages},
-                        {"kinds", read["kinds"]},
-                        {"garbledShare", read.value("garbledShare", 1.0)},
-                        {"drawingsLeftOut", read.value("drawingsLeftOut", 0)}};
+            json out{{"pages", pages},
+                     {"kinds", read["kinds"]},
+                     {"garbledShare", read.value("garbledShare", 1.0)},
+                     {"drawingsLeftOut", read.value("drawingsLeftOut", 0)}};
+            if (read.contains("ocr")) {
+                out["ocr"] = read["ocr"];
+            }
+            return out;
         });
         return json{{"jobId", job_id}};
     });

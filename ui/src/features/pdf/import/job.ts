@@ -10,6 +10,7 @@ import type { FileFeature } from '@/features/file/fileCommands';
 import type { ReadDescriptionResult } from '@/features/transfer/importEntries';
 import type { BinaryMeta } from '@/model/document';
 import { actions } from '@/model/store';
+import type { PdfImportOcrSummary } from '@/rpc/types';
 
 import { pdfImportReason, type PdfImportRun } from '../importCommand';
 import { FB2_NS, XLINK_NS } from './fb2';
@@ -18,7 +19,7 @@ import { convertOurs, type PictureWanted } from './ours';
 import { loadDocument, loadPages } from './pages';
 import { flatten } from './parts';
 import { askFbd, fbdUnreadable } from './questions';
-import { guessLanguage, metadataDescription } from './describe';
+import { guessLanguage, metadataDescription, resolveImportLanguage } from './describe';
 import { applyFbd, closeRead, readDescriptionFile } from '@/features/importShared/fbdApply';
 import { furnitureOf, layoutParts, linesOf } from './layout';
 import { fromLatin1, looksLatin1Cyrillic } from './mend';
@@ -56,8 +57,18 @@ export async function importPdf(
     await rpc.call('pdfImport.end', { token }).catch(() => undefined);
   };
   let docId: string | null = null;
-  const pages = Math.max(1, run.pages);
-  const total = pages * 4;
+  // Use a 10,000-unit progress bar matching ModalJobOverlay's tenth-of-a-permille precision so
+  // OCR (3,000 units) and inline crop/fallback (1,000 units) each advance visibly on every page
+  // even on 800+ page scans.
+  const total = 10_000;
+  const READ_END = 2_000;
+  const DETECT_END = 2_200;
+  const OCR_END = 5_200;
+  const CROP_END = 6_200;
+  const LOAD_END = 7_500;
+  const KNOWN_END = 8_350;
+  const XML_START = 8_750;
+  const XML_END = 9_375;
   const check = (): void => {
     if (run.cancelled()) throw new Cancelled();
   };
@@ -121,8 +132,18 @@ export async function importPdf(
     }, 200);
     let kinds: Record<string, number> = {};
     let drawingsLeftOut = 0;
+    let ocrSummary: PdfImportOcrSummary | undefined;
+    let maxReadProgress = 0;
+    const advanceRead = (value: number, title?: string): void => {
+      maxReadProgress = Math.max(maxReadProgress, Math.min(CROP_END, value));
+      modal.progress(maxReadProgress, total, title);
+    };
     try {
-      ({ kinds, drawingsLeftOut = 0 } = await rpc.runJob(
+      ({
+        kinds,
+        drawingsLeftOut = 0,
+        ocr: ocrSummary,
+      } = await rpc.runJob(
         'pdfImport.read',
         { token },
         {
@@ -130,8 +151,25 @@ export async function importPdf(
             jobId = id;
           },
           onProgress: (progress) => {
-            if (progress.total > 0)
-              modal.progress(Math.round((progress.done / progress.total) * pages * 2), total);
+            const frac = progress.total > 0 ? Math.min(1, progress.done / progress.total) : 0;
+            if (progress.phase === 'ocrDetect') {
+              advanceRead(
+                READ_END + Math.round(frac * (DETECT_END - READ_END)),
+                ctx.t('pdfImport.progress.ocrDetect'),
+              );
+            } else if (progress.phase === 'ocr') {
+              advanceRead(
+                DETECT_END + Math.round(frac * (OCR_END - DETECT_END)),
+                ctx.t('pdfImport.progress.ocr'),
+              );
+            } else if (progress.phase === 'ocrCrop') {
+              advanceRead(
+                OCR_END + Math.round(frac * (CROP_END - OCR_END)),
+                ctx.t('pdfImport.progress.ocr'),
+              );
+            } else if (progress.total > 0) {
+              advanceRead(Math.round(frac * READ_END));
+            }
           },
         },
       ));
@@ -146,10 +184,11 @@ export async function importPdf(
     let garbledPages = 0;
     check();
     const document = await loadDocument(token);
-    const models = await loadPages(
+    let models: Awaited<ReturnType<typeof loadPages>> | null = await loadPages(
       token,
       document.pages,
-      (done, count) => modal.progress(pages * 2 + Math.round((done / count) * pages), total),
+      (done, count) =>
+        modal.progress(CROP_END + Math.round((done / count) * (LOAD_END - CROP_END)), total),
       run.cancelled,
     );
     check();
@@ -224,7 +263,7 @@ export async function importPdf(
         candidates,
         misspelled,
         (asked, batches) =>
-          modal.progress(pages * 3 + Math.round((asked / batches) * (pages / 2)), total),
+          modal.progress(LOAD_END + Math.round((asked / batches) * (KNOWN_END - LOAD_END)), total),
         check,
       );
       // ... and in the tags' text as in the layout's: joined where known, else the hyphen stays (D12).
@@ -234,65 +273,77 @@ export async function importPdf(
             knownWordSet.has(`${head}${tail}`) ? `${head}${tail}` : `${head}-${tail}`,
           )
           .replace(/\u2063/g, '');
-      const wordsOf = (texts: string[]): number =>
-        texts.join(' ').split(/\s+/).filter(Boolean).length;
-      const lettersOf = (text: string): number => (text.match(/[\p{L}\p{N}]/gu) ?? []).length;
-      const sum = (values: Iterable<number>): number => [...values].reduce((a, b) => a + b, 0);
-      // The tags' letters and words, page by page (cells and captions too).
+      const hasOcrPages = models.some(
+        (model) => model.ocrUsed || (model.ocrImages?.length ?? 0) > 0,
+      );
+      let useTags = false;
       const taggedLetters = new Map<number, number>();
       const taggedTokens = new Map<number, number>();
-      for (const run of taggedRuns) {
-        if (!run.text.trim()) continue;
-        taggedLetters.set(run.page, (taggedLetters.get(run.page) ?? 0) + lettersOf(run.text));
-        taggedTokens.set(run.page, (taggedTokens.get(run.page) ?? 0) + wordsOf([run.text]));
-      }
-      // The pages' words as the book's text: without the running heads and page numbers, which tags leave out.
-      const pageLines = models.map(linesOf);
-      const furniture = furnitureOf(pageLines);
-      const pageText = pageLines.map((lines) =>
-        lines.filter((line) => !furniture.has(line)).flatMap((line) => line.words),
-      );
-      const pageLetters = pageText.map((words) => sum(words.map((word) => lettersOf(word.t))));
-      // Tags are the book's structure only when they hold nearly all its text: text outside them (an OCR layer
-      // tagged in part - D32's library run) would be lost, and the layout reads every word. Counted by letters:
-      // tags may set a word's letters apart.
-      // ... and when they read in the pages' order: of the tags' words side by side on a page, nearly all stand
-      // side by side in the order the page draws its words (D32's library run: tables read far from their place).
-      const token = (word: string): string => word.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
-      const drawn = new Set<string>();
-      for (const model of models) {
-        let previous = '';
-        for (const word of model.words) {
-          const t = token(word.t);
-          if (!t) continue;
-          if (previous) drawn.add(`${model.n} ${previous} ${t}`);
-          previous = t;
+      let pageText: (typeof models)[number]['words'][] = [];
+      let pageLetters: number[] = [];
+      if (!hasOcrPages && tagged) {
+        const wordsOf = (texts: string[]): number =>
+          texts.join(' ').split(/\s+/).filter(Boolean).length;
+        const lettersOf = (text: string): number => (text.match(/[\p{L}\p{N}]/gu) ?? []).length;
+        const sum = (values: Iterable<number>): number => [...values].reduce((a, b) => a + b, 0);
+        // The tags' letters and words, page by page (cells and captions too).
+        for (const run of taggedRuns) {
+          if (!run.text.trim()) continue;
+          taggedLetters.set(run.page, (taggedLetters.get(run.page) ?? 0) + lettersOf(run.text));
+          taggedTokens.set(run.page, (taggedTokens.get(run.page) ?? 0) + wordsOf([run.text]));
         }
-      }
-      let pairs = 0;
-      let inOrder = 0;
-      for (const part of tagged ?? []) {
-        let previous = '';
-        let page = -1;
-        for (const run of part.runs)
-          for (const word of run.text.split(/\s+/)) {
-            const t = token(word);
+        // The pages' words as the book's text: without the running heads and page numbers, which tags leave out.
+        const pageLines = models.map(linesOf);
+        const furniture = furnitureOf(pageLines);
+        pageText = pageLines.map((lines) =>
+          lines.filter((line) => !furniture.has(line)).flatMap((line) => line.words),
+        );
+        pageLetters = pageText.map((words) => sum(words.map((word) => lettersOf(word.t))));
+        // Tags are the book's structure only when they hold nearly all its text: text outside them (an OCR layer
+        // tagged in part - D32's library run) would be lost, and the layout reads every word. Counted by letters:
+        // tags may set a word's letters apart.
+        // ... and when they read in the pages' order: of the tags' words side by side on a page, nearly all stand
+        // side by side in the order the page draws its words (D32's library run: tables read far from their place).
+        const token = (word: string): string => word.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+        const drawn = new Set<string>();
+        for (const model of models) {
+          let previous = '';
+          for (const word of model.words) {
+            const t = token(word.t);
             if (!t) continue;
-            if (previous && page === run.page) {
-              pairs++;
-              if (drawn.has(`${run.page} ${previous} ${t}`)) inOrder++;
-            }
+            if (previous) drawn.add(`${model.n} ${previous} ${t}`);
             previous = t;
-            page = run.page;
           }
+        }
+        let pairs = 0;
+        let inOrder = 0;
+        for (const part of tagged) {
+          let previous = '';
+          let page = -1;
+          for (const run of part.runs)
+            for (const word of run.text.split(/\s+/)) {
+              const t = token(word);
+              if (!t) continue;
+              if (previous && page === run.page) {
+                pairs++;
+                if (drawn.has(`${run.page} ${previous} ${t}`)) inOrder++;
+              }
+              previous = t;
+              page = run.page;
+            }
+        }
+        useTags = sum(taggedLetters.values()) >= sum(pageLetters) * 0.97 && inOrder >= pairs * 0.97;
       }
-      const layout =
-        tagged && sum(taggedLetters.values()) >= sum(pageLetters) * 0.97 && inOrder >= pairs * 0.97
-          ? null
-          : layoutParts(models, {
-              outline: document.outline,
-              known: (word) => knownWordSet.has(word),
-            });
+      modal.progress(8_450, total);
+      await nextTask();
+      const layout = useTags
+        ? null
+        : layoutParts(models, {
+            outline: document.outline,
+            known: (word) => knownWordSet.has(word),
+          });
+      modal.progress(8_550, total);
+      await nextTask();
       // Pages the tags leave out, wholly or in part (a back cover's text layer, a contents page), or whose words
       // their tags set apart letter by letter (D32's library run): read by the layout and set among the tags'
       // parts by their page.
@@ -368,9 +419,26 @@ export async function importPdf(
       };
       const link = (run: { uri?: string }): { href: string; note: boolean } | null =>
         run.uri ? { href: run.uri, note: false } : null;
-      const body = textBody(parts, link, picture);
-      const words = parts.flatMap((part) => part.runs.flatMap((run) => run.text.split(/\s+/)));
-      const language = await guessLanguage(words, misspelled);
+      const presetLanguage = resolveImportLanguage({
+        pdfLang: document.metadata.lang,
+        ocrSummary,
+        totalPages: document.pages,
+        guessedLang: null,
+      });
+      const language =
+        presetLanguage ??
+        resolveImportLanguage({
+          pdfLang: document.metadata.lang,
+          ocrSummary,
+          totalPages: document.pages,
+          guessedLang: await guessLanguage(
+            parts.flatMap((part) => part.runs.flatMap((run) => run.text.split(/\s+/))),
+            misspelled,
+          ),
+        });
+      const body = textBody(parts, link, picture, { bookLang: language });
+      modal.progress(8_650, total);
+      await nextTask();
       const stem = baseName(originPath).replace(/\.pdf$/i, '');
       xml =
         `<?xml version="1.0" encoding="UTF-8"?>\n<FictionBook xmlns="${FB2_NS}" xmlns:l="${XLINK_NS}">` +
@@ -387,10 +455,15 @@ export async function importPdf(
         '</FictionBook>';
       counts = body.counts;
     }
+    // Release raw per-page word models before DOMParser (mendFb2) and ProseMirror load so Chromium
+    // peak renderer memory stays well below the 1.5 GB multi-process budget on 800+ page books.
+    models = null;
     check();
     // SC-002 (requester, 2026-11-17): the book comes in as valid FB2 - what the schema does not allow, mended.
     const valid = mendFb2(xml);
     xml = valid.xml;
+    modal.progress(8_725, total);
+    await nextTask();
     const opened = await rpc.runJob(
       'doc.newFromXml',
       { xml, origin: { kind: 'pdf', path: originPath }, keepDetails: !!document.record },
@@ -398,12 +471,13 @@ export async function importPdf(
         onProgress: (progress) => {
           if (progress.total > 0)
             modal.progress(
-              Math.round(pages * 3.5 + (progress.done / progress.total) * (pages / 4)),
+              Math.round(XML_START + (progress.done / progress.total) * (XML_END - XML_START)),
               total,
             );
         },
       },
     );
+    xml = '';
     docId = opened.document.docId;
     // The pictures go into the new book before the window shows it (as the EPUB import does).
     const added: BinaryMeta[] = [];
@@ -426,7 +500,7 @@ export async function importPdf(
           onProgress: (progress) => {
             if (progress.total > 0)
               modal.progress(
-                Math.round(pages * 3.75 + (progress.done / progress.total) * (pages / 4)),
+                Math.round(XML_END + (progress.done / progress.total) * (total - XML_END)),
                 total,
               );
           },
@@ -492,6 +566,26 @@ export async function importPdf(
       lines.push(ctx.t('pdfImport.summary.platesImported', { count: platesImported }));
     if (garbledPages > 0)
       lines.push(ctx.t('pdfImport.summary.garbledPages', { count: garbledPages }));
+    if (ocrSummary?.used) {
+      if (ocrSummary.pagesRecognized > 0)
+        lines.push(ctx.t('pdfImport.summary.ocrPages', { count: ocrSummary.pagesRecognized }));
+      if (ocrSummary.imageBlocksRecognized > 0)
+        lines.push(
+          ctx.t('pdfImport.summary.ocrImageBlocks', { count: ocrSummary.imageBlocksRecognized }),
+        );
+      if (ocrSummary.languages.length > 0)
+        lines.push(
+          ctx.t('pdfImport.summary.ocrLanguages', { languages: ocrSummary.languages.join(', ') }),
+        );
+      if (ocrSummary.fallbackPages > 0)
+        lines.push(
+          ctx.t('pdfImport.summary.ocrFallbackPages', { count: ocrSummary.fallbackPages }),
+        );
+      if (ocrSummary.lowConfidencePages > 0)
+        lines.push(
+          ctx.t('pdfImport.summary.ocrLowConfidence', { count: ocrSummary.lowConfidencePages }),
+        );
+    }
     if (valid.mended > 0) lines.push(ctx.t('pdfImport.summary.mended', { count: valid.mended }));
     // D16, FR-029: what FB2 has no place for is left out and counted.
     const dropped = document.dropped ?? {};

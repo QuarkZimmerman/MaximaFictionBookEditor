@@ -23,7 +23,12 @@ import { useTranslation } from 'react-i18next';
 import type { CommandContext } from '@/app/commands';
 import { tip } from '@/app/tooltips';
 import { Dialog, type DialogButton } from '@/dialogs/Dialog';
-import type { BatchPersistedExportSettings, BatchPersistedSettings, Settings } from '@/rpc/types';
+import type {
+  BatchPersistedExportSettings,
+  BatchPersistedSettings,
+  OcrCatalogReport,
+  Settings,
+} from '@/rpc/types';
 
 import { BatchExportSettingsDialog } from './BatchExportSettingsDialog';
 import {
@@ -34,6 +39,8 @@ import {
   createInitialBatchConfig,
   effectiveWorkerCount,
   extractExportSettingsFromGlobal,
+  isBatchPdfOcrControlsEnabled,
+  isBatchPdfOcrLanguagesEnabled,
   isZipOutputSupported,
   mergeBatchExportSettings,
   reduceBatchConfig,
@@ -76,6 +83,9 @@ const KNOWN_PERSISTED_KEYS = new Set([
   'overwrite',
   'parallel',
   'workerCount',
+  'pdfUseOcr',
+  'ocrAutoDetect',
+  'ocrLanguages',
   'zipOverrides',
   'exportSettings',
 ]);
@@ -85,11 +95,12 @@ export interface BatchConverterDialogProps {
   cpuCores: number;
   initialSettings: Settings | null;
   initialPersisted?: BatchPersistedSettings | null;
+  initialOcrReport?: OcrCatalogReport | null;
   canCloseRef: MutableRefObject<boolean>;
   onClose: () => void;
 }
 
-type IssueFilter = 'all' | 'failed' | 'skipped' | 'fixed';
+type IssueFilter = 'all' | 'failed' | 'skipped' | 'fixed' | 'ocr';
 
 const INITIAL_PROGRESS: BatchProgressSnapshot = {
   phase: 'idle',
@@ -119,6 +130,9 @@ function memoryFromPersisted(persisted: BatchPersistedSettings): BatchSessionMem
     overwrite: persisted.overwrite,
     ...(persisted.parallel !== undefined ? { parallel: persisted.parallel } : {}),
     ...(persisted.workerCount !== undefined ? { workerCount: persisted.workerCount } : {}),
+    ...(persisted.pdfUseOcr !== undefined ? { pdfUseOcr: persisted.pdfUseOcr } : {}),
+    ...(persisted.ocrAutoDetect !== undefined ? { ocrAutoDetect: persisted.ocrAutoDetect } : {}),
+    ...(persisted.ocrLanguages !== undefined ? { ocrLanguages: [...persisted.ocrLanguages] } : {}),
     zipOverrides: { ...persisted.zipOverrides },
   };
 }
@@ -128,11 +142,27 @@ export function BatchConverterDialog({
   cpuCores,
   initialSettings,
   initialPersisted = null,
+  initialOcrReport,
   canCloseRef,
   onClose,
 }: BatchConverterDialogProps) {
   const { t } = useTranslation();
   const baseSettings = initialSettings;
+  const [ocrReport, setOcrReport] = useState<OcrCatalogReport | null>(initialOcrReport ?? null);
+
+  useEffect(() => {
+    if (initialOcrReport !== undefined || !ctx.rpc) return;
+    let cancelled = false;
+    ctx.rpc
+      .call('ocr.report')
+      .then((res) => {
+        if (!cancelled) setOcrReport(res);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [ctx.rpc, initialOcrReport]);
 
   const storedExtraRef = useRef<Record<string, unknown>>(
     (() => {
@@ -242,6 +272,9 @@ export function BatchConverterDialog({
         inPlace: nextConfig.inPlace,
         fixBroken: nextConfig.fixBroken,
         overwrite: nextConfig.overwrite,
+        pdfUseOcr: nextConfig.pdfUseOcr,
+        ocrAutoDetect: nextConfig.ocrAutoDetect,
+        ocrLanguages: [...nextConfig.ocrLanguages],
         zipOverrides,
         exportSettings: cloneExportSettingsOverrides(
           nextExportSettings,
@@ -376,9 +409,28 @@ export function BatchConverterDialog({
     );
   };
 
+  const ocrPacks = useMemo(() => ocrReport?.packs ?? [], [ocrReport]);
+  const installedOcrCodes = useMemo(
+    () => (ocrReport ? ocrReport.packs.map((pack) => pack.code) : null),
+    [ocrReport],
+  );
+
+  const handleToggleOcrLanguage = (code: string, checked: boolean) => {
+    // Prune any uninstalled pack codes only when the user actively edits batch selections.
+    const base = installedOcrCodes
+      ? config.ocrLanguages.filter((c) => installedOcrCodes.includes(c))
+      : [...config.ocrLanguages];
+    const next = checked
+      ? base.includes(code)
+        ? base
+        : [...base, code]
+      : base.filter((c) => c !== code);
+    dispatch({ type: 'setOcrLanguages', languages: next });
+  };
+
   const handleStart = async () => {
     if (running || !ctx.rpc) return;
-    const errorKey = validateBatchConfig(config);
+    const errorKey = validateBatchConfig(config, installedOcrCodes);
     if (errorKey) {
       setValidationError(t(errorKey));
       return;
@@ -484,6 +536,13 @@ export function BatchConverterDialog({
   const keepTreeEnabled = !running && config.includeSubfolders && !config.inPlace;
   const noImportFormatSelected =
     config.direction === 'importToFb2' && selectedImportFormats(config).length === 0;
+  const pdfOcrControlsEnabled = !running && isBatchPdfOcrControlsEnabled(config);
+  const pdfOcrLanguagesEnabled = !running && isBatchPdfOcrLanguagesEnabled(config);
+  const noOcrLanguageSelected =
+    isBatchPdfOcrLanguagesEnabled(config) &&
+    (installedOcrCodes
+      ? config.ocrLanguages.filter((code) => installedOcrCodes.includes(code)).length === 0
+      : config.ocrLanguages.length === 0);
 
   const activeExportSummary = useMemo(
     () =>
@@ -539,7 +598,7 @@ export function BatchConverterDialog({
       {
         id: 'start',
         label: t('batch.actions.start'),
-        disabled: noImportFormatSelected,
+        disabled: noImportFormatSelected || noOcrLanguageSelected,
         title: t('batch.tips.start'),
         onClick: () => void handleStart(),
       },
@@ -558,6 +617,7 @@ export function BatchConverterDialog({
     config,
     effectiveSettings,
     noImportFormatSelected,
+    noOcrLanguageSelected,
     handleClose,
     t,
   ]);
@@ -572,14 +632,19 @@ export function BatchConverterDialog({
     const failedItems = report.failed.map((entry) => ({ kind: 'failed' as const, entry }));
     const skippedItems = report.skipped.map((entry) => ({ kind: 'skipped' as const, entry }));
     const fixedItems = report.fixed.map((entry) => ({ kind: 'fixed' as const, entry }));
+    const ocrItems = (report.ocr ?? []).map((entry) => ({ kind: 'ocr' as const, entry }));
     if (reportFilter === 'failed') return failedItems;
     if (reportFilter === 'skipped') return skippedItems;
     if (reportFilter === 'fixed') return fixedItems;
-    return [...failedItems, ...skippedItems, ...fixedItems];
+    if (reportFilter === 'ocr') return ocrItems;
+    return [...failedItems, ...skippedItems, ...fixedItems, ...ocrItems];
   }, [report, reportFilter]);
 
   const totalIssueCount =
-    (report?.failed.length ?? 0) + (report?.skipped.length ?? 0) + (report?.fixed.length ?? 0);
+    (report?.failed.length ?? 0) +
+    (report?.skipped.length ?? 0) +
+    (report?.fixed.length ?? 0) +
+    (report?.ocr?.length ?? 0);
 
   return (
     <Dialog
@@ -790,6 +855,91 @@ export function BatchConverterDialog({
                       {t('batch.validation.noImportFormat')}
                     </div>
                   ) : null}
+                  <div
+                    className={`mfbe-batch-ocr-panel${!pdfOcrControlsEnabled ? ' disabled' : ''}`}
+                    data-testid="batch-ocr-panel"
+                  >
+                    <div className="mfbe-batch-ocr-header">{t('batch.ocr.group')}</div>
+                    <label
+                      className={`mfbe-batch-check${!pdfOcrControlsEnabled ? ' disabled' : ''}`}
+                      {...tip(t('batch.tips.pdfUseOcr'))}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={config.pdfUseOcr}
+                        disabled={!pdfOcrControlsEnabled}
+                        data-testid="batch-pdf-use-ocr"
+                        onChange={(event) =>
+                          dispatch({ type: 'setPdfUseOcr', checked: event.target.checked })
+                        }
+                        {...tip(t('batch.tips.pdfUseOcr'))}
+                      />
+                      <span>{t('batch.ocr.useOcr')}</span>
+                    </label>
+                    {!config.importFormats.pdf ? (
+                      <span className="mfbe-batch-note" data-testid="batch-ocr-disabled-note">
+                        {t('batch.ocr.disabledNote')}
+                      </span>
+                    ) : null}
+                    <label
+                      className={`mfbe-batch-check mfbe-batch-ocr-indent${!pdfOcrLanguagesEnabled ? ' disabled' : ''}`}
+                      {...tip(t('batch.tips.ocrAutoDetect'))}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={config.ocrAutoDetect}
+                        disabled={!pdfOcrLanguagesEnabled}
+                        data-testid="batch-ocr-auto-detect"
+                        onChange={(event) =>
+                          dispatch({ type: 'setOcrAutoDetect', checked: event.target.checked })
+                        }
+                        {...tip(t('batch.tips.ocrAutoDetect'))}
+                      />
+                      <span>{t('batch.ocr.autoDetect')}</span>
+                    </label>
+                    <div
+                      className="mfbe-batch-ocr-langs-block mfbe-batch-ocr-indent"
+                      {...tip(t('batch.tips.ocrLanguages'))}
+                    >
+                      <span className="mfbe-batch-ocr-langs-label">
+                        {t('batch.ocr.languagesLabel')}
+                      </span>
+                      <div className="mfbe-batch-ocr-langs-grid" data-testid="batch-ocr-languages">
+                        {ocrPacks.map((pack) => {
+                          const label = t(`ocr.languages.${pack.code}`, {
+                            defaultValue: pack.code.toUpperCase(),
+                          });
+                          return (
+                            <label
+                              key={pack.code}
+                              className={`mfbe-batch-check${!pdfOcrLanguagesEnabled ? ' disabled' : ''}`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={config.ocrLanguages.includes(pack.code)}
+                                disabled={!pdfOcrLanguagesEnabled}
+                                data-testid={`batch-ocr-lang-${pack.code}`}
+                                onChange={(event) =>
+                                  handleToggleOcrLanguage(pack.code, event.target.checked)
+                                }
+                                {...tip(t('batch.tips.ocrLanguages'))}
+                              />
+                              <span>{label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    {noOcrLanguageSelected ? (
+                      <div
+                        className="mfbe-batch-error"
+                        role="alert"
+                        data-testid="batch-ocr-no-languages-hint"
+                      >
+                        {t('batch.validation.noOcrLanguage')}
+                      </div>
+                    ) : null}
+                  </div>
                   <div className="mfbe-batch-import-zip-row">
                     <label className="mfbe-batch-check" {...tip(t('batch.tips.zipOutput'))}>
                       <input
@@ -1084,6 +1234,11 @@ export function BatchConverterDialog({
                 <span className="mfbe-batch-pill" data-testid="batch-count-fixed">
                   {t('batch.report.summaryFixed', { count: report.counts.fixed })}
                 </span>
+                {report.config.direction === 'importToFb2' || (report.counts.ocr ?? 0) > 0 ? (
+                  <span className="mfbe-batch-pill" data-testid="batch-count-ocr">
+                    {t('batch.report.summaryOcr', { count: report.counts.ocr ?? 0 })}
+                  </span>
+                ) : null}
                 <span className="mfbe-batch-pill" data-testid="batch-count-skipped">
                   {t('batch.report.summarySkipped', { count: report.counts.skipped })}
                 </span>
@@ -1144,6 +1299,18 @@ export function BatchConverterDialog({
                     >
                       {t('batch.report.filterFixed', { count: report.fixed.length })}
                     </button>
+                    {report.config.direction === 'importToFb2' || (report.ocr?.length ?? 0) > 0 ? (
+                      <button
+                        type="button"
+                        className="mfbe-batch-filter-btn"
+                        aria-pressed={reportFilter === 'ocr'}
+                        data-testid="batch-filter-ocr"
+                        onClick={() => setReportFilter('ocr')}
+                        {...tip(t('batch.tips.filterOcr'))}
+                      >
+                        {t('batch.report.filterOcr', { count: report.ocr?.length ?? 0 })}
+                      </button>
+                    ) : null}
                   </div>
 
                   {visibleIssues.length === 0 ? (
@@ -1163,7 +1330,9 @@ export function BatchConverterDialog({
                                   ? 'mfbe-batch-badge-failed'
                                   : item.kind === 'skipped'
                                     ? 'mfbe-batch-badge-skipped'
-                                    : 'mfbe-batch-badge-fixed'
+                                    : item.kind === 'ocr'
+                                      ? 'mfbe-batch-badge-ocr'
+                                      : 'mfbe-batch-badge-fixed'
                               }`}
                             >
                               {t(
@@ -1171,7 +1340,9 @@ export function BatchConverterDialog({
                                   ? 'batch.report.badgeFailed'
                                   : item.kind === 'skipped'
                                     ? 'batch.report.badgeSkipped'
-                                    : 'batch.report.badgeFixed',
+                                    : item.kind === 'ocr'
+                                      ? 'batch.report.badgeOcr'
+                                      : 'batch.report.badgeFixed',
                               )}
                             </span>
                             <span className="mfbe-batch-issue-path">{item.entry.displayPath}</span>

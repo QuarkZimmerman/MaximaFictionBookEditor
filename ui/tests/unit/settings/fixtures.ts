@@ -56,6 +56,8 @@ export function defaultSettings(overrides: Partial<Settings> = {}): Settings {
       openFromOutside: 'ask',
     },
     words: { showExclusionsInWordsDialog: false },
+    imports: { pdf: { useOcr: true } },
+    ocr: { folder: '', autoDetect: true, enabledLanguages: ['eng', 'rus'] },
     session: {
       windowGeometry: null,
       toolbars: { commands: true, scripts: true, links: true, table: true, status: true },

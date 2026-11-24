@@ -186,6 +186,7 @@ void Services::refresh_layers() {
     roots.settings_scripts = platform::path_from_utf8(settings.get_string("other.scriptsFolder"));
     roots.settings_dictionaries =
         platform::path_from_utf8(settings.get_string("other.dictionariesFolder"));
+    roots.settings_ocr = platform::path_from_utf8(settings.get_string("ocr.folder"));
     layers.set_roots(std::move(roots));
     // Feature 015 (review of rc.7, R1): the shipped readme in each default user folder.
     layers.place_readmes();
@@ -405,6 +406,7 @@ struct CoreServer::Impl : rpc::Notifier {
         server::register_mobi_handlers(router, *services);
         server::register_batch_handlers(router, *services);
         server::register_resources_handlers(router, *services);
+        server::register_ocr_handlers(router, *services);
         server::register_spell_handlers(router, *services);
         server::register_words_handlers(router, *services);
         server::register_scripts_handlers(router, *services);

@@ -824,7 +824,21 @@ def collect_data(problems: list[str]) -> list[Component]:
         "compiled into mfbe-core as core/src/text/single_byte_tables.inc (generated from "
         "third_party/whatwg-encoding/ by tools/encodings/make-tables.py)",
     )
-    components = [schema, en_us, ru_ru, uk_ua, fbe, ca_bundle, noto, dejavu, whatwg]
+    # Feature 020 (PD1): bundled Tesseract OCR language packs (10 European/Slavic starter packs +
+    # osd.traineddata), read at run time by mfbe-pdf-reader and not combined into the program.
+    ocr_dir = REPO / "resources" / "ocr"
+    ocr_fast_commit = read_commit(ocr_dir / "SOURCES.txt", r"tessdata_fast commit:\s*([0-9a-f]{7,40})")
+    ocr_osd_commit = read_commit(ocr_dir / "SOURCES.txt", r"tessdata commit:\s*([0-9a-f]{7,40})")
+    ocr_packs = component(
+        "Tesseract OCR language packs (tessdata_fast: eng, rus, ukr, deu, fra, spa, ita, por, pol, bel; tessdata: osd)",
+        f"tessdata_fast {ocr_fast_commit}, tessdata {ocr_osd_commit}",
+        "Apache-2.0",
+        ocr_dir / "LICENSE.txt",
+        "read at run time by mfbe-pdf-reader for offline PDF OCR (aggregate, GPLv3 section 5); "
+        "installed as share/mfbe/resources/ocr/ with LICENSE.txt",
+        group="aggregate",
+    )
+    components = [schema, en_us, ru_ru, uk_ua, fbe, ca_bundle, noto, dejavu, whatwg, ocr_packs]
 
     # Every README row with a licence must be covered by one of the components above (substring
     # match on the licence cell - keep the keys distinct: "MPL-2.0" is the CA bundle, "MPL-1.1"
@@ -832,7 +846,7 @@ def collect_data(problems: list[str]) -> list[Component]:
     covered = {
         "BSD 2-clause": schema, "SCOWL": en_us, "BSD-style": ru_ru, "MPL-1.1": uk_ua,
         "MPL-2.0": ca_bundle, "GPL-3.0-only (original editor)": fbe, "project licence": fbe,
-        "OFL-1.1": noto, "Bitstream-Vera": dejavu,
+        "OFL-1.1": noto, "Bitstream-Vera": dejavu, "Apache-2.0": ocr_packs,
     }
     for path_cell, licence_cell in rows:
         if licence_cell in ("-", ""):

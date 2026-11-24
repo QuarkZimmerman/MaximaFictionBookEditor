@@ -490,3 +490,44 @@
   flex: none;
   min-width: 26px;
 }
+
+/* OCR page (feature 020) */
+
+.mfbe-settings-ocr-list {
+  box-sizing: border-box;
+  max-height: 170px;
+  margin: 0;
+  padding: 2px 6px;
+  overflow: auto;
+  border: 1px solid var(--mfbe-color-border-strong, #707070);
+  background: var(--mfbe-color-input-bg, #fff);
+  list-style: none;
+}
+
+.mfbe-settings-ocr-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 2px;
+  border-bottom: 1px solid var(--mfbe-color-border, #e0e0e0);
+}
+
+.mfbe-settings-ocr-item:last-child {
+  border-bottom: none;
+}
+
+.mfbe-settings-ocr-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.mfbe-settings-ocr-override {
+  padding: 0 5px;
+  border: 1px solid var(--mfbe-color-accent, #0078d4);
+  border-radius: 3px;
+  color: var(--mfbe-color-accent, #0078d4);
+  font-size: 90%;
+}

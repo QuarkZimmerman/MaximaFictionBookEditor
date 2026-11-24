@@ -118,7 +118,13 @@ TEST_CASE("settings: defaults are exactly resource-formats.md section 6", "[sett
                             {"openAt", "titlePage"},
                             {"kf8PopupFootnotes", true},
                             {"zip", false}});
-    CHECK(d.size() == 10);
+    // Feature 020 (data-model.md §1): PDF import defaults and global OCR settings.
+    CHECK(d["imports"] == json{{"pdf", {{"useOcr", true}}}});
+    CHECK(d["ocr"] ==
+          json{{"folder", ""},
+               {"autoDetect", true},
+               {"enabledLanguages", json::array({"eng", "rus"})}});
+    CHECK(d.size() == 12);
 }
 
 TEST_CASE(

@@ -15,7 +15,7 @@ export async function openBatchConverterDialog(ctx: CommandContext): Promise<voi
   const { rpc, store } = ctx;
   if (!rpc) return;
 
-  const [info, loadedSettings, batchPersisted] = await Promise.all([
+  const [info, loadedSettings, batchPersisted, ocrReport] = await Promise.all([
     rpc.call('app.info').catch(() => null),
     store.getState().settings
       ? Promise.resolve(store.getState().settings)
@@ -27,6 +27,7 @@ export async function openBatchConverterDialog(ctx: CommandContext): Promise<voi
           })
           .catch(() => null),
     rpc.call('batch.settings.get', {}).catch(() => null),
+    rpc.call('ocr.report').catch(() => null),
   ]);
 
   const cpuCores = info?.cpuCores ?? 1;
@@ -39,6 +40,7 @@ export async function openBatchConverterDialog(ctx: CommandContext): Promise<voi
         cpuCores,
         initialSettings: loadedSettings,
         initialPersisted: batchPersisted?.settings ?? null,
+        initialOcrReport: ocrReport,
         canCloseRef,
         onClose: () => close(),
       }),

@@ -13,6 +13,14 @@
 
 namespace mfbe::pdf_import {
 
+struct ReaderOcrOptions {
+    bool enabled = false;
+    bool auto_detect = true;
+    std::vector<std::string> languages;
+    std::vector<std::filesystem::path> dirs;
+    int threads = 1;
+};
+
 struct ReaderOptions {
     std::filesystem::path reader;
     std::filesystem::path pdf;
@@ -21,6 +29,7 @@ struct ReaderOptions {
     int quality = 85;
     std::filesystem::path fonts;
     std::chrono::milliseconds silence_timeout{30000};
+    ReaderOcrOptions ocr;
     std::vector<std::string> extra_args;
 };
 

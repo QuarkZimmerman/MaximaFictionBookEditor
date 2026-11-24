@@ -7,6 +7,8 @@
  * is a one-time operation (011 D32): nothing of it is kept once it ends (D3).
  */
 
+import { createElement } from 'react';
+
 import type { CommandContext, CommandRegistry } from '@/app/commands';
 import { startModalJob, type ModalJobHandle } from '@/app/modalJob';
 import { showArchiveBookChooser } from '@/dialogs/show';
@@ -15,7 +17,28 @@ import type { FileFeature } from '@/features/file/fileCommands';
 import { isRpcError } from '@/rpc/client';
 import { RpcErrorCode, type ArchiveChoice, type PdfImportEntry } from '@/rpc/types';
 
+import { PdfImportOptionsDialog, type PdfImportOptionsAnswer } from './PdfImportOptionsDialog';
+
 export const IMPORT_PDF_COMMAND = 'file.importPdf';
+
+/**
+ * Feature 020 (data-model.md §4): module-scoped session memory for interactive PDF import's
+ * "Use OCR" checkbox. Null before the first user confirmation in this process (so it tracks
+ * Settings.imports.pdf.useOcr); once confirmed, stays sticky until exit without mutating Settings.
+ */
+let sessionUseOcr: boolean | null = null;
+
+export function getSessionUseOcr(savedDefault?: boolean): boolean {
+  return sessionUseOcr ?? savedDefault ?? true;
+}
+
+export function setSessionUseOcr(value: boolean): void {
+  sessionUseOcr = value;
+}
+
+export function resetSessionUseOcrForTests(): void {
+  sessionUseOcr = null;
+}
 
 /** What the command hands its part once the PDF is open (D2: every question asked before the read). */
 export interface PdfImportRun {
@@ -44,9 +67,18 @@ const baseName = (path: string): string =>
 /** The message of a refused or failed import, in the interface's languages (FR-053). */
 export function pdfImportReason(ctx: CommandContext, error: unknown): string {
   if (isRpcError(error) && error.code === RpcErrorCode.pdfImportFailed) {
-    const data = (error.data ?? {}) as { reason?: string; pages?: number };
+    const data = (error.data ?? {}) as {
+      reason?: string;
+      pages?: number;
+      script?: string;
+      suggestedLanguages?: string[];
+    };
     const key = `pdfImport.refused.${data.reason ?? 'damaged'}`;
-    const text = ctx.t(key, { pages: data.pages ?? 0 });
+    const text = ctx.t(key, {
+      pages: data.pages ?? 0,
+      script: data.script ?? '',
+      languages: (data.suggestedLanguages ?? []).join(', '),
+    });
     return text === key ? ctx.t('pdfImport.refused.damaged') : text;
   }
   return error instanceof Error ? error.message : String(error);
@@ -95,7 +127,9 @@ export function registerPdfImportFeature(commands: CommandRegistry, files: FileF
     run: async (ctx) => {
       const rpc = ctx.rpc;
       if (!rpc || !(await files.confirmDiscardChanges(ctx))) return;
-      const { paths } = await rpc.call('dialog.openFile', {
+      const savedDefault = ctx.store.getState().settings?.imports?.pdf?.useOcr ?? true;
+      const initialUseOcr = getSessionUseOcr(savedDefault);
+      const openResult = await rpc.call('dialog.openFile', {
         title: ctx.t('pdfImport.openTitle'),
         filters: [
           { name: ctx.t('pdfImport.filterAll'), extensions: ['pdf', 'zip'] },
@@ -103,9 +137,21 @@ export function registerPdfImportFeature(commands: CommandRegistry, files: FileF
           { name: ctx.t('pdfImport.filterZip'), extensions: ['zip'] },
         ],
         selectedFilter: 0,
+        checks: [{ id: 'useOcr', label: ctx.t('pdfImport.useOcrLabel'), checked: initialUseOcr }],
       });
-      const path = paths[0];
+      const path = openResult.paths[0];
       if (!path) return;
+      let useOcr: boolean;
+      if (openResult.checks && typeof openResult.checks.useOcr === 'boolean') {
+        useOcr = openResult.checks.useOcr;
+      } else {
+        const chosen = await ctx.dialogs.openCustom<PdfImportOptionsAnswer | null>((close) =>
+          createElement(PdfImportOptionsDialog, { initialUseOcr, onClose: close }),
+        );
+        if (chosen === null) return;
+        useOcr = chosen.useOcr;
+      }
+      setSessionUseOcr(useOcr);
       let token = '';
       try {
         let begun = await rpc.call('pdfImport.begin', { path });
@@ -122,7 +168,10 @@ export function registerPdfImportFeature(commands: CommandRegistry, files: FileF
         }
         token = begun.token ?? '';
         // D26: a password asked for while the PDF needs one; Cancel ends the import, nothing changed.
-        let open = await rpc.call('pdfImport.inspect', { token });
+        let open = await rpc.call(
+          'pdfImport.inspect',
+          useOcr ? { token, ocr: { enabled: true } } : { token },
+        );
         const name = baseName(entry ?? path);
         while (!open.opened) {
           const answer = await ctx.dialogs.showInput({

@@ -90,6 +90,8 @@ const defaultSettings = {
     keyboardLayoutName: '',
   },
   words: { showExclusionsInWordsDialog: false },
+  imports: { pdf: { useOcr: true } },
+  ocr: { folder: '', autoDetect: true, enabledLanguages: ['eng', 'rus'] },
   session: {
     windowGeometry: null,
     toolbars: { commands: true, scripts: true, links: true, table: true, status: true },
@@ -262,6 +264,37 @@ const methods = {
   'resources.genres': () => ({ entries: [], userFiles: [] }),
   'resources.languages': () => [],
   'resources.symbols': () => [],
+  'resources.openOcrFolder': () => ({}),
+  'ocr.report': () => ({
+    packs: [
+      {
+        code: 'eng',
+        fb2Lang: 'en',
+        script: 'latin',
+        layer: 'bundled',
+        path: path.join(resourcesDir, 'ocr', 'eng.traineddata'),
+        sizeBytes: 4113088,
+        overridesBundled: false,
+        bundled: true,
+      },
+      {
+        code: 'rus',
+        fb2Lang: 'ru',
+        script: 'cyrillic',
+        layer: 'bundled',
+        path: path.join(resourcesDir, 'ocr', 'rus.traineddata'),
+        sizeBytes: 3826253,
+        overridesBundled: false,
+        bundled: true,
+      },
+    ],
+    osdAvailable: true,
+    osdLayer: 'bundled',
+    activeFolder: path.join(dataDir, 'ocr'),
+    customFolder: '',
+    customFolderIssue: null,
+    passedOver: [],
+  }),
   // rpc-api.md §3.6 (feature 007): groups whose scripts carry `origin` and `legacy`.
   'scripts.list': () => ({ groups: [], issues: [], folders: {} }),
   // Feature 007 (rpc-api §3.6): no script, so no backup.

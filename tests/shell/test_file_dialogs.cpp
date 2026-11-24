@@ -241,3 +241,18 @@ TEST_CASE("file dialogs: the name and the type follow the ZIP box (smoke test of
     CHECK(zipFollowName(markdown, "book.md", true) == "book.md");
     CHECK(zipFollowFilter(markdown, true) == 0);
 }
+
+TEST_CASE("file dialogs: Open dialog carries checks alongside filters (feature 020)",
+          "[shell][dialogs]") {
+    FileDialogRequest pdf =
+        request(FileDialogMode::kOpen,
+                {{"PDF files (*.pdf)", {"pdf"}}, {"ZIP archives (*.zip)", {"zip"}}}, 0);
+    pdf.checks.push_back({"useOcr", "Use OCR for scanned or image-based text", true});
+    REQUIRE(pdf.checks.size() == 1);
+    CHECK(pdf.checks[0].id == "useOcr");
+    CHECK(pdf.checks[0].checked);
+    CHECK(defaultExtension(pdf).empty());
+    CHECK(windowsFilterSpec(pdf.filters[0]) == "*.pdf");
+    CHECK(gtkPatterns(pdf.filters[0]) == std::vector<std::string>{"*.[pP][dD][fF]"});
+    CHECK(macExtensions(pdf.filters[0]) == std::vector<std::string>{"pdf"});
+}

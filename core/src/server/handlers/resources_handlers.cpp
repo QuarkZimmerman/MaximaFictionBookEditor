@@ -94,8 +94,8 @@ void register_resources_handlers(rpc::RpcRouter& router, Services& services) {
             }
         }
         json items = json::array();
-        for (const resources::Kind kind :
-             {resources::Kind::genres, resources::Kind::scripts, resources::Kind::dictionaries}) {
+        for (const resources::Kind kind : {resources::Kind::genres, resources::Kind::scripts,
+                                           resources::Kind::dictionaries, resources::Kind::ocr}) {
             if (!only.empty() && only != resources::to_string(kind)) {
                 continue;
             }
@@ -252,6 +252,20 @@ void register_resources_handlers(rpc::RpcRouter& router, Services& services) {
             result["path"] = platform::utf8_from_path(folder);
             return result;
         });
+
+    router.add_method("resources.openOcrFolder", [&services](const json&, rpc::RpcContext&) {
+        std::filesystem::path folder =
+            platform::path_from_utf8(services.settings.get_string("ocr.folder"));
+        if (folder.empty()) {
+            folder = services.layers.user_folder(resources::Kind::ocr, true);
+        } else {
+            std::error_code ec;
+            std::filesystem::create_directories(folder, ec);
+        }
+        json result = open_folder_with_shell(services, folder);
+        result["path"] = platform::utf8_from_path(folder);
+        return result;
+    });
 }
 
 }  // namespace mfbe::server

@@ -1,0 +1,12 @@
+{
+  "pages": 2,
+  "lang": "en",
+  "fallbackPages": [
+    2
+  ],
+  "contains": [
+    "Lantern",
+    "harbour",
+    "breakwater"
+  ]
+}

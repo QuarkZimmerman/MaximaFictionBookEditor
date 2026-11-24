@@ -44,6 +44,8 @@ Upstream sources:
 | `dictionaries/en_US.aff`, `en_US.dic`, `en_US.txt` | LibreOffice `en/en_US.aff`, `en/en_US.dic`, `en/README_en_US.txt`, byte-exact | SCOWL permissive licence + Ispell BSD / WordNet / public-domain parts, see `en_US.txt` | `curl` of the pinned raw URLs in `dictionaries/SOURCES.txt` |
 | `dictionaries/ru_RU.aff`, `ru_RU.dic`, `ru_RU.txt` | LibreOffice `ru_RU/ru_RU.aff`, `ru_RU/ru_RU.dic`, `ru_RU/README_ru_RU.txt`, byte-exact | BSD-style, see `ru_RU.txt` | same |
 | `dictionaries/SOURCES.txt` | written for this project | - | update SHA, sizes and checksums on refresh |
+| `ocr/eng.traineddata`, `rus.traineddata`, `ukr.traineddata`, `deu.traineddata`, `fra.traineddata`, `spa.traineddata`, `ita.traineddata`, `por.traineddata`, `pol.traineddata`, `bel.traineddata`, `osd.traineddata` | Tesseract `tessdata_fast` (10 starter languages) and `tessdata` (`osd.traineddata`), pinned commits in `ocr/SOURCES.txt` | Apache-2.0 (aggregated runtime OCR data read by `mfbe-pdf-reader`; notice in `ocr/LICENSE.txt`) | download from pinned URLs in `ocr/SOURCES.txt` and verify SHA-256 sums |
+| `ocr/LICENSE.txt`, `ocr/SOURCES.txt` | Apache-2.0 text from `tesseract-ocr/tessdata_fast` and pinned provenance list | - | same |
 | `tools/import_genres.py`, `tools/import_symbols.py`, `tools/import_icons.py` | written for this project (Python 3, ImageMagick 7) | project licence | - |
 | `CMakeLists.txt` | project | project licence | installs this directory (`README.md`, `CMakeLists.txt` and the provenance files excluded; `certs/` excluded on Windows and macOS) |
 

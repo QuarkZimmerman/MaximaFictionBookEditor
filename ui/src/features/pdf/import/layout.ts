@@ -452,6 +452,7 @@ function runsOfLine(
       ...(font?.bold ? { bold: true } : {}),
       ...(font?.italic ? { italic: true } : {}),
       ...(font?.mono ? { mono: true } : {}),
+      ...(word.lang ? { lang: word.lang } : {}),
     };
     // A smaller word raised or lowered against the line's baseline: a superscript or a subscript (D11).
     if (small && shift > word.s * 0.25) run.sup = true;
@@ -527,12 +528,52 @@ export function layoutParts(
   };
   walk(options.outline);
 
+  const dominantLang = (runs: readonly Run[]): string | undefined => {
+    const counts = new Map<string, number>();
+    for (const run of runs) {
+      if (!run.lang) continue;
+      const weight = run.text.trim().length;
+      if (weight > 0) counts.set(run.lang, (counts.get(run.lang) ?? 0) + weight);
+    }
+    let best: string | undefined;
+    let bestWeight = 0;
+    for (const [lang, weight] of counts) {
+      if (weight > bestWeight) {
+        best = lang;
+        bestWeight = weight;
+      }
+    }
+    return best;
+  };
+
+  // Non-background pictures per page, used to ensure paragraphs always break around an intervening
+  // embedded figure or cropped inline illustration so figures stay in exact reading order.
+  const interveningPictures = new Map<number, [number, number][]>();
+  for (const page of pages) {
+    const spans: [number, number][] = [];
+    for (const pic of page.pictures) {
+      const [, y, w, h] = pic.box;
+      if (w < 6 || h < 6) continue;
+      if (!pic.ocrCrop && !pic.ocrFallback && covers(pic.box, page)) continue;
+      spans.push([y, y + h]);
+    }
+    if (spans.length) interveningPictures.set(page.n, spans);
+  }
+
   const parts: Part[] = [];
   let paragraph: Run[] = [];
   let paragraphPage = 0;
   let previous: Line | null = null;
   const flush = (): void => {
-    if (paragraph.length) parts.push({ kind: 'p', page: paragraphPage, runs: paragraph });
+    if (paragraph.length) {
+      const lang = dominantLang(paragraph);
+      parts.push({
+        kind: 'p',
+        page: paragraphPage,
+        runs: paragraph,
+        ...(lang ? { lang } : {}),
+      });
+    }
     paragraph = [];
   };
   const level = (line: Line): number => {
@@ -546,29 +587,40 @@ export function layoutParts(
       (sizesHold && line.size >= bodySize * 1.2 && text.length < 120 && !/[.,;:]$/.test(text));
     if (heading) {
       flush();
+      const titleRuns = runsOfLine(line, bodySize, fonts);
+      const lang = dominantLang(titleRuns);
       parts.push({
         kind: 'title',
         page: line.page,
-        runs: runsOfLine(line, bodySize, fonts),
+        runs: titleRuns,
         level: level(line),
+        ...(lang ? { lang } : {}),
       });
       previous = null;
       continue;
     }
     const runs = runsOfLine(line, bodySize, fonts);
-    let starts = previous === null || previous.page !== line.page;
-    if (previous && previous.page === line.page) {
+    const curLang = dominantLang(paragraph);
+    const lineLang = dominantLang(runs);
+    const langSwitch = !!curLang && !!lineLang && curLang !== lineLang;
+    let starts = previous === null || previous.page !== line.page || langSwitch;
+    if (!langSwitch && previous && previous.page === line.page) {
       // A space between paragraphs: a gap, and a step clearly wider than the page's pitch (a scan's layer
       // draws its line boxes unevenly, the calibration of SC-007 found).
       const gap = line.top - previous.bottom;
       const step = line.top - previous.top;
-      const spaced = gap > line.size * 0.8 && step > (pitches.get(line.page) ?? step) * 1.35;
+      const spaced =
+        (gap > line.size * 0.8 && step > (pitches.get(line.page) ?? step) * 1.35) ||
+        gap > line.size * 2.5;
+      const betweenFigure = (interveningPictures.get(line.page) ?? []).some(
+        ([top, bottom]) => top >= previous!.bottom - 2 && bottom <= line.top + 2,
+      );
       const indent = indentOf(line) > bodySize * 0.8;
       const shortBefore = !indentMode && shortOf(previous) > bodySize * 3;
       // A line ending with a hyphen never ends a paragraph: its word goes on (D12).
       const broken = /[\u00ad-]$/.test(previous.text);
-      starts = !broken && (spaced || indent || shortBefore);
-    } else if (previous && previous.page !== line.page) {
+      starts = betweenFigure || (!broken && (spaced || indent || shortBefore));
+    } else if (!langSwitch && previous && previous.page !== line.page) {
       // A new page: the paragraph goes on unless this line is indented or the last one ended short.
       const indent = indentOf(line) > bodySize * 0.8;
       const shortBefore = !indentMode && shortOf(previous) > bodySize * 3;
@@ -618,6 +670,19 @@ export function layoutParts(
     for (const picture of page.pictures) {
       const [, , w, h] = picture.box;
       if (w < 6 || h < 6) continue;
+      // Feature 020: pre-cropped inline artwork and unreadable-page fallback images are always
+      // kept as figures (never skipped as scan background plates).
+      if (picture.ocrFallback || picture.ocrCrop) {
+        figures.push({
+          kind: 'figure',
+          page: page.n,
+          runs: [],
+          alt: '',
+          readerId: picture.id,
+          top: picture.box[1],
+        } as Part & { top: number });
+        continue;
+      }
       const large = covers(picture.box, page);
       if (large && hasText) continue;
       if (large && !hasText) {
@@ -668,6 +733,14 @@ export function layoutParts(
       } as Part & { top: number });
     }
   }
+  // Map embedded text-bearing raster image OCR blocks by (page, pictureId) so recognized
+  // paragraphs with fixed style="ocr-image" are placed immediately beside their kept <image>.
+  const ocrImagesByPic = new Map<string, NonNullable<PdfPageModel['ocrImages']>[number]>();
+  for (const page of pages) {
+    for (const block of page.ocrImages ?? []) {
+      ocrImagesByPic.set(`${page.n}:${block.pictureId}`, block);
+    }
+  }
   // Each figure goes before the first part of its page that starts below it.
   for (const figure of figures) {
     const top = (figure as Part & { top?: number }).top ?? 0;
@@ -675,8 +748,27 @@ export function layoutParts(
       (part) =>
         part.page > figure.page || (part.page === figure.page && (part.runs[0]?.top ?? 0) > top),
     );
-    if (at < 0) parts.push(figure);
-    else parts.splice(at, 0, figure);
+    const toInsert: Part[] = [figure];
+    const ocrBlock =
+      figure.kind === 'figure' && figure.readerId
+        ? ocrImagesByPic.get(`${figure.page}:${figure.readerId}`)
+        : undefined;
+    if (ocrBlock) {
+      for (const para of ocrBlock.paragraphs) {
+        const text = para.text.trim();
+        if (!text) continue;
+        const lang = para.lang || ocrBlock.lang || undefined;
+        toInsert.push({
+          kind: 'p',
+          page: figure.page,
+          runs: [{ text, page: figure.page, ...(lang ? { lang } : {}) }],
+          ...(lang ? { lang } : {}),
+          style: 'ocr-image',
+        });
+      }
+    }
+    if (at < 0) parts.push(...toInsert);
+    else parts.splice(at, 0, ...toInsert);
   }
   return { parts, furniture: furniture.size, cover, skippedPictures, platesImported };
 }

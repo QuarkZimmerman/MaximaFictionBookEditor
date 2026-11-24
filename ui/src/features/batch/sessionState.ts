@@ -17,6 +17,7 @@ export function getBatchSessionMemory(): BatchSessionMemory | null {
   return {
     ...sessionMemory,
     importFormats: { ...sessionMemory.importFormats },
+    ...(sessionMemory.ocrLanguages ? { ocrLanguages: [...sessionMemory.ocrLanguages] } : {}),
     zipOverrides: { ...sessionMemory.zipOverrides },
     exportSettingsOverrides: cloneExportSettingsOverrides(sessionMemory.exportSettingsOverrides),
   };
@@ -41,6 +42,9 @@ export function saveBatchSessionMemory(
     overwrite: config.overwrite,
     parallel: config.parallel,
     workerCount: config.workerCount,
+    pdfUseOcr: config.pdfUseOcr,
+    ocrAutoDetect: config.ocrAutoDetect,
+    ocrLanguages: [...config.ocrLanguages],
     zipOverrides: { ...zipOverrides },
     exportSettingsOverrides: cloneExportSettingsOverrides(exportSettingsOverrides),
   };

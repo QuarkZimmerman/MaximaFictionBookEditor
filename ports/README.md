@@ -13,3 +13,8 @@ vcpkg port in another form than the manifest's `builtin-baseline` gives. Its ent
   the port's). It depends on fmt: with fmt's overlay it is built again, and its downloads failed the same way. Of the
   47 ports the editor builds, these two are the only ones that download a patch from a GitHub commit; remove this
   overlay with fmt's.
+- `tesseract/` is vcpkg's `tesseract` 5.5.4 port of the same baseline with `-DOPENMP_BUILD=OFF` added to
+  `vcpkg_cmake_configure`. Upstream Tesseract enables OpenMP by default on MSVC and GCC; on Windows static builds
+  (`x64-windows-static`, `/MT`), MSVC OpenMP links `vcomp140.dll` dynamically, which would break standalone/portable
+  installations lacking the Visual C++ Redistributable. `mfbe-pdf-reader` parallelizes OCR across pages with C++
+  `std::thread` workers instead, so OpenMP is unnecessary on all three platforms.

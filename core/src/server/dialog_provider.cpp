@@ -147,11 +147,26 @@ json to_json(const OpenFileRequest& r) {
     if (r.defaultPath) {
         j["defaultPath"] = *r.defaultPath;
     }
+    if (!r.checks.empty()) {
+        json checks = json::array();
+        for (const auto& c : r.checks) {
+            checks.push_back(json{{"id", c.id}, {"label", c.label}, {"checked", c.checked}});
+        }
+        j["checks"] = std::move(checks);
+    }
     return j;
 }
 
 json to_json(const OpenFileResult& r) {
-    return json{{"paths", r.paths}};
+    json j{{"paths", r.paths}};
+    if (r.checks) {
+        json checks = json::object();
+        for (const auto& [id, value] : *r.checks) {
+            checks[id] = value;
+        }
+        j["checks"] = std::move(checks);
+    }
+    return j;
 }
 
 json to_json(const SaveFileRequest& r) {
@@ -278,6 +293,14 @@ OpenFileRequest open_file_request_from_json(const json& j) {
     r.defaultPath = opt_str(o, "defaultPath");
     // Feature 011 (D32, DP-12): only Open and Save As - `role: "document"` - keep a folder.
     r.documentDialog = str_or(o, "role") == "document";
+    if (const auto it = o.find("checks"); it != o.end() && it->is_array()) {
+        for (const auto& c : *it) {
+            if (c.is_object() && c.contains("id") && c["id"].is_string()) {
+                r.checks.push_back(OpenFileRequest::Check{
+                    c["id"].get<std::string>(), str_or(c, "label"), c.value("checked", false)});
+            }
+        }
+    }
     return r;
 }
 
@@ -287,6 +310,15 @@ OpenFileResult open_file_result_from_json(const json& j) {
     r.paths = strings_or(o, "paths");
     if (auto single = opt_str(o, "path"); single && r.paths.empty()) {
         r.paths.push_back(*single);  // tolerate {path} for single selections
+    }
+    if (const auto it = o.find("checks"); it != o.end() && it->is_object()) {
+        std::vector<std::pair<std::string, bool>> checks;
+        for (const auto& [id, value] : it->items()) {
+            if (value.is_boolean()) {
+                checks.emplace_back(id, value.get<bool>());
+            }
+        }
+        r.checks = std::move(checks);
     }
     return r;
 }

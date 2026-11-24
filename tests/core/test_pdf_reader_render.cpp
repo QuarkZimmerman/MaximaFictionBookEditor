@@ -62,16 +62,29 @@ TEST_CASE("the reader draws every page of a scan as a picture (D20)", "[pdf][imp
     std::filesystem::remove_all(folder);
 }
 
-TEST_CASE("no OCR library comes with the editor (FR-060)", "[pdf][import]") {
+TEST_CASE("only offline Tesseract and Leptonica OCR libraries are linked exclusively into the PDF reader",
+          "[pdf][import][ocr]") {
     const auto repo = kFixtures.parent_path().parent_path();
     for (const auto& file : {repo / "vcpkg.json", repo / "THIRD-PARTY-NOTICES.md"}) {
         INFO(file.string());
         const std::string text = lower_file(file);
         REQUIRE_FALSE(text.empty());
-        for (const char* name : {"tesseract", "leptonica", "ocrad", "gocr", "cuneiform",
-                                 "paddleocr", "easyocr", "rapidocr", "ocrmypdf"}) {
+        CHECK(text.find("tesseract") != std::string::npos);
+        CHECK(text.find("leptonica") != std::string::npos);
+        for (const char* name :
+             {"ocrad", "gocr", "cuneiform", "paddleocr", "easyocr", "rapidocr", "ocrmypdf"}) {
             INFO(name);
             CHECK(text.find(name) == std::string::npos);
         }
     }
+
+    // OCR stays isolated inside mfbe-pdf-reader; mfbe_core / mfbe-core never link Tesseract.
+    const std::string core_cmake = lower_file(repo / "core" / "CMakeLists.txt");
+    REQUIRE_FALSE(core_cmake.empty());
+    const auto reader_pos = core_cmake.find("add_executable(mfbe-pdf-reader");
+    REQUIRE(reader_pos != std::string::npos);
+    const std::string before_reader = core_cmake.substr(0, reader_pos);
+    const std::string after_reader = core_cmake.substr(reader_pos);
+    CHECK(before_reader.find("tesseract::libtesseract") == std::string::npos);
+    CHECK(after_reader.find("tesseract::libtesseract") != std::string::npos);
 }

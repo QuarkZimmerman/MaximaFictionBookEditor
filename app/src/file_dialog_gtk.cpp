@@ -405,11 +405,10 @@ bool addZipChoice(const GtkApi& api, void* chooser, const FileDialogRequest& req
     return true;
 }
 
-// Feature 017 (DP-5): each further box is a boolean choice too, "check-<id>", in the portal's
-// FileChooser `choices` as well (an empty option list is a check button there).
+// Feature 017 / Feature 020: boolean choices "check-<id>" for Save and Open dialogs.
 bool addChecks(const GtkApi& api, void* chooser, const FileDialogRequest& request,
                std::vector<std::string>* ids) {
-    if (request.mode != FileDialogMode::kSave || request.checks.empty() || !api.offersChoices()) {
+    if (request.mode == FileDialogMode::kFolder || request.checks.empty() || !api.offersChoices()) {
         return false;
     }
     for (const auto& check : request.checks) {

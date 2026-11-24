@@ -54,6 +54,9 @@ function makeConfig(overrides: Partial<BatchJobConfig> = {}): BatchJobConfig {
     overwrite: false,
     parallel: false,
     workerCount: 3,
+    pdfUseOcr: true,
+    ocrAutoDetect: true,
+    ocrLanguages: ['eng', 'rus'],
     ...overrides,
   };
 }
@@ -163,6 +166,7 @@ describe('startBatchRun scheduler', () => {
       total: 6,
       converted: 6,
       fixed: 0,
+      ocr: 0,
       skipped: 0,
       failed: 0,
       cancelled: 0,
@@ -289,6 +293,7 @@ describe('startBatchRun scheduler', () => {
       total: 6,
       converted: 3,
       fixed: 1,
+      ocr: 0,
       skipped: 2,
       failed: 1,
       cancelled: 0,

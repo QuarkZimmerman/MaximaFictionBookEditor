@@ -62,6 +62,8 @@ export interface Part {
   caption?: Run[];
   /** The reader's id of a picture the layout placed (PDFs without structure). */
   readerId?: string;
+  /** Feature 020: optional FB2 paragraph style (e.g. `ocr-image` for embedded raster image OCR). */
+  style?: string;
 }
 
 export interface Footnote {

@@ -3,6 +3,40 @@
 All notable changes to Maxima Fiction Book Editor. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.0.15 - unreleased
+
+### In short
+
+- Automatic offline OCR on scanned, mixed, rotated, and garbled PDF imports (Tesseract + Leptonica)
+- Automatic language detection across 10 bundled European packs plus custom OCR language folders
+- Settings > Imports > PDF and Settings > OCR configure Use OCR, languages, and custom packs
+- File > Import > PDF File... adds a Use OCR checkbox directly inside the open-file dialog
+- Tools > Batch Converter... runs unattended PDF OCR with its own persistent OCR controls and reports
+
+### Added
+
+- Automatic offline PDF OCR (feature 020) runs inside the isolated `mfbe-pdf-reader` process using
+  statically linked Tesseract 5.5.4 + Leptonica 1.87.0 with 10 bundled language packs (`eng`, `rus`,
+  `ukr`, `deu`, `fra`, `spa`, `ita`, `pol`, `por`, `bel`) plus `osd.traineddata`, leaving clean
+  searchable PDFs and editor-exported PDFs on the strict zero-OCR fast path.
+- Recognizes full-page scanned PDFs, garbled text layers, 90/180/270-degree rotated and skewed
+  scans, mixed searchable + scanned pages, bilingual pages, and text-bearing raster images embedded
+  on searchable pages, while preserving distinct inline illustrations and falling back to page images
+  on isolated unreadable pages.
+- Automatic language and script detection identifies the active document and block languages without
+  relying on inaccurate scanner metadata, and clearly refuses scans written in a disabled or
+  uninstalled script.
+- Settings > Imports > PDF adds the default Use OCR setting, and Settings > OCR manages automatic
+  language detection, installed language packs (with multi-layer override precedence across custom
+  folder, portable, user data, and bundled layers), custom `.traineddata` folders with README guide,
+  and a direct link to higher-accuracy `tessdata_best` downloads.
+- File > Import > PDF File... provides an inline Use OCR checkbox in the native open-file dialog on
+  Windows, Linux, and macOS (and a quick options fallback where native accessory views are
+  unavailable), reflecting and persisting the default setting.
+- Tools > Batch Converter... (To FB2 tab) adds independent, persistent PDF OCR controls (Use OCR,
+  auto-detect, and languages), runs parallel OCR safely with bounded worker concurrency, and reports
+  recognized files in a dedicated OCR summary and saveable report section.
+
 ## 0.0.14 - 2026-11-24
 
 ### In short

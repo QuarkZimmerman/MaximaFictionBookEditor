@@ -465,8 +465,8 @@ bool showDialog(HWND owner, const FileDialogRequest& request, FileDialogResult& 
         customize->AddCheckButton(kZipCheck, wideText(request.zip_label).c_str(),
                                   request.zip_checked ? TRUE : FALSE);
     }
-    // Feature 017 (DP-5): further boxes, one check button each, ids after the ZIP box's.
-    const bool offers_checks = save && !request.checks.empty() &&
+    // Feature 017 / Feature 020: check buttons for Save and Open dialogs (ids after kZipCheck).
+    const bool offers_checks = request.mode != FileDialogMode::kFolder && !request.checks.empty() &&
                                (customize.get() != nullptr ||
                                 SUCCEEDED(dialog->QueryInterface(IID_PPV_ARGS(customize.put()))));
     if (offers_checks) {

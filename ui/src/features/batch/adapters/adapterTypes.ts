@@ -7,12 +7,12 @@ import type { CommandContext } from '@/app/commands';
 import type { RpcClient } from '@/rpc/client';
 import type { GenreEntry, LanguageEntry, PdfAddedFont, Settings, TxtEncodings } from '@/rpc/types';
 
-import type { BatchDiscoveredItem, BatchJobConfig } from '../engine/types';
+import type { BatchDiscoveredItem, BatchJobConfig, BatchOcrReportEntry } from '../engine/types';
 import { BatchWorkerPool } from '../workers/workerCall';
 import { BatchAbortError } from './fb2LoadSave';
 
 export class AsyncSemaphore {
-  private locked = false;
+  private active = 0;
   private readonly waiters: Array<{
     resolve: () => void;
     reject: (error: unknown) => void;
@@ -20,12 +20,14 @@ export class AsyncSemaphore {
     onAbort?: () => void;
   }> = [];
 
+  constructor(private readonly maxPermits = 1) {}
+
   async acquire(signal?: AbortSignal): Promise<() => void> {
     if (signal?.aborted) {
       throw new BatchAbortError();
     }
-    if (!this.locked) {
-      this.locked = true;
+    if (this.active < this.maxPermits) {
+      this.active++;
       return () => this.release();
     }
     await new Promise<void>((resolve, reject) => {
@@ -47,7 +49,7 @@ export class AsyncSemaphore {
   private release(): void {
     const next = this.waiters.shift();
     if (!next) {
-      this.locked = false;
+      this.active = Math.max(0, this.active - 1);
       return;
     }
     if (next.signal && next.onAbort) {
@@ -63,10 +65,16 @@ export class BatchSharedCache {
   private txtEncodingsPromise: Promise<TxtEncodings> | null = null;
   private pdfAddedFontsPromise: Promise<PdfAddedFont[]> | null = null;
   private appVersionPromise: Promise<string> | null = null;
-  readonly pdfPrintLock = new AsyncSemaphore();
+  readonly pdfPrintLock = new AsyncSemaphore(1);
+  readonly pdfOcrSlots: AsyncSemaphore;
   readonly workerPool = new BatchWorkerPool();
 
-  constructor(private readonly rpc: RpcClient) {}
+  constructor(
+    private readonly rpc: RpcClient,
+    maxOcrWorkers = 2,
+  ) {
+    this.pdfOcrSlots = new AsyncSemaphore(Math.max(1, maxOcrWorkers));
+  }
 
   dispose(): void {
     this.workerPool.dispose();
@@ -125,6 +133,8 @@ export interface BatchAdapterOutcome {
   warnings: string[];
   /** Present when broken FB2 XML was repaired in memory before conversion. */
   fixedReason?: string;
+  /** Feature 020: present when offline PDF OCR ran on at least one page or embedded image. */
+  ocr?: Omit<BatchOcrReportEntry, 'displayPath' | 'sourcePath' | 'targetPath'>;
 }
 
 export type BatchAdapterFn = (params: BatchAdapterContext) => Promise<BatchAdapterOutcome>;

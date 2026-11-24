@@ -7,12 +7,15 @@
 
 #include <mfbe/atomic_file.hpp>
 #include <mfbe/log.hpp>
+#include <mfbe/ocr.hpp>
 #include <mfbe/rpc.hpp>
 #include <mfbe/settings.hpp>
 #include <mfbe/store_lock.hpp>
 #include <mfbe/unicode.hpp>
 #include <mfbe/utf8_paths.hpp>
 
+#include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <filesystem>
 #include <optional>
@@ -114,6 +117,28 @@ std::string read_utf8_string_or(const json& obj, const char* key, const std::str
     return fallback;
 }
 
+json sanitize_ocr_languages(const json& arr) {
+    json out = json::array();
+    std::set<std::string> seen;
+    for (const json& entry : arr) {
+        if (!entry.is_string()) {
+            continue;
+        }
+        const std::string code = entry.get<std::string>();
+        if (!unicode::is_valid_utf8(code) || !ocr::is_valid_traineddata_stem(code)) {
+            continue;
+        }
+        std::string lower = code;
+        std::transform(lower.begin(), lower.end(), lower.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        if (lower == "osd" || !seen.insert(lower).second) {
+            continue;
+        }
+        out.push_back(code);
+    }
+    return out;
+}
+
 json sanitize_batch_settings(const json& raw, const json& global_settings, bool has_stored) {
     json out = raw.is_object() ? raw : json::object();
     out["schemaVersion"] = kBatchSettingsSchemaVersion;
@@ -180,6 +205,35 @@ json sanitize_batch_settings(const json& raw, const json& global_settings, bool 
         out["exportSettings"] = settings::sanitize_export_sections(stored_exports, global_settings);
     } else {
         out["exportSettings"] = settings::export_sections_copy(global_settings);
+    }
+
+    // Feature 020 (data-model.md §5.1): additive batch-only PDF OCR choices initialize from global
+    // Settings when absent (first open or upgrading an older batch-converter.json) and stay
+    // independent of settings.json thereafter.
+    bool global_pdf_use_ocr = true;
+    if (auto imp = global_settings.find("imports");
+        imp != global_settings.end() && imp->is_object()) {
+        if (auto pdf = imp->find("pdf"); pdf != imp->end() && pdf->is_object()) {
+            global_pdf_use_ocr = read_bool_or(*pdf, "useOcr", true);
+        }
+    }
+    bool global_ocr_auto_detect = true;
+    json global_ocr_languages = json::array({"eng", "rus"});
+    if (auto ocr_sec = global_settings.find("ocr");
+        ocr_sec != global_settings.end() && ocr_sec->is_object()) {
+        global_ocr_auto_detect = read_bool_or(*ocr_sec, "autoDetect", true);
+        if (auto langs = ocr_sec->find("enabledLanguages");
+            langs != ocr_sec->end() && langs->is_array()) {
+            global_ocr_languages = sanitize_ocr_languages(*langs);
+        }
+    }
+
+    out["pdfUseOcr"] = read_bool_or(out, "pdfUseOcr", global_pdf_use_ocr);
+    out["ocrAutoDetect"] = read_bool_or(out, "ocrAutoDetect", global_ocr_auto_detect);
+    if (auto it = out.find("ocrLanguages"); it != out.end() && it->is_array()) {
+        out["ocrLanguages"] = sanitize_ocr_languages(*it);
+    } else {
+        out["ocrLanguages"] = std::move(global_ocr_languages);
     }
     return out;
 }

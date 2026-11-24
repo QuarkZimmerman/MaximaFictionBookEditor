@@ -427,6 +427,18 @@ export interface Settings {
     kf8PopupFootnotes: boolean;
     zip: boolean;
   };
+  /** Feature 020 (data-model.md §1.1): per-format import defaults (Settings -> Imports). */
+  imports?: {
+    pdf: {
+      useOcr: boolean;
+    };
+  };
+  /** Feature 020 (data-model.md §1.2): global OCR configuration (Settings -> OCR). */
+  ocr?: {
+    folder: string;
+    autoDetect: boolean;
+    enabledLanguages: string[];
+  };
   session: {
     /**
      * Window placement (feature 003: recorded by the shell at quit): the normal bounds plus
@@ -536,15 +548,12 @@ export interface GenreEntry {
   source: string; // 'standard' | 'user:<file>' | 'bundled:<file>'
 }
 
-/** Feature 015: a kind of user resource, as `resources.passedOver` lists it. */
-export type PassedOverKind = 'genres' | 'scripts' | 'dictionaries' | 'template';
+/** Feature 015 / Feature 020: a kind of user resource, as `resources.passedOver` lists it. */
+export type PassedOverKind = 'genres' | 'scripts' | 'dictionaries' | 'template' | 'ocr';
 
 /**
- * Feature 015 (data-model "Passed-over item"): an item of a user folder that the editor does not
- * use, with its reason - `name` (does not follow the kind's naming rule), `notAFile`,
- * `notAFolder`, `noDescription` (script folder without `script.json`), `unreadable`, `encoding`
- * (a genre file that is not UTF-8), `partnerMissing` (`.aff` or `.dic` alone), `invalid` (the
- * template could not be used; `detail` says why).
+ * Feature 015 / Feature 020 (data-model "Passed-over item"): an item of a user folder that the
+ * editor does not use, with its reason.
  */
 export interface PassedOverItem {
   kind: PassedOverKind;
@@ -558,8 +567,63 @@ export interface PassedOverItem {
     | 'unreadable'
     | 'encoding'
     | 'partnerMissing'
-    | 'invalid';
+    | 'invalid'
+    | 'empty'
+    | 'corrupt'
+    | 'unsupportedFile'
+    | 'missingFolder'
+    | 'unreadableFolder';
   detail?: string;
+}
+
+/** Feature 020 (data-model.md §2.1): an installed OCR language pack discovered across layers. */
+export interface OcrLanguagePack {
+  code: string;
+  fb2Lang: string;
+  script: string;
+  layer: 'settings' | 'user' | 'portable' | 'bundled';
+  path: string;
+  sizeBytes: number;
+  overridesBundled: boolean;
+  bundled: boolean;
+}
+
+/** Feature 020 (data-model.md §2.2): an unusable file or folder issue in a user OCR layer. */
+export interface OcrPassedOver {
+  layer: 'settings' | 'user' | 'portable';
+  path: string;
+  reason:
+    'empty' | 'corrupt' | 'unreadable' | 'unsupportedFile' | 'missingFolder' | 'unreadableFolder';
+}
+
+/** Feature 020 (data-model.md §2.3): live catalog report returned by `ocr.report`. */
+export interface OcrCatalogReport {
+  packs: OcrLanguagePack[];
+  osdAvailable: boolean;
+  osdLayer: 'settings' | 'user' | 'portable' | 'bundled' | null;
+  activeFolder: string;
+  customFolder: string;
+  customFolderIssue: 'missing' | 'unreadable' | null;
+  passedOver: OcrPassedOver[];
+}
+
+/** Feature 020 (contracts/rpc-api.md §4): optional OCR configuration passed on `pdfImport.inspect`. */
+export interface PdfImportOcrParams {
+  enabled: boolean;
+  autoDetect?: boolean;
+  languages?: string[];
+  maxThreads?: number;
+}
+
+/** Feature 020 (contracts/rpc-api.md §4): OCR summary returned by `pdfImport.read`. */
+export interface PdfImportOcrSummary {
+  used: boolean;
+  pagesRecognized: number;
+  imageBlocksRecognized: number;
+  fallbackPages: number;
+  lowConfidencePages: number;
+  primaryLang: string;
+  languages: string[];
 }
 
 export interface LanguageEntry {
@@ -1562,18 +1626,23 @@ export interface RpcMethods {
   /** Feature 012 (contracts/rpc-api.md §1): opens an EPUB for the import; entries over `/epub/{token}/{entry}`. */
   /** Feature 016 (contracts/rpc-api.md): the PDF import's session; 1113 {reason}, 1114 unknown token. */
   'pdfImport.begin': { params: { path: string; entry?: string }; result: PdfImportBegun };
-  'pdfImport.inspect': { params: { token: string }; result: PdfImportOpen };
+  'pdfImport.inspect': {
+    params: { token: string; ocr?: PdfImportOcrParams };
+    result: PdfImportOpen;
+  };
   'pdfImport.password': { params: { token: string; password: string }; result: PdfImportOpen };
-  /** A job: progress per page read; its result `{ pages, kinds }`. */
+  /** A job: progress per page/OCR stage; its result `{ pages, kinds, garbledShare, ocr? }`. */
   'pdfImport.read': {
     params: { token: string };
-    /** The pages of each kind (DP-8) and the share of plain words of the text layer (DP-9). */
+    /** The pages of each kind (DP-8), plain-word share (DP-9), and optional OCR summary (020). */
     result: MaybeJob<{
       pages: number;
       kinds: Record<string, number>;
       garbledShare: number;
       /** Drawings past the 2,000 a book takes (DP-3), left out. */
       drawingsLeftOut?: number;
+      /** Feature 020: present when OCR was invoked during the read. */
+      ocr?: PdfImportOcrSummary;
     }>;
   };
   'pdfImport.addPictures': {
@@ -1888,6 +1957,10 @@ export interface RpcMethods {
   'resources.openTemplateFolder': { params: void; result: { path: string } };
   /** Feature 003 US4: the chosen dictionaries folder, else `<Data>/dictionaries` (created). */
   'resources.openDictionariesFolder': { params: void; result: { path: string } };
+  /** Feature 020: the chosen custom OCR folder, else `<Data>/ocr` (created with trilingual readme). */
+  'resources.openOcrFolder': { params: void; result: { path: string } };
+  /** Feature 020: rebuilds and returns the layered OCR language pack catalog and diagnostics. */
+  'ocr.report': { params: Record<string, never> | void; result: OcrCatalogReport };
 
   // §3.7 settings / hotkeys
   'settings.get': { params: void; result: Settings };
@@ -1944,8 +2017,10 @@ export interface RpcMethods {
       defaultPath?: string;
       /** Feature 011 (D32): only `document` (Open) keeps the chosen folder for the next dialog. */
       role?: 'document';
+      /** Feature 020: optional native checkboxes (e.g. PDF import "Use OCR"). */
+      checks?: { id: string; label: string; checked: boolean }[];
     };
-    result: { paths: string[] };
+    result: { paths: string[]; checks?: Record<string, boolean> };
   };
   /** What a file is before Save As writes it (feature 009, DP-9, D32). */
   'files.inspect': { params: { path: string; entryName?: string }; result: FileInspection };
@@ -2331,6 +2406,10 @@ export interface BatchPersistedSettings {
   overwrite: boolean;
   parallel?: boolean;
   workerCount?: number;
+  /** Feature 020: independent persistent Batch Converter PDF OCR settings. */
+  pdfUseOcr?: boolean;
+  ocrAutoDetect?: boolean;
+  ocrLanguages?: string[];
   zipOverrides: Record<string, boolean>;
   exportSettings: BatchPersistedExportSettings;
   [extra: string]: unknown;

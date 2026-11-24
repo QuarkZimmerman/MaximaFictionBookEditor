@@ -1,0 +1,103 @@
+{
+  "$comment": "Feature 020: Settings -> Imports, Settings -> OCR, and shared OCR language pack labels (English). Deep-merged into en.json by i18n/index.ts.",
+  "dialog": {
+    "settings": {
+      "pages": {
+        "imports": "Imports",
+        "ocr": "OCR"
+      }
+    }
+  },
+  "tip": {
+    "settings": {
+      "tabs": {
+        "imports": "Default import options for supported e-book and document formats",
+        "ocr": "Offline OCR language packs, automatic language detection, and custom OCR folder"
+      },
+      "imports": {
+        "format": "Select an import format to configure its default import options"
+      },
+      "ocr": {
+        "folderDefault": "Use the editor's default user/portable and bundled OCR language folders",
+        "folderCustom": "Use an additional custom folder for Tesseract .traineddata files that overrides bundled packs",
+        "folderPath": "Path to the custom folder containing Tesseract .traineddata language files",
+        "openFolder": "Open the active OCR language files folder in the system file manager",
+        "language": "Enable or disable this language pack for offline PDF OCR recognition"
+      }
+    }
+  },
+  "imports": {
+    "settings": {
+      "format": "Format",
+      "pdf": {
+        "useOcr": "Use OCR for scanned or image-based text",
+        "useOcrHint": "Sets the initial state of the Use OCR checkbox in File -> Import -> PDF File... when the editor starts, and the initial default for Batch Converter. Text-only PDFs and editor-exported PDFs never run OCR."
+      },
+      "noSettings": "This format has no import settings yet."
+    }
+  },
+  "ocr": {
+    "settings": {
+      "folderGroup": "OCR language files folder",
+      "folderDefault": "Default folder",
+      "folderCustom": "Custom folder:",
+      "chooseFolder": "Specify OCR language files folder",
+      "openFolder": "Open OCR folder",
+      "downloadNote": "Higher-accuracy language models (tessdata_best) and additional languages can be downloaded and placed into your OCR folder. Files placed in your OCR folder override bundled packs with the same name.",
+      "downloadLink": "Download Tesseract OCR language files (tessdata_best / tessdata_fast)",
+      "folderMissing": "The chosen OCR folder {{path}} does not exist; default and bundled folders are used.",
+      "folderUnreadable": "The chosen OCR folder {{path}} cannot be read; default and bundled folders are used.",
+      "recognitionGroup": "Recognition",
+      "autoDetect": "Automatically detect language (within enabled languages)",
+      "autoDetectHint": "When enabled, OCR detects page orientation and language(s) across the checked languages below. Turn off to force Tesseract to use all checked languages directly.",
+      "languagesLabel": "Enabled OCR languages:",
+      "languagesHint": "Only checked installed languages are considered during OCR and automatic detection.",
+      "noEnabledInstalled": "Select at least one installed OCR language before saving.",
+      "noPacksInstalled": "No valid OCR language packs were found.",
+      "unavailable": "OCR catalog is unavailable: the editor core is not connected.",
+      "osdMissing": "Orientation detection data (osd.traineddata) was not found; rotated scan detection is unavailable.",
+      "overridesBundled": "Overrides bundled",
+      "packSizeMb": "{{size}} MB",
+      "packSizeKb": "{{size}} KB",
+      "packSizeB": "{{size}} B",
+      "layer": {
+        "bundled": "Bundled",
+        "user": "User",
+        "portable": "Portable",
+        "settings": "Custom"
+      },
+      "passedOverHeading": "Ignored files in OCR folders:",
+      "passedOverItem": "{{name}} — {{reason}}",
+      "passedOverReason": {
+        "empty": "file is empty",
+        "corrupt": "not a valid Tesseract .traineddata file",
+        "unreadable": "file cannot be read",
+        "unsupportedFile": "not a .traineddata file",
+        "missingFolder": "folder does not exist",
+        "unreadableFolder": "folder cannot be read"
+      }
+    },
+    "languages": {
+      "eng": "English",
+      "rus": "Russian",
+      "ukr": "Ukrainian",
+      "deu": "German",
+      "fra": "French",
+      "spa": "Spanish",
+      "ita": "Italian",
+      "por": "Portuguese",
+      "pol": "Polish",
+      "bel": "Belarusian",
+      "en": "English",
+      "ru": "Russian",
+      "uk": "Ukrainian",
+      "de": "German",
+      "fr": "French",
+      "es": "Spanish",
+      "it": "Italian",
+      "pt": "Portuguese",
+      "pl": "Polish",
+      "be": "Belarusian"
+    }
+  }
+}

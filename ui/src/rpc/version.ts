@@ -7,7 +7,10 @@
 export const RPC_API_VERSION = 1;
 /**
  * Additive contract revision within RPC_API_VERSION (`app.info().apiMinor`; absent = 0). The
- * revision this UI was written for (17 since feature 019: `batch.*`, `app.info.cpuCores`,
+ * revision this UI was written for (18 since feature 020: `ocr.report`, `resources.openOcrFolder`,
+ * `resources.passedOver` `kind: "ocr"`, `dialog.openFile` `checks`, `pdfImport.inspect` `ocr`,
+ * `pdfImport.read` `ocr` summary, `imports.*`/`ocr.*` settings, and `batch.*` OCR persistence;
+ * 17 since feature 019: `batch.*`, `app.info.cpuCores`,
  * `doc.open`/`doc.save` `ephemeral`, `dialog.pickFolder.folder`, `pdf.export.abort` `cancelPrint`,
  * `test.setCpuCores`, and error `1120`; 16 since feature 018: `mobi.write.*`, `mobiImport.*`, the
  * routes `/mobi-write/{token}/...` and `/mobi-import/{token}/...`, `dialog.saveFile` `selects`,
@@ -38,4 +41,4 @@ export const RPC_API_VERSION = 1;
  * and requires >= 5 since feature 006 (`AI_REQUIRED_API_MINOR` in `ui/src/ai/index.ts`; 4
  * before).
  */
-export const RPC_API_MINOR = 17;
+export const RPC_API_MINOR = 18;

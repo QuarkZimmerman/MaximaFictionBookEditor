@@ -23,10 +23,11 @@ export async function importPdfViaMenu(
   core: CoreHandle,
   page: Page,
   file: string,
-  { question = true }: { question?: boolean } = {},
+  { question = true, useOcr = true }: { question?: boolean; useOcr?: boolean | null } = {},
 ): Promise<string | null> {
   const before = await shownDocId(page);
-  await core.enqueueDialog('dialog.openFile', { paths: [file] });
+  const dialogResult = useOcr === null ? { paths: [file] } : { paths: [file], checks: { useOcr } };
+  await core.enqueueDialog('dialog.openFile', dialogResult);
   await page.getByTestId('menu-file').click({ timeout: 15_000 });
   await page.getByTestId('menu-file-import').hover({ timeout: 15_000 });
   await page.getByTestId('menu-file-import-importPdf').click({ timeout: 15_000 });

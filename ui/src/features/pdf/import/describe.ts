@@ -4,7 +4,49 @@
  * language from the PDF, else guessed, else the template's.
  */
 
+import type { PdfImportOcrSummary } from '@/rpc/types';
+
 import { text } from './fb2';
+
+export interface ResolveImportLanguageInput {
+  /** Explicit PDF catalog /Lang metadata, if present (e.g. "en", "ru-RU"). */
+  pdfLang?: string;
+  /** OCR summary returned by pdfImport.read, if OCR ran. */
+  ocrSummary?: PdfImportOcrSummary;
+  /** Total pages in the PDF document. */
+  totalPages: number;
+  /** Spelling-dictionary fallback language guess, if any. */
+  guessedLang: string | null;
+}
+
+function normalizeIsoLang(raw: string | undefined): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim().toLowerCase();
+  if (!trimmed) return null;
+  const match = /^([a-z]{2,3})(?:[-_].*)?$/.exec(trimmed);
+  return match ? match[1] : null;
+}
+
+/**
+ * Feature 020 (contracts/page-model.md §2): determines FB2 `<title-info><lang>` precedence
+ * (below a user-accepted `.fbd`, which is applied afterward). When OCR recognized the majority of
+ * pages, its detected primary language overrides contradictory scanner `/Lang` metadata.
+ */
+export function resolveImportLanguage({
+  pdfLang,
+  ocrSummary,
+  totalPages,
+  guessedLang,
+}: ResolveImportLanguageInput): string | null {
+  const normPdf = normalizeIsoLang(pdfLang);
+  const normOcr = ocrSummary?.used ? normalizeIsoLang(ocrSummary.primaryLang) : null;
+  const ocrPages = ocrSummary?.pagesRecognized ?? 0;
+  const ocrMajority = !!normOcr && ocrPages > 0 && ocrPages * 2 >= Math.max(1, totalPages);
+  if (ocrMajority) return normOcr;
+  if (normPdf) return normPdf;
+  if (normOcr) return normOcr;
+  return guessedLang;
+}
 
 /** "First Middle Last" as FB2's name parts; "Last, First" too. */
 export function splitName(name: string): { first: string; middle: string; last: string } {

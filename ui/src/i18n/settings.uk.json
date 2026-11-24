@@ -81,7 +81,8 @@
             "genres": "*.genres.tsv",
             "scripts": "тека зі script.json",
             "dictionaries": "<тег>.aff разом із <тег>.dic",
-            "template": "blank.fb2"
+            "template": "blank.fb2",
+            "ocr": "*.traineddata"
           }
         }
       },

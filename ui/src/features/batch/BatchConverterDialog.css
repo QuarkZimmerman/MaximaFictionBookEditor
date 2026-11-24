@@ -106,6 +106,48 @@
   border-top: 1px solid var(--mfbe-color-border, #e0e0e0);
 }
 
+.mfbe-batch-ocr-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 6px 8px;
+  border: 1px solid var(--mfbe-color-border, #d8d8d8);
+  border-radius: 2px;
+  background: var(--mfbe-color-surface-alt, rgba(128, 128, 128, 0.05));
+}
+
+.mfbe-batch-ocr-panel.disabled {
+  opacity: 0.72;
+}
+
+.mfbe-batch-ocr-header {
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.mfbe-batch-ocr-indent {
+  padding-left: 18px;
+}
+
+.mfbe-batch-ocr-langs-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mfbe-batch-ocr-langs-label {
+  font-size: 12px;
+}
+
+.mfbe-batch-ocr-langs-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  max-height: 76px;
+  overflow-y: auto;
+  padding: 2px 0;
+}
+
 .mfbe-batch-fieldset {
   margin: 0;
   padding: 8px 10px;
@@ -404,6 +446,11 @@
 .mfbe-batch-badge-fixed {
   background: rgba(16, 124, 65, 0.16);
   color: var(--mfbe-color-success, #107c41);
+}
+
+.mfbe-batch-badge-ocr {
+  background: rgba(0, 103, 192, 0.16);
+  color: var(--mfbe-color-accent, #0067c0);
 }
 
 .mfbe-batch-issue-path {

@@ -13,8 +13,8 @@ export interface ModalJob {
 }
 
 export interface ModalJobHandle {
-  /** Reports progress; `total` 0 shows an indeterminate bar. */
-  progress(done: number, total: number): void;
+  /** Reports progress; `total` 0 shows an indeterminate bar. Optional `title` updates the phase label. */
+  progress(done: number, total: number, title?: string): void;
   /** Ends the job: the overlay goes and the interface takes input again. */
   end(): void;
 }
@@ -55,9 +55,9 @@ export function startModalJob(title: string, onCancel: () => void): ModalJobHand
   current = entry;
   emit();
   return {
-    progress(done, total) {
+    progress(done, total, nextTitle) {
       if (current !== entry) return;
-      entry.job = { title, done, total };
+      entry.job = { title: nextTitle ?? entry.job.title, done, total };
       emit();
     },
     end() {

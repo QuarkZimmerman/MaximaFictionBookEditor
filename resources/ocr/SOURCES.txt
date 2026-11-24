@@ -1,0 +1,17 @@
+# Bundled Tesseract OCR language packs (feature 020)
+# tesseract-ocr/tessdata_fast commit: 87416418657359cb625c412a48b6e1d6d41c29bd
+# tesseract-ocr/tessdata commit:      ced78752cc61322fb554c280d13360b35b8684e4
+# Licence: Apache-2.0 (see LICENSE.txt)
+
+7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2     4113088  eng.traineddata  https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/87416418657359cb625c412a48b6e1d6d41c29bd/eng.traineddata
+e16e5e036cce1d9ec2b00063cf8b54472625b9e14d893a169e2b0dedeb4df225     3861738  rus.traineddata  https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/87416418657359cb625c412a48b6e1d6d41c29bd/rus.traineddata
+d59e53e2bded32f4445f124b4b00240fcac7e8044c003ab822ccb94f0b3db59b     3825102  ukr.traineddata  https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/87416418657359cb625c412a48b6e1d6d41c29bd/ukr.traineddata
+19d219bbb6672c869d20a9636c6816a81eb9a71796cb93ebe0cb1530e2cdb22d     1525436  deu.traineddata  https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/87416418657359cb625c412a48b6e1d6d41c29bd/deu.traineddata
+ced037562e8c80c13122dece28dd477d399af80911a28791a66a63ac1e3445ca     1130365  fra.traineddata  https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/87416418657359cb625c412a48b6e1d6d41c29bd/fra.traineddata
+6f2e04d02774a18f01bed44b1111f2cd7f3ba7ac9dc4373cd3f898a40ea6b464     2294433  spa.traineddata  https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/87416418657359cb625c412a48b6e1d6d41c29bd/spa.traineddata
+b8f89e1e785118dac4d51ae042c029a64edb5c3ee42ef73027a6d412748d8827     2701314  ita.traineddata  https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/87416418657359cb625c412a48b6e1d6d41c29bd/ita.traineddata
+c4932b937207a9514b7514d518b931a99938c02a28a5a5a553f8599ed58b7deb     1982756  por.traineddata  https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/87416418657359cb625c412a48b6e1d6d41c29bd/por.traineddata
+c4476cdbc0e33d898d32345122b7be1cbf85ace15f920f06c7714756e1ef79b2     4765518  pol.traineddata  https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/87416418657359cb625c412a48b6e1d6d41c29bd/pol.traineddata
+9c6668a0b202f3dcfe074b64620d108e1902ca7498a40b5a11b4a3da6112d58f     3692098  bel.traineddata  https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/87416418657359cb625c412a48b6e1d6d41c29bd/bel.traineddata
+e19f2ae860792fdf372cf48d8ce70ae5da3c4052962fe22e9de1f680c374bb0e    10562874  osd.traineddata  https://raw.githubusercontent.com/tesseract-ocr/tessdata/ced78752cc61322fb554c280d13360b35b8684e4/osd.traineddata
+cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30       11358  LICENSE.txt  https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/87416418657359cb625c412a48b6e1d6d41c29bd/LICENSE
