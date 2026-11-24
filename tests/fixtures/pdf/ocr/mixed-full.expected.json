@@ -1,0 +1,32 @@
+{
+  "pages": 6,
+  "lang": "en",
+  "coverPage": 1,
+  "searchablePages": [
+    2,
+    3
+  ],
+  "ocrFullPages": [
+    4,
+    5,
+    6
+  ],
+  "embeddedOcrImagePage": 3,
+  "inlineCropPage": 5,
+  "foreignBlock": {
+    "page": 6,
+    "lang": "ru"
+  },
+  "contains": [
+    "verbatim searchable opening paragraph",
+    "Western channel lanterns",
+    "watchmaker",
+    "timber cottage",
+    "northern pavilion",
+    "северного порта"
+  ],
+  "coverTextAbsentFromBody": [
+    "HARBOUR CHRONICLE",
+    "COLLECTED EDITION"
+  ]
+}

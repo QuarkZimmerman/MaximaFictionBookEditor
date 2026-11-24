@@ -1,0 +1,11 @@
+{
+  "pages": 2,
+  "lang": "ru",
+  "refusalWithoutOcr": "garbled",
+  "contains": [
+    "смотритель",
+    "фонарь",
+    "пекарне",
+    "караваи"
+  ]
+}

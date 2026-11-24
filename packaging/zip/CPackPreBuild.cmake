@@ -8,16 +8,17 @@ endif()
 file(MAKE_DIRECTORY "${CPACK_TEMPORARY_DIRECTORY}/bin/user")
 message(STATUS "Added bin/user to the ${CPACK_GENERATOR} staging tree")
 
-# Feature 015 (review of rc.7, R1): the copy's default folders for the user's own additions come
-# with their readme - the data folder (the template) and its genres, scripts and dictionaries.
+# Feature 015 (review of rc.7, R1) & feature 020: the copy's default folders for the user's own
+# additions come with their readme - the data folder (the template) and its genres, scripts,
+# dictionaries and ocr folders.
 if(NOT CPACK_MFBE_SOURCE_DIR)
   message(FATAL_ERROR "CPACK_MFBE_SOURCE_DIR is not set")
 endif()
 set(_mfbe_readmes "${CPACK_MFBE_SOURCE_DIR}/resources/user-readme")
 file(COPY_FILE "${_mfbe_readmes}/data.md" "${CPACK_TEMPORARY_DIRECTORY}/bin/user/readme.md")
-foreach(_mfbe_kind IN ITEMS genres scripts dictionaries)
+foreach(_mfbe_kind IN ITEMS genres scripts dictionaries ocr)
   file(MAKE_DIRECTORY "${CPACK_TEMPORARY_DIRECTORY}/bin/user/${_mfbe_kind}")
   file(COPY_FILE "${_mfbe_readmes}/${_mfbe_kind}.md"
        "${CPACK_TEMPORARY_DIRECTORY}/bin/user/${_mfbe_kind}/readme.md")
 endforeach()
-message(STATUS "Added the readme of bin/user and of its genres, scripts and dictionaries folders")
+message(STATUS "Added the readme of bin/user and of its genres, scripts, dictionaries and ocr folders")

@@ -1,0 +1,14 @@
+{
+  "pages": 2,
+  "lang": "ru",
+  "foreignBlock": {
+    "page": 2,
+    "lang": "en"
+  },
+  "contains": [
+    "смотритель",
+    "пекарне",
+    "English translator",
+    "southern railway"
+  ]
+}

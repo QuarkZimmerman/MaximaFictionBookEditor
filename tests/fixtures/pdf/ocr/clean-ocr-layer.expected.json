@@ -1,0 +1,10 @@
+{
+  "pages": 2,
+  "ocrUsed": false,
+  "contains": [
+    "recognisedlayer"
+  ],
+  "absent": [
+    "recognizedlayer"
+  ]
+}

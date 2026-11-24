@@ -140,9 +140,12 @@ endif()
 
 # Feature 016 (PD2, DP-1): mfbe-pdf-reader reads one PDF for one import in a process of its own, so that
 # a hostile file can end only it. No CEF, no server: Poppler, the picture encoders and the core's helpers.
+# Feature 020 (PD1, PD2): Leptonica and Tesseract link ONLY into mfbe-pdf-reader, never mfbe-core or mfbe.
+find_package(Leptonica CONFIG REQUIRED)
+find_package(Tesseract CONFIG REQUIRED)
 file(GLOB _mfbe_reader_sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/reader/*.cpp")
 add_executable(mfbe-pdf-reader ${_mfbe_reader_sources})
-target_link_libraries(mfbe-pdf-reader PRIVATE mfbe::core PkgConfig::POPPLER)
+target_link_libraries(mfbe-pdf-reader PRIVATE mfbe::core PkgConfig::POPPLER Tesseract::libtesseract leptonica)
 target_include_directories(mfbe-pdf-reader PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 set_target_properties(mfbe-pdf-reader PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
