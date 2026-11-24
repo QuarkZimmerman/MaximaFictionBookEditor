@@ -221,6 +221,30 @@ std::vector<OcrImageRegion> find_nontext_artwork_bands(Pix* upright_rgb, const O
     return out;
 }
 
+bool is_valid_image_region(const OcrPageResult& res, const OcrImageRegion& reg) {
+    const double page_area = res.page_width_pts * res.page_height_pts;
+    const double area = reg.pt_box[2] * reg.pt_box[3];
+    if (reg.pt_box[2] < 72.0 || reg.pt_box[3] < 54.0) {
+        return false;
+    }
+    if (area < page_area * 0.03 || area > page_area * 0.65) {
+        return false;
+    }
+    // Reject regions significantly overlapping recognized OCR text words.
+    int overlapped = 0;
+    for (const OcrWord& w : res.words) {
+        const double cx = w.box[0] + w.box[2] * 0.5;
+        const double cy = w.box[1] + w.box[3] * 0.5;
+        if (box_contains_point(reg.pt_box, cx, cy, 1.0)) {
+            ++overlapped;
+            if (overlapped >= 3) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 }  // namespace
 
 std::vector<EmbeddedImageCandidate> find_embedded_ocr_candidates(PDFDoc& doc, int page_num,
@@ -341,41 +365,29 @@ nlohmann::json build_ocr_image_block_json(const EmbeddedImageCandidate& candidat
     };
 }
 
+bool may_have_inline_illustration(const OcrPageResult& res) {
+    if (!res.usable || res.page_width_pts <= 1.0 || res.page_height_pts <= 1.0) {
+        return false;
+    }
+    for (const OcrImageRegion& reg : res.image_regions) {
+        if (is_valid_image_region(res, reg)) {
+            return true;
+        }
+    }
+    return res.has_nontext_ink;
+}
+
 nlohmann::json crop_scanned_inline_illustrations(
     PDFDoc& doc, const OcrPageResult& res, int jpeg_quality, const std::filesystem::path& out_dir,
     std::map<std::string, nlohmann::json>& prewritten_pictures) {
     nlohmann::json pictures = nlohmann::json::array();
-    if (!res.usable || res.page_width_pts <= 1.0 || res.page_height_pts <= 1.0) {
+    if (!may_have_inline_illustration(res)) {
         return pictures;
     }
 
-    const double page_area = res.page_width_pts * res.page_height_pts;
-    auto is_valid_region = [&](const OcrImageRegion& reg) -> bool {
-        const double area = reg.pt_box[2] * reg.pt_box[3];
-        if (reg.pt_box[2] < 72.0 || reg.pt_box[3] < 54.0) {
-            return false;
-        }
-        if (area < page_area * 0.03 || area > page_area * 0.65) {
-            return false;
-        }
-        // Reject regions significantly overlapping recognized OCR text words.
-        int overlapped = 0;
-        for (const OcrWord& w : res.words) {
-            const double cx = w.box[0] + w.box[2] * 0.5;
-            const double cy = w.box[1] + w.box[3] * 0.5;
-            if (box_contains_point(reg.pt_box, cx, cy, 1.0)) {
-                ++overlapped;
-                if (overlapped >= 3) {
-                    return false;
-                }
-            }
-        }
-        return true;
-    };
-
     std::vector<OcrImageRegion> candidates;
     for (const OcrImageRegion& reg : res.image_regions) {
-        if (is_valid_region(reg)) {
+        if (is_valid_image_region(res, reg)) {
             candidates.push_back(reg);
         }
     }
@@ -391,6 +403,7 @@ nlohmann::json crop_scanned_inline_illustrations(
     } else {
         upright.reset(pixClone(rgb.get()));
     }
+    rgb.reset();
     if (!upright) {
         return pictures;
     }
@@ -405,7 +418,7 @@ nlohmann::json crop_scanned_inline_illustrations(
     }
     if (kept.empty()) {
         for (const OcrImageRegion& fb : find_nontext_artwork_bands(upright.get(), res)) {
-            if (is_valid_region(fb)) {
+            if (is_valid_image_region(res, fb)) {
                 kept.push_back(fb);
             }
         }

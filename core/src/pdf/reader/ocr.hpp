@@ -10,6 +10,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -66,6 +67,9 @@ struct OcrPageResult {
     float osd_script_conf = 0.0f;
     std::vector<OcrWord> words;
     std::vector<OcrImageRegion> image_regions;  // non-text PT_*_IMAGE regions
+    // Pre-computed on the already-rendered upright grayscale Pix so text-only pages skip RGB
+    // re-rendering and can be freed immediately after page-<n>.json is written.
+    bool has_nontext_ink = false;
 };
 
 struct OcrTextBlockResult {
@@ -139,7 +143,8 @@ public:
     // (when auto_detect is true). Emits progress via `on_sample(done, total)`.
     OcrDiagnosis detect_document_language(PDFDoc& doc, const std::vector<int>& sample_pages,
                                           const std::map<int, nlohmann::json>& page_models,
-                                          const std::function<void(int, int)>& on_sample);
+                                          const std::function<void(int, int)>& on_sample,
+                                          std::atomic<bool>* cancelled = nullptr);
 
     // Pass 3: runs sequential Poppler rendering into a bounded PIX* queue feeding 1..N
     // std::thread Tesseract workers. Invokes `on_page(OcrPageResult)` on a mutex-protected path
@@ -154,11 +159,14 @@ public:
     // Recognizes a single cropped embedded raster image region on a searchable page.
     OcrTextBlockResult recognize_embedded_region(Pix* gray_region, int dpi,
                                                  const std::array<double, 4>& box_pts,
-                                                 const std::string& preferred_pack);
+                                                 const std::string& preferred_pack,
+                                                 std::atomic<bool>* cancelled = nullptr,
+                                                 const std::function<void(int)>& on_percent = {});
 
 private:
     OcrPageResult recognize_single_pix(int page_num, Pix* raw_gray, int dpi,
                                        const std::string& doc_primary_pack, void* osd_api_ptr,
+                                       std::mutex* osd_mutex,
                                        std::map<std::string, void*>& api_cache,
                                        std::atomic<bool>* cancelled = nullptr,
                                        const std::function<void(int)>& on_percent = {}) const;
@@ -171,6 +179,7 @@ private:
     std::vector<std::string> active_packs_;
     std::map<std::string, std::filesystem::path> resolved_active_;
     std::map<std::string, std::vector<std::string>> all_installed_by_script_;
+    std::map<std::string, void*> embedded_api_cache_;
 };
 
 }  // namespace mfbe::pdf_reader

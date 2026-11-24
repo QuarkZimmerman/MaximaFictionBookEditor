@@ -84,7 +84,16 @@ async function timedImport(core: CoreHandle, page: Page, file: string, limitMs: 
   // What the progress said when it stood still longest, to tell the step.
   let stillAt = '';
   let label = '';
+  const fbdPrompt = page.getByTestId('dialog-pdf-fbd-take');
   while (running) {
+    if (await fbdPrompt.isVisible().catch(() => false)) {
+      await fbdPrompt
+        .getByRole('button', { name: 'No' })
+        .click()
+        .catch(() => undefined);
+      since = Date.now();
+      continue;
+    }
     readerPeaks(core.pid, peaks);
     const [value, text] = (await page
       .evaluate(
@@ -138,7 +147,9 @@ test.describe('performance - the PDF import (SC-010)', () => {
     ['the reference book’s PDF within 10 s', () => pdf('reference-0.0.11-a5.pdf'), 10_000],
     ['a 300-page scan with a text layer within 1 min', () => libraryBook('scan300'), 60_000],
     ['the library’s longest PDF within 3 min', () => libraryBook('longest'), 180_000],
-    ['the library’s largest PDF within 3 min', () => libraryBook('largest'), 180_000],
+    // Feature 020: with Use OCR on by default, the 852-page image-only scan is recognized end-to-end
+    // instead of refused immediately; allow a 10 min full-book OCR budget.
+    ['the library’s largest PDF (full OCR) within 10 min', () => libraryBook('largest'), 600_000],
   ];
   for (const [title, book, limit] of cases) {
     test(title, { tag: '@perf' }, async ({ core, page }) => {
@@ -177,8 +188,25 @@ test.describe('performance - the PDF import (SC-010)', () => {
       test.setTimeout(120_000);
       await core.openApp(page);
       const before = await importPdfViaMenu(core, page, file!, { question: false });
-      await page.getByTestId('modal-job').waitFor({ timeout: 30_000 });
-      await page.waitForTimeout(2_000);
+      const fbdPrompt = page.getByTestId('dialog-pdf-fbd-take');
+      const modalJob = page.getByTestId('modal-job');
+      const waitDeadline = Date.now() + 30_000;
+      let readingSince: number | null = null;
+      while (Date.now() < waitDeadline) {
+        if (await fbdPrompt.isVisible().catch(() => false)) {
+          await fbdPrompt.getByRole('button', { name: 'No' }).click();
+          readingSince = null;
+          continue;
+        }
+        if (await modalJob.isVisible().catch(() => false)) {
+          readingSince ??= Date.now();
+          if (Date.now() - readingSince >= 2_000) break;
+        } else {
+          readingSince = null;
+        }
+        await page.waitForTimeout(100);
+      }
+      await modalJob.waitFor({ timeout: 5_000 });
       const clicked = Date.now();
       await page.getByTestId('modal-job-cancel').click();
       await expect(page.getByTestId('modal-job')).toBeHidden({ timeout: 10_000 });

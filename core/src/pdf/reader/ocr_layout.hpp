@@ -33,6 +33,10 @@ std::vector<EmbeddedImageCandidate> find_embedded_ocr_candidates(PDFDoc& doc, in
 nlohmann::json build_ocr_image_block_json(const EmbeddedImageCandidate& candidate,
                                           const OcrTextBlockResult& block);
 
+// Fast pre-check that avoids retaining OCR results or rendering full-page RGB bitmaps for
+// text-only scanned pages that have no candidate inline illustration regions.
+bool may_have_inline_illustration(const OcrPageResult& res);
+
 // Crops distinct non-text inline illustrations from a usable scanned page (`res.image_regions`,
 // plus a conservative color/non-text gap check if Tesseract merged artwork cleanly between text
 // blocks), writes JPEG files to `<out_dir>/pictures/ocr-p<n>-<i>.jpg`, registers their metadata in

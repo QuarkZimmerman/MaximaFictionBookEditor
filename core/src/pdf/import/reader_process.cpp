@@ -300,19 +300,23 @@ std::unique_ptr<ReaderProcess> ReaderProcess::start(const ReaderOptions& o, std:
 #ifdef __linux__
     // Build the child environment before fork() so the child stays strictly async-signal-safe.
     // Under --ocr, multi-threaded Tesseract workers cause glibc malloc to reserve large virtual
-    // arenas; capping arenas to 2 and raising RLIMIT_AS to 4096 MiB avoids false bad_alloc while
-    // check_limits() continues enforcing physical RSS <= max_memory_mb.
+    // arenas and retain freed multi-megabyte Pix/Splash buffers via dynamic mmap-threshold
+    // ratcheting; capping arenas to 2, pinning MALLOC_MMAP_THRESHOLD_ to 128 KiB, and raising
+    // RLIMIT_AS to 4096 MiB avoids false bad_alloc and immediately returns freed image buffers to
+    // the OS while check_limits() enforces physical RSS <= max_memory_mb.
     std::vector<std::string> env_strings;
     std::vector<char*> envp;
     if (o.ocr.enabled) {
         if (environ != nullptr) {
             for (char** e = environ; *e != nullptr; ++e) {
-                if (std::strncmp(*e, "MALLOC_ARENA_MAX=", 17) != 0) {
+                if (std::strncmp(*e, "MALLOC_ARENA_MAX=", 17) != 0 &&
+                    std::strncmp(*e, "MALLOC_MMAP_THRESHOLD_=", 23) != 0) {
                     env_strings.emplace_back(*e);
                 }
             }
         }
         env_strings.emplace_back("MALLOC_ARENA_MAX=2");
+        env_strings.emplace_back("MALLOC_MMAP_THRESHOLD_=131072");
         envp.reserve(env_strings.size() + 1);
         for (auto& s : env_strings) {
             envp.push_back(s.data());
