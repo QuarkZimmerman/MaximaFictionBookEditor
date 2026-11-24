@@ -71,6 +71,8 @@ json Session::wait_open() {
 }
 
 json Session::inspect(const ReaderOcrOptions& ocr) {
+    std::error_code ec;
+    std::filesystem::create_directories(folder_, ec);
     ReaderOptions o;
     o.reader = find_reader();
     o.pdf = pdf_;

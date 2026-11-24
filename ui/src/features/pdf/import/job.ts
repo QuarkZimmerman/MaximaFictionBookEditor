@@ -10,6 +10,7 @@ import type { FileFeature } from '@/features/file/fileCommands';
 import type { ReadDescriptionResult } from '@/features/transfer/importEntries';
 import type { BinaryMeta } from '@/model/document';
 import { actions } from '@/model/store';
+import type { PdfImportOcrSummary } from '@/rpc/types';
 
 import { pdfImportReason, type PdfImportRun } from '../importCommand';
 import { FB2_NS, XLINK_NS } from './fb2';
@@ -18,7 +19,7 @@ import { convertOurs, type PictureWanted } from './ours';
 import { loadDocument, loadPages } from './pages';
 import { flatten } from './parts';
 import { askFbd, fbdUnreadable } from './questions';
-import { guessLanguage, metadataDescription } from './describe';
+import { guessLanguage, metadataDescription, resolveImportLanguage } from './describe';
 import { applyFbd, closeRead, readDescriptionFile } from '@/features/importShared/fbdApply';
 import { furnitureOf, layoutParts, linesOf } from './layout';
 import { fromLatin1, looksLatin1Cyrillic } from './mend';
@@ -121,8 +122,13 @@ export async function importPdf(
     }, 200);
     let kinds: Record<string, number> = {};
     let drawingsLeftOut = 0;
+    let ocrSummary: PdfImportOcrSummary | undefined;
     try {
-      ({ kinds, drawingsLeftOut = 0 } = await rpc.runJob(
+      ({
+        kinds,
+        drawingsLeftOut = 0,
+        ocr: ocrSummary,
+      } = await rpc.runJob(
         'pdfImport.read',
         { token },
         {
@@ -130,8 +136,23 @@ export async function importPdf(
             jobId = id;
           },
           onProgress: (progress) => {
-            if (progress.total > 0)
-              modal.progress(Math.round((progress.done / progress.total) * pages * 2), total);
+            if (progress.phase === 'ocrDetect') {
+              modal.progress(
+                pages,
+                total,
+                ctx.t('pdfImport.progress.ocrDetect'),
+              );
+            } else if (progress.phase === 'ocr') {
+              modal.progress(
+                progress.total > 0
+                  ? pages + Math.round((progress.done / progress.total) * pages)
+                  : pages,
+                total,
+                ctx.t('pdfImport.progress.ocr'),
+              );
+            } else if (progress.total > 0) {
+              modal.progress(Math.round((progress.done / progress.total) * pages), total);
+            }
           },
         },
       ));
@@ -370,7 +391,13 @@ export async function importPdf(
         run.uri ? { href: run.uri, note: false } : null;
       const body = textBody(parts, link, picture);
       const words = parts.flatMap((part) => part.runs.flatMap((run) => run.text.split(/\s+/)));
-      const language = await guessLanguage(words, misspelled);
+      const guessedLang = await guessLanguage(words, misspelled);
+      const language = resolveImportLanguage({
+        pdfLang: document.metadata.lang,
+        ocrSummary,
+        totalPages: document.pages,
+        guessedLang,
+      });
       const stem = baseName(originPath).replace(/\.pdf$/i, '');
       xml =
         `<?xml version="1.0" encoding="UTF-8"?>\n<FictionBook xmlns="${FB2_NS}" xmlns:l="${XLINK_NS}">` +
@@ -492,6 +519,26 @@ export async function importPdf(
       lines.push(ctx.t('pdfImport.summary.platesImported', { count: platesImported }));
     if (garbledPages > 0)
       lines.push(ctx.t('pdfImport.summary.garbledPages', { count: garbledPages }));
+    if (ocrSummary?.used) {
+      if (ocrSummary.pagesRecognized > 0)
+        lines.push(ctx.t('pdfImport.summary.ocrPages', { count: ocrSummary.pagesRecognized }));
+      if (ocrSummary.imageBlocksRecognized > 0)
+        lines.push(
+          ctx.t('pdfImport.summary.ocrImageBlocks', { count: ocrSummary.imageBlocksRecognized }),
+        );
+      if (ocrSummary.languages.length > 0)
+        lines.push(
+          ctx.t('pdfImport.summary.ocrLanguages', { languages: ocrSummary.languages.join(', ') }),
+        );
+      if (ocrSummary.fallbackPages > 0)
+        lines.push(
+          ctx.t('pdfImport.summary.ocrFallbackPages', { count: ocrSummary.fallbackPages }),
+        );
+      if (ocrSummary.lowConfidencePages > 0)
+        lines.push(
+          ctx.t('pdfImport.summary.ocrLowConfidence', { count: ocrSummary.lowConfidencePages }),
+        );
+    }
     if (valid.mended > 0) lines.push(ctx.t('pdfImport.summary.mended', { count: valid.mended }));
     // D16, FR-029: what FB2 has no place for is left out and counted.
     const dropped = document.dropped ?? {};

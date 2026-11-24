@@ -213,9 +213,22 @@ bool write_document(PDFDoc& doc, const Options& options, std::string& error, boo
                        {"encrypted", doc.isEncrypted()},
                        {"copyAllowed", doc.okToCopy()}};
     std::string xmp;
+    std::string catalog_lang;
     if (Catalog* catalog = doc.getCatalog()) {
         if (auto metadata = catalog->readMetadata()) {
             xmp = metadata->toStr();
+        }
+    }
+    if (XRef* xref = doc.getXRef()) {
+        Object cat_obj = xref->getCatalog();
+        if (cat_obj.isDict()) {
+            Object lang_obj = cat_obj.dictLookup("Lang");
+            if (lang_obj.isString()) {
+                catalog_lang = text_string(lang_obj.getString());
+                while (!catalog_lang.empty() && catalog_lang.back() == '\0') {
+                    catalog_lang.pop_back();
+                }
+            }
         }
     }
     nlohmann::json info = nlohmann::json::object();
@@ -228,7 +241,11 @@ bool write_document(PDFDoc& doc, const Options& options, std::string& error, boo
             info[key] = text;
         }
     }
-    out["metadata"] = {{"info", info}, {"xmp", xmp}};
+    nlohmann::json meta{{"info", info}, {"xmp", xmp}};
+    if (!catalog_lang.empty()) {
+        meta["lang"] = catalog_lang;
+    }
+    out["metadata"] = std::move(meta);
     Outline* outline = doc.getOutline();
     out["outline"] = outline ? outline_of(doc, outline->getItems(), 0) : nlohmann::json::array();
     nlohmann::json forms = nlohmann::json::array();

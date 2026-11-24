@@ -66,7 +66,7 @@ export interface PdfDocumentModel {
   version?: string;
   encrypted?: boolean;
   copyAllowed?: boolean;
-  metadata: { info?: Record<string, string>; xmp?: string };
+  metadata: { info?: Record<string, string>; xmp?: string; lang?: string };
   /** The editor's record of its own PDFs (014 R10): the description and the hints, as written. */
   record?: { version: number; description: string; hints: string };
   outline: OutlineNode[];

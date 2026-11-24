@@ -618,6 +618,19 @@ export function layoutParts(
     for (const picture of page.pictures) {
       const [, , w, h] = picture.box;
       if (w < 6 || h < 6) continue;
+      // Feature 020: pre-cropped inline artwork and unreadable-page fallback images are always
+      // kept as figures (never skipped as scan background plates).
+      if (picture.ocrFallback || picture.ocrCrop) {
+        figures.push({
+          kind: 'figure',
+          page: page.n,
+          runs: [],
+          alt: '',
+          readerId: picture.id,
+          top: picture.box[1],
+        } as Part & { top: number });
+        continue;
+      }
       const large = covers(picture.box, page);
       if (large && hasText) continue;
       if (large && !hasText) {

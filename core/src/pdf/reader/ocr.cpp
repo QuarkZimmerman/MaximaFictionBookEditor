@@ -1119,9 +1119,26 @@ OcrPageResult OcrRuntime::recognize_single_pix(int page_num, Pix* raw_gray, int 
 
     // Determine usability: require at least a minimal number of plain words and reasonable
     // confidence so pure random noise or unreadable scans cleanly fall back or refuse.
-    const bool has_usable_text =
+    // When OSD confidently identified a script that NO active pack supports (e.g. Cyrillic text
+    // fed to English-only Tesseract, where visual homoglyphs can fool low confidence thresholds),
+    // demand strong in-language evidence before accepting the output as usable.
+    bool has_usable_text =
         (pass.plain_count >= 3 && pass.mean_conf >= 32.0 && pass.plain_ratio >= 0.35) ||
         (pass.plain_count >= 1 && pass.words.size() <= 4 && pass.mean_conf >= 55.0);
+    if (has_usable_text && osd.ok && !osd.script.empty() && osd.script_conf >= 2.0f &&
+        !by_script.contains(osd.script)) {
+        std::string all_text;
+        for (const OcrWord& w : pass.words) {
+            if (!all_text.empty()) {
+                all_text.push_back(' ');
+            }
+            all_text += w.text;
+        }
+        const double lang_score = score_text_for_language(all_text, page_primary_pack);
+        if (pass.mean_conf < 82.0 || pass.plain_ratio < 0.85 || lang_score < 0.45) {
+            has_usable_text = false;
+        }
+    }
 
     res.usable = has_usable_text;
     res.mean_conf = pass.mean_conf;

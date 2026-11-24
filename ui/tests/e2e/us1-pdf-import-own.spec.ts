@@ -39,7 +39,10 @@ test.describe("US1 (feature 016) - the editor's own PDF comes back as its book",
     // A book made by an import is unsaved: a second import asks before it replaces it.
     await pdfImportDone(page, await importPdfViaMenu(core, page, pdf('reference-0.0.11-a5.pdf')));
     const before = await shownDocId(page);
-    await core.enqueueDialog('dialog.openFile', { paths: [pdf('reference-0.0.11-a5.pdf')] });
+    await core.enqueueDialog('dialog.openFile', {
+      paths: [pdf('reference-0.0.11-a5.pdf')],
+      checks: { useOcr: true },
+    });
     await page.getByTestId('menu-file').click();
     await page.getByTestId('menu-file-import').hover();
     await page.getByTestId('menu-file-import-importPdf').click();
@@ -69,7 +72,10 @@ test.describe("US1 (feature 016) - the editor's own PDF comes back as its book",
   });
 
   test('File > Open refuses a PDF, pointing to the import (D4)', async ({ core, page }) => {
-    await core.enqueueDialog('dialog.openFile', { paths: [pdf('reference-0.0.11-a5.pdf')] });
+    await core.enqueueDialog('dialog.openFile', {
+      paths: [pdf('reference-0.0.11-a5.pdf')],
+      checks: { useOcr: true },
+    });
     await page.getByTestId('menu-file').click();
     await page.getByTestId('menu-file-open').click();
     const refused = page.getByTestId('dialog-pdf-refused');

@@ -28,7 +28,8 @@ if(MFBE_CORE_TEST_SOURCES)
   target_compile_definitions(mfbe_core_tests PRIVATE
     MFBE_TEST_FIXTURES_DIR="${CMAKE_SOURCE_DIR}/tests/fixtures"
     MFBE_TEST_CORPUS_DIR="${CMAKE_SOURCE_DIR}/tests/corpus"
-    MFBE_TEST_BUILD_DIR="${CMAKE_BINARY_DIR}")
+    MFBE_TEST_BUILD_DIR="${CMAKE_BINARY_DIR}"
+    MFBE_RESOURCES_SOURCE_DIR="${CMAKE_SOURCE_DIR}/resources")
   if(NOT WIN32)
     target_link_libraries(mfbe_core_tests PRIVATE OpenSSL::SSL OpenSSL::Crypto)
     target_compile_definitions(mfbe_core_tests PRIVATE MFBE_TEST_TLS=1)
