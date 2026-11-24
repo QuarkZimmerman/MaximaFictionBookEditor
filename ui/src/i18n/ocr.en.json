@@ -47,6 +47,9 @@
       "unavailable": "OCR catalog is unavailable: the editor core is not connected.",
       "osdMissing": "Orientation detection data (osd.traineddata) was not found; rotated scan detection is unavailable.",
       "overridesBundled": "Overrides bundled",
+      "packSizeMb": "{{size}} MB",
+      "packSizeKb": "{{size}} KB",
+      "packSizeB": "{{size}} B",
       "layer": {
         "bundled": "Bundled",
         "user": "User",

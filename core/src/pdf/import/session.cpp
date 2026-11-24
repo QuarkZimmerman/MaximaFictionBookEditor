@@ -145,9 +145,12 @@ std::string Session::read(const std::function<bool(const std::string&, int, int)
                 return "cancelled";
             }
         } else if (event == "ocr-stage") {
+            const std::string stage = e.value("stage", "detect");
             const int done = e.value("done", 0);
             const int total = e.value("total", 0);
-            if (!progress("ocrDetect", done, total)) {
+            const std::string phase =
+                stage == "ocr" ? "ocr" : (stage == "crop" ? "ocrCrop" : "ocrDetect");
+            if (!progress(phase, done, total)) {
                 end();
                 return "cancelled";
             }
@@ -172,7 +175,9 @@ std::string Session::read(const std::function<bool(const std::string&, int, int)
             }
             const int done = e.value("done", 0);
             const int total = e.value("total", 0);
-            if (!progress("ocr", done, total)) {
+            // Scale page completions to the same 100-unit per-page scale as sub-page ocr-stage
+            // ticks so progress stays monotonically non-decreasing.
+            if (!progress("ocr", done * 100, total * 100)) {
                 end();
                 return "cancelled";
             }
@@ -202,8 +207,9 @@ std::string Session::read(const std::function<bool(const std::string&, int, int)
 }
 
 std::string Session::read(const std::function<bool(int, int)>& progress, json& result) {
-    return read([&progress](const std::string&, int done, int total) { return progress(done, total); },
-                result);
+    return read(
+        [&progress](const std::string&, int done, int total) { return progress(done, total); },
+        result);
 }
 
 json Session::picture(const std::string& id, int page) {

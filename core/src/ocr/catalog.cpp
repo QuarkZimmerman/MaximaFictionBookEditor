@@ -54,10 +54,9 @@ std::vector<fs::directory_entry> sorted_children(const fs::path& folder) {
 }
 
 std::int32_t read_le32(const unsigned char* p) {
-    const std::uint32_t v = static_cast<std::uint32_t>(p[0]) |
-                            (static_cast<std::uint32_t>(p[1]) << 8) |
-                            (static_cast<std::uint32_t>(p[2]) << 16) |
-                            (static_cast<std::uint32_t>(p[3]) << 24);
+    const std::uint32_t v =
+        static_cast<std::uint32_t>(p[0]) | (static_cast<std::uint32_t>(p[1]) << 8) |
+        (static_cast<std::uint32_t>(p[2]) << 16) | (static_cast<std::uint32_t>(p[3]) << 24);
     return static_cast<std::int32_t>(v);
 }
 
@@ -322,14 +321,13 @@ nlohmann::json to_json(const CatalogReport& report) {
     return nlohmann::json{
         {"packs", std::move(packs)},
         {"osdAvailable", report.osd_available},
-        {"osdLayer",
-         report.osd_layer ? nlohmann::json(resources::to_string(*report.osd_layer))
-                          : nlohmann::json(nullptr)},
+        {"osdLayer", report.osd_layer ? nlohmann::json(resources::to_string(*report.osd_layer))
+                                      : nlohmann::json(nullptr)},
         {"activeFolder", platform::utf8_from_path(report.active_folder)},
         {"customFolder", report.custom_folder},
-        {"customFolderIssue",
-         report.custom_folder_issue ? nlohmann::json(*report.custom_folder_issue)
-                                    : nlohmann::json(nullptr)},
+        {"customFolderIssue", report.custom_folder_issue
+                                  ? nlohmann::json(*report.custom_folder_issue)
+                                  : nlohmann::json(nullptr)},
         {"passedOver", std::move(passed)},
     };
 }

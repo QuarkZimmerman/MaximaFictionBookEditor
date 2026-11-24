@@ -308,7 +308,10 @@ export function startBatchRun(options: BatchSchedulerOptions): BatchRunControlle
       emitNow();
 
       const workerSlots = Math.min(effectiveWorkerCount(config, cpuCores), items.length);
-      const maxOcrWorkers = Math.max(1, Math.min(workerSlots, Math.min(4, Math.ceil(cpuCores / 2))));
+      const maxOcrWorkers = Math.max(
+        1,
+        Math.min(workerSlots, Math.min(4, Math.ceil(cpuCores / 2))),
+      );
       cache = new BatchSharedCache(rpc, maxOcrWorkers);
       const activeCache = cache;
       const adapterCache = new Map<string, Promise<BatchAdapterFn>>();

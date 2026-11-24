@@ -62,17 +62,28 @@ char32_t fold_lower(char32_t c) {
     }
     // Polish & Latin Extended-A uppercase pairs (even -> odd for 0x100..0x17E, plus Ł/ł etc.)
     switch (c) {
-        case 0x0104: return 0x0105;  // Ą -> ą
-        case 0x0106: return 0x0107;  // Ć -> ć
-        case 0x0118: return 0x0119;  // Ę -> ę
-        case 0x0141: return 0x0142;  // Ł -> ł
-        case 0x0143: return 0x0144;  // Ń -> ń
-        case 0x0152: return 0x0153;  // Œ -> œ
-        case 0x015A: return 0x015B;  // Ś -> ś
-        case 0x0179: return 0x017A;  // Ź -> ź
-        case 0x017B: return 0x017C;  // Ż -> ż
-        case 0x0178: return 0x00FF;  // Ÿ -> ÿ
-        default: break;
+        case 0x0104:
+            return 0x0105;  // Ą -> ą
+        case 0x0106:
+            return 0x0107;  // Ć -> ć
+        case 0x0118:
+            return 0x0119;  // Ę -> ę
+        case 0x0141:
+            return 0x0142;  // Ł -> ł
+        case 0x0143:
+            return 0x0144;  // Ń -> ń
+        case 0x0152:
+            return 0x0153;  // Œ -> œ
+        case 0x015A:
+            return 0x015B;  // Ś -> ś
+        case 0x0179:
+            return 0x017A;  // Ź -> ź
+        case 0x017B:
+            return 0x017C;  // Ż -> ż
+        case 0x0178:
+            return 0x00FF;  // Ÿ -> ÿ
+        default:
+            break;
     }
     // Basic Cyrillic А..Я (0x0410..0x042F -> 0x0430..0x044F)
     if (c >= 0x0410 && c <= 0x042F) {
@@ -237,8 +248,8 @@ double score_text_for_language(std::string_view utf8_text, std::string_view pack
     }
 
     // 1. Trigram hit rate (weighted slightly toward higher-ranked trigrams)
-    std::unordered_set<std::string_view> trigram_set(
-        profile->trigrams, profile->trigrams + profile->trigram_count);
+    std::unordered_set<std::string_view> trigram_set(profile->trigrams,
+                                                     profile->trigrams + profile->trigram_count);
     int total_trigrams = 0;
     int trigram_hits = 0;
     std::string tri;
@@ -261,8 +272,8 @@ double score_text_for_language(std::string_view utf8_text, std::string_view pack
     const double trigram_score = std::clamp(trigram_rate / 0.35, 0.0, 1.0);
 
     // 2. High-frequency stopword match rate
-    std::unordered_set<std::string_view> stop_set(
-        profile->stopwords, profile->stopwords + profile->stopword_count);
+    std::unordered_set<std::string_view> stop_set(profile->stopwords,
+                                                  profile->stopwords + profile->stopword_count);
     int stop_hits = 0;
     for (const std::string& w : words) {
         if (stop_set.contains(w)) {
@@ -307,7 +318,8 @@ OcrCandidateScore evaluate_ocr_candidate(std::string_view utf8_text, std::string
     // Language profile match carries strong weight when discriminating same-script packs
     // (e.g. German vs English or Ukrainian vs Russian), while confidence + plain-word share
     // protect against garbled/wrong-script reads.
-    const double word_factor = word_count >= 5 ? 1.0 : (word_count > 0 ? 0.5 + 0.1 * word_count : 0.0);
+    const double word_factor =
+        word_count >= 5 ? 1.0 : (word_count > 0 ? 0.5 + 0.1 * word_count : 0.0);
     out.total_score =
         word_factor * (0.35 * conf_norm + 0.20 * out.plain_ratio + 0.45 * out.text_score);
     return out;

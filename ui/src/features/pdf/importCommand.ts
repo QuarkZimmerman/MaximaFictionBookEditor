@@ -7,6 +7,8 @@
  * is a one-time operation (011 D32): nothing of it is kept once it ends (D3).
  */
 
+import { createElement } from 'react';
+
 import type { CommandContext, CommandRegistry } from '@/app/commands';
 import { startModalJob, type ModalJobHandle } from '@/app/modalJob';
 import { showArchiveBookChooser } from '@/dialogs/show';
@@ -15,7 +17,7 @@ import type { FileFeature } from '@/features/file/fileCommands';
 import { isRpcError } from '@/rpc/client';
 import { RpcErrorCode, type ArchiveChoice, type PdfImportEntry } from '@/rpc/types';
 
-import { showPdfImportOptions } from './PdfImportOptionsDialog';
+import { PdfImportOptionsDialog, type PdfImportOptionsAnswer } from './PdfImportOptionsDialog';
 
 export const IMPORT_PDF_COMMAND = 'file.importPdf';
 
@@ -143,7 +145,9 @@ export function registerPdfImportFeature(commands: CommandRegistry, files: FileF
       if (openResult.checks && typeof openResult.checks.useOcr === 'boolean') {
         useOcr = openResult.checks.useOcr;
       } else {
-        const chosen = await showPdfImportOptions(ctx.dialogs, { initialUseOcr });
+        const chosen = await ctx.dialogs.openCustom<PdfImportOptionsAnswer | null>((close) =>
+          createElement(PdfImportOptionsDialog, { initialUseOcr, onClose: close }),
+        );
         if (chosen === null) return;
         useOcr = chosen.useOcr;
       }

@@ -73,7 +73,9 @@ function formatBatchOcrReason(
   if (summary.imageBlocksRecognized > 0) {
     parts.push(t('batch.ocr.summaryImages', { images: summary.imageBlocksRecognized }));
   }
-  const langNames = summary.languages.map((code) => resolveLanguageLabel(rawLanguages, code, uiLang));
+  const langNames = summary.languages.map((code) =>
+    resolveLanguageLabel(rawLanguages, code, uiLang),
+  );
   const partsText = parts.join(', ');
   const reason =
     langNames.length > 0
@@ -164,7 +166,7 @@ export async function runPdfToFb2(params: BatchAdapterContext): Promise<BatchAda
             const stageKey =
               phase === 'ocrDetect'
                 ? 'batch.progress.stageOcrDetect'
-                : phase === 'ocr'
+                : phase === 'ocr' || phase === 'ocrCrop'
                   ? 'batch.progress.stageOcr'
                   : 'batch.progress.stageReading';
             onStage(stageKey, d, Math.max(tot, 1));
@@ -406,9 +408,7 @@ export async function runPdfToFb2(params: BatchAdapterContext): Promise<BatchAda
         );
       }
       if (!readStats.ocr?.used && (readStats.kinds.garbled ?? 0) > 0) {
-        warnings.push(
-          ctx.t('pdfImport.summary.garbledPages', { count: readStats.kinds.garbled }),
-        );
+        warnings.push(ctx.t('pdfImport.summary.garbledPages', { count: readStats.kinds.garbled }));
       }
       if (readStats.ocr?.used) {
         if (readStats.ocr.fallbackPages > 0) {

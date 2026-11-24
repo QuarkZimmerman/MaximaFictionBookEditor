@@ -574,9 +574,8 @@ std::string check_value(const Field& field, const json& value) {
                     return "invalid OCR language code";
                 }
                 std::string key = code;
-                std::transform(key.begin(), key.end(), key.begin(), [](unsigned char c) {
-                    return static_cast<char>(std::tolower(c));
-                });
+                std::transform(key.begin(), key.end(), key.begin(),
+                               [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
                 if (!seen.insert(key).second) {
                     return "duplicate OCR language code";
                 }
@@ -727,9 +726,7 @@ json defaults() {
           {"zip", false}}},
         {"imports", {{"pdf", {{"useOcr", true}}}}},
         {"ocr",
-         {{"folder", ""},
-          {"autoDetect", true},
-          {"enabledLanguages", json::array({"eng", "rus"})}}},
+         {{"folder", ""}, {"autoDetect", true}, {"enabledLanguages", json::array({"eng", "rus"})}}},
         {"session",
          {{"windowGeometry", nullptr},
           {"toolbars",

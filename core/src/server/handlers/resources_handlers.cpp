@@ -94,9 +94,8 @@ void register_resources_handlers(rpc::RpcRouter& router, Services& services) {
             }
         }
         json items = json::array();
-        for (const resources::Kind kind :
-             {resources::Kind::genres, resources::Kind::scripts, resources::Kind::dictionaries,
-              resources::Kind::ocr}) {
+        for (const resources::Kind kind : {resources::Kind::genres, resources::Kind::scripts,
+                                           resources::Kind::dictionaries, resources::Kind::ocr}) {
             if (!only.empty() && only != resources::to_string(kind)) {
                 continue;
             }

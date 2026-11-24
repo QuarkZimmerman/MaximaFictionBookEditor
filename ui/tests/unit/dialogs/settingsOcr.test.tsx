@@ -37,9 +37,7 @@ function makeReport(overrides: Partial<OcrCatalogReport> = {}): OcrCatalogReport
     activeFolder: '/user/ocr',
     customFolder: '',
     customFolderIssue: null,
-    passedOver: [
-      { layer: 'user', path: '/user/ocr/broken.traineddata', reason: 'corrupt' },
-    ],
+    passedOver: [{ layer: 'user', path: '/user/ocr/broken.traineddata', reason: 'corrupt' }],
     ...overrides,
   };
 }

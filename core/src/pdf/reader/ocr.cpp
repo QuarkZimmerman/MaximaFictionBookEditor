@@ -11,13 +11,10 @@
 #include <PDFDoc.h>
 #include <Page.h>
 #include <SplashOutputDev.h>
-#include <allheaders.h>
-#include <splash/SplashBitmap.h>
-#include <tesseract/baseapi.h>
-#include <tesseract/publictypes.h>
-
 #include <algorithm>
+#include <allheaders.h>
 #include <cctype>
+#include <chrono>
 #include <cmath>
 #include <condition_variable>
 #include <deque>
@@ -25,6 +22,10 @@
 #include <memory>
 #include <mutex>
 #include <set>
+#include <splash/SplashBitmap.h>
+#include <tesseract/baseapi.h>
+#include <tesseract/ocrclass.h>
+#include <tesseract/publictypes.h>
 #include <thread>
 #ifndef _WIN32
 #include <unistd.h>
@@ -172,9 +173,8 @@ PixPtr maybe_rotate_and_deskew(Pix* raw_gray, int rotate_cw) {
         if (pixFindSkew(bin.get(), &angle, &conf) == 0 && conf >= 2.5f &&
             std::fabs(angle) >= 0.6f && std::fabs(angle) <= 10.0f) {
             constexpr float kDegToRad = 3.14159265358979323846f / 180.0f;
-            PixPtr deskewed(
-                pixRotate(current.get(), angle * kDegToRad, L_ROTATE_AREA_MAP, L_BRING_IN_WHITE,
-                          0, 0));
+            PixPtr deskewed(pixRotate(current.get(), angle * kDegToRad, L_ROTATE_AREA_MAP,
+                                      L_BRING_IN_WHITE, 0, 0));
             if (deskewed) {
                 pixSetXRes(deskewed.get(), pixGetXRes(current.get()));
                 pixSetYRes(deskewed.get(), pixGetYRes(current.get()));
@@ -194,15 +194,58 @@ struct PassOutput {
     int plain_count = 0;
 };
 
+struct OcrProgressHook {
+    std::atomic<bool>* cancelled = nullptr;
+    const std::function<void(int)>* on_percent = nullptr;
+};
+
+bool ocr_cancel_callback(void* ctx, int) {
+    const auto* hook = static_cast<const OcrProgressHook*>(ctx);
+#ifndef _WIN32
+    if (getppid() == 1) {
+        if (hook != nullptr && hook->cancelled != nullptr) {
+            hook->cancelled->store(true, std::memory_order_relaxed);
+        }
+        return true;
+    }
+#endif
+    return hook != nullptr && hook->cancelled != nullptr &&
+           hook->cancelled->load(std::memory_order_relaxed);
+}
+
+bool ocr_progress_callback(tesseract::ETEXT_DESC* ths, int, int, int, int) {
+    const auto* hook = static_cast<const OcrProgressHook*>(ths->cancel_this);
+    if (hook != nullptr && hook->on_percent != nullptr && *hook->on_percent) {
+        (*hook->on_percent)(static_cast<int>(ths->progress));
+    }
+    return true;  // Tesseract ETEXT_DESC progress_callback2 returns true to continue.
+}
+
 PassOutput run_tesseract_pass(tesseract::TessBaseAPI& api, Pix* gray, int dpi,
-                              const std::string& default_fb2_lang, bool collect_images) {
+                              const std::string& default_fb2_lang, bool collect_images,
+                              std::atomic<bool>* cancelled = nullptr,
+                              const std::function<void(int)>* on_percent = nullptr) {
     PassOutput out;
     if (gray == nullptr || dpi <= 0) {
         return out;
     }
+    if (cancelled != nullptr && cancelled->load(std::memory_order_relaxed)) {
+        return out;
+    }
     api.SetImage(gray);
     api.SetSourceResolution(dpi);
-    if (api.Recognize(nullptr) != 0) {
+    int rc = 0;
+    if (cancelled != nullptr || (on_percent != nullptr && *on_percent)) {
+        OcrProgressHook hook{cancelled, on_percent};
+        tesseract::ETEXT_DESC monitor;
+        monitor.cancel_this = &hook;
+        monitor.cancel = &ocr_cancel_callback;
+        monitor.progress_callback2 = &ocr_progress_callback;
+        rc = api.Recognize(&monitor);
+    } else {
+        rc = api.Recognize(nullptr);
+    }
+    if (rc != 0 || (cancelled != nullptr && cancelled->load(std::memory_order_relaxed))) {
         api.Clear();
         return out;
     }
@@ -294,9 +337,9 @@ PassOutput run_tesseract_pass(tesseract::TessBaseAPI& api, Pix* gray, int dpi,
 
         const double w_pt = std::max(1.0, (x2 - x1) * px_to_pt);
         const double h_pt = std::max(1.0, (y2 - y1) * px_to_pt);
-        const double fsize =
-            (pointsize >= 6 && pointsize <= 72) ? static_cast<double>(pointsize)
-                                                : std::clamp(h_pt * 0.85, 7.0, 48.0);
+        const double fsize = (pointsize >= 6 && pointsize <= 72)
+                                 ? static_cast<double>(pointsize)
+                                 : std::clamp(h_pt * 0.85, 7.0, 48.0);
 
         OcrWord word;
         word.text = std::move(text);
@@ -337,8 +380,8 @@ tesseract::TessBaseAPI* get_or_create_api(const fs::path& tessdata_dir,
     if (it != cache.end()) {
         return static_cast<tesseract::TessBaseAPI*>(it->second);
     }
-    auto api = make_tess_api(tessdata_dir, lang_spec, tesseract::OEM_LSTM_ONLY,
-                             tesseract::PSM_AUTO);
+    auto api =
+        make_tess_api(tessdata_dir, lang_spec, tesseract::OEM_LSTM_ONLY, tesseract::PSM_AUTO);
     if (!api) {
         api = make_tess_api(tessdata_dir, lang_spec, tesseract::OEM_DEFAULT, tesseract::PSM_AUTO);
     }
@@ -495,8 +538,8 @@ int OcrRuntime::compute_render_dpi(PDFDoc& doc, int page_num, const nlohmann::js
         if (w_in > 0.1 && h_in > 0.1) {
             const double max_dim = std::max(w_in, h_in);
             const int dim_cap = static_cast<int>(std::floor(kMaxDimensionPx / max_dim));
-            const int px_cap =
-                static_cast<int>(std::floor(std::sqrt(static_cast<double>(kMaxPixels) / (w_in * h_in))));
+            const int px_cap = static_cast<int>(
+                std::floor(std::sqrt(static_cast<double>(kMaxPixels) / (w_in * h_in))));
             chosen = std::clamp(chosen, 120, std::max(120, std::min({kMaxDpi, dim_cap, px_cap})));
         }
     }
@@ -696,10 +739,9 @@ bool OcrRuntime::save_pix_full(Pix* rgb_pix, int rotation_cw, int jpeg_quality,
     return static_cast<bool>(out);
 }
 
-OcrDiagnosis OcrRuntime::detect_document_language(
-    PDFDoc& doc, const std::vector<int>& sample_pages,
-    const std::map<int, nlohmann::json>& page_models,
-    const std::function<void(int, int)>& on_sample) {
+OcrDiagnosis OcrRuntime::detect_document_language(PDFDoc& doc, const std::vector<int>& sample_pages,
+                                                  const std::map<int, nlohmann::json>& page_models,
+                                                  const std::function<void(int, int)>& on_sample) {
     OcrDiagnosis diag;
     if (!initialized_ || active_packs_.empty()) {
         return diag;
@@ -713,8 +755,8 @@ OcrDiagnosis OcrRuntime::detect_document_language(
     const auto by_script = group_packs_by_script(active_packs_);
     std::unique_ptr<tesseract::TessBaseAPI> osd_api;
     if (osd_available_) {
-        osd_api = make_tess_api(tessdata_dir_, "osd", tesseract::OEM_DEFAULT,
-                                tesseract::PSM_OSD_ONLY);
+        osd_api =
+            make_tess_api(tessdata_dir_, "osd", tesseract::OEM_DEFAULT, tesseract::PSM_OSD_ONLY);
     }
 
     struct SamplePix {
@@ -786,7 +828,8 @@ OcrDiagnosis OcrRuntime::detect_document_language(
 
     std::map<std::string, double> score_sum;
     for (const std::string& code : candidates) {
-        auto api = make_tess_api(tessdata_dir_, code, tesseract::OEM_LSTM_ONLY, tesseract::PSM_AUTO);
+        auto api =
+            make_tess_api(tessdata_dir_, code, tesseract::OEM_LSTM_ONLY, tesseract::PSM_AUTO);
         if (!api) {
             api = make_tess_api(tessdata_dir_, code, tesseract::OEM_DEFAULT, tesseract::PSM_AUTO);
         }
@@ -795,10 +838,11 @@ OcrDiagnosis OcrRuntime::detect_document_language(
         }
         const std::string fb2_lang = ocr::language_info_for_code(code).fb2_lang;
         for (const SamplePix& s : samples) {
-            const PassOutput pass = run_tesseract_pass(*api, s.upright.get(), s.dpi, fb2_lang, false);
-            const auto scored = evaluate_ocr_candidate(pass.full_text, code, pass.mean_conf,
-                                                       pass.plain_ratio,
-                                                       static_cast<int>(pass.words.size()));
+            const PassOutput pass =
+                run_tesseract_pass(*api, s.upright.get(), s.dpi, fb2_lang, false);
+            const auto scored =
+                evaluate_ocr_candidate(pass.full_text, code, pass.mean_conf, pass.plain_ratio,
+                                       static_cast<int>(pass.words.size()));
             score_sum[code] += scored.total_score;
         }
     }
@@ -824,7 +868,9 @@ OcrDiagnosis OcrRuntime::detect_document_language(
 OcrPageResult OcrRuntime::recognize_single_pix(int page_num, Pix* raw_gray, int dpi,
                                                const std::string& doc_primary_pack,
                                                void* osd_api_ptr,
-                                               std::map<std::string, void*>& api_cache) const {
+                                               std::map<std::string, void*>& api_cache,
+                                               std::atomic<bool>* cancelled,
+                                               const std::function<void(int)>& on_percent) const {
     OcrPageResult res;
     res.page = page_num;
     res.dpi = dpi;
@@ -869,9 +915,10 @@ OcrPageResult OcrRuntime::recognize_single_pix(int page_num, Pix* raw_gray, int 
                     std::vector<OcrCandidateScore> scores;
                     for (const std::string& cand : sit->second) {
                         if (auto* api = get_or_create_api(tessdata_dir_, cand, api_cache)) {
-                            const auto pass = run_tesseract_pass(
-                                *api, upright.get(), dpi, ocr::language_info_for_code(cand).fb2_lang,
-                                false);
+                            const auto pass =
+                                run_tesseract_pass(*api, upright.get(), dpi,
+                                                   ocr::language_info_for_code(cand).fb2_lang,
+                                                   false, cancelled, &on_percent);
                             scores.push_back(evaluate_ocr_candidate(
                                 pass.full_text, cand, pass.mean_conf, pass.plain_ratio,
                                 static_cast<int>(pass.words.size())));
@@ -891,7 +938,11 @@ OcrPageResult OcrRuntime::recognize_single_pix(int page_num, Pix* raw_gray, int 
         return res;
     }
     const std::string primary_fb2 = ocr::language_info_for_code(page_primary_pack).fb2_lang;
-    PassOutput pass = run_tesseract_pass(*primary_api, upright.get(), dpi, primary_fb2, true);
+    PassOutput pass = run_tesseract_pass(*primary_api, upright.get(), dpi, primary_fb2, true,
+                                         cancelled, &on_percent);
+    if (cancelled != nullptr && cancelled->load(std::memory_order_relaxed)) {
+        return res;
+    }
 
     // If auto-detect is on and multiple enabled packs exist, check:
     // (a) Page-level fallback: if primary pass yielded poor results (< 60% conf or < 0.55 plain
@@ -901,12 +952,11 @@ OcrPageResult OcrRuntime::recognize_single_pix(int page_num, Pix* raw_gray, int 
     //     re-recognize that cropped block with the alternate pack so bilingual pages (EN+RU,
     //     DE+EN, etc.) get crisp words tagged with their exact FB2 xml:lang.
     if (options_.auto_detect && active_packs_.size() > 1) {
-        const auto primary_eval = evaluate_ocr_candidate(
-            pass.full_text, page_primary_pack, pass.mean_conf, pass.plain_ratio,
-            static_cast<int>(pass.words.size()));
-        const bool weak_page =
-            pass.plain_count < 3 || pass.mean_conf < 62.0 || pass.plain_ratio < 0.58 ||
-            primary_eval.text_score < 0.28;
+        const auto primary_eval =
+            evaluate_ocr_candidate(pass.full_text, page_primary_pack, pass.mean_conf,
+                                   pass.plain_ratio, static_cast<int>(pass.words.size()));
+        const bool weak_page = pass.plain_count < 3 || pass.mean_conf < 62.0 ||
+                               pass.plain_ratio < 0.58 || primary_eval.text_score < 0.28;
         if (weak_page) {
             OcrCandidateScore best_eval = primary_eval;
             PassOutput best_pass = pass;
@@ -917,10 +967,14 @@ OcrPageResult OcrRuntime::recognize_single_pix(int page_num, Pix* raw_gray, int 
                 }
                 if (auto* api = get_or_create_api(tessdata_dir_, cand, api_cache)) {
                     const std::string fb2 = ocr::language_info_for_code(cand).fb2_lang;
-                    PassOutput alt = run_tesseract_pass(*api, upright.get(), dpi, fb2, true);
-                    const auto ev = evaluate_ocr_candidate(alt.full_text, cand, alt.mean_conf,
-                                                           alt.plain_ratio,
-                                                           static_cast<int>(alt.words.size()));
+                    PassOutput alt = run_tesseract_pass(*api, upright.get(), dpi, fb2, true,
+                                                        cancelled, &on_percent);
+                    if (cancelled != nullptr && cancelled->load(std::memory_order_relaxed)) {
+                        return res;
+                    }
+                    const auto ev =
+                        evaluate_ocr_candidate(alt.full_text, cand, alt.mean_conf, alt.plain_ratio,
+                                               static_cast<int>(alt.words.size()));
                     if (ev.total_score > best_eval.total_score + 0.04) {
                         best_eval = ev;
                         best_pass = std::move(alt);
@@ -1023,18 +1077,22 @@ OcrPageResult OcrRuntime::recognize_single_pix(int page_num, Pix* raw_gray, int 
             const double off_y_pt = cy * px_to_pt;
 
             for (const std::string& cand : alt_packs) {
+                if (cancelled != nullptr && cancelled->load(std::memory_order_relaxed)) {
+                    return res;
+                }
                 auto* api = get_or_create_api(tessdata_dir_, cand, api_cache);
                 if (api == nullptr) {
                     continue;
                 }
                 const std::string fb2 = ocr::language_info_for_code(cand).fb2_lang;
-                PassOutput alt = run_tesseract_pass(*api, block_pix.get(), dpi, fb2, false);
+                PassOutput alt = run_tesseract_pass(*api, block_pix.get(), dpi, fb2, false,
+                                                    cancelled, &on_percent);
                 if (alt.words.empty()) {
                     continue;
                 }
-                const auto ev = evaluate_ocr_candidate(alt.full_text, cand, alt.mean_conf,
-                                                       alt.plain_ratio,
-                                                       static_cast<int>(alt.words.size()));
+                const auto ev =
+                    evaluate_ocr_candidate(alt.full_text, cand, alt.mean_conf, alt.plain_ratio,
+                                           static_cast<int>(alt.words.size()));
                 if (ev.total_score > best_blk.total_score + 0.08 && alt.plain_count >= 3) {
                     best_blk = ev;
                     best_blk_words = std::move(alt.words);
@@ -1172,16 +1230,42 @@ OcrPageResult OcrRuntime::recognize_single_pix(int page_num, Pix* raw_gray, int 
     return res;
 }
 
-void OcrRuntime::recognize_pages_parallel(
-    PDFDoc& doc, const std::vector<int>& target_pages,
-    const std::map<int, nlohmann::json>& page_models, const std::string& doc_primary_pack,
-    const std::function<void(OcrPageResult&&)>& on_page, std::atomic<bool>& cancelled) {
+void OcrRuntime::recognize_pages_parallel(PDFDoc& doc, const std::vector<int>& target_pages,
+                                          const std::map<int, nlohmann::json>& page_models,
+                                          const std::string& doc_primary_pack,
+                                          const std::function<void(OcrPageResult&&)>& on_page,
+                                          std::atomic<bool>& cancelled,
+                                          const std::function<void(int, int)>& on_sub_progress) {
     if (!initialized_ || target_pages.empty()) {
         return;
     }
 
-    const int worker_count = std::clamp(
-        std::min<int>(options_.threads, static_cast<int>(target_pages.size())), 1, 8);
+    const int worker_count =
+        std::clamp(std::min<int>(options_.threads, static_cast<int>(target_pages.size())), 1, 8);
+    const int total_scaled = static_cast<int>(target_pages.size()) * 100;
+    std::mutex callback_mutex;
+    int completed_pages = 0;
+    int last_emitted_sub = 0;
+    auto last_emit_time = std::chrono::steady_clock::now();
+
+    const std::function<void(int)> emit_sub = [&](int pct) {
+        if (!on_sub_progress || cancelled.load(std::memory_order_relaxed)) {
+            return;
+        }
+        const auto now = std::chrono::steady_clock::now();
+        std::lock_guard<std::mutex> lock(callback_mutex);
+        if (now - last_emit_time < std::chrono::milliseconds(250)) {
+            return;
+        }
+        const int candidate =
+            std::clamp(completed_pages * 100 + std::clamp(pct, 1, 99), 1, total_scaled - 1);
+        const int next = std::min(total_scaled - 1, std::max(last_emitted_sub + 1, candidate));
+        if (next > last_emitted_sub) {
+            last_emitted_sub = next;
+            last_emit_time = now;
+            on_sub_progress(next, total_scaled);
+        }
+    };
 
     if (worker_count == 1) {
         std::unique_ptr<tesseract::TessBaseAPI> osd_api;
@@ -1206,7 +1290,13 @@ void OcrRuntime::recognize_pages_parallel(
                 compute_render_dpi(doc, p, mit != page_models.end() ? mit->second : empty);
             PixPtr raw = render_page_gray(doc, p, dpi);
             OcrPageResult r = recognize_single_pix(p, raw.get(), dpi, doc_primary_pack,
-                                                   osd_api.get(), cache);
+                                                   osd_api.get(), cache, &cancelled, emit_sub);
+            if (cancelled.load()) {
+                break;
+            }
+            ++completed_pages;
+            last_emitted_sub = std::max(last_emitted_sub, completed_pages * 100);
+            last_emit_time = std::chrono::steady_clock::now();
             on_page(std::move(r));
         }
         destroy_api_cache(cache);
@@ -1225,7 +1315,6 @@ void OcrRuntime::recognize_pages_parallel(
     std::condition_variable q_not_empty;
     std::deque<WorkItem> queue;
     bool producer_done = false;
-    std::mutex callback_mutex;
 
     auto worker_fn = [&]() {
         std::unique_ptr<tesseract::TessBaseAPI> osd_api;
@@ -1238,9 +1327,8 @@ void OcrRuntime::recognize_pages_parallel(
             WorkItem item;
             {
                 std::unique_lock<std::mutex> lock(q_mutex);
-                q_not_empty.wait(lock, [&] {
-                    return !queue.empty() || producer_done || cancelled.load();
-                });
+                q_not_empty.wait(
+                    lock, [&] { return !queue.empty() || producer_done || cancelled.load(); });
                 if (cancelled.load() || (queue.empty() && producer_done)) {
                     break;
                 }
@@ -1248,11 +1336,18 @@ void OcrRuntime::recognize_pages_parallel(
                 queue.pop_front();
                 q_not_full.notify_one();
             }
-            OcrPageResult res = recognize_single_pix(item.page, item.gray.get(), item.dpi,
-                                                     doc_primary_pack, osd_api.get(), cache);
+            OcrPageResult res =
+                recognize_single_pix(item.page, item.gray.get(), item.dpi, doc_primary_pack,
+                                     osd_api.get(), cache, &cancelled, emit_sub);
             item.gray.reset();
+            if (cancelled.load(std::memory_order_relaxed)) {
+                break;
+            }
             {
                 std::lock_guard<std::mutex> lock(callback_mutex);
+                ++completed_pages;
+                last_emitted_sub = std::max(last_emitted_sub, completed_pages * 100);
+                last_emit_time = std::chrono::steady_clock::now();
                 on_page(std::move(res));
             }
         }
@@ -1329,23 +1424,23 @@ OcrTextBlockResult OcrRuntime::recognize_embedded_region(Pix* gray_region, int d
     std::string best_pack;
 
     for (const std::string& spec : candidates) {
-        auto api = make_tess_api(tessdata_dir_, spec, tesseract::OEM_LSTM_ONLY, tesseract::PSM_AUTO);
+        auto api =
+            make_tess_api(tessdata_dir_, spec, tesseract::OEM_LSTM_ONLY, tesseract::PSM_AUTO);
         if (!api) {
             api = make_tess_api(tessdata_dir_, spec, tesseract::OEM_DEFAULT, tesseract::PSM_AUTO);
         }
         if (!api) {
             continue;
         }
-        const std::string pack_for_lang =
-            options_.auto_detect ? spec : active_packs_.front();
+        const std::string pack_for_lang = options_.auto_detect ? spec : active_packs_.front();
         const std::string fb2 = ocr::language_info_for_code(pack_for_lang).fb2_lang;
         PassOutput pass = run_tesseract_pass(*api, gray_region, dpi, fb2, false);
         if (pass.plain_count < 3) {
             continue;
         }
-        const auto ev = evaluate_ocr_candidate(pass.full_text, pack_for_lang, pass.mean_conf,
-                                               pass.plain_ratio,
-                                               static_cast<int>(pass.words.size()));
+        const auto ev =
+            evaluate_ocr_candidate(pass.full_text, pack_for_lang, pass.mean_conf, pass.plain_ratio,
+                                   static_cast<int>(pass.words.size()));
         if (best_pack.empty() || ev.total_score > best_eval.total_score + 0.04) {
             best_eval = ev;
             best_pass = std::move(pass);

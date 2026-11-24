@@ -593,12 +593,7 @@ export interface OcrPassedOver {
   layer: 'settings' | 'user' | 'portable';
   path: string;
   reason:
-    | 'empty'
-    | 'corrupt'
-    | 'unreadable'
-    | 'unsupportedFile'
-    | 'missingFolder'
-    | 'unreadableFolder';
+    'empty' | 'corrupt' | 'unreadable' | 'unsupportedFile' | 'missingFolder' | 'unreadableFolder';
 }
 
 /** Feature 020 (data-model.md §2.3): live catalog report returned by `ocr.report`. */

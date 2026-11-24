@@ -74,16 +74,22 @@ TEST_CASE("pdf reader ocr: 10-page EN and RU scans with contradictory scanner me
 
         json result;
         int ocr_events = 0;
+        int ocr_last_done = 0;
+        int ocr_last_total = 0;
         const std::string err = session.read(
-            [&](const std::string& phase, int done, int) {
+            [&](const std::string& phase, int done, int total) {
                 if (phase == "ocr" && done > 0) {
                     ++ocr_events;
+                    ocr_last_done = done;
+                    ocr_last_total = total;
                 }
                 return true;
             },
             result);
         REQUIRE(err.empty());
-        CHECK(ocr_events == 10);
+        CHECK(ocr_events >= 10);
+        CHECK(ocr_last_total > 0);
+        CHECK(ocr_last_done == ocr_last_total);
         REQUIRE(result.contains("ocr"));
         CHECK(result["ocr"]["used"] == true);
         CHECK(result["ocr"]["pagesRecognized"] == 10);

@@ -35,7 +35,14 @@ test.describe('US1 (feature 020) - interactive image-only, rotated and garbled P
     );
     const enXml = await bookXml(core, page);
     expect(enXml).toContain('<lang>en</lang>');
-    for (const word of ['lantern', 'breakwater', 'chestnuts', 'observatory', 'locomotive', 'midnight']) {
+    for (const word of [
+      'lantern',
+      'breakwater',
+      'chestnuts',
+      'observatory',
+      'locomotive',
+      'midnight',
+    ]) {
       expect(enXml).toContain(word);
     }
     expect(enSummary).toContain('Pages recognized with OCR: 10');
@@ -121,7 +128,10 @@ test.describe('US1 (feature 020) - interactive image-only, rotated and garbled P
     expect(settings.imports?.pdf?.useOcr).toBe(true);
   });
 
-  test('cancelling mid-run stops promptly and leaves open book untouched', async ({ core, page }) => {
+  test('cancelling mid-run stops promptly and leaves open book untouched', async ({
+    core,
+    page,
+  }) => {
     const initialDocId = await shownDocId(page);
     await importPdfViaMenu(core, page, ocrPdf('scan-en-10p.pdf'), {
       question: false,

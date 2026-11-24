@@ -49,14 +49,7 @@ import './settings/settings.css';
 import { tip } from '@/app/tooltips';
 
 export type SettingsPageId =
-  | 'view'
-  | 'other'
-  | 'hotkeys'
-  | 'words'
-  | 'imports'
-  | 'ocr'
-  | 'exports'
-  | 'ai';
+  'view' | 'other' | 'hotkeys' | 'words' | 'imports' | 'ocr' | 'exports' | 'ai';
 
 const PAGES: readonly SettingsPageId[] = [
   'view',
@@ -80,16 +73,7 @@ function shownIf(shown: boolean): CSSProperties | undefined {
 
 /** The sections of the draft the pages edit (`session` is never part of the dialog). */
 type DraftSection =
-  | 'view'
-  | 'other'
-  | 'words'
-  | 'imports'
-  | 'ocr'
-  | 'pdf'
-  | 'ai'
-  | 'markdown'
-  | 'txt'
-  | 'mobi';
+  'view' | 'other' | 'words' | 'imports' | 'ocr' | 'pdf' | 'ai' | 'markdown' | 'txt' | 'mobi';
 
 /**
  * The pre-apply hook (feature 005 R8.8): asked with the validated draft before anything is
@@ -152,7 +136,7 @@ export function SettingsDialog({
   const [errors, setErrors] = useState<SettingsValidationError[]>([]);
   const [busy, setBusy] = useState(false);
   const [ocrReport, setOcrReport] = useState<OcrCatalogReport | null>(null);
-  const [ocrReportKnown, setOcrReportKnown] = useState(false);
+  const [ocrReportKnown, setOcrReportKnown] = useState(!rpc);
 
   const refreshOcrReport = useCallback(async () => {
     if (!rpc) {
@@ -170,8 +154,23 @@ export function SettingsDialog({
   }, [rpc]);
 
   useEffect(() => {
-    void refreshOcrReport();
-  }, [refreshOcrReport]);
+    if (!rpc) return;
+    let cancelled = false;
+    rpc
+      .call('ocr.report')
+      .then((report) => {
+        if (!cancelled) setOcrReport(report);
+      })
+      .catch(() => {
+        // Older core or disconnected: keep previous report state.
+      })
+      .finally(() => {
+        if (!cancelled) setOcrReportKnown(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [rpc]);
 
   // The Hotkeys page edits a scratch copy of the live map.
   const registry = useMemo(() => feature.commands ?? createCommandRegistry(), [feature]);

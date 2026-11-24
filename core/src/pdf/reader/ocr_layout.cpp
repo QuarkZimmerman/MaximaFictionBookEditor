@@ -3,9 +3,8 @@
 #include "pdf/reader/ocr_layout.hpp"
 
 #include <PDFDoc.h>
-#include <allheaders.h>
-
 #include <algorithm>
+#include <allheaders.h>
 #include <cmath>
 #include <map>
 
@@ -334,8 +333,8 @@ nlohmann::json build_ocr_image_block_json(const EmbeddedImageCandidate& candidat
 
     return nlohmann::json{
         {"pictureId", candidate.picture_id},
-        {"box", {candidate.box_pts[0], candidate.box_pts[1], candidate.box_pts[2],
-                 candidate.box_pts[3]}},
+        {"box",
+         {candidate.box_pts[0], candidate.box_pts[1], candidate.box_pts[2], candidate.box_pts[3]}},
         {"lang", block.fb2_lang},
         {"meanConf", std::round(block.mean_conf * 10.0) / 10.0},
         {"paragraphs", std::move(paragraphs)},
@@ -443,13 +442,13 @@ nlohmann::json crop_scanned_inline_illustrations(
         int out_h = 0;
         if (OcrRuntime::save_pix_crop(upright.get(), 0, reg.px_box, jpeg_quality,
                                       out_dir / rel_file, content_type, out_w, out_h)) {
-            pictures.push_back({{"id", pic_id},
-                                {"box",
-                                 {reg.pt_box[0], reg.pt_box[1], reg.pt_box[2], reg.pt_box[3]}},
-                                {"w", out_w},
-                                {"h", out_h},
-                                {"jpeg", true},
-                                {"ocrCrop", true}});
+            pictures.push_back(
+                {{"id", pic_id},
+                 {"box", {reg.pt_box[0], reg.pt_box[1], reg.pt_box[2], reg.pt_box[3]}},
+                 {"w", out_w},
+                 {"h", out_h},
+                 {"jpeg", true},
+                 {"ocrCrop", true}});
             prewritten_pictures.emplace(pic_id, nlohmann::json{{"event", "picture"},
                                                                {"id", pic_id},
                                                                {"file", rel_file},

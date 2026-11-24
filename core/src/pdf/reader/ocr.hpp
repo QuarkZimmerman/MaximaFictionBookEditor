@@ -26,9 +26,9 @@ using PixPtr = std::unique_ptr<Pix, PixDeleter>;
 struct OcrOptions {
     bool enabled = false;
     bool auto_detect = true;
-    std::vector<std::string> languages;            // enabled Tesseract pack codes
-    std::vector<std::filesystem::path> ocr_dirs;   // descending priority (settings > user > bundled)
-    int threads = 1;                               // 1..8
+    std::vector<std::string> languages;           // enabled Tesseract pack codes
+    std::vector<std::filesystem::path> ocr_dirs;  // descending priority (settings > user > bundled)
+    int threads = 1;                              // 1..8
 };
 
 struct OcrWord {
@@ -37,32 +37,32 @@ struct OcrWord {
     double font_size = 11.0;
     bool bold = false;
     bool italic = false;
-    double conf = 0.0;            // 0..100
-    std::string lang;             // FB2 ISO language code (e.g. "en", "ru")
+    double conf = 0.0;  // 0..100
+    std::string lang;   // FB2 ISO language code (e.g. "en", "ru")
     int block_id = 0;
     int para_id = 0;
     int line_id = 0;
 };
 
 struct OcrImageRegion {
-    std::array<int, 4> px_box{};  // [x, y, w, h] in upright rendered pixels
+    std::array<int, 4> px_box{};     // [x, y, w, h] in upright rendered pixels
     std::array<double, 4> pt_box{};  // [x, y, w, h] in upright PDF page points
 };
 
 struct OcrPageResult {
     int page = 0;
     bool usable = false;
-    int rotation_cw = 0;          // clockwise rotation applied to make page upright (0/90/180/270)
+    int rotation_cw = 0;  // clockwise rotation applied to make page upright (0/90/180/270)
     int dpi = 200;
     double page_width_pts = 0.0;
     double page_height_pts = 0.0;
     double mean_conf = 0.0;
     double plain_ratio = 0.0;
     bool low_confidence = false;
-    std::string primary_pack;     // Tesseract pack code (e.g. "rus")
-    std::string primary_lang;     // FB2 ISO code (e.g. "ru")
+    std::string primary_pack;            // Tesseract pack code (e.g. "rus")
+    std::string primary_lang;            // FB2 ISO code (e.g. "ru")
     std::vector<std::string> languages;  // distinct FB2 ISO codes across blocks
-    std::string osd_script;       // normalized OSD script if detected
+    std::string osd_script;              // normalized OSD script if detected
     float osd_script_conf = 0.0f;
     std::vector<OcrWord> words;
     std::vector<OcrImageRegion> image_regions;  // non-text PT_*_IMAGE regions
@@ -113,7 +113,8 @@ public:
     // Computes an optimal clamped render DPI (180..300) for a PDF page from its page model.
     static int compute_render_dpi(PDFDoc& doc, int page_num, const nlohmann::json& page_json);
 
-    // Renders PDF page `page_num` directly into an 8-bit grayscale Leptonica Pix via Poppler Splash.
+    // Renders PDF page `page_num` directly into an 8-bit grayscale Leptonica Pix via Poppler
+    // Splash.
     static PixPtr render_page_gray(PDFDoc& doc, int page_num, int dpi);
 
     // Renders PDF page `page_num` directly into a 32-bit RGB Leptonica Pix (for inline art crops
@@ -136,19 +137,19 @@ public:
 
     // Pass 2: probes up to 3 sample pages to determine the document's primary language pack
     // (when auto_detect is true). Emits progress via `on_sample(done, total)`.
-    OcrDiagnosis detect_document_language(
-        PDFDoc& doc, const std::vector<int>& sample_pages,
-        const std::map<int, nlohmann::json>& page_models,
-        const std::function<void(int, int)>& on_sample);
+    OcrDiagnosis detect_document_language(PDFDoc& doc, const std::vector<int>& sample_pages,
+                                          const std::map<int, nlohmann::json>& page_models,
+                                          const std::function<void(int, int)>& on_sample);
 
     // Pass 3: runs sequential Poppler rendering into a bounded PIX* queue feeding 1..N
-    // std::thread Tesseract workers. Invokes `on_page(OcrPageResult)` on a mutex-protected path.
-    void recognize_pages_parallel(
-        PDFDoc& doc, const std::vector<int>& target_pages,
-        const std::map<int, nlohmann::json>& page_models,
-        const std::string& doc_primary_pack,
-        const std::function<void(OcrPageResult&&)>& on_page,
-        std::atomic<bool>& cancelled);
+    // std::thread Tesseract workers. Invokes `on_page(OcrPageResult)` on a mutex-protected path
+    // and optional `on_sub_progress(done_scaled, total_scaled)` during long page recognitions.
+    void recognize_pages_parallel(PDFDoc& doc, const std::vector<int>& target_pages,
+                                  const std::map<int, nlohmann::json>& page_models,
+                                  const std::string& doc_primary_pack,
+                                  const std::function<void(OcrPageResult&&)>& on_page,
+                                  std::atomic<bool>& cancelled,
+                                  const std::function<void(int, int)>& on_sub_progress = {});
 
     // Recognizes a single cropped embedded raster image region on a searchable page.
     OcrTextBlockResult recognize_embedded_region(Pix* gray_region, int dpi,
@@ -157,9 +158,10 @@ public:
 
 private:
     OcrPageResult recognize_single_pix(int page_num, Pix* raw_gray, int dpi,
-                                       const std::string& doc_primary_pack,
-                                       void* osd_api_ptr,
-                                       std::map<std::string, void*>& api_cache) const;
+                                       const std::string& doc_primary_pack, void* osd_api_ptr,
+                                       std::map<std::string, void*>& api_cache,
+                                       std::atomic<bool>* cancelled = nullptr,
+                                       const std::function<void(int)>& on_percent = {}) const;
 
     OcrOptions options_;
     std::filesystem::path out_folder_;

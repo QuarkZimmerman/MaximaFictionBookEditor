@@ -26,8 +26,7 @@ export async function importPdfViaMenu(
   { question = true, useOcr = true }: { question?: boolean; useOcr?: boolean | null } = {},
 ): Promise<string | null> {
   const before = await shownDocId(page);
-  const dialogResult =
-    useOcr === null ? { paths: [file] } : { paths: [file], checks: { useOcr } };
+  const dialogResult = useOcr === null ? { paths: [file] } : { paths: [file], checks: { useOcr } };
   await core.enqueueDialog('dialog.openFile', dialogResult);
   await page.getByTestId('menu-file').click({ timeout: 15_000 });
   await page.getByTestId('menu-file-import').hover({ timeout: 15_000 });

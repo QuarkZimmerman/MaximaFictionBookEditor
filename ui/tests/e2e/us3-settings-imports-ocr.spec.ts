@@ -123,7 +123,10 @@ test.describe('US3 (feature 020) - Settings Imports and OCR tabs @platform', () 
     const dirA = path.join(tmp, 'portable-a');
     const dirB = path.join(tmp, 'portable-b');
     mkdirSync(path.join(dirA, 'ocr'), { recursive: true });
-    copyFileSync(path.join(BUNDLED_OCR, 'eng.traineddata'), path.join(dirA, 'ocr', 'nld.traineddata'));
+    copyFileSync(
+      path.join(BUNDLED_OCR, 'eng.traineddata'),
+      path.join(dirA, 'ocr', 'nld.traineddata'),
+    );
 
     try {
       // Run core on portable dirA: enable nld and save
@@ -146,7 +149,10 @@ test.describe('US3 (feature 020) - Settings Imports and OCR tabs @platform', () 
 
       // Relocate the entire portable directory to dirB (simulate moving USB stick)
       mkdirSync(path.join(dirB, 'ocr'), { recursive: true });
-      copyFileSync(path.join(dirA, 'ocr', 'nld.traineddata'), path.join(dirB, 'ocr', 'nld.traineddata'));
+      copyFileSync(
+        path.join(dirA, 'ocr', 'nld.traineddata'),
+        path.join(dirB, 'ocr', 'nld.traineddata'),
+      );
       copyFileSync(path.join(dirA, 'settings.json'), path.join(dirB, 'settings.json'));
 
       const coreB = await startCoreWith(process.env.MFBE_CORE_BIN!, dirB, ['--portable-dir', dirB]);

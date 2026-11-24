@@ -68,17 +68,19 @@ test.describe('US5 (feature 016) - protected and hostile PDFs', () => {
     expect(await shownDocId(page)).toBe(before);
   });
 
-  for (const [name, words] of [
-    ['hostile/truncated.pdf', 'damaged'],
-    ['hostile/many-pages.pdf', 'damaged'],
-    ['hostile/huge-picture.pdf', 'no text'],
-    ['pictures-only.pdf', 'no text'],
+  for (const [name, words, useOcr] of [
+    ['hostile/truncated.pdf', 'damaged', true],
+    ['hostile/many-pages.pdf', 'damaged', true],
+    ['hostile/huge-picture.pdf', 'no text', true],
+    // pictures-only.pdf contains scanned English text images (feature 016); with Use OCR off it
+    // stays refused with "no text" while feature 020 imports it via OCR when Use OCR is checked.
+    ['pictures-only.pdf', 'no text', false],
   ] as const) {
     test(`${name} ends in a message, the window's book unchanged (3, 4)`, async ({
       core,
       page,
     }) => {
-      const before = await importPdfViaMenu(core, page, pdf(name));
+      const before = await importPdfViaMenu(core, page, pdf(name), { useOcr });
       expect(await failure(pdfImportDone(page, before))).toContain(words);
       expect(await shownDocId(page)).toBe(before);
     });

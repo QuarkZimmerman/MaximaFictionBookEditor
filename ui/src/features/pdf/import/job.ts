@@ -123,6 +123,14 @@ export async function importPdf(
     let kinds: Record<string, number> = {};
     let drawingsLeftOut = 0;
     let ocrSummary: PdfImportOcrSummary | undefined;
+    const detectSpan = Math.max(3, Math.round(pages * 0.1));
+    const cropSpan = Math.max(3, Math.round(pages * 0.1));
+    const ocrSpan = Math.max(1, pages - detectSpan - cropSpan);
+    let maxReadProgress = 0;
+    const advanceRead = (value: number, title?: string): void => {
+      maxReadProgress = Math.max(maxReadProgress, Math.min(pages * 2, value));
+      modal.progress(maxReadProgress, total, title);
+    };
     try {
       ({
         kinds,
@@ -136,22 +144,24 @@ export async function importPdf(
             jobId = id;
           },
           onProgress: (progress) => {
+            const frac = progress.total > 0 ? Math.min(1, progress.done / progress.total) : 0;
             if (progress.phase === 'ocrDetect') {
-              modal.progress(
-                pages,
-                total,
+              advanceRead(
+                pages + Math.round(frac * detectSpan),
                 ctx.t('pdfImport.progress.ocrDetect'),
               );
             } else if (progress.phase === 'ocr') {
-              modal.progress(
-                progress.total > 0
-                  ? pages + Math.round((progress.done / progress.total) * pages)
-                  : pages,
-                total,
+              advanceRead(
+                pages + detectSpan + Math.round(frac * ocrSpan),
+                ctx.t('pdfImport.progress.ocr'),
+              );
+            } else if (progress.phase === 'ocrCrop') {
+              advanceRead(
+                pages + detectSpan + ocrSpan + Math.round(frac * cropSpan),
                 ctx.t('pdfImport.progress.ocr'),
               );
             } else if (progress.total > 0) {
-              modal.progress(Math.round((progress.done / progress.total) * pages), total);
+              advanceRead(Math.round(frac * pages));
             }
           },
         },

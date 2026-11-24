@@ -22,6 +22,9 @@ editor no longer needs to match the original (requester decision, constitution 3
 | Path | Owner | Notes |
 |------|-------|-------|
 | `core/` | C++20 library `mfbe_core` + `mfbe-core` executable | no UI, no CEF; talks JSON-RPC over loopback |
+| `core/src/ocr/` | offline OCR catalog & language table (feature 020) | layered `.traineddata` lookup (`resources::Kind::ocr`: custom folder -> user/portable -> bundled; higher layer overrides lower layer), binary header validation, `ocr.report`; never links Tesseract/Leptonica |
+| `core/src/pdf/reader/` | isolated PDF reader child `mfbe-pdf-reader` (features 016, 020) | Poppler + Leptonica + OpenMP-free/curl-free Tesseract (linked exclusively here, never in `mfbe_core`/`mfbe-core`); strict zero-OCR fast path on text-only and editor-exported PDFs |
+| `ports/tesseract/` | vcpkg overlay port for Tesseract (feature 020) | builds offline Tesseract with `-DOPENMP_BUILD=OFF` and `DISABLE_CURL=ON` so Windows `/MT` builds need no `vcomp140.dll` and OCR never opens a network socket |
 | `core/src/net/` | the AI assistant's outbound HTTP client (libcurl) | the core's only outbound path (feature 005); transport policy never relaxed (no redirects, verification on, TLS 1.2+, `http`/`https`, env proxies with loopback direct); a service failure is a result (`AiOutcome`), never an `RpcError` |
 | `app/` | CEF shell `mfbe` | thin: window, dialogs, launch args |
 | `ui/` | TypeScript/React/Vite | ProseMirror body editor, CodeMirror source view |
@@ -41,7 +44,7 @@ editor no longer needs to match the original (requester decision, constitution 3
 | `ui/src/scripting/ReportWindow.tsx` | the report window of `mfbe.ui.report` (feature 007) | HTML in a frame that runs no script and loads nothing; Copy, Save as… |
 | `scripts/` | bundled user scripts | installed into the package — never put tooling here |
 | `tools/` | developer tooling | never shipped |
-| `resources/` | schema, genres, dictionaries, symbols, templates, messages, the AI service list `ai-services.json`, `certs/` (the Mozilla CA bundle + notice, Linux packages only) | installed |
+| `resources/` | schema, genres, dictionaries, `ocr/` (10 bundled `tessdata_fast` packs, `osd.traineddata`, Apache-2.0 notice; `user-readme/ocr.md`), symbols, templates, messages, the AI service list `ai-services.json`, `certs/` (the Mozilla CA bundle + notice, Linux packages only) | installed |
 | `tests/` | Catch2 tests, fixtures, corpus tooling, benchmarks | |
 | `packaging/` | WiX / AppImage / deb-rpm / macOS | |
 
@@ -155,6 +158,11 @@ Run the core headless for manual/MCP testing:
   tag - never from a release published for that purpose.
 - No scope beyond the specifications without the requester's approval (a request in a feature
   description is that approval); the original editor is a reference, not a target to match.
+- Batch Converter non-interactive invariant (features 019, 020): *Tools -> Batch Converter...* MUST
+  NEVER ask interactive questions or display pop-up dialogs/prompts during a run for any condition
+  (including passwords, copy-restricted PDFs, OCR language detection, disabled/missing OCR packs,
+  low confidence, or broken XML); unconvertible items fail or skip individually into the report
+  while the batch continues unattended.
 - Licence: GPL-3.0-only (the original editor's); keep the original's notices
   (`CONTRIBUTORS.txt`, the scripts' author notices, checked by
   `tests/scripts/tools/check-notices.py`); a new dependency must pass `tools/licence-check.py`

@@ -10,9 +10,9 @@
 namespace mfbe::pdf_reader {
 
 struct OcrCandidateScore {
-    std::string code;       // Tesseract pack code (e.g. "deu", "rus")
-    std::string fb2_lang;   // Mapped FB2 ISO language code (e.g. "de", "ru")
-    std::string script;     // Script family (e.g. "latin", "cyrillic")
+    std::string code;      // Tesseract pack code (e.g. "deu", "rus")
+    std::string fb2_lang;  // Mapped FB2 ISO language code (e.g. "de", "ru")
+    std::string script;    // Script family (e.g. "latin", "cyrillic")
     double total_score = 0.0;
     double text_score = 0.0;
     double mean_conf = 0.0;

@@ -82,11 +82,8 @@ void write_ocr_page_json(const std::filesystem::path& out_dir,
     }
     nlohmann::json fonts = nlohmann::json::array();
     if (!words.empty()) {
-        fonts.push_back({{"id", "ocr"},
-                         {"name", "OCR"},
-                         {"bold", false},
-                         {"italic", false},
-                         {"mono", false}});
+        fonts.push_back(
+            {{"id", "ocr"}, {"name", "OCR"}, {"bold", false}, {"italic", false}, {"mono", false}});
     }
     nlohmann::json page{
         {"n", res.page},
@@ -344,7 +341,8 @@ int main(int argc, char** argv) {
     }
     const double share = all.tokens > 0 ? static_cast<double>(all.plain) / all.tokens : 1.0;
 
-    // Pre-written ocr-* picture metadata served directly in the stdin loop (contracts/pdf-reader.md).
+    // Pre-written ocr-* picture metadata served directly in the stdin loop
+    // (contracts/pdf-reader.md).
     std::map<std::string, nlohmann::json> prewritten_pictures;
     nlohmann::json ocr_done_summary;
 
@@ -382,9 +380,8 @@ int main(int argc, char** argv) {
         // - If the whole document read as garbled (low overall plain share), target all text pages.
         // - On image-only books (text_pages == 0), also target non-blank pictureWithoutText pages
         //   (excluding a page-1 full-page cover when pages > 1 and other pages have text).
-        const bool whole_doc_garbled =
-            all.tokens >= mfbe::pdf_reader::kGarbledDocumentTokens &&
-            share < mfbe::pdf_reader::kGarbledShare;
+        const bool whole_doc_garbled = all.tokens >= mfbe::pdf_reader::kGarbledDocumentTokens &&
+                                       share < mfbe::pdf_reader::kGarbledShare;
         std::vector<int> full_ocr_pages;
         std::vector<mfbe::pdf_reader::EmbeddedImageCandidate> embedded_candidates;
         std::map<int, nlohmann::json> page_models;
@@ -414,6 +411,12 @@ int main(int argc, char** argv) {
         }
 
         if (full_ocr_pages.empty() && embedded_candidates.empty()) {
+            // Blank or hostile-image-stripped PDFs have neither searchable text nor OCR targets.
+            if (text_pages == 0) {
+                mfbe::pdf_reader::emit("{\"event\":\"failed\",\"reason\":\"noText\",\"pages\":" +
+                                       std::to_string(pages) + "}");
+                return 1;
+            }
             // Strict zero-OCR fast path when no page or embedded image needs OCR.
             ocr_done_summary = {{"used", false},
                                 {"pagesRecognized", 0},
@@ -451,14 +454,14 @@ int main(int argc, char** argv) {
                 }
                 diag = runtime.detect_document_language(
                     *doc, sample_pages, page_models, [](int done, int total) {
-                        mfbe::pdf_reader::emit(
-                            mfbe::pdf_reader::dumped({{"event", "ocr-stage"},
-                                                      {"stage", "detect"},
-                                                      {"done", done},
-                                                      {"total", total}}));
+                        mfbe::pdf_reader::emit(mfbe::pdf_reader::dumped({{"event", "ocr-stage"},
+                                                                         {"stage", "detect"},
+                                                                         {"done", done},
+                                                                         {"total", total}}));
                     });
 
-                // Pass 3: recognize target pages concurrently via sequential Poppler -> worker pool.
+                // Pass 3: recognize target pages concurrently via sequential Poppler -> worker
+                // pool.
                 runtime.recognize_pages_parallel(
                     *doc, full_ocr_pages, page_models, diag.primary_pack,
                     [&](mfbe::pdf_reader::OcrPageResult&& res) {
@@ -480,7 +483,22 @@ int main(int argc, char** argv) {
                         }
                         mfbe::pdf_reader::emit(mfbe::pdf_reader::dumped(ev));
                     },
-                    cancelled);
+                    cancelled,
+                    [&](int sub_done, int sub_total) {
+                        const int total_scaled = ocr_total * 100;
+                        const int scaled = std::clamp(
+                            sub_total > 0
+                                ? static_cast<int>((static_cast<long long>(sub_done) *
+                                                    static_cast<long long>(full_ocr_pages.size()) *
+                                                    100) /
+                                                   sub_total)
+                                : sub_done,
+                            1, std::max(1, total_scaled - 1));
+                        mfbe::pdf_reader::emit(mfbe::pdf_reader::dumped({{"event", "ocr-stage"},
+                                                                         {"stage", "ocr"},
+                                                                         {"done", scaled},
+                                                                         {"total", total_scaled}}));
+                    });
             }
 
             if (cancelled.load()) {
@@ -523,8 +541,8 @@ int main(int argc, char** argv) {
                 mfbe::pdf_reader::emit(mfbe::pdf_reader::dumped(ev));
             }
             for (auto& [p, blocks] : embedded_blocks_by_page) {
-                nlohmann::json pj = page_models.contains(p) ? page_models[p]
-                                                            : load_page_json(options.out, p);
+                nlohmann::json pj =
+                    page_models.contains(p) ? page_models[p] : load_page_json(options.out, p);
                 pj["ocrImages"] = std::move(blocks);
                 std::ofstream(options.out / ("page-" + std::to_string(p) + ".json"))
                     << mfbe::pdf_reader::dumped(pj);
@@ -537,6 +555,13 @@ int main(int argc, char** argv) {
             if (!diag.dominant_osd_script.empty() && diag.dominant_osd_script_conf > 0.0f) {
                 script_votes[diag.dominant_osd_script] += diag.dominant_osd_script_conf;
             }
+            int usable_total = 0;
+            for (const auto& [_, r] : results) {
+                if (r.usable) {
+                    ++usable_total;
+                }
+            }
+            int crop_done = 0;
             for (const auto& [p, r] : results) {
                 if (!r.osd_script.empty() && r.osd_script_conf >= 1.5f) {
                     script_votes[r.osd_script] += r.osd_script_conf;
@@ -557,6 +582,12 @@ int main(int argc, char** argv) {
                     if (!cropped.empty()) {
                         write_ocr_page_json(options.out, r, cropped);
                     }
+                    ++crop_done;
+                    mfbe::pdf_reader::emit(
+                        mfbe::pdf_reader::dumped({{"event", "ocr-stage"},
+                                                  {"stage", "crop"},
+                                                  {"done", crop_done},
+                                                  {"total", std::max(1, usable_total)}}));
                 } else {
                     fallback_pages.push_back(p);
                 }
@@ -575,11 +606,11 @@ int main(int argc, char** argv) {
                 if (!best_script.empty()) {
                     const auto disabled = runtime.disabled_packs_for_script(best_script);
                     if (!disabled.empty()) {
-                        mfbe::pdf_reader::emit(mfbe::pdf_reader::dumped(
-                            {{"event", "failed"},
-                             {"reason", "ocrLanguageDisabled"},
-                             {"script", best_script},
-                             {"suggestedLanguages", disabled}}));
+                        mfbe::pdf_reader::emit(
+                            mfbe::pdf_reader::dumped({{"event", "failed"},
+                                                      {"reason", "ocrLanguageDisabled"},
+                                                      {"script", best_script},
+                                                      {"suggestedLanguages", disabled}}));
                         return 1;
                     }
                     if (!runtime.any_installed_for_script(best_script)) {
@@ -616,26 +647,25 @@ int main(int argc, char** argv) {
                                     {"h", out_h},
                                     {"jpeg", true},
                                     {"ocrFallback", true}});
-                    prewritten_pictures.emplace(
-                        pic_id, nlohmann::json{{"event", "picture"},
-                                               {"id", pic_id},
-                                               {"file", rel_file},
-                                               {"contentType", content_type},
-                                               {"width", out_w},
-                                               {"height", out_h}});
+                    prewritten_pictures.emplace(pic_id,
+                                                nlohmann::json{{"event", "picture"},
+                                                               {"id", pic_id},
+                                                               {"file", rel_file},
+                                                               {"contentType", content_type},
+                                                               {"width", out_w},
+                                                               {"height", out_h}});
                 }
                 write_ocr_page_json(options.out, r, pics);
             }
 
             std::vector<std::pair<std::string, int>> ordered_langs(lang_word_counts.begin(),
                                                                    lang_word_counts.end());
-            std::sort(ordered_langs.begin(), ordered_langs.end(),
-                      [](const auto& a, const auto& b) {
-                          if (a.second != b.second) {
-                              return a.second > b.second;
-                          }
-                          return a.first < b.first;
-                      });
+            std::sort(ordered_langs.begin(), ordered_langs.end(), [](const auto& a, const auto& b) {
+                if (a.second != b.second) {
+                    return a.second > b.second;
+                }
+                return a.first < b.first;
+            });
             std::vector<std::string> doc_langs;
             for (const auto& [lang, _] : ordered_langs) {
                 doc_langs.push_back(lang);
@@ -682,10 +712,9 @@ int main(int argc, char** argv) {
             continue;
         }
         mfbe::pdf_reader::emit(mfbe::pdf_reader::dumped(
-            pic_id.rfind('d', 0) == 0
-                ? mfbe::pdf_reader::write_drawing(*doc, pic_id, options)
-                : mfbe::pdf_reader::write_picture(*doc, request.value("page", 0), pic_id,
-                                                  options)));
+            pic_id.rfind('d', 0) == 0 ? mfbe::pdf_reader::write_drawing(*doc, pic_id, options)
+                                      : mfbe::pdf_reader::write_picture(
+                                            *doc, request.value("page", 0), pic_id, options)));
     }
     return 0;
 }

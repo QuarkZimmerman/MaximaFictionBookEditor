@@ -189,7 +189,12 @@ describe('US2 mixed PDF layout and FB2 emission', () => {
         { title: 'Kapitel Zwei', page: 2, kids: [] },
       ],
     });
-    const { xml } = textBody(parts, () => null, () => null, { bookLang: 'en' });
+    const { xml } = textBody(
+      parts,
+      () => null,
+      () => null,
+      { bookLang: 'en' },
+    );
 
     // Primary language paragraph has NO xml:lang
     expect(xml).toContain('<p>English primary paragraph.</p>');

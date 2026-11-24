@@ -31,7 +31,8 @@ public:
     /// Reads every page; `progress(phase, done, total)` after each event (phase = "read",
     /// "ocrDetect", or "ocr"), returning false to cancel. "" when done, else the reason.
     /// `result` gets {kinds} (reconciled without double-counting pages) and, when done,
-    /// {garbledShare, drawingsLeftOut, ocr?}; refusals populate {pages?, script?, suggestedLanguages?}.
+    /// {garbledShare, drawingsLeftOut, ocr?}; refusals populate {pages?, script?,
+    /// suggestedLanguages?}.
     std::string read(const std::function<bool(const std::string&, int, int)>& progress,
                      nlohmann::json& result);
     /// Legacy 2-argument progress overload (maps all phases onto done/total).

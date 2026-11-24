@@ -164,8 +164,7 @@ bool is_valid_traineddata_stem(std::string_view stem) {
     }
     for (std::size_t i = 0; i < stem.size(); ++i) {
         const unsigned char c = static_cast<unsigned char>(stem[i]);
-        const bool ok =
-            std::isalnum(c) != 0 || c == '_' || c == '.' || c == '-';
+        const bool ok = std::isalnum(c) != 0 || c == '_' || c == '.' || c == '-';
         if (!ok) {
             return false;
         }
@@ -222,9 +221,8 @@ std::string normalize_osd_script(std::string_view osd_script) {
         s == "katakana" || s == "hiragana" || s == "bopomofo") {
         return "cjk";
     }
-    if (s == "devanagari" || s == "bengali" || s == "gurmukhi" || s == "gujarati" ||
-        s == "oriya" || s == "tamil" || s == "telugu" || s == "kannada" || s == "malayalam" ||
-        s == "sinhala") {
+    if (s == "devanagari" || s == "bengali" || s == "gurmukhi" || s == "gujarati" || s == "oriya" ||
+        s == "tamil" || s == "telugu" || s == "kannada" || s == "malayalam" || s == "sinhala") {
         return "indic";
     }
     if (s == "armenian") {

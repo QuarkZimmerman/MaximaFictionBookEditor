@@ -5,7 +5,8 @@
  * enabled-languages checklist (`Settings.ocr.enabledLanguages`) with layer/size/`overridesBundled`
  * badges, and `passedOver` / missing-folder diagnostics.
  */
-import { useEffect, useState } from 'react';
+import type { TFunction } from 'i18next';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { CommandContext } from '@/app/commands';
@@ -30,10 +31,14 @@ function fileNameOf(filePath: string): string {
   return parts[parts.length - 1] || filePath;
 }
 
-function formatPackSize(bytes: number): string {
-  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${bytes} B`;
+function formatPackSize(bytes: number, t: TFunction): string {
+  if (bytes >= 1024 * 1024) {
+    return t('ocr.settings.packSizeMb', { size: (bytes / (1024 * 1024)).toFixed(1) });
+  }
+  if (bytes >= 1024) {
+    return t('ocr.settings.packSizeKb', { size: String(Math.round(bytes / 1024)) });
+  }
+  return t('ocr.settings.packSizeB', { size: String(bytes) });
 }
 
 export function OcrPage({ draft, onChange, ctx, report, reportKnown }: OcrPageProps) {
@@ -44,9 +49,6 @@ export function OcrPage({ draft, onChange, ctx, report, reportKnown }: OcrPagePr
   const enabledLanguages = draft.ocr?.enabledLanguages ?? ['eng', 'rus'];
 
   const [custom, setCustom] = useState(folder !== '');
-  useEffect(() => {
-    if (folder !== '') setCustom(true);
-  }, [folder]);
   const useDefault = !custom && folder === '';
 
   const reportFolderError = async (error: unknown) => {
@@ -175,10 +177,7 @@ export function OcrPage({ draft, onChange, ctx, report, reportKnown }: OcrPagePr
           </button>
         </div>
         {folderProblem ? (
-          <div
-            className="mfbe-settings-ai-warning"
-            data-testid="settings-ocr-folder-problem"
-          >
+          <div className="mfbe-settings-ai-warning" data-testid="settings-ocr-folder-problem">
             {folderProblem}
           </div>
         ) : null}
@@ -233,7 +232,7 @@ export function OcrPage({ draft, onChange, ctx, report, reportKnown }: OcrPagePr
                           {t(`ocr.settings.layer.${pack.layer}`, { defaultValue: pack.layer })}
                         </span>
                         <span className="mfbe-settings-note" data-role="size">
-                          {formatPackSize(pack.sizeBytes)}
+                          {formatPackSize(pack.sizeBytes, t)}
                         </span>
                         {pack.overridesBundled ? (
                           <span

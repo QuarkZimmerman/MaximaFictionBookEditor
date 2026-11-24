@@ -310,10 +310,9 @@ void register_pdf_import_handlers(rpc::RpcRouter& router, Services& services) {
                 }
 
                 ocr_opts.enabled = true;
-                ocr_opts.auto_detect =
-                    ocr.contains("autoDetect") && ocr["autoDetect"].is_boolean()
-                        ? ocr["autoDetect"].get<bool>()
-                        : services.settings.get_bool("ocr.autoDetect", true);
+                ocr_opts.auto_detect = ocr.contains("autoDetect") && ocr["autoDetect"].is_boolean()
+                                           ? ocr["autoDetect"].get<bool>()
+                                           : services.settings.get_bool("ocr.autoDetect", true);
                 ocr_opts.languages = std::move(active_langs);
                 ocr_opts.dirs = ocr::active_ocr_dirs(services.layers);
                 if (ocr.contains("maxThreads") && ocr["maxThreads"].is_number_integer()) {
@@ -356,7 +355,8 @@ void register_pdf_import_handlers(rpc::RpcRouter& router, Services& services) {
                 control.check_cancelled();
             }
             if (!reason.empty()) {
-                // D19 & Feature 020: forward refusal detail fields (pages, script, suggestedLanguages).
+                // D19 & Feature 020: forward refusal detail fields (pages, script,
+                // suggestedLanguages).
                 json data = json::object();
                 if (read.contains("pages")) {
                     data["pages"] = read["pages"];

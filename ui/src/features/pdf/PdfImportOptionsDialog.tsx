@@ -3,11 +3,10 @@
  * only when the native `dialog.openFile` omits `checks` (e.g., headless fallback or platform dialog
  * without custom checkboxes). Mirrors EncodingDialog / Dialog patterns.
  */
-import { createElement, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Dialog, type DialogButton } from '@/dialogs/Dialog';
-import type { Dialogs } from '@/dialogs/types';
 
 export interface PdfImportOptionsAnswer {
   useOcr: boolean;
@@ -18,10 +17,7 @@ export interface PdfImportOptionsDialogProps {
   onClose: (answer: PdfImportOptionsAnswer | null) => void;
 }
 
-export function PdfImportOptionsDialog({
-  initialUseOcr,
-  onClose,
-}: PdfImportOptionsDialogProps) {
+export function PdfImportOptionsDialog({ initialUseOcr, onClose }: PdfImportOptionsDialogProps) {
   const { t } = useTranslation();
   const [useOcr, setUseOcr] = useState(initialUseOcr);
 
@@ -60,14 +56,5 @@ export function PdfImportOptionsDialog({
         {t('pdfImport.useOcrLabel')}
       </label>
     </Dialog>
-  );
-}
-
-export function showPdfImportOptions(
-  dialogs: Dialogs,
-  options: { initialUseOcr: boolean },
-): Promise<PdfImportOptionsAnswer | null> {
-  return dialogs.openCustom<PdfImportOptionsAnswer | null>((close) =>
-    createElement(PdfImportOptionsDialog, { ...options, onClose: close }),
   );
 }

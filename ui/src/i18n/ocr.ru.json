@@ -47,6 +47,9 @@
       "unavailable": "Каталог OCR недоступен: ядро редактора не подключено.",
       "osdMissing": "Файл определения ориентации (osd.traineddata) не найден; автоматический поворот сканов недоступен.",
       "overridesBundled": "Заменяет встроенный",
+      "packSizeMb": "{{size}} МБ",
+      "packSizeKb": "{{size}} КБ",
+      "packSizeB": "{{size}} Б",
       "layer": {
         "bundled": "Встроенный",
         "user": "Пользовательский",
