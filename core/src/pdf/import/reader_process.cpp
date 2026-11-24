@@ -4,8 +4,10 @@
 #include "mfbe/utf8_paths.hpp"
 
 #include <algorithm>
+#include <cerrno>
 #include <cstdlib>
 #include <cstring>
+#include <mutex>
 
 #ifdef __linux__
 extern char** environ;
@@ -138,15 +140,6 @@ struct ReaderProcess::Impl {
 
 std::unique_ptr<ReaderProcess> ReaderProcess::start(const ReaderOptions& o, std::string& error) {
     auto impl = std::make_unique<Impl>();
-    SECURITY_ATTRIBUTES sa{sizeof sa, nullptr, TRUE};
-    HANDLE in_read = nullptr, out_write = nullptr;
-    if (!CreatePipe(&in_read, &impl->in_write, &sa, 0) ||
-        !CreatePipe(&impl->out_read, &out_write, &sa, 0)) {
-        error = "pipes";
-        return nullptr;
-    }
-    SetHandleInformation(impl->in_write, HANDLE_FLAG_INHERIT, 0);
-    SetHandleInformation(impl->out_read, HANDLE_FLAG_INHERIT, 0);
     // Each argument quoted as the C runtime splits a command line: backslashes before a quote - the
     // closing one too - are doubled, and a quote inside is escaped. A folder ending in a backslash
     // (the temporary folder) otherwise swallowed the arguments after it.
@@ -167,31 +160,67 @@ std::unique_ptr<ReaderProcess> ReaderProcess::start(const ReaderOptions& o, std:
         command.append(slashes * 2, L'\\');
         command += L"\" ";
     }
-    STARTUPINFOW si{};
-    si.cb = sizeof si;
-    si.dwFlags = STARTF_USESTDHANDLES;
-    si.hStdInput = in_read;
-    si.hStdOutput = out_write;
-    si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
-    PROCESS_INFORMATION pi{};
     impl->job = CreateJobObjectW(nullptr, nullptr);
     JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits{};
     limits.BasicLimitInformation.LimitFlags =
         JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | JOB_OBJECT_LIMIT_PROCESS_MEMORY;
     limits.ProcessMemoryLimit = o.max_memory_mb * 1024 * 1024;
     SetInformationJobObject(impl->job, JobObjectExtendedLimitInformation, &limits, sizeof limits);
-    if (!CreateProcessW(nullptr, command.data(), nullptr, nullptr, TRUE,
-                        CREATE_NO_WINDOW | CREATE_SUSPENDED, nullptr, nullptr, &si, &pi)) {
-        error = "start";
+
+    // Serialize inheritable pipe creation + CreateProcessW across parallel batch workers so one
+    // worker's child cannot inherit another worker's pipe ends on Windows.
+    PROCESS_INFORMATION pi{};
+    {
+        static std::mutex spawn_mutex;
+        std::lock_guard<std::mutex> lock(spawn_mutex);
+        SECURITY_ATTRIBUTES sa{sizeof sa, nullptr, TRUE};
+        HANDLE in_read = nullptr, out_write = nullptr;
+        if (!CreatePipe(&in_read, &impl->in_write, &sa, 0) ||
+            !CreatePipe(&impl->out_read, &out_write, &sa, 0)) {
+            if (in_read) {
+                CloseHandle(in_read);
+            }
+            if (out_write) {
+                CloseHandle(out_write);
+            }
+            if (impl->in_write) {
+                CloseHandle(impl->in_write);
+            }
+            if (impl->out_read) {
+                CloseHandle(impl->out_read);
+            }
+            if (impl->job) {
+                CloseHandle(impl->job);
+            }
+            error = "pipes";
+            return nullptr;
+        }
+        SetHandleInformation(impl->in_write, HANDLE_FLAG_INHERIT, 0);
+        SetHandleInformation(impl->out_read, HANDLE_FLAG_INHERIT, 0);
+        STARTUPINFOW si{};
+        si.cb = sizeof si;
+        si.dwFlags = STARTF_USESTDHANDLES;
+        si.hStdInput = in_read;
+        si.hStdOutput = out_write;
+        si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
+        const BOOL ok =
+            CreateProcessW(nullptr, command.data(), nullptr, nullptr, TRUE,
+                           CREATE_NO_WINDOW | CREATE_SUSPENDED, nullptr, nullptr, &si, &pi);
         CloseHandle(in_read);
         CloseHandle(out_write);
-        return nullptr;
+        if (!ok) {
+            CloseHandle(impl->in_write);
+            CloseHandle(impl->out_read);
+            if (impl->job) {
+                CloseHandle(impl->job);
+            }
+            error = "start";
+            return nullptr;
+        }
     }
     AssignProcessToJobObject(impl->job, pi.hProcess);
     ResumeThread(pi.hThread);
     CloseHandle(pi.hThread);
-    CloseHandle(in_read);
-    CloseHandle(out_write);
     impl->process = pi.hProcess;
     impl->silence = o.silence_timeout;
     impl->last = std::chrono::steady_clock::now();
@@ -241,8 +270,18 @@ bool ReaderProcess::send_line(const std::string& text) {
 }
 
 void ReaderProcess::kill() {
+    if (impl_->in_write) {
+        CloseHandle(impl_->in_write);
+        impl_->in_write = nullptr;
+    }
     if (impl_->job) {
         TerminateJobObject(impl_->job, 1);
+    }
+    if (impl_->process) {
+        // TerminateProcess covers cases where job assignment was rejected, and WaitForSingleObject
+        // ensures the reader releases source-PDF and work-directory handles before cleanup runs.
+        TerminateProcess(impl_->process, 1);
+        WaitForSingleObject(impl_->process, 5000);
     }
     if (end_ == ReaderEnd::running) {
         end_ = ReaderEnd::killed;
@@ -281,16 +320,12 @@ struct ReaderProcess::Impl {
     std::string buffer;
     std::chrono::milliseconds silence{30000};
     std::chrono::steady_clock::time_point last;
+    std::chrono::steady_clock::time_point eof_at{};
     std::size_t max_bytes = 0;
     bool over_memory = false;
 };
 
 std::unique_ptr<ReaderProcess> ReaderProcess::start(const ReaderOptions& o, std::string& error) {
-    int in_pipe[2], out_pipe[2];
-    if (pipe(in_pipe) != 0 || pipe(out_pipe) != 0) {
-        error = "pipes";
-        return nullptr;
-    }
     const std::vector<std::string> args = arguments(o);
     std::vector<char*> argv;
     for (const auto& a : args) {
@@ -324,46 +359,82 @@ std::unique_ptr<ReaderProcess> ReaderProcess::start(const ReaderOptions& o, std:
         envp.push_back(nullptr);
     }
 #endif
-    const pid_t parent = getpid();
-    const pid_t pid = fork();
-    if (pid < 0) {
-        error = "fork";
-        return nullptr;
-    }
-    if (pid == 0) {
-#ifdef __linux__
-        prctl(PR_SET_PDEATHSIG, SIGKILL);
-        if (getppid() != parent) {
-            _exit(1);
+    int in_pipe[2] = {-1, -1};
+    int out_pipe[2] = {-1, -1};
+    pid_t pid = -1;
+    // Serialize pipe creation + FD_CLOEXEC + fork() across concurrent callers so no reader child
+    // can inherit another worker's pipe descriptors across exec().
+    {
+        static std::mutex spawn_mutex;
+        std::lock_guard<std::mutex> lock(spawn_mutex);
+        if (pipe(in_pipe) != 0) {
+            error = "pipes";
+            return nullptr;
         }
-        const std::size_t as_limit_mb =
-            o.ocr.enabled ? std::max<std::size_t>(o.max_memory_mb, 4096) : o.max_memory_mb;
-        rlimit limit{};
-        limit.rlim_cur = limit.rlim_max = static_cast<rlim_t>(as_limit_mb) * 1024 * 1024;
-        setrlimit(RLIMIT_AS, &limit);
-#else
-        (void)parent;
-#endif
-        dup2(in_pipe[0], 0);
-        dup2(out_pipe[1], 1);
+        if (pipe(out_pipe) != 0) {
+            close(in_pipe[0]);
+            close(in_pipe[1]);
+            error = "pipes";
+            return nullptr;
+        }
         for (int fd : {in_pipe[0], in_pipe[1], out_pipe[0], out_pipe[1]}) {
-            close(fd);
+            fcntl(fd, F_SETFD, FD_CLOEXEC);
         }
+        const pid_t parent = getpid();
+        pid = fork();
+        if (pid < 0) {
+            for (int fd : {in_pipe[0], in_pipe[1], out_pipe[0], out_pipe[1]}) {
+                close(fd);
+            }
+            error = "fork";
+            return nullptr;
+        }
+        if (pid == 0) {
 #ifdef __linux__
-        if (!envp.empty()) {
-            execve(argv[0], argv.data(), envp.data());
-        } else {
-            execv(argv[0], argv.data());
-        }
+            prctl(PR_SET_PDEATHSIG, SIGKILL);
+            if (getppid() != parent) {
+                _exit(1);
+            }
+            const std::size_t as_limit_mb =
+                o.ocr.enabled ? std::max<std::size_t>(o.max_memory_mb, 4096) : o.max_memory_mb;
+            rlimit limit{};
+            limit.rlim_cur = limit.rlim_max = static_cast<rlim_t>(as_limit_mb) * 1024 * 1024;
+            setrlimit(RLIMIT_AS, &limit);
 #else
-        execv(argv[0], argv.data());
+            (void)parent;
 #endif
-        _exit(127);
+            // Restore default SIGPIPE in the child; parent ignores it so a closed reader pipe does
+            // not kill the core, whereas the reader must not ignore a broken stdout pipe.
+            signal(SIGPIPE, SIG_DFL);
+            if (in_pipe[0] == 0) {
+                fcntl(0, F_SETFD, 0);
+            } else {
+                dup2(in_pipe[0], 0);
+            }
+            if (out_pipe[1] == 1) {
+                fcntl(1, F_SETFD, 0);
+            } else {
+                dup2(out_pipe[1], 1);
+            }
+            for (int fd : {in_pipe[0], in_pipe[1], out_pipe[0], out_pipe[1]}) {
+                if (fd != 0 && fd != 1) {
+                    close(fd);
+                }
+            }
+#ifdef __linux__
+            if (!envp.empty()) {
+                execve(argv[0], argv.data(), envp.data());
+            } else {
+                execv(argv[0], argv.data());
+            }
+#else
+            execv(argv[0], argv.data());
+#endif
+            _exit(127);
+        }
+        close(in_pipe[0]);
+        close(out_pipe[1]);
     }
-    close(in_pipe[0]);
-    close(out_pipe[1]);
-    fcntl(out_pipe[0], F_SETFD, FD_CLOEXEC);
-    fcntl(in_pipe[1], F_SETFD, FD_CLOEXEC);
     auto impl = std::make_unique<Impl>();
     impl->pid = pid;
     impl->in_fd = in_pipe[1];
@@ -410,28 +481,48 @@ bool ReaderProcess::next_event(std::string& line, std::chrono::milliseconds wait
         }
         if (impl_->out_fd >= 0) {
             pollfd p{impl_->out_fd, POLLIN, 0};
-            if (poll(&p, 1, 20) > 0) {
+            const int pr = poll(&p, 1, 20);
+            if (pr > 0) {
                 char chunk[65536];
                 const ssize_t n = read(impl_->out_fd, chunk, sizeof chunk);
                 if (n > 0) {
                     impl_->buffer.append(chunk, static_cast<std::size_t>(n));
                     continue;
                 }
+                if (n < 0 && (errno == EINTR || errno == EAGAIN)) {
+                    continue;
+                }
                 close(impl_->out_fd);
                 impl_->out_fd = -1;
+                if (impl_->in_fd >= 0) {
+                    close(impl_->in_fd);
+                    impl_->in_fd = -1;
+                }
+                impl_->eof_at = std::chrono::steady_clock::now();
             }
         }
         check_limits();
-        reap(impl_->out_fd < 0);
+        reap(false);
         if (end_ != ReaderEnd::running) {
             return false;
         }
-        if (std::chrono::steady_clock::now() - impl_->last > impl_->silence) {
+        const auto now = std::chrono::steady_clock::now();
+        if (impl_->out_fd < 0) {
+            // Once stdout reached EOF, give the child a brief window to exit cleanly before
+            // killing it so next_event() never deadlocks in a blocking waitpid().
+            if (now - impl_->eof_at > std::chrono::seconds(5)) {
+                kill();
+                end_ = ReaderEnd::crashed;
+                return false;
+            }
+            poll(nullptr, 0, 10);
+        }
+        if (now - impl_->last > impl_->silence) {
             kill();
             end_ = ReaderEnd::timed_out;
             return false;
         }
-        if (std::chrono::steady_clock::now() >= until) {
+        if (now >= until) {
             return false;
         }
     }
@@ -444,11 +535,16 @@ bool ReaderProcess::send_line(const std::string& text) {
 }
 
 void ReaderProcess::kill() {
+    if (impl_->in_fd >= 0) {
+        close(impl_->in_fd);  // the macOS reader ends when its standard input closes
+        impl_->in_fd = -1;
+    }
     if (impl_->pid > 0 && end_ == ReaderEnd::running) {
         ::kill(impl_->pid, SIGKILL);
         end_ = ReaderEnd::killed;
         int status = 0;
-        waitpid(impl_->pid, &status, 0);
+        while (waitpid(impl_->pid, &status, 0) < 0 && errno == EINTR) {
+        }
         impl_->pid = -1;
     }
 }
@@ -472,12 +568,10 @@ void ReaderProcess::reap(bool wait) {
 }
 
 ReaderProcess::~ReaderProcess() {
-    if (impl_->in_fd >= 0) {
-        close(impl_->in_fd);  // the macOS reader ends when its standard input closes
-    }
     kill();
     if (impl_->out_fd >= 0) {
         close(impl_->out_fd);
+        impl_->out_fd = -1;
     }
 }
 

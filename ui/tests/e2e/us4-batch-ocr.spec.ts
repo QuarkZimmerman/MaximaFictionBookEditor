@@ -229,9 +229,12 @@ test.describe('US4: Unattended Batch Converter PDF OCR @platform', () => {
       expect(globalAfter.imports?.pdf?.useOcr).toBe(true);
       expect(globalAfter.ocr?.autoDetect).toBe(true);
       expect(globalAfter.ocr?.enabledLanguages).toEqual(['eng', 'rus']);
+
+      await page.getByTestId('dialog-batch-converter-button-close').click();
+      await expect(page.getByTestId('dialog-batch-converter')).toHaveCount(0);
     } finally {
       await core.rpc('test.setCpuCores', { cores: null }).catch(() => undefined);
-      rmSync(work, { recursive: true, force: true });
+      rmSync(work, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
     }
   });
 });
