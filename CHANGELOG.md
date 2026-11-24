@@ -3,7 +3,7 @@
 All notable changes to Maxima Fiction Book Editor. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## 0.0.14 - unreleased
+## 0.0.14 - 2026-11-24
 
 ### In short
 
@@ -38,6 +38,11 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 - Opening a malformed FB2 file interactively now prompts to Repair and open in memory (marking the
   document modified while leaving the source file untouched until saved), Open in Source view, or
   Cancel.
+
+### Fixed
+
+- Opening a book from the command line or file association now marks the window ready as soon as
+  the document is displayed so immediate menu clicks are never dropped.
 
 ## 0.0.13 - 2026-11-22
 
