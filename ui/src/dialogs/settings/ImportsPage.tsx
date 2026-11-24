@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { tip } from '@/app/tooltips';
 import type { Settings } from '@/rpc/types';
 
 import { CheckField, GroupBox } from './controls';
@@ -35,6 +36,7 @@ export function ImportsPage({ draft, onChange, initialFormat = 'pdf' }: ImportsP
           data-testid="settings-imports-format"
           value={format}
           onChange={(event) => setFormat(event.target.value as ImportFormat)}
+          {...tip(t('tip.settings.imports.format'))}
         >
           {IMPORT_FORMATS.map((id) => (
             <option key={id} value={id}>

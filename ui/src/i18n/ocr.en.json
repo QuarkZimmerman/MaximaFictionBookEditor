@@ -13,6 +13,16 @@
       "tabs": {
         "imports": "Default import options for supported e-book and document formats",
         "ocr": "Offline OCR language packs, automatic language detection, and custom OCR folder"
+      },
+      "imports": {
+        "format": "Select an import format to configure its default import options"
+      },
+      "ocr": {
+        "folderDefault": "Use the editor's default user/portable and bundled OCR language folders",
+        "folderCustom": "Use an additional custom folder for Tesseract .traineddata files that overrides bundled packs",
+        "folderPath": "Path to the custom folder containing Tesseract .traineddata language files",
+        "openFolder": "Open the active OCR language files folder in the system file manager",
+        "language": "Enable or disable this language pack for offline PDF OCR recognition"
       }
     }
   },

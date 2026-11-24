@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { tip } from '@/app/tooltips';
 import { Dialog, type DialogButton } from '@/dialogs/Dialog';
 
 export interface PdfImportOptionsAnswer {
@@ -52,6 +53,7 @@ export function PdfImportOptionsDialog({ initialUseOcr, onClose }: PdfImportOpti
           checked={useOcr}
           onChange={(event) => setUseOcr(event.target.checked)}
           data-testid="pdf-import-options-use-ocr"
+          {...tip(t('imports.settings.pdf.useOcrHint'))}
         />
         {t('pdfImport.useOcrLabel')}
       </label>

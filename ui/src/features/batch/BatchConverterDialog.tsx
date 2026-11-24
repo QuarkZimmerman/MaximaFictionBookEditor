@@ -922,6 +922,7 @@ export function BatchConverterDialog({
                                 onChange={(event) =>
                                   handleToggleOcrLanguage(pack.code, event.target.checked)
                                 }
+                                {...tip(t('batch.tips.ocrLanguages'))}
                               />
                               <span>{label}</span>
                             </label>

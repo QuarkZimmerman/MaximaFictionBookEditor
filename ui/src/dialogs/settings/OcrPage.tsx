@@ -10,6 +10,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { CommandContext } from '@/app/commands';
+import { tip } from '@/app/tooltips';
 import { ExternalLink } from '@/dialogs/ExternalLink';
 import { RpcError } from '@/rpc/client';
 import { RpcErrorCode, type OcrCatalogReport, type Settings } from '@/rpc/types';
@@ -129,6 +130,7 @@ export function OcrPage({ draft, onChange, ctx, report, reportKnown }: OcrPagePr
                 onChange({ folder: '' });
               }}
               data-testid="settings-ocr-folder-default"
+              {...tip(t('tip.settings.ocr.folderDefault'))}
             />
             <span>{t('ocr.settings.folderDefault')}</span>
           </label>
@@ -140,6 +142,7 @@ export function OcrPage({ draft, onChange, ctx, report, reportKnown }: OcrPagePr
               checked={!useDefault}
               onChange={() => setCustom(true)}
               data-testid="settings-ocr-folder-custom"
+              {...tip(t('tip.settings.ocr.folderCustom'))}
             />
             <span>{t('ocr.settings.folderCustom')}</span>
           </label>
@@ -155,6 +158,7 @@ export function OcrPage({ draft, onChange, ctx, report, reportKnown }: OcrPagePr
             aria-label={t('ocr.settings.folderCustom')}
             onChange={(event) => onChange({ folder: event.target.value })}
             data-testid="settings-ocr-folder-path"
+            {...tip(t('tip.settings.ocr.folderPath'))}
           />
           <button
             type="button"
@@ -172,6 +176,7 @@ export function OcrPage({ draft, onChange, ctx, report, reportKnown }: OcrPagePr
             disabled={!rpc}
             onClick={() => void openOcrFolder()}
             data-testid="settings-ocr-open-folder"
+            {...tip(t('tip.settings.ocr.openFolder'))}
           >
             {t('ocr.settings.openFolder')}
           </button>
@@ -222,6 +227,7 @@ export function OcrPage({ draft, onChange, ctx, report, reportKnown }: OcrPagePr
                           checked={checked}
                           onChange={(event) => toggleLanguage(pack.code, event.target.checked)}
                           data-testid={`settings-ocr-lang-${pack.code}`}
+                          {...tip(t('tip.settings.ocr.language'))}
                         />
                         <span>
                           {label} ({pack.code})
