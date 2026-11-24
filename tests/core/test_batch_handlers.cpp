@@ -9,6 +9,7 @@
 #include <mfbe/atomic_file.hpp>
 #include <mfbe/core_server.hpp>
 #include <mfbe/utf8_paths.hpp>
+#include <mfbe/version.hpp>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -68,12 +69,12 @@ struct BatchFixture {
 
 }  // namespace
 
-TEST_CASE("app.info reports apiMinor 17 and cpuCores, overridable via test.setCpuCores",
+TEST_CASE("app.info reports current apiMinor and cpuCores, overridable via test.setCpuCores",
           "[batch][rpc]") {
     BatchFixture f;
     const json info = f.ws.call("app.info");
     REQUIRE(info.contains("result"));
-    CHECK(info["result"]["apiMinor"] == 17);
+    CHECK(info["result"]["apiMinor"] == version::kApiMinor);
     REQUIRE(info["result"].contains("cpuCores"));
     CHECK(info["result"]["cpuCores"].get<int>() >= 1);
 

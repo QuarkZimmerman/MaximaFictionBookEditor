@@ -54,6 +54,9 @@ export interface BatchJobConfig {
   overwrite: boolean;
   parallel: boolean;
   workerCount: number;
+  pdfUseOcr: boolean;
+  ocrAutoDetect: boolean;
+  ocrLanguages: string[];
 }
 
 /**
@@ -74,6 +77,9 @@ export interface BatchSessionMemory {
   overwrite?: boolean;
   parallel?: boolean;
   workerCount?: number;
+  pdfUseOcr?: boolean;
+  ocrAutoDetect?: boolean;
+  ocrLanguages?: string[];
   zipOverrides: Partial<Record<string, boolean>>;
   exportSettingsOverrides?: BatchExportSettingsOverrides;
   exportSettings?: BatchPersistedExportSettings;
@@ -135,6 +141,16 @@ export interface BatchReportWarningEntry {
   messages: string[];
 }
 
+export interface BatchOcrReportEntry {
+  displayPath: string;
+  sourcePath: string;
+  targetPath: string;
+  ocrPages: number;
+  ocrImageBlocks: number;
+  languages: string[];
+  reason: string;
+}
+
 export interface BatchReport {
   startedAtIso: string;
   finishedAtIso: string;
@@ -146,6 +162,7 @@ export interface BatchReport {
     total: number;
     converted: number;
     fixed: number;
+    ocr?: number;
     skipped: number;
     failed: number;
     cancelled: number;
@@ -153,5 +170,6 @@ export interface BatchReport {
   fixed: BatchReportEntry[];
   failed: BatchReportEntry[];
   skipped: BatchReportEntry[];
+  ocr?: BatchOcrReportEntry[];
   warnings: BatchReportWarningEntry[];
 }

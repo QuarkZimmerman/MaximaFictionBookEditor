@@ -28,6 +28,7 @@ import type {
   BatchBookFormat,
   BatchDiscoveredItem,
   BatchJobConfig,
+  BatchOcrReportEntry,
   BatchPhase,
   BatchProgressSnapshot,
   BatchReport,
@@ -154,6 +155,7 @@ export function startBatchRun(options: BatchSchedulerOptions): BatchRunControlle
   let totalCount = 0;
   let convertedCount = 0;
   let fixedCount = 0;
+  let ocrCount = 0;
   let skippedCount = 0;
   let failedCount = 0;
   let cancelledCount = 0;
@@ -255,6 +257,7 @@ export function startBatchRun(options: BatchSchedulerOptions): BatchRunControlle
       const fixed: BatchReportEntry[] = [];
       const failed: BatchReportEntry[] = [];
       const skipped: BatchReportEntry[] = [];
+      const ocrEntries: BatchOcrReportEntry[] = [];
       const warnings: BatchReportWarningEntry[] = [];
 
       // Pre-failed scan errors enter the report directly in failed status.
@@ -288,6 +291,7 @@ export function startBatchRun(options: BatchSchedulerOptions): BatchRunControlle
             total: totalCount,
             converted: 0,
             fixed: 0,
+            ocr: 0,
             skipped: 0,
             failed: failedCount,
             cancelled: 0,
@@ -295,6 +299,7 @@ export function startBatchRun(options: BatchSchedulerOptions): BatchRunControlle
           fixed,
           failed,
           skipped,
+          ocr: ocrEntries,
           warnings,
         };
       }
@@ -303,7 +308,8 @@ export function startBatchRun(options: BatchSchedulerOptions): BatchRunControlle
       emitNow();
 
       const workerSlots = Math.min(effectiveWorkerCount(config, cpuCores), items.length);
-      cache = new BatchSharedCache(rpc);
+      const maxOcrWorkers = Math.max(1, Math.min(workerSlots, Math.min(4, Math.ceil(cpuCores / 2))));
+      cache = new BatchSharedCache(rpc, maxOcrWorkers);
       const activeCache = cache;
       const adapterCache = new Map<string, Promise<BatchAdapterFn>>();
       const getAdapter = (format: BatchBookFormat) => {
@@ -424,6 +430,15 @@ export function startBatchRun(options: BatchSchedulerOptions): BatchRunControlle
                 reason: outcome.fixedReason,
               });
             }
+            if (outcome.ocr) {
+              ocrCount++;
+              ocrEntries.push({
+                displayPath: item.displayPath,
+                sourcePath: item.sourcePath,
+                targetPath: claim.targetPath,
+                ...outcome.ocr,
+              });
+            }
             if (outcome.warnings.length > 0) {
               warnings.push({
                 displayPath: item.displayPath,
@@ -502,6 +517,7 @@ export function startBatchRun(options: BatchSchedulerOptions): BatchRunControlle
           total: totalCount,
           converted: convertedCount,
           fixed: fixedCount,
+          ocr: ocrCount,
           skipped: skippedCount,
           failed: failedCount,
           cancelled: cancelledCount,
@@ -509,6 +525,7 @@ export function startBatchRun(options: BatchSchedulerOptions): BatchRunControlle
         fixed,
         failed,
         skipped,
+        ocr: ocrEntries,
         warnings,
       };
     } catch (error) {

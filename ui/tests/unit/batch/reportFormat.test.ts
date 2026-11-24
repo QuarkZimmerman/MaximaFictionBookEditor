@@ -27,6 +27,9 @@ function baseConfig(overrides: Partial<BatchJobConfig> = {}): BatchJobConfig {
     overwrite: false,
     parallel: true,
     workerCount: 4,
+    pdfUseOcr: true,
+    ocrAutoDetect: true,
+    ocrLanguages: ['eng', 'rus'],
     ...overrides,
   };
 }

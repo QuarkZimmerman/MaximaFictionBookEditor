@@ -5,11 +5,13 @@
  * UTF-8 `.fb2` or `.fb2.zip` atomically.
  */
 
+import { pdfImportReason } from '@/features/pdf/importCommand';
 import type { BinaryMeta } from '@/model/document';
 import { isRpcError } from '@/rpc/client';
-import { RpcErrorCode } from '@/rpc/types';
+import { RpcErrorCode, type PdfImportOcrSummary } from '@/rpc/types';
 
 import { pathBasename } from '../engine/paths';
+import type { BatchOcrReportEntry } from '../engine/types';
 import type { BatchAdapterContext, BatchAdapterOutcome } from './adapterTypes';
 import {
   closeEphemeralDoc,
@@ -21,8 +23,73 @@ import {
 
 const MAX_PICTURES = 10_000;
 
+function resolveLanguageLabel(rawLanguages: unknown, code: string, uiLang: string): string {
+  const target = code.toLowerCase();
+  const inspectList = (items: unknown): string | null => {
+    if (!Array.isArray(items)) return null;
+    for (const item of items) {
+      if (!item || typeof item !== 'object') continue;
+      const rec = item as {
+        code?: unknown;
+        name?: Record<string, string>;
+        names?: Record<string, string>;
+      };
+      if (typeof rec.code === 'string' && rec.code.toLowerCase() === target) {
+        const names = rec.names ?? rec.name;
+        if (names && typeof names === 'object') {
+          return names[uiLang] ?? names.en ?? code;
+        }
+      }
+    }
+    return null;
+  };
+  if (Array.isArray(rawLanguages)) {
+    return inspectList(rawLanguages) ?? code;
+  }
+  if (rawLanguages && typeof rawLanguages === 'object') {
+    const obj = rawLanguages as { entries?: unknown; groups?: Array<{ languages?: unknown }> };
+    const direct = inspectList(obj.entries);
+    if (direct) return direct;
+    if (Array.isArray(obj.groups)) {
+      for (const group of obj.groups) {
+        const found = inspectList(group?.languages);
+        if (found) return found;
+      }
+    }
+  }
+  return code;
+}
+
+function formatBatchOcrReason(
+  summary: PdfImportOcrSummary,
+  rawLanguages: unknown,
+  uiLang: string,
+  t: BatchAdapterContext['ctx']['t'],
+): Omit<BatchOcrReportEntry, 'displayPath' | 'sourcePath' | 'targetPath'> {
+  const parts: string[] = [];
+  if (summary.pagesRecognized > 0) {
+    parts.push(t('batch.ocr.summaryPages', { pages: summary.pagesRecognized }));
+  }
+  if (summary.imageBlocksRecognized > 0) {
+    parts.push(t('batch.ocr.summaryImages', { images: summary.imageBlocksRecognized }));
+  }
+  const langNames = summary.languages.map((code) => resolveLanguageLabel(rawLanguages, code, uiLang));
+  const partsText = parts.join(', ');
+  const reason =
+    langNames.length > 0
+      ? t('batch.ocr.summaryWithLangs', { parts: partsText, languages: langNames.join(', ') })
+      : partsText;
+  return {
+    ocrPages: summary.pagesRecognized,
+    ocrImageBlocks: summary.imageBlocksRecognized,
+    languages: [...summary.languages],
+    reason,
+  };
+}
+
 export async function runPdfToFb2(params: BatchAdapterContext): Promise<BatchAdapterOutcome> {
-  const { ctx, rpc, config, item, targetPath, outputStem, signal, onStage } = params;
+  const { ctx, rpc, config, item, targetPath, outputStem, signal, onStage, cache, settings } =
+    params;
 
   const [
     { withFbd },
@@ -31,7 +98,7 @@ export async function runPdfToFb2(params: BatchAdapterContext): Promise<BatchAda
     { convertOurs },
     { loadDocument, loadPages },
     { flatten },
-    { guessLanguage, metadataDescription },
+    { guessLanguage, metadataDescription, resolveImportLanguage },
     { furnitureOf, layoutParts, linesOf },
     { fromLatin1, looksLatin1Cyrillic },
     { textBody },
@@ -66,20 +133,47 @@ export async function runPdfToFb2(params: BatchAdapterContext): Promise<BatchAda
     token = activeToken;
     throwIfAborted(signal);
 
-    const inspected = await rpc.call('pdfImport.inspect', { token: activeToken });
-    if ('needsPassword' in inspected) {
-      // Unattended batch rule (FR-017): fail password-protected PDFs immediately, never prompt.
-      throw new Error(ctx.t('batch.reasons.passwordPdf'));
-    }
+    // Bound simultaneous PDF OCR reader processes in parallel batch runs so peak RSS and CPU stay
+    // predictable; each reader is also capped to 1 OCR thread when Batch parallel mode is enabled.
+    const releaseOcrSlot = config.pdfUseOcr ? await cache.pdfOcrSlots.acquire(signal) : null;
+    let readStats;
+    try {
+      const inspectParams = config.pdfUseOcr
+        ? {
+            token: activeToken,
+            ocr: {
+              enabled: true,
+              autoDetect: config.ocrAutoDetect,
+              languages: config.ocrLanguages,
+              ...(config.parallel ? { maxThreads: 1 } : {}),
+            },
+          }
+        : { token: activeToken };
+      const inspected = await rpc.call('pdfImport.inspect', inspectParams);
+      if (inspected.needsPassword || inspected.ownerPassword || !inspected.opened) {
+        // Unattended batch rule (FR-017, FR-020): fail encrypted/copy-restricted PDFs immediately.
+        throw new Error(ctx.t('batch.reasons.passwordPdf'));
+      }
 
-    const readStats = await runCancellableRpcJob(
-      rpc,
-      () => rpc.call('pdfImport.read', { token: activeToken }),
-      {
-        signal,
-        onProgress: (d, tot) => onStage('batch.progress.stageReading', d, Math.max(tot, 1)),
-      },
-    );
+      readStats = await runCancellableRpcJob(
+        rpc,
+        () => rpc.call('pdfImport.read', { token: activeToken }),
+        {
+          signal,
+          onProgress: (d, tot, phase) => {
+            const stageKey =
+              phase === 'ocrDetect'
+                ? 'batch.progress.stageOcrDetect'
+                : phase === 'ocr'
+                  ? 'batch.progress.stageOcr'
+                  : 'batch.progress.stageReading';
+            onStage(stageKey, d, Math.max(tot, 1));
+          },
+        },
+      );
+    } finally {
+      releaseOcrSlot?.();
+    }
     throwIfAborted(signal);
 
     const pdfDoc = await loadDocument(activeToken);
@@ -204,8 +298,14 @@ export async function runPdfToFb2(params: BatchAdapterContext): Promise<BatchAda
         }
       }
 
+      const hasOcrPages = models.some(
+        (model) => model.ocrUsed || (model.ocrImages?.length ?? 0) > 0,
+      );
       const layout =
-        tagged && sum(taggedLetters.values()) >= sum(pageLetters) * 0.97 && inOrder >= pairs * 0.97
+        !hasOcrPages &&
+        tagged &&
+        sum(taggedLetters.values()) >= sum(pageLetters) * 0.97 &&
+        inOrder >= pairs * 0.97
           ? null
           : layoutParts(models, {
               outline: pdfDoc.outline,
@@ -279,9 +379,15 @@ export async function runPdfToFb2(params: BatchAdapterContext): Promise<BatchAda
       };
       const link = (run: { uri?: string }): { href: string; note: boolean } | null =>
         run.uri ? { href: run.uri, note: false } : null;
-      const body = textBody(parts, link, picture);
       const words = parts.flatMap((part) => part.runs.flatMap((run) => run.text.split(/\s+/)));
-      const language = await guessLanguage(words, misspelled);
+      const guessedLang = await guessLanguage(words, misspelled);
+      const language = resolveImportLanguage({
+        pdfLang: pdfDoc.metadata.lang,
+        ocrSummary: readStats.ocr,
+        totalPages: pdfDoc.pages,
+        guessedLang,
+      });
+      const body = textBody(parts, link, picture, { bookLang: language });
       xml =
         `<?xml version="1.0" encoding="UTF-8"?>\n<FictionBook xmlns="${FB2_NS}" xmlns:l="${XLINK_NS}">` +
         metadataDescription(
@@ -299,8 +405,24 @@ export async function runPdfToFb2(params: BatchAdapterContext): Promise<BatchAda
           ctx.t('pdfImport.summary.drawingsLeftOut', { count: readStats.drawingsLeftOut }),
         );
       }
-      if ((readStats.kinds.garbled ?? 0) > 0) {
-        warnings.push(ctx.t('pdfImport.summary.garbled', { count: readStats.kinds.garbled }));
+      if (!readStats.ocr?.used && (readStats.kinds.garbled ?? 0) > 0) {
+        warnings.push(
+          ctx.t('pdfImport.summary.garbledPages', { count: readStats.kinds.garbled }),
+        );
+      }
+      if (readStats.ocr?.used) {
+        if (readStats.ocr.fallbackPages > 0) {
+          warnings.push(
+            ctx.t('pdfImport.summary.ocrFallbackPages', { count: readStats.ocr.fallbackPages }),
+          );
+        }
+        if (readStats.ocr.lowConfidencePages > 0) {
+          warnings.push(
+            ctx.t('pdfImport.summary.ocrLowConfidence', {
+              count: readStats.ocr.lowConfidencePages,
+            }),
+          );
+        }
       }
     }
 
@@ -396,17 +518,21 @@ export async function runPdfToFb2(params: BatchAdapterContext): Promise<BatchAda
       onProgress: (d, tot) => onStage('batch.progress.stageWriting', d, Math.max(tot, 1)),
     });
 
-    return { warnings };
+    let ocr: BatchAdapterOutcome['ocr'];
+    if (readStats.ocr?.used) {
+      const langTable = await cache.getLanguages();
+      const uiLang = settings?.view?.uiLanguage ?? 'en';
+      ocr = formatBatchOcrReason(readStats.ocr, langTable, uiLang, ctx.t);
+    }
+
+    return ocr ? { warnings, ocr } : { warnings };
   } catch (error) {
     if (isRpcError(error) && error.code === RpcErrorCode.pdfImportFailed) {
       const reason = (error.data as { reason?: string } | undefined)?.reason ?? 'damaged';
       if (reason === 'passwordCancelled' || reason === 'copyForbidden') {
         throw new Error(ctx.t('batch.reasons.passwordPdf'), { cause: error });
       }
-      throw new Error(
-        ctx.t(`pdfImport.refused.${reason}`, { defaultValue: error.message || reason }),
-        { cause: error },
-      );
+      throw new Error(pdfImportReason(ctx, error), { cause: error });
     }
     throw error;
   } finally {
