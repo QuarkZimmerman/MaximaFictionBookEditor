@@ -464,6 +464,13 @@ jobs:
           name: playwright-report-${{ matrix.name }}
           path: ui/playwright-report/
           if-no-files-found: ignore
+      - name: Upload Playwright failure traces
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: playwright-results-${{ matrix.name }}
+          path: ui/test-results/
+          if-no-files-found: ignore
 
   pdf-systems:
     # Feature 014 (SC-009, T060): the same books exported on the three systems, compared - Windows

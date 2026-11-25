@@ -44,6 +44,7 @@ test.describe('US4: Unattended Batch Converter PDF OCR @platform', () => {
     await core.openApp(page);
 
     const work = makeTempDir('mfbe-us4-batch-ocr');
+    let cleanupError: unknown = null;
     try {
       const srcDir = path.join(work, 'src');
       const seqOutDir = path.join(work, 'out-seq');
@@ -232,9 +233,33 @@ test.describe('US4: Unattended Batch Converter PDF OCR @platform', () => {
 
       await page.getByTestId('dialog-batch-converter-button-close').click();
       await expect(page.getByTestId('dialog-batch-converter')).toHaveCount(0);
+    } catch (err) {
+      const dialogText = await page
+        .getByTestId('dialog-batch-converter')
+        .innerText({ timeout: 2_000 })
+        .catch(() => '');
+      if (dialogText) {
+        console.error('[us4-batch-ocr] dialog state at failure:\n' + dialogText);
+      }
+      // Cancel any in-flight batch before tearing down temp files so Windows reader handles close.
+      const cancelBtn = page.getByTestId('dialog-batch-converter-button-cancel');
+      if (await cancelBtn.isVisible().catch(() => false)) {
+        await cancelBtn.click().catch(() => undefined);
+        await expect(page.getByTestId('batch-report-view'))
+          .toBeVisible({ timeout: 10_000 })
+          .catch(() => undefined);
+      }
+      throw err;
     } finally {
       await core.rpc('test.setCpuCores', { cores: null }).catch(() => undefined);
-      rmSync(work, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+      try {
+        rmSync(work, { recursive: true, force: true, maxRetries: 10, retryDelay: 250 });
+      } catch (err) {
+        cleanupError = err;
+      }
+    }
+    if (cleanupError) {
+      throw cleanupError;
     }
   });
 });

@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cerrno>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <mutex>
@@ -167,16 +168,17 @@ std::unique_ptr<ReaderProcess> ReaderProcess::start(const ReaderOptions& o, std:
     limits.ProcessMemoryLimit = o.max_memory_mb * 1024 * 1024;
     SetInformationJobObject(impl->job, JobObjectExtendedLimitInformation, &limits, sizeof limits);
 
-    // Serialize inheritable pipe creation + CreateProcessW across parallel batch workers so one
-    // worker's child cannot inherit another worker's pipe ends on Windows.
+    // Serialize inheritable pipe creation + CreateProcessW across parallel batch workers and use
+    // PROC_THREAD_ATTRIBUTE_HANDLE_LIST so the reader inherits ONLY its own stdin/stdout/stderr
+    // handles — never another worker's pipes or the loopback server's sockets.
     PROCESS_INFORMATION pi{};
     {
         static std::mutex spawn_mutex;
         std::lock_guard<std::mutex> lock(spawn_mutex);
         SECURITY_ATTRIBUTES sa{sizeof sa, nullptr, TRUE};
         HANDLE in_read = nullptr, out_write = nullptr;
-        if (!CreatePipe(&in_read, &impl->in_write, &sa, 0) ||
-            !CreatePipe(&impl->out_read, &out_write, &sa, 0)) {
+        if (!CreatePipe(&in_read, &impl->in_write, &sa, 65536) ||
+            !CreatePipe(&impl->out_read, &out_write, &sa, 65536)) {
             if (in_read) {
                 CloseHandle(in_read);
             }
@@ -197,15 +199,56 @@ std::unique_ptr<ReaderProcess> ReaderProcess::start(const ReaderOptions& o, std:
         }
         SetHandleInformation(impl->in_write, HANDLE_FLAG_INHERIT, 0);
         SetHandleInformation(impl->out_read, HANDLE_FLAG_INHERIT, 0);
-        STARTUPINFOW si{};
-        si.cb = sizeof si;
-        si.dwFlags = STARTF_USESTDHANDLES;
-        si.hStdInput = in_read;
-        si.hStdOutput = out_write;
-        si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
-        const BOOL ok =
-            CreateProcessW(nullptr, command.data(), nullptr, nullptr, TRUE,
-                           CREATE_NO_WINDOW | CREATE_SUSPENDED, nullptr, nullptr, &si, &pi);
+
+        HANDLE err_nul = nullptr;
+        HANDLE err_handle = GetStdHandle(STD_ERROR_HANDLE);
+        DWORD err_flags = 0;
+        const bool err_inheritable = err_handle != nullptr && err_handle != INVALID_HANDLE_VALUE &&
+                                     GetHandleInformation(err_handle, &err_flags) != 0 &&
+                                     (err_flags & HANDLE_FLAG_INHERIT) != 0 &&
+                                     GetFileType(err_handle) != FILE_TYPE_UNKNOWN &&
+                                     GetFileType(err_handle) != FILE_TYPE_CHAR &&
+                                     err_handle != in_read && err_handle != out_write;
+        if (!err_inheritable) {
+            err_nul = CreateFileW(L"NUL", GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, &sa,
+                                  OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+            err_handle = (err_nul != INVALID_HANDLE_VALUE) ? err_nul : nullptr;
+            if (err_nul == INVALID_HANDLE_VALUE) {
+                err_nul = nullptr;
+            }
+        }
+
+        HANDLE inherit_list[3] = {in_read, out_write, err_handle};
+        const DWORD inherit_count = err_handle ? 3 : 2;
+        SIZE_T attr_size = 0;
+        InitializeProcThreadAttributeList(nullptr, 1, 0, &attr_size);
+        std::vector<std::uintptr_t> attr_buf((attr_size + sizeof(std::uintptr_t) - 1) /
+                                             sizeof(std::uintptr_t));
+        auto* attr_list = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attr_buf.data());
+        const bool attr_init =
+            attr_size > 0 && InitializeProcThreadAttributeList(attr_list, 1, 0, &attr_size) != 0;
+        const bool have_attrs =
+            attr_init &&
+            UpdateProcThreadAttribute(attr_list, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, inherit_list,
+                                      inherit_count * sizeof(HANDLE), nullptr, nullptr) != 0;
+
+        STARTUPINFOEXW si{};
+        si.StartupInfo.cb = have_attrs ? sizeof(STARTUPINFOEXW) : sizeof(STARTUPINFOW);
+        si.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
+        si.StartupInfo.hStdInput = in_read;
+        si.StartupInfo.hStdOutput = out_write;
+        si.StartupInfo.hStdError = err_handle;
+        si.lpAttributeList = have_attrs ? attr_list : nullptr;
+        const DWORD flags =
+            CREATE_NO_WINDOW | CREATE_SUSPENDED | (have_attrs ? EXTENDED_STARTUPINFO_PRESENT : 0);
+        const BOOL ok = CreateProcessW(nullptr, command.data(), nullptr, nullptr, TRUE, flags,
+                                       nullptr, nullptr, &si.StartupInfo, &pi);
+        if (attr_init) {
+            DeleteProcThreadAttributeList(attr_list);
+        }
+        if (err_nul) {
+            CloseHandle(err_nul);
+        }
         CloseHandle(in_read);
         CloseHandle(out_write);
         if (!ok) {
