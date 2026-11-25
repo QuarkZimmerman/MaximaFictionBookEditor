@@ -531,3 +531,32 @@
   color: var(--mfbe-color-accent, #0078d4);
   font-size: 90%;
 }
+
+/* Maxima Library integration page (feature 021) */
+
+.mfbe-settings-inline {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex: 1 1 auto;
+}
+
+.mfbe-settings-inline .mfbe-settings-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.mfbe-settings-disabled-link {
+  opacity: 0.55;
+  text-decoration: underline;
+  cursor: default;
+}
+
+[data-testid='settings-maxima-status'][data-status='verified'] {
+  color: var(--mfbe-color-success, #1b6e24);
+  font-weight: 500;
+}
+
+[data-testid='settings-maxima-status'][data-status='failed'] {
+  color: var(--mfbe-color-danger, #c42b1c);
+}

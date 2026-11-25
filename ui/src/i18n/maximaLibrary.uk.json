@@ -1,0 +1,106 @@
+{
+  "$comment": "Feature 021: Maxima Library Lookup Service v2 integration (Ukrainian). Deep-merged into uk.json by i18n/index.ts.",
+  "dialog": {
+    "settings": {
+      "pages": {
+        "maximaLibrary": "Інтеграція з Maxima Library"
+      }
+    }
+  },
+  "tip": {
+    "settings": {
+      "tabs": {
+        "maximaLibrary": "Необов’язкове автодоповнення та перевірка записів каталогу через сервіс пошуку Maxima Library v2"
+      },
+      "maximaLibrary": {
+        "enable": "Увімкнути необов’язковий пошук у каталозі Maxima Library на вкладці «Опис»",
+        "domain": "Базова HTTPS-адреса сервера Maxima Library (типово https://maxima-library.com)",
+        "token": "Персональний токен доступу лише для читання з налаштувань користувача Maxima Library",
+        "revealToken": "Показати або приховати токен доступу",
+        "tokenLink": "Відкрити сторінку керування токеном Maxima Library у зовнішньому браузері",
+        "test": "Перевірити з’єднання та чинність токена перед збереженням"
+      }
+    }
+  },
+  "maximaLibrary": {
+    "settings": {
+      "group": "Сервіс пошуку Maxima Library v2",
+      "enable": "Увімкнути інтеграцію з Maxima Library",
+      "enableHint": "Вимкнено за замовчуванням. Після ввімкнення запити надсилаються лише під час взаємодії з підтримуваними полями на вкладці «Опис».",
+      "domainLabel": "Домен Maxima Library:",
+      "tokenLabel": "Токен доступу:",
+      "tokenPlaceholder": "Вставте персональний токен доступу",
+      "tokenStoredPlaceholder": "Збережений зашифрований токен (введіть новий для заміни)",
+      "showToken": "Показати",
+      "hideToken": "Приховати",
+      "tokenHelp": "Створити або оновити персональний токен доступу лише для читання можна на сайті Maxima Library:",
+      "openTokenPage": "Відкрити налаштування токена Maxima Library",
+      "testButton": "Перевірити інтеграцію",
+      "testing": "Перевірка з’єднання...",
+      "statusVerified": "Перевірку пройдено: з’єднання та токен доступу підтверджено.",
+      "statusSavedVerified": "Інтеграцію перевірено та підготовлено до роботи.",
+      "statusTestRequired": "Натисніть «Перевірити інтеграцію» і дочекайтеся успішної відповіді, щоб активувати «Застосувати» та «ОК».",
+      "statusUnreadable": "Не вдалося розшифрувати збережений токен доступу (наприклад, відсутній файл ключа або файл пошкоджено). Введіть токен знову та натисніть «Перевірити інтеграцію».",
+      "unavailable": "Налаштування Maxima Library недоступні: ядро редактора не підключено.",
+      "errors": {
+        "invalidDomain": "Укажіть коректну адресу Maxima Library (наприклад, https://maxima-library.com).",
+        "httpsRequired": "Для віддалених серверів Maxima Library потрібен протокол HTTPS.",
+        "emptyToken": "Введіть токен доступу Maxima Library перед перевіркою.",
+        "tokenUnreadable": "Збережений зашифрований токен не читається. Вставте токен і повторіть перевірку.",
+        "unauthorized": "Помилка автентифікації: сервер не отримав дійсний токен Bearer.",
+        "invalid_token": "Токен доступу недійсний або був відкликаний на сайті Maxima Library.",
+        "account_disabled": "Ваш обліковий запис Maxima Library вимкнено для запитів пошуку.",
+        "https_required": "Сервер Maxima Library вимагає захищене з’єднання HTTPS.",
+        "wrong_version": "Несумісна версія протоколу: оновіть редактор для роботи із сервісом пошуку.",
+        "rate_limited": "Забагато запитів. Зачекайте перед повторною спробою.",
+        "rate_limited_retry": "Забагато запитів. Зачекайте {{seconds}} с перед повторною спробою.",
+        "method_not_allowed": "Сервер відхилив HTTP-метод запиту пошуку.",
+        "invalid_request": "Сервер відхилив формат запиту пошуку.",
+        "server_error": "Сервер Maxima Library повернув тимчасову помилку. Спробуйте пізніше.",
+        "offline": "Не вдалося зв’язатися із сервером Maxima Library. Перевірте підключення до мережі.",
+        "timeout": "Перевищено час очікування відповіді від Maxima Library.",
+        "tls": "Помилка перевірки TLS-сертифіката для вказаного домена.",
+        "http": "Сервер повернув неочікувану HTTP-відповідь.",
+        "format": "За вказаною адресою не отримано коректної відповіді сервісу пошуку v2.",
+        "cancelled": "Перевірку з’єднання скасовано.",
+        "unknown": "Помилка перевірки з’єднання: {{message}}"
+      }
+    },
+    "lookup": {
+      "searching": "Пошук у Maxima Library...",
+      "typeToSearch": "Введіть текст для пошуку...",
+      "noMatches": "Відповідних записів не знайдено.",
+      "prevPage": "Назад",
+      "nextPage": "Далі",
+      "pageLabel": "Сторінка {{page}}",
+      "close": "Закрити",
+      "openOnSiteShort": "Сайт",
+      "openOnSiteTitle": "Відкрити запис на сайті Maxima Library",
+      "confirmedBadge": "Бібліотека №{{id}}",
+      "confirmedTooltip": "Підтверджений запис Maxima Library №{{id}}",
+      "unresolvedBadge": "Уточнити",
+      "unresolvedTooltip": "Кілька записів Maxima Library мають цю точну назву; за бажанням оберіть потрібний зі списку (збереженню не заважає)",
+      "pickOnePrompt": "Знайдено кілька записів із цією назвою. Оберіть потрібний (необов’язково):",
+      "tabs": {
+        "all": "Усі",
+        "authors": "Серії авторів",
+        "makers": "Серії учасників",
+        "byPublisher": "За видавництвом"
+      },
+      "subseriesIn": "(підсерія у «{{parent}}»)",
+      "booksCount": "Книг: {{count}}",
+      "linkedTo": "Видавництва: {{names}}",
+      "banner": {
+        "retry": "Повторити",
+        "openSettings": "Налаштування...",
+        "dismiss": "Сховати",
+        "offline": "Сервер Maxima Library недоступний. Автономне редагування та збереження працюють у звичайному режимі.",
+        "invalidToken": "Токен доступу Maxima Library відхилено або відкликано. Оновіть його в налаштуваннях.",
+        "accountDisabled": "Обліковий запис Maxima Library вимкнено для запитів пошуку.",
+        "rateLimited": "Досягнуто ліміту запитів Maxima Library. Пауза на {{seconds}} с.",
+        "wrongVersion": "Несумісність версії протоколу пошуку Maxima Library. Перевірте наявність оновлень редактора.",
+        "serverError": "Сервер Maxima Library повернув тимчасову помилку. Автономне редагування триває."
+      }
+    }
+  }
+}

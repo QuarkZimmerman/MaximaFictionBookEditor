@@ -156,8 +156,10 @@ Services::Services(CoreServerOptions opts, platform::Dirs dirs_, fs::path resour
       layers(resources::Roots{}),
       notifier(notifier_),
       jobs(notifier_),
-      ai(resources_dir, ai::UserLayer::of(dirs)) {
+      ai(resources_dir, ai::UserLayer::of(dirs)),
+      maxima_lookup(dirs.data, resources_dir) {
     settings.load();
+    maxima_lookup.sync_on_startup(settings);
     recent.load();
     positions.load();
     exclusions.load();
@@ -414,6 +416,7 @@ struct CoreServer::Impl : rpc::Notifier {
         server::register_system_handlers(router, *services);
         server::register_schema_handlers(router, *services);
         server::register_ai_handlers(router, *services);
+        server::register_maxima_lookup_handlers(router, *services);
 #ifdef MFBE_TEST_HOOKS
         if (services->test_hooks) {
             server::register_test_handlers(router, *services);
@@ -432,6 +435,7 @@ CoreServer::~CoreServer() {
     }
     if (impl_->services) {
         impl_->services->watcher.reset();
+        impl_->services->maxima_lookup.shutdown();
         impl_->services->jobs.shutdown();
         impl_->services->batch.cleanup_all();
     }

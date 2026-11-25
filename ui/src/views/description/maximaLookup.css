@@ -1,0 +1,276 @@
+/* Maxima Library Lookup Service v2 autocomplete, badges, and status banner (feature 021). */
+
+.mfbe-ml-anchor {
+  position: relative;
+}
+
+.mfbe-ml-input-confirmed {
+  border-color: var(--mfbe-ml-confirmed-border, #2e7d32) !important;
+  background-color: var(--mfbe-ml-confirmed-bg, rgba(46, 125, 50, 0.08)) !important;
+}
+
+.mfbe-ml-input-unresolved {
+  border-color: var(--mfbe-ml-unresolved-border, #c77700) !important;
+  background-color: var(--mfbe-ml-unresolved-bg, rgba(199, 119, 0, 0.1)) !important;
+}
+
+.mfbe-ml-status-strip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.mfbe-ml-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.mfbe-ml-badge.is-confirmed {
+  color: var(--mfbe-ml-confirmed-fg, #1b5e20);
+  background: var(--mfbe-ml-confirmed-bg, rgba(46, 125, 50, 0.14));
+  border: 1px solid var(--mfbe-ml-confirmed-border, rgba(46, 125, 50, 0.45));
+}
+
+.mfbe-ml-badge.is-unresolved {
+  color: var(--mfbe-ml-unresolved-fg, #8a4b00);
+  background: var(--mfbe-ml-unresolved-bg, rgba(217, 130, 0, 0.15));
+  border: 1px solid var(--mfbe-ml-unresolved-border, rgba(217, 130, 0, 0.5));
+}
+
+.mfbe-ml-row-link {
+  font-size: 11px;
+  color: var(--mfbe-accent, #1a66cc);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.mfbe-ml-dropdown {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  margin-top: 2px;
+  min-width: 340px;
+  max-width: 680px;
+  z-index: 60;
+  background: var(--mfbe-surface, #ffffff);
+  color: var(--mfbe-fg, #1f1f1f);
+  border: 1px solid var(--mfbe-border-strong, #888888);
+  border-radius: 4px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+}
+
+.mfbe-ml-dropdown-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 4px 6px 0;
+  border-bottom: 1px solid var(--mfbe-border, #d0d0d0);
+  background: var(--mfbe-surface-2, #f5f5f5);
+}
+
+.mfbe-ml-tab {
+  appearance: none;
+  border: 1px solid transparent;
+  border-bottom: none;
+  background: transparent;
+  color: inherit;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 3px 3px 0 0;
+}
+
+.mfbe-ml-tab.is-active {
+  background: var(--mfbe-surface, #ffffff);
+  border-color: var(--mfbe-border, #d0d0d0);
+  font-weight: 600;
+}
+
+.mfbe-ml-dropdown-notice {
+  padding: 5px 10px;
+  font-size: 11.5px;
+  border-bottom: 1px solid var(--mfbe-border, #d0d0d0);
+}
+
+.mfbe-ml-dropdown-notice.is-advisory {
+  background: var(--mfbe-ml-unresolved-bg, rgba(217, 130, 0, 0.14));
+  color: var(--mfbe-ml-unresolved-fg, #8a4b00);
+}
+
+.mfbe-ml-dropdown-status {
+  padding: 10px 12px;
+  color: var(--mfbe-muted, #666666);
+}
+
+.mfbe-ml-dropdown-status.is-error {
+  color: var(--mfbe-danger, #b71c1c);
+}
+
+.mfbe-ml-dropdown-list {
+  list-style: none;
+  margin: 0;
+  padding: 2px 0;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.mfbe-ml-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 10px;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+}
+
+.mfbe-ml-item:hover,
+.mfbe-ml-item.is-active {
+  background: var(--mfbe-hover, rgba(26, 102, 204, 0.12));
+}
+
+.mfbe-ml-item.is-mark-authors {
+  border-left-color: #2e7d32;
+  background: rgba(46, 125, 50, 0.12);
+}
+
+.mfbe-ml-item.is-mark-makers {
+  border-left-color: #1565c0;
+  background: rgba(21, 101, 192, 0.1);
+}
+
+.mfbe-ml-item.is-mark-linked {
+  border-left-color: #2e7d32;
+  background: rgba(46, 125, 50, 0.14);
+}
+
+.mfbe-ml-item.is-mark-nameMatch {
+  border-left-color: #c78b00;
+  background: rgba(235, 179, 0, 0.16);
+}
+
+.mfbe-ml-item.is-active.is-mark-authors,
+.mfbe-ml-item.is-active.is-mark-makers,
+.mfbe-ml-item.is-active.is-mark-linked,
+.mfbe-ml-item.is-active.is-mark-nameMatch {
+  outline: 1px solid var(--mfbe-accent, #1a66cc);
+  outline-offset: -1px;
+}
+
+.mfbe-ml-item-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.mfbe-ml-item-title {
+  font-weight: 500;
+}
+
+.mfbe-ml-item-id {
+  margin-left: 6px;
+  color: var(--mfbe-muted, #666666);
+  font-size: 11px;
+}
+
+.mfbe-ml-item-meta {
+  margin-left: 8px;
+  color: var(--mfbe-muted, #666666);
+  font-size: 11px;
+}
+
+.mfbe-ml-item-subtitle {
+  font-size: 11px;
+  color: var(--mfbe-muted, #666666);
+  margin-top: 2px;
+}
+
+.mfbe-ml-item-link {
+  flex: 0 0 auto;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.mfbe-ml-dropdown-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 8px;
+  border-top: 1px solid var(--mfbe-border, #d0d0d0);
+  background: var(--mfbe-surface-2, #f5f5f5);
+}
+
+.mfbe-ml-pager {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mfbe-ml-page-label {
+  font-size: 11px;
+  color: var(--mfbe-muted, #666666);
+}
+
+.mfbe-ml-btn {
+  padding: 2px 8px;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.mfbe-ml-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 10px;
+  margin-bottom: 10px;
+  border-radius: 4px;
+  border: 1px solid var(--mfbe-ml-unresolved-border, rgba(217, 130, 0, 0.55));
+  background: var(--mfbe-ml-unresolved-bg, rgba(217, 130, 0, 0.12));
+  color: var(--mfbe-fg, #1f1f1f);
+  font-size: 12px;
+}
+
+.mfbe-ml-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Dark theme polarity adjustments */
+[data-theme='dark'] .mfbe-ml-badge.is-confirmed {
+  color: #81c784;
+  background: rgba(76, 175, 80, 0.18);
+  border-color: rgba(129, 199, 132, 0.45);
+}
+
+[data-theme='dark'] .mfbe-ml-badge.is-unresolved,
+[data-theme='dark'] .mfbe-ml-dropdown-notice.is-advisory {
+  color: #ffcc80;
+  background: rgba(255, 167, 38, 0.16);
+  border-color: rgba(255, 183, 77, 0.45);
+}
+
+[data-theme='dark'] .mfbe-ml-item.is-mark-authors,
+[data-theme='dark'] .mfbe-ml-item.is-mark-linked {
+  background: rgba(76, 175, 80, 0.18);
+}
+
+[data-theme='dark'] .mfbe-ml-item.is-mark-makers {
+  background: rgba(66, 165, 245, 0.16);
+}
+
+[data-theme='dark'] .mfbe-ml-item.is-mark-nameMatch {
+  background: rgba(255, 193, 7, 0.18);
+}
