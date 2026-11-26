@@ -10,7 +10,7 @@ import type {
   MaximaLookupTestOutcome,
 } from '@/rpc/types';
 
-export const DEFAULT_MAXIMA_LIBRARY_DOMAIN = 'https://maxima-library.com';
+export const DEFAULT_MAXIMA_LIBRARY_DOMAIN = 'https://www.maxima-library.com';
 
 export interface MaximaLibrarySavedSnapshot {
   enabled: boolean;

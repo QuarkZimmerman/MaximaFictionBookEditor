@@ -14,7 +14,7 @@
       },
       "maximaLibrary": {
         "enable": "Enable optional live lookup against Maxima Library in the Description view",
-        "domain": "Base HTTPS address of the Maxima Library server (default https://maxima-library.com)",
+        "domain": "Base HTTPS address of the Maxima Library server (default https://www.maxima-library.com)",
         "token": "Personal read-only Lookup Access Token from your Maxima Library user settings",
         "revealToken": "Show or hide the Access Token",
         "tokenLink": "Open Maxima Library token settings in your external web browser",
@@ -53,7 +53,7 @@
       "statusUnreadable": "The saved encrypted Access Token could not be decrypted (for example, missing key file or file corruption). Re-enter your token and click \"Test integration\".",
       "unavailable": "Maxima Library settings are unavailable: the editor core is not connected.",
       "errors": {
-        "invalidDomain": "Enter a valid Maxima Library address (for example https://maxima-library.com).",
+        "invalidDomain": "Enter a valid Maxima Library address (for example https://www.maxima-library.com).",
         "httpsRequired": "Remote Maxima Library domains must use HTTPS.",
         "emptyToken": "Enter a Maxima Library Access Token before testing.",
         "tokenUnreadable": "The saved encrypted token cannot be read. Paste a token and test again.",

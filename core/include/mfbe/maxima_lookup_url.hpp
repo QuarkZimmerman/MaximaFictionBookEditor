@@ -6,7 +6,7 @@
 
 namespace mfbe::lookup {
 
-inline constexpr std::string_view kDefaultMaximaLibraryDomain = "https://maxima-library.com";
+inline constexpr std::string_view kDefaultMaximaLibraryDomain = "https://www.maxima-library.com";
 inline constexpr std::size_t kMaxDomainLength = 2048;
 
 struct MaximaDomainCheckResult {

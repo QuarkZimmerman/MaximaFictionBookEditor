@@ -161,7 +161,7 @@ test.describe('Maxima Library Lookup Service v2 integration (feature 021)', () =
     await core
       .rpc('maximaLookup.saveConfig', {
         enabled: false,
-        domain: 'https://maxima-library.com',
+        domain: 'https://www.maxima-library.com',
         clearToken: true,
       })
       .catch(() => {});
@@ -191,7 +191,7 @@ test.describe('Maxima Library Lookup Service v2 integration (feature 021)', () =
       await openMaximaSettings(page);
       await expect(page.getByTestId('settings-maxima-enable')).not.toBeChecked();
       await expect(page.getByTestId('settings-maxima-domain')).toHaveValue(
-        'https://maxima-library.com',
+        'https://www.maxima-library.com',
       );
       await expect(page.getByTestId('settings-maxima-domain')).toBeDisabled();
       await expect(page.getByTestId('settings-maxima-token')).toBeDisabled();

@@ -14,7 +14,7 @@
       },
       "maximaLibrary": {
         "enable": "Увімкнути необов’язковий пошук у каталозі Maxima Library на вкладці «Опис»",
-        "domain": "Базова HTTPS-адреса сервера Maxima Library (типово https://maxima-library.com)",
+        "domain": "Базова HTTPS-адреса сервера Maxima Library (типово https://www.maxima-library.com)",
         "token": "Персональний токен доступу лише для читання з налаштувань користувача Maxima Library",
         "revealToken": "Показати або приховати токен доступу",
         "tokenLink": "Відкрити сторінку керування токеном Maxima Library у зовнішньому браузері",
@@ -53,7 +53,7 @@
       "statusUnreadable": "Не вдалося розшифрувати збережений токен доступу (наприклад, відсутній файл ключа або файл пошкоджено). Введіть токен знову та натисніть «Перевірити інтеграцію».",
       "unavailable": "Налаштування Maxima Library недоступні: ядро редактора не підключено.",
       "errors": {
-        "invalidDomain": "Укажіть коректну адресу Maxima Library (наприклад, https://maxima-library.com).",
+        "invalidDomain": "Укажіть коректну адресу Maxima Library (наприклад, https://www.maxima-library.com).",
         "httpsRequired": "Для віддалених серверів Maxima Library потрібен протокол HTTPS.",
         "emptyToken": "Введіть токен доступу Maxima Library перед перевіркою.",
         "tokenUnreadable": "Збережений зашифрований токен не читається. Вставте токен і повторіть перевірку.",

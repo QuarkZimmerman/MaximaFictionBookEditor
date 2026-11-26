@@ -55,12 +55,12 @@ TEST_CASE("maximaLookup RPC enforces test gate, encrypted persistence, paging, a
         const json st0 = ws.call("maximaLookup.status", json::object());
         REQUIRE(st0.contains("result"));
         CHECK(st0["result"]["enabled"] == false);
-        CHECK(st0["result"]["domain"] == "https://maxima-library.com");
+        CHECK(st0["result"]["domain"] == "https://www.maxima-library.com");
         CHECK(st0["result"]["hasToken"] == false);
         CHECK(st0["result"]["tokenReadable"] == true);
         CHECK(st0["result"]["verified"] == false);
         CHECK(st0["result"]["tokenPageUrl"] ==
-              "https://maxima-library.com/index.php?option=com_maxlib&view=maxlibuserconfig&tab=token");
+              "https://www.maxima-library.com/index.php?option=com_maxlib&view=maxlibuserconfig&tab=token");
 
         // 2. Disabled fast path makes zero outbound HTTP requests.
         const json disabled_search =

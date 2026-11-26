@@ -1,6 +1,6 @@
 /**
  * Feature 021 (T016, US1): Vitest unit tests for Settings -> Maxima Library integration:
- * - Default disabled state (unchecked, https://maxima-library.com, dependent controls disabled)
+ * - Default disabled state (unchecked, https://www.maxima-library.com, dependent controls disabled)
  * - Apply / OK gating while checked and untested or while testing
  * - Domain/token edits immediately invalidating verified state
  * - Tab-leave revert discarding untested draft and restoring last saved state + Apply/OK
@@ -34,12 +34,12 @@ import { defaultSettings } from './settings/fixtures';
 function makeStatus(overrides: Partial<MaximaLookupStatusResult> = {}): MaximaLookupStatusResult {
   return {
     enabled: false,
-    domain: 'https://maxima-library.com',
+    domain: 'https://www.maxima-library.com',
     hasToken: false,
     tokenReadable: true,
     verified: false,
     tokenPageUrl:
-      'https://maxima-library.com/index.php?option=com_maxlib&view=maxlibuserconfig&tab=token',
+      'https://www.maxima-library.com/index.php?option=com_maxlib&view=maxlibuserconfig&tab=token',
     ...overrides,
   };
 }
@@ -162,7 +162,7 @@ async function setupSettingsDialog(
 }
 
 describe('Settings -> Maxima Library integration (T016)', () => {
-  it('defaults to unchecked with https://maxima-library.com and disables all dependent controls', async () => {
+  it('defaults to unchecked with https://www.maxima-library.com and disables all dependent controls', async () => {
     const { ctx, feature, onClose } = await setupSettingsDialog();
     render(
       <SettingsDialog ctx={ctx} feature={feature} onClose={onClose} initialPage="maximaLibrary" />,
@@ -171,7 +171,9 @@ describe('Settings -> Maxima Library integration (T016)', () => {
     await waitFor(() => {
       expect(screen.getByTestId('settings-maxima-enable')).not.toBeChecked();
     });
-    expect(screen.getByTestId('settings-maxima-domain')).toHaveValue('https://maxima-library.com');
+    expect(screen.getByTestId('settings-maxima-domain')).toHaveValue(
+      'https://www.maxima-library.com',
+    );
     expect(screen.getByTestId('settings-maxima-domain')).toBeDisabled();
     expect(screen.getByTestId('settings-maxima-token')).toBeDisabled();
     expect(screen.getByTestId('settings-maxima-reveal')).toBeDisabled();
@@ -213,7 +215,7 @@ describe('Settings -> Maxima Library integration (T016)', () => {
     expect(link.tagName).toBe('A');
     expect(link).toHaveAttribute(
       'href',
-      'https://maxima-library.com/index.php?option=com_maxlib&view=maxlibuserconfig&tab=token',
+      'https://www.maxima-library.com/index.php?option=com_maxlib&view=maxlibuserconfig&tab=token',
     );
 
     // Failed test keeps Apply/OK disabled and shows error.
@@ -291,7 +293,7 @@ describe('Settings -> Maxima Library integration (T016)', () => {
     // Case 2: Previously saved enabled -> edit domain without re-testing -> undo or switch tab -> restores saved verified domain.
     const savedStatus = makeStatus({
       enabled: true,
-      domain: 'https://maxima-library.com',
+      domain: 'https://www.maxima-library.com',
       hasToken: true,
       tokenReadable: true,
       verified: true,
@@ -299,7 +301,7 @@ describe('Settings -> Maxima Library integration (T016)', () => {
     const savedSettings = defaultSettings({
       maximaLibrary: {
         enabled: true,
-        domain: 'https://maxima-library.com',
+        domain: 'https://www.maxima-library.com',
         verifiedFingerprint: 'c'.repeat(64),
       },
     });
@@ -327,7 +329,7 @@ describe('Settings -> Maxima Library integration (T016)', () => {
     expect(screen.getByTestId('dialog-settings-button-apply')).toBeDisabled();
 
     await user.clear(screen.getByTestId('settings-maxima-domain'));
-    await user.type(screen.getByTestId('settings-maxima-domain'), 'https://maxima-library.com');
+    await user.type(screen.getByTestId('settings-maxima-domain'), 'https://www.maxima-library.com');
     expect(screen.getByTestId('dialog-settings-button-ok')).toBeEnabled();
     expect(screen.getByTestId('dialog-settings-button-apply')).toBeDisabled();
 
@@ -342,7 +344,9 @@ describe('Settings -> Maxima Library integration (T016)', () => {
 
     await user.click(screen.getByTestId('settings-tab-maximaLibrary'));
     expect(screen.getByTestId('settings-maxima-enable')).toBeChecked();
-    expect(screen.getByTestId('settings-maxima-domain')).toHaveValue('https://maxima-library.com');
+    expect(screen.getByTestId('settings-maxima-domain')).toHaveValue(
+      'https://www.maxima-library.com',
+    );
   });
 
   it('reveals stored token on explicit click, warns on unreadable token, and cancels in-flight test on Cancel', async () => {
@@ -357,7 +361,7 @@ describe('Settings -> Maxima Library integration (T016)', () => {
     const savedSettings = defaultSettings({
       maximaLibrary: {
         enabled: true,
-        domain: 'https://maxima-library.com',
+        domain: 'https://www.maxima-library.com',
         verifiedFingerprint: 'd'.repeat(64),
       },
     });

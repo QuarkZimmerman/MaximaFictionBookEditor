@@ -31,14 +31,15 @@ struct DummyJobControl : rpc::JobControl {
 
 TEST_CASE("Maxima Library domain normalization and HTTPS transport policy",
           "[maxima_lookup][url]") {
-    const auto def = normalize_and_validate_domain("  HTTPS://Maxima-Library.COM/  ");
+    CHECK(kDefaultMaximaLibraryDomain == "https://www.maxima-library.com");
+    const auto def = normalize_and_validate_domain("  HTTPS://WWW.Maxima-Library.COM/  ");
     REQUIRE(def.ok);
-    CHECK(def.normalized_domain == "https://maxima-library.com");
-    CHECK(def.host == "maxima-library.com");
+    CHECK(def.normalized_domain == "https://www.maxima-library.com");
+    CHECK(def.host == "www.maxima-library.com");
     CHECK(build_lookup_v2_endpoint(def.normalized_domain) ==
-          "https://maxima-library.com/index.php?option=com_maxlib&controller=lookupv2");
+          "https://www.maxima-library.com/index.php?option=com_maxlib&controller=lookupv2");
     CHECK(build_token_page_url(def.normalized_domain) ==
-          "https://maxima-library.com/index.php?option=com_maxlib&view=maxlibuserconfig&tab=token");
+          "https://www.maxima-library.com/index.php?option=com_maxlib&view=maxlibuserconfig&tab=token");
 
     // Remote plain HTTP rejected.
     const auto remote_http = normalize_and_validate_domain("http://maxima-library.com");

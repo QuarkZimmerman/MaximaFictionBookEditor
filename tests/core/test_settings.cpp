@@ -127,7 +127,7 @@ TEST_CASE("settings: defaults are exactly resource-formats.md section 6", "[sett
     // Feature 021 (data-model.md §1): Maxima Library Lookup Service v2 configuration.
     CHECK(d["maximaLibrary"] ==
           json{{"enabled", false},
-               {"domain", "https://maxima-library.com"},
+               {"domain", "https://www.maxima-library.com"},
                {"verifiedFingerprint", ""}});
     CHECK(d.size() == 13);
 }

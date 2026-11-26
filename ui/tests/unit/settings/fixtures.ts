@@ -80,7 +80,7 @@ export function defaultSettings(overrides: Partial<Settings> = {}): Settings {
     },
     maximaLibrary: {
       enabled: false,
-      domain: 'https://maxima-library.com',
+      domain: 'https://www.maxima-library.com',
       verifiedFingerprint: '',
     },
     ...overrides,
