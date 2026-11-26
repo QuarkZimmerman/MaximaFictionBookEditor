@@ -1,10 +1,11 @@
 # Maxima Fiction Book Editor — guidance for AI agents and contributors
 
-Read first: `.specify/memory/constitution.md` (workspace `~/maxfbeditor`, version 3.2.0) — six
+Read first: `.specify/memory/constitution.md` (workspace `~/maxfbeditor`, version 3.5.0) — six
 principles (specification first with the original as reference, headless testability, native
 core behind a versioned contract, round-trip safety, fenced scripting, GPL-3.0 licensing /
-fully offline with exactly two exceptions - the version check and the AI assistant the user
-turns on, feature 005). Fenced scripting (principle V, 3.2.0): a script has no file system,
+fully offline with exactly three disabled-by-default opt-in exceptions: the version check,
+the AI assistant the user turns on in feature 005, and the Maxima Library Lookup Service v2
+integration in feature 021). Fenced scripting (principle V, 3.2.0): a script has no file system,
 network, other processes, storage, nested workers or editor HTML of its own; the editor does four
 things at its request (feature 007): (a) plain-text clipboard read and write, reading only in a
 run the user started, (b) saving text, or the open book's binaries, to files the user picks in a
@@ -25,7 +26,8 @@ editor no longer needs to match the original (requester decision, constitution 3
 | `core/src/ocr/` | offline OCR catalog & language table (feature 020) | layered `.traineddata` lookup (`resources::Kind::ocr`: custom folder -> user/portable -> bundled; higher layer overrides lower layer), binary header validation, `ocr.report`; never links Tesseract/Leptonica |
 | `core/src/pdf/reader/` | isolated PDF reader child `mfbe-pdf-reader` (features 016, 020) | Poppler + Leptonica + OpenMP-free/curl-free Tesseract (linked exclusively here, never in `mfbe_core`/`mfbe-core`); strict zero-OCR fast path on text-only and editor-exported PDFs |
 | `ports/tesseract/` | vcpkg overlay port for Tesseract (feature 020) | builds offline Tesseract with `-DOPENMP_BUILD=OFF` and `DISABLE_CURL=ON` so Windows `/MT` builds need no `vcomp140.dll` and OCR never opens a network socket |
-| `core/src/net/` | the AI assistant's outbound HTTP client (libcurl) | the core's only outbound path (feature 005); transport policy never relaxed (no redirects, verification on, TLS 1.2+, `http`/`https`, env proxies with loopback direct); a service failure is a result (`AiOutcome`), never an `RpcError` |
+| `core/src/net/` | outbound HTTP client (`libcurl`) | the core's only outbound path (features 005, 021); transport policy never relaxed (no redirects, verification on, TLS 1.2+, `http`/`https`, env proxies with loopback direct); a service failure is a result, never an `RpcError` |
+| `core/src/lookup/` | Maxima Library Lookup Service v2 integration (feature 021) | disabled by default; uniform AES-256-GCM encrypted read-only token store (`<Data>/maxima-lookup-token.json` + `<Data>/maxima-lookup.key` `0600`, Windows CNG `bcrypt` / OpenSSL `EVP`), v2 HTTP client over `mfbe::net::perform`, server-side test gate, and 4-thread async lookup worker pool |
 | `app/` | CEF shell `mfbe` | thin: window, dialogs, launch args |
 | `ui/` | TypeScript/React/Vite | ProseMirror body editor, CodeMirror source view |
 | `ui/src/ai/` | the AI assistant (feature 005) | chunk rule: `index.ts`, `address.ts`, `testHooks.ts`, `agreements.ts` are static (main bundle); **everything else** in the folder, plus the MCP SDK and zod, is the lazy `ai-assistant` chunk (`ui/vite.config.ts` folder rule, `tests/unit/ai/chunk.test.ts`) - never import a chunk module statically from outside the folder; the settings page `ui/src/dialogs/settings/AiPage.tsx` stays outside |

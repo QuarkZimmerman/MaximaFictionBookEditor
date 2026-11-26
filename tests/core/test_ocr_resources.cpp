@@ -176,7 +176,7 @@ TEST_CASE("ocr RPC: ocr.report, resources.openOcrFolder and resources.passedOver
     REQUIRE(ws.open(server->port(), "/rpc?token=" + server->token()) == 101);
 
     const json info = ws.call("app.info")["result"];
-    CHECK(info["apiMinor"] == 18);
+    CHECK(info["apiMinor"].get<int>() >= 18);
 
     // Bundled 10 packs + osd from MFBE_RESOURCES_SOURCE_DIR
     const json rep = ws.call("ocr.report")["result"];

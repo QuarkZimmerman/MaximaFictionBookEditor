@@ -3,11 +3,10 @@
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
-#include <windows.h>
 #include <bcrypt.h>
-
 #include <limits>
 #include <vector>
+#include <windows.h>
 
 namespace mfbe::lookup {
 
@@ -33,13 +32,14 @@ struct KeyHandleGuard {
 
 bool open_aes_gcm_key(const std::array<std::uint8_t, kLookupAesKeyBytes>& key, AlgHandleGuard& alg,
                       KeyHandleGuard& hkey, std::vector<UCHAR>& key_object) {
-    if (!BCRYPT_SUCCESS(BCryptOpenAlgorithmProvider(&alg.handle, BCRYPT_AES_ALGORITHM, nullptr, 0))) {
+    if (!BCRYPT_SUCCESS(
+            BCryptOpenAlgorithmProvider(&alg.handle, BCRYPT_AES_ALGORITHM, nullptr, 0))) {
         return false;
     }
-    if (!BCRYPT_SUCCESS(BCryptSetProperty(
-            alg.handle, BCRYPT_CHAINING_MODE,
-            reinterpret_cast<PUCHAR>(const_cast<wchar_t*>(BCRYPT_CHAIN_MODE_GCM)),
-            static_cast<ULONG>(sizeof(BCRYPT_CHAIN_MODE_GCM)), 0))) {
+    if (!BCRYPT_SUCCESS(
+            BCryptSetProperty(alg.handle, BCRYPT_CHAINING_MODE,
+                              reinterpret_cast<PUCHAR>(const_cast<wchar_t*>(BCRYPT_CHAIN_MODE_GCM)),
+                              static_cast<ULONG>(sizeof(BCRYPT_CHAIN_MODE_GCM)), 0))) {
         return false;
     }
     DWORD obj_len = 0;
@@ -52,9 +52,9 @@ bool open_aes_gcm_key(const std::array<std::uint8_t, kLookupAesKeyBytes>& key, A
     }
     key_object.resize(obj_len);
     std::array<std::uint8_t, kLookupAesKeyBytes> key_copy = key;
-    if (!BCRYPT_SUCCESS(BCryptGenerateSymmetricKey(
-            alg.handle, &hkey.handle, key_object.data(), obj_len, key_copy.data(),
-            static_cast<ULONG>(key_copy.size()), 0))) {
+    if (!BCRYPT_SUCCESS(BCryptGenerateSymmetricKey(alg.handle, &hkey.handle, key_object.data(),
+                                                   obj_len, key_copy.data(),
+                                                   static_cast<ULONG>(key_copy.size()), 0))) {
         return false;
     }
     return true;
@@ -103,8 +103,8 @@ bool aes256_gcm_encrypt(const std::array<std::uint8_t, kLookupAesKeyBytes>& key,
 
     std::string ct(plaintext.size(), '\0');
     UCHAR dummy = 0;
-    PUCHAR in_ptr = plaintext.empty() ? &dummy
-                                      : reinterpret_cast<PUCHAR>(const_cast<char*>(plaintext.data()));
+    PUCHAR in_ptr =
+        plaintext.empty() ? &dummy : reinterpret_cast<PUCHAR>(const_cast<char*>(plaintext.data()));
     PUCHAR out_ptr = ct.empty() ? &dummy : reinterpret_cast<PUCHAR>(ct.data());
     ULONG cb_result = 0;
     const NTSTATUS status =

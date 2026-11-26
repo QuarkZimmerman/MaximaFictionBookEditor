@@ -63,6 +63,11 @@ const EDITOR_THEME_SPEC = {
   '&.cm-focused .cm-nonmatchingBracket': {
     backgroundColor: 'var(--mfbe-source-bracket-mismatch)',
   },
+  '.cm-maxima-custom-info': {
+    backgroundColor: 'var(--mfbe-source-maxima-custom-bg)',
+    boxShadow: 'inset 0 -1px 0 var(--mfbe-source-maxima-custom-underline)',
+    borderRadius: '2px',
+  },
   '.cm-foldPlaceholder': {
     backgroundColor: 'var(--mfbe-color-chrome-bg-2)',
     border: '1px solid var(--mfbe-color-border-strong)',

@@ -34,6 +34,7 @@ export interface EphemeralPublisherSeriesState {
 export interface LookupBannerState {
   code: string;
   message: string;
+  recordedAtMs: number;
   retryAfterUntilMs?: number;
 }
 
@@ -90,6 +91,7 @@ export class DescriptionLookupSession {
   private banner_: LookupBannerState | null = null;
   private rateLimitUntilMs_ = 0;
   private fieldSeq_ = new Map<string, number>();
+  private lastRetryAction_: (() => void) | null = null;
   private listeners_ = new Set<() => void>();
   private snapshot_: DescriptionLookupSessionState;
 
@@ -97,16 +99,14 @@ export class DescriptionLookupSession {
     this.snapshot_ = this.makeSnapshot();
   }
 
-  subscribe(listener: () => void): () => void {
+  readonly subscribe = (listener: () => void): (() => void) => {
     this.listeners_.add(listener);
     return () => {
       this.listeners_.delete(listener);
     };
-  }
+  };
 
-  getSnapshot(): DescriptionLookupSessionState {
-    return this.snapshot_;
-  }
+  readonly getSnapshot = (): DescriptionLookupSessionState => this.snapshot_;
 
   reset(docId: string | null): void {
     this.docId_ = docId;
@@ -115,7 +115,17 @@ export class DescriptionLookupSession {
     this.publisherSeries_ = new Map();
     this.banner_ = null;
     this.fieldSeq_.clear();
+    this.lastRetryAction_ = null;
     this.emit();
+  }
+
+  registerRetryAction(retry: () => void): void {
+    this.lastRetryAction_ = retry;
+  }
+
+  retryLastAction(): void {
+    this.clearBanner();
+    this.lastRetryAction_?.();
   }
 
   /** Allocates the next monotonic sequence number for `fieldKey` (invalidating older in-flight calls). */
@@ -222,7 +232,12 @@ export class DescriptionLookupSession {
         this.rateLimitUntilMs_ = retryAfterUntilMs;
       }
     }
-    this.banner_ = { code, message, ...(retryAfterUntilMs ? { retryAfterUntilMs } : {}) };
+    this.banner_ = {
+      code,
+      message,
+      recordedAtMs: nowMs,
+      ...(retryAfterUntilMs ? { retryAfterUntilMs } : {}),
+    };
     this.emit();
   }
 

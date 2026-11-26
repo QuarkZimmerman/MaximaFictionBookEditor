@@ -1,6 +1,6 @@
-#include <mfbe/maxima_lookup_url.hpp>
-
 #include "util/sha256.hpp"
+
+#include <mfbe/maxima_lookup_url.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -39,9 +39,8 @@ bool is_ipv4_loopback(std::string_view host) {
         if (i < 3 && dot == std::string_view::npos) {
             return false;
         }
-        std::string_view seg = (dot == std::string_view::npos)
-                                   ? host.substr(pos)
-                                   : host.substr(pos, dot - pos);
+        std::string_view seg =
+            (dot == std::string_view::npos) ? host.substr(pos) : host.substr(pos, dot - pos);
         if (seg.empty() || seg.size() > 3) {
             return false;
         }
@@ -119,7 +118,8 @@ MaximaDomainCheckResult normalize_and_validate_domain(std::string_view raw) {
     const std::size_t slash = rest.find('/');
     const std::string_view authority =
         (slash == std::string_view::npos) ? rest : rest.substr(0, slash);
-    std::string_view path = (slash == std::string_view::npos) ? std::string_view{} : rest.substr(slash);
+    std::string_view path =
+        (slash == std::string_view::npos) ? std::string_view{} : rest.substr(slash);
 
     if (authority.empty() || authority.find('@') != std::string_view::npos) {
         res.code = "invalidDomain";
@@ -169,7 +169,8 @@ MaximaDomainCheckResult normalize_and_validate_domain(std::string_view raw) {
             return res;
         }
         int port = 0;
-        auto [ptr, ec] = std::from_chars(port_part.data(), port_part.data() + port_part.size(), port);
+        auto [ptr, ec] =
+            std::from_chars(port_part.data(), port_part.data() + port_part.size(), port);
         if (ec != std::errc{} || ptr != port_part.data() + port_part.size() || port < 1 ||
             port > 65535) {
             res.code = "invalidDomain";

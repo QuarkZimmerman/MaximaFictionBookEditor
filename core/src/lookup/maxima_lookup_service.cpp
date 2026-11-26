@@ -34,12 +34,9 @@ std::string normalize_domain_or_default(std::string_view raw) {
 
 json MaximaLookupStatusSnapshot::to_json() const {
     return json{
-        {"enabled", enabled},
-        {"domain", domain},
-        {"hasToken", has_token},
-        {"tokenReadable", token_readable},
-        {"verified", verified},
-        {"tokenPageUrl", token_page_url},
+        {"enabled", enabled},    {"domain", domain},
+        {"hasToken", has_token}, {"tokenReadable", token_readable},
+        {"verified", verified},  {"tokenPageUrl", token_page_url},
     };
 }
 
@@ -53,10 +50,11 @@ MaximaLookupService::~MaximaLookupService() {
 
 void MaximaLookupService::sync_on_startup(settings::SettingsStore& settings_store) {
     const MaximaLookupTokenReadResult loaded = token_store_.load();
-    const std::string stored_domain = settings_store.get_string(
-        "maximaLibrary.domain", std::string(kDefaultMaximaLibraryDomain));
+    const std::string stored_domain =
+        settings_store.get_string("maximaLibrary.domain", std::string(kDefaultMaximaLibraryDomain));
     const auto domain_check = normalize_and_validate_domain(stored_domain);
-    const std::string stored_fp = settings_store.get_string("maximaLibrary.verifiedFingerprint", "");
+    const std::string stored_fp =
+        settings_store.get_string("maximaLibrary.verifiedFingerprint", "");
     const bool stored_enabled = settings_store.get_bool("maximaLibrary.enabled", false);
 
     bool matches = false;
@@ -89,17 +87,18 @@ void MaximaLookupService::sync_on_startup(settings::SettingsStore& settings_stor
 MaximaLookupStatusSnapshot MaximaLookupService::status(
     const settings::SettingsStore& settings_store) const {
     MaximaLookupStatusSnapshot out;
-    const std::string raw_domain = settings_store.get_string(
-        "maximaLibrary.domain", std::string(kDefaultMaximaLibraryDomain));
+    const std::string raw_domain =
+        settings_store.get_string("maximaLibrary.domain", std::string(kDefaultMaximaLibraryDomain));
     out.domain = normalize_domain_or_default(raw_domain);
     out.token_page_url = build_token_page_url(out.domain);
-    const std::string stored_fp = settings_store.get_string("maximaLibrary.verifiedFingerprint", "");
+    const std::string stored_fp =
+        settings_store.get_string("maximaLibrary.verifiedFingerprint", "");
     const bool stored_enabled = settings_store.get_bool("maximaLibrary.enabled", false);
 
     std::lock_guard<std::mutex> lock(mutex_);
-    out.has_token = (cached_token_.state == MaximaLookupTokenReadState::ok &&
-                     !cached_token_.token.empty()) ||
-                    (cached_token_.state == MaximaLookupTokenReadState::unreadable);
+    out.has_token =
+        (cached_token_.state == MaximaLookupTokenReadState::ok && !cached_token_.token.empty()) ||
+        (cached_token_.state == MaximaLookupTokenReadState::unreadable);
     out.token_readable = cached_token_.state != MaximaLookupTokenReadState::unreadable;
     if (cached_token_.state == MaximaLookupTokenReadState::ok && !cached_token_.token.empty() &&
         is_valid_fingerprint_hex(stored_fp)) {
@@ -167,7 +166,8 @@ void MaximaLookupService::apply_rate_limit_locked(std::optional<std::int64_t> re
     }
 }
 
-std::optional<std::int64_t> MaximaLookupService::active_rate_limit_remaining_seconds_locked() const {
+std::optional<std::int64_t> MaximaLookupService::active_rate_limit_remaining_seconds_locked()
+    const {
     const auto now = std::chrono::steady_clock::now();
     if (rate_limit_until_ <= now) {
         return std::nullopt;
@@ -251,7 +251,8 @@ MaximaLookupService::SaveOutcome MaximaLookupService::save_config(
     const json& params, settings::SettingsStore& settings_store) {
     if (!params.is_object() || !params.contains("enabled") || !params["enabled"].is_boolean() ||
         !params.contains("domain") || !params["domain"].is_string()) {
-        throw settings::SettingsError("maximaLibrary", "expected enabled (bool) and domain (string)");
+        throw settings::SettingsError("maximaLibrary",
+                                      "expected enabled (bool) and domain (string)");
     }
 
     const bool want_enabled = params["enabled"].get<bool>();
@@ -262,8 +263,8 @@ MaximaLookupService::SaveOutcome MaximaLookupService::save_config(
 
     const bool use_stored = params.value("useStoredToken", false);
     const bool clear_token = params.value("clearToken", false);
-    const bool has_new_token = !use_stored && !clear_token && params.contains("token") &&
-                               params["token"].is_string();
+    const bool has_new_token =
+        !use_stored && !clear_token && params.contains("token") && params["token"].is_string();
     const std::string provided_token = has_new_token ? params["token"].get<std::string>() : "";
 
     std::string effective_token;
@@ -336,7 +337,8 @@ MaximaLookupService::SaveOutcome MaximaLookupService::save_config(
             cached_token_.token.clear();
         } else {
             if (!token_store_.save(provided_token)) {
-                throw settings::SettingsError("maximaLibrary.token", "failed to save encrypted token");
+                throw settings::SettingsError("maximaLibrary.token",
+                                              "failed to save encrypted token");
             }
             std::lock_guard<std::mutex> lock(mutex_);
             cached_token_.state = MaximaLookupTokenReadState::ok;
@@ -370,8 +372,8 @@ bool MaximaLookupService::resolve_active_credentials(const settings::SettingsSto
         return false;
     }
 
-    const std::string raw_domain = settings_store.get_string(
-        "maximaLibrary.domain", std::string(kDefaultMaximaLibraryDomain));
+    const std::string raw_domain =
+        settings_store.get_string("maximaLibrary.domain", std::string(kDefaultMaximaLibraryDomain));
     const auto domain_check = normalize_and_validate_domain(raw_domain);
     if (!domain_check.ok) {
         error_code_out = domain_check.code;
@@ -379,7 +381,8 @@ bool MaximaLookupService::resolve_active_credentials(const settings::SettingsSto
         return false;
     }
 
-    const std::string stored_fp = settings_store.get_string("maximaLibrary.verifiedFingerprint", "");
+    const std::string stored_fp =
+        settings_store.get_string("maximaLibrary.verifiedFingerprint", "");
     std::lock_guard<std::mutex> lock(mutex_);
     if (cached_token_.state == MaximaLookupTokenReadState::unreadable) {
         error_code_out = "tokenUnreadable";
@@ -458,7 +461,8 @@ void MaximaLookupService::dispatch_search(const json& params,
     std::string err_code;
     std::string err_msg;
     std::optional<std::int64_t> retry_after;
-    if (!resolve_active_credentials(settings_store, domain, token, err_code, err_msg, retry_after)) {
+    if (!resolve_active_credentials(settings_store, domain, token, err_code, err_msg,
+                                    retry_after)) {
         json res{{"ok", false}, {"code", err_code}, {"message", err_msg}};
         if (retry_after.has_value()) {
             res["retryAfterSeconds"] = *retry_after;
@@ -514,10 +518,8 @@ void MaximaLookupService::dispatch_search(const json& params,
         if (has_more) {
             items.erase(items.begin() + page_size, items.end());
         }
-        respond(json{{"ok", true},
-                     {"page", page},
-                     {"hasMore", has_more},
-                     {"items", std::move(items)}});
+        respond(
+            json{{"ok", true}, {"page", page}, {"hasMore", has_more}, {"items", std::move(items)}});
     });
 }
 
@@ -529,7 +531,8 @@ void MaximaLookupService::dispatch_exists(const json& params,
     std::string err_code;
     std::string err_msg;
     std::optional<std::int64_t> retry_after;
-    if (!resolve_active_credentials(settings_store, domain, token, err_code, err_msg, retry_after)) {
+    if (!resolve_active_credentials(settings_store, domain, token, err_code, err_msg,
+                                    retry_after)) {
         json res{{"ok", false}, {"code", err_code}, {"message", err_msg}};
         if (retry_after.has_value()) {
             res["retryAfterSeconds"] = *retry_after;
@@ -580,9 +583,7 @@ void MaximaLookupService::dispatch_exists(const json& params,
                              {"message", "Missing matchedIds in lookup exists answer"}});
                 return;
             }
-            respond(json{{"ok", true},
-                         {"kind", kind},
-                         {"matchedIds", call.payload["matchedIds"]}});
+            respond(json{{"ok", true}, {"kind", kind}, {"matchedIds", call.payload["matchedIds"]}});
             return;
         }
 

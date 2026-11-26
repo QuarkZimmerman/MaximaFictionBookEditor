@@ -954,3 +954,9 @@ export function lineColumnAt(state: EditorState, pos: number): { line: number; c
   const line = state.doc.lineAt(clamped);
   return { line: line.number, column: clamped - line.from + 1 };
 }
+
+export {
+  findMaximaCustomInfoRanges,
+  maximaCustomInfoHighlightExtension,
+  type MaximaCustomInfoRange,
+} from './maximaCustomInfoHighlight';

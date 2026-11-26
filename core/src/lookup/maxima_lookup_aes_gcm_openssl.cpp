@@ -1,10 +1,9 @@
 #include <mfbe/maxima_lookup_token_store.hpp>
 
-#include <openssl/evp.h>
-#include <openssl/rand.h>
-
 #include <limits>
 #include <memory>
+#include <openssl/evp.h>
+#include <openssl/rand.h>
 
 namespace mfbe::lookup {
 

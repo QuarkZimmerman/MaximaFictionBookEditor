@@ -1,8 +1,7 @@
-#include <mfbe/maxima_lookup_token_store.hpp>
-
 #include <mfbe/atomic_file.hpp>
 #include <mfbe/base64.hpp>
 #include <mfbe/log.hpp>
+#include <mfbe/maxima_lookup_token_store.hpp>
 #include <mfbe/store_lock.hpp>
 #include <mfbe/utf8_paths.hpp>
 
@@ -45,8 +44,8 @@ bool write_owner_only_atomic(const std::filesystem::path& target, std::string_vi
     // Write to a 0600 temporary file before rename so neither key nor token file is ever briefly
     // group/world-readable on POSIX.
     const std::filesystem::path tmp =
-        target.parent_path() / (platform::path_from_utf8(
-                                    platform::utf8_from_path(target.filename()) + ".tmp"));
+        target.parent_path() /
+        (platform::path_from_utf8(platform::utf8_from_path(target.filename()) + ".tmp"));
     int fd = ::open(tmp.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
     if (fd < 0) {
         return false;
@@ -266,8 +265,8 @@ bool MaximaLookupTokenStore::save(std::string_view plaintext_token) const {
         json record{
             {"version", kRecordVersion},
             {"scheme", kSchemeName},
-            {"iv", base64::encode(
-                       std::string_view(reinterpret_cast<const char*>(iv.data()), iv.size()))},
+            {"iv",
+             base64::encode(std::string_view(reinterpret_cast<const char*>(iv.data()), iv.size()))},
             {"tag", base64::encode(
                         std::string_view(reinterpret_cast<const char*>(tag.data()), tag.size()))},
             {"ciphertext", base64::encode(ciphertext)},

@@ -9,6 +9,14 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  /* Scoped to Source view so Body view's inherited CSS custom-property snapshot stays unchanged. */
+  --mfbe-source-maxima-custom-bg: rgba(46, 125, 50, 0.09);
+  --mfbe-source-maxima-custom-underline: rgba(46, 125, 50, 0.35);
+}
+
+.mfbe-source-view[data-theme='dark'] {
+  --mfbe-source-maxima-custom-bg: rgba(108, 207, 174, 0.12);
+  --mfbe-source-maxima-custom-underline: rgba(108, 207, 174, 0.38);
 }
 
 .mfbe-source-editor {

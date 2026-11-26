@@ -54,7 +54,8 @@ public:
     // Returns false and logs an opaque error (never the token) on I/O or crypto failure.
     bool save(std::string_view plaintext_token) const;
 
-    // Removes `maxima-lookup-token.json` if present (leaves keyfile untouched or removes if desired).
+    // Removes `maxima-lookup-token.json` if present (leaves keyfile untouched or removes if
+    // desired).
     bool remove() const;
 
 private:

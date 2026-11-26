@@ -26,7 +26,8 @@ MaximaDomainCheckResult normalize_and_validate_domain(std::string_view raw);
 // Builds POST endpoint `<normalized_domain>/index.php?option=com_maxlib&controller=lookupv2`.
 std::string build_lookup_v2_endpoint(std::string_view normalized_domain);
 
-// Builds external token settings URL `<normalized_domain>/index.php?option=com_maxlib&view=maxlibuserconfig&tab=token`.
+// Builds external token settings URL
+// `<normalized_domain>/index.php?option=com_maxlib&view=maxlibuserconfig&tab=token`.
 std::string build_token_page_url(std::string_view normalized_domain);
 
 // Returns SHA-256 hex digest of `normalized_domain + '\0' + plaintext_token`.

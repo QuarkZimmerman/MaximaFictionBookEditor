@@ -163,7 +163,8 @@ json build_verify_request(std::string_view correlation_id) {
 
 bool build_search_request(const json& rpc_params, std::string_view correlation_id, json& out_body,
                           int& out_page, int& out_page_size, std::string& err_reason) {
-    if (!rpc_params.is_object() || !rpc_params.contains("kind") || !rpc_params["kind"].is_string()) {
+    if (!rpc_params.is_object() || !rpc_params.contains("kind") ||
+        !rpc_params["kind"].is_string()) {
         err_reason = "missing kind";
         return false;
     }
@@ -224,7 +225,8 @@ bool build_search_request(const json& rpc_params, std::string_view correlation_i
         out_body["role"] = "series";
         out_body["seriesName"] = series_name;
         out_body["narrow"] = narrow;
-        if (rpc_params.contains("parentSeriesId") && rpc_params["parentSeriesId"].is_number_integer()) {
+        if (rpc_params.contains("parentSeriesId") &&
+            rpc_params["parentSeriesId"].is_number_integer()) {
             const std::int64_t pid = rpc_params["parentSeriesId"].get<std::int64_t>();
             if (pid > 0) {
                 out_body["parentSeriesId"] = pid;
@@ -297,7 +299,8 @@ bool build_search_request(const json& rpc_params, std::string_view correlation_i
 
 bool build_exists_request(const json& rpc_params, std::string_view correlation_id, json& out_body,
                           std::string& err_reason) {
-    if (!rpc_params.is_object() || !rpc_params.contains("kind") || !rpc_params["kind"].is_string()) {
+    if (!rpc_params.is_object() || !rpc_params.contains("kind") ||
+        !rpc_params["kind"].is_string()) {
         err_reason = "missing kind";
         return false;
     }
@@ -332,7 +335,8 @@ bool build_exists_request(const json& rpc_params, std::string_view correlation_i
         }
         out_body["role"] = "series";
         out_body["seriesName"] = series_name;
-        if (rpc_params.contains("parentSeriesId") && rpc_params["parentSeriesId"].is_number_integer()) {
+        if (rpc_params.contains("parentSeriesId") &&
+            rpc_params["parentSeriesId"].is_number_integer()) {
             const std::int64_t pid = rpc_params["parentSeriesId"].get<std::int64_t>();
             if (pid > 0) {
                 out_body["parentSeriesId"] = pid;
@@ -445,10 +449,10 @@ MaximaLookupCallResult interpret_v2_response(const net::AiOutcome& outcome,
     } else {
         res.code = "http";
     }
-    res.message = !v2_err.empty() ? v2_err
-                                  : (outcome.status.has_value()
-                                         ? ("HTTP " + std::to_string(*outcome.status))
-                                         : outcome.message);
+    res.message = !v2_err.empty()
+                      ? v2_err
+                      : (outcome.status.has_value() ? ("HTTP " + std::to_string(*outcome.status))
+                                                    : outcome.message);
     return res;
 }
 

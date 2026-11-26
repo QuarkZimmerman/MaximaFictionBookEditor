@@ -78,11 +78,13 @@ public:
 
     // Dispatches non-blocking `maximaLookup.search` on the bounded worker pool. Immediately
     // responds `{ok: false, code: "disabled"}` without initializing libcurl when disabled.
-    void dispatch_search(const nlohmann::json& params, const settings::SettingsStore& settings_store,
+    void dispatch_search(const nlohmann::json& params,
+                         const settings::SettingsStore& settings_store,
                          std::function<void(nlohmann::json)> respond);
 
     // Dispatches non-blocking `maximaLookup.exists` on the bounded worker pool.
-    void dispatch_exists(const nlohmann::json& params, const settings::SettingsStore& settings_store,
+    void dispatch_exists(const nlohmann::json& params,
+                         const settings::SettingsStore& settings_store,
                          std::function<void(nlohmann::json)> respond);
 
     // Test hook: override DNS resolution (CURLOPT_RESOLVE) for HTTPS tests.

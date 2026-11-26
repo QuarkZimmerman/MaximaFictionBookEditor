@@ -224,7 +224,7 @@ export function MaximaLibraryPage({
           : 'untested';
 
   return (
-    <div className="mfbe-settings-page" data-testid="settings-page-maxima-library">
+    <div className="mfbe-settings-page" data-testid="settings-page-maximaLibrary">
       {!rpc && (
         <p className="mfbe-settings-note" data-testid="settings-maxima-unavailable">
           {t('maximaLibrary.settings.unavailable')}
