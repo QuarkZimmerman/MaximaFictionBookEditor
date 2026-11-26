@@ -454,4 +454,70 @@ test.describe('US4 - more spelling dictionaries from a folder', () => {
     await expect(page.getByTestId('settings-view-dictionary-de_DE')).toBeVisible();
     await page.getByTestId('dialog-settings-button-cancel').click();
   });
+
+  test('5. mid-session folder add/remove refreshes Spelling and About dialogs on open without opening Settings', async ({
+    core,
+    page,
+  }) => {
+    const userFolder = path.join(core.dataDir!, 'dictionaries');
+    await openApp(core, page);
+    await openBook(core, page, deBook);
+
+    // Before adding de_DE on disk: Spelling dialog and About dialog do not list de_DE.
+    await page.getByTestId('menu-tools').click();
+    await page.getByTestId('menu-tools-spellcheck').click();
+    const spelling = page.getByTestId('dialog-spelling');
+    await expect(spelling).toBeVisible();
+    await expect(spelling.getByTestId('spelling-dictionary-de_DE')).toHaveCount(0);
+    await spelling.getByTestId('dialog-spelling-button-close').click();
+    await expect(spelling).toHaveCount(0);
+
+    await page.getByTestId('menu-help').click();
+    await page.getByTestId('menu-help-about').click();
+    const about = page.getByTestId('dialog-about');
+    await expect(about).toBeVisible();
+    await expect(about.getByTestId('about-dictionary-en_US')).toBeVisible();
+    await expect(about.getByTestId('about-dictionary-de_DE')).toHaveCount(0);
+    await about.getByTestId('dialog-about-button-close').click();
+    await expect(about).toHaveCount(0);
+
+    // Copy de_DE into the default folder mid-session without opening Settings.
+    copyDictionaries(userFolder, ['de_DE']);
+
+    // Opening Spelling dialog directly refreshes dictionaries and spell-checks the German book.
+    await page.getByTestId('menu-tools').click();
+    await page.getByTestId('menu-tools-spellcheck').click();
+    await expect(spelling).toBeVisible();
+    await expect(spelling.getByTestId('spelling-dictionary-de_DE')).toBeChecked();
+    await expect(spelling.getByTestId('spelling-not-in-dictionary')).toHaveValue('Hauss');
+    await spelling.getByTestId('dialog-spelling-button-close').click();
+    await expect(spelling).toHaveCount(0);
+
+    // Opening About dialog refreshes and lists de_DE.
+    await page.getByTestId('menu-help').click();
+    await page.getByTestId('menu-help-about').click();
+    await expect(about).toBeVisible();
+    await expect(about.getByTestId('about-dictionary-de_DE')).toBeVisible();
+    await about.getByTestId('dialog-about-button-close').click();
+    await expect(about).toHaveCount(0);
+
+    // Remove de_DE from the default folder mid-session: both dialogs drop it on next open.
+    rmSync(path.join(userFolder, 'de_DE.aff'), { force: true });
+    rmSync(path.join(userFolder, 'de_DE.dic'), { force: true });
+
+    await page.getByTestId('menu-tools').click();
+    await page.getByTestId('menu-tools-spellcheck').click();
+    await expect(spelling).toBeVisible();
+    await expect(spelling.getByTestId('spelling-dictionary-de_DE')).toHaveCount(0);
+    await spelling.getByTestId('dialog-spelling-button-close').click();
+    await expect(spelling).toHaveCount(0);
+
+    await page.getByTestId('menu-help').click();
+    await page.getByTestId('menu-help-about').click();
+    await expect(about).toBeVisible();
+    await expect(about.getByTestId('about-dictionary-en_US')).toBeVisible();
+    await expect(about.getByTestId('about-dictionary-de_DE')).toHaveCount(0);
+    await about.getByTestId('dialog-about-button-close').click();
+    await expect(about).toHaveCount(0);
+  });
 });
