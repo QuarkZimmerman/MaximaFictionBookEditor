@@ -1,0 +1,116 @@
+{
+  "$comment": "Feature 021: Maxima Library Lookup Service v2 integration (Russian). Deep-merged into ru.json by i18n/index.ts.",
+  "dialog": {
+    "settings": {
+      "pages": {
+        "maximaLibrary": "Интеграция с Maxima Library"
+      }
+    }
+  },
+  "tip": {
+    "settings": {
+      "tabs": {
+        "maximaLibrary": "Необязательное автодополнение и проверка записей каталога через сервис поиска Maxima Library v2"
+      },
+      "maximaLibrary": {
+        "enable": "Включить необязательный поиск по каталогу Maxima Library на вкладке «Описание»",
+        "domain": "Базовый HTTPS-адрес сервера Maxima Library (по умолчанию https://www.maxima-library.com)",
+        "token": "Персональный токен доступа только для чтения из настроек пользователя Maxima Library",
+        "revealToken": "Показать или скрыть токен доступа",
+        "tokenLink": "Открыть страницу управления токеном Maxima Library во внешнем браузере",
+        "test": "Проверить соединение и действительность токена перед сохранением"
+      },
+      "maximaLookup": {
+        "bannerRetry": "Повторить последний неудавшийся запрос поиска в Maxima Library",
+        "bannerSettings": "Открыть настройки на вкладке «Интеграция с Maxima Library»",
+        "bannerDismiss": "Скрыть уведомление о состоянии поиска Maxima Library",
+        "tab": "Переключить фильтр подсказок на «{{tab}}»",
+        "pickItem": "Подставить эту запись Maxima Library в текущее поле",
+        "prevPage": "Показать предыдущую страницу подсказок Maxima Library",
+        "nextPage": "Показать следующую страницу подсказок Maxima Library",
+        "close": "Закрыть список подсказок Maxima Library"
+      }
+    }
+  },
+  "maximaLibrary": {
+    "settings": {
+      "group": "Сервис поиска Maxima Library v2",
+      "enable": "Включить интеграцию с Maxima Library",
+      "enableHint": "Отключено по умолчанию. При включении запросы отправляются только при работе с поддерживаемыми полями на вкладке «Описание».",
+      "domainLabel": "Домен Maxima Library:",
+      "tokenLabel": "Токен доступа:",
+      "tokenPlaceholder": "Вставьте персональный токен доступа",
+      "tokenStoredPlaceholder": "Сохранённый зашифрованный токен (введите новый для замены)",
+      "showToken": "Показать",
+      "hideToken": "Скрыть",
+      "tokenHelp": "Создать или обновить персональный токен доступа только для чтения можно на сайте Maxima Library:",
+      "openTokenPage": "Открыть настройки токена Maxima Library",
+      "testButton": "Проверить интеграцию",
+      "testing": "Проверка соединения...",
+      "statusVerified": "Проверка пройдена: соединение и токен доступа подтверждены.",
+      "statusSavedVerified": "Интеграция проверена и готова к работе.",
+      "statusTestRequired": "Нажмите «Проверить интеграцию» и дождитесь успешного ответа, чтобы стали доступны «Применить» и «ОК».",
+      "statusUnreadable": "Не удалось расшифровать сохранённый токен доступа (например, отсутствует файл ключа или файл повреждён). Введите токен заново и нажмите «Проверить интеграцию».",
+      "unavailable": "Настройки Maxima Library недоступны: ядро редактора не подключено.",
+      "errors": {
+        "invalidDomain": "Укажите корректный адрес Maxima Library (например, https://www.maxima-library.com).",
+        "httpsRequired": "Для удалённых серверов Maxima Library требуется протокол HTTPS.",
+        "emptyToken": "Введите токен доступа Maxima Library перед проверкой.",
+        "tokenUnreadable": "Сохранённый зашифрованный токен не читается. Вставьте токен и повторите проверку.",
+        "unauthorized": "Ошибка авторизации: сервер не получил действительный токен Bearer.",
+        "invalid_token": "Токен доступа недействителен или был отозван на сайте Maxima Library.",
+        "account_disabled": "Ваша учётная запись Maxima Library отключена для запросов поиска.",
+        "https_required": "Сервер Maxima Library требует защищённое соединение HTTPS.",
+        "wrong_version": "Несовместимая версия протокола: обновите редактор для работы с сервисом поиска.",
+        "rate_limited": "Слишком много запросов. Подождите перед повторной попыткой.",
+        "rate_limited_retry": "Слишком много запросов. Подождите {{seconds}} с перед повторной попыткой.",
+        "method_not_allowed": "Сервер отклонил HTTP-метод запроса поиска.",
+        "invalid_request": "Сервер отклонил формат запроса поиска.",
+        "server_error": "Сервер Maxima Library вернул временную ошибку. Повторите попытку позже.",
+        "offline": "Не удалось связаться с сервером Maxima Library. Проверьте подключение к сети.",
+        "timeout": "Превышено время ожидания ответа от Maxima Library.",
+        "tls": "Ошибка проверки TLS-сертификата для указанного домена.",
+        "http": "Сервер вернул неожиданный HTTP-ответ.",
+        "format": "По указанному адресу не получен корректный ответ сервиса поиска v2.",
+        "cancelled": "Проверка соединения отменена.",
+        "unknown": "Ошибка проверки соединения: {{message}}"
+      }
+    },
+    "lookup": {
+      "searching": "Поиск в Maxima Library...",
+      "typeToSearch": "Введите текст для поиска...",
+      "noMatches": "Подходящих записей не найдено.",
+      "prevPage": "Назад",
+      "nextPage": "Далее",
+      "pageLabel": "Страница {{page}}",
+      "close": "Закрыть",
+      "openOnSiteShort": "Сайт",
+      "openOnSiteTitle": "Открыть запись на сайте Maxima Library",
+      "confirmedBadge": "Библиотека №{{id}}",
+      "confirmedTooltip": "Подтверждённая запись Maxima Library №{{id}}",
+      "unresolvedBadge": "Уточнить",
+      "unresolvedTooltip": "Несколько записей Maxima Library имеют это точное название; при желании выберите нужную из списка (сохранению не мешает)",
+      "pickOnePrompt": "Найдено несколько записей с таким названием. Выберите нужную (необязательно):",
+      "tabs": {
+        "all": "Все",
+        "authors": "Серии авторов",
+        "makers": "Серии участников",
+        "byPublisher": "По издательству"
+      },
+      "subseriesIn": "(подсерия в «{{parent}}»)",
+      "booksCount": "Книг: {{count}}",
+      "linkedTo": "Издательства: {{names}}",
+      "banner": {
+        "retry": "Повторить",
+        "openSettings": "Настройки...",
+        "dismiss": "Скрыть",
+        "offline": "Сервер Maxima Library недоступен. Автономное редактирование и сохранение работают в обычном режиме.",
+        "invalidToken": "Токен доступа Maxima Library отклонён или отозван. Обновите его в настройках.",
+        "accountDisabled": "Учётная запись Maxima Library отключена для запросов поиска.",
+        "rateLimited": "Достигнут лимит запросов Maxima Library. Пауза на {{seconds}} с.",
+        "wrongVersion": "Несовместимость версии протокола поиска Maxima Library. Проверьте наличие обновлений редактора.",
+        "serverError": "Сервер Maxima Library вернул временную ошибку. Автономное редактирование продолжается."
+      }
+    }
+  }
+}

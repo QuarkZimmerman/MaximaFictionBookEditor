@@ -14,6 +14,23 @@ void register_settings_handlers(rpc::RpcRouter& router, Services& services) {
 
     router.add_method("settings.set", [&services](const json& params, rpc::RpcContext& ctx) {
         const json& patch = rpc::params::object_field(params, "patch");
+        if (patch.contains("maximaLibrary") && patch["maximaLibrary"].is_object()) {
+            const json& ml = patch["maximaLibrary"];
+            if (ml.contains("verifiedFingerprint")) {
+                throw rpc::RpcError(
+                    rpc::codes::kSettingsInvalid,
+                    "settings.invalid: maximaLibrary.verifiedFingerprint must be saved via "
+                    "maximaLookup.saveConfig",
+                    json{{"field", "maximaLibrary.verifiedFingerprint"}});
+            }
+            if (ml.contains("enabled") && ml["enabled"].is_boolean() && ml["enabled"].get<bool>()) {
+                throw rpc::RpcError(
+                    rpc::codes::kSettingsInvalid,
+                    "settings.invalid: maximaLibrary.enabled must be verified and saved via "
+                    "maximaLookup.saveConfig",
+                    json{{"field", "maximaLibrary.enabled"}, {"reason", "notVerified"}});
+            }
+        }
         settings::ApplyResult result;
         try {
             result = services.settings.apply_patch(patch);

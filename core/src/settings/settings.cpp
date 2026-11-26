@@ -4,6 +4,7 @@
 #include <mfbe/ai_address.hpp>
 #include <mfbe/atomic_file.hpp>
 #include <mfbe/log.hpp>
+#include <mfbe/maxima_lookup_url.hpp>
 #include <mfbe/ocr.hpp>
 #include <mfbe/settings.hpp>
 #include <mfbe/single_byte.hpp>
@@ -49,7 +50,10 @@ enum class Kind {
     // Feature 010 (US11, resource-formats §2):
     effort_record,  // null, or {target: "free:<id>" | "custom", model, value, param?}
     // Feature 020 (data-model.md §1.2): non-empty unique list of valid Tesseract pack codes.
-    ocr_language_list
+    ocr_language_list,
+    // Feature 021 (data-model.md §1): Maxima Library normalized base URL and SHA-256 hex digest.
+    maxima_domain,
+    maxima_fingerprint
 };
 
 struct Field {
@@ -152,6 +156,11 @@ const std::vector<Field>& schema() {
         field("ocr.folder", Kind::string),
         field("ocr.autoDetect", Kind::boolean),
         field("ocr.enabledLanguages", Kind::ocr_language_list),
+        // Feature 021 (data-model.md §1): Maxima Library Lookup Service v2 integration
+        // (non-secret).
+        field("maximaLibrary.enabled", Kind::boolean),
+        field("maximaLibrary.domain", Kind::maxima_domain),
+        field("maximaLibrary.verifiedFingerprint", Kind::maxima_fingerprint),
         enumeration("other.defaultEncoding", supported_encodings()),
         field("other.keepEncoding", Kind::boolean),
         // A backup of the previous version beside the saved file (feature 009, FR-006).
@@ -582,6 +591,26 @@ std::string check_value(const Field& field, const json& value) {
             }
             return "";
         }
+        case Kind::maxima_domain: {
+            if (!value.is_string()) {
+                return "expected a string";
+            }
+            const auto check = lookup::normalize_and_validate_domain(value.get<std::string>());
+            if (!check.ok) {
+                return check.code;
+            }
+            return "";
+        }
+        case Kind::maxima_fingerprint: {
+            if (!value.is_string()) {
+                return "expected a string";
+            }
+            const std::string fp = value.get<std::string>();
+            if (!fp.empty() && !lookup::is_valid_fingerprint_hex(fp)) {
+                return "expected empty string or 64 lowercase hex characters";
+            }
+            return "";
+        }
     }
     return "invalid";
 }
@@ -727,6 +756,10 @@ json defaults() {
         {"imports", {{"pdf", {{"useOcr", true}}}}},
         {"ocr",
          {{"folder", ""}, {"autoDetect", true}, {"enabledLanguages", json::array({"eng", "rus"})}}},
+        {"maximaLibrary",
+         {{"enabled", false},
+          {"domain", std::string(lookup::kDefaultMaximaLibraryDomain)},
+          {"verifiedFingerprint", ""}}},
         {"session",
          {{"windowGeometry", nullptr},
           {"toolbars",
@@ -838,7 +871,8 @@ void validate_patch(const json& patch) {
         }
     }
     // Sections must stay objects.
-    for (const char* section : {"view", "other", "words", "session", "ai", "imports", "ocr"}) {
+    for (const char* section :
+         {"view", "other", "words", "session", "ai", "imports", "ocr", "maximaLibrary"}) {
         auto it = patch.find(section);
         if (it != patch.end() && !it->is_null() && !it->is_object()) {
             throw SettingsError(section, "expected an object");

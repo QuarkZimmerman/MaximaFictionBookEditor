@@ -232,8 +232,14 @@ export class SpellChecker {
     this.dictionariesPromise = rpc
       .call('spell.dictionaries')
       .then((list) => {
-        this.dictionariesValue = list as unknown as SpellDictionaryInfo[];
-        this.emit('invalidate');
+        const before = this.dictionariesValue ? dictionarySignature(this.dictionariesValue) : null;
+        const dictionaries = list as unknown as SpellDictionaryInfo[];
+        this.dictionariesValue = dictionaries;
+        if (before === null) {
+          this.emit('invalidate');
+        } else if (before !== dictionarySignature(dictionaries)) {
+          this.invalidate();
+        }
         return this.dictionariesValue;
       })
       .catch(() => [] as SpellDictionaryInfo[])

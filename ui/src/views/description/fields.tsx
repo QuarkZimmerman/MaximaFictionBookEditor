@@ -41,6 +41,13 @@ export interface TextFieldProps {
   readOnly?: boolean;
   title?: string;
   inputRef?: RefObject<FormInput | null>;
+  autoComplete?: string;
+  /** Replaces the default `controller.setField` write when caller needs atomic side updates. */
+  onValueChange?: (value: string) => void;
+  onFocus?: (event: React.FocusEvent<FormInput>) => void;
+  onClick?: (event: React.MouseEvent<FormInput>) => void;
+  onBlur?: (event: React.FocusEvent<FormInput>) => void;
+  onKeyDown?: (event: React.KeyboardEvent<FormInput>) => void;
 }
 
 export function TextField({
@@ -58,6 +65,12 @@ export function TextField({
   readOnly,
   title,
   inputRef,
+  autoComplete,
+  onValueChange,
+  onFocus,
+  onClick,
+  onBlur,
+  onKeyDown,
 }: TextFieldProps) {
   const { t } = useTranslation();
   const { controller, readOnly: formReadOnly } = useDescriptionForm();
@@ -88,6 +101,7 @@ export function TextField({
     value,
     placeholder,
     maxLength,
+    autoComplete,
     readOnly: readOnly || formReadOnly,
     'aria-invalid': invalid ? true : undefined,
     'aria-required': required || undefined,
@@ -95,9 +109,19 @@ export function TextField({
     'data-field': fieldKey,
     onChange: (event: React.ChangeEvent<FormInput>) => {
       if (formReadOnly) return; // the quiet lock refuses every change
-      controller.setField(fieldKey, event.target.value);
+      if (onValueChange) {
+        onValueChange(event.target.value);
+      } else {
+        controller.setField(fieldKey, event.target.value);
+      }
     },
-    onBlur: () => controller.closeEntry(),
+    onFocus,
+    onClick,
+    onBlur: (event: React.FocusEvent<FormInput>) => {
+      controller.closeEntry();
+      onBlur?.(event);
+    },
+    onKeyDown,
   };
   const input = multiline ? (
     <textarea ref={setRef} rows={rows ?? 4} {...shared} {...tip(help)} />

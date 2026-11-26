@@ -69,6 +69,16 @@ else()
   list(APPEND _mfbe_existing_sources "${CMAKE_CURRENT_SOURCE_DIR}/src/platform/date_format_posix.cpp")
 endif()
 
+# Feature 021 (DP-2): uniform AES-256-GCM + CSPRNG primitive for encrypted Maxima Library lookup
+# tokens — Windows CNG (bcrypt.lib) on Windows, OpenSSL libcrypto (already built via libcurl) on
+# Linux and macOS, producing the identical on-disk token file format with zero OS keyring popups.
+list(FILTER _mfbe_existing_sources EXCLUDE REGEX "/src/lookup/maxima_lookup_aes_gcm_(win|openssl)\\.cpp$")
+if(WIN32)
+  list(APPEND _mfbe_existing_sources "${CMAKE_CURRENT_SOURCE_DIR}/src/lookup/maxima_lookup_aes_gcm_win.cpp")
+else()
+  list(APPEND _mfbe_existing_sources "${CMAKE_CURRENT_SOURCE_DIR}/src/lookup/maxima_lookup_aes_gcm_openssl.cpp")
+endif()
+
 add_library(mfbe_core STATIC ${_mfbe_existing_sources})
 # Feature 016 (find_reader): the build's own reader, for builds run in place (tests, journeys).
 target_compile_definitions(mfbe_core PRIVATE
@@ -120,12 +130,14 @@ endif()
 target_link_libraries(mfbe_core PRIVATE PkgConfig::POPPLER PkgConfig::LCMS2 Freetype::Freetype)
 
 if(WIN32)
-  target_link_libraries(mfbe_core PRIVATE ws2_32 shell32 ole32)
+  target_link_libraries(mfbe_core PRIVATE ws2_32 shell32 ole32 bcrypt)
 elseif(APPLE)
-  target_link_libraries(mfbe_core PRIVATE "-framework CoreFoundation")
+  find_package(OpenSSL REQUIRED)
+  target_link_libraries(mfbe_core PRIVATE "-framework CoreFoundation" OpenSSL::Crypto)
 else()
+  find_package(OpenSSL REQUIRED)
   find_package(Threads REQUIRED)
-  target_link_libraries(mfbe_core PRIVATE Threads::Threads)
+  target_link_libraries(mfbe_core PRIVATE OpenSSL::Crypto Threads::Threads)
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")

@@ -178,12 +178,15 @@ export async function runPdfToFb2(params: BatchAdapterContext): Promise<BatchAda
     }
     throwIfAborted(signal);
 
-    const pdfDoc = await loadDocument(activeToken);
+    const pdfDoc = await loadDocument(activeToken, signal);
+    onStage('batch.progress.stageConverting', 0, Math.max(pdfDoc.pages, 1));
     const models = await loadPages(
       activeToken,
       pdfDoc.pages,
       (done, count) => onStage('batch.progress.stageConverting', done, Math.max(count, 1)),
       () => signal.aborted,
+      config.parallel ? 2 : 4,
+      signal,
     );
     throwIfAborted(signal);
 

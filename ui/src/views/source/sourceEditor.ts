@@ -95,6 +95,7 @@ import {
   lineNumbersExtension,
   matchedTagsExtension,
   matchingTagPosition,
+  maximaCustomInfoHighlightExtension,
   nbspSourceExtension,
   nextSyntaxError,
   offsetForLineColumn,
@@ -390,6 +391,7 @@ export class SourceEditorController {
       binaryPlaceholdersExtension((size) =>
         this.translate('source.binaryPlaceholder', { count: size }),
       ),
+      maximaCustomInfoHighlightExtension(),
       overtypeExtension(() => this.isOvertype()),
       rightClickKeepsSelection,
       // Before the editor keymaps: Enter, Tab and Escape go to an open completion list first.

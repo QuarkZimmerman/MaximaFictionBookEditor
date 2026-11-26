@@ -439,6 +439,8 @@ export interface Settings {
     autoDetect: boolean;
     enabledLanguages: string[];
   };
+  /** Feature 021 (data-model.md §1): Maxima Library Lookup Service v2 configuration (non-secret). */
+  maximaLibrary?: MaximaLibrarySettings;
   session: {
     /**
      * Window placement (feature 003: recorded by the shell at quit): the normal bounds plus
@@ -2379,7 +2381,214 @@ export interface RpcMethods {
   };
   /** Feature 019 (--test-hooks): overrides app.info.cpuCores (null restores hardware_concurrency). */
   'test.setCpuCores': { params: { cores: number | null }; result: { cpuCores: number } };
+  /** Feature 021 (contracts/rpc-api.md §2–§7): Maxima Library Lookup Service v2 integration. */
+  'maximaLookup.status': { params: Record<string, never>; result: MaximaLookupStatusResult };
+  'maximaLookup.revealToken': {
+    params: Record<string, never>;
+    result: { token: string; readable: boolean };
+  };
+  'maximaLookup.test': {
+    params: MaximaLookupTestParams;
+    result: MaybeJob<MaximaLookupTestOutcome>;
+  };
+  'maximaLookup.saveConfig': {
+    params: MaximaLookupSaveConfigParams;
+    result: MaximaLookupSaveConfigResult;
+  };
+  'maximaLookup.search': {
+    params: MaximaLookupSearchParams;
+    result: MaximaLookupSearchResult;
+  };
+  'maximaLookup.exists': {
+    params: MaximaLookupExistsParams;
+    result: MaximaLookupExistsResult;
+  };
 }
+
+/* ------------------------------------------------------------------------ */
+/* feature 021 — Maxima Library Lookup Service v2 (contracts/rpc-api.md)    */
+/* ------------------------------------------------------------------------ */
+
+export type MaximaPersonRole =
+  | 'author'
+  | 'translator'
+  | 'illustrator'
+  | 'editor'
+  | 'compiler'
+  | 'designer'
+  | 'commentator'
+  | 'abouttheauthor';
+
+export interface MaximaLibrarySettings {
+  enabled: boolean;
+  domain: string;
+  verifiedFingerprint: string;
+}
+
+export interface MaximaLookupStatusResult {
+  enabled: boolean;
+  domain: string;
+  hasToken: boolean;
+  tokenReadable: boolean;
+  verified: boolean;
+  tokenPageUrl: string;
+}
+
+export interface MaximaLookupTestParams {
+  domain: string;
+  token?: string;
+  useStoredToken?: boolean;
+}
+
+export interface MaximaLookupTestOutcome {
+  ok: boolean;
+  code: string;
+  message: string;
+  verifiedFingerprint?: string;
+  retryAfterSeconds?: number;
+  normalizedDomain?: string;
+}
+
+export interface MaximaLookupSaveConfigParams {
+  enabled: boolean;
+  domain: string;
+  token?: string;
+  useStoredToken?: boolean;
+  clearToken?: boolean;
+}
+
+export interface MaximaLookupSaveConfigResult {
+  settings: Settings;
+  status: MaximaLookupStatusResult;
+}
+
+export interface MaximaPersonNameFragment {
+  lastName: string;
+  firstName: string;
+  middleName: string;
+}
+
+export type MaximaLookupSearchParams =
+  | {
+      kind: 'person';
+      role: MaximaPersonRole;
+      lastName: string;
+      firstName: string;
+      middleName?: string;
+      page: number;
+      pageSize?: number;
+    }
+  | {
+      kind: 'authorSeries';
+      seriesName: string;
+      narrow: 'all' | 'authors' | 'makers';
+      parentSeriesId?: number;
+      excludedSeriesId?: number;
+      authorIds?: number[];
+      authorNames?: MaximaPersonNameFragment[];
+      makerIds?: number[];
+      makerNames?: MaximaPersonNameFragment[];
+      page: number;
+      pageSize?: number;
+    }
+  | {
+      kind: 'publisher';
+      publisherName: string;
+      page: number;
+      pageSize?: number;
+    }
+  | {
+      kind: 'publisherSeries';
+      seriesName: string;
+      publisherIds?: number[];
+      publisherNames?: string[];
+      restrict?: boolean;
+      page: number;
+      pageSize?: number;
+    };
+
+export interface MaximaPersonItem {
+  id: number;
+  lastName: string;
+  firstName: string;
+  middleName: string;
+  fullName: string;
+  url: string;
+}
+
+export interface MaximaAuthorSeriesItem {
+  id: number;
+  name: string;
+  authors: boolean;
+  makers: boolean;
+  url: string;
+  parent?: { id: number; name: string };
+}
+
+export interface MaximaPublisherItem {
+  id: number;
+  name: string;
+  bookCount: number;
+  url: string;
+}
+
+export interface MaximaPublisherSeriesItem {
+  id: number;
+  name: string;
+  publishers: Array<{ id: number; name: string }>;
+  text: string;
+  linked: boolean;
+  nameMatch: boolean;
+  url: string;
+}
+
+export type MaximaLookupSearchItem =
+  MaximaPersonItem | MaximaAuthorSeriesItem | MaximaPublisherItem | MaximaPublisherSeriesItem;
+
+export type MaximaLookupSearchResult<T = MaximaLookupSearchItem> =
+  | {
+      ok: true;
+      page: number;
+      hasMore: boolean;
+      items: T[];
+    }
+  | {
+      ok: false;
+      code: string;
+      message: string;
+      retryAfterSeconds?: number;
+    };
+
+export type MaximaLookupExistsParams =
+  | {
+      kind: 'person';
+      role: MaximaPersonRole;
+      lastName: string;
+      firstName: string;
+      middleName: string;
+    }
+  | {
+      kind: 'authorSeries';
+      seriesName: string;
+      parentSeriesId?: number;
+    }
+  | {
+      kind: 'publisher';
+      publisherName: string;
+    }
+  | {
+      kind: 'publisherSeries';
+      seriesName: string;
+      publisherIds?: number[];
+      publisherNames?: string[];
+      restrict?: boolean;
+    };
+
+export type MaximaLookupExistsResult =
+  | { ok: true; kind: 'person' | 'authorSeries'; matchedIds: number[] }
+  | { ok: true; kind: 'publisher'; items: MaximaPublisherItem[] }
+  | { ok: true; kind: 'publisherSeries'; items: MaximaPublisherSeriesItem[] }
+  | { ok: false; code: string; message: string; retryAfterSeconds?: number };
 
 /** Persistent copy of global export format settings stored in `<Config>/batch-converter.json`. */
 export interface BatchPersistedExportSettings {

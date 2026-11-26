@@ -78,6 +78,11 @@ export function defaultSettings(overrides: Partial<Settings> = {}): Settings {
       customVerified: { fingerprint: '', model: '', at: '' },
       agreements: [],
     },
+    maximaLibrary: {
+      enabled: false,
+      domain: 'https://www.maxima-library.com',
+      verifiedFingerprint: '',
+    },
     ...overrides,
   };
 }

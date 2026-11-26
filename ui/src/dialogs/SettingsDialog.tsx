@@ -16,7 +16,15 @@
  * (feature 005 review A4).
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { confirmDiscardChanges, createCommandRegistry, type CommandContext } from '@/app/commands';
@@ -38,6 +46,19 @@ import { Dialog, type DialogButton } from './Dialog';
 import { HotkeysPage } from './settings/HotkeysPage';
 import { createScratchHotkeys, sameUserBindings } from './settings/hotkeysModel';
 import { ImportsPage } from './settings/ImportsPage';
+import { MaximaLibraryPage } from './settings/MaximaLibraryPage';
+import {
+  buildSaveConfigParams,
+  canSaveMaximaLibraryDraft,
+  createMaximaLibraryDraft,
+  isMaximaLibraryDraftDirty,
+  revertMaximaLibraryDraft,
+  shouldRevertMaximaLibraryOnTabLeave,
+  snapshotFromSettings,
+  snapshotFromStatus,
+  type MaximaLibraryDraftState,
+  type MaximaLibrarySavedSnapshot,
+} from './settings/maximaLibraryModel';
 import { validateSettings, type SettingsValidationError } from './settings/model';
 import { OcrPage } from './settings/OcrPage';
 import { OtherPage } from './settings/OtherPage';
@@ -49,7 +70,7 @@ import './settings/settings.css';
 import { tip } from '@/app/tooltips';
 
 export type SettingsPageId =
-  'view' | 'other' | 'hotkeys' | 'words' | 'imports' | 'ocr' | 'exports' | 'ai';
+  'view' | 'other' | 'hotkeys' | 'words' | 'imports' | 'ocr' | 'exports' | 'ai' | 'maximaLibrary';
 
 const PAGES: readonly SettingsPageId[] = [
   'view',
@@ -60,6 +81,7 @@ const PAGES: readonly SettingsPageId[] = [
   'ocr',
   'exports',
   'ai',
+  'maximaLibrary',
 ];
 
 /**
@@ -137,6 +159,68 @@ export function SettingsDialog({
   const [busy, setBusy] = useState(false);
   const [ocrReport, setOcrReport] = useState<OcrCatalogReport | null>(null);
   const [ocrReportKnown, setOcrReportKnown] = useState(!rpc);
+  const [mlSaved, setMlSaved] = useState<MaximaLibrarySavedSnapshot>(() =>
+    snapshotFromSettings(store.getState().settings?.maximaLibrary),
+  );
+  const [mlDraft, setMlDraft] = useState<MaximaLibraryDraftState>(() =>
+    createMaximaLibraryDraft(snapshotFromSettings(store.getState().settings?.maximaLibrary)),
+  );
+  const mlDirtyRef = useRef(false);
+  const mlTabCancelRef = useRef<(() => void) | null>(null);
+
+  const registerMlTabCancel = useCallback((cancel: () => void): (() => void) => {
+    mlTabCancelRef.current = cancel;
+    return () => {
+      if (mlTabCancelRef.current === cancel) mlTabCancelRef.current = null;
+    };
+  }, []);
+
+  const updateMlDraft = useCallback(
+    (
+      updater:
+        MaximaLibraryDraftState | ((current: MaximaLibraryDraftState) => MaximaLibraryDraftState),
+    ) => {
+      mlDirtyRef.current = true;
+      setMlDraft(updater);
+      setErrors([]);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!rpc) return;
+    let cancelled = false;
+    rpc
+      .call('maximaLookup.status', {})
+      .then((status) => {
+        if (cancelled) return;
+        const snap = snapshotFromStatus(status);
+        setMlSaved(snap);
+        if (!mlDirtyRef.current) {
+          setMlDraft(createMaximaLibraryDraft(snap));
+        }
+      })
+      .catch(() => {
+        // Older core or disconnected: keep settings snapshot.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [rpc]);
+
+  const selectPage = useCallback(
+    (next: SettingsPageId) => {
+      if (page === 'maximaLibrary' && next !== 'maximaLibrary') {
+        if (shouldRevertMaximaLibraryOnTabLeave(mlDraft)) {
+          mlTabCancelRef.current?.();
+          setMlDraft(revertMaximaLibraryDraft(mlSaved));
+          mlDirtyRef.current = false;
+        }
+      }
+      setPage(next);
+    },
+    [mlDraft, mlSaved, page],
+  );
 
   const refreshOcrReport = useCallback(async () => {
     if (!rpc) {
@@ -177,6 +261,23 @@ export function SettingsDialog({
   const scratch = useMemo(
     () => createScratchHotkeys(feature.hotkeys, registry),
     [feature.hotkeys, registry],
+  );
+  const [, bumpHotkeys] = useReducer((n: number) => n + 1, 0);
+  useEffect(() => scratch.subscribe(bumpHotkeys), [scratch]);
+  useEffect(() => feature.hotkeys.subscribe(bumpHotkeys), [feature.hotkeys]);
+
+  // AI first-use agreements are persisted immediately by AiPage rather than deferred to Apply/OK;
+  // align original.ai.agreements so accepting or withdrawing one does not enable Apply.
+  useEffect(
+    () =>
+      store.subscribe((state, previous) => {
+        const nextAgreements = state.settings?.ai?.agreements;
+        if (!nextAgreements || nextAgreements === previous.settings?.ai?.agreements) return;
+        setOriginal((current) =>
+          current?.ai ? { ...current, ai: { ...current.ai, agreements: nextAgreements } } : current,
+        );
+      }),
+    [store],
   );
 
   // The cancel registry (feature 005 review A4): a page that started a job hands in a
@@ -268,6 +369,9 @@ export function SettingsDialog({
 
   const apply = async (): Promise<ApplyOutcome> => {
     if (!draft || !original) return { ok: false, restartRequired: false };
+    if (!canSaveMaximaLibraryDraft(mlDraft)) {
+      return { ok: false, restartRequired: false };
+    }
     const problems = validateSettings(draft, t, ocrReport);
     if (problems.length > 0) {
       setErrors(problems);
@@ -278,7 +382,57 @@ export function SettingsDialog({
       return { ok: false, restartRequired: false };
     }
     let restartRequired = false;
-    const patch = settingsPatch(original, draft);
+    let effectiveOriginal = original;
+    let effectiveDraft = draft;
+
+    if (isMaximaLibraryDraftDirty(mlSaved, mlDraft)) {
+      if (!rpc) {
+        await ctx.dialogs.showMessage({
+          text: t('dialog.settings.unavailable'),
+          caption: t('dialog.error.caption'),
+          icon: 'error',
+          testId: 'dialog-settings-unavailable',
+        });
+        return { ok: false, restartRequired: false };
+      }
+      try {
+        const mlResult = await rpc.call('maximaLookup.saveConfig', buildSaveConfigParams(mlDraft));
+        actions.setSettings(store, mlResult.settings);
+        const snap = snapshotFromStatus(mlResult.status);
+        setMlSaved(snap);
+        setMlDraft(createMaximaLibraryDraft(snap));
+        mlDirtyRef.current = false;
+        effectiveOriginal = mlResult.settings;
+        effectiveDraft = { ...draft, maximaLibrary: mlResult.settings.maximaLibrary };
+        setOriginal(effectiveOriginal);
+        setDraft(effectiveDraft);
+      } catch (error) {
+        if (error instanceof RpcError && error.code === RpcErrorCode.settingsInvalid) {
+          const data = error.data as { field?: string } | undefined;
+          await ctx.dialogs.showMessage({
+            text: t('dialog.settings.invalidField', {
+              field: data?.field ?? 'maximaLibrary',
+              reason: error.message,
+            }),
+            caption: t('dialog.error.caption'),
+            icon: 'error',
+            testId: 'dialog-settings-invalid',
+          });
+          return { ok: false, restartRequired: false };
+        }
+        await ctx.dialogs.showMessage({
+          text: t('msg.settingsSaveFailed', {
+            reason: error instanceof Error ? error.message : String(error),
+          }),
+          caption: t('dialog.error.caption'),
+          icon: 'error',
+          testId: 'dialog-settings-failed',
+        });
+        return { ok: false, restartRequired: false };
+      }
+    }
+
+    const patch = settingsPatch(effectiveOriginal, effectiveDraft);
     if (!isEmptyPatch(patch)) {
       if (!rpc) {
         await ctx.dialogs.showMessage({
@@ -328,11 +482,13 @@ export function SettingsDialog({
         persisted ? t('msg.hotkeysApplied') : t('dialog.settings.hotkeys.notPersisted'),
       );
     }
-    // Feature 003 US4 & Feature 020 US3: dictionaries and OCR language packs copied into a folder
-    // are picked up live on Apply, even when no setting field changed.
     if (rpc) {
-      void getSpellFeature(store).refreshDictionaries(rpc);
-      await refreshOcrReport();
+      if (patch.other?.dictionariesFolder !== undefined) {
+        void getSpellFeature(store).refreshDictionaries(rpc);
+      }
+      if (patch.ocr?.folder !== undefined) {
+        await refreshOcrReport();
+      }
     }
     return { ok: true, restartRequired };
   };
@@ -362,18 +518,24 @@ export function SettingsDialog({
     });
 
   const editable = draft !== null && original !== null;
+  const maximaBlocksSave = !canSaveMaximaLibraryDraft(mlDraft);
+  const hasChanges =
+    editable &&
+    (!isEmptyPatch(settingsPatch(original, draft)) ||
+      !sameUserBindings(scratch, feature.hotkeys) ||
+      isMaximaLibraryDraftDirty(mlSaved, mlDraft));
   const buttons: DialogButton[] = [
     {
       id: 'ok',
       label: t('dialog.buttons.ok'),
-      disabled: !editable || busy,
+      disabled: !editable || busy || maximaBlocksSave,
       onClick: () => void onOk(),
     },
     { id: 'cancel', label: t('dialog.buttons.cancel'), onClick: close },
     {
       id: 'apply',
       label: t('dialog.settings.apply'),
-      disabled: !editable || busy,
+      disabled: !editable || busy || maximaBlocksSave || !hasChanges,
       onClick: () => void onApply(),
     },
   ];
@@ -402,7 +564,7 @@ export function SettingsDialog({
             tabIndex={page === id ? 0 : -1}
             className="mfbe-settings-tab"
             data-testid={`settings-tab-${id}`}
-            onClick={() => setPage(id)}
+            onClick={() => selectPage(id)}
             onKeyDown={(event) => {
               // Roving tabindex (T153): the arrow keys select the neighbouring page and move
               // the focus onto its tab, so Tab continues from the selected page.
@@ -415,7 +577,7 @@ export function SettingsDialog({
               else if (event.key === 'End') next = PAGES[PAGES.length - 1]!;
               if (!next) return;
               event.preventDefault();
-              setPage(next);
+              selectPage(next);
               event.currentTarget.parentElement
                 ?.querySelector<HTMLButtonElement>(`#settings-tab-${next}`)
                 ?.focus();
@@ -479,6 +641,20 @@ export function SettingsDialog({
               onChange={(patch) => update('ai', patch)}
               ctx={ctx}
               registerCancel={registerCancel}
+            />
+          </div>
+          <div
+            role="tabpanel"
+            id="settings-page-maximaLibrary"
+            style={shownIf(page === 'maximaLibrary')}
+          >
+            <MaximaLibraryPage
+              draft={mlDraft}
+              saved={mlSaved}
+              onChange={updateMlDraft}
+              ctx={ctx}
+              registerCancel={registerCancel}
+              onRegisterTabCancel={registerMlTabCancel}
             />
           </div>
         </div>

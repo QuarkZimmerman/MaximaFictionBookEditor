@@ -20,6 +20,7 @@
 #include <mfbe/hotkeys.hpp>
 #include <mfbe/images.hpp>
 #include <mfbe/keyboard_layout_provider.hpp>
+#include <mfbe/maxima_lookup_service.hpp>
 #include <mfbe/platform.hpp>
 #include <mfbe/positions.hpp>
 #include <mfbe/print_service.hpp>
@@ -144,6 +145,9 @@ struct Services {
     // The AI assistant (feature 005): the service list and the transport, both created on the
     // first ai.* call and never at start-up; the test hooks' overrides and request record.
     AiState ai;
+    // Feature 021 (maximaLookup.*): Maxima Library Lookup Service v2 runtime state, encrypted
+    // token cache, verified-test gate, cooldown, and lazy worker pool (zero network at startup).
+    lookup::MaximaLookupService maxima_lookup;
     std::unique_ptr<platform::FileWatcher> watcher;  // doc.watch polling (created on demand)
 
     // Spell checking (US6): dictionaries through the layers, Hunspell instances, custom.dic.
@@ -265,6 +269,8 @@ void register_schema_handlers(rpc::RpcRouter& router, Services& services);
 // ai.services / ai.reloadServices / ai.createUserServices and the ai.complete / ai.models /
 // ai.test jobs (feature 005, rpc-api §3.12).
 void register_ai_handlers(rpc::RpcRouter& router, Services& services);
+// Feature 021: maximaLookup.{status,revealToken,test,saveConfig,search,exists}.
+void register_maxima_lookup_handlers(rpc::RpcRouter& router, Services& services);
 // Lazily creates the external-change watcher (emits doc.changedOnDisk through the notifier).
 platform::FileWatcher& file_watcher(Services& services);
 // Opens a folder through the shell (dialog provider) or the OS opener; 1050 without a shell.

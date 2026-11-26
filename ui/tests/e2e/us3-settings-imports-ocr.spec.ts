@@ -10,10 +10,30 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { expect, startCoreWith, test } from './fixtures/core';
+import { openBatchDialog } from './fixtures/batchHelpers';
+import { expect, startCoreWith, test, type CoreHandle } from './fixtures/core';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const BUNDLED_OCR = path.join(ROOT, 'resources', 'ocr');
+const OCR_SCAN_DE = path.join(ROOT, 'tests', 'fixtures', 'pdf', 'ocr', 'scan-de.pdf');
+
+async function inspectScanWithLang(
+  core: CoreHandle,
+  lang: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const begun = await core.rpc<{ token: string }>('pdfImport.begin', { path: OCR_SCAN_DE });
+  try {
+    await core.rpc('pdfImport.inspect', {
+      token: begun.token,
+      ocr: { enabled: true, autoDetect: false, languages: [lang] },
+    });
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  } finally {
+    await core.rpc('pdfImport.end', { token: begun.token }).catch(() => {});
+  }
+}
 
 async function openSettings(page: import('@playwright/test').Page): Promise<void> {
   await page.getByTestId('menu-tools').click();
@@ -170,6 +190,81 @@ test.describe('US3 (feature 020) - Settings Imports and OCR tabs @platform', () 
       }
     } finally {
       rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  test('mid-session OCR folder add/remove refreshes Settings -> OCR, Batch Converter, and PDF OCR start live', async ({
+    core,
+    page,
+  }) => {
+    const userOcrDir = path.join(core.dataDir!, 'ocr');
+    const customPack = path.join(userOcrDir, 'ces.traineddata');
+    mkdirSync(userOcrDir, { recursive: true });
+    rmSync(customPack, { force: true });
+
+    try {
+      await core.openApp(page);
+
+      // Before adding ces.traineddata: Settings -> OCR, Batch Converter, and PDF OCR inspect do not have ces.
+      await openSettings(page);
+      await page.getByTestId('settings-tab-ocr').click();
+      await expect(page.getByTestId('settings-ocr-lang-eng')).toBeVisible();
+      await expect(page.getByTestId('settings-ocr-lang-ces')).toHaveCount(0);
+      await page.getByTestId('dialog-settings-button-cancel').click();
+      await expect(page.getByTestId('dialog-settings')).toHaveCount(0);
+
+      await openBatchDialog(page);
+      await page.getByTestId('batch-dir-import').click();
+      await expect(page.getByTestId('batch-ocr-lang-eng')).toBeVisible();
+      await expect(page.getByTestId('batch-ocr-lang-ces')).toHaveCount(0);
+      await page.getByTestId('dialog-batch-converter-button-close').click();
+      await expect(page.getByTestId('dialog-batch-converter')).toHaveCount(0);
+
+      const beforeInspect = await inspectScanWithLang(core, 'ces');
+      expect(beforeInspect.ok).toBe(false);
+
+      // Add ces.traineddata into the default user OCR folder mid-session (no restart, no folder setting change).
+      copyFileSync(path.join(BUNDLED_OCR, 'deu.traineddata'), customPack);
+
+      // 1. PDF OCR start picks up the new pack immediately before opening Settings or Batch Converter.
+      const addedInspect = await inspectScanWithLang(core, 'ces');
+      expect(addedInspect.ok).toBe(true);
+
+      // 2. Batch Converter refreshes on open and shows ces.
+      await openBatchDialog(page);
+      await page.getByTestId('batch-dir-import').click();
+      await expect(page.getByTestId('batch-ocr-lang-ces')).toBeVisible({ timeout: 10_000 });
+      await page.getByTestId('dialog-batch-converter-button-close').click();
+      await expect(page.getByTestId('dialog-batch-converter')).toHaveCount(0);
+
+      // 3. Settings -> OCR refreshes on open and shows ces.
+      await openSettings(page);
+      await page.getByTestId('settings-tab-ocr').click();
+      await expect(page.getByTestId('settings-ocr-lang-ces')).toBeVisible({ timeout: 10_000 });
+      await page.getByTestId('dialog-settings-button-cancel').click();
+      await expect(page.getByTestId('dialog-settings')).toHaveCount(0);
+
+      // Remove ces.traineddata mid-session: PDF OCR start, Batch Converter, and Settings -> OCR all drop it.
+      rmSync(customPack, { force: true });
+
+      const removedInspect = await inspectScanWithLang(core, 'ces');
+      expect(removedInspect.ok).toBe(false);
+
+      await openBatchDialog(page);
+      await page.getByTestId('batch-dir-import').click();
+      await expect(page.getByTestId('batch-ocr-lang-eng')).toBeVisible();
+      await expect(page.getByTestId('batch-ocr-lang-ces')).toHaveCount(0);
+      await page.getByTestId('dialog-batch-converter-button-close').click();
+      await expect(page.getByTestId('dialog-batch-converter')).toHaveCount(0);
+
+      await openSettings(page);
+      await page.getByTestId('settings-tab-ocr').click();
+      await expect(page.getByTestId('settings-ocr-lang-eng')).toBeVisible();
+      await expect(page.getByTestId('settings-ocr-lang-ces')).toHaveCount(0);
+      await page.getByTestId('dialog-settings-button-cancel').click();
+      await expect(page.getByTestId('dialog-settings')).toHaveCount(0);
+    } finally {
+      rmSync(customPack, { force: true });
     }
   });
 });

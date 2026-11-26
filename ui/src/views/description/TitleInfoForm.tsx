@@ -46,6 +46,7 @@ export function TitleInfoForm({ block }: TitleInfoFormProps) {
         testPrefix={`${p}-author`}
         title={t('descriptionForm.authors')}
         required={required}
+        lookupRole={main ? 'author' : undefined}
       />
       <TextField
         fieldKey={`${block}.bookTitle`}
@@ -89,12 +90,14 @@ export function TitleInfoForm({ block }: TitleInfoFormProps) {
         fieldKey={`${block}.translators`}
         testPrefix={`${p}-translator`}
         title={t('descriptionForm.translators')}
+        lookupRole={main ? 'translator' : undefined}
       />
       {main ? <RoleList /> : null}
       <SequenceList
         fieldKey={`${block}.sequences`}
         testPrefix={`${p}-sequence`}
         title={t('descriptionForm.sequences')}
+        lookupMode={main ? 'authorSeries' : undefined}
       />
     </div>
   );

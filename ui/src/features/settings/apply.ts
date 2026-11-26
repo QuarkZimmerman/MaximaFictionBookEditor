@@ -179,11 +179,29 @@ const PATCH_SECTIONS = [
   'ai',
 ] as const;
 
-/** Leaves equal by value: primitives by `Object.is`, the object leaves of `ai` by their JSON. */
-function sameLeaf(a: unknown, b: unknown): boolean {
+/** List settings whose order carries no meaning (toggling a checkbox off and back on is a no-op). */
+const UNORDERED_STRING_LIST_KEYS = new Set(['ocr.enabledLanguages', 'view.spellExtraDictionaries']);
+
+/** Recursive structural equality for settings leaves, independent of object key insertion order. */
+function sameLeaf(a: unknown, b: unknown, unorderedStringSet = false): boolean {
   if (Object.is(a, b)) return true;
   if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
-  return JSON.stringify(a) === JSON.stringify(b);
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    if (unorderedStringSet) {
+      const left = [...a].map(String).sort();
+      const right = [...b].map(String).sort();
+      return left.every((item, i) => item === right[i]);
+    }
+    return a.every((item, i) => sameLeaf(item, b[i]));
+  }
+  const left = a as Record<string, unknown>;
+  const right = b as Record<string, unknown>;
+  const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+  for (const key of keys) {
+    if (!sameLeaf(left[key], right[key])) return false;
+  }
+  return true;
 }
 
 /**
@@ -199,7 +217,8 @@ export function settingsPatch(before: Settings, after: Settings): DeepPartial<Se
     const a = (before[section] ?? {}) as unknown as Record<string, unknown>;
     const b = (after[section] ?? {}) as unknown as Record<string, unknown>;
     for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) {
-      if (!sameLeaf(a[key], b[key])) {
+      const unordered = UNORDERED_STRING_LIST_KEYS.has(`${section}.${key}`);
+      if (!sameLeaf(a[key], b[key], unordered)) {
         (patch[section] ??= {})[key] = b[key];
       }
     }

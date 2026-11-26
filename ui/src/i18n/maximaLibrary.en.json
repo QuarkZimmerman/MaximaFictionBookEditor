@@ -1,0 +1,116 @@
+{
+  "$comment": "Feature 021: Maxima Library Lookup Service v2 integration (English). Deep-merged into en.json by i18n/index.ts.",
+  "dialog": {
+    "settings": {
+      "pages": {
+        "maximaLibrary": "Maxima Library integration"
+      }
+    }
+  },
+  "tip": {
+    "settings": {
+      "tabs": {
+        "maximaLibrary": "Optional live catalog autocomplete and identity lookup via Maxima Library Lookup Service v2"
+      },
+      "maximaLibrary": {
+        "enable": "Enable optional live lookup against Maxima Library in the Description view",
+        "domain": "Base HTTPS address of the Maxima Library server (default https://www.maxima-library.com)",
+        "token": "Personal read-only Lookup Access Token from your Maxima Library user settings",
+        "revealToken": "Show or hide the Access Token",
+        "tokenLink": "Open Maxima Library token settings in your external web browser",
+        "test": "Verify connectivity and token validity before saving"
+      },
+      "maximaLookup": {
+        "bannerRetry": "Retry the last failed Maxima Library lookup request",
+        "bannerSettings": "Open Settings on the Maxima Library integration tab",
+        "bannerDismiss": "Dismiss this Maxima Library lookup status notice",
+        "tab": "Switch suggestion filter to {{tab}}",
+        "pickItem": "Apply this Maxima Library record to the current field",
+        "prevPage": "Show the previous page of Maxima Library suggestions",
+        "nextPage": "Show the next page of Maxima Library suggestions",
+        "close": "Close the Maxima Library suggestion list"
+      }
+    }
+  },
+  "maximaLibrary": {
+    "settings": {
+      "group": "Maxima Library Lookup Service v2",
+      "enable": "Enable Maxima Library integration",
+      "enableHint": "Disabled by default. When enabled, lookup requests are sent only when you interact with supported fields in the Description view.",
+      "domainLabel": "Maxima Library domain:",
+      "tokenLabel": "Access Token:",
+      "tokenPlaceholder": "Paste your personal Lookup Access Token",
+      "tokenStoredPlaceholder": "Saved encrypted token (enter a new token to replace)",
+      "showToken": "Show",
+      "hideToken": "Hide",
+      "tokenHelp": "Generate or manage your read-only personal Lookup Access Token on Maxima Library:",
+      "openTokenPage": "Open Maxima Library token settings",
+      "testButton": "Test integration",
+      "testing": "Testing connection...",
+      "statusVerified": "Verified: connection and Access Token succeeded.",
+      "statusSavedVerified": "Integration verified and ready.",
+      "statusTestRequired": "Click \"Test integration\" and wait for a successful check before Apply or OK can be saved.",
+      "statusUnreadable": "The saved encrypted Access Token could not be decrypted (for example, missing key file or file corruption). Re-enter your token and click \"Test integration\".",
+      "unavailable": "Maxima Library settings are unavailable: the editor core is not connected.",
+      "errors": {
+        "invalidDomain": "Enter a valid Maxima Library address (for example https://www.maxima-library.com).",
+        "httpsRequired": "Remote Maxima Library domains must use HTTPS.",
+        "emptyToken": "Enter a Maxima Library Access Token before testing.",
+        "tokenUnreadable": "The saved encrypted token cannot be read. Paste a token and test again.",
+        "unauthorized": "Authentication failed: the server did not receive a valid Bearer token.",
+        "invalid_token": "The Access Token is invalid or has been revoked on Maxima Library.",
+        "account_disabled": "Your Maxima Library account is disabled for lookup access.",
+        "https_required": "The Maxima Library server requires an HTTPS connection.",
+        "wrong_version": "Protocol version mismatch: update the editor to match the server's Lookup Service version.",
+        "rate_limited": "Too many requests. Wait before trying again.",
+        "rate_limited_retry": "Too many requests. Wait {{seconds}} s before trying again.",
+        "method_not_allowed": "The server rejected the lookup HTTP method.",
+        "invalid_request": "The lookup request was rejected by the server.",
+        "server_error": "The Maxima Library server returned a temporary error. Try again later.",
+        "offline": "Could not reach the Maxima Library server. Check your network connection.",
+        "timeout": "The request to Maxima Library timed out.",
+        "tls": "TLS certificate verification failed for the configured domain.",
+        "http": "The server returned an unexpected HTTP response.",
+        "format": "The configured address did not return a valid Lookup Service v2 response.",
+        "cancelled": "Connection test cancelled.",
+        "unknown": "Connection test failed: {{message}}"
+      }
+    },
+    "lookup": {
+      "searching": "Searching Maxima Library...",
+      "typeToSearch": "Type to search...",
+      "noMatches": "No matching records found.",
+      "prevPage": "Previous",
+      "nextPage": "Next",
+      "pageLabel": "Page {{page}}",
+      "close": "Close",
+      "openOnSiteShort": "Site",
+      "openOnSiteTitle": "Open record on Maxima Library",
+      "confirmedBadge": "Library #{{id}}",
+      "confirmedTooltip": "Confirmed Maxima Library record #{{id}}",
+      "unresolvedBadge": "Pick one",
+      "unresolvedTooltip": "Multiple Maxima Library records match this exact name; pick one from the list if desired (does not block saving)",
+      "pickOnePrompt": "Multiple records share this exact name. Pick one below (optional):",
+      "tabs": {
+        "all": "All",
+        "authors": "Authors' series",
+        "makers": "Makers' series",
+        "byPublisher": "By publisher"
+      },
+      "subseriesIn": "(subseries in {{parent}})",
+      "booksCount": "Books: {{count}}",
+      "linkedTo": "Linked to: {{names}}",
+      "banner": {
+        "retry": "Retry",
+        "openSettings": "Settings...",
+        "dismiss": "Dismiss",
+        "offline": "Maxima Library is unreachable. Offline editing and saving continue normally.",
+        "invalidToken": "Maxima Library Access Token was rejected or revoked. Update it in Settings.",
+        "accountDisabled": "Maxima Library account is disabled for lookup requests.",
+        "rateLimited": "Maxima Library rate limit reached. Paused briefly ({{seconds}} s).",
+        "wrongVersion": "Maxima Library lookup protocol version mismatch. Check for an editor update.",
+        "serverError": "Maxima Library returned a temporary server error. Offline editing continues normally."
+      }
+    }
+  }
+}

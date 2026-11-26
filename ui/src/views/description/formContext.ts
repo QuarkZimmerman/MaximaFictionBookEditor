@@ -7,12 +7,27 @@
 
 import { createContext, useContext, type ChangeEvent, type SelectHTMLAttributes } from 'react';
 
+import type { MaximaDescriptionBindings } from '@/features/description/maximaIdentities';
+import type {
+  DescriptionLookupSession,
+  DescriptionLookupSessionState,
+} from '@/features/lookup/descriptionLookupSession';
 import type { BinaryMeta } from '@/model/document';
+import type { RpcClient } from '@/rpc/client';
 import type { UiLanguage } from '@/rpc/types';
 
 import type { DescriptionController } from './binding';
 import { getAtPath, type DescriptionForm, type FieldKey, type RequiredIssues } from './model';
 import type { GenreCatalog, LanguageCatalog } from './resources';
+
+export interface DescriptionMaximaLookupContext {
+  rpc: RpcClient | null;
+  enabled: boolean;
+  domain: string;
+  bindings: MaximaDescriptionBindings;
+  session: DescriptionLookupSession;
+  snapshot: DescriptionLookupSessionState;
+}
 
 export interface DescriptionFormContextValue {
   controller: DescriptionController;
@@ -26,6 +41,8 @@ export interface DescriptionFormContextValue {
   binaries: BinaryMeta[];
   /** A script run or an AI request holds the document: the form is read-only (`store.runLock`). */
   readOnly: boolean;
+  /** Optional Maxima Library Lookup Service v2 context (feature 021). */
+  maximaLookup?: DescriptionMaximaLookupContext;
 }
 
 export const DescriptionFormContext = createContext<DescriptionFormContextValue | null>(null);

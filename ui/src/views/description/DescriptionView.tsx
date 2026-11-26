@@ -13,11 +13,19 @@
  * which then offers the table section; a plain field's menu stays as it was.
  */
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useAppServices } from '@/app/services';
+import { useAppServices, useCommandContext } from '@/app/services';
 import { textFieldOf } from '@/app/textFields';
+import { tip } from '@/app/tooltips';
+import { DEFAULT_MAXIMA_LIBRARY_DOMAIN } from '@/dialogs/settings/maximaLibraryModel';
+import {
+  deriveMaximaBindings,
+  type MaximaDescriptionBindings,
+} from '@/features/description/maximaIdentities';
+import { DescriptionLookupSession } from '@/features/lookup/descriptionLookupSession';
+import { getSettingsFeature, openSettingsDialog } from '@/features/settings';
 import { prepareTableClick } from '@/features/tables/contextMenu';
 import { activateFieldTarget, fieldTargetFor } from '@/features/tables/target';
 import { isRunLocked, useAppState } from '@/model/store';
@@ -30,14 +38,20 @@ import { DocumentInfoForm } from './DocumentInfoForm';
 import { FieldContextMenu } from './FieldContextMenu';
 import { Section, SmallButton } from './fields';
 import { DescriptionFormContext, type DescriptionFormContextValue } from './formContext';
+import { formatLookupBannerMessage } from './maximaLookupMessages';
 import { descriptionExtrasCount, emptyTitleInfo } from './model';
 import { PublishInfoForm } from './PublishInfoForm';
 import { useResourceCatalogs } from './resources';
 import { TitleInfoForm } from './TitleInfoForm';
 
 import './description.css';
+import './maximaLookup.css';
 
 const EMPTY_BINARIES: never[] = [];
+const EMPTY_MAXIMA_BINDINGS: MaximaDescriptionBindings = {
+  byRowPath: new Map(),
+  pairedCustomInfoIndices: new Set(),
+};
 
 /** The click of a right-click at (x, y) on a rich field's editor: the position under it, or null. */
 function fieldClick(
@@ -55,12 +69,14 @@ function fieldClick(
 export function DescriptionView() {
   const { t } = useTranslation();
   const { store, undo, rpc } = useAppServices();
+  const cmdCtx = useCommandContext();
   const controller = useMemo(() => descriptionControllerFor(store, undo), [store, undo]);
   const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const document = useAppState((s) => s.document, store);
   const sourceOnly = useAppState((s) => s.sourceOnly, store);
   const connection = useAppState((s) => s.connection, store);
   const language = useAppState((s) => s.uiLanguage, store);
+  const settings = useAppState((s) => s.settings, store);
   // The quiet lock of a run (feature 003 FR-011; a script or an AI request): the form is
   // read-only, not disabled.
   const readOnly = useAppState(isRunLocked, store);
@@ -72,6 +88,13 @@ export function DescriptionView() {
     click?: ContextMenuClick;
   } | null>(null);
 
+  const maximaLookupEnabled = Boolean(rpc) && Boolean(settings?.maximaLibrary?.enabled);
+  const maximaLibraryDomain =
+    (settings?.maximaLibrary?.domain ?? '').trim() || DEFAULT_MAXIMA_LIBRARY_DOMAIN;
+  const lookupSession = useMemo(() => new DescriptionLookupSession(), []);
+  const lookupSnapshot = useSyncExternalStore(lookupSession.subscribe, lookupSession.getSnapshot);
+  const [cooldownNowMs, setCooldownNowMs] = useState(() => Date.now());
+
   useEffect(() => {
     controller.setTranslate((key) => t(key));
   }, [controller, t]);
@@ -80,6 +103,42 @@ export function DescriptionView() {
   const issues = snapshot.issues;
   const binaries = document?.binaries ?? EMPTY_BINARIES;
   const docId = document?.docId ?? null;
+
+  useEffect(() => {
+    lookupSession.reset(docId);
+  }, [docId, maximaLookupEnabled, lookupSession]);
+
+  useEffect(() => {
+    const until = lookupSnapshot.banner?.retryAfterUntilMs;
+    if (!until) return;
+    if (until <= Date.now()) return;
+    const timer = window.setInterval(() => {
+      const now = Date.now();
+      setCooldownNowMs(now);
+      if (now >= until) {
+        window.clearInterval(timer);
+      }
+    }, 500);
+    return () => window.clearInterval(timer);
+  }, [lookupSnapshot.banner?.retryAfterUntilMs]);
+
+  const maximaBindings = useMemo(
+    () => (form ? deriveMaximaBindings(form) : EMPTY_MAXIMA_BINDINGS),
+    [form],
+  );
+
+  const maximaLookup = useMemo(
+    () => ({
+      rpc,
+      enabled: maximaLookupEnabled,
+      domain: maximaLibraryDomain,
+      bindings: maximaBindings,
+      session: lookupSession,
+      snapshot: lookupSnapshot,
+    }),
+    [rpc, maximaLookupEnabled, maximaLibraryDomain, maximaBindings, lookupSession, lookupSnapshot],
+  );
+
   const context = useMemo<DescriptionFormContextValue | null>(
     () =>
       form && issues
@@ -94,6 +153,7 @@ export function DescriptionView() {
             docId,
             binaries,
             readOnly,
+            maximaLookup,
           }
         : null,
     [
@@ -107,8 +167,15 @@ export function DescriptionView() {
       docId,
       binaries,
       readOnly,
+      maximaLookup,
     ],
   );
+
+  const openMaximaSettings = useCallback(() => {
+    const settingsFeature = getSettingsFeature(store);
+    if (!settingsFeature) return;
+    void openSettingsDialog(cmdCtx, settingsFeature, { initialPage: 'maximaLibrary' });
+  }, [cmdCtx, store]);
 
   if (!document || !context) {
     return (
@@ -127,6 +194,9 @@ export function DescriptionView() {
 
   const extras = descriptionExtrasCount(document);
   const hasSource = !!context.form.srcTitleInfo;
+  const lookupBanner = maximaLookupEnabled ? lookupSnapshot.banner : null;
+  const effectiveNowMs = Math.max(cooldownNowMs, lookupBanner?.recordedAtMs ?? 0);
+  const inCooldown = lookupSession.rateLimitRemainingMs(effectiveNowMs) > 0;
 
   return (
     <div
@@ -159,6 +229,48 @@ export function DescriptionView() {
             setFieldMenu({ field, position });
           }}
         >
+          {lookupBanner ? (
+            <div
+              className="mfbe-ml-banner"
+              role="status"
+              data-testid="description-maxima-banner"
+              data-code={lookupBanner.code}
+            >
+              <span data-testid="description-maxima-banner-message">
+                {formatLookupBannerMessage(t, lookupBanner, effectiveNowMs)}
+              </span>
+              <div className="mfbe-ml-banner-actions">
+                <button
+                  {...tip(t('tip.settings.maximaLookup.bannerRetry'))}
+                  type="button"
+                  className="mfbe-ml-btn"
+                  disabled={inCooldown}
+                  data-testid="description-maxima-banner-retry"
+                  onClick={() => lookupSession.retryLastAction()}
+                >
+                  {t('maximaLibrary.lookup.banner.retry')}
+                </button>
+                <button
+                  {...tip(t('tip.settings.maximaLookup.bannerSettings'))}
+                  type="button"
+                  className="mfbe-ml-btn"
+                  data-testid="description-maxima-banner-settings"
+                  onClick={openMaximaSettings}
+                >
+                  {t('maximaLibrary.lookup.banner.openSettings')}
+                </button>
+                <button
+                  {...tip(t('tip.settings.maximaLookup.bannerDismiss'))}
+                  type="button"
+                  className="mfbe-ml-btn"
+                  data-testid="description-maxima-banner-dismiss"
+                  onClick={() => lookupSession.clearBanner()}
+                >
+                  {t('maximaLibrary.lookup.banner.dismiss')}
+                </button>
+              </div>
+            </div>
+          ) : null}
           {sourceOnly ? (
             <div className="mfbe-desc-note mfbe-desc-warning" data-testid="description-source-only">
               {t('views.body.sourceOnly')}

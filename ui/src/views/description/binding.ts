@@ -278,12 +278,19 @@ export class DescriptionController {
     this.apply(setAtPath(this.form, key, value), options.coalesce ? key : null);
   }
 
-  /** Structural change (rows added / removed / moved) as one undo entry. */
-  update(mutate: (form: DescriptionForm) => DescriptionForm): void {
+  /**
+   * Structural or multi-field change as one atomic undo entry; pass `coalesceKey` when a typing
+   * edit must atomically update another slice (such as withdrawing a paired `ml*id`) while still
+   * coalescing consecutive keystrokes into one undo step.
+   */
+  update(
+    mutate: (form: DescriptionForm) => DescriptionForm,
+    options?: { coalesceKey?: FieldKey },
+  ): void {
     if (!this.form) return;
     const next = mutate(this.form);
     if (next === this.form) return;
-    this.apply(next, null);
+    this.apply(next, options?.coalesceKey ?? null);
   }
 
   /** Ends the current edit burst: the next keystroke starts a new undo entry (blur). */
