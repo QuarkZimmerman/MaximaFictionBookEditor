@@ -196,6 +196,8 @@ test.describe('Maxima Library Lookup Service v2 integration (feature 021)', () =
       await expect(page.getByTestId('settings-maxima-domain')).toBeDisabled();
       await expect(page.getByTestId('settings-maxima-token')).toBeDisabled();
       await expect(page.getByTestId('settings-maxima-test')).toBeDisabled();
+      await expect(page.getByTestId('dialog-settings-button-apply')).toBeDisabled();
+      await expect(page.getByTestId('dialog-settings-button-ok')).toBeEnabled();
 
       // Enable -> Apply/OK disabled until Test integration passes.
       await page.getByTestId('settings-maxima-enable').check();
@@ -220,9 +222,9 @@ test.describe('Maxima Library Lookup Service v2 integration (feature 021)', () =
       await expect(page.getByTestId('dialog-settings-button-apply')).toBeDisabled();
       await expect(page.getByTestId('dialog-settings-button-ok')).toBeDisabled();
 
-      // Tab-leave revert while unverified restores saved disabled state and re-enables Apply/OK.
+      // Tab-leave revert while unverified restores saved disabled state: OK re-enables, Apply stays disabled (no unsaved changes).
       await page.getByTestId('settings-tab-view').click();
-      await expect(page.getByTestId('dialog-settings-button-apply')).toBeEnabled();
+      await expect(page.getByTestId('dialog-settings-button-apply')).toBeDisabled();
       await expect(page.getByTestId('dialog-settings-button-ok')).toBeEnabled();
       await page.getByTestId('settings-tab-maximaLibrary').click();
       await expect(page.getByTestId('settings-maxima-enable')).not.toBeChecked();

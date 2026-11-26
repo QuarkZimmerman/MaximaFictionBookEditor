@@ -364,6 +364,83 @@ describe('SettingsDialog - View / Other / Words mapping', () => {
     });
     expect(screen.queryByTestId('settings-errors')).not.toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled(); // Apply keeps the dialog open
+    expect(screen.getByTestId('dialog-settings-button-apply')).toBeDisabled();
+  });
+
+  it('enables Apply only when draft differs from in-memory state, disables on undo and after Apply across tabs', async () => {
+    const { rpc, user } = await setup({
+      responses: {
+        'ocr.report': {
+          packs: [
+            {
+              code: 'eng',
+              layer: 'bundled',
+              path: '/b/eng.traineddata',
+              sizeBytes: 1000,
+              overridesBundled: false,
+            },
+            {
+              code: 'rus',
+              layer: 'bundled',
+              path: '/b/rus.traineddata',
+              sizeBytes: 1000,
+              overridesBundled: false,
+            },
+          ],
+          passedOver: [],
+          customFolderIssue: null,
+        },
+      },
+    });
+
+    const applyBtn = screen.getByTestId('dialog-settings-button-apply');
+    const okBtn = screen.getByTestId('dialog-settings-button-ok');
+
+    // Clean on open across every page: Apply disabled, OK enabled.
+    expect(applyBtn).toBeDisabled();
+    expect(okBtn).toBeEnabled();
+
+    // Standard field edit enables Apply; undoing it disables Apply again.
+    const font = screen.getByTestId('settings-view-body-font');
+    await user.type(font, 'Georgia');
+    expect(applyBtn).toBeEnabled();
+    await user.clear(font);
+    expect(applyBtn).toBeDisabled();
+
+    // Unordered checkbox list (OCR enabledLanguages): unchecking then rechecking restores clean state.
+    await user.click(screen.getByTestId('settings-tab-ocr'));
+    const eng = await screen.findByTestId('settings-ocr-lang-eng');
+    await user.click(eng);
+    expect(applyBtn).toBeEnabled();
+    await user.click(eng);
+    expect(applyBtn).toBeDisabled();
+
+    // Hotkeys scratch edits enable Apply; undoing disables it; Apply commits and disables it.
+    await user.click(screen.getByTestId('settings-tab-hotkeys'));
+    await user.click(screen.getByTestId('settings-hotkeys-command-file.new'));
+    const capture = screen.getByTestId('settings-hotkeys-capture');
+    fireEvent.keyDown(capture, { key: 'K', code: 'KeyK', ctrlKey: true, altKey: true });
+    await user.click(screen.getByTestId('settings-hotkeys-assign'));
+    expect(applyBtn).toBeEnabled();
+    await user.click(screen.getByTestId('settings-hotkeys-default'));
+    expect(applyBtn).toBeDisabled();
+
+    fireEvent.keyDown(capture, { key: 'K', code: 'KeyK', ctrlKey: true, altKey: true });
+    await user.click(screen.getByTestId('settings-hotkeys-assign'));
+    expect(applyBtn).toBeEnabled();
+    await user.click(applyBtn);
+    await waitFor(() => expect(applyBtn).toBeDisabled());
+
+    // Standard field edit -> Apply saves and immediately disables Apply until another change is made.
+    await user.click(screen.getByTestId('settings-tab-view'));
+    await user.selectOptions(screen.getByTestId('settings-view-theme'), 'dark');
+    expect(applyBtn).toBeEnabled();
+    await user.click(applyBtn);
+    await waitFor(() => expect(settingsSetCalls(rpc)).toHaveLength(1));
+    expect(applyBtn).toBeDisabled();
+
+    await user.selectOptions(screen.getByTestId('settings-view-theme'), 'light');
+    expect(applyBtn).toBeEnabled();
   });
 
   it('shows the restart prompt when the core reports restartRequired (language change)', async () => {

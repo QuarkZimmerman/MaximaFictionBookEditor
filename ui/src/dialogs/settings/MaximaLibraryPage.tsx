@@ -264,7 +264,7 @@ export function MaximaLibraryPage({
             disabled={controlsDisabled || draft.testing}
             onChange={(event) => {
               const value = event.target.value;
-              onChange((current) => setMaximaDomain(current, value));
+              onChange((current) => setMaximaDomain(current, value, saved));
             }}
             data-testid="settings-maxima-domain"
           />
@@ -293,7 +293,7 @@ export function MaximaLibraryPage({
               onChange={(event) => {
                 const value = event.target.value;
                 setRevealedStoredToken(null);
-                onChange((current) => setMaximaTokenInput(current, value));
+                onChange((current) => setMaximaTokenInput(current, value, saved));
               }}
               data-testid="settings-maxima-token"
             />

@@ -260,7 +260,7 @@ test.describe('US4 - more spelling dictionaries from a folder', () => {
     expect(settings.other.dictionariesFolder).toBe('');
   });
 
-  test('2. pairs copied into the default folder: listed with origin and rejections after Apply; a German book is checked', async ({
+  test('2. pairs copied into the default folder: listed with origin and rejections on open; a German book is checked', async ({
     core,
     page,
   }) => {
@@ -269,11 +269,14 @@ test.describe('US4 - more spelling dictionaries from a folder', () => {
     await openSettingsView(page);
     await expect(page.getByTestId('settings-view-dictionary-uk_UA')).toBeVisible();
     await expect(page.getByTestId('settings-view-dictionary-de_DE')).toHaveCount(0);
+    await expect(page.getByTestId('dialog-settings-button-apply')).toBeDisabled();
+    await page.getByTestId('dialog-settings-button-cancel').click();
+    await expect(page.getByTestId('dialog-settings')).toHaveCount(0);
 
     // The user copies the fixtures into the folder "Open dictionaries folder" showed, then
-    // applies the settings: the list shows the new pairs and the rejected files.
+    // reopens Settings: the list refreshes on open and shows the new pairs and rejected files.
     copyDictionaries(userFolder);
-    await page.getByTestId('dialog-settings-button-apply').click();
+    await openSettingsView(page);
     await expect(page.getByTestId('settings-view-dictionary-de_DE')).toBeVisible();
     const listed = await listedDictionaries(page);
     const builtIn = await pageText(page, 'dialog.about.dictionarySource.bundled');

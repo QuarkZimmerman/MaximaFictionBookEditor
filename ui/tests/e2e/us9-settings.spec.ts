@@ -319,9 +319,11 @@ test.describe('US9 - configure settings and hotkeys', () => {
 
   test('3. changed settings take effect and persist across a restart', async ({ core, page }) => {
     await openSettings(page);
+    await expect(page.getByTestId('dialog-settings-button-apply')).toBeDisabled();
 
     // View: body font / size / colours, source line numbers off, wrap off, spelling off.
     await page.getByTestId('settings-view-body-font').fill('Arial');
+    await expect(page.getByTestId('dialog-settings-button-apply')).toBeEnabled();
     await page.getByTestId('settings-view-body-font-size').fill('18');
     await page.getByTestId('settings-view-text-color').fill('#112233');
     await page.getByTestId('settings-view-background').fill('#fefefe');
@@ -344,8 +346,9 @@ test.describe('US9 - configure settings and hotkeys', () => {
     await showPage(page, 'words');
     await page.getByTestId('settings-words-show-exclusions').check();
 
-    // Apply keeps the dialog open and the Body variables change at once.
+    // Apply keeps the dialog open, disables Apply again, and changes the Body variables at once.
     await page.getByTestId('dialog-settings-button-apply').click();
+    await expect(page.getByTestId('dialog-settings-button-apply')).toBeDisabled();
     await expect
       .poll(() => page.evaluate<Vars>(HTML_VARIABLES))
       .toEqual({

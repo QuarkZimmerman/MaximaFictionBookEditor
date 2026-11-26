@@ -16,7 +16,15 @@
  * (feature 005 review A4).
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { confirmDiscardChanges, createCommandRegistry, type CommandContext } from '@/app/commands';
@@ -254,6 +262,23 @@ export function SettingsDialog({
     () => createScratchHotkeys(feature.hotkeys, registry),
     [feature.hotkeys, registry],
   );
+  const [, bumpHotkeys] = useReducer((n: number) => n + 1, 0);
+  useEffect(() => scratch.subscribe(bumpHotkeys), [scratch]);
+  useEffect(() => feature.hotkeys.subscribe(bumpHotkeys), [feature.hotkeys]);
+
+  // AI first-use agreements are persisted immediately by AiPage rather than deferred to Apply/OK;
+  // align original.ai.agreements so accepting or withdrawing one does not enable Apply.
+  useEffect(
+    () =>
+      store.subscribe((state, previous) => {
+        const nextAgreements = state.settings?.ai?.agreements;
+        if (!nextAgreements || nextAgreements === previous.settings?.ai?.agreements) return;
+        setOriginal((current) =>
+          current?.ai ? { ...current, ai: { ...current.ai, agreements: nextAgreements } } : current,
+        );
+      }),
+    [store],
+  );
 
   // The cancel registry (feature 005 review A4): a page that started a job hands in a
   // canceller; closing the dialog - OK, Cancel, Escape, the close box - runs the ones still
@@ -457,11 +482,13 @@ export function SettingsDialog({
         persisted ? t('msg.hotkeysApplied') : t('dialog.settings.hotkeys.notPersisted'),
       );
     }
-    // Feature 003 US4 & Feature 020 US3: dictionaries and OCR language packs copied into a folder
-    // are picked up live on Apply, even when no setting field changed.
     if (rpc) {
-      void getSpellFeature(store).refreshDictionaries(rpc);
-      await refreshOcrReport();
+      if (patch.other?.dictionariesFolder !== undefined) {
+        void getSpellFeature(store).refreshDictionaries(rpc);
+      }
+      if (patch.ocr?.folder !== undefined) {
+        await refreshOcrReport();
+      }
     }
     return { ok: true, restartRequired };
   };
@@ -492,6 +519,11 @@ export function SettingsDialog({
 
   const editable = draft !== null && original !== null;
   const maximaBlocksSave = !canSaveMaximaLibraryDraft(mlDraft);
+  const hasChanges =
+    editable &&
+    (!isEmptyPatch(settingsPatch(original, draft)) ||
+      !sameUserBindings(scratch, feature.hotkeys) ||
+      isMaximaLibraryDraftDirty(mlSaved, mlDraft));
   const buttons: DialogButton[] = [
     {
       id: 'ok',
@@ -503,7 +535,7 @@ export function SettingsDialog({
     {
       id: 'apply',
       label: t('dialog.settings.apply'),
-      disabled: !editable || busy || maximaBlocksSave,
+      disabled: !editable || busy || maximaBlocksSave || !hasChanges,
       onClick: () => void onApply(),
     },
   ];

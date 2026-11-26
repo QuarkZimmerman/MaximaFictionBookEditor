@@ -178,7 +178,7 @@ describe('Settings -> Maxima Library integration (T016)', () => {
     expect(screen.getByTestId('settings-maxima-test')).toBeDisabled();
     expect(screen.getByTestId('settings-maxima-token-link').tagName).toBe('SPAN');
     expect(screen.getByTestId('dialog-settings-button-ok')).toBeEnabled();
-    expect(screen.getByTestId('dialog-settings-button-apply')).toBeEnabled();
+    expect(screen.getByTestId('dialog-settings-button-apply')).toBeDisabled();
   });
 
   it('gates Apply and OK until Test integration succeeds, invalidates on edit, and unlocks on re-test', async () => {
@@ -259,9 +259,12 @@ describe('Settings -> Maxima Library integration (T016)', () => {
       domain: 'https://maxima.lordkiron.org',
       token: 'good-tok',
     });
+    // After Apply, in-memory state matches the draft so Apply disables immediately.
+    expect(screen.getByTestId('dialog-settings-button-apply')).toBeDisabled();
+    expect(screen.getByTestId('dialog-settings-button-ok')).toBeEnabled();
   });
 
-  it('reverts untested draft on tab leave (both from previously disabled and previously enabled) and restores Apply/OK', async () => {
+  it('reverts untested draft on tab leave (both from previously disabled and previously enabled) and restores OK while keeping Apply disabled when clean', async () => {
     const user = userEvent.setup();
 
     // Case 1: Previously disabled -> check Enable without testing -> switch to View tab -> reverts to unchecked.
@@ -279,13 +282,13 @@ describe('Settings -> Maxima Library integration (T016)', () => {
 
     await user.click(screen.getByTestId('settings-tab-view'));
     expect(screen.getByTestId('dialog-settings-button-ok')).toBeEnabled();
-    expect(screen.getByTestId('dialog-settings-button-apply')).toBeEnabled();
+    expect(screen.getByTestId('dialog-settings-button-apply')).toBeDisabled();
 
     await user.click(screen.getByTestId('settings-tab-maximaLibrary'));
     expect(screen.getByTestId('settings-maxima-enable')).not.toBeChecked();
     unmount();
 
-    // Case 2: Previously saved enabled -> edit domain without re-testing -> switch tab -> restores saved verified domain & Apply/OK.
+    // Case 2: Previously saved enabled -> edit domain without re-testing -> undo or switch tab -> restores saved verified domain.
     const savedStatus = makeStatus({
       enabled: true,
       domain: 'https://maxima-library.com',
@@ -315,12 +318,27 @@ describe('Settings -> Maxima Library integration (T016)', () => {
     await waitFor(() => {
       expect(screen.getByTestId('settings-maxima-enable')).toBeChecked();
     });
+    expect(screen.getByTestId('dialog-settings-button-apply')).toBeDisabled();
+
+    // Editing domain away invalidates verified state; editing it back restores verified and disables Apply.
+    await user.clear(screen.getByTestId('settings-maxima-domain'));
+    await user.type(screen.getByTestId('settings-maxima-domain'), 'https://other.example.org');
+    expect(screen.getByTestId('dialog-settings-button-ok')).toBeDisabled();
+    expect(screen.getByTestId('dialog-settings-button-apply')).toBeDisabled();
+
+    await user.clear(screen.getByTestId('settings-maxima-domain'));
+    await user.type(screen.getByTestId('settings-maxima-domain'), 'https://maxima-library.com');
+    expect(screen.getByTestId('dialog-settings-button-ok')).toBeEnabled();
+    expect(screen.getByTestId('dialog-settings-button-apply')).toBeDisabled();
+
+    // Edit away again, then leave tab -> reverts to saved verified domain.
     await user.clear(screen.getByTestId('settings-maxima-domain'));
     await user.type(screen.getByTestId('settings-maxima-domain'), 'https://other.example.org');
     expect(screen.getByTestId('dialog-settings-button-ok')).toBeDisabled();
 
     await user.click(screen.getByTestId('settings-tab-view'));
     expect(screen.getByTestId('dialog-settings-button-ok')).toBeEnabled();
+    expect(screen.getByTestId('dialog-settings-button-apply')).toBeDisabled();
 
     await user.click(screen.getByTestId('settings-tab-maximaLibrary'));
     expect(screen.getByTestId('settings-maxima-enable')).toBeChecked();

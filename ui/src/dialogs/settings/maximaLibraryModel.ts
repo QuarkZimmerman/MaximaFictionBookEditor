@@ -151,31 +151,39 @@ export function setMaximaEnabled(
 export function setMaximaDomain(
   draft: MaximaLibraryDraftState,
   domain: string,
+  saved?: MaximaLibrarySavedSnapshot,
 ): MaximaLibraryDraftState {
   const changed = normalizeDomainDraft(domain) !== normalizeDomainDraft(draft.domain);
+  if (!changed) {
+    return { ...draft, domain };
+  }
+  const matchesSavedVerified =
+    Boolean(saved) &&
+    saved!.verified &&
+    saved!.tokenReadable &&
+    !draft.tokenDirty &&
+    normalizeDomainDraft(domain) === normalizeDomainDraft(saved!.domain);
   return {
     ...draft,
     domain,
-    ...(changed
-      ? {
-          verified: false,
-          testStatus: 'idle' as const,
-          testErrorCode: '',
-          testErrorMessage: '',
-          retryAfterSeconds: undefined,
-        }
-      : {}),
+    verified: matchesSavedVerified,
+    testStatus: matchesSavedVerified ? 'verified' : 'idle',
+    testErrorCode: '',
+    testErrorMessage: '',
+    retryAfterSeconds: undefined,
   };
 }
 
 export function setMaximaTokenInput(
   draft: MaximaLibraryDraftState,
   tokenInput: string,
+  saved?: MaximaLibrarySavedSnapshot,
 ): MaximaLibraryDraftState {
+  const clearedAbsentToken = Boolean(saved) && !saved!.hasToken && tokenInput === '';
   return {
     ...draft,
     tokenInput,
-    tokenDirty: true,
+    tokenDirty: !clearedAbsentToken,
     verified: false,
     testStatus: 'idle',
     testErrorCode: '',

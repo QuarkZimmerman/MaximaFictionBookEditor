@@ -270,7 +270,7 @@ export class SpellDialogController {
     this.feature.session.lastAction = null;
     this.blocks = collectSpellBlocks(document);
     this.cursor = { block: 0, offset: 0 };
-    const dictionaries = await this.feature.checker.loadDictionaries();
+    const dictionaries = await this.feature.checker.loadDictionaries(true);
     if (this.disposed) return;
     this.setState({ dictionaries, activeLangs: this.feature.checker.activeLangs() });
     await this.next();
