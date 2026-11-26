@@ -12,6 +12,9 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 - Settings > Imports > PDF and Settings > OCR configure Use OCR, languages, and custom packs
 - File > Import > PDF File... adds a Use OCR checkbox directly inside the open-file dialog
 - Tools > Batch Converter... runs unattended PDF OCR with its own persistent OCR controls and reports
+- Optional Maxima Library lookup integration for Description authors, series, and publishers
+- Settings > Maxima Library integration tests and stores encrypted Access Tokens locally
+- Settings dialog Apply button now enables only when unsaved changes exist across tabs
 
 ### Added
 
@@ -36,6 +39,26 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 - Tools > Batch Converter... (To FB2 tab) adds independent, persistent PDF OCR controls (Use OCR,
   auto-detect, and languages), runs parallel OCR safely with bounded worker concurrency, and reports
   recognized files in a dedicated OCR summary and saveable report section.
+- Optional Maxima Library Lookup Service v2 integration (feature 021, disabled by default) adds a
+  **Maxima Library integration** tab in Settings (default `https://www.maxima-library.com`) with
+  strict HTTPS enforcement, encrypted Access Token storage (AES-256-GCM with per-install CSPRNG key
+  and zero OS keyring popups), cancellable **Test integration** verification gating Apply/OK, and
+  tab-leave revert of untested edits.
+- Description view live lookup assists all 8 person roles, 3-tab Author Series (including nested
+  sub-series filtering and focus jump), Publisher, and 2-tab Publisher Series with debounced search,
+  pagination, keyboard navigation, blur exact-match verification, confirmed-badge restoration on file
+  open with zero network calls, atomic undo-grouped `<custom-info info-type="maxima-identities">`
+  synchronization, soft Source view highlighting in Light and Dark themes, and non-intrusive
+  offline/rate-limit (`Retry-After`) handling.
+
+### Fixed
+
+- Settings dialog **Apply** button is now disabled when there are no unsaved changes across any tab
+  (including Hotkeys, Maxima Library, and unordered checkbox lists), re-disables when edits are
+  undone or applied, and scopes live dictionary/OCR folder rescans to actual folder-path changes
+  while refreshing dictionaries whenever the Spelling dialog opens.
+- PDF import page loading caps concurrent loopback fetches within Chromium's HTTP/1.1 socket pool,
+  forwards cancellation signals, and retries stalled loopback requests once instead of hanging.
 
 ## 0.0.14 - 2026-11-24
 
