@@ -18,6 +18,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useAppServices, useCommandContext } from '@/app/services';
 import { textFieldOf } from '@/app/textFields';
+import { tip } from '@/app/tooltips';
 import { DEFAULT_MAXIMA_LIBRARY_DOMAIN } from '@/dialogs/settings/maximaLibraryModel';
 import {
   deriveMaximaBindings,
@@ -240,6 +241,7 @@ export function DescriptionView() {
               </span>
               <div className="mfbe-ml-banner-actions">
                 <button
+                  {...tip(t('tip.settings.maximaLookup.bannerRetry'))}
                   type="button"
                   className="mfbe-ml-btn"
                   disabled={inCooldown}
@@ -249,6 +251,7 @@ export function DescriptionView() {
                   {t('maximaLibrary.lookup.banner.retry')}
                 </button>
                 <button
+                  {...tip(t('tip.settings.maximaLookup.bannerSettings'))}
                   type="button"
                   className="mfbe-ml-btn"
                   data-testid="description-maxima-banner-settings"
@@ -257,6 +260,7 @@ export function DescriptionView() {
                   {t('maximaLibrary.lookup.banner.openSettings')}
                 </button>
                 <button
+                  {...tip(t('tip.settings.maximaLookup.bannerDismiss'))}
                   type="button"
                   className="mfbe-ml-btn"
                   data-testid="description-maxima-banner-dismiss"

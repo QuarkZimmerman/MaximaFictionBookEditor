@@ -1,12 +1,18 @@
 #include <mfbe/maxima_lookup_token_store.hpp>
 
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
+// clang-format off: windows.h must precede bcrypt.h
+#include <windows.h>
 #include <bcrypt.h>
+// clang-format on
+
 #include <limits>
 #include <vector>
-#include <windows.h>
 
 namespace mfbe::lookup {
 

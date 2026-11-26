@@ -9,6 +9,7 @@
 
 import { useTranslation } from 'react-i18next';
 
+import { tip } from '@/app/tooltips';
 import { ExternalLink } from '@/dialogs/ExternalLink';
 import type { RpcClient } from '@/rpc/client';
 
@@ -97,6 +98,7 @@ export function MaximaLookupDropdown<T>({
             const active = tab.id === activeTabId;
             return (
               <button
+                {...tip(t('tip.settings.maximaLookup.tab', { tab: tab.label }))}
                 key={tab.id}
                 type="button"
                 role="tab"
@@ -145,6 +147,7 @@ export function MaximaLookupDropdown<T>({
               item.highlight && item.highlight !== 'none' ? ` is-mark-${item.highlight}` : '';
             return (
               <li
+                {...tip(t('tip.settings.maximaLookup.pickItem'))}
                 key={`${item.id}-${idx}`}
                 role="option"
                 aria-selected={isHighlighted}
@@ -184,6 +187,7 @@ export function MaximaLookupDropdown<T>({
       <div className="mfbe-ml-dropdown-footer">
         <div className="mfbe-ml-pager">
           <button
+            {...tip(t('tip.settings.maximaLookup.prevPage'))}
             type="button"
             className="mfbe-ml-btn"
             disabled={loading || page <= 0}
@@ -196,6 +200,7 @@ export function MaximaLookupDropdown<T>({
             {t('maximaLibrary.lookup.pageLabel', { page: page + 1 })}
           </span>
           <button
+            {...tip(t('tip.settings.maximaLookup.nextPage'))}
             type="button"
             className="mfbe-ml-btn"
             disabled={loading || !hasMore}
@@ -206,6 +211,7 @@ export function MaximaLookupDropdown<T>({
           </button>
         </div>
         <button
+          {...tip(t('tip.settings.maximaLookup.close'))}
           type="button"
           className="mfbe-ml-btn"
           data-testid={`${testIdPrefix}-close`}

@@ -19,6 +19,16 @@
         "revealToken": "Show or hide the Access Token",
         "tokenLink": "Open Maxima Library token settings in your external web browser",
         "test": "Verify connectivity and token validity before saving"
+      },
+      "maximaLookup": {
+        "bannerRetry": "Retry the last failed Maxima Library lookup request",
+        "bannerSettings": "Open Settings on the Maxima Library integration tab",
+        "bannerDismiss": "Dismiss this Maxima Library lookup status notice",
+        "tab": "Switch suggestion filter to {{tab}}",
+        "pickItem": "Apply this Maxima Library record to the current field",
+        "prevPage": "Show the previous page of Maxima Library suggestions",
+        "nextPage": "Show the next page of Maxima Library suggestions",
+        "close": "Close the Maxima Library suggestion list"
       }
     }
   },

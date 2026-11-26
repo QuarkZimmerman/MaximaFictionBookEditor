@@ -19,6 +19,16 @@
         "revealToken": "Показати або приховати токен доступу",
         "tokenLink": "Відкрити сторінку керування токеном Maxima Library у зовнішньому браузері",
         "test": "Перевірити з’єднання та чинність токена перед збереженням"
+      },
+      "maximaLookup": {
+        "bannerRetry": "Повторити останній невдалий запит пошуку в Maxima Library",
+        "bannerSettings": "Відкрити налаштування на вкладці «Інтеграція з Maxima Library»",
+        "bannerDismiss": "Приховати сповіщення про стан пошуку Maxima Library",
+        "tab": "Перемкнути фільтр підказок на «{{tab}}»",
+        "pickItem": "Підставити цей запис Maxima Library в поточне поле",
+        "prevPage": "Показати попередню сторінку підказок Maxima Library",
+        "nextPage": "Показати наступну сторінку підказок Maxima Library",
+        "close": "Закрити список підказок Maxima Library"
       }
     }
   },
