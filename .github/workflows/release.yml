@@ -374,7 +374,26 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          cpack --preset ${{ matrix.preset }} --verbose 2>&1 | tee "$RUNNER_TEMP/package.log"
+          if [ "${RUNNER_OS:-}" = "macOS" ]; then
+            # macOS DragNDrop invokes hdiutil/diskimages-helper, which intermittently hits
+            # "Resource busy" / Spotlight contention on macOS runners; retry with clean staging.
+            for attempt in 1 2 3; do
+              if cpack --preset ${{ matrix.preset }} --verbose 2>&1 | tee "$RUNNER_TEMP/package.log"; then
+                exit 0
+              fi
+              if [ "$attempt" -lt 3 ]; then
+                echo "::warning::macOS cpack attempt $attempt failed; detaching stray DMG mounts and retrying"
+                for vol in /Volumes/MaximaFictionBookEditor*; do
+                  [ -d "$vol" ] && hdiutil detach -force "$vol" || true
+                done
+                rm -rf "build/${{ matrix.preset }}/packages/_CPack_Packages"
+                sleep 10
+              fi
+            done
+            exit 1
+          else
+            cpack --preset ${{ matrix.preset }} --verbose 2>&1 | tee "$RUNNER_TEMP/package.log"
+          fi
       - name: Package failure details
         if: failure()
         shell: bash
