@@ -701,24 +701,49 @@ export function chatToolsMembers(
   return offered && tools.length > 0 ? { tools: [...tools], tool_choice: 'auto' } : {};
 }
 
+/** The 5 description-only tools exposed in Package editing mode (feature 022, contracts/ai-catalogue.md). */
+export const PACKAGE_MODE_TOOL_NAMES = [
+  'get_context',
+  'get_description',
+  'validate',
+  'get_schema',
+  'set_description',
+] as const;
+
+export type CatalogueMode = 'fb2' | 'package';
+
+export interface CreateCatalogueOptions {
+  mode?: CatalogueMode;
+}
+
 /**
  * Builds a catalogue instance: server, client and transport pair, connected, bound to `deps`
  * (one request's working copy) until `rebind` binds it to the next request's.
  */
-export async function createCatalogue(deps: CatalogueDeps): Promise<Catalogue> {
+export async function createCatalogue(
+  deps: CatalogueDeps,
+  options: CreateCatalogueOptions = {},
+): Promise<Catalogue> {
+  const packageMode = options.mode === 'package';
   const server = new McpServer({ name: 'mfbe-ai-catalogue', version: String(CATALOGUE_VERSION) });
   const context = new ToolContext(deps);
-  registerReadTools(server, context);
+  registerReadTools(server, context, packageMode);
   registerSchemaTools(server, context);
-  registerScriptReadTools(server, context);
-  registerTableReadTools(server, context);
-  registerBackupReadTools(server, context);
-  registerSelectionTools(server, context);
-  registerChangeTools(server, context);
-  registerTableChangeTools(server, context);
-  registerScriptTools(server, context);
+  if (!packageMode) {
+    registerScriptReadTools(server, context);
+    registerTableReadTools(server, context);
+    registerBackupReadTools(server, context);
+    registerSelectionTools(server, context);
+  }
+  registerChangeTools(server, context, packageMode);
+  if (!packageMode) {
+    registerTableChangeTools(server, context);
+    registerScriptTools(server, context);
+  }
   registerSchemaResources(server, context);
-  registerScriptResources(server, context);
+  if (!packageMode) {
+    registerScriptResources(server, context);
+  }
   registerPrompts(server, () => context.deps);
 
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
@@ -1860,7 +1885,7 @@ function plainTextOf(node: ModelNodeJson): string {
 /* Read tools (ai-catalogue §3.1)                                           */
 /* ------------------------------------------------------------------------ */
 
-function registerReadTools(server: McpServer, ctx: ToolContext): void {
+function registerReadTools(server: McpServer, ctx: ToolContext, packageMode = false): void {
   defineTool(
     server,
     'get_context',
@@ -1888,6 +1913,7 @@ function registerReadTools(server: McpServer, ctx: ToolContext): void {
     },
   );
 
+  if (!packageMode) {
   defineTool(
     server,
     'get_outline',
@@ -2107,6 +2133,8 @@ function registerReadTools(server: McpServer, ctx: ToolContext): void {
     (args) => ctx.selectionSummary(args.format, args.cursor),
   );
 
+  }
+
   defineTool(
     server,
     'get_description',
@@ -2120,6 +2148,8 @@ function registerReadTools(server: McpServer, ctx: ToolContext): void {
     },
     async () => ({ description: await ctx.describe() }),
   );
+
+  if (packageMode) return;
 
   defineTool(
     server,
@@ -3576,7 +3606,8 @@ const changeAnnotations = { readOnlyHint: false, destructiveHint: true, idempote
  * touched (`NodeInfo` with id, path, type, characters) so that the request loop can summarise
  * the call ("Replaced paragraph body[1]/section[2]/p[4]") and the model can re-read them.
  */
-function registerChangeTools(server: McpServer, ctx: ToolContext): void {
+function registerChangeTools(server: McpServer, ctx: ToolContext, packageMode = false): void {
+  if (!packageMode) {
   defineTool(
     server,
     'replace_node',
@@ -3925,6 +3956,8 @@ function registerChangeTools(server: McpServer, ctx: ToolContext): void {
     },
   );
 
+  }
+
   defineTool(
     server,
     'set_description',
@@ -3948,6 +3981,22 @@ function registerChangeTools(server: McpServer, ctx: ToolContext): void {
     },
     (args) =>
       ctx.change('set_description:description', async () => {
+        // Package mode coverpage guard (FR-014, FR-021, contracts/ai-catalogue.md §1):
+        // cover images are controlled strictly by the Hybrid Cover page / Binary objects UI.
+        if (packageMode || ctx.deps.context().mode === 'package') {
+          const patch = args.description as Record<string, unknown>;
+          const ti = patch.titleInfo as Record<string, unknown> | undefined;
+          const sti = patch.srcTitleInfo as Record<string, unknown> | undefined;
+          if (
+            (ti && typeof ti === 'object' && 'coverpage' in ti) ||
+            (sti && typeof sti === 'object' && 'coverpage' in sti)
+          ) {
+            throw new ToolError(
+              'invalidArguments',
+              'set_description: coverpage cannot be changed by the AI assistant in Package mode; use Cover page or Binary objects in the Description view.',
+            );
+          }
+        }
         const merged = await mergeDescription(ctx.document.description, args.description, {
           parseXml: async (xml, element) => {
             const parsed = await ctx.parseXml(xml, { element });
@@ -3968,6 +4017,12 @@ function registerChangeTools(server: McpServer, ctx: ToolContext): void {
             });
           },
         });
+        if (packageMode || ctx.deps.context().mode === 'package') {
+          merged.description.titleInfo.coverpage = ctx.document.description.titleInfo.coverpage;
+          if (merged.description.srcTitleInfo) {
+            merged.description.srcTitleInfo.coverpage = [];
+          }
+        }
         ctx.deps.copy.setDescription(merged.description);
         return {
           description: await ctx.describe(),

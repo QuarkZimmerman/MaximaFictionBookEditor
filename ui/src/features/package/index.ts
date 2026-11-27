@@ -3,6 +3,7 @@ export {
   applyPackageCoverToDocument,
   canonicalCoverId,
   clearPackageCoverFromDocument,
+  importSinglePackageCover,
   pickAndSetPackageCover,
   removePackageCover,
   setPackageCoverFromFile,

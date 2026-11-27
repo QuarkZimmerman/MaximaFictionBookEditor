@@ -6,6 +6,8 @@
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { PACKAGE_MODE_VIEWS } from '@/features/package/packageModePolicy';
+import { useAppState } from '@/model/store';
 import type { ViewId } from '@/rpc/types';
 
 import { useAppRevision, useAppServices, useCommandContext } from './services';
@@ -18,6 +20,8 @@ export function ViewSwitcher() {
   const { t } = useTranslation();
   const services = useAppServices();
   const ctx = useCommandContext();
+  const editorMode = useAppState((s) => s.editorMode, services.store);
+  const views = editorMode === 'package' ? PACKAGE_MODE_VIEWS : VIEWS;
   const viewTip = (view: ViewId) => t(`tip.views.${view}`);
   useAppRevision();
 
@@ -27,7 +31,7 @@ export function ViewSwitcher() {
     const delta =
       event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : (0 as 0 | 1 | -1);
     if (delta === 0 && event.key !== 'Home' && event.key !== 'End') return;
-    const enabled = VIEWS.filter((candidate) =>
+    const enabled = views.filter((candidate) =>
       services.commands.isEnabled(`view.${candidate}`, ctx),
     );
     if (enabled.length === 0) return;
@@ -53,7 +57,7 @@ export function ViewSwitcher() {
       aria-label={t('views.switcher')}
       data-testid="view-switcher"
     >
-      {VIEWS.map((view) => {
+      {views.map((view) => {
         // Feature 010 (FR-040): a view tab says what the view shows.
         const id = `view.${view}`;
         const active = services.commands.isChecked(id, ctx);

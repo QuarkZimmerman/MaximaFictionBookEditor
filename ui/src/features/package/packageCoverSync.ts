@@ -157,3 +157,49 @@ export async function removePackageCover(
   if (!latestDoc || latestDoc.docId !== docId) return;
   actions.updateDocument(store, clearPackageCoverFromDocument(latestDoc));
 }
+
+/**
+ * Copies a single cover binary from an imported description session into a Package mode entry,
+ * converting non-JPEG/PNG images immediately, removing any prior cover, and normalizing the id to
+ * `cover.jpg` or `cover.png` (FR-014, FR-017).
+ */
+export async function importSinglePackageCover(
+  rpc: RpcClient,
+  docId: string,
+  fromDocId: string,
+  sourceBinaryId: string,
+  existingBinaryIds: readonly string[],
+  preferredFormat: 'jpeg' | 'png' = 'jpeg',
+): Promise<BinaryMeta> {
+  const copied = await rpc.call('binary.copy', {
+    docId,
+    fromDocId,
+    id: sourceBinaryId,
+    suggestedId: TEMP_COVER_ID,
+  });
+  let current: BinaryMeta = { ...copied };
+  if ('existing' in current) {
+    delete (current as BinaryMeta & { existing?: boolean }).existing;
+  }
+  if (current.willConvert && current.decodable) {
+    current = await rpc.call('binary.convert', {
+      docId,
+      id: current.id,
+      format: preferredFormat,
+    });
+  }
+  const targetId = canonicalCoverId(current.contentType);
+  for (const oldId of existingBinaryIds) {
+    if (oldId !== current.id) {
+      await rpc.call('binary.remove', { docId, id: oldId, force: true }).catch(() => undefined);
+    }
+  }
+  if (current.id !== targetId) {
+    current = await rpc.call('binary.rename', {
+      docId,
+      id: current.id,
+      newId: targetId,
+    });
+  }
+  return { ...current, referenceCount: 1 };
+}

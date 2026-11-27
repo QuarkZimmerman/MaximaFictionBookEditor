@@ -218,6 +218,12 @@ export interface ContextRequest {
 export interface WorkingContext {
   catalogueVersion: typeof CATALOGUE_VERSION;
   editor: { name: typeof EDITOR_NAME; version: string };
+  /** Feature 022: 'package' while editing an FBD ZIP package (omitted in FB2 mode). */
+  mode?: 'fb2' | 'package';
+  /** Feature 022: active payload filename in Package mode (e.g. "My Book.pdf"). */
+  packageFileName?: string;
+  /** Feature 022: 'fbd' while in Package mode. */
+  fileKind?: 'fb2' | 'fbd';
   activeView: ViewId;
   uiLanguage: string;
   uiLanguageName: string;
@@ -433,6 +439,10 @@ export interface WorkingContextInput {
   outline?: OutlineEntry[];
   /** With a cut outline: the `more` of the rest (`split.ts` `cutOutline`). */
   outlineMore?: WorkingContext['outlineMore'];
+  /** Feature 022: workspace mode; 'package' scopes context & prompt to FBD description-only. */
+  mode?: 'fb2' | 'package';
+  /** Feature 022: active payload filename in Package mode. */
+  packageFileName?: string;
 }
 
 /** The `selection` member of the context for a snapshot (null → `kind: 'none'`). */
@@ -484,10 +494,18 @@ export function buildWorkingContext(input: WorkingContextInput): WorkingContext 
     caret = { id: input.caret.id, path: input.caret.path };
     if (caretParagraph && 'text' in input.caret) caret.paragraph = input.caret.text;
   }
-  const sourceMode = input.activeView === 'source' && input.sourceWellFormed === false;
+  const isPackage = input.mode === 'package';
+  const sourceMode = !isPackage && input.activeView === 'source' && input.sourceWellFormed === false;
   const context: WorkingContext = {
     catalogueVersion: CATALOGUE_VERSION,
     editor: { name: EDITOR_NAME, version: input.version },
+    ...(isPackage
+      ? {
+          mode: 'package' as const,
+          packageFileName: input.packageFileName ?? '',
+          fileKind: 'fbd' as const,
+        }
+      : {}),
     activeView: input.activeView,
     uiLanguage: input.uiLanguage,
     uiLanguageName: languageName(input.uiLanguage),
@@ -495,18 +513,20 @@ export function buildWorkingContext(input: WorkingContextInput): WorkingContext 
     book: { title: document.description.titleInfo.bookTitle ?? '' },
     counts: countsOf(document),
     modified: input.modified,
-    ...(input.activeView === 'source' ? { sourceWellFormed: input.sourceWellFormed ?? true } : {}),
-    selection: contextSelection(input.selection),
-    caret,
-    outline: input.outline ?? outlineOf(document),
-    ...(input.outlineMore ? { outlineMore: input.outlineMore } : {}),
+    ...(!isPackage && input.activeView === 'source'
+      ? { sourceWellFormed: input.sourceWellFormed ?? true }
+      : {}),
+    selection: isPackage ? contextSelection(null) : contextSelection(input.selection),
+    caret: isPackage ? null : caret,
+    outline: isPackage ? [] : (input.outline ?? outlineOf(document)),
+    ...(!isPackage && input.outlineMore ? { outlineMore: input.outlineMore } : {}),
     request: {
       kind: request.kind,
       source: request.source,
       ...(request.parts ? { parts: request.parts } : {}),
     },
     preExistingErrors: input.preExistingErrors,
-    scriptsAvailable: input.activeView === 'body' && !sourceMode,
+    scriptsAvailable: !isPackage && input.activeView === 'body' && !sourceMode,
   };
   return context;
 }
@@ -584,6 +604,34 @@ export function preExistingNote(count: number): string {
  * localised; the tests assert its marker lines, not the full text.
  */
 export function systemPrompt(context: WorkingContext): string {
+  if (context.mode === 'package') {
+    const fileName = context.packageFileName || 'the attached book file';
+    return (
+      `You are the AI assistant built into Maxima Fiction Book Editor ${context.editor.version}, working in\n` +
+      `FBD ZIP Package mode. You are editing the FictionBook 2.1 (.fbd) metadata description paired\n` +
+      `with the non-FB2 book file "${fileName}". There is no book body to edit here; only\n` +
+      'description read, validation, schema, and edit tools are available (get_context,\n' +
+      'get_description, validate, get_schema, set_description).\n' +
+      '\n' +
+      `Language: the editor's interface language is ${context.uiLanguageName} (${context.uiLanguage}). Answer in that\n` +
+      "language, unless the user writes to you in another language — then answer in the user's language.\n" +
+      `The book's language is "${context.documentLanguage}"; text you put into the description is in the\n` +
+      "book's language unless the user asks otherwise.\n" +
+      '\n' +
+      'Working context (the active package entry right now):\n' +
+      `${JSON.stringify(context, null, 2)}\n` +
+      '\n' +
+      `${DATA_BOUNDARY_LINE}\n` +
+      '\n' +
+      'Rules for Package mode:\n' +
+      '1. Use get_description before judging or editing metadata; apply changes only with\n' +
+      '   set_description. Never say you changed metadata unless set_description answered without\n' +
+      '   an "error" object.\n' +
+      '2. Cover images are managed strictly by the Cover page and Binary objects controls in the UI;\n' +
+      '   do not attempt to modify coverpage via set_description.\n' +
+      `3. ${preExistingNote(context.preExistingErrors)}\n`
+    );
+  }
   const selectionNote = context.request.kind === 'selection' ? SELECTION_NOTE : '';
   const sourceRules =
     context.activeView === 'source'

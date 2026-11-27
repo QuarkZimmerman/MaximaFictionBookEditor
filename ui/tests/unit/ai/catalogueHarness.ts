@@ -342,7 +342,7 @@ export interface Harness {
 export const inPlaceRegex: RegexRunner = (request) => Promise.resolve(runRegexSearch(request));
 
 export async function harness(
-  overrides: Partial<CatalogueDeps> & { document?: Document } = {},
+  overrides: Partial<CatalogueDeps> & { document?: Document; mode?: 'fb2' | 'package' } = {},
 ): Promise<Harness> {
   const document = overrides.document ?? book();
   const copy = new WorkingCopy(document);
@@ -408,7 +408,7 @@ export async function harness(
     },
     ...overrides,
   };
-  const catalogue = await createCatalogue(deps);
+  const catalogue = await createCatalogue(deps, overrides.mode ? { mode: overrides.mode } : {});
   return {
     catalogue,
     copy,

@@ -80,6 +80,7 @@ import {
 } from '@/views/body/bodyEditor';
 import { activeTableTarget } from '@/features/tables/target';
 import { getSourceEditor } from '@/views/source/sourceEditor';
+import { activePackageEntry } from '@/features/package/packageSessionModel';
 import { effortMembers } from '@/model/aiEffort';
 
 import {
@@ -366,6 +367,15 @@ export function stopAssistant(store: AppStore): void {
 
 let catalogueGeneration = 0;
 let cataloguePromise: Promise<Catalogue> | null = null;
+let catalogueMode: 'fb2' | 'package' = 'fb2';
+
+/** Rebuilds the MCP catalogue when workspace mode switches between FB2 and Package while AI is on. */
+export function syncCatalogueMode(store: AppStore): void {
+  const state = store.getState();
+  if (!state.ai.on) return;
+  if (cataloguePromise && catalogueMode === state.editorMode) return;
+  void openCatalogue(store).catch(() => {});
+}
 
 /**
  * The binding of the instance between requests: every use fails loudly (a tool call outside a
@@ -397,10 +407,15 @@ function unboundDeps(): CatalogueDeps {
  * instance whose turn-on ended while it was being built is closed at once.
  */
 function openCatalogue(store: AppStore): Promise<Catalogue> {
-  if (cataloguePromise) return cataloguePromise;
+  const wantedMode = store.getState().editorMode;
+  if (cataloguePromise && catalogueMode === wantedMode) return cataloguePromise;
+  if (cataloguePromise && catalogueMode !== wantedMode) {
+    closeCatalogue();
+  }
+  catalogueMode = wantedMode;
   catalogueGeneration += 1;
   const generation = catalogueGeneration;
-  const promise = createCatalogue(unboundDeps()).then((catalogue) => {
+  const promise = createCatalogue(unboundDeps(), { mode: wantedMode }).then((catalogue) => {
     if (generation !== catalogueGeneration || !store.getState().ai.on) {
       void catalogue.close().catch(() => {});
       throw new Error('the assistant was turned off while its catalogue was built');
@@ -521,6 +536,7 @@ export function cancelRequest(store: AppStore): void {
 export interface AssistantModule {
   startAssistant: typeof startAssistant;
   stopAssistant: typeof stopAssistant;
+  syncCatalogueMode?: typeof syncCatalogueMode;
   startRequest: typeof startRequest;
   cancelRequest: typeof cancelRequest;
   lastRequestInfo?: typeof lastRequestInfo;
@@ -1061,7 +1077,8 @@ class RequestRun {
         (rpc.runJob as (...a: unknown[]) => unknown)(...args)) as RpcClient['runJob'],
     };
     this.sessionRpc = sessionRpc;
-    const sourceEditor = state.activeView === 'source' ? getSourceEditor(store) : null;
+    const isPackage = state.editorMode === 'package';
+    const sourceEditor = !isPackage && state.activeView === 'source' ? getSourceEditor(store) : null;
     let selection = options.selection;
     // The text's own report when the text path starts on a well-formed text (its baseline).
     let textReport: ValidationReport | null = null;
@@ -1169,11 +1186,20 @@ class RequestRun {
           onCancel: () => this.cancel(),
           onDocumentReplaced: () => this.cancel(),
           onTick: (elapsedMs) => this.publish({ elapsedMs }),
-          // The Source view: the step tagged with it (Edit → Undo there stays there, the Body
-          // view's Ctrl+Z activates it) and the text put back along with the model (§8.3).
-          ...(this.source
-            ? { present: sourcePresenter(store, this.source), undoView: 'source' as const }
-            : {}),
+          // In Package mode publish strictly through the store (never the hidden Body controller).
+          ...(isPackage
+            ? {
+                present: (doc: Document) => {
+                  actions.updateDocument(store, doc);
+                  if (store.getState().activeView === 'source') {
+                    void getSourceEditor(store)?.load(this.ctx);
+                  }
+                },
+                undoView: 'description' as const,
+              }
+            : this.source
+              ? { present: sourcePresenter(store, this.source), undoView: 'source' as const }
+              : {}),
           // A cancel during the baseline stops its job and ends the request, nothing sent.
           cancel,
         },
@@ -1236,6 +1262,7 @@ class RequestRun {
     // The working context and the system prompt (ai-catalogue §2), built once per request -
     // rebuilt only when the outline is cut (§6.12 step 4). The Description view counts as the
     // Body view here: the working copy is the model and every tool is available (§6 step 3).
+    const activePkgEntry = isPackage ? activePackageEntry(state.packageState) : null;
     this.contextInput = {
       document: session.before,
       version: this.ctx.version,
@@ -1243,11 +1270,14 @@ class RequestRun {
       uiLanguage: state.uiLanguage,
       modified: session.modifiedBefore,
       // The Source view's panel request describes the selected text too (the tools see it).
-      selection: this.selection ?? sourceSelection,
-      caret: this.caret ?? source?.caret?.ref ?? null,
+      selection: isPackage ? null : (this.selection ?? sourceSelection),
+      caret: isPackage ? null : (this.caret ?? source?.caret?.ref ?? null),
       request: { kind: this.kind, source: options.origin },
       preExistingErrors: session.preExistingErrors,
-      ...(source ? { sourceWellFormed: source.wellFormed } : {}),
+      ...(!isPackage && source ? { sourceWellFormed: source.wellFormed } : {}),
+      ...(isPackage
+        ? { mode: 'package' as const, packageFileName: activePkgEntry?.fileName ?? '' }
+        : {}),
     };
     this.context = buildWorkingContext(this.contextInput);
     let systemMessage: ChatMessage = { role: 'system', content: systemPrompt(this.context) };

@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { deflateRawSync, inflateRawSync } from 'node:zlib';
 
-import { expect, test, waitForStartupDocument } from './fixtures/core';
+import { ensureAssistantOn, expect, test, waitForStartupDocument } from './fixtures/core';
 
 /** Minimal ZIP writer for building test fixtures (body-less FBD, subfolders, non-FBD ZIPs). */
 function writeTestZip(zipPath: string, items: Array<[string, Buffer | string]>): void {
@@ -442,6 +442,373 @@ test.describe('Feature 022: FBD ZIP Package Mode', () => {
         'Rendezvous with Rama (Revised)',
       );
     } finally {
+      rmSync(workDir, { recursive: true, force: true });
+    }
+  });
+
+  test('US3: focused Package workspace, full menu/toolbar audit, Import Description cover clamp, Validate, 5-tool AI with thinking-lock & per-entry chats, seamless FB2 restore', async ({
+    page,
+    core,
+    standin,
+  }) => {
+    test.skip(!core.hasCore, 'Requires mfbe-core binary');
+    const workDir = mkdtempSync(path.join(tmpdir(), 'mfbe-e2e-pkg-us3-'));
+    try {
+      const alphaPath = path.join(workDir, 'Alpha.pdf');
+      const betaPath = path.join(workDir, 'Beta.txt');
+      const importFb2Path = path.join(workDir, 'source-desc.fb2');
+
+      writeFileSync(alphaPath, Buffer.from('%PDF-1.7\nAlpha payload\n', 'utf8'));
+      writeFileSync(betaPath, Buffer.from('Beta payload text\n', 'utf8'));
+      const importFb2 =
+        '<?xml version="1.0" encoding="utf-8"?>\n' +
+        '<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">\n' +
+        '  <description>\n' +
+        '    <title-info>\n' +
+        '      <genre>sf</genre>\n' +
+        '      <author><first-name>Isaac</first-name><last-name>Asimov</last-name></author>\n' +
+        '      <book-title>Imported Chronicles</book-title>\n' +
+        '      <lang>en</lang>\n' +
+        '      <coverpage>\n' +
+        '        <image l:href="#first.png"/>\n' +
+        '        <image l:href="#second.jpg"/>\n' +
+        '      </coverpage>\n' +
+        '    </title-info>\n' +
+        '    <src-title-info>\n' +
+        '      <genre>sf</genre>\n' +
+        '      <author><first-name>Isaac</first-name><last-name>Asimov</last-name></author>\n' +
+        '      <book-title>Original Chronicles</book-title>\n' +
+        '      <lang>en</lang>\n' +
+        '      <coverpage><image l:href="#second.jpg"/></coverpage>\n' +
+        '    </src-title-info>\n' +
+        '    <document-info>\n' +
+        '      <author><first-name>Imp</first-name><last-name>Tester</last-name></author>\n' +
+        '      <date value="2026-11-27">2026-11-27</date>\n' +
+        '      <id>IMP-1</id>\n' +
+        '      <version>1.0</version>\n' +
+        '    </document-info>\n' +
+        '  </description>\n' +
+        '  <body><section><p>Body text ignored by Import Description.</p></section></body>\n' +
+        `  <binary id="first.png" content-type="image/png">${TINY_PNG.toString('base64')}</binary>\n` +
+        `  <binary id="second.jpg" content-type="image/jpeg">${TINY_JPEG.toString('base64')}</binary>\n` +
+        '</FictionBook>\n';
+      writeFileSync(importFb2Path, importFb2, 'utf8');
+
+      await standin.reset();
+      await core.rpc('settings.set', {
+        patch: {
+          ai: {
+            mode: 'custom',
+            custom: { address: `${standin.url}/v1`, key: '', model: 'standin-chat' },
+          },
+          session: { aiPanelVisible: false },
+        },
+      });
+
+      await core.openApp(page);
+      await waitForStartupDocument(page);
+
+      // Close DocumentTree and ensure Table bar is shown in FB2 mode so we can verify exact restoration later.
+      await page.getByTestId('menu-view').click();
+      await page.getByTestId('menu-view-tree').click();
+      await expect(page.getByTestId('tree-panel')).toHaveCount(0);
+
+      if ((await page.getByTestId('tablebar').count()) === 0) {
+        await page.getByTestId('menu-view').click();
+        await page.getByTestId('menu-view-tableBar').click();
+      }
+      await expect(page.getByTestId('tablebar')).toBeVisible();
+
+      // Enter Package mode via File -> New Package.
+      await page.getByTestId('menu-file').click();
+      await page.getByTestId('menu-file-newPackage').click();
+
+      await expect(page.getByTestId('app-root')).toHaveAttribute('data-editor-mode', 'package');
+      await expect(page.getByTestId('tree-panel')).toBeVisible();
+      await expect(page.getByTestId('package-files-sidebar')).toBeVisible();
+
+      // View tabs & toolbars focused on Package editing.
+      await expect(page.getByTestId('view-description')).toBeVisible();
+      await expect(page.getByTestId('view-source')).toBeVisible();
+      await expect(page.getByTestId('view-body')).toHaveCount(0);
+      await expect(page.getByTestId('view-styles')).toHaveCount(0);
+      await expect(page.getByTestId('toolbar-scripts')).toHaveCount(0);
+      await expect(page.getByTestId('linksbar')).toHaveCount(0);
+      await expect(page.getByTestId('tablebar')).toHaveCount(0);
+
+      // Menu audit in empty Package mode: Exports, non-FBD Imports, Body/Styles/Add/Style/Words/Spellcheck/Scripts disabled.
+      await page.getByTestId('menu-file').click();
+      await page.getByTestId('menu-file-import').hover();
+      await expect(page.getByTestId('menu-file-import-importDescription')).toHaveAttribute(
+        'aria-disabled',
+        'true',
+      );
+      for (const id of ['importMarkdown', 'importEpub', 'importPdf', 'importTxt', 'importMobi']) {
+        await expect(page.getByTestId(`menu-file-import-${id}`)).toHaveAttribute(
+          'aria-disabled',
+          'true',
+        );
+      }
+      await page.getByTestId('menu-file-export').hover();
+      for (const id of [
+        'exportFbd',
+        'exportMarkdown',
+        'exportMarkdownZip',
+        'exportEpub',
+        'exportPdf',
+        'exportTxt',
+        'exportMobi',
+      ]) {
+        await expect(page.getByTestId(`menu-file-export-${id}`)).toHaveAttribute(
+          'aria-disabled',
+          'true',
+        );
+      }
+      await page.keyboard.press('Escape');
+
+      await page.getByTestId('menu-edit').click();
+      for (const id of ['find', 'replace', 'clone', 'split', 'merge', 'tableStructure']) {
+        await expect(page.getByTestId(`menu-edit-${id}`)).toHaveAttribute('aria-disabled', 'true');
+      }
+      await page.keyboard.press('Escape');
+
+      await page.getByTestId('menu-view').click();
+      await expect(page.getByTestId('menu-view-body')).toHaveCount(0);
+      await expect(page.getByTestId('menu-view-styles')).toHaveCount(0);
+      await expect(page.getByTestId('menu-view-tree')).not.toHaveAttribute('aria-disabled', 'true');
+      await expect(page.getByTestId('menu-view-tree')).toContainText('Package Files');
+      for (const id of [
+        'preview',
+        'toolbarScripts',
+        'linksBar',
+        'tableBar',
+        'fastMode',
+      ]) {
+        await expect(page.getByTestId(`menu-view-${id}`)).toHaveAttribute('aria-disabled', 'true');
+      }
+      await page.keyboard.press('Escape');
+
+      await page.getByTestId('menu-add').click();
+      for (const id of ['body', 'image', 'table', 'binary']) {
+        await expect(page.getByTestId(`menu-add-${id}`)).toHaveAttribute('aria-disabled', 'true');
+      }
+      await page.keyboard.press('Escape');
+
+      await page.getByTestId('menu-style').click();
+      for (const id of ['normal', 'link', 'namedStyle']) {
+        await expect(page.getByTestId(`menu-style-${id}`)).toHaveAttribute('aria-disabled', 'true');
+      }
+      await page.keyboard.press('Escape');
+
+      await page.getByTestId('menu-scripts').click();
+      const scriptItems = page
+        .getByTestId('menu-scripts-popup')
+        .locator('[role="menuitem"]');
+      const scriptCount = await scriptItems.count();
+      expect(scriptCount).toBeGreaterThan(0);
+      for (let i = 0; i < scriptCount; i++) {
+        await expect(scriptItems.nth(i)).toHaveAttribute('aria-disabled', 'true');
+      }
+      await page.keyboard.press('Escape');
+
+      // Tools: Words & Spellcheck disabled; Settings & Batch Converter enabled and openable; Help -> About works.
+      await page.getByTestId('menu-tools').click();
+      await expect(page.getByTestId('menu-tools-words')).toHaveAttribute('aria-disabled', 'true');
+      await expect(page.getByTestId('menu-tools-spellcheck')).toHaveAttribute(
+        'aria-disabled',
+        'true',
+      );
+      await expect(page.getByTestId('menu-tools-settings')).not.toHaveAttribute(
+        'aria-disabled',
+        'true',
+      );
+      await expect(page.getByTestId('menu-tools-batchConverter')).not.toHaveAttribute(
+        'aria-disabled',
+        'true',
+      );
+      await page.getByTestId('menu-tools-settings').click();
+      await expect(page.getByTestId('dialog-settings')).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(page.getByTestId('dialog-settings')).toHaveCount(0);
+
+      await page.getByTestId('menu-tools').click();
+      await page.getByTestId('menu-tools-batchConverter').click();
+      await expect(page.getByTestId('dialog-batch-converter')).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(page.getByTestId('dialog-batch-converter')).toHaveCount(0);
+
+      await page.getByTestId('menu-help').click();
+      await page.getByTestId('menu-help-about').click();
+      await expect(page.getByTestId('dialog-about')).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(page.getByTestId('dialog-about')).toHaveCount(0);
+
+      // Open AI panel while package is empty: shows empty-package notice and disables Send.
+      await ensureAssistantOn(page);
+      await expect(page.getByTestId('ai-package-empty-notice')).toBeVisible();
+      await expect(page.getByTestId('ai-send')).toBeDisabled();
+
+      // Add Alpha.pdf and Beta.txt -> empty notice disappears, Package mode AI hint shown.
+      await core.enqueueDialog('dialog.openFile', { paths: [alphaPath, betaPath] });
+      await page.getByTestId('package-files-add').click();
+      const items = page.getByTestId('package-files-list').locator('li');
+      await expect(items).toHaveCount(2);
+      await expect(page.getByTestId('ai-package-empty-notice')).toHaveCount(0);
+      await expect(page.getByTestId('ai-package-mode-hint')).toBeVisible();
+
+      // Import Description from FB2 with 2 covers -> clamps to 1 canonical cover.png with zero extras.
+      await core.enqueueDialog('dialog.openFile', { paths: [importFb2Path] });
+      await page.getByTestId('menu-file').click();
+      await page.getByTestId('menu-file-import').hover();
+      await expect(page.getByTestId('menu-file-import-importDescription')).not.toHaveAttribute(
+        'aria-disabled',
+        'true',
+      );
+      await page.getByTestId('menu-file-import-importDescription').click();
+
+      await expect(page.getByTestId('description-book-title')).toHaveValue('Imported Chronicles');
+      await expect(page.getByTestId('description-cover-0-href')).toHaveText('#cover.png');
+      await expect(page.getByTestId('binary-objects-row-cover.png')).toBeVisible();
+      await expect(page.locator('[data-testid^="binary-objects-row-"]')).toHaveCount(1);
+
+      // File -> Validate works on the active package entry.
+      await page.getByTestId('menu-file').click();
+      await page.getByTestId('menu-file-validate').click();
+      await expect(page.getByTestId('validation-panel')).toBeVisible();
+      await page.getByTestId('validation-close').click();
+
+      // Description-only AI on Alpha.pdf: verify thinking-lock during flight, 5 tools only, live title update.
+      await standin.scenarios([
+        {
+          delayMs: 900,
+          toolCalls: [
+            {
+              id: 'call_alpha_1',
+              name: 'set_description',
+              arguments: { description: { titleInfo: { bookTitle: 'AI Renamed Alpha' } } },
+            },
+          ],
+        },
+        { text: 'Updated title for Alpha.pdf.' },
+      ]);
+
+      const beforeAlphaReq = await page.evaluate<string | null>(
+        'window.__mfbeTest?.ai?.lastRequest?.()?.id ?? null',
+      );
+      await page.getByTestId('ai-input').fill('Rename title to AI Renamed Alpha');
+      await page.getByTestId('ai-input').press('Enter');
+
+      // While AI is thinking, Package Files sidebar is locked and add/select/remove are disabled.
+      await expect(page.getByTestId('package-files-locked')).toBeVisible();
+      await expect(page.getByTestId('package-files-add')).toBeDisabled();
+      await expect(items.nth(1).locator('button').first()).toBeDisabled();
+
+      await expect
+        .poll(() =>
+          page.evaluate<string | null>('window.__mfbeTest?.ai?.lastRequest?.()?.id ?? null'),
+        )
+        .not.toBe(beforeAlphaReq);
+      await expect(page.getByTestId('ai-send')).toBeVisible();
+      await expect(page.getByTestId('package-files-locked')).toHaveCount(0);
+      await expect(page.getByTestId('description-book-title')).toHaveValue('AI Renamed Alpha');
+
+      const pkgRequests = await standin.requests();
+      const pkgChatReq = pkgRequests.find((r) => r.path.endsWith('/chat/completions'));
+      expect(pkgChatReq).toBeTruthy();
+      const pkgBody = pkgChatReq!.body as {
+        messages: Array<{ role: string; content: string }>;
+        tools?: Array<{ function: { name: string } }>;
+      };
+      const pkgToolNames = (pkgBody.tools ?? []).map((t) => t.function.name);
+      expect(pkgToolNames).toEqual([
+        'get_context',
+        'get_description',
+        'validate',
+        'get_schema',
+        'set_description',
+      ]);
+      expect(pkgBody.messages[0]?.content).toContain('Alpha.pdf');
+      expect(pkgBody.messages[0]?.content).toContain('FBD ZIP Package mode');
+
+      // Switch to Beta.txt -> isolated empty conversation; send a question on Beta.txt.
+      await items.nth(1).locator('button').first().click();
+      await expect(page.getByTestId('package-active-file-name')).toHaveText('Beta.txt');
+      await expect(page.locator('[data-testid^="ai-message-"]')).toHaveCount(0);
+
+      await standin.scenarios([{ text: 'Beta.txt currently has no title.' }]);
+      const beforeBetaReq = await page.evaluate<string | null>(
+        'window.__mfbeTest?.ai?.lastRequest?.()?.id ?? null',
+      );
+      await page.getByTestId('ai-input').fill('What is the title of Beta?');
+      await page.getByTestId('ai-input').press('Enter');
+      await expect
+        .poll(() =>
+          page.evaluate<string | null>('window.__mfbeTest?.ai?.lastRequest?.()?.id ?? null'),
+        )
+        .not.toBe(beforeBetaReq);
+      await expect(page.getByTestId('ai-panel')).toContainText('Beta.txt currently has no title.');
+
+      // Switch back to Alpha.pdf -> Alpha.pdf's idle conversation is restored intact!
+      await items.nth(0).locator('button').first().click();
+      await expect(page.getByTestId('package-active-file-name')).toHaveText('Alpha.pdf');
+      await expect(page.getByTestId('ai-panel')).toContainText('Updated title for Alpha.pdf.');
+      await expect(page.getByTestId('ai-panel')).not.toContainText(
+        'Beta.txt currently has no title.',
+      );
+
+      // Seamless switch back to FB2 mode (discard unsaved package changes).
+      await page.getByTestId('menu-file').click();
+      await page.getByTestId('menu-file-new').click();
+      await expect(page.getByTestId('dialog-package-save-changes')).toBeVisible();
+      await page.getByTestId('dialog-package-save-changes-button-no').click();
+
+      await expect(page.getByTestId('app-root')).toHaveAttribute('data-editor-mode', 'fb2');
+      // DocumentTree restored to its pre-Package closed state; Table bar restored!
+      await expect(page.getByTestId('tree-panel')).toHaveCount(0);
+      await expect(page.getByTestId('tablebar')).toBeVisible();
+      // All 4 view tabs visible and Source editable again!
+      await expect(page.getByTestId('view-body')).toBeVisible();
+      await expect(page.getByTestId('view-styles')).toBeVisible();
+      await page.getByTestId('view-source').click();
+      await expect(page.getByTestId('source-view')).toHaveAttribute('data-readonly', 'false');
+      await expect(page.getByTestId('package-source-readonly-badge')).toHaveCount(0);
+      await page.getByTestId('view-body').click();
+
+      // FB2 tools re-enabled (Words) and AI catalogue switches back to all 26 FB2 tools!
+      await page.getByTestId('menu-tools').click();
+      await expect(page.getByTestId('menu-tools-words')).not.toHaveAttribute(
+        'aria-disabled',
+        'true',
+      );
+      await page.keyboard.press('Escape');
+
+      await standin.reset();
+      await standin.scenarios([{ text: 'Back in full FB2 mode.' }]);
+      const beforeFb2Req = await page.evaluate<string | null>(
+        'window.__mfbeTest?.ai?.lastRequest?.()?.id ?? null',
+      );
+      await page.getByTestId('ai-input').fill('Confirm full FB2 mode.');
+      await page.getByTestId('ai-input').press('Enter');
+      await expect
+        .poll(() =>
+          page.evaluate<string | null>('window.__mfbeTest?.ai?.lastRequest?.()?.id ?? null'),
+        )
+        .not.toBe(beforeFb2Req);
+      const fb2Requests = await standin.requests();
+      const fb2ChatReq = fb2Requests.find((r) => r.path.endsWith('/chat/completions'));
+      expect(fb2ChatReq).toBeTruthy();
+      const fb2Tools = (
+        (fb2ChatReq!.body as { tools?: Array<{ function: { name: string } }> }).tools ?? []
+      ).map((t) => t.function.name);
+      expect(fb2Tools.length).toBe(26);
+      expect(fb2Tools).toContain('replace_node');
+      expect(fb2Tools).toContain('run_script');
+    } finally {
+      await core
+        .rpc('settings.set', {
+          patch: { ai: null, session: { aiPanelVisible: true } },
+        })
+        .catch(() => {});
       rmSync(workDir, { recursive: true, force: true });
     }
   });

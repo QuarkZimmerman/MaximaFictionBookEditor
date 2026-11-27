@@ -21,6 +21,11 @@ import { proposedFileName } from '@/features/file/proposedName';
 import { keepsBackup, savedMessage } from '@/features/file/saveOutcome';
 import { parseAccelerator } from '@/i18n';
 import type { CaretRegistry } from '@/model/caret';
+import {
+  isCommandAllowedInPackageMode,
+  isCommandVisibleInPackageMode,
+  requiresActivePackageEntry,
+} from '@/features/package/packageModePolicy';
 import { actions, type AppStore, documentFileName, isRunLocked } from '@/model/store';
 import { namingUndo, type UndoCoordinator } from '@/model/undo';
 import { RpcError, type RpcClient } from '@/rpc/client';
@@ -181,9 +186,15 @@ export class CommandRegistry {
   isEnabled(id: string, ctx: CommandContext): boolean {
     const command = this.commands.get(id);
     if (!command || command.stub) return false;
+    const state = ctx.store.getState();
     // Feature 010 (US1, D1): nothing runs before the start-up document is shown.
-    if (ctx.store.getState().startup === 'starting') return false;
-    if (isRunLocked(ctx.store.getState()) && command.duringScriptRun !== 'allowed') return false;
+    if (state.startup === 'starting') return false;
+    // Feature 022 (FR-016..FR-020): central Package editing mode command allow-list.
+    if (state.editorMode === 'package') {
+      if (!isCommandAllowedInPackageMode(id)) return false;
+      if (requiresActivePackageEntry(id) && !state.document) return false;
+    }
+    if (isRunLocked(state) && command.duringScriptRun !== 'allowed') return false;
     return command.enabled ? command.enabled(ctx) : true;
   }
 
@@ -197,9 +208,18 @@ export class CommandRegistry {
    */
   unavailableReason(id: string, ctx: CommandContext): string | null {
     const command = this.commands.get(id);
-    if (!command || command.stub || !command.unavailableReason) return null;
+    if (!command || command.stub) return null;
     if (this.isEnabled(id, ctx)) return null;
     const state = ctx.store.getState();
+    if (state.editorMode === 'package') {
+      if (!isCommandAllowedInPackageMode(id)) {
+        return ctx.t('package.unavailable.packageMode') as string;
+      }
+      if (requiresActivePackageEntry(id) && !state.document) {
+        return ctx.t('package.unavailable.noActiveFile') as string;
+      }
+    }
+    if (!command.unavailableReason) return null;
     if (isRunLocked(state) && command.duringScriptRun !== 'allowed') {
       return ctx.t(`commands.unavailable.runLock.${state.runLock!.kind}`) as string;
     }
@@ -254,6 +274,9 @@ export class CommandRegistry {
   isVisible(id: string, ctx: CommandContext): boolean {
     const command = this.commands.get(id);
     if (!command) return false;
+    if (ctx.store.getState().editorMode === 'package' && !isCommandVisibleInPackageMode(id)) {
+      return false;
+    }
     return command.visible ? command.visible(ctx) : true;
   }
 

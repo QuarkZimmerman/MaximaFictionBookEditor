@@ -168,9 +168,19 @@ export class AiFeature {
     if (options.testHooks || testHooksRequested()) this.installHooks();
     this.unsubscribe = store.subscribe((state, previous) => {
       if (state.settings !== previous.settings) void this.onSettings(state.settings);
+      if (state.editorMode !== previous.editorMode && state.ai.on) {
+        this.module?.syncCatalogueMode?.(this.store);
+      }
       if (state.docId !== previous.docId && state.ai.on) {
-        // After the notification round: the clearing is a store update of its own.
-        void Promise.resolve().then(() => this.onDocumentReplaced());
+        const samePackageSwitch =
+          state.editorMode === 'package' &&
+          previous.editorMode === 'package' &&
+          state.packageState?.packageId !== undefined &&
+          state.packageState?.packageId === previous.packageState?.packageId;
+        if (!samePackageSwitch) {
+          // After the notification round: the clearing is a store update of its own.
+          void Promise.resolve().then(() => this.onDocumentReplaced());
+        }
       }
     });
     this.removeBeforeApply = registerBeforeApply((draft, original) =>
