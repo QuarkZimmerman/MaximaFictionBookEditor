@@ -801,7 +801,14 @@ test.describe('Feature 022: FBD ZIP Package Mode', () => {
     } finally {
       await core
         .rpc('settings.set', {
-          patch: { ai: null, session: { aiPanelVisible: true } },
+          patch: {
+            ai: null,
+            session: {
+              aiPanelVisible: true,
+              treeVisible: true,
+              toolbars: { commands: true, scripts: true, links: true, table: true, status: true },
+            },
+          },
         })
         .catch(() => {});
       rmSync(workDir, { recursive: true, force: true });

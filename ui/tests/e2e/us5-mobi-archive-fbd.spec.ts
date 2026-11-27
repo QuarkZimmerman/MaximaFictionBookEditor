@@ -244,15 +244,15 @@ with zipfile.ZipFile(sys.argv[1]) as z:
     await expect(refused).toContainText('File > Import > MOBI File');
     await refused.getByRole('button').first().click();
 
-    // Opening FBD+MOBI ZIP via File > Open opens the FBD directly!
+    // Opening FBD+MOBI ZIP via File > Open auto-detects FBD ZIP Package mode (feature 022, FR-003).
     await core.enqueueDialog('dialog.openFile', { paths: [zipPath] });
     await page.getByTestId('menu-file').click();
     await page.getByTestId('menu-file-open').click();
     if (await savePrompt.isVisible({ timeout: 500 }).catch(() => false)) {
       await savePrompt.getByTestId('dialog-save-changes-button-no').click();
     }
-    await expect(page).toHaveTitle(/^ref-bundle\.fbd \(ref-bundle\.zip\)/);
-    await page.getByRole('button', { name: 'Description' }).click();
+    await expect(page.getByTestId('app-root')).toHaveAttribute('data-editor-mode', 'package');
+    await expect(page).toHaveTitle(/^ref-bundle\.zip - /);
     await expect(page.locator('input[value="The Reference Book"]').first()).toBeVisible();
   });
 

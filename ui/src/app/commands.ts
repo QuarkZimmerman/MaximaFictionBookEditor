@@ -445,8 +445,10 @@ export function setConfirmDiscardHandler(
 }
 
 export async function confirmDiscardChanges(ctx: CommandContext): Promise<boolean> {
-  const custom = discardHandlers.get(ctx.store);
-  if (custom) return custom(ctx);
+  if (ctx.store.getState().editorMode === 'package') {
+    const custom = discardHandlers.get(ctx.store);
+    if (custom) return custom(ctx);
+  }
   if (!ctx.store.getState().modified) return true;
   const answer = await ctx.dialogs.showMessage({
     text: ctx.t('msg.saveChanges', { name: currentDocumentName(ctx) }),
