@@ -125,7 +125,9 @@
         "hotkeys": "The keyboard shortcuts of every command.",
         "words": "The words the Words dialog leaves out of its list.",
         "ai": "The AI assistant: which service answers, or none at all."
-      }
+      },
+      "tabsScrollLeft": "Show earlier tabs on the left.",
+      "tabsScrollRight": "Show more tabs on the right."
     },
     "dialog": {
       "dontAskAgain": "Answer like this from now on, without asking again; the question can be turned back on in the Settings."

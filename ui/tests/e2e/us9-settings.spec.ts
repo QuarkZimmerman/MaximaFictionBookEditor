@@ -239,6 +239,42 @@ test.describe('US9 - configure settings and hotkeys', () => {
     await expect(page.getByTestId('settings-page-words')).toBeHidden();
   });
 
+  test('1c. overflowing tabs use << and >> shift buttons without a dialog horizontal scrollbar', async ({
+    core,
+    page,
+  }) => {
+    await core.openApp(page);
+    await openSettings(page);
+    const dialog = page.getByTestId('dialog-settings');
+    const bodyOverflow = await dialog
+      .locator('.mfbe-dialog-body')
+      .evaluate((el) => el.scrollWidth - el.clientWidth);
+    expect(bodyOverflow).toBeLessThanOrEqual(1);
+
+    const leftBtn = page.getByTestId('settings-tabs-scroll-left');
+    const rightBtn = page.getByTestId('settings-tabs-scroll-right');
+    await expect(leftBtn).toBeVisible();
+    await expect(rightBtn).toBeVisible();
+    await expect(leftBtn).toBeDisabled();
+    await expect(rightBtn).toBeEnabled();
+
+    // Shift right until the rightmost tab is reachable; << becomes enabled immediately.
+    await rightBtn.click();
+    await expect(leftBtn).toBeEnabled();
+    while (await rightBtn.isEnabled()) {
+      await rightBtn.click();
+    }
+    await expect(rightBtn).toBeDisabled();
+    await expect(leftBtn).toBeEnabled();
+
+    // Shift back left to the start; << disables again and >> is enabled.
+    while (await leftBtn.isEnabled()) {
+      await leftBtn.click();
+    }
+    await expect(leftBtn).toBeDisabled();
+    await expect(rightBtn).toBeEnabled();
+  });
+
   test('2. a conflicting hotkey is reported; replace, delete and default work', async ({
     page,
   }) => {

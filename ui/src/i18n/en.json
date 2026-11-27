@@ -795,6 +795,8 @@
         "ai": "AI assistant"
       },
       "apply": "Apply",
+      "scrollTabsLeft": "Scroll tabs left",
+      "scrollTabsRight": "Scroll tabs right",
       "view": {
         "common": "Common",
         "language": "Language:",
