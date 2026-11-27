@@ -463,8 +463,8 @@ async function openDocument(ctx: CommandContext, path: string): Promise<void> {
       { path },
       { onProgress: (progress) => actions.setProgress(ctx.store, progress) },
     );
-    // This minimal path has no book chooser; the File commands' own route has (feature 009).
-    if ('needsChoice' in result) return;
+    // This minimal path has no book chooser or package opener; FileCommands handles both.
+    if ('needsChoice' in result || 'packageDetected' in result) return;
     loadDocument(ctx, result.document);
   } catch (error) {
     const reason = error instanceof RpcError ? error.message : String(error);

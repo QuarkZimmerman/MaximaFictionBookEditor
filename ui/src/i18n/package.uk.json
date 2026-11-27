@@ -1,0 +1,107 @@
+{
+  "menu": {
+    "file": {
+      "newPackage": "Створити паке&т"
+    },
+    "view": {
+      "packageFiles": "&Файли пакета"
+    }
+  },
+  "cmd": {
+    "file": {
+      "newPackage": {
+        "tooltip": "Створити пакет",
+        "description": "Створити новий FBD ZIP-пакет для книг у форматах, відмінних від FB2"
+      }
+    }
+  },
+  "package": {
+    "modeLabel": "FBD ZIP-пакет",
+    "untitled": "Безіменний пакет",
+    "defaultMultiFileZipName": "пакет",
+    "sidebar": {
+      "title": "Файли пакета",
+      "add": "Додати файли...",
+      "remove": "Видалити",
+      "empty": "Файли книг ще не додано. Натисніть +, щоб прикріпити PDF, DjVu, EPUB, MOBI, TXT, DOC, DOCX або інший файл не у форматі FB2.",
+      "count_one": "{{count}} файл",
+      "count_few": "{{count}} файли",
+      "count_many": "{{count}} файлів",
+      "count_other": "{{count}} файлу",
+      "statusReady": "Опис заповнено",
+      "statusEmpty": "Порожній опис",
+      "statusCover": "Є обкладинка",
+      "activeBadge": "Активний",
+      "lockedByAi": "Дочекайтеся завершення або зупиніть ШІ-помічника перед зміною списку файлів."
+    },
+    "activeFile": {
+      "editing": "Редагування метаданих для:",
+      "viewingSource": "Перегляд FBD XML (лише читання) для:",
+      "readOnlyBadge": "Лише читання",
+      "emptyTitle": "Файл не вибрано",
+      "emptyHint": "Додайте файл книги (не FB2) на панелі «Файли пакета» ліворуч, щоб відредагувати його опис FBD та переглянути XML."
+    },
+    "dialogs": {
+      "addTitle": "Додати файли книг до пакета",
+      "saveTitle": "Зберегти FBD ZIP-пакет",
+      "bookFormats": "Файли книг (*.epub; *.mobi; *.azw; *.azw3; *.prc; *.pdf; *.txt; *.doc; *.docx; *.rtf; *.djvu; *.md; *.odt; *.html; *.htm; *.chm)",
+      "zipPackages": "FBD ZIP-пакети (*.zip)",
+      "removeConfirm": "Видалити «{{fileName}}» та його FBD-метадані з цього пакета?",
+      "saveChanges": "Зберегти зміни в пакеті «{{name}}»?",
+      "saveValidationFailed": "Під час перевірки описів FBD у пакеті знайдено помилок: {{count}}. Усе одно зберегти пакет?",
+      "addCover": "Додати обкладинку...",
+      "replaceCover": "Замінити обкладинку...",
+      "removeCover": "Видалити обкладинку"
+    },
+    "ai": {
+      "emptyPackage": "Спочатку додайте файл книги до панелі «Файли пакета», щоб редагувати його опис за допомогою ШІ-помічника.",
+      "descriptionOnlyHint": "Режим пакета: доступні лише інструменти опису для {{fileName}}."
+    },
+    "settings": {
+      "startupGroup": "Запуск",
+      "startupMode": "Режим під час запуску:",
+      "startupFb2": "Режим редагування FB2",
+      "startupPackage": "Режим редагування пакета"
+    },
+    "status": {
+      "saved": "Пакет збережено: {{path}}",
+      "savedWithErrors": "Пакет збережено: {{path}} (помилок перевірки: {{count}})",
+      "opened": "Відкрито пакет {{path}} (файлів: {{count}})",
+      "droppedExtraImages": "Деякі записи FBD містили кілька зображень; для кожного файлу збережено лише першу обкладинку.",
+      "added_one": "До пакета додано {{count}} файл",
+      "added_few": "До пакета додано {{count}} файли",
+      "added_many": "До пакета додано {{count}} файлів",
+      "added_other": "До пакета додано {{count}} файлу",
+      "removed": "Файл {{fileName}} видалено з пакета"
+    },
+    "errors": {
+      "emptyPackageSave": "Додайте принаймні один файл книги на панелі «Файли пакета» перед збереженням.",
+      "rejectedHeader": "Такі файли не вдалося додати до пакета:",
+      "notFound": "{{name}}: файл не знайдено.",
+      "notFile": "{{name}}: теки не можна додавати до пакета.",
+      "unreadable": "{{name}}: файл недоступний для читання.",
+      "forbiddenFb2": "{{name}}: файли FB2 не можна пакувати в FBD ZIP-пакет.",
+      "forbiddenFbd": "{{name}}: файли FBD не можна додавати як файли книги.",
+      "forbiddenArchive": "{{name}}: архіви не можна пакувати в FBD ZIP-пакет.",
+      "duplicateStem": "{{name}}: базове ім'я збігається з «{{conflictWith}}» (кожному файлу потрібне унікальне ім'я для парного .fbd).",
+      "openFailed": "Не вдалося відкрити пакет «{{path}}»: {{reason}}",
+      "saveFailed": "Не вдалося зберегти пакет «{{path}}»: {{reason}}",
+      "notZip": "Файл не є коректним ZIP-архівом.",
+      "damaged": "ZIP-архів пошкоджено або він не читається.",
+      "encrypted": "ZIP-архів містить зашифровані записи.",
+      "multiVolume": "Багатотомні ZIP-архіви не підтримуються.",
+      "noFbd": "ZIP-архів не містить файл опису FBD.",
+      "noPayload": "ZIP-архів не містить підтримуваних файлів книг (не FB2).",
+      "archiveDuplicateStem": "Два файли книг у корені архіву мають однакове базове ім'я.",
+      "fbdParseError": "Запис FBD «{{entry}}» містить некоректний XML (рядок {{line}}, стовпець {{column}}): {{detail}}",
+      "fbdNotFictionBook": "Запис FBD «{{entry}}» не є документом FictionBook.",
+      "sourceMissing": "Вихідний файл «{{entry}}» більше не знайдено на диску.",
+      "sourceUnreadable": "Не вдалося прочитати вихідний файл «{{entry}}».",
+      "ioError": "Помилка вводу-виводу під час запису пакета."
+    },
+    "unavailable": {
+      "packageMode": "Недоступно в режимі редагування пакета",
+      "noActiveFile": "Спочатку додайте файл у «Файли пакета»"
+    }
+  }
+}

@@ -9,6 +9,11 @@ import { useSyncExternalStore } from 'react';
 import { forgetBinaries, observeBinaries } from './binaryUrls';
 import type { Description, Document, ValidationReport } from './document';
 import { ensureUniqueNodeIds } from './uniqueIds';
+import {
+  syncActiveEntryDocument,
+  type EditorMode,
+  type FbdPackageUiState,
+} from '@/features/package/packageSessionModel';
 import type { ConnectionStatus as RpcConnectionStatus } from '@/rpc/client';
 import type {
   DocParseErrorData,
@@ -246,6 +251,12 @@ export interface AppState {
   uiLanguage: UiLanguage;
   /** The AI assistant (feature 005): the panel's visibility and width mirror two session keys. */
   ai: AssistantState;
+  /** Feature 022: active editor mode ('fb2' or 'package'). */
+  editorMode: EditorMode;
+  /** Feature 022: active icon/action on the toolbar New split button ('fb2' or 'package'). */
+  toolbarNewAction: EditorMode;
+  /** Feature 022: active FBD ZIP package state (non-null iff editorMode === 'package'). */
+  packageState: FbdPackageUiState | null;
 }
 
 export const DEFAULT_TOOLBARS: ToolbarVisibility = {
@@ -325,6 +336,9 @@ export function createInitialState(overrides: Partial<AppState> = {}): AppState 
     layoutSavesPending: 0,
     uiLanguage: 'en',
     ai: createAssistantState(),
+    editorMode: 'fb2',
+    toolbarNewAction: 'fb2',
+    packageState: null,
     ...overrides,
   };
 }
@@ -469,11 +483,23 @@ export const actions = {
 
   /** Applies an edited model (same docId) and marks the document modified. */
   updateDocument(store: AppStore, document: Document): void {
-    store.setState((s) => ({
-      document: ensureUniqueNodeIds(keepArchiveOrigin(s.document, document)),
-      modified: true,
-      contentRevision: s.contentRevision + 1,
-    }));
+    store.setState((s) => {
+      const nextDoc = ensureUniqueNodeIds(keepArchiveOrigin(s.document, document));
+      if (s.editorMode === 'package' && s.packageState) {
+        const nextPkg = syncActiveEntryDocument(s.packageState, nextDoc, true);
+        return {
+          document: nextDoc,
+          modified: true,
+          packageState: nextPkg,
+          contentRevision: s.contentRevision + 1,
+        };
+      }
+      return {
+        document: nextDoc,
+        modified: true,
+        contentRevision: s.contentRevision + 1,
+      };
+    });
   },
 
   closeDocument(store: AppStore): void {
@@ -713,6 +739,21 @@ export const actions = {
 
   setUiLanguage(store: AppStore, uiLanguage: UiLanguage): void {
     store.setState({ uiLanguage });
+  },
+
+  /** Feature 022: updates the toolbar New split button's active mode ('fb2' | 'package'). */
+  setToolbarNewAction(store: AppStore, toolbarNewAction: EditorMode): void {
+    store.setState({ toolbarNewAction });
+  },
+
+  /** Feature 022: updates package editing state (kept thin; packageCommands owns transitions). */
+  setPackageState(store: AppStore, packageState: FbdPackageUiState | null): void {
+    store.setState((s) => ({
+      packageState,
+      ...(s.editorMode === 'package' && packageState
+        ? { modified: packageState.modified, path: packageState.zipPath }
+        : {}),
+    }));
   },
 };
 

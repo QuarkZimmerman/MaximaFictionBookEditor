@@ -17,6 +17,7 @@ inline constexpr int kApiVersion = 1;
 // feature 018 = 16 (MOBI/KF8 export and import: specs/018-mobi-export-import/contracts/rpc-api.md),
 // feature 019 = 17 (Batch Converter utility: specs/019-batch-converter/contracts/rpc-api.md),
 // feature 020 = 18 (PDF import OCR with language detection: specs/020-pdf-import-ocr/contracts/rpc-api.md),
-// feature 021 = 19 (Maxima Library Lookup Service v2 integration: specs/021-maxima-library-lookup/contracts/rpc-api.md).
-inline constexpr int kApiMinor = 19;
+// feature 021 = 19 (Maxima Library Lookup Service v2 integration: specs/021-maxima-library-lookup/contracts/rpc-api.md),
+// feature 022 = 20 (FBD ZIP package mode: specs/022-fbd-package-mode/contracts/rpc-api.md).
+inline constexpr int kApiMinor = 20;
 }  // namespace mfbe::version

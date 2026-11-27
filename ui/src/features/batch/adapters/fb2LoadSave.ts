@@ -212,6 +212,9 @@ export async function openEphemeralFb2(
   if ('needsChoice' in answer) {
     throw new Error('Archive requires an explicit book entry');
   }
+  if ('packageDetected' in answer) {
+    throw new Error('Archive is an FBD package rather than an FB2 document');
+  }
   const repairedReason = extractXmlRepairedReason(answer.warnings, options.t);
   return {
     docId: answer.document.docId,

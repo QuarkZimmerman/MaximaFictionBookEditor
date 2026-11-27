@@ -411,6 +411,110 @@ BackupOutcome write_atomic(const std::filesystem::path& path, std::string_view b
     return write_temp_and_replace(target, make_temp_path(target), bytes, options);
 }
 
+std::filesystem::path make_sibling_temp_path(const std::filesystem::path& path) {
+    if (path.empty()) {
+        throw WriteError("", "empty path");
+    }
+    const std::filesystem::path target = std::filesystem::absolute(path);
+    std::error_code ec;
+    if (!std::filesystem::is_directory(target.parent_path(), ec)) {
+        throw WriteError(platform::utf8_from_path(target), "directory does not exist");
+    }
+    return make_temp_path(target);
+}
+
+void replace_from_temp(const std::filesystem::path& path, const std::filesystem::path& temp) {
+    if (path.empty()) {
+        std::error_code rm_ec;
+        std::filesystem::remove(temp, rm_ec);
+        throw WriteError("", "empty path");
+    }
+    const std::filesystem::path target = std::filesystem::absolute(path);
+#ifdef _WIN32
+    if (take_fault(FaultPoint::before_fsync)) {
+        DeleteFileW(temp.c_str());
+        throw WriteError(platform::utf8_from_path(target), "injected fault: before_fsync");
+    }
+    HANDLE h = CreateFileW(temp.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
+                           FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (h != INVALID_HANDLE_VALUE) {
+        const BOOL flushed = FlushFileBuffers(h);
+        const std::string err = flushed ? std::string() : last_error_message();
+        CloseHandle(h);
+        if (!flushed) {
+            DeleteFileW(temp.c_str());
+            throw WriteError(platform::utf8_from_path(target), "flush failed: " + err);
+        }
+    }
+    if (take_fault(FaultPoint::before_rename)) {
+        DeleteFileW(temp.c_str());
+        throw WriteError(platform::utf8_from_path(target), "injected fault: before_rename");
+    }
+    const DWORD attrs = GetFileAttributesW(target.c_str());
+    const bool exists = attrs != INVALID_FILE_ATTRIBUTES;
+    BOOL ok = FALSE;
+    if (exists) {
+        ok = retry_while_locked(temp, [&] {
+            return ReplaceFileW(target.c_str(), temp.c_str(), nullptr,
+                                REPLACEFILE_IGNORE_MERGE_ERRORS, nullptr, nullptr);
+        });
+    } else {
+        ok = retry_while_locked(temp, [&] {
+            return MoveFileExW(temp.c_str(), target.c_str(),
+                               MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
+        });
+    }
+    if (!ok) {
+        const std::string reason = "replace failed: " + last_error_message();
+        DeleteFileW(temp.c_str());
+        throw WriteError(platform::utf8_from_path(target), reason);
+    }
+#else
+    mode_t mode = 0644;
+    struct stat st{};
+    const bool target_exists = ::stat(target.c_str(), &st) == 0;
+    if (target_exists) {
+        mode = st.st_mode & 07777;
+    }
+    if (take_fault(FaultPoint::before_fsync)) {
+        ::unlink(temp.c_str());
+        throw WriteError(platform::utf8_from_path(target), "injected fault: before_fsync");
+    }
+    const int fd = ::open(temp.c_str(), O_RDWR | O_CLOEXEC);
+    if (fd < 0) {
+        const std::string reason = "cannot open temporary file for flush: " + errno_message(errno);
+        ::unlink(temp.c_str());
+        throw WriteError(platform::utf8_from_path(target), reason);
+    }
+    if (::fsync(fd) != 0) {
+        const std::string reason = "flush failed: " + errno_message(errno);
+        ::close(fd);
+        ::unlink(temp.c_str());
+        throw WriteError(platform::utf8_from_path(target), reason);
+    }
+    (void)::fchmod(fd, mode);
+    if (::close(fd) != 0) {
+        const std::string reason = "close failed: " + errno_message(errno);
+        ::unlink(temp.c_str());
+        throw WriteError(platform::utf8_from_path(target), reason);
+    }
+    if (take_fault(FaultPoint::before_rename)) {
+        ::unlink(temp.c_str());
+        throw WriteError(platform::utf8_from_path(target), "injected fault: before_rename");
+    }
+    if (::rename(temp.c_str(), target.c_str()) != 0) {
+        const std::string reason = "rename failed: " + errno_message(errno);
+        ::unlink(temp.c_str());
+        throw WriteError(platform::utf8_from_path(target), reason);
+    }
+    const int dir_fd = ::open(target.parent_path().c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    if (dir_fd >= 0) {
+        (void)::fsync(dir_fd);
+        ::close(dir_fd);
+    }
+#endif
+}
+
 std::string read_file(const std::filesystem::path& path) {
     // A folder opens as a stream on Linux and macOS (libstdc++ then throws from the read,
     // libc++ reads nothing); refused up front so every platform answers alike.

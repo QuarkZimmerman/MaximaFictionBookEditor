@@ -305,6 +305,13 @@
       "prevBlock": "Show the previous text block from the file.",
       "nextBlock": "Show the next text block from the file.",
       "cleanInvalid": "Remove hidden or broken characters (such as zero-width spaces) that turn into question marks in older encodings."
+    },
+    "package": {
+      "newDropdown": "Choose whether the New button creates an FB2 document or an FBD ZIP package.",
+      "addFile": "Add one or more non-FB2 book files to this package.",
+      "selectFile": "Select this book file to edit its FBD description and view its XML.",
+      "removeFile": "Remove this book file and its FBD metadata from the package.",
+      "startupMode": "Choose whether the editor starts in FB2 editing mode or Package editing mode when launched without a file."
     }
   }
 }

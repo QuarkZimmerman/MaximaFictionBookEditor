@@ -1,0 +1,103 @@
+{
+  "menu": {
+    "file": {
+      "newPackage": "New &Package"
+    },
+    "view": {
+      "packageFiles": "Package &Files"
+    }
+  },
+  "cmd": {
+    "file": {
+      "newPackage": {
+        "tooltip": "New Package",
+        "description": "Start a new FBD ZIP package for non-FB2 book files"
+      }
+    }
+  },
+  "package": {
+    "modeLabel": "FBD ZIP package",
+    "untitled": "Untitled package",
+    "defaultMultiFileZipName": "package",
+    "sidebar": {
+      "title": "Package Files",
+      "add": "Add files...",
+      "remove": "Remove",
+      "empty": "No book files added yet. Click + to attach a PDF, DjVu, EPUB, MOBI, TXT, DOC, DOCX, or other non-FB2 file.",
+      "count_one": "{{count}} file",
+      "count_other": "{{count}} files",
+      "statusReady": "Metadata ready",
+      "statusEmpty": "Empty description",
+      "statusCover": "Cover attached",
+      "activeBadge": "Active",
+      "lockedByAi": "Finish or stop the AI assistant before changing package files."
+    },
+    "activeFile": {
+      "editing": "Editing metadata for:",
+      "viewingSource": "Viewing read-only FBD XML for:",
+      "readOnlyBadge": "Read-only",
+      "emptyTitle": "No file selected",
+      "emptyHint": "Add a non-FB2 book file in the Package Files panel on the left to edit its FBD description and view its generated XML."
+    },
+    "dialogs": {
+      "addTitle": "Add Book Files to Package",
+      "saveTitle": "Save FBD ZIP Package",
+      "bookFormats": "Book files (*.epub; *.mobi; *.azw; *.azw3; *.prc; *.pdf; *.txt; *.doc; *.docx; *.rtf; *.djvu; *.md; *.odt; *.html; *.htm; *.chm)",
+      "zipPackages": "FBD ZIP packages (*.zip)",
+      "removeConfirm": "Remove \"{{fileName}}\" and its FBD metadata from this package?",
+      "saveChanges": "Save changes to package \"{{name}}\"?",
+      "saveValidationFailed": "Validation found {{count}} issue(s) across the package's FBD descriptions. Save the package anyway?",
+      "addCover": "Add cover image...",
+      "replaceCover": "Replace cover...",
+      "removeCover": "Remove cover"
+    },
+    "ai": {
+      "emptyPackage": "Add a book file in Package Files first before asking the AI assistant to edit its description.",
+      "descriptionOnlyHint": "Package mode: description-only tools active for {{fileName}}."
+    },
+    "settings": {
+      "startupGroup": "Startup",
+      "startupMode": "Startup mode:",
+      "startupFb2": "FB2 editing mode",
+      "startupPackage": "Package editing mode"
+    },
+    "status": {
+      "saved": "Saved package {{path}}",
+      "savedWithErrors": "Saved package {{path}} ({{count}} validation issue(s))",
+      "opened": "Opened package {{path}} ({{count}} file(s))",
+      "droppedExtraImages": "Some FBD entries contained multiple images; only the first cover image was kept per file.",
+      "added_one": "Added {{count}} file to package",
+      "added_other": "Added {{count}} files to package",
+      "removed": "Removed {{fileName}} from package"
+    },
+    "errors": {
+      "emptyPackageSave": "Add at least one book file in Package Files before saving the package.",
+      "rejectedHeader": "The following file(s) could not be added to the package:",
+      "notFound": "{{name}}: file was not found.",
+      "notFile": "{{name}}: folders cannot be added to a package.",
+      "unreadable": "{{name}}: file cannot be read.",
+      "forbiddenFb2": "{{name}}: FB2 files cannot be packed into an FBD ZIP package.",
+      "forbiddenFbd": "{{name}}: FBD files cannot be added as payload files.",
+      "forbiddenArchive": "{{name}}: archive files cannot be packed into an FBD ZIP package.",
+      "duplicateStem": "{{name}}: base name collides with \"{{conflictWith}}\" (each file needs a unique base name for its matching .fbd).",
+      "openFailed": "Cannot open package \"{{path}}\": {{reason}}",
+      "saveFailed": "Cannot save package \"{{path}}\": {{reason}}",
+      "notZip": "The file is not a valid ZIP archive.",
+      "damaged": "The ZIP archive is damaged or unreadable.",
+      "encrypted": "The ZIP archive contains encrypted entries.",
+      "multiVolume": "Multi-volume ZIP archives are not supported.",
+      "noFbd": "The ZIP archive does not contain an FBD description file.",
+      "noPayload": "The ZIP archive does not contain any supported non-FB2 book file.",
+      "archiveDuplicateStem": "Two top-level book files in the archive share the same base name.",
+      "fbdParseError": "FBD entry \"{{entry}}\" is not well-formed XML (line {{line}}, column {{column}}): {{detail}}",
+      "fbdNotFictionBook": "FBD entry \"{{entry}}\" is not a FictionBook document.",
+      "sourceMissing": "Source file \"{{entry}}\" is no longer available on disk.",
+      "sourceUnreadable": "Source file \"{{entry}}\" could not be read.",
+      "ioError": "An I/O error occurred while writing the package."
+    },
+    "unavailable": {
+      "packageMode": "Unavailable in Package editing mode",
+      "noActiveFile": "Add a file in Package Files first"
+    }
+  }
+}

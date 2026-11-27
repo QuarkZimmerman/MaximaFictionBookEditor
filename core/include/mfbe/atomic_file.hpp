@@ -60,6 +60,12 @@ void write_atomic(const std::filesystem::path& path, std::string_view bytes);
 BackupOutcome write_atomic(const std::filesystem::path& path, std::string_view bytes,
                            const WriteOptions& options);
 
+// Feature 022: allocates a unique sibling temporary path next to `target` (verifying parent dir
+// exists) and atomically flushes + swaps a caller-written temporary file into `target` (removing
+// `temp` on failure, honoring fault-injection hooks). Throws WriteError on failure.
+std::filesystem::path make_sibling_temp_path(const std::filesystem::path& target);
+void replace_from_temp(const std::filesystem::path& target, const std::filesystem::path& temp);
+
 // "<path>.bak": where write_atomic keeps the replaced file.
 std::filesystem::path backup_path(const std::filesystem::path& path);
 

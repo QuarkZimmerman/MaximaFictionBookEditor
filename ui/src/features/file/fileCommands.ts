@@ -685,6 +685,7 @@ export class FileFeature {
     if (inspected.onlyBook !== undefined) return inspected.onlyBook;
     if ((inspected.books ?? 0) < 2) return undefined;
     const answer = await rpc.runJob('doc.open', { path });
+    if ('packageDetected' in answer) return undefined;
     if (!('needsChoice' in answer)) {
       // Opened after all (the archive changed meanwhile): let the normal route reopen it.
       await rpc.call('doc.close', { docId: answer.document.docId }).catch(() => undefined);
@@ -812,6 +813,10 @@ export class FileFeature {
       let result = await rpc.runJob('doc.open', entry ? { path, entry } : { path }, {
         onProgress: (progress) => actions.setProgress(store, progress),
       });
+      if ('packageDetected' in result) {
+        // US2 (T030) routes this to packageCommands.openPackage.
+        return false;
+      }
       if ('needsChoice' in result) {
         // An archive without the .zip name: asked while the window's book is still open.
         const chosen = await showArchiveBookChooser(
@@ -826,7 +831,7 @@ export class FileFeature {
           { path, entry },
           { onProgress: (progress) => actions.setProgress(store, progress) },
         );
-        if ('needsChoice' in result) return false;
+        if ('needsChoice' in result || 'packageDetected' in result) return false;
       }
       let markModified = false;
       const mismatch = result.warnings.find((w) => w.code === 'encoding.mismatch');
@@ -870,7 +875,7 @@ export class FileFeature {
               },
               { onProgress: (progress) => actions.setProgress(store, progress) },
             );
-            if ('needsChoice' in reopened) return false;
+            if ('needsChoice' in reopened || 'packageDetected' in reopened) return false;
             result = reopened;
           }
           markModified = true;
@@ -1022,7 +1027,7 @@ export class FileFeature {
         { path, ...(entry ? { entry } : {}), recover: true },
         { onProgress: (progress) => actions.setProgress(store, progress) },
       );
-      if ('needsChoice' in result) return false;
+      if ('needsChoice' in result || 'packageDetected' in result) return false;
       const mismatch = result.warnings.find((w) => w.code === 'encoding.mismatch');
       if (mismatch) {
         const params = mismatch.params as Record<string, unknown>;
@@ -1064,7 +1069,7 @@ export class FileFeature {
             },
             { onProgress: (progress) => actions.setProgress(store, progress) },
           );
-          if ('needsChoice' in reopened) return false;
+          if ('needsChoice' in reopened || 'packageDetected' in reopened) return false;
           result = reopened;
         }
       }
