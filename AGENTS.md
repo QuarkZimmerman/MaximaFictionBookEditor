@@ -123,9 +123,13 @@ Run the core headless for manual/MCP testing:
   2.7.9's group, its id never changes); a script of a higher layer with the same id replaces the
   lower one in its group and place. `tests/scripts/audit/inventory-279.json` is the one record
   of every classic script's state.
-- Releases (feature 007, FR-075): every version's section of `CHANGELOG.md` starts with
-  `### In short` - one line per major change for users, 1 to 8 lines of at most 100 characters,
-  no links or code - which the Release workflow puts at the top of the release text.
+- Releases (feature 007, FR-075; requester, 2026-11-27, hard rule): every version's section of
+  `CHANGELOG.md` starts with `### In short` - one line per major change for users, 1 to 8 lines of
+  at most 100 characters, no links or code - which the Release workflow puts at the top of the
+  release text. Never split or group release changes by `-rc.N` iterations (and never write only
+  incremental RC-to-RC deltas) in `CHANGELOG.md`, GitHub Release notes, or release/pre-release
+  announcements: always present one complete, consolidated list of all changes since the previous
+  official released version.
 - TS: strict, 2 spaces, Prettier; every interactive element has a stable `data-testid`;
   all user-visible strings go through i18n (`en.json`/`ru.json`/`uk.json` must stay in parity,
   and the feature catalogues `<feature>.<lang>.json`; `tools/i18n-check.mjs --languages`
