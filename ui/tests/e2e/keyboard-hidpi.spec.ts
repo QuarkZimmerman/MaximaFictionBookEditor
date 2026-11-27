@@ -630,6 +630,7 @@ test.describe('dialogs from the keyboard', () => {
       'imports',
       'ocr',
       'exports',
+      'package',
       'ai',
       'maximaLibrary',
     ];
