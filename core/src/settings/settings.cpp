@@ -161,6 +161,10 @@ const std::vector<Field>& schema() {
         field("maximaLibrary.enabled", Kind::boolean),
         field("maximaLibrary.domain", Kind::maxima_domain),
         field("maximaLibrary.verifiedFingerprint", Kind::maxima_fingerprint),
+        // Feature 022: Package mode automatic cover import defaults (Settings -> Package).
+        field("package.autoCoverPdf", Kind::boolean),
+        field("package.autoCoverEpub", Kind::boolean),
+        field("package.autoCoverMobi", Kind::boolean),
         enumeration("other.defaultEncoding", supported_encodings()),
         field("other.keepEncoding", Kind::boolean),
         // A backup of the previous version beside the saved file (feature 009, FR-006).
@@ -763,6 +767,7 @@ json defaults() {
          {{"enabled", false},
           {"domain", std::string(lookup::kDefaultMaximaLibraryDomain)},
           {"verifiedFingerprint", ""}}},
+        {"package", {{"autoCoverPdf", true}, {"autoCoverEpub", true}, {"autoCoverMobi", true}}},
         {"session",
          {{"windowGeometry", nullptr},
           {"toolbars",

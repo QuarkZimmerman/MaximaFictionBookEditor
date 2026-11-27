@@ -62,6 +62,7 @@ import {
 import { validateSettings, type SettingsValidationError } from './settings/model';
 import { OcrPage } from './settings/OcrPage';
 import { OtherPage } from './settings/OtherPage';
+import { PackagePage } from './settings/PackagePage';
 import { ViewPage } from './settings/ViewPage';
 import { ExportsPage, type ExportFormat } from './settings/ExportsPage';
 import { WordsPage } from './settings/WordsPage';
@@ -70,7 +71,16 @@ import './settings/settings.css';
 import { tip } from '@/app/tooltips';
 
 export type SettingsPageId =
-  'view' | 'other' | 'hotkeys' | 'words' | 'imports' | 'ocr' | 'exports' | 'ai' | 'maximaLibrary';
+  | 'view'
+  | 'other'
+  | 'hotkeys'
+  | 'words'
+  | 'imports'
+  | 'ocr'
+  | 'exports'
+  | 'package'
+  | 'ai'
+  | 'maximaLibrary';
 
 const PAGES: readonly SettingsPageId[] = [
   'view',
@@ -80,6 +90,7 @@ const PAGES: readonly SettingsPageId[] = [
   'imports',
   'ocr',
   'exports',
+  'package',
   'ai',
   'maximaLibrary',
 ];
@@ -95,7 +106,17 @@ function shownIf(shown: boolean): CSSProperties | undefined {
 
 /** The sections of the draft the pages edit (`session` is never part of the dialog). */
 type DraftSection =
-  'view' | 'other' | 'words' | 'imports' | 'ocr' | 'pdf' | 'ai' | 'markdown' | 'txt' | 'mobi';
+  | 'view'
+  | 'other'
+  | 'words'
+  | 'imports'
+  | 'ocr'
+  | 'pdf'
+  | 'package'
+  | 'ai'
+  | 'markdown'
+  | 'txt'
+  | 'mobi';
 
 /**
  * The pre-apply hook (feature 005 R8.8): asked with the validated draft before anything is
@@ -634,6 +655,9 @@ export function SettingsDialog({
               ctx={ctx}
               initialFormat={initialExportFormat}
             />
+          </div>
+          <div role="tabpanel" id="settings-page-package" style={shownIf(page === 'package')}>
+            <PackagePage draft={draft} onChange={(patch) => update('package', patch)} />
           </div>
           <div role="tabpanel" id="settings-page-ai" style={shownIf(page === 'ai')}>
             <AiPage

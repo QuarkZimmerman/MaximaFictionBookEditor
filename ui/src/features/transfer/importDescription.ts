@@ -28,7 +28,9 @@ import { createElement } from 'react';
 
 import type { CommandContext } from '@/app/commands';
 import { describeError, isClientSideError, logUiError } from '@/app/diagnostics';
-import { fileType } from '@/dialogs/fileTypes';
+import { openFileTypes } from '@/dialogs/fileTypes';
+import { showArchiveBookChooser } from '@/dialogs/show';
+import { archiveErrorMessage } from '@/features/file/fileCommands';
 import type { Document } from '@/model/document';
 import { actions } from '@/model/store';
 import { RpcError } from '@/rpc/client';
@@ -52,13 +54,12 @@ import {
 } from './importEntries';
 import { isUntouchedNewDocument } from './untouched';
 
-/** The open dialog's types: descriptors first and selected, then FictionBook files, All files. */
+/**
+ * The open dialog's types: all supported book/archive kinds (`*.fb2;*.fbd;*.zip`) first and
+ * selected by default, followed by individual `.fb2`, `.fbd`, `.zip`, and All files.
+ */
 export function importFileTypes(t: CommandContext['t']): FileFilter[] {
-  return [
-    fileType(t('fileDialogs.types.fictionBookDescriptors'), ['fbd']),
-    fileType(t('fileDialogs.types.fictionBook'), ['fb2']),
-    fileType(t('fileDialogs.types.all'), ['*']),
-  ];
+  return openFileTypes(t);
 }
 
 function fileName(path: string): string {
@@ -81,6 +82,8 @@ export function errorReason(error: unknown): string {
 
 /** The message of a failed read (FR-031: "a message names the problem"). */
 function failureText(ctx: CommandContext, path: string, error: unknown): string {
+  const archiveMessage = archiveErrorMessage(ctx.t, error, path);
+  if (archiveMessage) return archiveMessage;
   if (error instanceof RpcError && error.code === RpcErrorCode.docNotFictionBook) {
     return ctx.t('msg.notFictionBook', { path });
   }
@@ -157,11 +160,27 @@ export async function importDescription(ctx: CommandContext): Promise<boolean> {
 
   let read: ReadDescriptionResult;
   try {
-    read = await rpc.runJob(
+    let response = await rpc.runJob(
       'doc.readDescription',
       { docId, path },
       { onProgress: (progress) => actions.setProgress(store, progress) },
     );
+    if ('needsChoice' in response) {
+      actions.setProgress(store, null);
+      const chosen = await showArchiveBookChooser(
+        ctx.dialogs,
+        response.needsChoice,
+        fileName(path),
+      );
+      if (chosen === null) return false;
+      response = await rpc.runJob(
+        'doc.readDescription',
+        { docId, path, entry: chosen },
+        { onProgress: (progress) => actions.setProgress(store, progress) },
+      );
+      if ('needsChoice' in response) return false;
+    }
+    read = response;
   } catch (error) {
     if (isClientSideError(error)) {
       void logUiError(rpc, {

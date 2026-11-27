@@ -183,15 +183,14 @@ describe('file flows (T052)', () => {
       // Feature 011 (D32): Open keeps the folder it was left in.
       role: 'document',
     });
-    // The view a file opens in follows the rule of 0.0.3 (the active view is kept unless it is
-    // the Source view); the remembered caret is placed in the Body controller without a view
-    // switch and shows in the status bar path (FR-101).
+    // Opening a book always activates Body view, and the remembered caret is placed in the Body
+    // controller and shows in the status bar path (FR-101).
     expect(ctx.store.getState()).toMatchObject({
       docId: 'doc-1',
       path: '/books/alpha.fb2',
       modified: false,
       sourceOnly: false,
-      activeView: 'description',
+      activeView: 'body',
     });
     await vi.waitFor(() =>
       expect(controller.getCaret()).toEqual({ view: 'body', nodeId: 'n3', offset: 2 }),
@@ -250,9 +249,9 @@ describe('file flows (T052)', () => {
         'doc.close',
       ]);
       expect(positionCalls(rpc)[0]).toEqual(remembered);
-      // ... and asks for the new document's position after the open (a get, no view switch).
+      // ... asks for the new document's position after the open and activates Body view.
       expect(positionCalls(rpc)[1]).toEqual({ docId: 'doc-1' });
-      expect(ctx.store.getState().activeView).toBe('description');
+      expect(ctx.store.getState().activeView).toBe('body');
     });
 
     it("a file that cannot be opened leaves the window's book, its changes and its undo history (feature 010, FR-116)", async () => {

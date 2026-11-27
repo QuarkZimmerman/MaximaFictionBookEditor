@@ -12,6 +12,7 @@
 
 import type { CommandContext } from '@/app/commands';
 import { imageFileTypes } from '@/dialogs/fileTypes';
+import { bumpBinaryRevision } from '@/model/binaryUrls';
 import type { BinaryMeta, Document } from '@/model/document';
 import { actions, type AppStore } from '@/model/store';
 import { RpcError, type RpcClient } from '@/rpc/client';
@@ -111,6 +112,8 @@ export async function setPackageCoverFromFile(
 
   const latestDoc = store.getState().document;
   if (!latestDoc || latestDoc.docId !== docId) return finalMeta;
+  // Always bump revision so replacing cover.jpg with a same-size image refreshes thumbnails.
+  bumpBinaryRevision(docId, finalMeta.id);
   actions.updateDocument(store, applyPackageCoverToDocument(latestDoc, finalMeta));
   return finalMeta;
 }
@@ -203,5 +206,6 @@ export async function importSinglePackageCover(
       newId: targetId,
     });
   }
+  bumpBinaryRevision(docId, current.id);
   return { ...current, referenceCount: 1 };
 }

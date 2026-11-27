@@ -1,4 +1,23 @@
 {
+  "dialog": {
+    "settings": {
+      "pages": {
+        "package": "Package"
+      }
+    }
+  },
+  "tip": {
+    "settings": {
+      "tabs": {
+        "package": "FBD ZIP package options, including automatic cover import for PDF, EPUB, and MOBI files."
+      },
+      "package": {
+        "autoCoverPdf": "Automatically render the first page of added PDF files as the cover image.",
+        "autoCoverEpub": "Automatically import the embedded cover image from added EPUB files.",
+        "autoCoverMobi": "Automatically import the embedded cover image from added MOBI/AZW3 files."
+      }
+    }
+  },
   "menu": {
     "file": {
       "newPackage": "New &Package"
@@ -59,7 +78,19 @@
       "startupGroup": "Startup",
       "startupMode": "Startup mode:",
       "startupFb2": "FB2 editing mode",
-      "startupPackage": "Package editing mode"
+      "startupPackage": "Package editing mode",
+      "autoCoverGroup": "Automatic cover import",
+      "autoCoverHint": "When adding book files to a package, automatically extract or generate a cover image for these formats:",
+      "autoCoverPdf": "Generate cover from PDF (first page)",
+      "autoCoverEpub": "Import cover from EPUB",
+      "autoCoverMobi": "Import cover from MOBI / AZW3"
+    },
+    "contextMenu": {
+      "importDescription": "Import description from FictionBook file...",
+      "addCover": "Add cover...",
+      "replaceCover": "Replace cover...",
+      "clearCover": "Clear cover",
+      "remove": "Remove from package"
     },
     "status": {
       "saved": "Saved package {{path}}",

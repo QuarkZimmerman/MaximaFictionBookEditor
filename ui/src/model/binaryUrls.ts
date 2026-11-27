@@ -108,6 +108,21 @@ export function forgetBinaries(keep: string | null): void {
   for (const docId of [...seen.keys()]) if (docId !== keep) seen.delete(docId);
 }
 
+/** Forgets the binaries of every document not in `keep` (used in multi-entry Package mode). */
+export function forgetBinariesExcept(keep: ReadonlySet<string>): void {
+  for (const docId of [...seen.keys()]) if (!keep.has(docId)) seen.delete(docId);
+}
+
+/** Forces a fresh preview/original revision for `(docId, id)` (e.g. when a cover is replaced). */
+export function bumpBinaryRevision(docId: string, id: string): void {
+  let entry = seen.get(docId);
+  if (!entry) {
+    entry = { signatures: new Map(), revisions: new Map() };
+    seen.set(docId, entry);
+  }
+  entry.revisions.set(id, (entry.revisions.get(id) ?? 0) + 1);
+}
+
 /** `r=<revision>&` for a binary that changed since the document's first list, else nothing. */
 function revisionParam(docId: string | null, href: string): string {
   const id = binaryId(href);

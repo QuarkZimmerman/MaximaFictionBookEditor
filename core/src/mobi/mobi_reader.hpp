@@ -62,4 +62,9 @@ MobiReadResult read_mobi_file(const std::filesystem::path& path,
                               const ReadProgressFn& progress = {},
                               const ReadCancelFn& check_cancelled = {});
 
+// Lightweight cover extraction for Package mode: reads PalmDB + MOBI/EXTH headers without
+// decompressing book text, returning the raw cover image bytes (EXTH 201, fallback EXTH 202)
+// or std::nullopt when no unencrypted decodable raster cover is present.
+std::optional<std::string> extract_cover_bytes(const std::filesystem::path& path);
+
 }  // namespace mfbe::mobi

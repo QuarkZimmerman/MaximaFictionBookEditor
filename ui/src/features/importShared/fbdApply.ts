@@ -16,12 +16,16 @@ import type { Document } from '@/model/document';
 import { withSchemaPersons } from '@/views/description/model';
 
 /** Reads the description file `path` against the open document `docId`; close it with `closeRead`. */
-export function readDescriptionFile(
+export async function readDescriptionFile(
   ctx: CommandContext,
   docId: string,
   path: string,
 ): Promise<ReadDescriptionResult> {
-  return ctx.rpc!.runJob('doc.readDescription', { docId, path });
+  const result = await ctx.rpc!.runJob('doc.readDescription', { docId, path });
+  if ('needsChoice' in result) {
+    throw new Error('Expected a standalone FBD file, not a multi-book ZIP archive');
+  }
+  return result;
 }
 
 export async function closeRead(

@@ -1,4 +1,5 @@
 // Feature 022 (T015): FBD ZIP Package RPC create/addFiles/removeEntry/save/close tests.
+#include "mobi/mobi_writer.hpp"
 #include "test_support.hpp"
 #include "ws_test_client.hpp"
 
@@ -464,4 +465,296 @@ TEST_CASE("Settings.other.startupMode default, persistence, validation, and sani
         REQUIRE(got.contains("result"));
         CHECK(got["result"]["other"]["startupMode"] == "fb2");
     }
+}
+
+TEST_CASE("doc.readDescription reads .fb2/.fbd from single-entry and multi-entry ZIPs",
+          "[package][rpc][transfer]") {
+    PackageRpcFixture f;
+    test::TempDir work{"mfbe-read-desc-zip"};
+
+    auto make_zip = [&](const fs::path& p,
+                        const std::vector<std::pair<std::string, std::string>>& items) {
+        package::PackageZipWritePlan plan;
+        plan.targetZipPath = p;
+        for (const auto& [name, data] : items) {
+            package::PackageZipWriteEntry e;
+            e.entryName = name;
+            e.isMemory = true;
+            e.memoryBytes = data;
+            e.compressDeflate = true;
+            plan.managedEntries.push_back(std::move(e));
+        }
+        package::write_package_zip_atomic(plan);
+    };
+
+    const auto make_fb2 = [](const std::string& title) {
+        return "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+               "<FictionBook xmlns=\"http://www.gribuser.ru/xml/fictionbook/2.0\">\n"
+               "  <description>\n"
+               "    <title-info>\n"
+               "      <genre>sf</genre>\n"
+               "      <author><first-name>Arthur</first-name><last-name>Clarke</last-name></author>\n"
+               "      <book-title>" +
+               title +
+               "</book-title>\n"
+               "      <lang>en</lang>\n"
+               "    </title-info>\n"
+               "    <document-info>\n"
+               "      <author><first-name>A</first-name><last-name>B</last-name></author>\n"
+               "      <date value=\"2026-11-27\">2026-11-27</date>\n"
+               "      <id>ID-" +
+               title +
+               "</id>\n"
+               "      <version>1.0</version>\n"
+               "    </document-info>\n"
+               "  </description>\n"
+               "  <body><section><p>Text</p></section></body>\n"
+               "</FictionBook>\n";
+    };
+
+    const json target_doc = f.call("doc.new");
+    REQUIRE(target_doc.contains("result"));
+    const std::string target_id = target_doc["result"]["docId"].get<std::string>();
+
+    // 1. Single-entry FB2 ZIP auto-loads without needsChoice.
+    const fs::path single_fb2_zip = work.path() / "single-fb2.zip";
+    make_zip(single_fb2_zip, {{"rama.fb2", make_fb2("Rendezvous with Rama")}});
+    const json r1 = f.call(
+        "doc.readDescription",
+        json{{"docId", target_id}, {"path", platform::utf8_from_path(single_fb2_zip)}});
+    REQUIRE(r1.contains("result"));
+    CHECK_FALSE(r1["result"].contains("needsChoice"));
+    CHECK(r1["result"]["description"]["titleInfo"]["bookTitle"] == "Rendezvous with Rama");
+    f.call("doc.close", json{{"docId", r1["result"]["importId"]}});
+
+    // 2. Single-entry FBD inside an FBD ZIP package auto-loads (NOT routed to packageDetected).
+    const fs::path fbd_pkg_zip = work.path() / "fbd-package.zip";
+    make_zip(fbd_pkg_zip,
+             {{"childhood.pdf", "%PDF-1.7 payload"}, {"childhood.fbd", make_fb2("Childhood")}});
+    const json r2 =
+        f.call("doc.readDescription",
+               json{{"docId", target_id}, {"path", platform::utf8_from_path(fbd_pkg_zip)}});
+    REQUIRE(r2.contains("result"));
+    CHECK_FALSE(r2["result"].contains("needsChoice"));
+    CHECK_FALSE(r2["result"].contains("packageDetected"));
+    CHECK(r2["result"]["description"]["titleInfo"]["bookTitle"] == "Childhood");
+    f.call("doc.close", json{{"docId", r2["result"]["importId"]}});
+
+    // 3. Multi-entry ZIP (fb2 + fbd) returns needsChoice; specifying entry loads that entry.
+    const fs::path multi_zip = work.path() / "multi-books.zip";
+    make_zip(multi_zip,
+             {{"alpha.fb2", make_fb2("Alpha Book")}, {"beta.fbd", make_fb2("Beta Descriptor")}});
+    const json r3 = f.call("doc.readDescription",
+                           json{{"docId", target_id}, {"path", platform::utf8_from_path(multi_zip)}});
+    REQUIRE(r3.contains("result"));
+    REQUIRE(r3["result"].contains("needsChoice"));
+    CHECK(r3["result"]["needsChoice"]["booksTotal"] == 2);
+
+    const json r3_beta = f.call("doc.readDescription",
+                                json{{"docId", target_id},
+                                     {"path", platform::utf8_from_path(multi_zip)},
+                                     {"entry", "beta.fbd"}});
+    REQUIRE(r3_beta.contains("result"));
+    CHECK(r3_beta["result"]["description"]["titleInfo"]["bookTitle"] == "Beta Descriptor");
+    f.call("doc.close", json{{"docId", r3_beta["result"]["importId"]}});
+
+    // 4. ZIP with zero .fb2/.fbd files returns kArchiveNoBook (1081).
+    const fs::path empty_zip = work.path() / "no-books.zip";
+    make_zip(empty_zip, {{"notes.pdf", "%PDF-1.7"}});
+    const json r4 = f.call("doc.readDescription",
+                           json{{"docId", target_id}, {"path", platform::utf8_from_path(empty_zip)}});
+    REQUIRE(r4.contains("error"));
+    CHECK(r4["error"]["code"] == 1081);
+
+    f.call("doc.close", json{{"docId", target_id}});
+}
+
+TEST_CASE("package.addFiles automatically extracts/generates covers for PDF, EPUB, and MOBI "
+          "respecting Settings.package auto-cover toggles",
+          "[package][rpc][cover]") {
+    PackageRpcFixture f;
+    test::TempDir work{"mfbe-pkg-auto-cover"};
+
+    // Verify default package auto-cover settings are all true.
+    const json initial_settings = f.call("settings.get");
+    REQUIRE(initial_settings.contains("result"));
+    CHECK(initial_settings["result"]["package"]["autoCoverPdf"] == true);
+    CHECK(initial_settings["result"]["package"]["autoCoverEpub"] == true);
+    CHECK(initial_settings["result"]["package"]["autoCoverMobi"] == true);
+
+    // Helper: create a tiny valid 4x6 JPEG bytes buffer.
+    images::Bitmap bmp;
+    bmp.width = 4;
+    bmp.height = 6;
+    bmp.rgba.assign(static_cast<std::size_t>(4 * 6 * 4), 200);
+    const std::string sample_jpeg = images::encode_jpeg(bmp, 85);
+    const std::string sample_png = images::encode_png(bmp);
+
+    auto make_zip = [&](const fs::path& p,
+                        const std::vector<std::pair<std::string, std::string>>& items) {
+        package::PackageZipWritePlan plan;
+        plan.targetZipPath = p;
+        for (const auto& [name, data] : items) {
+            package::PackageZipWriteEntry e;
+            e.entryName = name;
+            e.isMemory = true;
+            e.memoryBytes = data;
+            e.compressDeflate = (name != "mimetype");
+            plan.managedEntries.push_back(std::move(e));
+        }
+        package::write_package_zip_atomic(plan);
+    };
+
+    // 1. Build EPUB 3 (properties="cover-image") and EPUB 2 (<meta name="cover">) fixtures.
+    const fs::path epub3_path = work.path() / "book-epub3.epub";
+    make_zip(
+        epub3_path,
+        {
+            {"mimetype", "application/epub+zip"},
+            {"META-INF/container.xml",
+             "<?xml version=\"1.0\"?><container version=\"1.0\" "
+             "xmlns=\"urn:oasis:names:tc:opendocument:xmlns:container\">"
+             "<rootfiles><rootfile full-path=\"OEBPS/content.opf\" "
+             "media-type=\"application/oebps-package+xml\"/></rootfiles></container>"},
+            {"OEBPS/content.opf",
+             "<?xml version=\"1.0\"?><package version=\"3.0\" "
+             "xmlns=\"http://www.idpf.org/2007/opf\"><metadata/><manifest>"
+             "<item id=\"c\" href=\"images/front.png\" media-type=\"image/png\" "
+             "properties=\"cover-image\"/></manifest><spine/></package>"},
+            {"OEBPS/images/front.png", sample_png},
+        });
+
+    const fs::path epub2_path = work.path() / "book-epub2.epub";
+    make_zip(
+        epub2_path,
+        {
+            {"mimetype", "application/epub+zip"},
+            {"META-INF/container.xml",
+             "<?xml version=\"1.0\"?><container version=\"1.0\" "
+             "xmlns=\"urn:oasis:names:tc:opendocument:xmlns:container\">"
+             "<rootfiles><rootfile full-path=\"content.opf\" "
+             "media-type=\"application/oebps-package+xml\"/></rootfiles></container>"},
+            {"content.opf",
+             "<?xml version=\"1.0\"?><package version=\"2.0\" "
+             "xmlns=\"http://www.idpf.org/2007/opf\"><metadata>"
+             "<meta name=\"cover\" content=\"cover-img\"/></metadata><manifest>"
+             "<item id=\"cover-img\" href=\"front.jpg\" media-type=\"image/jpeg\"/>"
+             "</manifest><spine/></package>"},
+            {"front.jpg", sample_jpeg},
+        });
+
+    // 2. Build a real MOBI (joint MOBI 7 + KF8) with an embedded cover via MobiWriter.
+    const fs::path mobi_path = work.path() / "book-cover.mobi";
+    {
+        mobi::MobiWriter writer(mobi_path, mobi::MobiExportFormat::joint);
+        images::ConversionPolicy policy;
+        (void)writer.add_picture(sample_jpeg, policy, /*is_cover=*/true);
+        writer.set_mobi7_html("<html><body><p>Hello MOBI</p></body></html>");
+        writer.set_kf8_html(
+            "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
+            "<html xmlns=\"http://www.w3.org/1999/xhtml\"><body><p>Hello KF8</p></body></html>");
+        mobi::MobiCommitInput commit;
+        commit.metadata.title = "MOBI Cover Book";
+        commit.metadata.language = "en";
+        (void)writer.commit(commit);
+    }
+
+    // 3. Real PDF fixture + copy-restricted PDF + password-protected PDF + plain TXT.
+    const fs::path pdf_path = test::fixtures_dir() / "pdf" / "import" / "tagged.pdf";
+    const fs::path copy_restricted_pdf =
+        test::fixtures_dir() / "pdf" / "ocr" / "copy-restricted-scan.pdf";
+    const fs::path encrypted_pdf = test::fixtures_dir() / "pdf" / "import" / "password-user.pdf";
+    const fs::path txt_path = work.path() / "plain.txt";
+    write_file(txt_path, "Plain text book without automatic cover");
+
+    const json created = f.call("package.create");
+    REQUIRE(created.contains("result"));
+    const std::string pkg_id = created["result"]["packageId"].get<std::string>();
+
+    // Add PDF, copy-restricted PDF, encrypted PDF, EPUB 3, EPUB 2, MOBI, and TXT with all enabled.
+    const json added = f.call(
+        "package.addFiles",
+        json{{"packageId", pkg_id},
+             {"paths",
+              json::array({platform::utf8_from_path(pdf_path),
+                           platform::utf8_from_path(copy_restricted_pdf),
+                           platform::utf8_from_path(encrypted_pdf),
+                           platform::utf8_from_path(epub3_path),
+                           platform::utf8_from_path(epub2_path),
+                           platform::utf8_from_path(mobi_path),
+                           platform::utf8_from_path(txt_path)})}});
+    REQUIRE(added.contains("result"));
+    REQUIRE(added["result"]["rejected"].empty());
+    REQUIRE(added["result"]["added"].size() == 7);
+
+    // PDF: rendered page 1 at 1024 px width as JPEG cover.jpg.
+    const json& pdf_entry = added["result"]["added"][0];
+    REQUIRE(pdf_entry["document"]["binaries"].size() == 1);
+    CHECK(pdf_entry["document"]["binaries"][0]["id"] == "cover.jpg");
+    CHECK(pdf_entry["document"]["binaries"][0]["contentType"] == "image/jpeg");
+    CHECK(pdf_entry["document"]["binaries"][0]["width"] == 1024);
+    CHECK(pdf_entry["document"]["description"]["titleInfo"]["coverpage"] ==
+          json::array({json{{"href", "#cover.jpg"}}}));
+
+    // Copy-restricted PDF still generates its cover image cleanly.
+    const json& copy_pdf_entry = added["result"]["added"][1];
+    REQUIRE(copy_pdf_entry["document"]["binaries"].size() == 1);
+    CHECK(copy_pdf_entry["document"]["binaries"][0]["id"] == "cover.jpg");
+
+    // Password-protected PDF fails fast without blocking and attaches with no cover.
+    const json& enc_pdf_entry = added["result"]["added"][2];
+    CHECK(enc_pdf_entry["document"]["binaries"].empty());
+
+    // EPUB 3 PNG cover extracted as cover.png.
+    const json& epub3_entry = added["result"]["added"][3];
+    REQUIRE(epub3_entry["document"]["binaries"].size() == 1);
+    CHECK(epub3_entry["document"]["binaries"][0]["id"] == "cover.png");
+    CHECK(epub3_entry["document"]["binaries"][0]["contentType"] == "image/png");
+    CHECK(epub3_entry["document"]["description"]["titleInfo"]["coverpage"] ==
+          json::array({json{{"href", "#cover.png"}}}));
+
+    // EPUB 2 JPEG cover extracted as cover.jpg.
+    const json& epub2_entry = added["result"]["added"][4];
+    REQUIRE(epub2_entry["document"]["binaries"].size() == 1);
+    CHECK(epub2_entry["document"]["binaries"][0]["id"] == "cover.jpg");
+    CHECK(epub2_entry["document"]["binaries"][0]["contentType"] == "image/jpeg");
+
+    // MOBI cover extracted as cover.jpg.
+    const json& mobi_entry = added["result"]["added"][5];
+    REQUIRE(mobi_entry["document"]["binaries"].size() == 1);
+    CHECK(mobi_entry["document"]["binaries"][0]["id"] == "cover.jpg");
+    CHECK(mobi_entry["document"]["binaries"][0]["contentType"] == "image/jpeg");
+
+    // TXT never auto-extracts a cover.
+    const json& txt_entry = added["result"]["added"][6];
+    CHECK(txt_entry["document"]["binaries"].empty());
+
+    f.call("package.close", json{{"packageId", pkg_id}});
+
+    // Disable all three auto-cover checkboxes and verify zero covers are attached on add.
+    const json updated = f.call(
+        "settings.set",
+        json{{"patch",
+              {{"package",
+                {{"autoCoverPdf", false}, {"autoCoverEpub", false}, {"autoCoverMobi", false}}}}}});
+    REQUIRE(updated.contains("result"));
+    CHECK(updated["result"]["settings"]["package"]["autoCoverPdf"] == false);
+    CHECK(updated["result"]["settings"]["package"]["autoCoverEpub"] == false);
+    CHECK(updated["result"]["settings"]["package"]["autoCoverMobi"] == false);
+
+    const json created2 = f.call("package.create");
+    const std::string pkg_id2 = created2["result"]["packageId"].get<std::string>();
+    const json added_off = f.call("package.addFiles",
+                                  json{{"packageId", pkg_id2},
+                                       {"paths",
+                                        json::array({platform::utf8_from_path(pdf_path),
+                                                     platform::utf8_from_path(epub3_path),
+                                                     platform::utf8_from_path(mobi_path)})}});
+    REQUIRE(added_off.contains("result"));
+    REQUIRE(added_off["result"]["added"].size() == 3);
+    CHECK(added_off["result"]["added"][0]["document"]["binaries"].empty());
+    CHECK(added_off["result"]["added"][1]["document"]["binaries"].empty());
+    CHECK(added_off["result"]["added"][2]["document"]["binaries"].empty());
+
+    f.call("package.close", json{{"packageId", pkg_id2}});
 }

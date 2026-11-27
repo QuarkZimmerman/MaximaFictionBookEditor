@@ -103,22 +103,20 @@ export function NewSplitButton({ size = 24 }: { size?: 16 | 24 }) {
               id: 'fb2',
               label: t('menu.file.new'),
               icon: { url: iconUrl('id_file_new', 16) },
-              hotkey: services.hotkeys.display('file.new'),
               enabled: fb2Enabled,
               run: () => {
+                // Selecting from the dropdown only switches the toolbar New button's icon and
+                // action; clicking the primary New button runs the selected creation command.
                 actions.setToolbarNewAction(services.store, 'fb2');
-                void services.commands.execute('file.new', ctx);
               },
             },
             {
               id: 'package',
               label: t('menu.file.newPackage'),
               icon: { url: iconUrl('id_file_new_package', 16) },
-              hotkey: services.hotkeys.display('file.newPackage'),
               enabled: packageEnabled,
               run: () => {
                 actions.setToolbarNewAction(services.store, 'package');
-                void services.commands.execute('file.newPackage', ctx);
               },
             },
           ]}

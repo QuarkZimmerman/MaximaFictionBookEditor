@@ -8,6 +8,7 @@
 import type { Command, CommandContext, CommandRegistry } from '@/app/commands';
 import { fileType } from '@/dialogs/fileTypes';
 import type { FileFeature } from '@/features/file/fileCommands';
+import { importDescription } from '@/features/transfer/importDescription';
 import type { Document } from '@/model/document';
 import { actions, emptyConversation, isRunLocked, type AppStore } from '@/model/store';
 import { RpcError } from '@/rpc/client';
@@ -17,7 +18,10 @@ import {
   type PackageEntryDto,
   type PackageRejectedFileDto,
 } from '@/rpc/types';
+import { getSourceEditor } from '@/views/source/sourceEditor';
 import { resetSourceSession } from '@/views/source/sourceSession';
+
+import { pickAndSetPackageCover, removePackageCover } from './packageCoverSync';
 
 import {
   activePackageEntry,
@@ -364,6 +368,7 @@ export class PackageFeature {
       editorMode: 'fb2',
       packageState: null,
       treeVisible: pkg ? pkg.fb2TreeWasVisible : state.treeVisible,
+      activeView: 'body',
       docId: null,
       document: null,
       path: null,
@@ -453,6 +458,39 @@ export class PackageFeature {
     const target = pkg.entries.find((e) => e.entryId === entryId);
     if (!target) return;
     activateEntryInStore(ctx, pkg, target);
+  }
+
+  /** Selects `entryId` and runs *Import description from FictionBook file...* against it. */
+  async importDescriptionForEntry(ctx: CommandContext, entryId: string): Promise<boolean> {
+    const state = ctx.store.getState();
+    if (state.editorMode !== 'package' || !state.packageState || isRunLocked(state)) return false;
+    this.selectEntry(ctx, entryId);
+    return importDescription(ctx);
+  }
+
+  /** Selects `entryId` and opens the cover image chooser to add or replace its single cover. */
+  async pickCoverForEntry(ctx: CommandContext, entryId: string): Promise<void> {
+    const state = ctx.store.getState();
+    if (state.editorMode !== 'package' || !state.packageState || isRunLocked(state)) return;
+    this.selectEntry(ctx, entryId);
+    const added = await pickAndSetPackageCover(ctx);
+    if (added && ctx.store.getState().activeView === 'source') {
+      void getSourceEditor(ctx.store)?.load(ctx);
+    }
+  }
+
+  /** Selects `entryId` and clears its cover reference and binary cleanly. */
+  async clearCoverForEntry(ctx: CommandContext, entryId: string): Promise<void> {
+    const rpc = ctx.rpc;
+    const state = ctx.store.getState();
+    if (!rpc || state.editorMode !== 'package' || !state.packageState || isRunLocked(state)) return;
+    this.selectEntry(ctx, entryId);
+    const doc = ctx.store.getState().document;
+    if (!doc) return;
+    await removePackageCover(rpc, ctx.store, doc.docId);
+    if (ctx.store.getState().activeView === 'source') {
+      void getSourceEditor(ctx.store)?.load(ctx);
+    }
   }
 
   /** Removes a payload entry from the active package (with FR-010 confirmation when warranted). */

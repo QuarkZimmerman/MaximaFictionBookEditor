@@ -59,11 +59,17 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   while unified **File -> Open**, **Recent Files**, and command-line open auto-detect existing FBD
   ZIP packages (including body-less `.fbd` descriptors and preserving non-managed archive entries on
   in-place Save vs. clean output on Save As).
-- Package mode focuses the workspace on the **Package Files** sidebar, **Description** (with Hybrid
-  single-cover `cover.jpg`/`cover.png` management, Maxima Library lookup, and cover-clamped *Import
-  Description*), read-only **Source**, **Validate**, **Settings**, **Batch Converter**, and
+- Package mode focuses the workspace on the **Package Files** sidebar (with per-file cover
+  thumbnail icons and a right-click menu to import descriptions, add/replace/clear covers, or
+  remove files), **Description** (with Hybrid single-cover `cover.jpg`/`cover.png` management,
+  Maxima Library lookup, and cover-clamped *Import Description*), read-only **Source**,
+  **Validate**, **Settings** (including a dedicated **Package** tab controlling automatic cover
+  extraction from EPUB and MOBI/AZW3 and first-page PDF cover rendering), **Batch Converter**, and
   description-only **AI Assistant** (strictly 5 description tools, thinking-lock, and per-entry idle
   conversations), seamlessly restoring full FB2 editing when switching back.
+- *File -> Import -> Description from FictionBook file...* now supports `.fb2` and `.fbd` files
+  inside `.zip` archives (defaulting to the combined `*.fb2;*.fbd;*.zip` filter, auto-loading
+  single-entry archives, and prompting with the archive chooser when multiple entries are present).
 
 ### Fixed
 

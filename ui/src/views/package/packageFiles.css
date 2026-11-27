@@ -107,14 +107,43 @@
   flex: 1 1 auto;
   min-width: 0;
   display: flex;
-  flex-direction: column;
-  gap: 3px;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
   padding: 6px 8px;
   border: 0;
   background: transparent;
   color: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.mfbe-package-file-thumb-wrap {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 36px;
+  border-radius: 2px;
+  overflow: hidden;
+  border: 1px solid var(--mfbe-color-border-strong);
+  background: var(--mfbe-color-chrome);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mfbe-package-file-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.mfbe-package-file-info {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 
 .mfbe-package-file-select:disabled {

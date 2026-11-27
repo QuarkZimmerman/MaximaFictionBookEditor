@@ -8,6 +8,7 @@
 //
 // Jobs run on worker threads while every access to Services::packages and Services::documents is
 // serialized back onto the loop thread through Services::post.
+#include "package/fbd_package_cover_extractor.hpp"
 #include "server/services.hpp"
 
 #include <mfbe/archive.hpp>
@@ -627,6 +628,13 @@ void register_package_handlers(rpc::RpcRouter& router, Services& services) {
         }
 
         const std::string ui_lang = ui_language_setting(services);
+        package::FbdPackageCoverAutoOptions cover_opts;
+        cover_opts.auto_cover_pdf = services.settings.get_bool("package.autoCoverPdf", true);
+        cover_opts.auto_cover_epub = services.settings.get_bool("package.autoCoverEpub", true);
+        cover_opts.auto_cover_mobi = services.settings.get_bool("package.autoCoverMobi", true);
+        cover_opts.conversion_policy = services.conversion_policy();
+        cover_opts.fonts_dir = services.resources_dir / "fonts";
+
         json added = json::array();
         json rejected = json::array();
 
@@ -654,6 +662,14 @@ void register_package_handlers(rpc::RpcRouter& router, Services& services) {
 
             session::DocumentSession& s = services.documents.create();
             model::Document doc = make_blank_package_document(s.docId, *s.binaries, s.ids, ui_lang);
+            if (auto cover =
+                    package::extract_package_entry_cover(disk_path, check.extension, cover_opts)) {
+                s.binaries->put(cover->binary_id, cover->content_type, cover->bytes);
+                model::ImageRef ref;
+                ref.href = "#" + cover->binary_id;
+                doc.description.titleInfo.coverpage = {std::move(ref)};
+                package::normalize_package_fbd(doc, *s.binaries, s.ids);
+            }
             s.fileKind = model::FileKind::fbd;
             s.sourceEncoding = "utf-8";
             s.xlinkPrefix = "l";

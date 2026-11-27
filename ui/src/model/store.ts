@@ -6,7 +6,7 @@
 
 import { useSyncExternalStore } from 'react';
 
-import { forgetBinaries, observeBinaries } from './binaryUrls';
+import { forgetBinaries, forgetBinariesExcept, observeBinaries } from './binaryUrls';
 import type { Description, Document, ValidationReport } from './document';
 import { ensureUniqueNodeIds } from './uniqueIds';
 import {
@@ -387,7 +387,22 @@ export function createAppStore(overrides: Partial<AppState> = {}): AppStore {
   // The picture addresses follow the open document's binaries (binaryUrls.ts, feature 007). This
   // listener is the store's first, so every view that redraws builds its addresses after it.
   store.subscribe((state, previous) => {
-    if (state.docId !== previous.docId) forgetBinaries(state.docId);
+    if (state.editorMode === 'package' && state.packageState) {
+      if (
+        state.packageState !== previous.packageState ||
+        state.editorMode !== previous.editorMode
+      ) {
+        const keep = new Set(state.packageState.entries.map((entry) => entry.docId));
+        forgetBinariesExcept(keep);
+        for (const entry of state.packageState.entries) {
+          observeBinaries(entry.docId, entry.document.binaries);
+        }
+      }
+      return;
+    }
+    if (state.docId !== previous.docId || state.editorMode !== previous.editorMode) {
+      forgetBinaries(state.docId);
+    }
     const binaries = state.document?.binaries;
     if (state.docId && binaries && binaries !== previous.document?.binaries) {
       observeBinaries(state.docId, binaries);

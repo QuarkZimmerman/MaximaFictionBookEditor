@@ -81,8 +81,8 @@ export const PACKAGE_MODE_HIDDEN_COMMANDS: ReadonlySet<string> = new Set([
 ]);
 
 export function isCommandAllowedInPackageMode(commandId: string): boolean {
-  // Dynamic Recent Files entries (`file.recent.<index>`) remain usable to switch files/packages.
-  if (commandId.startsWith('file.recent.')) return true;
+  // Dynamic Recent Files entries (`file.recent1`..`file.recent10`) remain usable to switch files/packages.
+  if (/^file\.recent\d+$/.test(commandId)) return true;
   // All user scripts (`script.*`, `scripts.*`) are unconditionally disabled (FR-018).
   if (commandId.startsWith('script.') || commandId.startsWith('scripts.')) return false;
   return PACKAGE_MODE_ALLOWED_COMMANDS.has(commandId);

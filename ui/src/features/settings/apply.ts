@@ -176,6 +176,7 @@ const PATCH_SECTIONS = [
   'markdown',
   'txt',
   'mobi',
+  'package',
   'ai',
 ] as const;
 
@@ -232,7 +233,7 @@ export function isEmptyPatch(patch: DeepPartial<Settings>): boolean {
 
 /** True when the patch touches a section other than `ai` (the dictionaries refresh trigger). */
 function touchesResources(patch: DeepPartial<Settings>): boolean {
-  return Object.keys(patch).some((section) => section !== 'ai');
+  return Object.keys(patch).some((section) => section !== 'ai' && section !== 'package');
 }
 
 /* ------------------------------------------------------------------------ */

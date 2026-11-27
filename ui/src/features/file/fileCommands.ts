@@ -504,7 +504,7 @@ export class FileFeature {
   private loadDocument(
     ctx: CommandContext,
     document: Document & LoadReport,
-    options: { template?: boolean } = {},
+    options: { template?: boolean; keepView?: boolean } = {},
   ): void {
     resetSourceSession(ctx.store);
     ctx.undo.clear();
@@ -516,8 +516,8 @@ export class FileFeature {
     // (requester, rc.5): the same check as Tools > Validate, without its status message, of the
     // core's own copy of the book just loaded.
     void this.validateDocument(ctx, { quiet: true, asLoaded: true }).catch(() => undefined);
-    if (ctx.store.getState().activeView === 'source') {
-      // A new document always starts in the Body view unless it is Source-only.
+    if (!options.keepView && ctx.store.getState().activeView !== 'body') {
+      // Every FB2 open/new/import activates the Body view unless reloading the current file in place.
       switchView(ctx, 'body');
     }
     this.documentOpened(ctx);
@@ -815,7 +815,12 @@ export class FileFeature {
    * parse-error messages; Source-only mode for malformed files. Returns true when a document
    * (model or raw text) is now open.
    */
-  async openDocument(ctx: CommandContext, path: string, entry?: string): Promise<boolean> {
+  async openDocument(
+    ctx: CommandContext,
+    path: string,
+    entry?: string,
+    options: { keepView?: boolean } = {},
+  ): Promise<boolean> {
     const { store, rpc } = ctx;
     if (!rpc) return false;
     // Feature 009: a ZIP archive of several books asks which one before the window's book is
@@ -907,7 +912,7 @@ export class FileFeature {
         }
       }
       await this.closeCurrentDocument(ctx);
-      this.loadDocument(ctx, result.document);
+      this.loadDocument(ctx, result.document, options);
       if (markModified) {
         actions.setModified(store, true);
       }
@@ -985,7 +990,7 @@ export class FileFeature {
       }
       const parseError = parseErrorData(error);
       if (parseError) {
-        return this.handleMalformedXml(ctx, path, parseError, entry, pending);
+        return this.handleMalformedXml(ctx, path, parseError, entry, pending, options);
       }
       // Core-side failures (I/O, parse) are logged by the core; log the client-side ones.
       if (isClientSideError(error)) {
@@ -1019,6 +1024,7 @@ export class FileFeature {
     parseError: DocParseErrorData,
     entry: string | undefined,
     pending: StructuralPosition | null,
+    options: { keepView?: boolean } = {},
   ): Promise<boolean> {
     const { store, rpc } = ctx;
     if (!rpc) return false;
@@ -1099,7 +1105,7 @@ export class FileFeature {
         }
       }
       await this.closeCurrentDocument(ctx);
-      this.loadDocument(ctx, result.document);
+      this.loadDocument(ctx, result.document, options);
       // Repaired in memory only: mark modified so the disk file stays untouched until saved.
       actions.setModified(store, true);
       const repaired = result.warnings.find((w) => w.code === 'xml.repaired');
@@ -1520,7 +1526,7 @@ export class FileFeature {
         // The reload keeps the active view and the in-session caret (001 FR-006, 004 FR-101):
         // the Body caret as it is now travels to the reopened document directly.
         this.pendingPosition = currentBodyPosition(ctx);
-        await this.openDocument(ctx, path);
+        await this.openDocument(ctx, path, undefined, { keepView: true });
       }
     } finally {
       this.reloadPromptOpen = false;

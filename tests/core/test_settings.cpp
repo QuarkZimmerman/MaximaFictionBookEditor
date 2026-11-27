@@ -128,7 +128,10 @@ TEST_CASE("settings: defaults are exactly resource-formats.md section 6", "[sett
     CHECK(d["maximaLibrary"] == json{{"enabled", false},
                                      {"domain", "https://www.maxima-library.com"},
                                      {"verifiedFingerprint", ""}});
-    CHECK(d.size() == 13);
+    // Feature 022: Package mode automatic cover import defaults.
+    CHECK(d["package"] ==
+          json{{"autoCoverPdf", true}, {"autoCoverEpub", true}, {"autoCoverMobi", true}});
+    CHECK(d.size() == 14);
 }
 
 TEST_CASE(

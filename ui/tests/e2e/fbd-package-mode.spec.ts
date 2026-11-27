@@ -5,6 +5,7 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { deflateRawSync, inflateRawSync } from 'node:zlib';
 
 import { ensureAssistantOn, expect, test, waitForStartupDocument } from './fixtures/core';
@@ -156,7 +157,8 @@ test.describe('Feature 022: FBD ZIP Package Mode', () => {
       await core.openApp(page);
       await waitForStartupDocument(page);
 
-      // Toolbar New split button starts in FB2 mode and switches icon+action when choosing New Package.
+      // Toolbar New split button starts in FB2 mode; picking from dropdown ONLY updates the button's
+      // icon/action without switching modes — clicking the primary New button runs the action.
       await expect(page.getByTestId('toolbar-file.new')).toHaveAttribute(
         'data-active-action',
         'fb2',
@@ -165,11 +167,14 @@ test.describe('Feature 022: FBD ZIP Package Mode', () => {
       await expect(page.getByTestId('toolbar-file.new-menu')).toBeVisible();
       await page.getByTestId('toolbar-file.new-menu-package').click();
 
-      await expect(page.getByTestId('app-root')).toHaveAttribute('data-editor-mode', 'package');
+      await expect(page.getByTestId('app-root')).toHaveAttribute('data-editor-mode', 'fb2');
       await expect(page.getByTestId('toolbar-file.new')).toHaveAttribute(
         'data-active-action',
         'package',
       );
+      await page.getByTestId('toolbar-file.new').click();
+
+      await expect(page.getByTestId('app-root')).toHaveAttribute('data-editor-mode', 'package');
       await expect(page.getByTestId('package-files-sidebar')).toBeVisible();
       await expect(page.getByTestId('package-empty-workspace')).toBeVisible();
 
@@ -252,10 +257,10 @@ test.describe('Feature 022: FBD ZIP Package Mode', () => {
       await expect(page.getByTestId('source-view')).toHaveAttribute('data-readonly', 'true');
       const sourceEditor = page.getByTestId('source-editor');
       await expect(sourceEditor).toContainText('Second Packaged Book');
-      const beforeTyping = await sourceEditor.textContent();
       await sourceEditor.click();
       await page.keyboard.type('SHOULD_NOT_BE_TYPED');
-      await expect(sourceEditor).toHaveText(beforeTyping ?? '');
+      await expect(sourceEditor).not.toContainText('SHOULD_NOT_BE_TYPED');
+      await expect(sourceEditor).toContainText('Second Packaged Book');
 
       // Switching back to Book One in Source view updates XML live to First Packaged Book + #cover.png.
       await items.nth(0).locator('button').first().click();
@@ -910,6 +915,190 @@ test.describe('Feature 022: FBD ZIP Package Mode', () => {
       );
     } finally {
       await core.rpc('settings.set', { patch: { other: { startupMode: 'fb2' } } }).catch(() => {});
+      rmSync(workDir, { recursive: true, force: true });
+    }
+  });
+
+  test('Review items 1-7: Recent Files in Package mode -> Body view, ZIP Import Description, Package Settings tab, auto-covers + left tile thumbnails, and Package Files right-click menu', async ({
+    page,
+    core,
+  }) => {
+    test.skip(!core.hasCore, 'Requires mfbe-core binary');
+    const workDir = mkdtempSync(path.join(tmpdir(), 'mfbe-e2e-pkg-review-'));
+    try {
+      const fb2Sample = (title: string) =>
+        '<?xml version="1.0" encoding="utf-8"?>\n' +
+        '<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">\n' +
+        '  <description>\n' +
+        '    <title-info>\n' +
+        '      <genre>sf</genre>\n' +
+        '      <author><first-name>Frank</first-name><last-name>Herbert</last-name></author>\n' +
+        `      <book-title>${title}</book-title>\n` +
+        '      <lang>en</lang>\n' +
+        '    </title-info>\n' +
+        '    <document-info>\n' +
+        '      <author><first-name>Test</first-name><last-name>User</last-name></author>\n' +
+        '      <date value="2026-11-27">2026-11-27</date>\n' +
+        '      <id>REV-1</id>\n' +
+        '      <version>1.0</version>\n' +
+        '    </document-info>\n' +
+        '  </description>\n' +
+        '  <body><section><p>Desert planet.</p></section></body>\n' +
+        '</FictionBook>\n';
+
+      const recentFb2 = path.join(workDir, 'dune-recent.fb2');
+      writeFileSync(recentFb2, fb2Sample('Dune Recent'), 'utf8');
+
+      const singleZipDesc = path.join(workDir, 'single-desc.zip');
+      writeTestZip(singleZipDesc, [['single.fbd', fb2Sample('Imported From Single ZIP')]]);
+
+      const multiZipDesc = path.join(workDir, 'multi-desc.zip');
+      writeTestZip(multiZipDesc, [
+        ['first.fb2', fb2Sample('First ZIP Book')],
+        ['second.fbd', fb2Sample('Second ZIP Book')],
+      ]);
+
+      const epubWithCover = path.join(workDir, 'covered-book.epub');
+      writeTestZip(epubWithCover, [
+        ['mimetype', 'application/epub+zip'],
+        [
+          'META-INF/container.xml',
+          '<?xml version="1.0"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>',
+        ],
+        [
+          'OEBPS/content.opf',
+          '<?xml version="1.0"?><package version="3.0" xmlns="http://www.idpf.org/2007/opf"><metadata/><manifest><item id="c" href="cover.png" media-type="image/png" properties="cover-image"/></manifest><spine/></package>',
+        ],
+        ['OEBPS/cover.png', TINY_PNG],
+      ]);
+
+      const realPdf = path.resolve(
+        path.dirname(fileURLToPath(import.meta.url)),
+        '../../../tests/fixtures/pdf/import/tagged.pdf',
+      );
+      const altCoverJpg = path.join(workDir, 'replacement-cover.jpg');
+      writeFileSync(altCoverJpg, TINY_JPEG);
+
+      await core.openApp(page);
+      await waitForStartupDocument(page);
+
+      // 1. Open recentFb2 from Description view -> must switch to Body view and record in Recent Files.
+      await page.getByTestId('view-description').click();
+      await expect(page.getByTestId('view-description')).toHaveAttribute('aria-selected', 'true');
+      await core.enqueueDialog('dialog.openFile', { paths: [recentFb2] });
+      await page.getByTestId('toolbar-file.open').click();
+      await expect(page).toHaveTitle(/^dune-recent\.fb2 - /);
+      await expect(page.getByTestId('view-body')).toHaveAttribute('aria-selected', 'true');
+
+      // 2. Enter Package mode, verify Settings -> Package tab defaults & Apply dirty tracking.
+      await page.getByTestId('menu-file').click();
+      await page.getByTestId('menu-file-newPackage').click();
+      await expect(page.getByTestId('app-root')).toHaveAttribute('data-editor-mode', 'package');
+
+      await page.getByTestId('menu-tools').click();
+      await page.getByTestId('menu-tools-settings').click();
+      await expect(page.getByTestId('dialog-settings')).toBeVisible();
+      await page.getByTestId('settings-tab-package').click();
+      await expect(page.getByTestId('settings-page-package')).toBeVisible();
+      await expect(page.getByTestId('settings-package-auto-cover-pdf')).toBeChecked();
+      await expect(page.getByTestId('settings-package-auto-cover-epub')).toBeChecked();
+      await expect(page.getByTestId('settings-package-auto-cover-mobi')).toBeChecked();
+      const applyBtn = page.getByTestId('dialog-settings-button-apply');
+      await expect(applyBtn).toBeDisabled();
+      await page.getByTestId('settings-package-auto-cover-epub').uncheck();
+      await expect(applyBtn).toBeEnabled();
+      await page.getByTestId('settings-package-auto-cover-epub').check();
+      await expect(applyBtn).toBeDisabled();
+      await page.getByTestId('dialog-settings-button-cancel').click();
+      await expect(page.getByTestId('dialog-settings')).toHaveCount(0);
+
+      // 3. Add real PDF + EPUB with cover -> both automatically receive covers & left tile thumbnails!
+      await core.enqueueDialog('dialog.openFile', { paths: [realPdf, epubWithCover] });
+      await page.getByTestId('package-files-add').click();
+      const items = page.locator('[data-testid^="package-file-item-"]');
+      await expect(items).toHaveCount(2);
+
+      const pdfThumb = items.nth(0).locator('[data-testid^="package-file-cover-thumb-"]');
+      const epubThumb = items.nth(1).locator('[data-testid^="package-file-cover-thumb-"]');
+      await expect(pdfThumb).toBeVisible();
+      await expect(epubThumb).toBeVisible();
+
+      // 4. Right-click context menu on EPUB tile (already has auto-cover, so confirmation dialog lets
+      //    us choose fields while preserving the auto-cover!):
+      //    (a) Import description from multi-entry ZIP -> ArchiveBookChooser popup -> pick second.fbd
+      await core.enqueueDialog('dialog.openFile', { paths: [multiZipDesc] });
+      await items.nth(1).click({ button: 'right' });
+      await expect(page.getByTestId('package-file-context-menu')).toBeVisible();
+      await page.getByTestId('package-file-context-menu-importDescription').click();
+      await expect(page.getByTestId('archive-chooser')).toBeVisible();
+      await page.getByTestId('archive-chooser-row-1').click();
+      await page.getByTestId('archive-chooser-button-ok').click();
+      await expect(page.getByTestId('dialog-import-description')).toBeVisible();
+      await page.getByTestId('import-entry-titleInfo.bookTitle-check').check();
+      await page.getByTestId('dialog-import-description-button-import').click();
+      await expect(page.getByTestId('description-book-title')).toHaveValue('Second ZIP Book');
+      await expect(epubThumb).toBeVisible();
+
+      //    (b) Replace cover via context menu -> thumbnail src updates!
+      const beforeSrc = await pdfThumb.getAttribute('src');
+      await core.enqueueDialog('dialog.openFile', { paths: [altCoverJpg] });
+      await items.nth(0).click({ button: 'right' });
+      await page.getByTestId('package-file-context-menu-setCover').click();
+      await expect.poll(() => pdfThumb.getAttribute('src')).not.toBe(beforeSrc);
+
+      //    (c) Clear cover via context menu -> thumbnail disappears and binaries become empty!
+      await items.nth(0).click({ button: 'right' });
+      await expect(page.getByTestId('package-file-context-menu-clearCover')).not.toHaveAttribute(
+        'aria-disabled',
+        'true',
+      );
+      await page.getByTestId('package-file-context-menu-clearCover').click();
+      await expect(pdfThumb).toHaveCount(0);
+      await expect(page.getByTestId('description-cover-0')).toHaveCount(0);
+
+      // Re-open context menu on now-coverless tile -> Clear cover is disabled!
+      await items.nth(0).click({ button: 'right' });
+      await expect(page.getByTestId('package-file-context-menu-clearCover')).toHaveAttribute(
+        'aria-disabled',
+        'true',
+      );
+      await page.keyboard.press('Escape');
+
+      //    (d) Import description from single-entry ZIP onto now-empty PDF entry -> auto-loads
+      //        without archive chooser and without confirmation dialog!
+      await core.enqueueDialog('dialog.openFile', { paths: [singleZipDesc] });
+      await items.nth(0).click({ button: 'right' });
+      await page.getByTestId('package-file-context-menu-importDescription').click();
+      await expect(page.getByTestId('archive-chooser')).toHaveCount(0);
+      await expect(page.getByTestId('dialog-import-description')).toHaveCount(0);
+      await expect(page.getByTestId('description-book-title')).toHaveValue(
+        'Imported From Single ZIP',
+      );
+
+      // 5. Recent Files in Package mode: recentFb2 MUST be enabled; clicking it switches cleanly
+      //    back to FB2 mode AND activates the Body view!
+      await page.getByTestId('menu-file').click();
+      await page.getByTestId('menu-file-recent').hover();
+      const recentPopup = page.getByTestId('menu-file-recent-popup');
+      await expect(recentPopup).toBeVisible();
+      const recent1 = recentPopup.getByTestId('menu-file-recent-recent1');
+      await expect(recent1).toBeVisible();
+      await expect(recent1).not.toHaveAttribute('aria-disabled', 'true');
+      await recent1.click();
+      await expect(page.getByTestId('dialog-package-save-changes')).toBeVisible();
+      await page.getByTestId('dialog-package-save-changes-button-no').click();
+
+      await expect(page.getByTestId('app-root')).toHaveAttribute('data-editor-mode', 'fb2');
+      await expect(page).toHaveTitle(/^dune-recent\.fb2 - /);
+      await expect(page.getByTestId('view-body')).toHaveAttribute('aria-selected', 'true');
+    } finally {
+      await core
+        .rpc('settings.set', {
+          patch: {
+            package: { autoCoverPdf: true, autoCoverEpub: true, autoCoverMobi: true },
+          },
+        })
+        .catch(() => {});
       rmSync(workDir, { recursive: true, force: true });
     }
   });

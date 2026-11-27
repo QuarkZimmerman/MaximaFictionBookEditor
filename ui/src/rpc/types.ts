@@ -448,6 +448,12 @@ export interface Settings {
   };
   /** Feature 021 (data-model.md §1): Maxima Library Lookup Service v2 configuration (non-secret). */
   maximaLibrary?: MaximaLibrarySettings;
+  /** Feature 022: FBD ZIP Package mode automatic cover import defaults (Settings -> Package). */
+  package?: {
+    autoCoverPdf: boolean;
+    autoCoverEpub: boolean;
+    autoCoverMobi: boolean;
+  };
   session: {
     /**
      * Window placement (feature 003: recorded by the shell at quit): the normal bounds plus
@@ -1550,8 +1556,8 @@ export interface RpcMethods {
    * Source-only fallback), 1002 (a missing file prunes no recent entry), 1000, invalidParams.
    */
   'doc.readDescription': {
-    params: { docId: string; path: string };
-    result: MaybeJob<ReadDescriptionResult>;
+    params: { docId: string; path: string; entry?: string };
+    result: MaybeJob<ReadDescriptionResult | { needsChoice: ArchiveChoice }>;
   };
   /**
    * Writes the description of `docId` - `document` is the live model, so unsaved edits count

@@ -41,7 +41,9 @@ int usage() {
         "usage: mfbe-pdf-reader --pdf <path> --out <folder> [--max-memory <MB>] [--quality <1-100>]"
         " [--fonts <folder>] [--ocr] [--ocr-auto <0|1>] [--ocr-langs <c1,c2,...>]"
         " [--ocr-dir <path>]... [--ocr-threads <1-8>]\n"
-        "       mfbe-pdf-reader --pdf <path> --render <page> --dpi <18-600> --out <file.png>\n",
+        "       mfbe-pdf-reader --pdf <path> --render <page> --dpi <18-600> --out <file.png>\n"
+        "       mfbe-pdf-reader --pdf <path> --render-cover <width> [--quality <1-100>]"
+        " [--fonts <folder>] --out <file.jpg>\n",
         stderr);
     return 2;
 }
@@ -135,6 +137,7 @@ int main(int argc, char** argv) {
     std::string fonts;
     int quality = 85;
     int render = 0;
+    int render_cover = 0;
     int dpi = 0;
     mfbe::pdf_reader::OcrOptions ocr_opts;
     for (int i = 1; i < argc; ++i) {
@@ -161,6 +164,9 @@ int main(int argc, char** argv) {
             ++i;
         } else if (flag == "--render") {
             render = std::atoi(value.c_str());
+            ++i;
+        } else if (flag == "--render-cover") {
+            render_cover = std::atoi(value.c_str());
             ++i;
         } else if (flag == "--dpi") {
             dpi = std::atoi(value.c_str());
@@ -258,6 +264,11 @@ int main(int argc, char** argv) {
             mfbe::pdf_reader::emit(R"({"event":"failed","reason":"damaged"})");
             return 1;
         }
+        if (render_cover > 0) {
+            // Automatic package cover generation is non-interactive; never block on stdin.
+            mfbe::pdf_reader::emit(R"({"event":"failed","reason":"encrypted"})");
+            return 1;
+        }
         mfbe::pdf_reader::emit(attempt == 0 ? R"({"event":"needs-password"})"
                                             : R"({"event":"wrong-password"})");
         std::string line;
@@ -268,6 +279,24 @@ int main(int argc, char** argv) {
         user = GooString(line);
     }
     mfbe::pdf_reader::map_newer_types(*doc);
+    // Cover rendering is display-only (like viewing page 1), so handle it before okToCopy().
+    if (render_cover > 0) {
+        if (doc->getNumPages() <= 0) {
+            mfbe::pdf_reader::emit(R"({"event":"failed","reason":"damaged"})");
+            return 1;
+        }
+        int width = 0;
+        int height = 0;
+        if (!mfbe::pdf_reader::render_cover_jpeg(*doc, render_cover, options.quality, options.out,
+                                                 width, height)) {
+            mfbe::pdf_reader::emit(R"({"event":"failed","reason":"damaged"})");
+            return 1;
+        }
+        mfbe::pdf_reader::emit(
+            "{\"event\":\"rendered\",\"n\":1,\"width\":" + std::to_string(width) +
+            ",\"height\":" + std::to_string(height) + "}");
+        return 0;
+    }
     if (!doc->okToCopy()) {
         mfbe::pdf_reader::emit(R"({"event":"owner-password"})");
         std::string line;

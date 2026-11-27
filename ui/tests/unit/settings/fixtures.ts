@@ -83,6 +83,11 @@ export function defaultSettings(overrides: Partial<Settings> = {}): Settings {
       domain: 'https://www.maxima-library.com',
       verifiedFingerprint: '',
     },
+    package: {
+      autoCoverPdf: true,
+      autoCoverEpub: true,
+      autoCoverMobi: true,
+    },
     ...overrides,
   };
 }
