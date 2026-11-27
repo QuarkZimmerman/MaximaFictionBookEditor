@@ -4,6 +4,7 @@
       "menu": "file",
       "items": [
         "file.new",
+        "file.newPackage",
         "file.open",
         "file.save",
         "file.saveAs",

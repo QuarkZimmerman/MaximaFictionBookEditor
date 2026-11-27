@@ -398,6 +398,7 @@ struct CoreServer::Impl : rpc::Notifier {
         server::register_settings_handlers(router, *services);
         server::register_dialog_handlers(router, *services);
         server::register_doc_handlers(router, *services);
+        server::register_package_handlers(router, *services);
         server::register_export_handlers(router, *services);
         server::register_styles_handlers(router, *services);
         server::register_binary_handlers(router, *services);

@@ -23,6 +23,7 @@ import type {
   Settings,
   SpellDictionaryFolder,
   SpellRejectedDictionary,
+  StartupMode,
   ThemeSetting,
   UiLanguageSetting,
   VersionCheckSchedule,
@@ -113,6 +114,12 @@ export const VERSION_CHECK_OPTIONS: readonly { value: VersionCheckSchedule; labe
   { value: 'weekly', labelKey: 'dialog.settings.other.versionCheckChoices.weekly' },
   { value: 'monthly', labelKey: 'dialog.settings.other.versionCheckChoices.monthly' },
   { value: 'never', labelKey: 'dialog.settings.other.versionCheckChoices.never' },
+];
+
+/** Default editing mode on startup without a file argument (feature 022, FR-006). */
+export const STARTUP_MODE_OPTIONS: readonly { value: StartupMode; labelKey: string }[] = [
+  { value: 'fb2', labelKey: 'package.settings.startupFb2' },
+  { value: 'package', labelKey: 'package.settings.startupPackage' },
 ];
 
 /* ------------------------------------------------------------------------ */

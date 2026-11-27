@@ -36,6 +36,7 @@ import { useTranslation } from 'react-i18next';
 import { getAiFeature } from '@/ai';
 import { useCommandContext } from '@/app/services';
 import { issueMessage } from '@/dialogs/validation';
+import { activePackageEntry } from '@/features/package/packageSessionModel';
 import { getSettingsFeature } from '@/features/settings/apply';
 import { openSettingsDialog } from '@/features/settings/index';
 import {
@@ -427,6 +428,8 @@ export function AiPanel() {
   const live = useAppState((s) => s.ai.request as AiRequestView | null, store);
   const panelFocus = useAppState((s) => s.ai.panelFocus, store);
   const hasDocument = useAppState((s) => s.document !== null, store);
+  const editorMode = useAppState((s) => s.editorMode, store);
+  const packageState = useAppState((s) => s.packageState, store);
   const locked = useAppState((s) => isRunLocked(s), store);
   const lockKind = useAppState((s) => s.runLock?.kind ?? null, store);
 
@@ -510,6 +513,8 @@ export function AiPanel() {
     if (list) list.scrollTop = list.scrollHeight;
   }, [conversation.activity.length]);
 
+  const isPackage = editorMode === 'package';
+  const activeEntry = isPackage ? activePackageEntry(packageState) : null;
   const running = live !== null;
   const sendable = hasDocument && !locked && target.kind === 'ok';
   const trimmed = instruction.trim();
@@ -628,7 +633,7 @@ export function AiPanel() {
   }
 
   let sendTitle: string | undefined;
-  if (!hasDocument) sendTitle = t('ai.panel.noDocument');
+  if (!hasDocument) sendTitle = isPackage ? t('package.ai.emptyPackage') : t('ai.panel.noDocument');
   else if (locked && lockKind === 'script') sendTitle = t('ai.failure.busy');
   else if (target.kind === 'none') sendTitle = t('ai.failure.noService');
 
@@ -661,6 +666,11 @@ export function AiPanel() {
             {serviceNote}
           </div>
         ) : null}
+        {isPackage && activeEntry ? (
+          <div className="mfbe-ai-service-note" data-testid="ai-package-mode-hint">
+            {t('package.ai.descriptionOnlyHint', { fileName: activeEntry.fileName })}
+          </div>
+        ) : null}
       </header>
 
       {/* The two scrollers stay out of the Tab sequence (Chromium makes scrollable boxes
@@ -674,8 +684,11 @@ export function AiPanel() {
         tabIndex={-1}
       >
         {empty ? (
-          <p className="mfbe-ai-empty" data-testid="ai-empty">
-            {t('ai.panel.empty')}
+          <p
+            className="mfbe-ai-empty"
+            data-testid={isPackage && !hasDocument ? 'ai-package-empty-notice' : 'ai-empty'}
+          >
+            {isPackage && !hasDocument ? t('package.ai.emptyPackage') : t('ai.panel.empty')}
           </p>
         ) : null}
         {conversation.messages.map((message, index) => (

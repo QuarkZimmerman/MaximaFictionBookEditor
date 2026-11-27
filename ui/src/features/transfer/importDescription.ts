@@ -28,7 +28,9 @@ import { createElement } from 'react';
 
 import type { CommandContext } from '@/app/commands';
 import { describeError, isClientSideError, logUiError } from '@/app/diagnostics';
-import { fileType } from '@/dialogs/fileTypes';
+import { openFileTypes } from '@/dialogs/fileTypes';
+import { showArchiveBookChooser } from '@/dialogs/show';
+import { archiveErrorMessage } from '@/features/file/fileCommands';
 import type { Document } from '@/model/document';
 import { actions } from '@/model/store';
 import { RpcError } from '@/rpc/client';
@@ -37,6 +39,12 @@ import { getBodyController, hasBodyController } from '@/views/body/bodyEditor';
 import { getSourceEditor } from '@/views/source/sourceEditor';
 import { commitPendingSource } from '@/views/source/sourceSession';
 
+import {
+  applyPackageCoverToDocument,
+  clearPackageCoverFromDocument,
+  hasNonEmptyDescription,
+  importSinglePackageCover,
+} from '@/features/package';
 import { ImportDescriptionDialog } from './ImportDescriptionDialog';
 import {
   applyEntries,
@@ -46,13 +54,12 @@ import {
 } from './importEntries';
 import { isUntouchedNewDocument } from './untouched';
 
-/** The open dialog's types: descriptors first and selected, then FictionBook files, All files. */
+/**
+ * The open dialog's types: all supported book/archive kinds (`*.fb2;*.fbd;*.zip`) first and
+ * selected by default, followed by individual `.fb2`, `.fbd`, `.zip`, and All files.
+ */
 export function importFileTypes(t: CommandContext['t']): FileFilter[] {
-  return [
-    fileType(t('fileDialogs.types.fictionBookDescriptors'), ['fbd']),
-    fileType(t('fileDialogs.types.fictionBook'), ['fb2']),
-    fileType(t('fileDialogs.types.all'), ['*']),
-  ];
+  return openFileTypes(t);
 }
 
 function fileName(path: string): string {
@@ -75,6 +82,8 @@ export function errorReason(error: unknown): string {
 
 /** The message of a failed read (FR-031: "a message names the problem"). */
 function failureText(ctx: CommandContext, path: string, error: unknown): string {
+  const archiveMessage = archiveErrorMessage(ctx.t, error, path);
+  if (archiveMessage) return archiveMessage;
   if (error instanceof RpcError && error.code === RpcErrorCode.docNotFictionBook) {
     return ctx.t('msg.notFictionBook', { path });
   }
@@ -93,8 +102,11 @@ function failureText(ctx: CommandContext, path: string, error: unknown): string 
 /** Shows `document` in the editors and the store without switching the view (FR-035). */
 function show(ctx: CommandContext, document: Document): void {
   const { store } = ctx;
-  if (hasBodyController(store)) getBodyController(store).showModel(document);
-  else actions.updateDocument(store, document);
+  if (store.getState().editorMode !== 'package' && hasBodyController(store)) {
+    getBodyController(store).showModel(document);
+  } else {
+    actions.updateDocument(store, document);
+  }
   if (store.getState().activeView === 'source') {
     // The Source view loads its text on mount only: without the reload its stale text would
     // be parsed back over the import at the next commit.
@@ -148,11 +160,27 @@ export async function importDescription(ctx: CommandContext): Promise<boolean> {
 
   let read: ReadDescriptionResult;
   try {
-    read = await rpc.runJob(
+    let response = await rpc.runJob(
       'doc.readDescription',
       { docId, path },
       { onProgress: (progress) => actions.setProgress(store, progress) },
     );
+    if ('needsChoice' in response) {
+      actions.setProgress(store, null);
+      const chosen = await showArchiveBookChooser(
+        ctx.dialogs,
+        response.needsChoice,
+        fileName(path),
+      );
+      if (chosen === null) return false;
+      response = await rpc.runJob(
+        'doc.readDescription',
+        { docId, path, entry: chosen },
+        { onProgress: (progress) => actions.setProgress(store, progress) },
+      );
+      if ('needsChoice' in response) return false;
+    }
+    read = response;
   } catch (error) {
     if (isClientSideError(error)) {
       void logUiError(rpc, {
@@ -173,7 +201,11 @@ export async function importDescription(ctx: CommandContext): Promise<boolean> {
   }
 
   try {
-    const entries = importableEntries(read);
+    const isPackage = store.getState().editorMode === 'package';
+    const rawEntries = importableEntries(read);
+    const entries = isPackage
+      ? rawEntries.filter((entry) => entry.key !== 'srcTitleInfo.coverpage')
+      : rawEntries;
     if (entries.length === 0) {
       await ctx.dialogs.showMessage({
         text: ctx.t('transfer.import.nothing', { path }),
@@ -185,7 +217,10 @@ export async function importDescription(ctx: CommandContext): Promise<boolean> {
     }
 
     let chosen: ImportableEntry[];
-    if (isUntouchedNewDocument(store.getState())) {
+    const untouched = isPackage
+      ? !hasNonEmptyDescription(store.getState().document!)
+      : isUntouchedNewDocument(store.getState());
+    if (untouched) {
       chosen = entries;
     } else {
       const ticked = await ctx.dialogs.openCustom<string[] | null>((close) =>
@@ -204,20 +239,85 @@ export async function importDescription(ctx: CommandContext): Promise<boolean> {
     // external change); the import then leaves it alone.
     const before = store.getState().document;
     if (!before || store.getState().docId !== docId) return false;
-    const { map, added } = await copyBinaries(ctx, docId, read.importId, chosen);
-    const after: Document = {
-      ...before,
-      // Feature 011 (FR-003): the persons of an imported description take the schema's forms.
-      description: withSchemaPersons(
+
+    let after: Document;
+    if (isPackage) {
+      // Package mode enforces the single `cover.<ext>` Hybrid invariant (FR-014, FR-017):
+      // clamp imported covers to at most the first valid cover binary, dropping extra images.
+      const coverEntry = chosen.find((e) => e.key === 'titleInfo.coverpage');
+      const map = new Map<string, string>();
+      const preferred =
+        store.getState().settings?.other.pasteImageFormat === 'png' ? 'png' : 'jpeg';
+      let importedCover: Document['binaries'][number] | null = null;
+      let clearExistingCover = false;
+
+      if (coverEntry) {
+        const firstHref = coverEntry.hrefs.find((h) => h.startsWith('#') && h.length > 1);
+        if (firstHref) {
+          importedCover = await importSinglePackageCover(
+            rpc,
+            docId,
+            read.importId,
+            firstHref.slice(1),
+            before.binaries.map((b) => b.id),
+            preferred,
+          );
+          map.set(firstHref, `#${importedCover.id}`);
+        } else {
+          for (const b of before.binaries) {
+            await rpc
+              .call('binary.remove', { docId, id: b.id, force: true })
+              .catch(() => undefined);
+          }
+          clearExistingCover = true;
+        }
+      }
+
+      const appliedDesc = withSchemaPersons(
         applyEntries(
           before.description,
           read,
           chosen.map((entry) => entry.key),
           map,
         ),
-      ),
-      binaries: [...before.binaries, ...added],
-    };
+      );
+      let candidate: Document = {
+        ...before,
+        description: appliedDesc,
+      };
+      if (importedCover) {
+        candidate = applyPackageCoverToDocument(candidate, importedCover);
+      } else if (clearExistingCover) {
+        candidate = clearPackageCoverFromDocument(candidate);
+      } else {
+        // Cover was not selected for import: keep existing cover and strip any srcTitleInfo cover.
+        if (candidate.description.srcTitleInfo) {
+          candidate = {
+            ...candidate,
+            description: {
+              ...candidate.description,
+              srcTitleInfo: { ...candidate.description.srcTitleInfo, coverpage: [] },
+            },
+          };
+        }
+      }
+      after = candidate;
+    } else {
+      const { map, added } = await copyBinaries(ctx, docId, read.importId, chosen);
+      after = {
+        ...before,
+        // Feature 011 (FR-003): the persons of an imported description take the schema's forms.
+        description: withSchemaPersons(
+          applyEntries(
+            before.description,
+            read,
+            chosen.map((entry) => entry.key),
+            map,
+          ),
+        ),
+        binaries: [...before.binaries, ...added],
+      };
+    }
     // One undo step independent of any view history, recorded against the view the import
     // was made in (undoing it brings that view back, as every undo does).
     const view = store.getState().activeView;

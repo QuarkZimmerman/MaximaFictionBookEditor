@@ -28,6 +28,7 @@ import { isRunLocked, useAppState } from '@/model/store';
 import { useAppServices, useCommandContext, useAppRevision } from './services';
 import { commandDescription, commandTooltip, unavailableTitle } from './commands';
 import { LinksBar } from './LinksBar';
+import { NewSplitButton } from './NewSplitButton';
 import { PopupMenu } from './PopupMenu';
 import { TableBar } from './TableBar';
 import { iconUrl } from './toolbarIcons';
@@ -373,7 +374,9 @@ export function CommandsToolbar() {
     <CustomizableToolbarView
       toolbar="commands"
       scriptButtons={NO_SCRIPTS}
-      renderButton={(id) => <ToolbarButton commandId={id} />}
+      renderButton={(id) =>
+        id === 'file.new' ? <NewSplitButton /> : <ToolbarButton commandId={id} />
+      }
     />
   );
 }
@@ -391,17 +394,22 @@ export function ScriptsToolbar({ scripts }: { scripts?: ScriptToolbarButtons }) 
   );
 }
 
-/** All toolbars, each shown according to the View menu toggles. */
+/** All toolbars, each shown according to the View menu toggles (Package mode shows Commands only). */
 export function Toolbars({ scripts }: { scripts?: ScriptToolbarButtons }) {
   const services = useAppServices();
   const toolbars = useAppState((s) => s.toolbars, services.store);
-  if (!toolbars.commands && !toolbars.scripts && !toolbars.links && !toolbars.table) return null;
+  const editorMode = useAppState((s) => s.editorMode, services.store);
+  const isPackage = editorMode === 'package';
+  const showScripts = !isPackage && toolbars.scripts;
+  const showLinks = !isPackage && toolbars.links;
+  const showTable = !isPackage && toolbars.table;
+  if (!toolbars.commands && !showScripts && !showLinks && !showTable) return null;
   return (
     <div className="mfbe-toolbars" data-testid="toolbars">
       {toolbars.commands ? <CommandsToolbar /> : null}
-      {toolbars.scripts ? <ScriptsToolbar scripts={scripts} /> : null}
-      {toolbars.links ? <LinksBar /> : null}
-      {toolbars.table ? <TableBar /> : null}
+      {showScripts ? <ScriptsToolbar scripts={scripts} /> : null}
+      {showLinks ? <LinksBar /> : null}
+      {showTable ? <TableBar /> : null}
     </div>
   );
 }

@@ -67,6 +67,7 @@
 #include <mfbe/epub.hpp>
 #include <mfbe/fb2_reader.hpp>
 #include <mfbe/fb2_writer.hpp>
+#include <mfbe/fbd_package.hpp>
 #include <mfbe/images.hpp>
 #include <mfbe/json_codec.hpp>
 #include <mfbe/log.hpp>
@@ -347,9 +348,11 @@ struct ArchiveChoice {
     std::optional<std::string> entry;
     std::uint64_t size = 0;
     json needs_choice;  // set when the UI must ask
+    bool package_detected = false;
 };
 
-ArchiveChoice choose_entry(const std::string& path, const std::optional<std::string>& wanted) {
+ArchiveChoice choose_entry(const std::string& path, const std::optional<std::string>& wanted,
+                           bool detect_package = true) {
     archive::Listing listing;
     try {
         listing = archive::list(platform::path_from_utf8(path));
@@ -357,6 +360,15 @@ ArchiveChoice choose_entry(const std::string& path, const std::optional<std::str
         throw archive_error(e);
     }
     ArchiveChoice choice;
+    if (detect_package && !wanted) {
+        // Feature 022 (FR-003): a ZIP with zero .fb2 entries, >=1 top-level .fbd, and >=1 valid
+        // top-level non-FB2 payload routes into Package editing mode instead of FB2 mode.
+        const package::FbdPackageInspection inspected = package::inspect_zip_listing(listing);
+        if (inspected.classification == package::ZipClassification::fbd_package) {
+            choice.package_detected = true;
+            return choice;
+        }
+    }
     if (wanted) {
         const auto it = std::find_if(listing.books.begin(), listing.books.end(),
                                      [&](const archive::Book& b) { return b.entry == *wanted; });
@@ -370,24 +382,28 @@ ArchiveChoice choose_entry(const std::string& path, const std::optional<std::str
         return choice;
     }
     if (listing.books_total == 0) {
-        // Feature 016 (D4): an archive holding a PDF but no book points to the PDF import.
+        // Feature 016 (D4): an archive holding a PDF/TXT/MOBI but no book points to the matching
+        // import when opening a document; description import always reports no FB2/FBD entries.
         json data = json::object();
-        for (const archive::Entry& e : listing.entries) {
-            std::string name = e.name;
-            std::transform(name.begin(), name.end(), name.begin(),
-                           [](unsigned char c) { return std::tolower(c); });
-            if (name.size() > 4 && name.compare(name.size() - 4, 4, ".pdf") == 0) {
-                data["reason"] = "pdfInArchive";
-                break;
-            }
-            // Feature 017 (D35): a TXT and no book points to the TXT import.
-            if (name.size() > 4 && name.compare(name.size() - 4, 4, ".txt") == 0 &&
-                !data.contains("reason")) {
-                data["reason"] = "txtInArchive";
-            }
-            // Feature 018 (FR-020): a MOBI/KF8/PalmDOC and no FB2/FBD points to the MOBI import.
-            if (mobi::is_mobi_extension(name) && !data.contains("reason")) {
-                data["reason"] = "mobiInArchive";
+        if (detect_package) {
+            for (const archive::Entry& e : listing.entries) {
+                std::string name = e.name;
+                std::transform(name.begin(), name.end(), name.begin(),
+                               [](unsigned char c) { return std::tolower(c); });
+                if (name.size() > 4 && name.compare(name.size() - 4, 4, ".pdf") == 0) {
+                    data["reason"] = "pdfInArchive";
+                    break;
+                }
+                // Feature 017 (D35): a TXT and no book points to the TXT import.
+                if (name.size() > 4 && name.compare(name.size() - 4, 4, ".txt") == 0 &&
+                    !data.contains("reason")) {
+                    data["reason"] = "txtInArchive";
+                }
+                // Feature 018 (FR-020): a MOBI/KF8/PalmDOC and no FB2/FBD points to the MOBI
+                // import.
+                if (mobi::is_mobi_extension(name) && !data.contains("reason")) {
+                    data["reason"] = "mobiInArchive";
+                }
             }
         }
         throw rpc::RpcError(rpc::codes::kArchiveNoBook, "the archive holds no FictionBook book",
@@ -627,12 +643,26 @@ struct ReadDescription {
 // an importable entry - the cover pages and the images of the annotations and the history;
 // `output` is no importable entry, so a binary referenced only there is dropped as well.
 ReadDescription read_description(const std::string& path, const std::string& ui_language,
-                                 rpc::JobControl* control) {
+                                 rpc::JobControl* control,
+                                 const std::optional<std::string>& entry = {}) {
     ReadDescription out;
     if (control != nullptr) {
         control->progress("read", 0, 100);
     }
-    fb2::ReadResult read = read_book(path, *out.store, out.ids);
+    fb2::ReadResult read;
+    if (entry) {
+        const std::string bytes = archive_book_bytes(path, *entry);
+        try {
+            read = fb2::read_bytes(bytes, *out.store, out.ids, {}, path);
+        } catch (const fb2::NotFictionBookFailure& e) {
+            throw not_fictionbook(path, e.reason);
+        } catch (const fb2::ParseFailure& e) {
+            throw parse_error(e.error);
+        }
+        read.document.fileKind = file_kind_of(*entry);
+    } else {
+        read = read_book(path, *out.store, out.ids);
+    }
     out.warnings = std::move(read.warnings);
     model::Document& doc = read.document;
     // The details as Open would fill them in, computed on a copy: the description itself
@@ -1328,6 +1358,9 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         std::optional<std::string> entry;
         if (archive::detect_kind(file) == archive::Kind::zip) {
             ArchiveChoice choice = choose_entry(path, rpc::params::opt_string(params, "entry"));
+            if (choice.package_detected) {
+                return json{{"packageDetected", true}, {"path", path}};
+            }
             if (!choice.needs_choice.is_null()) {
                 return json{{"needsChoice", std::move(choice.needs_choice)}};
             }
@@ -1583,37 +1616,50 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
             // Unlike doc.open, a missing source prunes nothing: it was never a recent file.
             throw io_error(path, "file not found");
         }
-        const std::uintmax_t size = fs::file_size(file, ec);
+        std::uintmax_t size = fs::file_size(file, ec);
+        refuse_other_archives(file);
+        std::optional<std::string> entry;
+        if (archive::detect_kind(file) == archive::Kind::zip) {
+            // Inspect .fb2/.fbd entries directly (without Package mode routing) so descriptions
+            // can be imported from both FB2 ZIP archives and FBD ZIP packages.
+            ArchiveChoice choice = choose_entry(path, rpc::params::opt_string(params, "entry"),
+                                                /*detect_package=*/false);
+            if (!choice.needs_choice.is_null()) {
+                return json{{"needsChoice", std::move(choice.needs_choice)}};
+            }
+            entry = choice.entry;
+            size = static_cast<std::uintmax_t>(choice.size);
+        }
         const std::string ui_language = ui_language_setting(services);
         if (ec || size < kJobThresholdBytes) {
-            ReadDescription read = read_description(path, ui_language, nullptr);
+            ReadDescription read = read_description(path, ui_language, nullptr, entry);
             return register_import(services, target_id, read);
         }
         // Open's job: the worker parses, the loop thread registers the hidden session at
         // the end - a cancellation before that leaves nothing behind, one that arrives
         // while the session is being registered takes it down again.
-        const std::string job_id = ctx.jobs.start([&services, path, target_id,
-                                                   ui_language](rpc::JobControl& control) -> json {
-            auto read =
-                std::make_shared<ReadDescription>(read_description(path, ui_language, &control));
-            control.check_cancelled();
-            json result = on_loop_thread(
-                services,
-                [&services, target_id, read] {
-                    return register_import(services, target_id, *read);
-                },
-                &control);
-            if (control.cancelled()) {
-                const std::string import_id = result["importId"];
-                on_loop_thread(services, [&services, import_id] {
-                    close_import(services, import_id);
-                    return 0;
-                });
+        const std::string job_id = ctx.jobs.start(
+            [&services, path, target_id, ui_language, entry](rpc::JobControl& control) -> json {
+                auto read = std::make_shared<ReadDescription>(
+                    read_description(path, ui_language, &control, entry));
                 control.check_cancelled();
-            }
-            control.progress("done", 100, 100);
-            return result;
-        });
+                json result = on_loop_thread(
+                    services,
+                    [&services, target_id, read] {
+                        return register_import(services, target_id, *read);
+                    },
+                    &control);
+                if (control.cancelled()) {
+                    const std::string import_id = result["importId"];
+                    on_loop_thread(services, [&services, import_id] {
+                        close_import(services, import_id);
+                        return 0;
+                    });
+                    control.check_cancelled();
+                }
+                control.progress("done", 100, 100);
+                return result;
+            });
         return json{{"jobId", job_id}};
     });
 

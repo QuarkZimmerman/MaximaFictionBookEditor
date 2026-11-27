@@ -272,15 +272,17 @@ export function AddButton({
   testId,
   onClick,
   label,
+  disabled,
 }: {
   testId: string;
   onClick: () => void;
   label?: string;
+  disabled?: boolean;
 }) {
   const { t } = useTranslation();
   const text = label ?? t('descriptionForm.add');
   return (
-    <SmallButton testId={testId} onClick={onClick} title={text}>
+    <SmallButton testId={testId} onClick={onClick} title={text} disabled={disabled}>
       {`+ ${text}`}
     </SmallButton>
   );

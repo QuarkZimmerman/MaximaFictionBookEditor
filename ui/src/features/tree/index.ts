@@ -392,17 +392,24 @@ export function registerTreeFeature(ctx: FeatureContext): void {
     },
   });
 
-  // View > Document Tree: toggle + persist `session.treeVisible` (data-model.md §3.1).
+  // View > Document Tree / View > Package Files: toggle + persist `session.treeVisible` in FB2 mode.
   commands.replace({
     id: 'view.tree',
     group: 'view',
-    ...cmdKeys('view.tree', 'menu.view.tree'),
+    tooltipKey: 'cmd.view.tree.tooltip',
+    descriptionKey: 'cmd.view.tree.description',
+    get labelKey() {
+      return store.getState().editorMode === 'package'
+        ? 'menu.view.packageFiles'
+        : 'menu.view.tree';
+    },
     checked: (c) => {
       feature.attachRpc(c.rpc);
       return c.store.getState().treeVisible;
     },
     run: (c) => {
       actions.toggleTree(c.store);
+      if (c.store.getState().editorMode === 'package') return;
       const treeVisible = c.store.getState().treeVisible;
       const rpc = c.rpc ?? feature.rpc;
       if (rpc && c.store.getState().connection === 'connected') {

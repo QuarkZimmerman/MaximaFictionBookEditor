@@ -173,9 +173,18 @@ describe('SettingsDialog - View / Other / Words mapping', () => {
     }
     // The PDF export's page (feature 014) before the AI assistant's (feature 005), which is last.
     expect(screen.getAllByRole('tab').map((tab) => tab.getAttribute('data-testid'))).toEqual(
-      ['view', 'other', 'hotkeys', 'words', 'imports', 'ocr', 'exports', 'ai', 'maximaLibrary'].map(
-        (id) => `settings-tab-${id}`,
-      ),
+      [
+        'view',
+        'other',
+        'hotkeys',
+        'words',
+        'imports',
+        'ocr',
+        'exports',
+        'package',
+        'ai',
+        'maximaLibrary',
+      ].map((id) => `settings-tab-${id}`),
     );
     expect(screen.getByTestId('settings-tab-exports')).toHaveTextContent('Exports');
     expect(screen.getByTestId('settings-tab-ai')).toHaveTextContent('AI assistant');

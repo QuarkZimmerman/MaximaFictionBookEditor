@@ -11,7 +11,6 @@
 #include <mfbe/utf8_paths.hpp>
 
 #include <catch2/catch_test_macros.hpp>
-
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -98,7 +97,8 @@ TEST_CASE("open mobi: bare MOBI/AZW3/AZW/PRC and renamed PalmDB files are refuse
     for (const char* name : {"book.mobi", "book.azw3", "book.azw", "book.prc", "renamed.bin"}) {
         const auto p = f.data.path() / name;
         atomic_file::write_atomic(p, mobi_bytes);
-        const json opened = f.ws.call("doc.open", json{{"path", platform::utf8_from_path(p)}}, 20000);
+        const json opened =
+            f.ws.call("doc.open", json{{"path", platform::utf8_from_path(p)}}, 20000);
         INFO("name=" << name << " resp=" << opened.dump());
         REQUIRE(opened.contains("error"));
         CHECK(opened["error"]["code"] == 1004);
@@ -118,14 +118,17 @@ TEST_CASE("open mobi: bare MOBI/AZW3/AZW/PRC and renamed PalmDB files are refuse
     pd.records = {r0, "Hello"};
     const auto prc_dat = f.data.path() / "palmdoc.dat";
     atomic_file::write_atomic(prc_dat, mobi::write_palmdb(pd));
-    const json opened = f.ws.call("doc.open", json{{"path", platform::utf8_from_path(prc_dat)}}, 20000);
+    const json opened =
+        f.ws.call("doc.open", json{{"path", platform::utf8_from_path(prc_dat)}}, 20000);
     REQUIRE(opened.contains("error"));
     CHECK(opened["error"]["code"] == 1004);
     CHECK(opened["error"]["data"]["reason"] == "mobi");
 }
 
-TEST_CASE("open mobi: MOBI-only ZIP is refused (1081 mobiInArchive); FBD+MOBI ZIP opens the FBD",
-          "[mobi][archive]") {
+TEST_CASE(
+    "open mobi: MOBI-only ZIP is refused (1081 mobiInArchive); FBD+MOBI ZIP auto-detects FBD "
+    "package and opens FBD directly with archiveEntry",
+    "[mobi][archive]") {
     Fixture f;
     const std::string mobi_bytes = minimal_valid_mobi_bytes();
 
@@ -137,14 +140,21 @@ TEST_CASE("open mobi: MOBI-only ZIP is refused (1081 mobiInArchive); FBD+MOBI ZI
     CHECK(refused["error"]["code"] == 1081);
     CHECK(refused["error"]["data"]["reason"] == "mobiInArchive");
 
-    // ZIP with both .fbd and .mobi still opens the .fbd normally!
+    // Feature 022 (FR-003, FR-025): ZIP with top-level .fbd + .mobi auto-detects as an FBD ZIP
+    // package on bare doc.open, while an explicit archiveEntry still opens the .fbd directly.
     const auto with_fbd_zip = f.data.path() / "with-fbd.zip";
     atomic_file::write_atomic(
         with_fbd_zip,
         archive::zip_entries({archive::ZipEntry{"book.mobi", mobi_bytes, true, false},
                               archive::ZipEntry{"book.fbd", minimal_fbd_bytes(), false, false}}));
-    const json opened =
+    const json detected =
         f.ws.call("doc.open", json{{"path", platform::utf8_from_path(with_fbd_zip)}}, 20000);
+    REQUIRE(detected.contains("result"));
+    CHECK(detected["result"].value("packageDetected", false) == true);
+
+    const json opened = f.ws.call(
+        "doc.open", json{{"path", platform::utf8_from_path(with_fbd_zip)}, {"entry", "book.fbd"}},
+        20000);
     REQUIRE(opened.contains("result"));
     CHECK(opened["result"]["document"]["description"]["titleInfo"]["bookTitle"] == "Companion FBD");
 }
@@ -233,11 +243,11 @@ TEST_CASE("mobiImport.begin handles 0-MOBI, multi-MOBI, non-ZIP, and damaged arc
     // 2. Multi-MOBI ZIP -> lists all MOBIs and all FBDs
     const auto multi_zip = f.data.path() / "multi.zip";
     atomic_file::write_atomic(
-        multi_zip,
-        archive::zip_entries({archive::ZipEntry{"a/first.mobi", mobi_bytes, true, false},
-                              archive::ZipEntry{"b/second.azw3", mobi_bytes, true, false},
-                              archive::ZipEntry{"a/first.fbd", minimal_fbd_bytes(), false, false},
-                              archive::ZipEntry{"c/other.fbd", minimal_fbd_bytes(), false, false}}));
+        multi_zip, archive::zip_entries(
+                       {archive::ZipEntry{"a/first.mobi", mobi_bytes, true, false},
+                        archive::ZipEntry{"b/second.azw3", mobi_bytes, true, false},
+                        archive::ZipEntry{"a/first.fbd", minimal_fbd_bytes(), false, false},
+                        archive::ZipEntry{"c/other.fbd", minimal_fbd_bytes(), false, false}}));
     const json multi_res =
         f.ws.call("mobiImport.begin", json{{"path", platform::utf8_from_path(multi_zip)}}, 20000);
     REQUIRE(multi_res.contains("result"));

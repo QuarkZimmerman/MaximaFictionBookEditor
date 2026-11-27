@@ -118,6 +118,11 @@ export const RpcErrorCode = {
   mobiUnknownToken: 1119,
   /** Feature 019: `batch.*` failure ({reason, path?, detail?}). */
   batchError: 1120,
+  /** Feature 022: FBD ZIP package mode errors (`package.*`, contracts/rpc-api.md). */
+  packageNotFound: 1121,
+  packageInvalidFile: 1122,
+  packageInvalidArchive: 1123,
+  packageSaveFailed: 1124,
   spellDictionaryUnavailable: 1020,
   scriptNotFound: 1030,
   scriptInvalidManifest: 1031,
@@ -387,6 +392,8 @@ export interface Settings {
     keyboardLayoutName: string;
     /** A book opened from outside while a copy runs (feature 008, FR-008). */
     openFromOutside: 'ask' | 'thisWindow' | 'newWindow';
+    /** Default editor mode at startup without a file argument (feature 022, FR-006; default 'fb2'). */
+    startupMode?: StartupMode;
   };
   words: {
     showExclusionsInWordsDialog: boolean;
@@ -441,6 +448,12 @@ export interface Settings {
   };
   /** Feature 021 (data-model.md §1): Maxima Library Lookup Service v2 configuration (non-secret). */
   maximaLibrary?: MaximaLibrarySettings;
+  /** Feature 022: FBD ZIP Package mode automatic cover import defaults (Settings -> Package). */
+  package?: {
+    autoCoverPdf: boolean;
+    autoCoverEpub: boolean;
+    autoCoverMobi: boolean;
+  };
   session: {
     /**
      * Window placement (feature 003: recorded by the shell at quit): the normal bounds plus
@@ -892,6 +905,8 @@ export interface FileInspection {
   books?: number;
   /** For a ZIP holding exactly one book: that book's entry. */
   onlyBook?: string;
+  /** Feature 022: true when the ZIP is an FBD ZIP package (zero .fb2, >=1 .fbd + >=1 payload). */
+  isFbdPackage?: boolean;
 }
 
 export interface SaveNeedsConfirmation {
@@ -1423,6 +1438,7 @@ export interface RpcMethods {
     result: MaybeJob<
       | { document: Document & LoadReport; warnings: ValidationIssue[] }
       | { needsChoice: ArchiveChoice }
+      | { packageDetected: true; path: string }
     >;
   };
   'doc.encodingPreview': {
@@ -1540,8 +1556,8 @@ export interface RpcMethods {
    * Source-only fallback), 1002 (a missing file prunes no recent entry), 1000, invalidParams.
    */
   'doc.readDescription': {
-    params: { docId: string; path: string };
-    result: MaybeJob<ReadDescriptionResult>;
+    params: { docId: string; path: string; entry?: string };
+    result: MaybeJob<ReadDescriptionResult | { needsChoice: ArchiveChoice }>;
   };
   /**
    * Writes the description of `docId` - `document` is the live model, so unsaved edits count
@@ -2403,6 +2419,121 @@ export interface RpcMethods {
     params: MaximaLookupExistsParams;
     result: MaximaLookupExistsResult;
   };
+  /** Feature 022 (contracts/rpc-api.md §5–§10): FBD ZIP package mode. */
+  'package.create': {
+    params: Record<string, never>;
+    result: { packageId: string; path: null; entries: PackageEntryDto[] };
+  };
+  'package.open': {
+    params: { path: string };
+    result: MaybeJob<PackageOpenResult>;
+  };
+  'package.addFiles': {
+    params: { packageId: string; paths: string[] };
+    result: PackageAddFilesResult;
+  };
+  'package.removeEntry': {
+    params: { packageId: string; entryId: string };
+    result: Empty;
+  };
+  'package.save': {
+    params: PackageSaveParams;
+    result: MaybeJob<PackageSaveResult>;
+  };
+  'package.close': {
+    params: { packageId: string };
+    result: Empty;
+  };
+}
+
+/* ------------------------------------------------------------------------ */
+/* feature 022 — FBD ZIP Package Mode (contracts/rpc-api.md)                */
+/* ------------------------------------------------------------------------ */
+
+export type StartupMode = 'fb2' | 'package';
+
+export type PackageFileRejectReason =
+  | 'notFound'
+  | 'notFile'
+  | 'unreadable'
+  | 'forbiddenFb2'
+  | 'forbiddenFbd'
+  | 'forbiddenArchive'
+  | 'duplicateStem';
+
+export type PackageArchiveErrorReason =
+  | 'notZip'
+  | 'damaged'
+  | 'encrypted'
+  | 'multiVolume'
+  | 'noFbd'
+  | 'noPayload'
+  | 'duplicateStem'
+  | 'fbdParseError'
+  | 'fbdNotFictionBook';
+
+export type PackageSaveErrorReason =
+  'emptyPackage' | 'sourceMissing' | 'sourceUnreadable' | 'ioError';
+
+export interface PackageEntryDto {
+  entryId: string;
+  docId: string;
+  fileName: string;
+  stem: string;
+  extension: string;
+  size: number;
+  originatedFromZip: boolean;
+  hadFbd: boolean;
+  droppedExtraImages: number;
+  document: Document;
+}
+
+export interface PackageRejectedFileDto {
+  path: string;
+  fileName: string;
+  reason: PackageFileRejectReason;
+  conflictWith?: string;
+}
+
+export interface PackageOpenResult {
+  packageId: string;
+  path: string;
+  entries: PackageEntryDto[];
+  preservedEntryCount: number;
+}
+
+export interface PackageAddFilesResult {
+  added: PackageEntryDto[];
+  rejected: PackageRejectedFileDto[];
+}
+
+export interface PackageSaveEntryInput {
+  entryId: string;
+  document: Document;
+}
+
+export interface PackageSaveParams {
+  packageId: string;
+  path: string;
+  entries: PackageSaveEntryInput[];
+  force?: boolean;
+}
+
+export interface PackageEntryValidationSummary {
+  entryId: string;
+  fileName: string;
+  errorCount: number;
+  warningCount: number;
+  validation: ValidationReport;
+}
+
+export interface PackageSaveResult {
+  needsConfirmation?: boolean;
+  path: string;
+  totalErrorCount: number;
+  entryValidations: PackageEntryValidationSummary[];
+  updatedBinaries?: Record<string, BinaryMeta[]>;
+  updatedCoverHrefs?: Record<string, string>;
 }
 
 /* ------------------------------------------------------------------------ */

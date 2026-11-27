@@ -231,7 +231,7 @@ interface TextEntry {
  * and models of the list file - feature 005 FR-002), not interface.
  */
 const DATA_REGIONS =
-  '[role="grid"], [role="listbox"], tbody, textarea, pre, code, script, style, [aria-hidden="true"], ' +
+  '[role="grid"], [role="listbox"], tbody, textarea, [contenteditable="true"], pre, code, script, style, [aria-hidden="true"], ' +
   '[data-testid="settings-other-layout"], [data-testid="settings-ai-service"]';
 
 /**

@@ -334,4 +334,67 @@ bool render_page(PDFDoc& doc, int n, int dpi, const std::filesystem::path& file,
     return static_cast<bool>(out);
 }
 
+bool render_cover_jpeg(PDFDoc& doc, int target_width, int quality,
+                       const std::filesystem::path& file, int& width, int& height) {
+    if (doc.getNumPages() < 1 || target_width < 64 || target_width > 4096) {
+        return false;
+    }
+    double page_w_pt = doc.getPageCropWidth(1);
+    double page_h_pt = doc.getPageCropHeight(1);
+    if (page_w_pt <= 0.0 || page_h_pt <= 0.0) {
+        page_w_pt = doc.getPageMediaWidth(1);
+        page_h_pt = doc.getPageMediaHeight(1);
+    }
+    if (page_w_pt <= 0.0 || page_h_pt <= 0.0) {
+        return false;
+    }
+    int rot = doc.getPageRotate(1) % 360;
+    if (rot < 0) {
+        rot += 360;
+    }
+    if (rot == 90 || rot == 270) {
+        std::swap(page_w_pt, page_h_pt);
+    }
+    // Match Maxima Library's PdfFilePictures.php (1024 px wide JPEG of page 1 over white), while
+    // capping extreme strip heights so hostile page boxes cannot exhaust memory.
+    constexpr double kMaxCoverHeight = 4096.0;
+    double dpi = 72.0 * (static_cast<double>(target_width) + 0.5) / page_w_pt;
+    const double max_dpi_for_height = 72.0 * kMaxCoverHeight / page_h_pt;
+    dpi = std::min(dpi, max_dpi_for_height);
+    dpi = std::clamp(dpi, 18.0, 600.0);
+
+    SplashColor white = {255, 255, 255, 0};
+    SplashOutputDev device(splashModeRGB8, 4, white);
+    device.startDoc(&doc);
+    doc.displayPage(&device, 1, dpi, dpi, 0, false, true, false);
+    SplashBitmap* splash = device.getBitmap();
+    if (splash == nullptr || splash->getWidth() <= 0 || splash->getHeight() <= 0) {
+        return false;
+    }
+    images::Bitmap bitmap;
+    bitmap.width = splash->getWidth();
+    bitmap.height = splash->getHeight();
+    bitmap.rgba.resize(bitmap.pixel_count() * 4);
+    const unsigned char* data = splash->getDataPtr();
+    for (int y = 0; y < bitmap.height; ++y) {
+        const unsigned char* row = data + static_cast<std::size_t>(y) * splash->getRowSize();
+        for (int x = 0; x < bitmap.width; ++x) {
+            std::uint8_t* px = &bitmap.rgba[(static_cast<std::size_t>(y) * bitmap.width + x) * 4];
+            px[0] = row[x * 3];
+            px[1] = row[x * 3 + 1];
+            px[2] = row[x * 3 + 2];
+            px[3] = 255;
+        }
+    }
+    if (bitmap.width > target_width || bitmap.height > static_cast<int>(kMaxCoverHeight)) {
+        bitmap = images::scale_to_fit(bitmap, target_width, static_cast<int>(kMaxCoverHeight));
+    }
+    width = bitmap.width;
+    height = bitmap.height;
+    const std::string bytes = images::encode_jpeg(bitmap, std::clamp(quality, 1, 100));
+    std::ofstream out(file, std::ios::binary);
+    out.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+    return static_cast<bool>(out);
+}
+
 }  // namespace mfbe::pdf_reader

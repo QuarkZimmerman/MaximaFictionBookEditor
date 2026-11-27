@@ -19,6 +19,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useReducer,
   useRef,
@@ -62,6 +63,7 @@ import {
 import { validateSettings, type SettingsValidationError } from './settings/model';
 import { OcrPage } from './settings/OcrPage';
 import { OtherPage } from './settings/OtherPage';
+import { PackagePage } from './settings/PackagePage';
 import { ViewPage } from './settings/ViewPage';
 import { ExportsPage, type ExportFormat } from './settings/ExportsPage';
 import { WordsPage } from './settings/WordsPage';
@@ -70,7 +72,16 @@ import './settings/settings.css';
 import { tip } from '@/app/tooltips';
 
 export type SettingsPageId =
-  'view' | 'other' | 'hotkeys' | 'words' | 'imports' | 'ocr' | 'exports' | 'ai' | 'maximaLibrary';
+  | 'view'
+  | 'other'
+  | 'hotkeys'
+  | 'words'
+  | 'imports'
+  | 'ocr'
+  | 'exports'
+  | 'package'
+  | 'ai'
+  | 'maximaLibrary';
 
 const PAGES: readonly SettingsPageId[] = [
   'view',
@@ -80,6 +91,7 @@ const PAGES: readonly SettingsPageId[] = [
   'imports',
   'ocr',
   'exports',
+  'package',
   'ai',
   'maximaLibrary',
 ];
@@ -95,7 +107,17 @@ function shownIf(shown: boolean): CSSProperties | undefined {
 
 /** The sections of the draft the pages edit (`session` is never part of the dialog). */
 type DraftSection =
-  'view' | 'other' | 'words' | 'imports' | 'ocr' | 'pdf' | 'ai' | 'markdown' | 'txt' | 'mobi';
+  | 'view'
+  | 'other'
+  | 'words'
+  | 'imports'
+  | 'ocr'
+  | 'pdf'
+  | 'package'
+  | 'ai'
+  | 'markdown'
+  | 'txt'
+  | 'mobi';
 
 /**
  * The pre-apply hook (feature 005 R8.8): asked with the validated draft before anything is
@@ -167,6 +189,82 @@ export function SettingsDialog({
   );
   const mlDirtyRef = useRef(false);
   const mlTabCancelRef = useRef<(() => void) | null>(null);
+  const tabbarRef = useRef<HTMLDivElement>(null);
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const [tabScroll, setTabScroll] = useState({ overflow: false, left: false, right: false });
+
+  const syncTabScroll = useCallback(() => {
+    const bar = tabbarRef.current;
+    const tabs = tabsRef.current;
+    if (!bar || !tabs) return;
+    // Measure overflow against the full tab bar width so showing/hiding << >> cannot oscillate.
+    const overflow = tabs.scrollWidth > bar.clientWidth + 1;
+    const maxScroll = Math.max(0, tabs.scrollWidth - tabs.clientWidth);
+    const left = overflow && tabs.scrollLeft > 1;
+    const right = overflow && tabs.scrollLeft < maxScroll - 1;
+    setTabScroll((prev) =>
+      prev.overflow === overflow && prev.left === left && prev.right === right
+        ? prev
+        : { overflow, left, right },
+    );
+  }, []);
+
+  const shiftTabs = useCallback(
+    (direction: -1 | 1) => {
+      const tabs = tabsRef.current;
+      if (!tabs) return;
+      const maxScroll = Math.max(0, tabs.scrollWidth - tabs.clientWidth);
+      const step = Math.max(120, Math.round(tabs.clientWidth * 0.5));
+      let target = tabs.scrollLeft + direction * step;
+      if (direction > 0 && maxScroll - target < 32) target = maxScroll;
+      if (direction < 0 && target < 32) target = 0;
+      tabs.scrollLeft = Math.max(0, Math.min(maxScroll, target));
+      syncTabScroll();
+    },
+    [syncTabScroll],
+  );
+
+  useLayoutEffect(() => {
+    const tabs = tabsRef.current;
+    const activeTab = tabs?.querySelector<HTMLButtonElement>(`#settings-tab-${page}`);
+    if (tabs && activeTab) {
+      const tabLeft = activeTab.offsetLeft;
+      const tabRight = tabLeft + activeTab.offsetWidth;
+      const viewLeft = tabs.scrollLeft;
+      const viewRight = viewLeft + tabs.clientWidth;
+      if (tabLeft < viewLeft) {
+        tabs.scrollLeft = tabLeft;
+      } else if (tabRight > viewRight) {
+        tabs.scrollLeft = tabRight - tabs.clientWidth;
+      }
+    }
+    syncTabScroll();
+  }, [page, tabScroll.overflow, syncTabScroll]);
+
+  useEffect(() => {
+    const bar = tabbarRef.current;
+    const tabs = tabsRef.current;
+    if (!bar || !tabs) return;
+    const onWheel = (event: WheelEvent) => {
+      if (tabs.scrollWidth <= tabs.clientWidth + 1) return;
+      const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+      if (delta === 0) return;
+      event.preventDefault();
+      tabs.scrollLeft += delta;
+      syncTabScroll();
+    };
+    tabs.addEventListener('wheel', onWheel, { passive: false });
+    if (typeof ResizeObserver === 'undefined') {
+      return () => tabs.removeEventListener('wheel', onWheel);
+    }
+    const observer = new ResizeObserver(() => syncTabScroll());
+    observer.observe(bar);
+    observer.observe(tabs);
+    return () => {
+      tabs.removeEventListener('wheel', onWheel);
+      observer.disconnect();
+    };
+  }, [syncTabScroll]);
 
   const registerMlTabCancel = useCallback((cancel: () => void): (() => void) => {
     mlTabCancelRef.current = cancel;
@@ -551,41 +649,79 @@ export function SettingsDialog({
       className="mfbe-settingsdialog"
       closeLabel={t('dialog.buttons.close')}
     >
-      <div className="mfbe-settings-tabs" role="tablist" aria-label={t('dialog.settings.caption')}>
-        {PAGES.map((id) => (
-          <button
-            {...tip(t(`tip.settings.tabs.${id}`))}
-            key={id}
-            type="button"
-            role="tab"
-            id={`settings-tab-${id}`}
-            aria-selected={page === id}
-            aria-controls={id === 'exports' ? 'settings-page-exports-panel' : `settings-page-${id}`}
-            tabIndex={page === id ? 0 : -1}
-            className="mfbe-settings-tab"
-            data-testid={`settings-tab-${id}`}
-            onClick={() => selectPage(id)}
-            onKeyDown={(event) => {
-              // Roving tabindex (T153): the arrow keys select the neighbouring page and move
-              // the focus onto its tab, so Tab continues from the selected page.
-              const index = PAGES.indexOf(page);
-              let next: (typeof PAGES)[number] | null = null;
-              if (event.key === 'ArrowRight') next = PAGES[(index + 1) % PAGES.length]!;
-              else if (event.key === 'ArrowLeft') {
-                next = PAGES[(index + PAGES.length - 1) % PAGES.length]!;
-              } else if (event.key === 'Home') next = PAGES[0]!;
-              else if (event.key === 'End') next = PAGES[PAGES.length - 1]!;
-              if (!next) return;
-              event.preventDefault();
-              selectPage(next);
-              event.currentTarget.parentElement
-                ?.querySelector<HTMLButtonElement>(`#settings-tab-${next}`)
-                ?.focus();
-            }}
-          >
-            {t(`dialog.settings.pages.${id}`)}
-          </button>
-        ))}
+      <div ref={tabbarRef} className="mfbe-settings-tabbar" data-testid="settings-tabbar">
+        <div
+          ref={tabsRef}
+          className="mfbe-settings-tabs"
+          role="tablist"
+          aria-label={t('dialog.settings.caption')}
+          onScroll={syncTabScroll}
+        >
+          {PAGES.map((id) => (
+            <button
+              {...tip(t(`tip.settings.tabs.${id}`))}
+              key={id}
+              type="button"
+              role="tab"
+              id={`settings-tab-${id}`}
+              aria-selected={page === id}
+              aria-controls={
+                id === 'exports' ? 'settings-page-exports-panel' : `settings-page-${id}`
+              }
+              tabIndex={page === id ? 0 : -1}
+              className="mfbe-settings-tab"
+              data-testid={`settings-tab-${id}`}
+              onClick={() => selectPage(id)}
+              onKeyDown={(event) => {
+                // Roving tabindex (T153): the arrow keys select the neighbouring page and move
+                // the focus onto its tab, so Tab continues from the selected page.
+                const index = PAGES.indexOf(page);
+                let next: (typeof PAGES)[number] | null = null;
+                if (event.key === 'ArrowRight') next = PAGES[(index + 1) % PAGES.length]!;
+                else if (event.key === 'ArrowLeft') {
+                  next = PAGES[(index + PAGES.length - 1) % PAGES.length]!;
+                } else if (event.key === 'Home') next = PAGES[0]!;
+                else if (event.key === 'End') next = PAGES[PAGES.length - 1]!;
+                if (!next) return;
+                event.preventDefault();
+                selectPage(next);
+                event.currentTarget.parentElement
+                  ?.querySelector<HTMLButtonElement>(`#settings-tab-${next}`)
+                  ?.focus();
+              }}
+            >
+              {t(`dialog.settings.pages.${id}`)}
+            </button>
+          ))}
+        </div>
+        {tabScroll.overflow ? (
+          <div className="mfbe-settings-tab-nav" data-testid="settings-tabs-nav">
+            <button
+              type="button"
+              className="mfbe-settings-tab-scroll"
+              data-testid="settings-tabs-scroll-left"
+              aria-label={t('dialog.settings.scrollTabsLeft')}
+              disabled={!tabScroll.left}
+              tabIndex={-1}
+              {...tip(t('tip.settings.tabsScrollLeft'))}
+              onClick={() => shiftTabs(-1)}
+            >
+              {'\u00AB'}
+            </button>
+            <button
+              type="button"
+              className="mfbe-settings-tab-scroll"
+              data-testid="settings-tabs-scroll-right"
+              aria-label={t('dialog.settings.scrollTabsRight')}
+              disabled={!tabScroll.right}
+              tabIndex={-1}
+              {...tip(t('tip.settings.tabsScrollRight'))}
+              onClick={() => shiftTabs(1)}
+            >
+              {'\u00BB'}
+            </button>
+          </div>
+        ) : null}
       </div>
       {errors.length > 0 ? (
         <ul className="mfbe-settings-errors" data-testid="settings-errors">
@@ -634,6 +770,9 @@ export function SettingsDialog({
               ctx={ctx}
               initialFormat={initialExportFormat}
             />
+          </div>
+          <div role="tabpanel" id="settings-page-package" style={shownIf(page === 'package')}>
+            <PackagePage draft={draft} onChange={(patch) => update('package', patch)} />
           </div>
           <div role="tabpanel" id="settings-page-ai" style={shownIf(page === 'ai')}>
             <AiPage

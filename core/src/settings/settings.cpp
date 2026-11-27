@@ -161,6 +161,10 @@ const std::vector<Field>& schema() {
         field("maximaLibrary.enabled", Kind::boolean),
         field("maximaLibrary.domain", Kind::maxima_domain),
         field("maximaLibrary.verifiedFingerprint", Kind::maxima_fingerprint),
+        // Feature 022: Package mode automatic cover import defaults (Settings -> Package).
+        field("package.autoCoverPdf", Kind::boolean),
+        field("package.autoCoverEpub", Kind::boolean),
+        field("package.autoCoverMobi", Kind::boolean),
         enumeration("other.defaultEncoding", supported_encodings()),
         field("other.keepEncoding", Kind::boolean),
         // A backup of the previous version beside the saved file (feature 009, FR-006).
@@ -187,6 +191,8 @@ const std::vector<Field>& schema() {
         field("other.keyboardLayoutName", Kind::string),
         // What a book opened from outside the editor does while a copy runs (feature 008, FR-008).
         enumeration("other.openFromOutside", {"ask", "thisWindow", "newWindow"}),
+        // Default editing mode on startup without a file argument (feature 022, FR-006).
+        enumeration("other.startupMode", {"fb2", "package"}),
         field("words.showExclusionsInWordsDialog", Kind::boolean),
         // {x, y, width, height, maximized?: boolean} | null - the normal bounds plus the
         // maximised state, written by the shell at quit; replaced as a whole.
@@ -726,7 +732,8 @@ json defaults() {
           {"switchKeyboardLayout", false},
           {"keyboardLayoutId", ""},
           {"keyboardLayoutName", ""},
-          {"openFromOutside", "ask"}}},
+          {"openFromOutside", "ask"},
+          {"startupMode", "fb2"}}},
         {"words", {{"showExclusionsInWordsDialog", false}}},
         {"pdf",
          {{"defaultPageSize", "a4"},
@@ -760,6 +767,7 @@ json defaults() {
          {{"enabled", false},
           {"domain", std::string(lookup::kDefaultMaximaLibraryDomain)},
           {"verifiedFingerprint", ""}}},
+        {"package", {{"autoCoverPdf", true}, {"autoCoverEpub", true}, {"autoCoverMobi", true}}},
         {"session",
          {{"windowGeometry", nullptr},
           {"toolbars",

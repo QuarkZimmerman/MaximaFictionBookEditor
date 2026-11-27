@@ -734,7 +734,7 @@ test.describe('US8 - opening routes, fallbacks and the record', () => {
     await expectCaret(page, position);
   });
 
-  test('3b. opened while the Description view is active: the view stays, the first switch to Body shows the caret', async ({
+  test('3b. opened while the Description view is active: activates Body view and restores the caret', async ({
     core,
     page,
   }) => {
@@ -743,21 +743,21 @@ test.describe('US8 - opening routes, fallbacks and the record', () => {
     await openViaDialog(core.enqueueDialog, page, book);
     const position = { path: 'body[1]/section[3]/p[28]', offset: 8 };
     await placeCaret(page, position.path, position.offset);
-    // Left from the Description view: the Body caret is what is remembered.
+    // Left from the Description view: the Body caret is still remembered, and File > New
+    // activates the Body view for the new FB2 document.
     await page.getByTestId('view-description').click();
     await expect(page.getByTestId('view-description')).toHaveAttribute('aria-selected', 'true');
     await fileNew(page);
     expect(recordOf(core.dataDir!, book)).toEqual(position);
+    await expect(page.getByTestId('view-body')).toHaveAttribute('aria-selected', 'true');
 
+    // Reopening from Description view activates the Body view and restores the remembered caret.
+    await page.getByTestId('view-description').click();
     await expect(page.getByTestId('view-description')).toHaveAttribute('aria-selected', 'true');
     await openViaRecent(page, book);
-    await expect(page.getByTestId('view-description')).toHaveAttribute('aria-selected', 'true');
-    await expect(page.getByTestId('body-editor')).toHaveCount(0);
-    // The caret is in place (the controller holds it unmounted) ...
-    await expect(page.getByTestId('status-path')).toHaveText(position.path);
-    // ... and the Body view, shown for the first time, has it placed and scrolled into view.
-    await page.getByTestId('view-body').click();
+    await expect(page.getByTestId('view-body')).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByTestId('body-editor')).toBeVisible();
+    await expect(page.getByTestId('status-path')).toHaveText(position.path);
     await expectCaret(page, position);
     await expect(paragraphWith(page, paragraphText(3, 28))).toBeInViewport();
   });

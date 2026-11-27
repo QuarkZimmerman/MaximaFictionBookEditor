@@ -220,8 +220,8 @@ describe('App shell', () => {
   it('submenus open with ArrowRight and show their entries', async () => {
     const { user } = await renderApp();
     await user.keyboard('{Alt>}f{/Alt}');
-    // New, Open, Save, Save As, Validate, (sep), Import
-    await user.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}{ArrowDown}{ArrowDown}');
+    // New, New Package, Open, Save, Save As, Validate, (sep), Import
+    await user.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}{ArrowDown}{ArrowDown}{ArrowDown}');
     expect(screen.getByTestId('menu-file-import')).toHaveClass('mfbe-menu-item-highlighted');
     await user.keyboard('{ArrowRight}');
     expect(screen.getByTestId('menu-file-import-popup')).toBeInTheDocument();

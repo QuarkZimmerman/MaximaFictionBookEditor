@@ -433,9 +433,10 @@ export class SourceEditorController {
       if (state.activeView === 'source' && previous.activeView !== 'source')
         this.refreshCaretInfo();
       if (state.insertMode !== previous.insertMode) this.applyOvertype();
-      // The quiet lock of a run applies mounted or not (the kept state is what the next mount
-      // shows).
-      if (isRunLocked(state) !== isRunLocked(previous)) this.applyLock();
+      // The quiet lock of a run (and Package mode's read-only Source view) applies mounted or not.
+      const prevLocked = isRunLocked(previous) || previous.editorMode === 'package';
+      const nextLocked = isRunLocked(state) || state.editorMode === 'package';
+      if (nextLocked !== prevLocked) this.applyLock();
       // The core's parse error of this text decides the table verdict (`notWellFormed`).
       if (state.sourceParseError !== previous.sourceParseError) this.scheduleContextCheck();
     });
@@ -657,9 +658,10 @@ export class SourceEditorController {
 
   /* ----------------------------------------------------------------- lock */
 
-  /** A script run or an AI request holds the document: the quiet lock is on (feature 003 FR-011). */
+  /** Read-only while a script/AI run holds the document or while in Package editing mode (FR-015). */
   private isLocked(): boolean {
-    return isRunLocked(this.store.getState());
+    const s = this.store.getState();
+    return isRunLocked(s) || s.editorMode === 'package';
   }
 
   private applyLock(): void {

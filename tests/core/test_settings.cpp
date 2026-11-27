@@ -60,7 +60,8 @@ TEST_CASE("settings: defaults are exactly resource-formats.md section 6", "[sett
     CHECK(d["other"]["keyboardLayoutName"] == "");
     CHECK(d["other"]["openFromOutside"] == "ask");  // feature 008
     CHECK(d["other"]["keepBackup"] == true);        // feature 009 (FR-006)
-    CHECK(d["other"].size() == 18);
+    CHECK(d["other"]["startupMode"] == "fb2");      // feature 022 (FR-006)
+    CHECK(d["other"].size() == 19);
     CHECK(d["words"] == json{{"showExclusionsInWordsDialog", false}});
     CHECK(d["session"]["windowGeometry"].is_null());
     CHECK(d["session"]["toolbars"] == json{{"commands", true},
@@ -120,16 +121,17 @@ TEST_CASE("settings: defaults are exactly resource-formats.md section 6", "[sett
                             {"zip", false}});
     // Feature 020 (data-model.md §1): PDF import defaults and global OCR settings.
     CHECK(d["imports"] == json{{"pdf", {{"useOcr", true}}}});
-    CHECK(d["ocr"] ==
-          json{{"folder", ""},
-               {"autoDetect", true},
-               {"enabledLanguages", json::array({"eng", "rus"})}});
+    CHECK(d["ocr"] == json{{"folder", ""},
+                           {"autoDetect", true},
+                           {"enabledLanguages", json::array({"eng", "rus"})}});
     // Feature 021 (data-model.md §1): Maxima Library Lookup Service v2 configuration.
-    CHECK(d["maximaLibrary"] ==
-          json{{"enabled", false},
-               {"domain", "https://www.maxima-library.com"},
-               {"verifiedFingerprint", ""}});
-    CHECK(d.size() == 13);
+    CHECK(d["maximaLibrary"] == json{{"enabled", false},
+                                     {"domain", "https://www.maxima-library.com"},
+                                     {"verifiedFingerprint", ""}});
+    // Feature 022: Package mode automatic cover import defaults.
+    CHECK(d["package"] ==
+          json{{"autoCoverPdf", true}, {"autoCoverEpub", true}, {"autoCoverMobi", true}});
+    CHECK(d.size() == 14);
 }
 
 TEST_CASE(
@@ -607,8 +609,9 @@ TEST_CASE("settings: a 0.0.2 settings file keeps every value; the new keys take 
     CHECK(s["other"]["keepBackup"] == true);                                               // 009
     CHECK(s["view"]["treeElements"] == json::object());                                    // 011
     CHECK(s["view"]["showBookStyles"] == false);                                           // 012
+    CHECK(s["other"]["startupMode"] == "fb2");                                             // 022
     CHECK(s["view"].size() == 23);
-    CHECK(s["other"].size() == 18);
+    CHECK(s["other"].size() == 19);
     CHECK(s["session"].size() == 11);
 
     // Saving the migrated file keeps the key absent; the shell's maximised flag is accepted.
@@ -678,8 +681,9 @@ TEST_CASE(
     CHECK(s["other"]["keyboardLayoutId"] == "");
     CHECK(s["other"]["keyboardLayoutName"] == "");
     CHECK(s["session"]["treeWidth"] == 260);
-    CHECK(s["other"]["keepBackup"] == true);  // feature 009
-    CHECK(s["other"].size() == 18);
+    CHECK(s["other"]["keepBackup"] == true);    // feature 009
+    CHECK(s["other"]["startupMode"] == "fb2");  // feature 022
+    CHECK(s["other"].size() == 19);
     // The eight of 0.0.3 (lastVersionCheck set) + treeWidth + aiPanelWidth and aiPanelVisible
     // (feature 005) + tableDialog (feature 006).
     CHECK(s["session"].size() == 12);

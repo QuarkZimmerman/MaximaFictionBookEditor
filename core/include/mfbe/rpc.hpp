@@ -112,6 +112,11 @@ inline constexpr int kMobiUnknownToken = 1119;
 // {reason: sourceNotFound | sourceNotDirectory | sourceUnreadable | invalidPath | unknownRun |
 // extractFailed | ioError, path?, detail?}.
 inline constexpr int kBatchError = 1120;
+// Feature 022 (package.*, contracts/rpc-api.md): FBD ZIP package mode errors.
+inline constexpr int kPackageNotFound = 1121;
+inline constexpr int kPackageInvalidFile = 1122;
+inline constexpr int kPackageInvalidArchive = 1123;
+inline constexpr int kPackageSaveFailed = 1124;
 // Feature 005 (ai.*): the target cannot be resolved to a service the call may contact -
 // {reason: disabled | unknownService | emptyAddress | noModel | noAgreement, id?, service?}.
 inline constexpr int kAiNoService = 1200;

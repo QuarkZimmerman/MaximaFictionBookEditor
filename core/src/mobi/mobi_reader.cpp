@@ -1294,4 +1294,180 @@ MobiReadResult read_mobi_file(const std::filesystem::path& path, const ReadProgr
     return read_mobi_bytes(bytes, progress, check_cancelled);
 }
 
+std::optional<std::string> extract_cover_bytes(const std::filesystem::path& path) {
+    try {
+        std::error_code ec;
+        const auto sz = std::filesystem::file_size(path, ec);
+        if (ec || sz == 0 || sz > kMaxFileBytes) {
+            return std::nullopt;
+        }
+        std::ifstream in(path, std::ios::binary);
+        if (!in) {
+            return std::nullopt;
+        }
+        std::string bytes(static_cast<std::size_t>(sz), '\0');
+        if (!in.read(bytes.data(), static_cast<std::streamsize>(sz))) {
+            return std::nullopt;
+        }
+        const PalmDb pdb = read_palmdb(bytes);
+        if (pdb.type != "BOOK" || pdb.creator != "MOBI" || pdb.records.empty()) {
+            return std::nullopt;
+        }
+
+        struct CoverHeaderInfo {
+            bool valid = false;
+            bool encrypted = false;
+            std::uint32_t file_version = 0;
+            std::uint32_t first_img_rel = kInvalidIndex;
+            std::optional<std::uint32_t> kf8_boundary;
+            std::optional<std::uint32_t> resource_count;
+            std::optional<std::uint32_t> cover_off;
+            std::optional<std::uint32_t> thumb_off;
+        };
+
+        const auto inspect_header = [&](std::size_t base_rec) -> CoverHeaderInfo {
+            CoverHeaderInfo info;
+            if (base_rec >= pdb.records.size()) {
+                return info;
+            }
+            const std::string_view rec = pdb.records[base_rec];
+            if (rec.size() < 132 || rec.substr(16, 4) != "MOBI") {
+                return info;
+            }
+            if (read_u16_be(rec, 12) != 0U) {
+                info.encrypted = true;
+                return info;
+            }
+            const std::uint32_t header_len = read_u32_be(rec, 20);
+            if (header_len < 116U || 16ULL + header_len > rec.size()) {
+                return info;
+            }
+            if (header_len >= 168U && rec.size() >= 184U) {
+                const std::uint32_t drm_off = read_u32_be(rec, 168);
+                const std::uint32_t drm_cnt = read_u32_be(rec, 172);
+                const std::uint32_t drm_size = read_u32_be(rec, 176);
+                if (drm_off != kInvalidIndex && drm_cnt > 0U && drm_size > 0U) {
+                    info.encrypted = true;
+                    return info;
+                }
+            }
+            info.valid = true;
+            info.file_version = read_u32_be(rec, 36);
+            info.first_img_rel = read_u32_be(rec, 108);
+            const std::uint32_t exth_flags = read_u32_be(rec, 128);
+            if ((exth_flags & 0x40U) != 0U && 16ULL + header_len + 12ULL <= rec.size() &&
+                rec.substr(16U + header_len, 4) == "EXTH") {
+                const auto exth = parse_exth(rec.substr(16U + header_len));
+                for (const auto& e : exth) {
+                    if (e.type == 209U && !e.data.empty()) {
+                        info.encrypted = true;
+                        info.valid = false;
+                        return info;
+                    }
+                    if (e.type == 121U && e.data.size() == 4) {
+                        const std::uint32_t v = read_u32_be(e.data, 0);
+                        if (v != kInvalidIndex) {
+                            info.kf8_boundary = v;
+                        }
+                    } else if (e.type == 125U && e.data.size() == 4) {
+                        info.resource_count = read_u32_be(e.data, 0);
+                    } else if (e.type == 201U && e.data.size() == 4) {
+                        const std::uint32_t v = read_u32_be(e.data, 0);
+                        if (v != kInvalidIndex) {
+                            info.cover_off = v;
+                        }
+                    } else if (e.type == 202U && e.data.size() == 4) {
+                        const std::uint32_t v = read_u32_be(e.data, 0);
+                        if (v != kInvalidIndex) {
+                            info.thumb_off = v;
+                        }
+                    }
+                }
+            }
+            return info;
+        };
+
+        const CoverHeaderInfo h0 = inspect_header(0);
+        if (!h0.valid || h0.encrypted) {
+            return std::nullopt;
+        }
+
+        std::optional<std::size_t> pic_start;
+        std::size_t pic_end = pdb.records.size();
+        std::vector<std::uint32_t> candidate_offsets;
+
+        if (h0.file_version < 8U && h0.kf8_boundary.has_value() &&
+            *h0.kf8_boundary < pdb.records.size()) {
+            const std::size_t b = *h0.kf8_boundary;
+            const std::size_t kf8_base =
+                (pdb.records[b] == kBoundaryRecord && b + 1U < pdb.records.size()) ? (b + 1U) : b;
+            if (h0.first_img_rel != kInvalidIndex && h0.first_img_rel < kf8_base) {
+                pic_start = h0.first_img_rel;
+                pic_end = (kf8_base > 0 && pdb.records[kf8_base - 1U] == kBoundaryRecord)
+                              ? (kf8_base - 1U)
+                              : kf8_base;
+            }
+            const CoverHeaderInfo hk = inspect_header(kf8_base);
+            if (hk.encrypted) {
+                return std::nullopt;
+            }
+            if (hk.valid && hk.cover_off.has_value()) {
+                candidate_offsets.push_back(*hk.cover_off);
+            }
+            if (h0.cover_off.has_value()) {
+                candidate_offsets.push_back(*h0.cover_off);
+            }
+            if (hk.valid && hk.thumb_off.has_value()) {
+                candidate_offsets.push_back(*hk.thumb_off);
+            }
+            if (h0.thumb_off.has_value()) {
+                candidate_offsets.push_back(*h0.thumb_off);
+            }
+        } else {
+            if (h0.first_img_rel != kInvalidIndex && h0.first_img_rel < pdb.records.size()) {
+                pic_start = h0.first_img_rel;
+                if (h0.resource_count.has_value() && *h0.resource_count > 0U) {
+                    pic_end =
+                        std::min(pdb.records.size(),
+                                 *pic_start + static_cast<std::size_t>(*h0.resource_count) + 4U);
+                }
+            }
+            if (h0.cover_off.has_value()) {
+                candidate_offsets.push_back(*h0.cover_off);
+            }
+            if (h0.thumb_off.has_value()) {
+                candidate_offsets.push_back(*h0.thumb_off);
+            }
+        }
+
+        if (!pic_start.has_value() || candidate_offsets.empty()) {
+            return std::nullopt;
+        }
+        const std::size_t limit = std::min(pic_end, pdb.records.size());
+        for (const std::uint32_t off : candidate_offsets) {
+            const std::size_t rec_idx = *pic_start + static_cast<std::size_t>(off);
+            if (rec_idx >= limit) {
+                continue;
+            }
+            const std::string& rec = pdb.records[rec_idx];
+            if (rec.empty() || is_control_record(rec) || looks_like_svg(rec)) {
+                continue;
+            }
+            const images::Probe probe = images::probe(rec);
+            if (!probe.width || !probe.height) {
+                continue;
+            }
+            const std::uint64_t pixels = static_cast<std::uint64_t>(*probe.width) *
+                                         static_cast<std::uint64_t>(*probe.height);
+            if (pixels == 0 || pixels > static_cast<std::uint64_t>(images::kMaxPixels)) {
+                continue;
+            }
+            return rec;
+        }
+    } catch (...) {
+        return std::nullopt;
+    }
+    return std::nullopt;
+}
+
 }  // namespace mfbe::mobi

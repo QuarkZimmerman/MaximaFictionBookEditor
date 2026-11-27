@@ -7,13 +7,13 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 
 ### In short
 
-- Automatic offline OCR on scanned, mixed, rotated, and garbled PDF imports (Tesseract + Leptonica)
-- Automatic language detection across 10 bundled European packs plus custom OCR language folders
-- Settings > Imports > PDF and Settings > OCR configure Use OCR, languages, and custom packs
-- File > Import > PDF File... adds a Use OCR checkbox directly inside the open-file dialog
-- Tools > Batch Converter... runs unattended PDF OCR with its own persistent OCR controls and reports
+- Automatic offline OCR on scanned, mixed, and rotated PDF imports (Tesseract + Leptonica)
+- Auto language detection across 10 bundled European packs plus custom OCR language folders
+- Inline Use OCR checkbox in PDF Import dialog and persistent OCR controls in Batch Converter
 - Optional Maxima Library lookup integration for Description authors, series, and publishers
-- Settings > Maxima Library integration tests and stores encrypted Access Tokens locally
+- Settings > Maxima Library integration verifies and stores encrypted Access Tokens locally
+- FBD ZIP Package editing mode to pack non-FB2 books with paired FBD descriptions and covers
+- Unified Open/Recent auto-detection, description-only AI in packages, and Startup mode setting
 - Settings dialog Apply button now enables only when unsaved changes exist across tabs
 
 ### Added
@@ -50,6 +50,26 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   open with zero network calls, atomic undo-grouped `<custom-info info-type="maxima-identities">`
   synchronization, soft Source view highlighting in Light and Dark themes, and non-intrusive
   offline/rate-limit (`Retry-After`) handling.
+- FBD ZIP Package editing mode (feature 022) enables creating, opening, editing, and saving `.zip`
+  packages pairing one or more non-FB2 book files (`PDF`, `DjVu`, `EPUB`, `MOBI`, `TXT`, `DOC`,
+  `DOCX`, `RTF`, `MD`, `ODT`, `HTML`, `CHM`, etc.) 1-to-1 with UTF-8 FB2 2.1 `<stem>.fbd`
+  descriptors ready for Maxima Library upload.
+- Toolbar **New** split button swaps icon and primary action between **New** (FB2) and **New
+  Package** (matching the new **Startup mode** setting in *Tools -> Settings -> Other* on launch),
+  while unified **File -> Open**, **Recent Files**, and command-line open auto-detect existing FBD
+  ZIP packages (including body-less `.fbd` descriptors and preserving non-managed archive entries on
+  in-place Save vs. clean output on Save As).
+- Package mode focuses the workspace on the **Package Files** sidebar (with per-file cover
+  thumbnail icons and a right-click menu to import descriptions, add/replace/clear covers, or
+  remove files), **Description** (with Hybrid single-cover `cover.jpg`/`cover.png` management,
+  Maxima Library lookup, and cover-clamped *Import Description*), read-only **Source**,
+  **Validate**, **Settings** (including a dedicated **Package** tab controlling automatic cover
+  extraction from EPUB and MOBI/AZW3 and first-page PDF cover rendering), **Batch Converter**, and
+  description-only **AI Assistant** (strictly 5 description tools, thinking-lock, and per-entry idle
+  conversations), seamlessly restoring full FB2 editing when switching back.
+- *File -> Import -> Description from FictionBook file...* now supports `.fb2` and `.fbd` files
+  inside `.zip` archives (defaulting to the combined `*.fb2;*.fbd;*.zip` filter, auto-loading
+  single-entry archives, and prompting with the archive chooser when multiple entries are present).
 
 ### Fixed
 

@@ -701,24 +701,49 @@ export function chatToolsMembers(
   return offered && tools.length > 0 ? { tools: [...tools], tool_choice: 'auto' } : {};
 }
 
+/** The 5 description-only tools exposed in Package editing mode (feature 022, contracts/ai-catalogue.md). */
+export const PACKAGE_MODE_TOOL_NAMES = [
+  'get_context',
+  'get_description',
+  'validate',
+  'get_schema',
+  'set_description',
+] as const;
+
+export type CatalogueMode = 'fb2' | 'package';
+
+export interface CreateCatalogueOptions {
+  mode?: CatalogueMode;
+}
+
 /**
  * Builds a catalogue instance: server, client and transport pair, connected, bound to `deps`
  * (one request's working copy) until `rebind` binds it to the next request's.
  */
-export async function createCatalogue(deps: CatalogueDeps): Promise<Catalogue> {
+export async function createCatalogue(
+  deps: CatalogueDeps,
+  options: CreateCatalogueOptions = {},
+): Promise<Catalogue> {
+  const packageMode = options.mode === 'package';
   const server = new McpServer({ name: 'mfbe-ai-catalogue', version: String(CATALOGUE_VERSION) });
   const context = new ToolContext(deps);
-  registerReadTools(server, context);
+  registerReadTools(server, context, packageMode);
   registerSchemaTools(server, context);
-  registerScriptReadTools(server, context);
-  registerTableReadTools(server, context);
-  registerBackupReadTools(server, context);
-  registerSelectionTools(server, context);
-  registerChangeTools(server, context);
-  registerTableChangeTools(server, context);
-  registerScriptTools(server, context);
+  if (!packageMode) {
+    registerScriptReadTools(server, context);
+    registerTableReadTools(server, context);
+    registerBackupReadTools(server, context);
+    registerSelectionTools(server, context);
+  }
+  registerChangeTools(server, context, packageMode);
+  if (!packageMode) {
+    registerTableChangeTools(server, context);
+    registerScriptTools(server, context);
+  }
   registerSchemaResources(server, context);
-  registerScriptResources(server, context);
+  if (!packageMode) {
+    registerScriptResources(server, context);
+  }
   registerPrompts(server, () => context.deps);
 
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
@@ -1860,7 +1885,7 @@ function plainTextOf(node: ModelNodeJson): string {
 /* Read tools (ai-catalogue §3.1)                                           */
 /* ------------------------------------------------------------------------ */
 
-function registerReadTools(server: McpServer, ctx: ToolContext): void {
+function registerReadTools(server: McpServer, ctx: ToolContext, packageMode = false): void {
   defineTool(
     server,
     'get_context',
@@ -1888,224 +1913,229 @@ function registerReadTools(server: McpServer, ctx: ToolContext): void {
     },
   );
 
-  defineTool(
-    server,
-    'get_outline',
-    {
-      title: 'Get the outline',
-      description:
-        'Returns the outline tree: every body with its sections, nested, each with id, structural path, title (whole), characters, paragraphs and images. Without arguments the whole book; with node (a body or section) that node and its descendants; depth limits the nesting (1 = the entry alone). A large outline comes in parts: pass more.cursor back to get the next part.',
-      inputSchema: z.object({
-        node: nodeReference('a body or a section').optional(),
-        depth: z.coerce
-          .number()
-          .int()
-          .min(1)
-          .max(100)
-          .optional()
-          .describe('levels to include (default: unlimited)'),
-        cursor: cursorArg,
-      }),
-      outputSchema: z.looseObject({
-        entries: z.array(z.looseObject({ id: z.string(), path: z.string() })),
-        more: moreSchema,
-      }),
-      annotations: { readOnlyHint: true, idempotentHint: true },
-    },
-    (args) => {
-      let entries: OutlineEntry[];
-      if (args.node) {
-        const entry = ctx.resolve(args.node);
-        if (entry.node.type !== 'body' && entry.node.type !== 'section') {
-          throw new ToolError(
-            'invalidArguments',
-            `${args.node} is a "${entry.node.type}", not a body or a section.`,
-            {
-              hint: 'get_outline takes a body or a section; use read_part for other nodes.',
-            },
-          );
+  if (!packageMode) {
+    defineTool(
+      server,
+      'get_outline',
+      {
+        title: 'Get the outline',
+        description:
+          'Returns the outline tree: every body with its sections, nested, each with id, structural path, title (whole), characters, paragraphs and images. Without arguments the whole book; with node (a body or section) that node and its descendants; depth limits the nesting (1 = the entry alone). A large outline comes in parts: pass more.cursor back to get the next part.',
+        inputSchema: z.object({
+          node: nodeReference('a body or a section').optional(),
+          depth: z.coerce
+            .number()
+            .int()
+            .min(1)
+            .max(100)
+            .optional()
+            .describe('levels to include (default: unlimited)'),
+          cursor: cursorArg,
+        }),
+        outputSchema: z.looseObject({
+          entries: z.array(z.looseObject({ id: z.string(), path: z.string() })),
+          more: moreSchema,
+        }),
+        annotations: { readOnlyHint: true, idempotentHint: true },
+      },
+      (args) => {
+        let entries: OutlineEntry[];
+        if (args.node) {
+          const entry = ctx.resolve(args.node);
+          if (entry.node.type !== 'body' && entry.node.type !== 'section') {
+            throw new ToolError(
+              'invalidArguments',
+              `${args.node} is a "${entry.node.type}", not a body or a section.`,
+              {
+                hint: 'get_outline takes a body or a section; use read_part for other nodes.',
+              },
+            );
+          }
+          entries = [outlineEntry(ctx.index, entry, args.depth)];
+        } else {
+          entries = outline(ctx.index, args.depth);
         }
-        entries = [outlineEntry(ctx.index, entry, args.depth)];
-      } else {
-        entries = outline(ctx.index, args.depth);
-      }
-      if (args.cursor) {
-        const after = cursorOf(args.cursor, 'after').nodeId;
-        const at = entries.findIndex((e) => e.id === after);
-        if (at < 0) throw new ToolError('invalidArguments', `unknown cursor "${args.cursor}"`);
-        entries = entries.slice(at + 1);
-      }
-      // Units: whole top-level entries with their subtrees (never split further - the model
-      // asks for a body or a section with `node` when it needs one entry alone).
-      const { taken, rest } = partition(entries, {
-        sizeOf: (e) => JSON.stringify(e).length,
-        limit: ctx.budget(),
-        fixed: 40,
-        strict: false,
-      });
-      const out: AnyObject = { entries: taken };
-      if (rest.length > 0) {
-        out.more = moreOf(
-          'get_outline',
-          { kind: 'after', nodeId: taken[taken.length - 1]!.id },
-          {
-            entries: rest.length,
-            characters: rest.reduce((s, e) => s + e.characters, 0),
-          },
-        );
-      }
-      return out;
-    },
-  );
-
-  defineTool(
-    server,
-    'read_part',
-    {
-      title: 'Read a part of the book',
-      description:
-        'Returns one node of the book (a body, section, poem, paragraph …) by nodeId or structural path, as plain-text blocks with their ids and paths (format "text", the default; inline elements such as images appear as U+FFFC) or as FictionBook XML (format "fb2xml"). A part too large for one answer comes in consecutive parts: pass the returned more.cursor to this tool with the same arguments to get the next part.',
-      inputSchema: z.object({
-        node: nodeReference('the node to read'),
-        format: formatArg,
-        cursor: cursorArg,
-      }),
-      outputSchema: z.looseObject({
-        node: nodeInfoSchema,
-        format: z.string(),
-        from: nodeInfoSchema,
-        to: nodeInfoSchema,
-        more: moreSchema,
-      }),
-      annotations: { readOnlyHint: true },
-    },
-    async (args) => {
-      const entry = ctx.resolve(args.node);
-      const budget = ctx.budget();
-      const base: AnyObject = {
-        node: nodeInfo(entry),
-        parent: entry.parent ? nodeInfo(entry.parent) : null,
-        format: args.format,
-      };
-      const tooLarge = (leaf: Entry) =>
-        new ToolError(
-          'tooLarge',
-          `The block ${pathOf(leaf)} alone is larger than one answer admits.`,
-          { node: nodeInfo(leaf), characters: characterCount(leaf.node) },
-        );
-      if (args.format === 'text') {
-        // Units: the leaf blocks of the part (text containers and atoms) in document order -
-        // a paragraph is never cut; the first one that alone does not fit is tooLarge.
-        let leaves = leafBlocks(ctx.index, entry);
         if (args.cursor) {
           const after = cursorOf(args.cursor, 'after').nodeId;
-          const at = leaves.findIndex((leaf) => nodeIdOf(leaf.node) === after);
+          const at = entries.findIndex((e) => e.id === after);
           if (at < 0) throw new ToolError('invalidArguments', `unknown cursor "${args.cursor}"`);
-          leaves = leaves.slice(at + 1);
+          entries = entries.slice(at + 1);
         }
-        const blocks = leaves.map((leaf) => ({ leaf, block: blockOf(leaf) }));
-        const { taken, rest } = partition(blocks, {
-          sizeOf: (b) => JSON.stringify(b.block).length + 1,
-          limit: budget,
-          fixed: PART_ENVELOPE_UNITS,
-          strict: true,
+        // Units: whole top-level entries with their subtrees (never split further - the model
+        // asks for a body or a section with `node` when it needs one entry alone).
+        const { taken, rest } = partition(entries, {
+          sizeOf: (e) => JSON.stringify(e).length,
+          limit: ctx.budget(),
+          fixed: 40,
+          strict: false,
         });
-        if (taken.length === 0 && blocks.length > 0) throw tooLarge(blocks[0]!.leaf);
-        const out: AnyObject = {
-          ...base,
-          blocks: taken.map((b) => b.block),
-          from: taken.length > 0 ? nodeInfo(taken[0]!.leaf) : nodeInfo(entry),
-          to: taken.length > 0 ? nodeInfo(taken[taken.length - 1]!.leaf) : nodeInfo(entry),
-        };
+        const out: AnyObject = { entries: taken };
         if (rest.length > 0) {
           out.more = moreOf(
-            'read_part',
-            { kind: 'after', nodeId: nodeIdOf(taken[taken.length - 1]!.leaf.node) },
+            'get_outline',
+            { kind: 'after', nodeId: taken[taken.length - 1]!.id },
             {
-              blocks: rest.length,
-              characters: rest.reduce((s, b) => s + characterCount(b.leaf.node), 0),
+              entries: rest.length,
+              characters: rest.reduce((s, e) => s + e.characters, 0),
             },
           );
         }
         return out;
-      }
-      // fb2xml: the units are the direct children of one parent, taken whole; a child that
-      // alone does not fit is descended into (§3.7), a leaf that does not fit is tooLarge.
-      let parent: Entry = entry;
-      let units: Entry[] = isLeafFor(entry) ? [entry] : childEntries(ctx.index, entry);
-      let whole = true;
-      if (args.cursor) {
-        whole = false;
-        const after = cursorOf(args.cursor, 'after').nodeId;
-        const afterEntry = ctx.entryOf(after);
-        if (!afterEntry) throw new ToolError('invalidArguments', `unknown cursor "${args.cursor}"`);
-        const next = followingUnits(ctx.index, entry, afterEntry);
-        if (!next)
-          return {
-            ...base,
-            parent: nodeInfo(entry),
-            xml: '',
-            from: nodeInfo(entry),
-            to: nodeInfo(entry),
-          };
-        parent = next.parent;
-        units = next.units;
-      }
-      const outcome: TreePartOutcome<Entry> = partitionTree(parent, units, {
-        sizeOf: (unit) => estimateXmlSize(unit.node),
-        limit: budget,
-        fixed: PART_ENVELOPE_UNITS,
-        isLeaf: isLeafFor,
-        childrenOf: (unit) => childEntries(ctx.index, unit),
-      });
-      if (outcome.kind === 'tooLarge') throw tooLarge(outcome.unit);
-      const { taken, rest } = outcome;
-      parent = outcome.parent;
-      if (outcome.descended) whole = false;
-      const out: AnyObject = {
-        ...base,
-        ...(whole && rest.length === 0 ? {} : { parent: nodeInfo(parent) }),
-        xml: await ctx.xmlOf(taken.map((unit) => unit.node)),
-        from: taken.length > 0 ? nodeInfo(taken[0]!) : nodeInfo(parent),
-        to: taken.length > 0 ? nodeInfo(taken[taken.length - 1]!) : nodeInfo(parent),
-      };
-      // What follows: the rest of this parent's children, else - climbing - the units after
-      // the descended-into parent, up to the node read.
-      const following =
-        rest.length > 0 ? null : followingUnits(ctx.index, entry, parent === entry ? null : parent);
-      const pending = rest.length > 0 ? rest : (following?.units ?? []);
-      if (pending.length > 0 && taken.length > 0) {
-        out.more = moreOf(
-          'read_part',
-          { kind: 'after', nodeId: nodeIdOf(taken[taken.length - 1]!.node) },
-          {
-            blocks: pending.length,
-            characters: pending.reduce((s, u) => s + characterCount(u.node), 0),
-          },
-        );
-      }
-      return out;
-    },
-  );
+      },
+    );
 
-  defineTool(
-    server,
-    'get_selection',
-    {
-      title: 'Get the selection',
-      description:
-        'Returns the current selection or caret: kind "none" (a caret), "inline" (inside one paragraph), "blocks" (whole blocks, or several blocks with a partly selected first or last block - openStart / openEnd), "cells" (a block of table cells: its table, row, column, rows and columns, numbered as edit_table takes them; read the cells with read_table) or "source" (XML text in the Source view), with its text (format "text") or FictionBook form (format "fb2xml"), its size, anchor and head, and the first and last block touched.',
-      inputSchema: z.object({ format: formatArg, cursor: cursorArg }),
-      outputSchema: z.looseObject({
-        kind: z.enum(['none', 'inline', 'blocks', 'cells', 'source']),
-        characters: z.number(),
-        paragraphs: z.number(),
-        hasInlineElements: z.boolean(),
-      }),
-      annotations: { readOnlyHint: true },
-    },
-    (args) => ctx.selectionSummary(args.format, args.cursor),
-  );
+    defineTool(
+      server,
+      'read_part',
+      {
+        title: 'Read a part of the book',
+        description:
+          'Returns one node of the book (a body, section, poem, paragraph …) by nodeId or structural path, as plain-text blocks with their ids and paths (format "text", the default; inline elements such as images appear as U+FFFC) or as FictionBook XML (format "fb2xml"). A part too large for one answer comes in consecutive parts: pass the returned more.cursor to this tool with the same arguments to get the next part.',
+        inputSchema: z.object({
+          node: nodeReference('the node to read'),
+          format: formatArg,
+          cursor: cursorArg,
+        }),
+        outputSchema: z.looseObject({
+          node: nodeInfoSchema,
+          format: z.string(),
+          from: nodeInfoSchema,
+          to: nodeInfoSchema,
+          more: moreSchema,
+        }),
+        annotations: { readOnlyHint: true },
+      },
+      async (args) => {
+        const entry = ctx.resolve(args.node);
+        const budget = ctx.budget();
+        const base: AnyObject = {
+          node: nodeInfo(entry),
+          parent: entry.parent ? nodeInfo(entry.parent) : null,
+          format: args.format,
+        };
+        const tooLarge = (leaf: Entry) =>
+          new ToolError(
+            'tooLarge',
+            `The block ${pathOf(leaf)} alone is larger than one answer admits.`,
+            { node: nodeInfo(leaf), characters: characterCount(leaf.node) },
+          );
+        if (args.format === 'text') {
+          // Units: the leaf blocks of the part (text containers and atoms) in document order -
+          // a paragraph is never cut; the first one that alone does not fit is tooLarge.
+          let leaves = leafBlocks(ctx.index, entry);
+          if (args.cursor) {
+            const after = cursorOf(args.cursor, 'after').nodeId;
+            const at = leaves.findIndex((leaf) => nodeIdOf(leaf.node) === after);
+            if (at < 0) throw new ToolError('invalidArguments', `unknown cursor "${args.cursor}"`);
+            leaves = leaves.slice(at + 1);
+          }
+          const blocks = leaves.map((leaf) => ({ leaf, block: blockOf(leaf) }));
+          const { taken, rest } = partition(blocks, {
+            sizeOf: (b) => JSON.stringify(b.block).length + 1,
+            limit: budget,
+            fixed: PART_ENVELOPE_UNITS,
+            strict: true,
+          });
+          if (taken.length === 0 && blocks.length > 0) throw tooLarge(blocks[0]!.leaf);
+          const out: AnyObject = {
+            ...base,
+            blocks: taken.map((b) => b.block),
+            from: taken.length > 0 ? nodeInfo(taken[0]!.leaf) : nodeInfo(entry),
+            to: taken.length > 0 ? nodeInfo(taken[taken.length - 1]!.leaf) : nodeInfo(entry),
+          };
+          if (rest.length > 0) {
+            out.more = moreOf(
+              'read_part',
+              { kind: 'after', nodeId: nodeIdOf(taken[taken.length - 1]!.leaf.node) },
+              {
+                blocks: rest.length,
+                characters: rest.reduce((s, b) => s + characterCount(b.leaf.node), 0),
+              },
+            );
+          }
+          return out;
+        }
+        // fb2xml: the units are the direct children of one parent, taken whole; a child that
+        // alone does not fit is descended into (§3.7), a leaf that does not fit is tooLarge.
+        let parent: Entry = entry;
+        let units: Entry[] = isLeafFor(entry) ? [entry] : childEntries(ctx.index, entry);
+        let whole = true;
+        if (args.cursor) {
+          whole = false;
+          const after = cursorOf(args.cursor, 'after').nodeId;
+          const afterEntry = ctx.entryOf(after);
+          if (!afterEntry)
+            throw new ToolError('invalidArguments', `unknown cursor "${args.cursor}"`);
+          const next = followingUnits(ctx.index, entry, afterEntry);
+          if (!next)
+            return {
+              ...base,
+              parent: nodeInfo(entry),
+              xml: '',
+              from: nodeInfo(entry),
+              to: nodeInfo(entry),
+            };
+          parent = next.parent;
+          units = next.units;
+        }
+        const outcome: TreePartOutcome<Entry> = partitionTree(parent, units, {
+          sizeOf: (unit) => estimateXmlSize(unit.node),
+          limit: budget,
+          fixed: PART_ENVELOPE_UNITS,
+          isLeaf: isLeafFor,
+          childrenOf: (unit) => childEntries(ctx.index, unit),
+        });
+        if (outcome.kind === 'tooLarge') throw tooLarge(outcome.unit);
+        const { taken, rest } = outcome;
+        parent = outcome.parent;
+        if (outcome.descended) whole = false;
+        const out: AnyObject = {
+          ...base,
+          ...(whole && rest.length === 0 ? {} : { parent: nodeInfo(parent) }),
+          xml: await ctx.xmlOf(taken.map((unit) => unit.node)),
+          from: taken.length > 0 ? nodeInfo(taken[0]!) : nodeInfo(parent),
+          to: taken.length > 0 ? nodeInfo(taken[taken.length - 1]!) : nodeInfo(parent),
+        };
+        // What follows: the rest of this parent's children, else - climbing - the units after
+        // the descended-into parent, up to the node read.
+        const following =
+          rest.length > 0
+            ? null
+            : followingUnits(ctx.index, entry, parent === entry ? null : parent);
+        const pending = rest.length > 0 ? rest : (following?.units ?? []);
+        if (pending.length > 0 && taken.length > 0) {
+          out.more = moreOf(
+            'read_part',
+            { kind: 'after', nodeId: nodeIdOf(taken[taken.length - 1]!.node) },
+            {
+              blocks: pending.length,
+              characters: pending.reduce((s, u) => s + characterCount(u.node), 0),
+            },
+          );
+        }
+        return out;
+      },
+    );
+
+    defineTool(
+      server,
+      'get_selection',
+      {
+        title: 'Get the selection',
+        description:
+          'Returns the current selection or caret: kind "none" (a caret), "inline" (inside one paragraph), "blocks" (whole blocks, or several blocks with a partly selected first or last block - openStart / openEnd), "cells" (a block of table cells: its table, row, column, rows and columns, numbered as edit_table takes them; read the cells with read_table) or "source" (XML text in the Source view), with its text (format "text") or FictionBook form (format "fb2xml"), its size, anchor and head, and the first and last block touched.',
+        inputSchema: z.object({ format: formatArg, cursor: cursorArg }),
+        outputSchema: z.looseObject({
+          kind: z.enum(['none', 'inline', 'blocks', 'cells', 'source']),
+          characters: z.number(),
+          paragraphs: z.number(),
+          hasInlineElements: z.boolean(),
+        }),
+        annotations: { readOnlyHint: true },
+      },
+      (args) => ctx.selectionSummary(args.format, args.cursor),
+    );
+  }
 
   defineTool(
     server,
@@ -2120,6 +2150,8 @@ function registerReadTools(server: McpServer, ctx: ToolContext): void {
     },
     async () => ({ description: await ctx.describe() }),
   );
+
+  if (packageMode) return;
 
   defineTool(
     server,
@@ -3576,354 +3608,361 @@ const changeAnnotations = { readOnlyHint: false, destructiveHint: true, idempote
  * touched (`NodeInfo` with id, path, type, characters) so that the request loop can summarise
  * the call ("Replaced paragraph body[1]/section[2]/p[4]") and the model can re-read them.
  */
-function registerChangeTools(server: McpServer, ctx: ToolContext): void {
-  defineTool(
-    server,
-    'replace_node',
-    {
-      title: 'Replace a node',
-      description:
-        'Replaces one node of the book (a paragraph, title, section, poem, …) by new content: content {xml} (FictionBook XML of exactly one element that may stand in its place - for several elements use insert_node) or content {node} (the Document JSON of one node). The replaced node keeps its id; new nodes inside get fresh ids. Exactly one of xml / node. The change is checked against the FB2 schema: an "error" answer means nothing was applied. The first body cannot be replaced by anything but a body.',
-      inputSchema: z.object({
-        node: nodeReference('the node to replace'),
-        content: z.object({
-          xml: xmlContentArg,
-          node: z.looseObject({}).optional().describe('Document JSON of one node'),
+function registerChangeTools(server: McpServer, ctx: ToolContext, packageMode = false): void {
+  if (!packageMode) {
+    defineTool(
+      server,
+      'replace_node',
+      {
+        title: 'Replace a node',
+        description:
+          'Replaces one node of the book (a paragraph, title, section, poem, …) by new content: content {xml} (FictionBook XML of exactly one element that may stand in its place - for several elements use insert_node) or content {node} (the Document JSON of one node). The replaced node keeps its id; new nodes inside get fresh ids. Exactly one of xml / node. The change is checked against the FB2 schema: an "error" answer means nothing was applied. The first body cannot be replaced by anything but a body.',
+        inputSchema: z.object({
+          node: nodeReference('the node to replace'),
+          content: z.object({
+            xml: xmlContentArg,
+            node: z.looseObject({}).optional().describe('Document JSON of one node'),
+          }),
         }),
-      }),
-      outputSchema: z.looseObject({ node: nodeInfoSchema }),
-      annotations: changeAnnotations,
-    },
-    (args) =>
-      ctx.change(`replace_node:${ctx.targetOf(args.node)}`, async () => {
-        const form = ctx.contentForm(args.content, ['xml', 'node'] as const);
-        const entry = ctx.resolve(args.node);
-        if (!entry.parent && inDescription(entry)) {
-          throw new ToolError(
-            'notAllowed',
-            `The ${entry.root} element is part of the description.`,
-            {
-              hint: 'Use set_description with {annotation: {xml}} / {history: {xml}}, or change its paragraphs.',
-            },
-          );
-        }
-        const id = nodeIdOf(entry.node);
-        let node: ModelNodeJson;
-        const parent = ctx.parentOf(entry);
-        if (form === 'xml') {
-          const parsed = await ctx.parseXml(
-            args.content.xml!,
-            ctx.parentReference(entry.parent, parent.name),
-          );
-          if (parsed.inline) {
+        outputSchema: z.looseObject({ node: nodeInfoSchema }),
+        annotations: changeAnnotations,
+      },
+      (args) =>
+        ctx.change(`replace_node:${ctx.targetOf(args.node)}`, async () => {
+          const form = ctx.contentForm(args.content, ['xml', 'node'] as const);
+          const entry = ctx.resolve(args.node);
+          if (!entry.parent && inDescription(entry)) {
             throw new ToolError(
-              'fragmentNotAllowed',
-              'The content must be one element that stands in the place of the node, not bare inline content.',
+              'notAllowed',
+              `The ${entry.root} element is part of the description.`,
               {
-                element: '#inline',
-                parent: parent.name,
-                hint: `Return one element such as <${entry.node.type}>…</${entry.node.type}>; use set_text to replace the text of a paragraph.`,
+                hint: 'Use set_description with {annotation: {xml}} / {history: {xml}}, or change its paragraphs.',
               },
             );
           }
-          if (parsed.nodes.length !== 1) {
-            throw new ToolError(
-              'invalidArguments',
-              parsed.nodes.length === 0
-                ? 'The xml yields no element.'
-                : `The xml yields ${parsed.nodes.length} elements; replace_node takes exactly one.`,
-              {
-                hint:
-                  parsed.nodes.length === 0
-                    ? 'Return one element in FictionBook XML.'
-                    : 'Use insert_node for several elements (and remove_node for the old one), or wrap them in one element the parent accepts.',
-              },
+          const id = nodeIdOf(entry.node);
+          let node: ModelNodeJson;
+          const parent = ctx.parentOf(entry);
+          if (form === 'xml') {
+            const parsed = await ctx.parseXml(
+              args.content.xml!,
+              ctx.parentReference(entry.parent, parent.name),
             );
+            if (parsed.inline) {
+              throw new ToolError(
+                'fragmentNotAllowed',
+                'The content must be one element that stands in the place of the node, not bare inline content.',
+                {
+                  element: '#inline',
+                  parent: parent.name,
+                  hint: `Return one element such as <${entry.node.type}>…</${entry.node.type}>; use set_text to replace the text of a paragraph.`,
+                },
+              );
+            }
+            if (parsed.nodes.length !== 1) {
+              throw new ToolError(
+                'invalidArguments',
+                parsed.nodes.length === 0
+                  ? 'The xml yields no element.'
+                  : `The xml yields ${parsed.nodes.length} elements; replace_node takes exactly one.`,
+                {
+                  hint:
+                    parsed.nodes.length === 0
+                      ? 'Return one element in FictionBook XML.'
+                      : 'Use insert_node for several elements (and remove_node for the old one), or wrap them in one element the parent accepts.',
+                },
+              );
+            }
+            node = ctx.assignIds(parsed.nodes[0] as unknown as ModelNodeJson);
+            node = { ...node, attrs: { ...(node.attrs ?? {}), nodeId: id } };
+          } else {
+            node = ctx.jsonNode(args.content.node, 'replace_node', id);
           }
-          node = ctx.assignIds(parsed.nodes[0] as unknown as ModelNodeJson);
-          node = { ...node, attrs: { ...(node.attrs ?? {}), nodeId: id } };
-        } else {
-          node = ctx.jsonNode(args.content.node, 'replace_node', id);
-        }
-        const checked = ctx.checkedNode(node, 'replace_node', pathOf(entry));
-        if (!entry.parent && checked.type !== 'body') {
-          const message = `A body can only be replaced by a body, not by a "${checked.type}".`;
-          throw new ToolError('notAllowed', message, {
-            hint: 'Replace or insert the sections inside the body instead.',
-            issues: [preCheckIssue(checked.type, message, pathOf(entry))],
-          });
-        }
-        const siblings = siblingsOf(ctx.index, entry).map((s) => s.node);
-        ctx.requireFits(
-          parent,
-          siblings,
-          siblings.indexOf(entry.node),
-          1,
-          [checked],
-          'replace_node',
-          `in place of this "${entry.node.type}"`,
-          pathOf(entry),
-        );
-        writeAt(ctx.deps.copy, entry, { kind: 'replace', node: checked });
-        const after = ctx.entryOf(id);
-        if (!after) throw new Error('the replaced node is missing afterwards');
-        return { node: nodeInfo(after) };
-      }),
-  );
-
-  defineTool(
-    server,
-    'insert_node',
-    {
-      title: 'Insert nodes',
-      description:
-        'Inserts new content next to a node: where "before" or "after" puts it beside the node, "append" makes it the last child of the node (for example the last paragraph of a section). content {xml} (FictionBook XML of one or several sibling elements, inserted in order) or content {nodes} (a list of Document JSON nodes). Exactly one of xml / nodes. Returns the inserted nodes with their new ids and paths. The change is checked against the FB2 schema; an "error" answer means nothing was inserted.',
-      inputSchema: z.object({
-        where: z
-          .enum(['before', 'after', 'append'])
-          .describe('before / after the node, or append as its last child'),
-        node: nodeReference('the reference node'),
-        content: z.object({
-          xml: xmlContentArg,
-          nodes: z.array(z.looseObject({})).optional().describe('Document JSON nodes, in order'),
-        }),
-      }),
-      outputSchema: z.looseObject({ nodes: z.array(nodeInfoSchema) }),
-      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
-    },
-    (args) =>
-      ctx.change(`insert_node:${args.where}@${ctx.targetOf(args.node)}`, async () => {
-        const form = ctx.contentForm(args.content, ['xml', 'nodes'] as const);
-        const entry = ctx.resolve(args.node);
-        const append = args.where === 'append';
-        // The parse context: the reference's parent, or the reference itself for `append`.
-        const parentEntry = append ? entry : entry.parent;
-        const parent = append ? containerOf(entry.node) : ctx.parentOf(entry);
-        if (!append && !entry.parent && inDescription(entry)) {
-          throw new ToolError('notAllowed', `The ${entry.root} element has no siblings.`, {
-            hint: 'Append inside it, or use set_description.',
-          });
-        }
-        if (append && isLeafFor(entry)) {
-          throw new ToolError(
-            'notAllowed',
-            `"${entry.node.type}" holds no block children; nothing can be appended to it.`,
-            {
-              hint: 'Insert before or after it, or use set_text / replace_selection for its text.',
-            },
-          );
-        }
-        let nodes: ModelNodeJson[];
-        if (form === 'xml') {
-          const parsed = await ctx.parseXml(
-            args.content.xml!,
-            ctx.parentReference(parentEntry, parent.name),
-          );
-          if (parsed.inline) {
-            throw new ToolError(
-              'fragmentNotAllowed',
-              `The content must be block elements that "${parent.name}" may hold, not bare inline content.`,
-              {
-                element: '#inline',
-                parent: parent.name,
-                hint: 'Wrap the text in <p>…</p>, or use replace_selection inside a paragraph.',
-              },
-            );
-          }
-          if (parsed.nodes.length === 0) {
-            throw new ToolError('invalidArguments', 'The xml yields no element.', {
-              hint: 'Return one or several elements in FictionBook XML.',
+          const checked = ctx.checkedNode(node, 'replace_node', pathOf(entry));
+          if (!entry.parent && checked.type !== 'body') {
+            const message = `A body can only be replaced by a body, not by a "${checked.type}".`;
+            throw new ToolError('notAllowed', message, {
+              hint: 'Replace or insert the sections inside the body instead.',
+              issues: [preCheckIssue(checked.type, message, pathOf(entry))],
             });
           }
-          nodes = parsed.nodes.map((node) => ctx.assignIds(node as unknown as ModelNodeJson));
-        } else {
-          const given = args.content.nodes!;
-          if (given.length === 0) {
-            throw new ToolError('invalidArguments', 'nodes is empty.', {
-              hint: 'Give one or several Document JSON nodes.',
-            });
-          }
-          nodes = given.map((value, i) => ctx.jsonNode(value, `insert_node: nodes[${i}]`));
-        }
-        // The path the pre-check names: the parent of the new nodes (the node for `append`).
-        const parentPath = append
-          ? pathOf(entry)
-          : entry.parent
-            ? pathOf(entry.parent)
-            : entry.root;
-        const checked = nodes.map((node) => ctx.checkedNode(node, 'insert_node', parentPath));
-        if (append) {
-          const children = childEntries(ctx.index, entry).map((child) => child.node);
-          ctx.requireFits(
-            parent,
-            children,
-            children.length,
-            0,
-            checked,
-            'insert_node',
-            'as its last child',
-            parentPath,
-          );
-        } else {
-          const siblings = siblingsOf(ctx.index, entry).map((s) => s.node);
-          const index = siblings.indexOf(entry.node) + (args.where === 'after' ? 1 : 0);
-          ctx.requireFits(
-            parent,
-            siblings,
-            index,
-            0,
-            checked,
-            'insert_node',
-            `${args.where} this "${entry.node.type}"`,
-            parentPath,
-          );
-        }
-        writeAt(ctx.deps.copy, entry, { kind: 'insert', where: args.where, nodes: checked });
-        const infos = checked.map((node) => {
-          const after = ctx.entryOf(nodeIdOf(node));
-          if (!after) throw new Error('an inserted node is missing afterwards');
-          return nodeInfo(after);
-        });
-        return { nodes: infos };
-      }),
-  );
-
-  defineTool(
-    server,
-    'remove_node',
-    {
-      title: 'Remove a node',
-      description:
-        "Removes one node of the book with everything inside it (a paragraph, an empty line, a section, a poem, …). Refused with notAllowed when the parent needs it - the first body, the last section of a body, the last line of a stanza - with the parent's content model in the hint. Returns the removed node and its character count. The change is checked against the FB2 schema.",
-      inputSchema: z.object({ node: nodeReference('the node to remove') }),
-      outputSchema: z.looseObject({ removed: nodeInfoSchema, characters: z.number() }),
-      annotations: changeAnnotations,
-    },
-    (args) =>
-      ctx.change(`remove_node:${ctx.targetOf(args.node)}`, async () => {
-        const entry = ctx.resolve(args.node);
-        if (!entry.parent && entry.root === 'body[1]') {
-          const message = 'The first body is the book itself and cannot be removed.';
-          throw new ToolError('notAllowed', message, {
-            hint: `A FictionBook needs its first body (content model of "body": ${contentModelOf(fb2Schema.nodes.body!)}); remove sections inside it instead.`,
-            contentModel: contentModelOf(fb2Schema.nodes.body!),
-            issues: [preCheckIssue('body', message, 'body[1]')],
-          });
-        }
-        const removed = nodeInfo(entry);
-        const characters = characterCount(entry.node);
-        if (entry.parent || entry.root.startsWith('body[')) {
           const siblings = siblingsOf(ctx.index, entry).map((s) => s.node);
           ctx.requireFits(
-            ctx.parentOf(entry),
+            parent,
             siblings,
             siblings.indexOf(entry.node),
             1,
-            [],
-            'remove_node',
-            `this "${entry.node.type}"`,
+            [checked],
+            'replace_node',
+            `in place of this "${entry.node.type}"`,
             pathOf(entry),
           );
-        }
-        writeAt(ctx.deps.copy, entry, { kind: 'remove' });
-        return { removed, characters };
-      }),
-  );
+          writeAt(ctx.deps.copy, entry, { kind: 'replace', node: checked });
+          const after = ctx.entryOf(id);
+          if (!after) throw new Error('the replaced node is missing afterwards');
+          return { node: nodeInfo(after) };
+        }),
+    );
 
-  defineTool(
-    server,
-    'set_text',
-    {
-      title: 'Set the text of a block',
-      description: `Replaces the whole content of one text container (${TEXT_CONTAINER_LIST}) by plain text. All inline formatting of the block is lost - emphasis, strong, links, footnotes, inline images; to keep or change formatting use replace_node with xml. Other nodes are refused with textOnly. The change is checked against the FB2 schema.`,
-      inputSchema: z.object({
-        node: nodeReference('the text container'),
-        text: z.string().describe('the new plain text (empty clears the block)'),
-      }),
-      outputSchema: z.looseObject({ node: nodeInfoSchema }),
-      annotations: changeAnnotations,
-    },
-    (args) =>
-      ctx.change(`set_text:${ctx.targetOf(args.node)}`, async () => {
-        const entry = ctx.resolve(args.node);
-        if (!TEXT_CONTAINERS.has(entry.node.type)) {
-          const message = `"${entry.node.type}" is not a text container; set_text takes ${TEXT_CONTAINER_LIST}.`;
-          throw new ToolError('textOnly', message, {
-            hint: 'Use replace_node with xml to keep formatting, or read_part to find the paragraphs inside it.',
-            issues: [{ code: 'textOnly', element: entry.node.type, path: pathOf(entry), message }],
+    defineTool(
+      server,
+      'insert_node',
+      {
+        title: 'Insert nodes',
+        description:
+          'Inserts new content next to a node: where "before" or "after" puts it beside the node, "append" makes it the last child of the node (for example the last paragraph of a section). content {xml} (FictionBook XML of one or several sibling elements, inserted in order) or content {nodes} (a list of Document JSON nodes). Exactly one of xml / nodes. Returns the inserted nodes with their new ids and paths. The change is checked against the FB2 schema; an "error" answer means nothing was inserted.',
+        inputSchema: z.object({
+          where: z
+            .enum(['before', 'after', 'append'])
+            .describe('before / after the node, or append as its last child'),
+          node: nodeReference('the reference node'),
+          content: z.object({
+            xml: xmlContentArg,
+            nodes: z.array(z.looseObject({})).optional().describe('Document JSON nodes, in order'),
+          }),
+        }),
+        outputSchema: z.looseObject({ nodes: z.array(nodeInfoSchema) }),
+        annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+      },
+      (args) =>
+        ctx.change(`insert_node:${args.where}@${ctx.targetOf(args.node)}`, async () => {
+          const form = ctx.contentForm(args.content, ['xml', 'nodes'] as const);
+          const entry = ctx.resolve(args.node);
+          const append = args.where === 'append';
+          // The parse context: the reference's parent, or the reference itself for `append`.
+          const parentEntry = append ? entry : entry.parent;
+          const parent = append ? containerOf(entry.node) : ctx.parentOf(entry);
+          if (!append && !entry.parent && inDescription(entry)) {
+            throw new ToolError('notAllowed', `The ${entry.root} element has no siblings.`, {
+              hint: 'Append inside it, or use set_description.',
+            });
+          }
+          if (append && isLeafFor(entry)) {
+            throw new ToolError(
+              'notAllowed',
+              `"${entry.node.type}" holds no block children; nothing can be appended to it.`,
+              {
+                hint: 'Insert before or after it, or use set_text / replace_selection for its text.',
+              },
+            );
+          }
+          let nodes: ModelNodeJson[];
+          if (form === 'xml') {
+            const parsed = await ctx.parseXml(
+              args.content.xml!,
+              ctx.parentReference(parentEntry, parent.name),
+            );
+            if (parsed.inline) {
+              throw new ToolError(
+                'fragmentNotAllowed',
+                `The content must be block elements that "${parent.name}" may hold, not bare inline content.`,
+                {
+                  element: '#inline',
+                  parent: parent.name,
+                  hint: 'Wrap the text in <p>…</p>, or use replace_selection inside a paragraph.',
+                },
+              );
+            }
+            if (parsed.nodes.length === 0) {
+              throw new ToolError('invalidArguments', 'The xml yields no element.', {
+                hint: 'Return one or several elements in FictionBook XML.',
+              });
+            }
+            nodes = parsed.nodes.map((node) => ctx.assignIds(node as unknown as ModelNodeJson));
+          } else {
+            const given = args.content.nodes!;
+            if (given.length === 0) {
+              throw new ToolError('invalidArguments', 'nodes is empty.', {
+                hint: 'Give one or several Document JSON nodes.',
+              });
+            }
+            nodes = given.map((value, i) => ctx.jsonNode(value, `insert_node: nodes[${i}]`));
+          }
+          // The path the pre-check names: the parent of the new nodes (the node for `append`).
+          const parentPath = append
+            ? pathOf(entry)
+            : entry.parent
+              ? pathOf(entry.parent)
+              : entry.root;
+          const checked = nodes.map((node) => ctx.checkedNode(node, 'insert_node', parentPath));
+          if (append) {
+            const children = childEntries(ctx.index, entry).map((child) => child.node);
+            ctx.requireFits(
+              parent,
+              children,
+              children.length,
+              0,
+              checked,
+              'insert_node',
+              'as its last child',
+              parentPath,
+            );
+          } else {
+            const siblings = siblingsOf(ctx.index, entry).map((s) => s.node);
+            const index = siblings.indexOf(entry.node) + (args.where === 'after' ? 1 : 0);
+            ctx.requireFits(
+              parent,
+              siblings,
+              index,
+              0,
+              checked,
+              'insert_node',
+              `${args.where} this "${entry.node.type}"`,
+              parentPath,
+            );
+          }
+          writeAt(ctx.deps.copy, entry, { kind: 'insert', where: args.where, nodes: checked });
+          const infos = checked.map((node) => {
+            const after = ctx.entryOf(nodeIdOf(node));
+            if (!after) throw new Error('an inserted node is missing afterwards');
+            return nodeInfo(after);
           });
-        }
-        const next: ModelNodeJson = {
-          ...entry.node,
-          content: args.text ? [{ type: 'text', text: args.text }] : [],
-        };
-        const checked = ctx.checkedNode(next, 'set_text', pathOf(entry));
-        const id = nodeIdOf(entry.node);
-        writeAt(ctx.deps.copy, entry, { kind: 'replace', node: checked });
-        const after = ctx.entryOf(id);
-        if (!after) throw new Error('the block is missing afterwards');
-        return { node: nodeInfo(after) };
-      }),
-  );
+          return { nodes: infos };
+        }),
+    );
 
-  defineTool(
-    server,
-    'replace_all',
-    {
-      title: 'Find and replace in the bodies',
-      description:
-        "Replaces every match of text in the bodies (not the description) with the editor's find-and-replace: the same options as find (regex, matchCase, wholeWord, within). replacement is literal; with regex it uses the editor's expansion: $0 the whole match, $1–$9 the groups, $U / $L / $T upper / lower / title case for what follows, $S / $E strong / emphasis for what follows, $Q resets. Returns the exact count and the changed blocks (at most 100 listed). count 0 changes nothing. The change is checked against the FB2 schema.",
-      inputSchema: z.object({
-        text: z.string().min(1).describe('the text or regular expression to find'),
-        regex: flag('treat text as a regular expression'),
-        matchCase: flag('case-sensitive'),
-        wholeWord: flag('whole words only'),
-        within: nodeReference('replace inside this node only').optional(),
-        replacement: z
-          .string()
-          .describe('the replacement (literal, or with $-expansions for regex)'),
-      }),
-      outputSchema: z.looseObject({ count: z.number(), blocks: z.array(nodeInfoSchema) }),
-      annotations: changeAnnotations,
-    },
-    async (args) => {
-      // The search runs first: no match is a success without the hook (no checkpoint, no
-      // strike); a bad expression or an unknown `within` is a refused attempt of the key.
-      let search: Awaited<ReturnType<typeof searchBlocks>>;
-      try {
-        search = await searchBlocks(ctx, args);
-      } catch (error) {
-        if (!(error instanceof ToolError)) throw error;
-        return ctx.change(`replace_all:${args.text}`, () => Promise.reject(error));
-      }
-      if (search.matches.length === 0) return { count: 0, blocks: [] };
-      return ctx.change(`replace_all:${args.text}`, async () => {
-        const expand = expansionFor(args.replacement, args.regex === true);
-        const byBlock = new Map<number, RegexMatch[]>();
-        for (const match of search.matches) {
-          const list = byBlock.get(match.block) ?? [];
-          list.push(match);
-          byBlock.set(match.block, list);
+    defineTool(
+      server,
+      'remove_node',
+      {
+        title: 'Remove a node',
+        description:
+          "Removes one node of the book with everything inside it (a paragraph, an empty line, a section, a poem, …). Refused with notAllowed when the parent needs it - the first body, the last section of a body, the last line of a stanza - with the parent's content model in the hint. Returns the removed node and its character count. The change is checked against the FB2 schema.",
+        inputSchema: z.object({ node: nodeReference('the node to remove') }),
+        outputSchema: z.looseObject({ removed: nodeInfoSchema, characters: z.number() }),
+        annotations: changeAnnotations,
+      },
+      (args) =>
+        ctx.change(`remove_node:${ctx.targetOf(args.node)}`, async () => {
+          const entry = ctx.resolve(args.node);
+          if (!entry.parent && entry.root === 'body[1]') {
+            const message = 'The first body is the book itself and cannot be removed.';
+            throw new ToolError('notAllowed', message, {
+              hint: `A FictionBook needs its first body (content model of "body": ${contentModelOf(fb2Schema.nodes.body!)}); remove sections inside it instead.`,
+              contentModel: contentModelOf(fb2Schema.nodes.body!),
+              issues: [preCheckIssue('body', message, 'body[1]')],
+            });
+          }
+          const removed = nodeInfo(entry);
+          const characters = characterCount(entry.node);
+          if (entry.parent || entry.root.startsWith('body[')) {
+            const siblings = siblingsOf(ctx.index, entry).map((s) => s.node);
+            ctx.requireFits(
+              ctx.parentOf(entry),
+              siblings,
+              siblings.indexOf(entry.node),
+              1,
+              [],
+              'remove_node',
+              `this "${entry.node.type}"`,
+              pathOf(entry),
+            );
+          }
+          writeAt(ctx.deps.copy, entry, { kind: 'remove' });
+          return { removed, characters };
+        }),
+    );
+
+    defineTool(
+      server,
+      'set_text',
+      {
+        title: 'Set the text of a block',
+        description: `Replaces the whole content of one text container (${TEXT_CONTAINER_LIST}) by plain text. All inline formatting of the block is lost - emphasis, strong, links, footnotes, inline images; to keep or change formatting use replace_node with xml. Other nodes are refused with textOnly. The change is checked against the FB2 schema.`,
+        inputSchema: z.object({
+          node: nodeReference('the text container'),
+          text: z.string().describe('the new plain text (empty clears the block)'),
+        }),
+        outputSchema: z.looseObject({ node: nodeInfoSchema }),
+        annotations: changeAnnotations,
+      },
+      (args) =>
+        ctx.change(`set_text:${ctx.targetOf(args.node)}`, async () => {
+          const entry = ctx.resolve(args.node);
+          if (!TEXT_CONTAINERS.has(entry.node.type)) {
+            const message = `"${entry.node.type}" is not a text container; set_text takes ${TEXT_CONTAINER_LIST}.`;
+            throw new ToolError('textOnly', message, {
+              hint: 'Use replace_node with xml to keep formatting, or read_part to find the paragraphs inside it.',
+              issues: [
+                { code: 'textOnly', element: entry.node.type, path: pathOf(entry), message },
+              ],
+            });
+          }
+          const next: ModelNodeJson = {
+            ...entry.node,
+            content: args.text ? [{ type: 'text', text: args.text }] : [],
+          };
+          const checked = ctx.checkedNode(next, 'set_text', pathOf(entry));
+          const id = nodeIdOf(entry.node);
+          writeAt(ctx.deps.copy, entry, { kind: 'replace', node: checked });
+          const after = ctx.entryOf(id);
+          if (!after) throw new Error('the block is missing afterwards');
+          return { node: nodeInfo(after) };
+        }),
+    );
+
+    defineTool(
+      server,
+      'replace_all',
+      {
+        title: 'Find and replace in the bodies',
+        description:
+          "Replaces every match of text in the bodies (not the description) with the editor's find-and-replace: the same options as find (regex, matchCase, wholeWord, within). replacement is literal; with regex it uses the editor's expansion: $0 the whole match, $1–$9 the groups, $U / $L / $T upper / lower / title case for what follows, $S / $E strong / emphasis for what follows, $Q resets. Returns the exact count and the changed blocks (at most 100 listed). count 0 changes nothing. The change is checked against the FB2 schema.",
+        inputSchema: z.object({
+          text: z.string().min(1).describe('the text or regular expression to find'),
+          regex: flag('treat text as a regular expression'),
+          matchCase: flag('case-sensitive'),
+          wholeWord: flag('whole words only'),
+          within: nodeReference('replace inside this node only').optional(),
+          replacement: z
+            .string()
+            .describe('the replacement (literal, or with $-expansions for regex)'),
+        }),
+        outputSchema: z.looseObject({ count: z.number(), blocks: z.array(nodeInfoSchema) }),
+        annotations: changeAnnotations,
+      },
+      async (args) => {
+        // The search runs first: no match is a success without the hook (no checkpoint, no
+        // strike); a bad expression or an unknown `within` is a refused attempt of the key.
+        let search: Awaited<ReturnType<typeof searchBlocks>>;
+        try {
+          search = await searchBlocks(ctx, args);
+        } catch (error) {
+          if (!(error instanceof ToolError)) throw error;
+          return ctx.change(`replace_all:${args.text}`, () => Promise.reject(error));
         }
-        const rewrites: { entry: Entry; node: ModelNodeJson }[] = [];
-        for (const [block, matches] of byBlock) {
-          const entry = search.blocks[block]!;
-          const rewritten = rewriteBlock(entry.node, matches, expand);
-          if (rewritten === entry.node) continue;
-          rewrites.push({ entry, node: ctx.checkedNode(rewritten, 'replace_all', pathOf(entry)) });
-        }
-        // Every rewrite is computed from the index before the first write, then all are
-        // written at once (the description roots in one rewrite each).
-        replaceEach(ctx.deps.copy, rewrites);
-        const blocks = rewrites
-          .slice(0, REPLACE_ALL_BLOCKS_LISTED)
-          .map(({ node }) => ctx.entryOf(nodeIdOf(node)))
-          .filter((e): e is Entry => !!e)
-          .map(nodeInfo);
-        return { count: search.matches.length, blocks };
-      });
-    },
-  );
+        if (search.matches.length === 0) return { count: 0, blocks: [] };
+        return ctx.change(`replace_all:${args.text}`, async () => {
+          const expand = expansionFor(args.replacement, args.regex === true);
+          const byBlock = new Map<number, RegexMatch[]>();
+          for (const match of search.matches) {
+            const list = byBlock.get(match.block) ?? [];
+            list.push(match);
+            byBlock.set(match.block, list);
+          }
+          const rewrites: { entry: Entry; node: ModelNodeJson }[] = [];
+          for (const [block, matches] of byBlock) {
+            const entry = search.blocks[block]!;
+            const rewritten = rewriteBlock(entry.node, matches, expand);
+            if (rewritten === entry.node) continue;
+            rewrites.push({
+              entry,
+              node: ctx.checkedNode(rewritten, 'replace_all', pathOf(entry)),
+            });
+          }
+          // Every rewrite is computed from the index before the first write, then all are
+          // written at once (the description roots in one rewrite each).
+          replaceEach(ctx.deps.copy, rewrites);
+          const blocks = rewrites
+            .slice(0, REPLACE_ALL_BLOCKS_LISTED)
+            .map(({ node }) => ctx.entryOf(nodeIdOf(node)))
+            .filter((e): e is Entry => !!e)
+            .map(nodeInfo);
+          return { count: search.matches.length, blocks };
+        });
+      },
+    );
+  }
 
   defineTool(
     server,
@@ -3948,6 +3987,22 @@ function registerChangeTools(server: McpServer, ctx: ToolContext): void {
     },
     (args) =>
       ctx.change('set_description:description', async () => {
+        // Package mode coverpage guard (FR-014, FR-021, contracts/ai-catalogue.md §1):
+        // cover images are controlled strictly by the Hybrid Cover page / Binary objects UI.
+        if (packageMode || ctx.deps.context().mode === 'package') {
+          const patch = args.description as Record<string, unknown>;
+          const ti = patch.titleInfo as Record<string, unknown> | undefined;
+          const sti = patch.srcTitleInfo as Record<string, unknown> | undefined;
+          if (
+            (ti && typeof ti === 'object' && 'coverpage' in ti) ||
+            (sti && typeof sti === 'object' && 'coverpage' in sti)
+          ) {
+            throw new ToolError(
+              'invalidArguments',
+              'set_description: coverpage cannot be changed by the AI assistant in Package mode; use Cover page or Binary objects in the Description view.',
+            );
+          }
+        }
         const merged = await mergeDescription(ctx.document.description, args.description, {
           parseXml: async (xml, element) => {
             const parsed = await ctx.parseXml(xml, { element });
@@ -3968,6 +4023,12 @@ function registerChangeTools(server: McpServer, ctx: ToolContext): void {
             });
           },
         });
+        if (packageMode || ctx.deps.context().mode === 'package') {
+          merged.description.titleInfo.coverpage = ctx.document.description.titleInfo.coverpage;
+          if (merged.description.srcTitleInfo) {
+            merged.description.srcTitleInfo.coverpage = [];
+          }
+        }
         ctx.deps.copy.setDescription(merged.description);
         return {
           description: await ctx.describe(),

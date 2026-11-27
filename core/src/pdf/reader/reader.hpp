@@ -62,6 +62,11 @@ nlohmann::json write_picture(PDFDoc& doc, int n, const std::string& id, const Op
 bool render_page(PDFDoc& doc, int n, int dpi, const std::filesystem::path& file, int& width,
                  int& height);
 
+/// Renders page 1 onto a white background targeting `target_width` pixels (clamping extreme aspect
+/// ratios) and encodes it as JPEG in `file` (Feature 022: Package mode automatic PDF cover).
+bool render_cover_jpeg(PDFDoc& doc, int target_width, int quality,
+                       const std::filesystem::path& file, int& width, int& height);
+
 /// Maps PDF 2.0's structure types Poppler does not know to the types they refine, before the tree
 /// is read.
 void map_newer_types(PDFDoc& doc);

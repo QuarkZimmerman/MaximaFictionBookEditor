@@ -89,6 +89,7 @@ export const MAIN_MENU: readonly MenuSpec[] = [
     labelKey: 'menu.file.caption',
     items: [
       cmd('file.new'),
+      cmd('file.newPackage'),
       cmd('file.open'),
       cmd('file.save'),
       cmd('file.saveAs'),

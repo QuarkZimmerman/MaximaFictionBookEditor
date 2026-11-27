@@ -26,6 +26,7 @@ import {
   type PassedOverItem,
   type PassedOverKind,
   type Settings,
+  type StartupMode,
   type TemplateInfo,
   type VersionCheckSchedule,
 } from '@/rpc/types';
@@ -36,6 +37,7 @@ import {
   IMAGE_FORMATS,
   JPEG_QUALITY_RANGE,
   NBSP_DISPLAY_CHOICES,
+  STARTUP_MODE_OPTIONS,
   VERSION_CHECK_OPTIONS,
   describeGenreSources,
   genresInfoFrom,
@@ -462,6 +464,24 @@ export function OtherPage({ draft, onChange, ctx }: OtherPageProps) {
             <option value="ask">{t('openElsewhere.settingAsk')}</option>
             <option value="thisWindow">{t('openElsewhere.settingThisWindow')}</option>
             <option value="newWindow">{t('openElsewhere.settingNewWindow')}</option>
+          </select>
+        </FieldRow>
+      </GroupBox>
+
+      <GroupBox title={t('package.settings.startupGroup')} testId="settings-other-startup">
+        <FieldRow label={t('package.settings.startupMode')} htmlFor="settings-other-startup-mode">
+          <select
+            {...tip(t('tip.package.startupMode'))}
+            id="settings-other-startup-mode"
+            value={other.startupMode === 'package' ? 'package' : 'fb2'}
+            onChange={(event) => onChange({ startupMode: event.target.value as StartupMode })}
+            data-testid="settings-other-startup-mode"
+          >
+            {STARTUP_MODE_OPTIONS.map((choice) => (
+              <option key={choice.value} value={choice.value}>
+                {t(choice.labelKey)}
+              </option>
+            ))}
           </select>
         </FieldRow>
       </GroupBox>

@@ -45,6 +45,8 @@ export function StatusBar() {
   const runLocked = useAppState(isRunLocked, store);
   const panesSetting = useAppState((s) => s.settings?.view.statusBarPanes, store);
   const activeView = useAppState((s) => s.activeView, store);
+  const editorMode = useAppState((s) => s.editorMode, store);
+  const packageState = useAppState((s) => s.packageState, store);
   const caretInfo = useAppState((s) => s.caretInfo, store);
   const document = useAppState((s) => s.document, store);
   const lastCheck = useAppState((s) => s.lastCheck, store);
@@ -146,6 +148,11 @@ export function StatusBar() {
       )}
       {visible ? (
         <>
+          {editorMode === 'package' && packageState ? (
+            <span className="mfbe-status-pane" data-testid="status-package-mode">
+              {`${t('package.modeLabel')} — ${t('package.sidebar.count', { count: packageState.entries.length })}`}
+            </span>
+          ) : null}
           {shown.has('path') ? (
             <span
               className="mfbe-status-pane mfbe-status-path"

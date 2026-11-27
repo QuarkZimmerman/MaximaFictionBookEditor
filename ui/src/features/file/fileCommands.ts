@@ -359,6 +359,15 @@ export interface FileFeatureOptions {
   selfSaveGraceMs?: number;
 }
 
+/** Thin delegate registered by `features/package` so `FileFeature` coordinates Package mode without circular imports. */
+export interface PackageFileBridge {
+  confirmDiscardPackage(ctx: CommandContext): Promise<boolean>;
+  closePackageToFb2(ctx: CommandContext): Promise<void>;
+  savePackage(ctx: CommandContext, saveAs: boolean): Promise<boolean>;
+  openPackage(ctx: CommandContext, path: string): Promise<boolean>;
+  startEmptyPackage(ctx: CommandContext): Promise<boolean>;
+}
+
 export interface QuitOptions {
   /**
    * The shell asked for the close (`app.closeRequested`): `app.quit` is called with
@@ -402,11 +411,20 @@ export class FileFeature {
     for (const command of this.createCommands()) registry.replace(command);
   }
 
+  private packageBridge: PackageFileBridge | null = null;
+
+  setPackageBridge(bridge: PackageFileBridge): void {
+    this.packageBridge = bridge;
+  }
+
   /* ---------------------------------------------------------------- prompts */
 
   /** "Save changes to <name>?" - true when the caller may proceed (saved or discarded). */
   async confirmDiscardChanges(ctx: CommandContext): Promise<boolean> {
     const state = ctx.store.getState();
+    if (state.editorMode === 'package' && this.packageBridge) {
+      return this.packageBridge.confirmDiscardPackage(ctx);
+    }
     if (!state.document || (!state.modified && !isSourceTextDirty(ctx.store))) return true;
     const answer = await showSaveChangesPrompt(ctx.dialogs, currentDocumentName(ctx));
     if (answer === 'cancel') return false;
@@ -459,6 +477,10 @@ export class FileFeature {
   async closeCurrentDocument(ctx: CommandContext): Promise<void> {
     const { store, rpc } = ctx;
     const state = store.getState();
+    if (state.editorMode === 'package' && this.packageBridge) {
+      await this.packageBridge.closePackageToFb2(ctx);
+      return;
+    }
     if (state.docId && rpc) {
       await leaveDocument(ctx);
       try {
@@ -482,7 +504,7 @@ export class FileFeature {
   private loadDocument(
     ctx: CommandContext,
     document: Document & LoadReport,
-    options: { template?: boolean } = {},
+    options: { template?: boolean; keepView?: boolean } = {},
   ): void {
     resetSourceSession(ctx.store);
     ctx.undo.clear();
@@ -494,8 +516,8 @@ export class FileFeature {
     // (requester, rc.5): the same check as Tools > Validate, without its status message, of the
     // core's own copy of the book just loaded.
     void this.validateDocument(ctx, { quiet: true, asLoaded: true }).catch(() => undefined);
-    if (ctx.store.getState().activeView === 'source') {
-      // A new document always starts in the Body view unless it is Source-only.
+    if (!options.keepView && ctx.store.getState().activeView !== 'body') {
+      // Every FB2 open/new/import activates the Body view unless reloading the current file in place.
       switchView(ctx, 'body');
     }
     this.documentOpened(ctx);
@@ -615,6 +637,10 @@ export class FileFeature {
    */
   private async showHeldBook(ctx: CommandContext, path: string, entry?: string): Promise<boolean> {
     const state = ctx.store.getState();
+    if (state.editorMode === 'package' && state.packageState?.zipPath === path && !entry) {
+      window.focus();
+      return true;
+    }
     // A book from a ZIP archive is the same book only for the same entry (feature 009, D11).
     if (state.path === path && state.document?.source?.entry === entry) {
       window.focus();
@@ -681,10 +707,11 @@ export class FileFeature {
     const rpc = ctx.rpc;
     if (!rpc) return undefined;
     const inspected = await rpc.call('files.inspect', { path }).catch(() => null);
-    if (!inspected || inspected.kind !== 'zip') return undefined;
+    if (!inspected || inspected.kind !== 'zip' || inspected.isFbdPackage) return undefined;
     if (inspected.onlyBook !== undefined) return inspected.onlyBook;
     if ((inspected.books ?? 0) < 2) return undefined;
     const answer = await rpc.runJob('doc.open', { path });
+    if ('packageDetected' in answer) return undefined;
     if (!('needsChoice' in answer)) {
       // Opened after all (the archive changed meanwhile): let the normal route reopen it.
       await rpc.call('doc.close', { docId: answer.document.docId }).catch(() => undefined);
@@ -788,7 +815,12 @@ export class FileFeature {
    * parse-error messages; Source-only mode for malformed files. Returns true when a document
    * (model or raw text) is now open.
    */
-  async openDocument(ctx: CommandContext, path: string, entry?: string): Promise<boolean> {
+  async openDocument(
+    ctx: CommandContext,
+    path: string,
+    entry?: string,
+    options: { keepView?: boolean } = {},
+  ): Promise<boolean> {
     const { store, rpc } = ctx;
     if (!rpc) return false;
     // Feature 009: a ZIP archive of several books asks which one before the window's book is
@@ -812,6 +844,9 @@ export class FileFeature {
       let result = await rpc.runJob('doc.open', entry ? { path, entry } : { path }, {
         onProgress: (progress) => actions.setProgress(store, progress),
       });
+      if ('packageDetected' in result) {
+        return this.packageBridge ? this.packageBridge.openPackage(ctx, result.path) : false;
+      }
       if ('needsChoice' in result) {
         // An archive without the .zip name: asked while the window's book is still open.
         const chosen = await showArchiveBookChooser(
@@ -826,7 +861,7 @@ export class FileFeature {
           { path, entry },
           { onProgress: (progress) => actions.setProgress(store, progress) },
         );
-        if ('needsChoice' in result) return false;
+        if ('needsChoice' in result || 'packageDetected' in result) return false;
       }
       let markModified = false;
       const mismatch = result.warnings.find((w) => w.code === 'encoding.mismatch');
@@ -870,14 +905,14 @@ export class FileFeature {
               },
               { onProgress: (progress) => actions.setProgress(store, progress) },
             );
-            if ('needsChoice' in reopened) return false;
+            if ('needsChoice' in reopened || 'packageDetected' in reopened) return false;
             result = reopened;
           }
           markModified = true;
         }
       }
       await this.closeCurrentDocument(ctx);
-      this.loadDocument(ctx, result.document);
+      this.loadDocument(ctx, result.document, options);
       if (markModified) {
         actions.setModified(store, true);
       }
@@ -955,7 +990,7 @@ export class FileFeature {
       }
       const parseError = parseErrorData(error);
       if (parseError) {
-        return this.handleMalformedXml(ctx, path, parseError, entry, pending);
+        return this.handleMalformedXml(ctx, path, parseError, entry, pending, options);
       }
       // Core-side failures (I/O, parse) are logged by the core; log the client-side ones.
       if (isClientSideError(error)) {
@@ -989,6 +1024,7 @@ export class FileFeature {
     parseError: DocParseErrorData,
     entry: string | undefined,
     pending: StructuralPosition | null,
+    options: { keepView?: boolean } = {},
   ): Promise<boolean> {
     const { store, rpc } = ctx;
     if (!rpc) return false;
@@ -1022,7 +1058,7 @@ export class FileFeature {
         { path, ...(entry ? { entry } : {}), recover: true },
         { onProgress: (progress) => actions.setProgress(store, progress) },
       );
-      if ('needsChoice' in result) return false;
+      if ('needsChoice' in result || 'packageDetected' in result) return false;
       const mismatch = result.warnings.find((w) => w.code === 'encoding.mismatch');
       if (mismatch) {
         const params = mismatch.params as Record<string, unknown>;
@@ -1064,12 +1100,12 @@ export class FileFeature {
             },
             { onProgress: (progress) => actions.setProgress(store, progress) },
           );
-          if ('needsChoice' in reopened) return false;
+          if ('needsChoice' in reopened || 'packageDetected' in reopened) return false;
           result = reopened;
         }
       }
       await this.closeCurrentDocument(ctx);
-      this.loadDocument(ctx, result.document);
+      this.loadDocument(ctx, result.document, options);
       // Repaired in memory only: mark modified so the disk file stays untouched until saved.
       actions.setModified(store, true);
       const repaired = result.warnings.find((w) => w.code === 'xml.repaired');
@@ -1196,6 +1232,9 @@ export class FileFeature {
   async saveDocument(ctx: CommandContext, options: { saveAs?: boolean }): Promise<boolean> {
     const { store, rpc } = ctx;
     if (!rpc) return false;
+    if (store.getState().editorMode === 'package' && this.packageBridge) {
+      return this.packageBridge.savePackage(ctx, Boolean(options.saveAs));
+    }
     // Pending Source text first: malformed XML is never saved.
     const commit = await commitPendingSource(ctx);
     if (commit === 'error') return false;
@@ -1487,7 +1526,7 @@ export class FileFeature {
         // The reload keeps the active view and the in-session caret (001 FR-006, 004 FR-101):
         // the Body caret as it is now travels to the reopened document directly.
         this.pendingPosition = currentBodyPosition(ctx);
-        await this.openDocument(ctx, path);
+        await this.openDocument(ctx, path, undefined, { keepView: true });
       }
     } finally {
       this.reloadPromptOpen = false;
@@ -1502,10 +1541,17 @@ export class FileFeature {
    * the browser-mode restart reopening its document) is opened first, before any other
    * start-up work; when it fails the usual path follows.
    */
-  async handleStartup(ctx: CommandContext, openPath: string | null = null): Promise<void> {
+  async handleStartup(
+    ctx: CommandContext,
+    openPath: string | null = null,
+    startupModePromise?: Promise<'fb2' | 'package'>,
+  ): Promise<void> {
     if (!ctx.rpc) return;
     const requests = this.userRequests;
-    const wanted = () => this.userRequests === requests && !ctx.store.getState().document;
+    const wanted = () => {
+      const state = ctx.store.getState();
+      return this.userRequests === requests && !state.document && !state.packageState;
+    };
     if (openPath && (await this.openDocument(ctx, openPath))) {
       this.startupChecked = true;
       this.startupOpen = null;
@@ -1522,6 +1568,14 @@ export class FileFeature {
     const opened = this.startupOpen ? await this.startupOpen : false;
     this.startupOpen = null;
     if (opened || !wanted()) return;
+    const startupMode = startupModePromise
+      ? await startupModePromise
+      : (ctx.store.getState().settings?.other?.startupMode ?? 'fb2');
+    if (!wanted()) return;
+    if (startupMode === 'package' && this.packageBridge) {
+      await this.packageBridge.startEmptyPackage(ctx);
+      return;
+    }
     await this.createFromTemplate(ctx, wanted);
   }
 
@@ -1559,7 +1613,9 @@ export class FileFeature {
         group: 'file',
         ...keys('file.save', 'menu.file.save'),
         icon: 'id_file_save',
-        enabled: connectedWithDocument,
+        enabled: (ctx) =>
+          isConnected(ctx) &&
+          (ctx.store.getState().editorMode === 'package' || Boolean(ctx.store.getState().document)),
         run: async (ctx) => {
           await this.saveDocument(ctx, {});
         },
@@ -1568,7 +1624,9 @@ export class FileFeature {
         id: 'file.saveAs',
         group: 'file',
         ...keys('file.saveAs', 'menu.file.saveAs'),
-        enabled: connectedWithDocument,
+        enabled: (ctx) =>
+          isConnected(ctx) &&
+          (ctx.store.getState().editorMode === 'package' || Boolean(ctx.store.getState().document)),
         run: async (ctx) => {
           await this.saveDocument(ctx, { saveAs: true });
         },

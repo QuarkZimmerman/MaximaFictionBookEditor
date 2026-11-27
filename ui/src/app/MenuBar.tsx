@@ -165,7 +165,11 @@ function resolveItems(
     const parsed = parseAccelerator(t(spec.labelKey));
     if (spec.kind === 'submenu') {
       const items = resolveItems(`${menuId}-${spec.id}`, spec.items, spec.dynamic, deps);
-      const enabled = !spec.enabledByItems || items.some((item) => item.enabled);
+      // In Package mode all user scripts are unavailable (FR-018), so disable script group submenus too.
+      const requireEnabledChild =
+        spec.enabledByItems ||
+        (ctx.store.getState().editorMode === 'package' && menuId === 'scripts');
+      const enabled = !requireEnabledChild || items.some((item) => item.enabled);
       const first = spec.items.find((item) => item.kind === 'command');
       const reason =
         !enabled && first?.kind === 'command'

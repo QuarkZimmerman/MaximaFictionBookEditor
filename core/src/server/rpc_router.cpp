@@ -88,6 +88,14 @@ const char* error_name(int code) {
             return "mobi.unknownToken";
         case codes::kBatchError:
             return "batch.error";
+        case codes::kPackageNotFound:
+            return "package.notFound";
+        case codes::kPackageInvalidFile:
+            return "package.invalidFile";
+        case codes::kPackageInvalidArchive:
+            return "package.invalidArchive";
+        case codes::kPackageSaveFailed:
+            return "package.saveFailed";
         default:
             return "";
     }

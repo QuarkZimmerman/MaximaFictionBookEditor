@@ -655,8 +655,10 @@ test.describe('US4 (004) - import a description from an FBD or FB2 file', () => 
     expect(request.method).toBe('dialog.openFile');
     expect(request.selectedFilter).toBe(0);
     expect(request.filters).toEqual([
-      { name: 'FictionBook descriptors (*.fbd)', extensions: ['fbd'] },
+      { name: 'Book files (*.fb2;*.fbd;*.zip)', extensions: ['fb2', 'fbd', 'zip'] },
       { name: 'FictionBook files (*.fb2)', extensions: ['fb2'] },
+      { name: 'FictionBook descriptors (*.fbd)', extensions: ['fbd'] },
+      { name: 'ZIP archives (*.zip)', extensions: ['zip'] },
       { name: 'All files (*.*)', extensions: ['*'] },
     ]);
     if (process.platform !== 'win32') expect(request.folder).toBe(remembered);

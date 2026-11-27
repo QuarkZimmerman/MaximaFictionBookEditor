@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 
 import { DialogService, createDialogs, type Dialogs } from '@/dialogs';
 import { FileFeature, registerFileCommands } from '@/features/file/fileCommands';
+import { PackageFeature, registerPackageCommands } from '@/features/package';
 import i18next from '@/i18n';
 import { CaretRegistry } from '@/model/caret';
 import { appStore, type AppStore } from '@/model/store';
@@ -22,7 +23,12 @@ import { getBodyController, hasBodyController } from '@/views/body/bodyEditor';
 import { getSourceEditor } from '@/views/source/sourceEditor';
 import { registerViewCommands } from '@/views/source/sourceSession';
 
-import { CommandRegistry, createCommandRegistry, type CommandContext } from './commands';
+import {
+  CommandRegistry,
+  createCommandRegistry,
+  setConfirmDiscardHandler,
+  type CommandContext,
+} from './commands';
 import { HotkeyMap, detectPlatform } from './hotkeys';
 import { resourceCatalogsFor } from '@/views/description/resources';
 import { provideCompletionLists } from '@/views/source/attributeCompletion';
@@ -64,6 +70,8 @@ export interface AppServices {
   carets: CaretRegistry;
   /** File menu flows, Recent Files list and document notifications (T052/T054). */
   files: FileFeature;
+  /** FBD ZIP Package mode lifecycle commands and sidebar actions (feature 022). */
+  packages: PackageFeature;
   platform: Platform;
   version: string;
   /** Subscribe to "anything that may change a command state" (store, undo, hotkeys, registry). */
@@ -81,6 +89,7 @@ export interface CreateAppServicesOptions {
   dialogService?: DialogService;
   carets?: CaretRegistry;
   files?: FileFeature;
+  packages?: PackageFeature;
   platform?: Platform;
   version?: string;
 }
@@ -111,6 +120,8 @@ export function createAppServices(options: CreateAppServicesOptions = {}): AppSe
   const carets = options.carets ?? new CaretRegistry();
   // The File flows and the parse-before-leaving view commands take over the foundation stubs.
   const files = options.files ?? registerFileCommands(commands);
+  setConfirmDiscardHandler(store, (c) => files.confirmDiscardChanges(c));
+  const packages = options.packages ?? registerPackageCommands(commands, files);
   // Feature 010 (US8): File > Import > Markdown File..., which hands its book to the file feature.
   registerMarkdownImport(commands, files);
   // Feature 012: File > Import > EPUB File... and File > Export > Export as EPUB... (lazy parts, D32).
@@ -204,6 +215,7 @@ export function createAppServices(options: CreateAppServicesOptions = {}): AppSe
     dialogs,
     carets,
     files,
+    packages,
     platform,
     version,
     subscribeAll,

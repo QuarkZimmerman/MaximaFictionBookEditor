@@ -15,6 +15,7 @@
 #include <mfbe/document_session.hpp>
 #include <mfbe/epub.hpp>
 #include <mfbe/exclusions.hpp>
+#include <mfbe/fbd_package.hpp>
 #include <mfbe/file_watch.hpp>
 #include <mfbe/genres.hpp>
 #include <mfbe/hotkeys.hpp>
@@ -139,6 +140,8 @@ struct Services {
 
     // Feature 019 (batch.*): per-run target locks and temporary extraction directories.
     batch::BatchState batch;
+    // Feature 022 (package.*): active FBD ZIP package sessions and entry metadata.
+    package::FbdPackageRegistry packages;
 
     rpc::Notifier& notifier;
     rpc::JobManager jobs;
@@ -258,6 +261,8 @@ void register_binary_handlers(rpc::RpcRouter& router, Services& services);
 void register_resources_handlers(rpc::RpcRouter& router, Services& services);
 // Feature 020: ocr.report (ocr_handlers.cpp).
 void register_ocr_handlers(rpc::RpcRouter& router, Services& services);
+// Feature 022: package.* (package_handlers.cpp).
+void register_package_handlers(rpc::RpcRouter& router, Services& services);
 void register_spell_handlers(rpc::RpcRouter& router, Services& services);
 void register_words_handlers(rpc::RpcRouter& router, Services& services);
 void register_scripts_handlers(rpc::RpcRouter& router, Services& services);
