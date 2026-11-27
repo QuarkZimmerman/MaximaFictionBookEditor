@@ -719,6 +719,7 @@ export const actions = {
             toolbars: { ...settings.session.toolbars },
             treeVisible: settings.session.treeVisible,
             treeWidth: typeof storedWidth === 'number' ? storedWidth : DEFAULT_TREE_WIDTH,
+            toolbarNewAction: settings.other?.startupMode === 'package' ? 'package' : 'fb2',
             ai: {
               ...s.ai,
               width:

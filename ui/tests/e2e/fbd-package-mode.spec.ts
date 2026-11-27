@@ -812,4 +812,100 @@ test.describe('Feature 022: FBD ZIP Package Mode', () => {
       rmSync(workDir, { recursive: true, force: true });
     }
   });
+
+  test('US4: Startup mode in Settings -> Other (default FB2, Apply dirty/undo tracking, reload into Package mode + New Package split button, explicit .fb2 arg override)', async ({
+    page,
+    core,
+  }) => {
+    test.skip(!core.hasCore, 'Requires mfbe-core binary');
+    const workDir = mkdtempSync(path.join(tmpdir(), 'mfbe-e2e-pkg-us4-'));
+    try {
+      const fb2Path = path.join(workDir, 'override.fb2');
+      writeFileSync(
+        fb2Path,
+        '<?xml version="1.0" encoding="utf-8"?>\n' +
+          '<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">\n' +
+          '  <description>\n' +
+          '    <title-info>\n' +
+          '      <genre>sf</genre>\n' +
+          '      <author><first-name>Stanislaw</first-name><last-name>Lem</last-name></author>\n' +
+          '      <book-title>Solaris</book-title>\n' +
+          '      <lang>en</lang>\n' +
+          '    </title-info>\n' +
+          '    <document-info>\n' +
+          '      <author><first-name>Test</first-name><last-name>User</last-name></author>\n' +
+          '      <date value="2026-11-27">2026-11-27</date>\n' +
+          '      <id>SOL-1</id>\n' +
+          '      <version>1.0</version>\n' +
+          '    </document-info>\n' +
+          '  </description>\n' +
+          '  <body><section><p>Ocean surface.</p></section></body>\n' +
+          '</FictionBook>\n',
+        'utf8',
+      );
+
+      await core.rpc('settings.set', { patch: { other: { startupMode: 'fb2' } } });
+      await core.openApp(page);
+      await waitForStartupDocument(page);
+
+      // 1. Default startup is FB2 mode with New (FB2) active on the split button.
+      await expect(page.getByTestId('app-root')).toHaveAttribute('data-editor-mode', 'fb2');
+      await expect(page.getByTestId('toolbar-file.new')).toHaveAttribute('data-active-action', 'fb2');
+
+      // 2. Open Tools -> Settings -> Other and verify Startup mode + Apply dirty/undo tracking.
+      await page.getByTestId('menu-tools').click();
+      await page.getByTestId('menu-tools-settings').click();
+      await expect(page.getByTestId('dialog-settings')).toBeVisible();
+      await page.getByTestId('settings-tab-other').click();
+
+      const select = page.getByTestId('settings-other-startup-mode');
+      const applyBtn = page.getByTestId('dialog-settings-button-apply');
+      const okBtn = page.getByTestId('dialog-settings-button-ok');
+
+      await expect(select).toHaveValue('fb2');
+      await expect(applyBtn).toBeDisabled();
+
+      // Changing to Package enables Apply; reverting back to FB2 disables Apply again.
+      await select.selectOption('package');
+      await expect(applyBtn).toBeEnabled();
+      await select.selectOption('fb2');
+      await expect(applyBtn).toBeDisabled();
+
+      // Save Package editing mode with Apply + OK.
+      await select.selectOption('package');
+      await expect(applyBtn).toBeEnabled();
+      await applyBtn.click();
+      await expect(applyBtn).toBeDisabled();
+      await okBtn.click();
+      await expect(page.getByTestId('dialog-settings')).toHaveCount(0);
+
+      // Current session stays untouched (still FB2) until next startup.
+      await expect(page.getByTestId('app-root')).toHaveAttribute('data-editor-mode', 'fb2');
+
+      // 3. Reload without file argument -> starts directly in Package mode with New Package split button!
+      await core.openApp(page);
+      await expect(page.getByTestId('app-root')).toHaveAttribute('data-editor-mode', 'package');
+      await expect(page.getByTestId('package-files-sidebar')).toBeVisible();
+      await expect(page.getByTestId('package-empty-workspace')).toBeVisible();
+      await expect(page.getByTestId('toolbar-file.new')).toHaveAttribute(
+        'data-active-action',
+        'package',
+      );
+
+      // 4. Launch with an explicit .fb2 file argument -> overrides startupMode and opens in FB2 mode!
+      const openUrl = new URL(core.baseURL);
+      openUrl.searchParams.set('open', fb2Path);
+      await page.goto(openUrl.toString());
+      await page.locator('[data-testid="app-root"][data-startup="ready"]').waitFor();
+      await expect(page.getByTestId('app-root')).toHaveAttribute('data-editor-mode', 'fb2');
+      await expect(page).toHaveTitle(/^override\.fb2 - /);
+      await expect(page.getByTestId('toolbar-file.new')).toHaveAttribute(
+        'data-active-action',
+        'package',
+      );
+    } finally {
+      await core.rpc('settings.set', { patch: { other: { startupMode: 'fb2' } } }).catch(() => {});
+      rmSync(workDir, { recursive: true, force: true });
+    }
+  });
 });

@@ -398,3 +398,70 @@ TEST_CASE("package RPC US2: doc.open detection routing and package.open round-tr
     CHECK(pkg_dup["error"]["code"] == 1123);
     CHECK(pkg_dup["error"]["data"]["reason"] == "duplicateStem");
 }
+
+TEST_CASE("Settings.other.startupMode default, persistence, validation, and sanitization",
+          "[package][rpc][settings]") {
+    test::TempDir shared_data{"mfbe-pkg-startup-mode"};
+    const std::string data_dir_utf8 = platform::utf8_from_path(shared_data.path());
+
+    // 1. Default is "fb2", invalid value rejected with 1040, valid "package" persisted.
+    {
+        CoreServerOptions opts;
+        opts.data_dir = data_dir_utf8;
+        opts.test_hooks = true;
+        auto srv = CoreServer::start(opts);
+        test::WsClient ws;
+        REQUIRE(ws.open(srv->port(), "/rpc?token=" + srv->token()) == 101);
+
+        const json got = ws.call("settings.get", json::object(), 10000);
+        REQUIRE(got.contains("result"));
+        CHECK(got["result"]["other"]["startupMode"] == "fb2");
+
+        const json bad =
+            ws.call("settings.set", json{{"patch", {{"other", {{"startupMode", "invalid"}}}}}}, 10000);
+        REQUIRE(bad.contains("error"));
+        CHECK(bad["error"]["code"] == 1040);
+
+        const json set_pkg =
+            ws.call("settings.set", json{{"patch", {{"other", {{"startupMode", "package"}}}}}}, 10000);
+        REQUIRE(set_pkg.contains("result"));
+        CHECK(set_pkg["result"]["settings"]["other"]["startupMode"] == "package");
+    }
+
+    // 2. Restarting against the same data_dir preserves "package".
+    {
+        CoreServerOptions opts;
+        opts.data_dir = data_dir_utf8;
+        opts.test_hooks = true;
+        auto srv = CoreServer::start(opts);
+        test::WsClient ws;
+        REQUIRE(ws.open(srv->port(), "/rpc?token=" + srv->token()) == 101);
+
+        const json got = ws.call("settings.get", json::object(), 10000);
+        REQUIRE(got.contains("result"));
+        CHECK(got["result"]["other"]["startupMode"] == "package");
+    }
+
+    // 3. Corrupt value on disk is sanitized back to default "fb2" on load.
+    const fs::path settings_file = shared_data.path() / "settings.json";
+    {
+        std::ifstream in(settings_file, std::ios::binary);
+        REQUIRE(in.good());
+        json disk = json::parse(in);
+        disk["other"]["startupMode"] = "corrupted_mode";
+        in.close();
+        write_file(settings_file, disk.dump(2));
+    }
+    {
+        CoreServerOptions opts;
+        opts.data_dir = data_dir_utf8;
+        opts.test_hooks = true;
+        auto srv = CoreServer::start(opts);
+        test::WsClient ws;
+        REQUIRE(ws.open(srv->port(), "/rpc?token=" + srv->token()) == 101);
+
+        const json got = ws.call("settings.get", json::object(), 10000);
+        REQUIRE(got.contains("result"));
+        CHECK(got["result"]["other"]["startupMode"] == "fb2");
+    }
+}

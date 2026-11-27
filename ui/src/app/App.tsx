@@ -240,11 +240,16 @@ function Shell({
     if (!rpc || connection !== 'connected') return;
     let cancelled = false;
     const forced = forcedLanguage(search);
-    const settingsLoaded = rpc
-      .call('settings.get')
+    const settingsApplied = rpc.call('settings.get').then((settings) => {
+      if (!cancelled) actions.setSettings(store, settings);
+      return settings;
+    });
+    const startupModePromise = settingsApplied
+      .then((s) => (s.other?.startupMode === 'package' ? ('package' as const) : ('fb2' as const)))
+      .catch(() => 'fb2' as const);
+    const settingsLoaded = settingsApplied
       .then(async (settings) => {
         if (cancelled) return;
-        actions.setSettings(store, settings);
         // The OS language comes from the core: inside CEF `navigator.languages` is en-US
         // on Windows/macOS unless the shell set a locale.
         const systemLanguage = await rpc
@@ -272,7 +277,7 @@ function Shell({
       // `?open=<path>` (feature 003 US3): the browser-mode restart reopens its document first.
       const openPath = openPathAtStartup(search);
       const startup = files
-        .handleStartup(ctxRef.current, openPath)
+        .handleStartup(ctxRef.current, openPath, startupModePromise)
         .catch(() => {
           // a failing doc.new at start-up leaves the editor empty; File > New reports errors
         })

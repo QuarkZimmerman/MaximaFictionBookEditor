@@ -1535,10 +1535,17 @@ export class FileFeature {
    * the browser-mode restart reopening its document) is opened first, before any other
    * start-up work; when it fails the usual path follows.
    */
-  async handleStartup(ctx: CommandContext, openPath: string | null = null): Promise<void> {
+  async handleStartup(
+    ctx: CommandContext,
+    openPath: string | null = null,
+    startupModePromise?: Promise<'fb2' | 'package'>,
+  ): Promise<void> {
     if (!ctx.rpc) return;
     const requests = this.userRequests;
-    const wanted = () => this.userRequests === requests && !ctx.store.getState().document;
+    const wanted = () => {
+      const state = ctx.store.getState();
+      return this.userRequests === requests && !state.document && !state.packageState;
+    };
     if (openPath && (await this.openDocument(ctx, openPath))) {
       this.startupChecked = true;
       this.startupOpen = null;
@@ -1555,6 +1562,14 @@ export class FileFeature {
     const opened = this.startupOpen ? await this.startupOpen : false;
     this.startupOpen = null;
     if (opened || !wanted()) return;
+    const startupMode = startupModePromise
+      ? await startupModePromise
+      : (ctx.store.getState().settings?.other?.startupMode ?? 'fb2');
+    if (!wanted()) return;
+    if (startupMode === 'package' && this.packageBridge) {
+      await this.packageBridge.startEmptyPackage(ctx);
+      return;
+    }
     await this.createFromTemplate(ctx, wanted);
   }
 

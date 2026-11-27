@@ -467,7 +467,10 @@ export class SettingsFeature {
     if (!session.toolbars || !sameToolbars(session.toolbars, state.toolbars)) {
       patch.toolbars = { ...state.toolbars };
     }
-    if (session.treeVisible !== state.treeVisible) patch.treeVisible = state.treeVisible;
+    // In Package mode `treeVisible` controls the Package Files sidebar, not the FB2 Document Tree.
+    if (state.editorMode !== 'package' && session.treeVisible !== state.treeVisible) {
+      patch.treeVisible = state.treeVisible;
+    }
     // Only a core that knows the key (API minor 3) gets the width; an older one would refuse
     // the whole patch.
     if (typeof session.treeWidth === 'number' && session.treeWidth !== state.treeWidth) {

@@ -153,6 +153,7 @@ function activateEntryInStore(
   const prevView = store.getState().activeView;
   const keepView = prevView === 'source' ? 'source' : 'description';
   store.setState({
+    startup: 'ready',
     editorMode: 'package',
     packageState: nextPkg,
     docId: entry ? entry.docId : null,
@@ -223,6 +224,7 @@ export class PackageFeature {
     const created = await rpc.call('package.create', {});
     const pkg = createEmptyPackageUiState(created.packageId, fb2TreeWasVisible);
     ctx.store.setState({
+      startup: 'ready',
       editorMode: 'package',
       packageState: pkg,
       treeVisible: true,
