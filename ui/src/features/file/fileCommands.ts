@@ -637,6 +637,10 @@ export class FileFeature {
    */
   private async showHeldBook(ctx: CommandContext, path: string, entry?: string): Promise<boolean> {
     const state = ctx.store.getState();
+    if (state.editorMode === 'package' && state.packageState?.zipPath === path && !entry) {
+      window.focus();
+      return true;
+    }
     // A book from a ZIP archive is the same book only for the same entry (feature 009, D11).
     if (state.path === path && state.document?.source?.entry === entry) {
       window.focus();
@@ -703,7 +707,7 @@ export class FileFeature {
     const rpc = ctx.rpc;
     if (!rpc) return undefined;
     const inspected = await rpc.call('files.inspect', { path }).catch(() => null);
-    if (!inspected || inspected.kind !== 'zip') return undefined;
+    if (!inspected || inspected.kind !== 'zip' || inspected.isFbdPackage) return undefined;
     if (inspected.onlyBook !== undefined) return inspected.onlyBook;
     if ((inspected.books ?? 0) < 2) return undefined;
     const answer = await rpc.runJob('doc.open', { path });
@@ -836,8 +840,7 @@ export class FileFeature {
         onProgress: (progress) => actions.setProgress(store, progress),
       });
       if ('packageDetected' in result) {
-        // US2 (T030) routes this to packageCommands.openPackage.
-        return false;
+        return this.packageBridge ? this.packageBridge.openPackage(ctx, result.path) : false;
       }
       if ('needsChoice' in result) {
         // An archive without the .zip name: asked while the window's book is still open.

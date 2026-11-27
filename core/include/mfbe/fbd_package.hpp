@@ -121,7 +121,8 @@ enum class ZipClassification {
 };
 
 struct InspectedPackagePair {
-    std::string payloadEntryName;  // exact entry name in source ZIP
+    std::string payloadEntryName;  // UTF-8 decoded entry name in source ZIP
+    std::string payloadRawName;    // raw bytes of entry name in source ZIP Central Directory
     std::string fileName;          // normalized lower-cased extension file name
     std::string stem;
     std::string stemKey;

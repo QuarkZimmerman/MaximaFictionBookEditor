@@ -10,7 +10,9 @@
 // serialized back onto the loop thread through Services::post.
 #include "server/services.hpp"
 
+#include <mfbe/archive.hpp>
 #include <mfbe/document_details.hpp>
+#include <mfbe/fb2_reader.hpp>
 #include <mfbe/fb2_writer.hpp>
 #include <mfbe/fbd_package.hpp>
 #include <mfbe/images.hpp>
@@ -41,6 +43,48 @@ namespace fs = std::filesystem;
 rpc::RpcError package_not_found(const std::string& package_id) {
     return rpc::RpcError(rpc::codes::kPackageNotFound, "unknown package",
                          json{{"packageId", package_id}});
+}
+
+rpc::RpcError package_invalid_archive(const std::string& path, package::ArchiveErrorReason reason,
+                                      const std::string& detail = "",
+                                      const std::optional<std::string>& entry = std::nullopt,
+                                      std::optional<int> line = std::nullopt,
+                                      std::optional<int> column = std::nullopt) {
+    json data{
+        {"path", path},
+        {"reason", package::archive_error_reason_name(reason)},
+    };
+    if (entry && !entry->empty()) {
+        data["entry"] = *entry;
+    }
+    if (line) {
+        data["line"] = *line;
+    }
+    if (column) {
+        data["column"] = *column;
+    }
+    if (!detail.empty()) {
+        data["detail"] = detail;
+    }
+    return rpc::RpcError(rpc::codes::kPackageInvalidArchive,
+                         detail.empty() ? package::archive_error_reason_name(reason) : detail,
+                         std::move(data));
+}
+
+rpc::RpcError package_io_error(const std::string& path, const std::string& reason) {
+    return rpc::RpcError(rpc::codes::kDocIoError, reason,
+                         json{{"path", path}, {"reason", reason}});
+}
+
+package::ArchiveErrorReason map_archive_error_reason(archive::Reason reason) {
+    switch (reason) {
+        case archive::Reason::encrypted:
+            return package::ArchiveErrorReason::encrypted;
+        case archive::Reason::multi_volume:
+            return package::ArchiveErrorReason::multi_volume;
+        default:
+            return package::ArchiveErrorReason::damaged;
+    }
 }
 
 rpc::RpcError package_save_failed(const std::string& reason, const std::string& detail,
@@ -381,6 +425,196 @@ void register_package_handlers(rpc::RpcRouter& router, Services& services) {
             {"path", nullptr},
             {"entries", json::array()},
         };
+    });
+
+    router.add_method("package.open", [&services](const json& params, rpc::RpcContext& ctx) {
+        const std::string raw_path = rpc::params::string(params, "path");
+        if (raw_path.empty()) {
+            throw rpc::invalid_params("path is required", json{{"field", "path"}});
+        }
+        const std::string abs_utf8 = absolute_utf8_path(raw_path);
+        const fs::path file = platform::path_from_utf8(abs_utf8);
+        std::error_code ec;
+        if (!fs::exists(file, ec)) {
+            services.recent.remove(abs_utf8);
+            throw package_io_error(abs_utf8, "file not found");
+        }
+        if (!fs::is_regular_file(file, ec)) {
+            throw package_io_error(abs_utf8, "path is not a regular file");
+        }
+
+        const std::string ui_lang = ui_language_setting(services);
+        const std::string job_id =
+            ctx.jobs.start([&services, abs_utf8, file, ui_lang](rpc::JobControl& control) -> json {
+                control.check_cancelled();
+                control.progress("inspect", 0, 100);
+
+                if (archive::detect_kind(file) != archive::Kind::zip) {
+                    throw package_invalid_archive(abs_utf8, package::ArchiveErrorReason::not_zip,
+                                                  "file is not a ZIP archive");
+                }
+
+                archive::Listing listing;
+                try {
+                    listing = archive::list(file);
+                } catch (const archive::ArchiveError& e) {
+                    throw package_invalid_archive(abs_utf8, map_archive_error_reason(e.reason),
+                                                  e.what(),
+                                                  e.entry.empty()
+                                                      ? std::nullopt
+                                                      : std::optional<std::string>(e.entry));
+                }
+
+                const package::FbdPackageInspection inspected =
+                    package::inspect_zip_listing(listing);
+                if (inspected.duplicateRootStem) {
+                    throw package_invalid_archive(abs_utf8,
+                                                  package::ArchiveErrorReason::duplicate_stem,
+                                                  inspected.duplicateStemDetail);
+                }
+                if (inspected.classification == package::ZipClassification::no_book) {
+                    throw package_invalid_archive(abs_utf8, package::ArchiveErrorReason::no_fbd,
+                                                  "archive contains no top-level .fbd file");
+                }
+                if (inspected.classification != package::ZipClassification::fbd_package ||
+                    inspected.pairs.empty()) {
+                    throw package_invalid_archive(
+                        abs_utf8, package::ArchiveErrorReason::no_payload,
+                        "archive contains no supported non-FB2 payload file");
+                }
+
+                control.check_cancelled();
+                control.progress("parseFbd", 20, 100);
+
+                struct OpenedEntry {
+                    package::InspectedPackagePair pair;
+                    model::Document doc;
+                    std::shared_ptr<BinaryStore> store;
+                    model::NodeIdAllocator ids;
+                    std::string xlinkPrefix = "l";
+                    std::uint32_t droppedExtraImages = 0;
+                };
+
+                auto opened_entries = std::make_shared<std::vector<OpenedEntry>>();
+                opened_entries->reserve(inspected.pairs.size());
+
+                const std::size_t pair_count = inspected.pairs.size();
+                for (std::size_t i = 0; i < pair_count; ++i) {
+                    control.check_cancelled();
+                    const package::InspectedPackagePair& pair = inspected.pairs[i];
+                    OpenedEntry item;
+                    item.pair = pair;
+                    item.store = std::make_shared<BinaryStore>();
+
+                    if (pair.fbdEntryName) {
+                        std::string fbd_bytes;
+                        try {
+                            fbd_bytes = archive::read_entry(file, *pair.fbdEntryName);
+                        } catch (const archive::ArchiveError& e) {
+                            throw package_invalid_archive(
+                                abs_utf8, map_archive_error_reason(e.reason), e.what(),
+                                pair.fbdEntryName);
+                        }
+                        fb2::ReadOptions read_opts;
+                        read_opts.file_kind = model::FileKind::fbd;
+                        try {
+                            fb2::ReadResult read = fb2::read_bytes(fbd_bytes, *item.store, item.ids,
+                                                                   read_opts, abs_utf8);
+                            item.doc = std::move(read.document);
+                            item.xlinkPrefix = read.xlink_prefix.empty() ? "l" : read.xlink_prefix;
+                        } catch (const fb2::NotFictionBookFailure& e) {
+                            throw package_invalid_archive(
+                                abs_utf8, package::ArchiveErrorReason::fbd_not_fictionbook,
+                                e.reason, pair.fbdEntryName);
+                        } catch (const fb2::ParseFailure& e) {
+                            throw package_invalid_archive(
+                                abs_utf8, package::ArchiveErrorReason::fbd_parse_error,
+                                e.error.message, pair.fbdEntryName, e.error.line, e.error.column);
+                        }
+                        model::fill_in_document_details(
+                            item.doc, model::details_context_now(false, ui_lang));
+                        item.droppedExtraImages =
+                            package::normalize_package_fbd(item.doc, *item.store, item.ids);
+                    } else {
+                        item.doc = make_blank_package_document("", *item.store, item.ids, ui_lang);
+                    }
+
+                    opened_entries->push_back(std::move(item));
+                    control.progress(
+                        "parseFbd",
+                        20 + static_cast<std::int64_t>(((i + 1) * 70) / pair_count), 100);
+                }
+
+                control.check_cancelled();
+                auto preserved = std::make_shared<std::vector<package::FbdPackagePreservedZipEntry>>(
+                    inspected.preservedEntries);
+
+                json result = on_loop_thread(
+                    services,
+                    [&services, abs_utf8, file, opened_entries, preserved] {
+                        package::FbdPackageSession& pkg = services.packages.create();
+                        pkg.zipPath = file;
+                        pkg.preservedEntries = *preserved;
+
+                        json entries_json = json::array();
+                        for (OpenedEntry& item : *opened_entries) {
+                            session::DocumentSession& s = services.documents.create();
+                            item.doc.docId = s.docId;
+                            s.fileKind = model::FileKind::fbd;
+                            s.sourceEncoding = "utf-8";
+                            s.xlinkPrefix = item.xlinkPrefix;
+                            s.schemaHint = model::SchemaHint::v21;
+                            s.sourceOnly = false;
+                            s.binaries = item.store;
+                            s.ids = item.ids;
+                            s.snapshot = item.doc;
+
+                            package::FbdPackagePayloadEntry entry;
+                            entry.entryId = services.packages.next_entry_id();
+                            entry.docId = s.docId;
+                            entry.fileName = item.pair.fileName;
+                            entry.stem = item.pair.stem;
+                            entry.stemKey = item.pair.stemKey;
+                            entry.extension = item.pair.extension;
+                            entry.fbdEntryName = item.pair.stem + ".fbd";
+                            entry.size = item.pair.size;
+                            entry.sourceKind = package::PayloadSourceKind::zip_entry;
+                            entry.sourceZipEntryName = item.pair.payloadRawName;
+                            entry.sourceFbdEntryName = item.pair.fbdEntryName;
+                            entry.originatedFromZip = true;
+                            entry.hadFbd = item.pair.fbdEntryName.has_value();
+                            entry.droppedExtraImages = item.droppedExtraImages;
+
+                            entries_json.push_back(entry_dto_json(entry, item.doc));
+                            pkg.entries.push_back(std::move(entry));
+                        }
+
+                        services.recent.touch(abs_utf8, std::nullopt);
+                        return json{
+                            {"packageId", pkg.packageId},
+                            {"path", abs_utf8},
+                            {"entries", std::move(entries_json)},
+                            {"preservedEntryCount", preserved->size()},
+                        };
+                    },
+                    &control);
+
+                if (control.cancelled()) {
+                    const std::string pkg_id = result["packageId"].get<std::string>();
+                    on_loop_thread(services, [&services, pkg_id] {
+                        for (const std::string& doc_id : services.packages.close(pkg_id)) {
+                            services.documents.close(doc_id);
+                            services.previews.invalidate_prefix(doc_id + "/");
+                        }
+                        return 0;
+                    });
+                    control.check_cancelled();
+                }
+
+                control.progress("parseFbd", 100, 100);
+                return result;
+            });
+        return json{{"jobId", job_id}};
     });
 
     router.add_method("package.addFiles", [&services](const json& params, rpc::RpcContext&) {

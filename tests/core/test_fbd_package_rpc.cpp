@@ -5,6 +5,7 @@
 #include <mfbe/archive.hpp>
 #include <mfbe/core_server.hpp>
 #include <mfbe/fb2_reader.hpp>
+#include <mfbe/fbd_package.hpp>
 #include <mfbe/images.hpp>
 #include <mfbe/utf8_paths.hpp>
 
@@ -47,13 +48,27 @@ struct PackageRpcFixture {
             return resp;
         }
         const std::string job_id = resp["result"]["jobId"].get<std::string>();
-        for (;;) {
-            const auto note = ws.wait_notification("job.done", 20000);
-            REQUIRE(note.has_value());
-            if ((*note)["params"]["jobId"] == job_id) {
-                return (*note)["params"];
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(20);
+        while (std::chrono::steady_clock::now() < deadline) {
+            for (std::size_t i = 0; i < ws.inbox.size(); ++i) {
+                const std::string m = ws.inbox[i].value("method", "");
+                if ((m == "job.done" || m == "job.failed") &&
+                    ws.inbox[i]["params"]["jobId"] == job_id) {
+                    json params_out = ws.inbox[i]["params"];
+                    ws.inbox.erase(ws.inbox.begin() + static_cast<std::ptrdiff_t>(i));
+                    return params_out;
+                }
             }
+            const auto msg = ws.receive_json(5000);
+            REQUIRE(msg.has_value());
+            const std::string m = msg->value("method", "");
+            if ((m == "job.done" || m == "job.failed") && (*msg)["params"]["jobId"] == job_id) {
+                return (*msg)["params"];
+            }
+            ws.inbox.push_back(*msg);
         }
+        FAIL("timed out waiting for job " << job_id);
+        return json::object();
     }
 };
 
@@ -233,4 +248,153 @@ TEST_CASE("package RPC: create, addFiles (partial accept/reject), cover sync, sa
     REQUIRE(f.call("package.close", json{{"packageId", pkg_id}}).contains("result"));
     const json closed_doc = f.call("binary.list", json{{"docId", doc0_id}});
     REQUIRE(closed_doc.contains("error"));
+}
+
+TEST_CASE("package RPC US2: doc.open detection routing and package.open round-trip, body-less FBD, and refusals",
+          "[package][rpc]") {
+    PackageRpcFixture f;
+    test::TempDir work("mfbe-pkg-rpc-us2");
+
+    auto make_zip = [](const fs::path& p,
+                       const std::vector<std::pair<std::string, std::string>>& items) {
+        package::PackageZipWritePlan plan;
+        plan.targetZipPath = p;
+        for (const auto& [name, data] : items) {
+            package::PackageZipWriteEntry e;
+            e.entryName = name;
+            e.isMemory = true;
+            e.memoryBytes = data;
+            e.compressDeflate = true;
+            plan.managedEntries.push_back(std::move(e));
+        }
+        package::write_package_zip_atomic(plan);
+    };
+
+    const std::string bodyless_fbd =
+        "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+        "<FictionBook xmlns=\"http://www.gribuser.ru/xml/fictionbook/2.0\" "
+        "xmlns:l=\"http://www.w3.org/1999/xlink\">\n"
+        "  <description>\n"
+        "    <title-info>\n"
+        "      <genre>sf</genre>\n"
+        "      <author><first-name>Stanislaw</first-name><last-name>Lem</last-name></author>\n"
+        "      <book-title>Solaris</book-title>\n"
+        "      <lang>en</lang>\n"
+        "    </title-info>\n"
+        "    <document-info>\n"
+        "      <author><first-name>A</first-name><last-name>B</last-name></author>\n"
+        "      <date value=\"2026-11-27\">2026-11-27</date>\n"
+        "      <id>SOLARIS-1</id>\n"
+        "      <version>1.0</version>\n"
+        "    </document-info>\n"
+        "  </description>\n"
+        "</FictionBook>\n";
+
+    // 1. Valid FBD ZIP package with subfolder + body-less FBD + unpaired second book.
+    const fs::path pkg_zip = work.path() / "solaris-pack.zip";
+    make_zip(pkg_zip, {
+                          {"extra/notes.txt", "Keep me!"},
+                          {"Solaris.PDF", "%PDF-1.7 solaris payload"},
+                          {"Solaris.fbd", bodyless_fbd},
+                          {"Bonus.txt", "Unpaired text book"},
+                      });
+
+    // doc.open detects FBD ZIP package and returns {packageDetected: true, path}.
+    const json detect = f.call("doc.open", json{{"path", platform::utf8_from_path(pkg_zip)}});
+    REQUIRE(detect.contains("result"));
+    CHECK(detect["result"]["packageDetected"] == true);
+    CHECK(detect["result"]["path"] == platform::utf8_from_path(pkg_zip.lexically_normal()));
+
+    // files.inspect marks isFbdPackage: true and does not claim onlyBook.
+    const json inspected = f.call("files.inspect", json{{"path", platform::utf8_from_path(pkg_zip)}});
+    REQUIRE(inspected.contains("result"));
+    CHECK(inspected["result"]["isFbdPackage"] == true);
+    CHECK_FALSE(inspected["result"].contains("onlyBook"));
+
+    // package.open loads both entries, normalizes body-less FBD, tracks 1 preserved entry.
+    const json opened = f.run_job("package.open", json{{"path", platform::utf8_from_path(pkg_zip)}});
+    REQUIRE(opened.contains("result"));
+    const std::string pkg_id = opened["result"]["packageId"].get<std::string>();
+    CHECK(opened["result"]["preservedEntryCount"] == 1);
+    REQUIRE(opened["result"]["entries"].size() == 2);
+    CHECK(opened["result"]["entries"][0]["fileName"] == "Solaris.pdf");
+    CHECK(opened["result"]["entries"][0]["hadFbd"] == true);
+    CHECK(opened["result"]["entries"][0]["document"]["description"]["titleInfo"]["bookTitle"] ==
+          "Solaris");
+    CHECK(opened["result"]["entries"][1]["fileName"] == "Bonus.txt");
+    CHECK(opened["result"]["entries"][1]["hadFbd"] == false);
+
+    // Edit and save in place -> subfolder survives intact!
+    json doc0 = opened["result"]["entries"][0]["document"];
+    json doc1 = opened["result"]["entries"][1]["document"];
+    doc0["description"]["titleInfo"]["bookTitle"] = "Solaris (Edited)";
+    make_valid_title_info(doc1, "Bonus Story");
+    const json resaved = f.run_job(
+        "package.save",
+        json{{"packageId", pkg_id},
+             {"path", platform::utf8_from_path(pkg_zip)},
+             {"entries",
+              json::array({json{{"entryId", opened["result"]["entries"][0]["entryId"]},
+                                {"document", doc0}},
+                           json{{"entryId", opened["result"]["entries"][1]["entryId"]},
+                                {"document", doc1}}})}});
+    REQUIRE(resaved.contains("result"));
+    CHECK(resaved["result"]["totalErrorCount"] == 0);
+    CHECK(archive::read_entry(pkg_zip, "extra/notes.txt") == "Keep me!");
+    CHECK(archive::read_entry(pkg_zip, "Solaris.pdf") == "%PDF-1.7 solaris payload");
+    CHECK(archive::read_entry(pkg_zip, "Solaris.fbd").find("Solaris (Edited)") != std::string::npos);
+
+    // Save As to a new path writes a clean package (omitting extra/notes.txt).
+    const fs::path clean_zip = work.path() / "solaris-clean.zip";
+    const json saved_as = f.run_job(
+        "package.save",
+        json{{"packageId", pkg_id},
+             {"path", platform::utf8_from_path(clean_zip)},
+             {"entries",
+              json::array({json{{"entryId", opened["result"]["entries"][0]["entryId"]},
+                                {"document", doc0}},
+                           json{{"entryId", opened["result"]["entries"][1]["entryId"]},
+                                {"document", doc1}}})}});
+    REQUIRE(saved_as.contains("result"));
+    CHECK(archive::list(clean_zip).entries.size() == 4);
+    REQUIRE(f.call("package.close", json{{"packageId", pkg_id}}).contains("result"));
+
+    // 2. Standalone .fbd in ZIP stays FB2 mode (NOT packageDetected).
+    const fs::path standalone_fbd_zip = work.path() / "standalone-fbd.zip";
+    make_zip(standalone_fbd_zip, {{"only.fbd", bodyless_fbd}});
+    const json alone_open =
+        f.call("doc.open", json{{"path", platform::utf8_from_path(standalone_fbd_zip)}});
+    REQUIRE(alone_open.contains("result"));
+    CHECK_FALSE(alone_open["result"].contains("packageDetected"));
+    REQUIRE(alone_open["result"].contains("document"));
+    f.call("doc.close", json{{"docId", alone_open["result"]["document"]["docId"]}});
+
+    // 3. Plain ZIP with zero .fbd -> doc.open throws 1081, package.open throws 1123 (noFbd).
+    const fs::path no_fbd_zip = work.path() / "no-fbd.zip";
+    make_zip(no_fbd_zip, {{"doc.pdf", "%PDF-1.7"}});
+    const json doc_no_fbd = f.call("doc.open", json{{"path", platform::utf8_from_path(no_fbd_zip)}});
+    REQUIRE(doc_no_fbd.contains("error"));
+    CHECK(doc_no_fbd["error"]["code"] == 1081);
+    const json pkg_no_fbd =
+        f.run_job("package.open", json{{"path", platform::utf8_from_path(no_fbd_zip)}});
+    REQUIRE(pkg_no_fbd.contains("error"));
+    CHECK(pkg_no_fbd["error"]["code"] == 1123);
+    CHECK(pkg_no_fbd["error"]["data"]["reason"] == "noFbd");
+
+    // 4. Damaged XML in .fbd -> package.open throws 1123 (fbdParseError).
+    const fs::path bad_fbd_zip = work.path() / "bad-fbd.zip";
+    make_zip(bad_fbd_zip, {{"book.pdf", "%PDF-1.7"}, {"book.fbd", "<FictionBook><broken"}});
+    const json pkg_bad_fbd =
+        f.run_job("package.open", json{{"path", platform::utf8_from_path(bad_fbd_zip)}});
+    REQUIRE(pkg_bad_fbd.contains("error"));
+    CHECK(pkg_bad_fbd["error"]["code"] == 1123);
+    CHECK(pkg_bad_fbd["error"]["data"]["reason"] == "fbdParseError");
+
+    // 5. Duplicate root stems -> package.open throws 1123 (duplicateStem).
+    const fs::path dup_zip = work.path() / "dup-root.zip";
+    make_zip(dup_zip, {{"Same.pdf", "%PDF-1.7"}, {"same.txt", "txt"}, {"Same.fbd", bodyless_fbd}});
+    const json pkg_dup = f.run_job("package.open", json{{"path", platform::utf8_from_path(dup_zip)}});
+    REQUIRE(pkg_dup.contains("error"));
+    CHECK(pkg_dup["error"]["code"] == 1123);
+    CHECK(pkg_dup["error"]["data"]["reason"] == "duplicateStem");
 }

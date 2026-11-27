@@ -67,6 +67,7 @@
 #include <mfbe/epub.hpp>
 #include <mfbe/fb2_reader.hpp>
 #include <mfbe/fb2_writer.hpp>
+#include <mfbe/fbd_package.hpp>
 #include <mfbe/images.hpp>
 #include <mfbe/json_codec.hpp>
 #include <mfbe/log.hpp>
@@ -347,6 +348,7 @@ struct ArchiveChoice {
     std::optional<std::string> entry;
     std::uint64_t size = 0;
     json needs_choice;  // set when the UI must ask
+    bool package_detected = false;
 };
 
 ArchiveChoice choose_entry(const std::string& path, const std::optional<std::string>& wanted) {
@@ -357,6 +359,15 @@ ArchiveChoice choose_entry(const std::string& path, const std::optional<std::str
         throw archive_error(e);
     }
     ArchiveChoice choice;
+    if (!wanted) {
+        // Feature 022 (FR-003): a ZIP with zero .fb2 entries, >=1 top-level .fbd, and >=1 valid
+        // top-level non-FB2 payload routes into Package editing mode instead of FB2 mode.
+        const package::FbdPackageInspection inspected = package::inspect_zip_listing(listing);
+        if (inspected.classification == package::ZipClassification::fbd_package) {
+            choice.package_detected = true;
+            return choice;
+        }
+    }
     if (wanted) {
         const auto it = std::find_if(listing.books.begin(), listing.books.end(),
                                      [&](const archive::Book& b) { return b.entry == *wanted; });
@@ -1328,6 +1339,9 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         std::optional<std::string> entry;
         if (archive::detect_kind(file) == archive::Kind::zip) {
             ArchiveChoice choice = choose_entry(path, rpc::params::opt_string(params, "entry"));
+            if (choice.package_detected) {
+                return json{{"packageDetected", true}, {"path", path}};
+            }
             if (!choice.needs_choice.is_null()) {
                 return json{{"needsChoice", std::move(choice.needs_choice)}};
             }

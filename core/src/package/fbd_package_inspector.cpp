@@ -121,6 +121,7 @@ FbdPackageInspection inspect_zip_listing(const archive::Listing& listing) {
     for (const TopPayload& p : top_payloads) {
         InspectedPackagePair pair;
         pair.payloadEntryName = p.entry->name;
+        pair.payloadRawName = p.entry->raw_name;
         pair.fileName = p.normalizedFileName;
         pair.stem = p.stem;
         pair.stemKey = p.stemKey;

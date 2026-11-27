@@ -25,6 +25,7 @@
 #include <mfbe/case_fold.hpp>
 #include <mfbe/dialog_provider.hpp>
 #include <mfbe/encodings.hpp>
+#include <mfbe/fbd_package.hpp>
 #include <mfbe/platform.hpp>
 #include <mfbe/rpc.hpp>
 #include <mfbe/utf8_paths.hpp>
@@ -244,7 +245,11 @@ void register_files_handlers(rpc::RpcRouter& router, Services& services) {
                 }
                 result["otherEntries"] = others;
                 result["books"] = listing.books_total;
-                if (listing.books_total == 1) {
+                const bool is_fbd_pkg = package::inspect_zip_listing(listing).classification ==
+                                        package::ZipClassification::fbd_package;
+                if (is_fbd_pkg) {
+                    result["isFbdPackage"] = true;
+                } else if (listing.books_total == 1) {
                     result["onlyBook"] = listing.books.front().entry;
                 }
             } catch (const archive::ArchiveError&) {

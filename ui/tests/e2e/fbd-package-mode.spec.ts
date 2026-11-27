@@ -5,9 +5,72 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { inflateRawSync } from 'node:zlib';
+import { deflateRawSync, inflateRawSync } from 'node:zlib';
 
 import { expect, test, waitForStartupDocument } from './fixtures/core';
+
+/** Minimal ZIP writer for building test fixtures (body-less FBD, subfolders, non-FBD ZIPs). */
+function writeTestZip(zipPath: string, items: Array<[string, Buffer | string]>): void {
+  const localParts: Buffer[] = [];
+  const cdParts: Buffer[] = [];
+  let offset = 0;
+
+  const crcTable = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let c = i;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    crcTable[i] = c >>> 0;
+  }
+  const crc32 = (buf: Buffer): number => {
+    let c = 0xffffffff;
+    for (let i = 0; i < buf.length; i++) c = crcTable[(c ^ buf[i]!) & 0xff]! ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  };
+
+  for (const [name, content] of items) {
+    const raw = Buffer.isBuffer(content) ? content : Buffer.from(content, 'utf8');
+    const nameBuf = Buffer.from(name, 'utf8');
+    const comp = deflateRawSync(raw);
+    const crc = crc32(raw);
+
+    const lfh = Buffer.alloc(30);
+    lfh.writeUInt32LE(0x04034b50, 0);
+    lfh.writeUInt16LE(20, 4);
+    lfh.writeUInt16LE(0x0800, 6);
+    lfh.writeUInt16LE(8, 8);
+    lfh.writeUInt32LE(crc, 14);
+    lfh.writeUInt32LE(comp.length, 18);
+    lfh.writeUInt32LE(raw.length, 22);
+    lfh.writeUInt16LE(nameBuf.length, 26);
+
+    localParts.push(lfh, nameBuf, comp);
+
+    const cd = Buffer.alloc(46);
+    cd.writeUInt32LE(0x02014b50, 0);
+    cd.writeUInt16LE(20, 4);
+    cd.writeUInt16LE(20, 6);
+    cd.writeUInt16LE(0x0800, 8);
+    cd.writeUInt16LE(8, 10);
+    cd.writeUInt32LE(crc, 16);
+    cd.writeUInt32LE(comp.length, 20);
+    cd.writeUInt32LE(raw.length, 24);
+    cd.writeUInt16LE(nameBuf.length, 28);
+    cd.writeUInt32LE(offset, 42);
+
+    cdParts.push(cd, nameBuf);
+    offset += lfh.length + nameBuf.length + comp.length;
+  }
+
+  const cdBuf = Buffer.concat(cdParts);
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(0x06054b50, 0);
+  eocd.writeUInt16LE(items.length, 8);
+  eocd.writeUInt16LE(items.length, 10);
+  eocd.writeUInt32LE(cdBuf.length, 12);
+  eocd.writeUInt32LE(offset, 16);
+
+  writeFileSync(zipPath, Buffer.concat([...localParts, cdBuf, eocd]));
+}
 
 /** Minimal ZIP reader for verifying saved package entries and byte payloads in E2E tests. */
 function readZipEntries(zipPath: string): Map<string, Buffer> {
@@ -246,6 +309,137 @@ test.describe('Feature 022: FBD ZIP Package Mode', () => {
       expect(zip2.get('Book Two.txt')).toEqual(txtBytes);
       expect(zip2.get('Book One.fbd')!.toString('utf8')).toContain(
         '<book-title>First Packaged Book Rev 2</book-title>',
+      );
+    } finally {
+      rmSync(workDir, { recursive: true, force: true });
+    }
+  });
+
+  test('US2: open existing body-less multi-book subfolder ZIP via File -> Open & Recent Files, in-place Save preserves subfolders, Save As writes clean ZIP, non-FBD ZIP refused', async ({
+    page,
+    core,
+  }) => {
+    test.skip(!core.hasCore, 'Requires mfbe-core binary');
+    const workDir = mkdtempSync(path.join(tmpdir(), 'mfbe-e2e-pkg-us2-'));
+    try {
+      const pdfBytes = Buffer.from('%PDF-1.7\nImmutable existing PDF payload.\n', 'utf8');
+      const unpairedBytes = Buffer.from('Unpaired second book content.\n', 'utf8');
+      const subBytes = Buffer.from('Subfolder file must survive in-place Save.\n', 'utf8');
+      const bodylessFbd =
+        '<?xml version="1.0" encoding="utf-8"?>\n' +
+        '<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">\n' +
+        '  <description>\n' +
+        '    <title-info>\n' +
+        '      <genre>sf</genre>\n' +
+        '      <author><first-name>Arthur</first-name><last-name>Clarke</last-name></author>\n' +
+        '      <book-title>Rendezvous with Rama</book-title>\n' +
+        '      <lang>en</lang>\n' +
+        '    </title-info>\n' +
+        '    <document-info>\n' +
+        '      <author><first-name>Editor</first-name><last-name>One</last-name></author>\n' +
+        '      <date value="2026-11-27">2026-11-27</date>\n' +
+        '      <id>RAMA-1</id>\n' +
+        '      <version>1.0</version>\n' +
+        '    </document-info>\n' +
+        '  </description>\n' +
+        '</FictionBook>\n';
+
+      const existingZip = path.join(workDir, 'rama-pack.zip');
+      const cleanZip = path.join(workDir, 'rama-clean.zip');
+      const plainZip = path.join(workDir, 'plain-no-fbd.zip');
+
+      writeTestZip(existingZip, [
+        ['extras/notes.txt', subBytes],
+        ['Rama.PDF', pdfBytes],
+        ['rama.fbd', bodylessFbd],
+        ['Unpaired.txt', unpairedBytes],
+      ]);
+      writeTestZip(plainZip, [['only-pdf.pdf', pdfBytes]]);
+
+      await core.openApp(page);
+      await waitForStartupDocument(page);
+
+      // 1. Opening a non-FBD ZIP via File -> Open refuses cleanly and stays in FB2 mode.
+      await core.enqueueDialog('dialog.openFile', { paths: [plainZip] });
+      await page.getByTestId('toolbar-file.open').click();
+      await expect(page.getByTestId('app-root')).toHaveAttribute('data-editor-mode', 'fb2');
+      // Dismiss the error/info dialog that appeared.
+      const dialogBtn = page.locator('[data-testid="dialog-layer"] button').first();
+      await expect(dialogBtn).toBeVisible();
+      await dialogBtn.click();
+
+      // 2. Opening existing FBD ZIP via File -> Open auto-detects and switches into Package mode.
+      await core.enqueueDialog('dialog.openFile', { paths: [existingZip] });
+      await page.getByTestId('toolbar-file.open').click();
+
+      await expect(page.getByTestId('app-root')).toHaveAttribute('data-editor-mode', 'package');
+      await expect(page).toHaveTitle(/^rama-pack\.zip - /);
+      const items = page.getByTestId('package-files-list').locator('li');
+      await expect(items).toHaveCount(2);
+      await expect(items.nth(0)).toHaveAttribute('data-filename', 'Rama.pdf');
+      await expect(items.nth(1)).toHaveAttribute('data-filename', 'Unpaired.txt');
+      await expect(page.getByTestId('description-book-title')).toHaveValue('Rendezvous with Rama');
+
+      // Populate unpaired entry's description and edit Rama's title.
+      await page.getByTestId('description-book-title').fill('Rendezvous with Rama (Revised)');
+      await items.nth(1).locator('button').first().click();
+      await page.getByTestId('description-book-title').fill('Bonus Essay');
+      await page.getByTestId('description-genre-add').click();
+      await page.getByTestId('genre-picker-option-sf').dblclick();
+      await page.getByTestId('description-author-add').click();
+      await page.getByTestId('description-author-0-first').fill('Arthur');
+      await page.getByTestId('description-author-0-last').fill('Clarke');
+      await page.getByTestId('description-lang-code').fill('en');
+
+      // 3. Plain Save overwrites existingZip atomically and preserves extras/notes.txt + payloads byte-for-byte.
+      await page.getByTestId('toolbar-file.save').click();
+      await expect(page).toHaveTitle(/^rama-pack\.zip - /);
+
+      const inPlaceEntries = readZipEntries(existingZip);
+      expect([...inPlaceEntries.keys()].sort()).toEqual([
+        'Rama.fbd',
+        'Rama.pdf',
+        'Unpaired.fbd',
+        'Unpaired.txt',
+        'extras/notes.txt',
+      ]);
+      expect(inPlaceEntries.get('extras/notes.txt')).toEqual(subBytes);
+      expect(inPlaceEntries.get('Rama.pdf')).toEqual(pdfBytes);
+      expect(inPlaceEntries.get('Unpaired.txt')).toEqual(unpairedBytes);
+      expect(inPlaceEntries.get('Rama.fbd')!.toString('utf8')).toContain(
+        '<book-title>Rendezvous with Rama (Revised)</book-title>',
+      );
+
+      // 4. Save As to a new path writes a clean package (omitting extras/notes.txt).
+      await core.enqueueDialog('dialog.saveFile', { path: cleanZip });
+      await page.getByTestId('menu-file').click();
+      await page.getByTestId('menu-file-saveAs').click();
+      await expect(page).toHaveTitle(/^rama-clean\.zip - /);
+
+      const cleanEntries = readZipEntries(cleanZip);
+      expect([...cleanEntries.keys()].sort()).toEqual([
+        'Rama.fbd',
+        'Rama.pdf',
+        'Unpaired.fbd',
+        'Unpaired.txt',
+      ]);
+      expect(cleanEntries.get('Rama.pdf')).toEqual(pdfBytes);
+
+      // 5. Switch back to FB2 (New), then reopen rama-pack.zip from File -> Recent Files!
+      await page.getByTestId('menu-file').click();
+      await page.getByTestId('menu-file-new').click();
+      await expect(page.getByTestId('app-root')).toHaveAttribute('data-editor-mode', 'fb2');
+
+      await page.getByTestId('menu-file').click();
+      await page.getByTestId('menu-file-recent').hover();
+      await page
+        .locator('[role="menuitem"][data-testid^="menu-file-recent-"]')
+        .filter({ hasText: 'rama-pack.zip' })
+        .click();
+      await expect(page.getByTestId('app-root')).toHaveAttribute('data-editor-mode', 'package');
+      await expect(page).toHaveTitle(/^rama-pack\.zip - /);
+      await expect(page.getByTestId('description-book-title')).toHaveValue(
+        'Rendezvous with Rama (Revised)',
       );
     } finally {
       rmSync(workDir, { recursive: true, force: true });

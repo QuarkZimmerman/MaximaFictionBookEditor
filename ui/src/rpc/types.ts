@@ -899,6 +899,8 @@ export interface FileInspection {
   books?: number;
   /** For a ZIP holding exactly one book: that book's entry. */
   onlyBook?: string;
+  /** Feature 022: true when the ZIP is an FBD ZIP package (zero .fb2, >=1 .fbd + >=1 payload). */
+  isFbdPackage?: boolean;
 }
 
 export interface SaveNeedsConfirmation {
