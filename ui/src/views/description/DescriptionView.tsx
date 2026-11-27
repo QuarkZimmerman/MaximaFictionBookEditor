@@ -43,6 +43,7 @@ import { descriptionExtrasCount, emptyTitleInfo } from './model';
 import { PublishInfoForm } from './PublishInfoForm';
 import { useResourceCatalogs } from './resources';
 import { TitleInfoForm } from './TitleInfoForm';
+import { PackageActiveFileBar, PackageEmptyWorkspace } from '@/views/package/PackageActiveFileBar';
 
 import './description.css';
 import './maximaLookup.css';
@@ -73,6 +74,7 @@ export function DescriptionView() {
   const controller = useMemo(() => descriptionControllerFor(store, undo), [store, undo]);
   const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const document = useAppState((s) => s.document, store);
+  const editorMode = useAppState((s) => s.editorMode, store);
   const sourceOnly = useAppState((s) => s.sourceOnly, store);
   const connection = useAppState((s) => s.connection, store);
   const language = useAppState((s) => s.uiLanguage, store);
@@ -185,9 +187,13 @@ export function DescriptionView() {
         role="tabpanel"
         data-testid="panel-description"
       >
-        <div className="mfbe-view-placeholder" data-testid="panel-description-empty">
-          {t('views.description.empty')}
-        </div>
+        {editorMode === 'package' ? (
+          <PackageEmptyWorkspace />
+        ) : (
+          <div className="mfbe-view-placeholder" data-testid="panel-description-empty">
+            {t('views.description.empty')}
+          </div>
+        )}
       </div>
     );
   }
@@ -205,6 +211,7 @@ export function DescriptionView() {
       role="tabpanel"
       data-testid="panel-description"
     >
+      <PackageActiveFileBar view="description" />
       <DescriptionFormContext.Provider value={context}>
         <div
           className="mfbe-desc"

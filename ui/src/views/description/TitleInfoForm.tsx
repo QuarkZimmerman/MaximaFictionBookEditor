@@ -10,6 +10,9 @@
 
 import { useTranslation } from 'react-i18next';
 
+import { useAppServices } from '@/app/services';
+import { useAppState } from '@/model/store';
+
 import { CoverList } from './CoverPicker';
 import { DateField } from './DateField';
 import { TextField } from './fields';
@@ -28,6 +31,8 @@ export interface TitleInfoFormProps {
 
 export function TitleInfoForm({ block }: TitleInfoFormProps) {
   const { t } = useTranslation();
+  const { store } = useAppServices();
+  const editorMode = useAppState((s) => s.editorMode, store);
   const { issues } = useDescriptionForm();
   const main = block === 'titleInfo';
   const p = main ? 'description' : 'description-sti';
@@ -72,7 +77,9 @@ export function TitleInfoForm({ block }: TitleInfoFormProps) {
         size="wide"
       />
       <DateField fieldKey={`${block}.date`} testPrefix={`${p}-date`} />
-      <CoverList fieldKey={`${block}.coverpage`} testPrefix={`${p}-cover`} />
+      {!(editorMode === 'package' && block === 'srcTitleInfo') ? (
+        <CoverList fieldKey={`${block}.coverpage`} testPrefix={`${p}-cover`} />
+      ) : null}
       <div className="mfbe-desc-row">
         <LanguagePicker
           fieldKey={`${block}.lang`}

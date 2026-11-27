@@ -16,6 +16,7 @@ import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useAppServices, useCommandContext, useCommandState, useRunCommand } from '@/app/services';
+import { pickAndSetPackageCover, removePackageCover } from '@/features/package';
 import { openPictureView } from '@/features/images/openPictureView';
 import { canViewPicture } from '@/features/images/pictureViewModel';
 import { binaryPreviewUrl } from '@/model/binaryUrls';
@@ -50,6 +51,8 @@ export function BinaryObjects() {
   const addState = useCommandState('insert.binary');
   const { docId, binaries, readOnly } = useDescriptionForm();
   const document = useAppState((s) => s.document, store);
+  const editorMode = useAppState((s) => s.editorMode, store);
+  const isPackage = editorMode === 'package';
   const validation = useAppState((s) => s.validation, store);
   const connected = useAppState((s) => s.connection === 'connected', store);
   const modified = useAppState((s) => s.modified, store);
@@ -87,6 +90,11 @@ export function BinaryObjects() {
 
   const remove = async (binary: BinaryMeta) => {
     if (!rpc || !docId) return;
+    if (isPackage) {
+      await removePackageCover(rpc, store, docId);
+      actions.setStatusMessage(store, t('descriptionForm.binaries.removed', { id: binary.id }));
+      return;
+    }
     const count = references.get(binary.id) ?? binary.referenceCount;
     const attempt = async (force: boolean) =>
       rpc.call('binary.remove', { docId, id: binary.id, force });
@@ -160,11 +168,13 @@ export function BinaryObjects() {
         </span>
         <SmallButton
           testId="binary-objects-add"
-          onClick={() => void runCommand('insert.binary')}
-          disabled={!addState.enabled}
-          title={t('descriptionForm.binaries.add')}
+          onClick={() =>
+            void (isPackage ? pickAndSetPackageCover(ctx) : runCommand('insert.binary'))
+          }
+          disabled={isPackage ? !rpc || !connected || readOnly || binaries.length >= 1 : !addState.enabled}
+          title={isPackage ? t('package.dialogs.addCover') : t('descriptionForm.binaries.add')}
         >
-          {`+ ${t('descriptionForm.binaries.add')}`}
+          {`+ ${isPackage ? t('package.dialogs.addCover') : t('descriptionForm.binaries.add')}`}
         </SmallButton>
       </div>
       {dangling.length > 0 ? (
@@ -268,14 +278,16 @@ export function BinaryObjects() {
                   </td>
                   <td>{refs}</td>
                   <td>
-                    <SmallButton
-                      testId={`binary-objects-rename-${binary.id}`}
-                      onClick={() => void rename(binary)}
-                      title={t('descriptionForm.binaries.rename')}
-                      disabled={!rpc || !connected || readOnly}
-                    >
-                      {t('descriptionForm.binaries.rename')}
-                    </SmallButton>
+                    {!isPackage ? (
+                      <SmallButton
+                        testId={`binary-objects-rename-${binary.id}`}
+                        onClick={() => void rename(binary)}
+                        title={t('descriptionForm.binaries.rename')}
+                        disabled={!rpc || !connected || readOnly}
+                      >
+                        {t('descriptionForm.binaries.rename')}
+                      </SmallButton>
+                    ) : null}
                     <SmallButton
                       testId={`binary-objects-remove-${binary.id}`}
                       onClick={() => void remove(binary)}

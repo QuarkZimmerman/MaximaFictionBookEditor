@@ -590,6 +590,30 @@ textarea {
   padding: 0 6px;
 }
 
+.mfbe-toolbar-split {
+  display: inline-flex;
+  align-items: center;
+}
+
+.mfbe-toolbar-split-main {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.mfbe-toolbar-split-caret {
+  width: 14px;
+  min-width: 14px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  margin-left: -1px;
+  color: var(--mfbe-color-text);
+}
+
+.mfbe-toolbar-split-arrow {
+  font-size: 10px;
+  line-height: 1;
+}
+
 .mfbe-toolbar-separator {
   width: 1px;
   height: 22px;

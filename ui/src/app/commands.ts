@@ -412,7 +412,18 @@ export function currentDocumentName(ctx: Pick<CommandContext, 'store' | 't'>): s
  * "Save changes to <name>?" flow used by New/Open/Exit. Resolves true when the caller may
  * proceed (saved or discarded), false when the user cancelled.
  */
+const discardHandlers = new WeakMap<AppStore, (ctx: CommandContext) => Promise<boolean>>();
+
+export function setConfirmDiscardHandler(
+  store: AppStore,
+  handler: (ctx: CommandContext) => Promise<boolean>,
+): void {
+  discardHandlers.set(store, handler);
+}
+
 export async function confirmDiscardChanges(ctx: CommandContext): Promise<boolean> {
+  const custom = discardHandlers.get(ctx.store);
+  if (custom) return custom(ctx);
   if (!ctx.store.getState().modified) return true;
   const answer = await ctx.dialogs.showMessage({
     text: ctx.t('msg.saveChanges', { name: currentDocumentName(ctx) }),

@@ -39,6 +39,7 @@ import { SourceView } from '@/views/source/SourceView';
 // Feature 011 (US8, PD2): the Styles view loads css-tree and its CSS editor only when it opens.
 const StylesView = lazy(() => import('@/views/styles/StylesView'));
 import { DocumentTree } from '@/views/tree/DocumentTree';
+import { PackageFilesSidebar } from '@/views/package/PackageFilesSidebar';
 import { runScheduledCheck } from '@/features/help';
 import { getSettingsFeature } from '@/features/settings';
 import { getScriptsFeature } from '@/scripting/catalog';
@@ -141,6 +142,8 @@ function Shell({
   const ctx = useCommandContext();
   const { store, rpc, hotkeys, commands, dialogs, files } = services;
   const activeView = useAppState((s) => s.activeView, store);
+  const editorMode = useAppState((s) => s.editorMode, store);
+  const packageState = useAppState((s) => s.packageState, store);
   const treeVisible = useAppState((s) => s.treeVisible, store);
   const treeWidth = useAppState((s) => s.treeWidth, store);
   const aiVisible = useAppState((s) => s.ai.visible, store);
@@ -342,6 +345,17 @@ function Shell({
   // Window title: "<file>[*] - Maxima Fiction Book Editor"; a book from a ZIP archive names the
   // book, then its archive: "book.fb2[*] (archive.zip) - ..." (feature 009, D11, DP-5).
   useEffect(() => {
+    if (editorMode === 'package') {
+      const pkgName = packageState?.zipPath
+        ? (documentFileName({ path: packageState.zipPath }) ?? t('package.untitled'))
+        : t('package.untitled');
+      const marker = modified ? t('app.modifiedMarker') : '';
+      document.title = t('app.windowTitle', {
+        document: `${pkgName}${marker}`,
+        app: t('app.name'),
+      });
+      return;
+    }
     const name = hasDocument ? (documentFileName({ path }) ?? t('app.untitled')) : null;
     const marker = modified ? t('app.modifiedMarker') : '';
     const shown = archiveEntry
@@ -350,7 +364,7 @@ function Shell({
     document.title = name
       ? t('app.windowTitle', { document: shown, app: t('app.name') })
       : t('app.name');
-  }, [hasDocument, path, modified, archiveEntry, t]);
+  }, [editorMode, packageState?.zipPath, hasDocument, path, modified, archiveEntry, t]);
 
   // <html lang> follows the interface language; once the start-up language is settled the
   // page says so (`data-lang-resolved`): the journeys read texts in the page's language only
@@ -503,6 +517,7 @@ function Shell({
       className="mfbe-app"
       data-testid="app-root"
       data-active-view={activeView}
+      data-editor-mode={editorMode}
       data-startup={startupPhase}
       spellCheck={false}
     >
@@ -512,7 +527,7 @@ function Shell({
         {treeVisible ? (
           <>
             <aside className="mfbe-tree-panel" data-testid="tree-panel" data-tree-width={treeWidth}>
-              <DocumentTree />
+              {editorMode === 'package' ? <PackageFilesSidebar /> : <DocumentTree />}
             </aside>
             <div
               ref={splitterRef}

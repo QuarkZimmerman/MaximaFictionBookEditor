@@ -35,6 +35,7 @@ import { sourceEditorFor, sourceSettingsOf } from './sourceEditor';
 
 import './source.css';
 import { tip } from '@/app/tooltips';
+import { PackageActiveFileBar, PackageEmptyWorkspace } from '@/views/package/PackageActiveFileBar';
 
 const FOLD_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8, 9] as const;
 
@@ -45,6 +46,7 @@ export function SourceView() {
   const runCommand = useRunCommand();
   const { store, undo } = services;
   const document = useAppState((s) => s.document, store);
+  const editorMode = useAppState((s) => s.editorMode, store);
   const docId = useAppState((s) => s.docId, store);
   const sourceOnly = useAppState((s) => s.sourceOnly, store);
   const parseError = useAppState((s) => s.sourceParseError, store);
@@ -127,9 +129,13 @@ export function SourceView() {
         role="tabpanel"
         data-testid="panel-source"
       >
-        <div className="mfbe-view-placeholder" data-testid="panel-source-empty">
-          {t('views.source.empty')}
-        </div>
+        {editorMode === 'package' ? (
+          <PackageEmptyWorkspace />
+        ) : (
+          <div className="mfbe-view-placeholder" data-testid="panel-source-empty">
+            {t('views.source.empty')}
+          </div>
+        )}
       </div>
     );
   }
@@ -145,6 +151,7 @@ export function SourceView() {
       <div
         className="mfbe-source-view"
         data-testid="source-view"
+        data-readonly={editorMode === 'package' || runLocked ? 'true' : 'false'}
         data-status={snapshot.status}
         data-wrap={settings.wrap ? 'true' : 'false'}
         data-line-numbers={settings.lineNumbers ? 'true' : 'false'}
@@ -156,6 +163,7 @@ export function SourceView() {
         data-theme={theme}
         data-locked={runLocked ? 'true' : 'false'}
       >
+        <PackageActiveFileBar view="source" />
         <div className="mfbe-source-tools" data-testid="source-tools">
           <label className="mfbe-source-tools-label">
             {t('source.foldLevel')}

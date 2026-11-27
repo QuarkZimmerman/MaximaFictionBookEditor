@@ -14,11 +14,13 @@ import { useTranslation } from 'react-i18next';
 import { PopupMenu } from '@/app/PopupMenu';
 import { onPageClass, usePictureBackgrounds } from '@/app/usePictureBackground';
 
-import { useAppServices } from '@/app/services';
+import { useAppServices, useCommandContext } from '@/app/services';
+import { pickAndSetPackageCover, removePackageCover } from '@/features/package';
 import { binaryPreviewUrl } from '@/model/binaryUrls';
 import { openPictureView } from '@/features/images/openPictureView';
 import { PictureChooser } from '@/features/images/PictureChooser';
 import type { BinaryMeta, ImageRef } from '@/model/document';
+import { useAppState } from '@/model/store';
 import type { RpcClient } from '@/rpc/client';
 
 import { AddButton, EmptyHint, RemoveButton, SmallButton, SubSection, TextField } from './fields';
@@ -35,6 +37,9 @@ export interface CoverListProps {
 export function CoverList({ fieldKey, testPrefix }: CoverListProps) {
   const { t } = useTranslation();
   const { dialogs, rpc, store } = useAppServices();
+  const ctx = useCommandContext();
+  const editorMode = useAppState((s) => s.editorMode, store);
+  const isPackage = editorMode === 'package';
   const { controller, form, binaries, docId, readOnly } = useDescriptionForm();
   const covers = (getAtPath(form, fieldKey) as ImageRef[] | undefined) ?? [];
   const images = binaries.filter((b) => b.decodable);
@@ -70,6 +75,10 @@ export function CoverList({ fieldKey, testPrefix }: CoverListProps) {
     ));
 
   const add = async () => {
+    if (isPackage) {
+      await pickAndSetPackageCover(ctx);
+      return;
+    }
     const href = await pick();
     if (!href) return;
     controller.update((state) =>
@@ -80,6 +89,10 @@ export function CoverList({ fieldKey, testPrefix }: CoverListProps) {
     );
   };
   const change = async (index: number) => {
+    if (isPackage) {
+      await pickAndSetPackageCover(ctx);
+      return;
+    }
     const href = await pick(covers[index]?.href);
     if (!href) return;
     controller.update((state) => {
@@ -87,7 +100,11 @@ export function CoverList({ fieldKey, testPrefix }: CoverListProps) {
       return setAtPath(state, `${fieldKey}.${index}`, { ...ref, href });
     });
   };
-  const remove = (index: number) =>
+  const remove = (index: number) => {
+    if (isPackage) {
+      if (rpc && docId) void removePackageCover(rpc, store, docId);
+      return;
+    }
     controller.update((state) =>
       setAtPath(
         state,
@@ -97,6 +114,7 @@ export function CoverList({ fieldKey, testPrefix }: CoverListProps) {
         ),
       ),
     );
+  };
 
   return (
     <SubSection
@@ -106,7 +124,8 @@ export function CoverList({ fieldKey, testPrefix }: CoverListProps) {
         <AddButton
           testId={`${testPrefix}-add`}
           onClick={() => void add()}
-          label={t('descriptionForm.cover.add')}
+          label={isPackage ? t('package.dialogs.addCover') : t('descriptionForm.cover.add')}
+          disabled={isPackage && (covers.length >= 1 || binaries.length >= 1)}
         />
       }
     >
@@ -160,47 +179,65 @@ export function CoverList({ fieldKey, testPrefix }: CoverListProps) {
                   </span>
                 )}
               </button>
-              <label className="mfbe-desc-field">
-                <span className="mfbe-desc-label">{t('descriptionForm.cover.image')}</span>
-                <select
-                  className={`mfbe-desc-select${dangling ? ' mfbe-desc-input-invalid' : ''}`}
-                  data-testid={`${testPrefix}-${index}-href`}
-                  value={cover.href}
-                  title={
-                    dangling ? t('descriptionForm.cover.dangling') : t('tip.description.coverHref')
-                  }
-                  {...readOnlySelectProps(readOnly, (event) =>
-                    controller.setValue(`${fieldKey}.${index}.href`, event.target.value),
-                  )}
-                >
-                  {!images.some((b) => `#${b.id}` === cover.href) ? (
-                    <option value={cover.href}>{cover.href}</option>
-                  ) : null}
-                  {images.map((binary) => (
-                    <option key={binary.id} value={`#${binary.id}`}>
-                      {`#${binary.id} (${binary.contentType}${
-                        binary.width && binary.height
-                          ? `, ${binary.width}\u00D7${binary.height}`
-                          : ''
-                      })`}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <SmallButton
-                testId={`${testPrefix}-${index}-choose`}
-                title={t('descriptionForm.cover.choose')}
-                disabled={readOnly}
-                onClick={() => void change(index)}
-              >
-                {t('descriptionForm.cover.chooseButton')}
-              </SmallButton>
-              <TextField
-                fieldKey={`${fieldKey}.${index}.href`}
-                testId={`${testPrefix}-${index}-href-text`}
-                size="middle"
-                title={t('descriptionForm.cover.hrefText')}
-              />
+              {isPackage ? (
+                <>
+                  <code className="mfbe-desc-readonly-href" data-testid={`${testPrefix}-${index}-href`}>
+                    {cover.href}
+                  </code>
+                  <SmallButton
+                    testId={`${testPrefix}-${index}-choose`}
+                    title={t('package.dialogs.replaceCover')}
+                    disabled={readOnly}
+                    onClick={() => void change(index)}
+                  >
+                    {t('package.dialogs.replaceCover')}
+                  </SmallButton>
+                </>
+              ) : (
+                <>
+                  <label className="mfbe-desc-field">
+                    <span className="mfbe-desc-label">{t('descriptionForm.cover.image')}</span>
+                    <select
+                      className={`mfbe-desc-select${dangling ? ' mfbe-desc-input-invalid' : ''}`}
+                      data-testid={`${testPrefix}-${index}-href`}
+                      value={cover.href}
+                      title={
+                        dangling ? t('descriptionForm.cover.dangling') : t('tip.description.coverHref')
+                      }
+                      {...readOnlySelectProps(readOnly, (event) =>
+                        controller.setValue(`${fieldKey}.${index}.href`, event.target.value),
+                      )}
+                    >
+                      {!images.some((b) => `#${b.id}` === cover.href) ? (
+                        <option value={cover.href}>{cover.href}</option>
+                      ) : null}
+                      {images.map((binary) => (
+                        <option key={binary.id} value={`#${binary.id}`}>
+                          {`#${binary.id} (${binary.contentType}${
+                            binary.width && binary.height
+                              ? `, ${binary.width}\u00D7${binary.height}`
+                              : ''
+                          })`}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <SmallButton
+                    testId={`${testPrefix}-${index}-choose`}
+                    title={t('descriptionForm.cover.choose')}
+                    disabled={readOnly}
+                    onClick={() => void change(index)}
+                  >
+                    {t('descriptionForm.cover.chooseButton')}
+                  </SmallButton>
+                  <TextField
+                    fieldKey={`${fieldKey}.${index}.href`}
+                    testId={`${testPrefix}-${index}-href-text`}
+                    size="middle"
+                    title={t('descriptionForm.cover.hrefText')}
+                  />
+                </>
+              )}
               {dangling ? (
                 <span className="mfbe-desc-warning" data-testid={`${testPrefix}-${index}-dangling`}>
                   {t('descriptionForm.cover.dangling')}

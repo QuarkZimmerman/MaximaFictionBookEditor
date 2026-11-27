@@ -359,6 +359,15 @@ export interface FileFeatureOptions {
   selfSaveGraceMs?: number;
 }
 
+/** Thin delegate registered by `features/package` so `FileFeature` coordinates Package mode without circular imports. */
+export interface PackageFileBridge {
+  confirmDiscardPackage(ctx: CommandContext): Promise<boolean>;
+  closePackageToFb2(ctx: CommandContext): Promise<void>;
+  savePackage(ctx: CommandContext, saveAs: boolean): Promise<boolean>;
+  openPackage(ctx: CommandContext, path: string): Promise<boolean>;
+  startEmptyPackage(ctx: CommandContext): Promise<boolean>;
+}
+
 export interface QuitOptions {
   /**
    * The shell asked for the close (`app.closeRequested`): `app.quit` is called with
@@ -402,11 +411,20 @@ export class FileFeature {
     for (const command of this.createCommands()) registry.replace(command);
   }
 
+  private packageBridge: PackageFileBridge | null = null;
+
+  setPackageBridge(bridge: PackageFileBridge): void {
+    this.packageBridge = bridge;
+  }
+
   /* ---------------------------------------------------------------- prompts */
 
   /** "Save changes to <name>?" - true when the caller may proceed (saved or discarded). */
   async confirmDiscardChanges(ctx: CommandContext): Promise<boolean> {
     const state = ctx.store.getState();
+    if (state.editorMode === 'package' && this.packageBridge) {
+      return this.packageBridge.confirmDiscardPackage(ctx);
+    }
     if (!state.document || (!state.modified && !isSourceTextDirty(ctx.store))) return true;
     const answer = await showSaveChangesPrompt(ctx.dialogs, currentDocumentName(ctx));
     if (answer === 'cancel') return false;
@@ -459,6 +477,10 @@ export class FileFeature {
   async closeCurrentDocument(ctx: CommandContext): Promise<void> {
     const { store, rpc } = ctx;
     const state = store.getState();
+    if (state.editorMode === 'package' && this.packageBridge) {
+      await this.packageBridge.closePackageToFb2(ctx);
+      return;
+    }
     if (state.docId && rpc) {
       await leaveDocument(ctx);
       try {
@@ -1201,6 +1223,9 @@ export class FileFeature {
   async saveDocument(ctx: CommandContext, options: { saveAs?: boolean }): Promise<boolean> {
     const { store, rpc } = ctx;
     if (!rpc) return false;
+    if (store.getState().editorMode === 'package' && this.packageBridge) {
+      return this.packageBridge.savePackage(ctx, Boolean(options.saveAs));
+    }
     // Pending Source text first: malformed XML is never saved.
     const commit = await commitPendingSource(ctx);
     if (commit === 'error') return false;
@@ -1564,7 +1589,9 @@ export class FileFeature {
         group: 'file',
         ...keys('file.save', 'menu.file.save'),
         icon: 'id_file_save',
-        enabled: connectedWithDocument,
+        enabled: (ctx) =>
+          isConnected(ctx) &&
+          (ctx.store.getState().editorMode === 'package' || Boolean(ctx.store.getState().document)),
         run: async (ctx) => {
           await this.saveDocument(ctx, {});
         },
@@ -1573,7 +1600,9 @@ export class FileFeature {
         id: 'file.saveAs',
         group: 'file',
         ...keys('file.saveAs', 'menu.file.saveAs'),
-        enabled: connectedWithDocument,
+        enabled: (ctx) =>
+          isConnected(ctx) &&
+          (ctx.store.getState().editorMode === 'package' || Boolean(ctx.store.getState().document)),
         run: async (ctx) => {
           await this.saveDocument(ctx, { saveAs: true });
         },

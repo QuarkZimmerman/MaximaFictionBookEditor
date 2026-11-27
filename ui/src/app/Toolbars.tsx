@@ -28,6 +28,7 @@ import { isRunLocked, useAppState } from '@/model/store';
 import { useAppServices, useCommandContext, useAppRevision } from './services';
 import { commandDescription, commandTooltip, unavailableTitle } from './commands';
 import { LinksBar } from './LinksBar';
+import { NewSplitButton } from './NewSplitButton';
 import { PopupMenu } from './PopupMenu';
 import { TableBar } from './TableBar';
 import { iconUrl } from './toolbarIcons';
@@ -373,7 +374,7 @@ export function CommandsToolbar() {
     <CustomizableToolbarView
       toolbar="commands"
       scriptButtons={NO_SCRIPTS}
-      renderButton={(id) => <ToolbarButton commandId={id} />}
+      renderButton={(id) => (id === 'file.new' ? <NewSplitButton /> : <ToolbarButton commandId={id} />)}
     />
   );
 }
