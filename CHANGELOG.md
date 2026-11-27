@@ -3,18 +3,18 @@
 All notable changes to Maxima Fiction Book Editor. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## 0.0.15 - unreleased
+## 0.0.15 - 2026-11-27
 
 ### In short
 
 - Automatic offline OCR on scanned, mixed, and rotated PDF imports (Tesseract + Leptonica)
 - Auto language detection across 10 bundled European packs plus custom OCR language folders
-- Inline Use OCR checkbox in PDF Import dialog and persistent OCR controls in Batch Converter
+- Inline Use OCR option in PDF Import and persistent PDF OCR controls in Batch Converter
 - Optional Maxima Library lookup integration for Description authors, series, and publishers
-- Settings > Maxima Library integration verifies and stores encrypted Access Tokens locally
-- FBD ZIP Package editing mode to pack non-FB2 books with paired FBD descriptions and covers
-- Unified Open/Recent auto-detection, description-only AI in packages, and Startup mode setting
-- Settings dialog Apply button now enables only when unsaved changes exist across tabs
+- Settings > Maxima Library verifies and stores encrypted Access Tokens locally
+- FBD ZIP Package mode for non-FB2 books with FBD descriptions, auto covers, and context menu
+- Import Description from ZIP archives, Startup mode, and description-only AI in packages
+- Settings Apply dirty tracking and tab-bar arrows; opening FB2 always activates Body view
 
 ### Added
 
@@ -73,12 +73,19 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 
 ### Fixed
 
+- Opening, creating, or importing a book in FB2 editing mode now always activates the Body view
+  (for example after leaving Package mode or Description view), while external on-disk reload
+  preserves the active view.
+- Settings dialog tab bar now uses standard `«` and `»` overflow shift buttons instead of a
+  horizontal scrollbar when tabs exceed the dialog width.
 - Settings dialog **Apply** button is now disabled when there are no unsaved changes across any tab
   (including Hotkeys, Maxima Library, and unordered checkbox lists), re-disables when edits are
   undone or applied, and scopes live dictionary/OCR folder rescans to actual folder-path changes
   while refreshing dictionaries whenever the Spelling dialog opens.
 - PDF import page loading caps concurrent loopback fetches within Chromium's HTTP/1.1 socket pool,
-  forwards cancellation signals, and retries stalled loopback requests once instead of hanging.
+  forwards cancellation signals, retries stalled loopback requests once instead of hanging,
+  serializes reader process spawning, and prevents Windows handle inheritance across child
+  processes.
 
 ## 0.0.14 - 2026-11-24
 
