@@ -339,7 +339,8 @@ std::optional<std::string> extract_epub_cover_bytes(const fs::path& path) {
                         }
                     }
                 } else {
-                    // Some legacy EPUBs store an href directly in <meta name="cover" content="...">.
+                    // Some legacy EPUBs store an href directly in <meta name="cover"
+                    // content="...">.
                     const auto resolved = find_epub_entry_name(
                         source, resolve_epub_entry_path(source.package_path, meta_cover_content));
                     if (resolved) {
@@ -349,7 +350,8 @@ std::optional<std::string> extract_epub_cover_bytes(const fs::path& path) {
             }
         }
 
-        // 3. Fallback: <guide><reference type="cover" href="..."/> or manifest id "cover"/"cover-image".
+        // 3. Fallback: <guide><reference type="cover" href="..."/> or manifest id
+        // "cover"/"cover-image".
         if (!cover_image_entry && !cover_xhtml_entry) {
             each_xml_element(root, "guide", [&](xmlNodePtr guide) {
                 each_xml_element(guide->children, "reference", [&](xmlNodePtr ref) {
@@ -434,8 +436,8 @@ std::optional<std::string> generate_pdf_cover_bytes(const fs::path& pdf_path,
         }
         static std::atomic<std::uint64_t> counter{0};
         const auto now_ns = std::chrono::steady_clock::now().time_since_epoch().count();
-        const std::string folder_name = "mfbe-pkg-cover-" + std::to_string(now_ns) + "-" +
-                                        std::to_string(++counter);
+        const std::string folder_name =
+            "mfbe-pkg-cover-" + std::to_string(now_ns) + "-" + std::to_string(++counter);
         TempDirCleanup cleanup{tmp_root / platform::path_from_utf8(folder_name)};
         if (!fs::create_directories(cleanup.dir, ec) && ec) {
             return std::nullopt;
