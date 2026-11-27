@@ -112,16 +112,16 @@ bool looks_like_fictionbook_xml(const fs::path& path) {
         head.erase(0, 3);
     }
     // Check UTF-16 LE/BE `<FictionBook` signature as well as UTF-8 / single-byte XML.
-    if (head.size() >= 2 &&
-        ((static_cast<unsigned char>(head[0]) == 0xFF &&
-          static_cast<unsigned char>(head[1]) == 0xFE) ||
-         (static_cast<unsigned char>(head[0]) == 0xFE &&
-          static_cast<unsigned char>(head[1]) == 0xFF))) {
+    if (head.size() >= 2 && ((static_cast<unsigned char>(head[0]) == 0xFF &&
+                              static_cast<unsigned char>(head[1]) == 0xFE) ||
+                             (static_cast<unsigned char>(head[0]) == 0xFE &&
+                              static_cast<unsigned char>(head[1]) == 0xFF))) {
         std::string ascii_only;
         ascii_only.reserve(head.size() / 2);
         for (char c : head) {
             if (static_cast<unsigned char>(c) >= 0x20 && static_cast<unsigned char>(c) < 0x7F) {
-                ascii_only.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+                ascii_only.push_back(
+                    static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
             }
         }
         return ascii_only.find("<fictionbook") != std::string::npos;

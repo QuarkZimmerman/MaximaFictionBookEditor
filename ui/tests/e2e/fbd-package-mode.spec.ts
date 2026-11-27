@@ -157,7 +157,10 @@ test.describe('Feature 022: FBD ZIP Package Mode', () => {
       await waitForStartupDocument(page);
 
       // Toolbar New split button starts in FB2 mode and switches icon+action when choosing New Package.
-      await expect(page.getByTestId('toolbar-file.new')).toHaveAttribute('data-active-action', 'fb2');
+      await expect(page.getByTestId('toolbar-file.new')).toHaveAttribute(
+        'data-active-action',
+        'fb2',
+      );
       await page.getByTestId('toolbar-file.new-dropdown').click();
       await expect(page.getByTestId('toolbar-file.new-menu')).toBeVisible();
       await page.getByTestId('toolbar-file.new-menu-package').click();
@@ -577,13 +580,7 @@ test.describe('Feature 022: FBD ZIP Package Mode', () => {
       await expect(page.getByTestId('menu-view-styles')).toHaveCount(0);
       await expect(page.getByTestId('menu-view-tree')).not.toHaveAttribute('aria-disabled', 'true');
       await expect(page.getByTestId('menu-view-tree')).toContainText('Package Files');
-      for (const id of [
-        'preview',
-        'toolbarScripts',
-        'linksBar',
-        'tableBar',
-        'fastMode',
-      ]) {
+      for (const id of ['preview', 'toolbarScripts', 'linksBar', 'tableBar', 'fastMode']) {
         await expect(page.getByTestId(`menu-view-${id}`)).toHaveAttribute('aria-disabled', 'true');
       }
       await page.keyboard.press('Escape');
@@ -601,9 +598,7 @@ test.describe('Feature 022: FBD ZIP Package Mode', () => {
       await page.keyboard.press('Escape');
 
       await page.getByTestId('menu-scripts').click();
-      const scriptItems = page
-        .getByTestId('menu-scripts-popup')
-        .locator('[role="menuitem"]');
+      const scriptItems = page.getByTestId('menu-scripts-popup').locator('[role="menuitem"]');
       const scriptCount = await scriptItems.count();
       expect(scriptCount).toBeGreaterThan(0);
       for (let i = 0; i < scriptCount; i++) {
@@ -850,7 +845,10 @@ test.describe('Feature 022: FBD ZIP Package Mode', () => {
 
       // 1. Default startup is FB2 mode with New (FB2) active on the split button.
       await expect(page.getByTestId('app-root')).toHaveAttribute('data-editor-mode', 'fb2');
-      await expect(page.getByTestId('toolbar-file.new')).toHaveAttribute('data-active-action', 'fb2');
+      await expect(page.getByTestId('toolbar-file.new')).toHaveAttribute(
+        'data-active-action',
+        'fb2',
+      );
 
       // 2. Open Tools -> Settings -> Other and verify Startup mode + Apply dirty/undo tracking.
       await page.getByTestId('menu-tools').click();

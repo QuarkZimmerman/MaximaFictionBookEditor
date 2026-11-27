@@ -430,8 +430,6 @@ export function AiPanel() {
   const hasDocument = useAppState((s) => s.document !== null, store);
   const editorMode = useAppState((s) => s.editorMode, store);
   const packageState = useAppState((s) => s.packageState, store);
-  const isPackage = editorMode === 'package';
-  const activeEntry = isPackage ? activePackageEntry(packageState) : null;
   const locked = useAppState((s) => isRunLocked(s), store);
   const lockKind = useAppState((s) => s.runLock?.kind ?? null, store);
 
@@ -515,6 +513,8 @@ export function AiPanel() {
     if (list) list.scrollTop = list.scrollHeight;
   }, [conversation.activity.length]);
 
+  const isPackage = editorMode === 'package';
+  const activeEntry = isPackage ? activePackageEntry(packageState) : null;
   const running = live !== null;
   const sendable = hasDocument && !locked && target.kind === 'ok';
   const trimmed = instruction.trim();

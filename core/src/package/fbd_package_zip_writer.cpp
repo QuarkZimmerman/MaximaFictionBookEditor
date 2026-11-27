@@ -9,8 +9,6 @@
 #include <mfbe/fbd_package.hpp>
 #include <mfbe/utf8_paths.hpp>
 
-#include <zlib.h>
-
 #include <algorithm>
 #include <array>
 #include <cstdint>
@@ -21,6 +19,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <zlib.h>
 
 namespace mfbe::package {
 namespace {
@@ -76,8 +75,8 @@ void current_dos_datetime(std::uint16_t& dos_time, std::uint16_t& dos_date) {
     localtime_r(&now, &tm);
 #endif
     const int year = std::clamp(tm.tm_year + 1900, 1980, 2107);
-    dos_date = static_cast<std::uint16_t>(((year - 1980) << 9) | ((tm.tm_mon + 1) << 5) |
-                                          tm.tm_mday);
+    dos_date =
+        static_cast<std::uint16_t>(((year - 1980) << 9) | ((tm.tm_mon + 1) << 5) | tm.tm_mday);
     dos_time = static_cast<std::uint16_t>((tm.tm_hour << 11) | (tm.tm_min << 5) | (tm.tm_sec / 2));
 }
 
@@ -273,8 +272,7 @@ struct WrittenCdRecord {
 class StreamingZipFile {
 public:
     StreamingZipFile(const fs::path& temp_path, const std::string& target_label,
-                     ZipProgressCallback progress, ZipCancelCheck cancel,
-                     std::uint64_t total_bytes)
+                     ZipProgressCallback progress, ZipCancelCheck cancel, std::uint64_t total_bytes)
         : temp_path_(temp_path),
           target_label_(target_label),
           progress_(std::move(progress)),
@@ -381,8 +379,8 @@ public:
         std::uint64_t remaining = rec.compressed_size;
         while (remaining > 0) {
             check_cancel();
-            const std::size_t step = static_cast<std::size_t>(
-                std::min<std::uint64_t>(remaining, buf.size()));
+            const std::size_t step =
+                static_cast<std::size_t>(std::min<std::uint64_t>(remaining, buf.size()));
             src.read(buf.data(), static_cast<std::streamsize>(step));
             if (!src || static_cast<std::size_t>(src.gcount()) != step) {
                 throw ZipWriteError("sourceUnreadable", rec.raw_name,
@@ -463,8 +461,8 @@ public:
                 if (n == 0) {
                     break;
                 }
-                crc = ::crc32(crc, reinterpret_cast<const Bytef*>(buf.data()),
-                              static_cast<uInt>(n));
+                crc =
+                    ::crc32(crc, reinterpret_cast<const Bytef*>(buf.data()), static_cast<uInt>(n));
                 write_bytes(buf.data(), n);
                 uncompressed += n;
                 report_progress(n);
@@ -790,8 +788,7 @@ void write_package_zip_atomic(const PackageZipWritePlan& plan,
                     std::error_code ec;
                     const auto sz = fs::file_size(*e.diskPath, ec);
                     writer.write_streamed_entry(
-                        e.entryName, e.compressDeflate,
-                        ec ? 0u : static_cast<std::uint64_t>(sz),
+                        e.entryName, e.compressDeflate, ec ? 0u : static_cast<std::uint64_t>(sz),
                         [&](char* dst, std::size_t cap) -> std::size_t {
                             disk_in.read(dst, static_cast<std::streamsize>(cap));
                             const std::streamsize got = disk_in.gcount();

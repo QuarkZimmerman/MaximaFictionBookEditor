@@ -139,7 +139,8 @@ FbdPackageInspection inspect_zip_listing(const archive::Listing& listing) {
         out.pairs.push_back(std::move(pair));
     }
 
-    // Unmatched top-level .fbd entries (orphans or duplicates) are preserved untouched on in-place Save.
+    // Unmatched top-level .fbd entries (orphans or duplicates) are preserved untouched on in-place
+    // Save.
     for (const TopFbd& f : top_fbds) {
         if (!matched_fbd_raw_names.contains(f.entry->raw_name)) {
             ignored_entries.push_back(f.entry);

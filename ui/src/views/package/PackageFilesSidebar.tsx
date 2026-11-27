@@ -82,6 +82,7 @@ export function PackageFilesSidebar() {
                 className={`mfbe-package-file-row${active ? ' mfbe-package-file-row-active' : ''}`}
                 role="option"
                 aria-selected={active}
+                data-no-tooltip
                 data-testid={`package-file-item-${entry.entryId}`}
                 data-filename={entry.fileName}
                 data-active={active ? 'true' : 'false'}
@@ -108,7 +109,9 @@ export function PackageFilesSidebar() {
                       {ready ? t('package.sidebar.statusReady') : t('package.sidebar.statusEmpty')}
                     </span>
                     {hasCover ? (
-                      <span className="mfbe-package-file-cover">{t('package.sidebar.statusCover')}</span>
+                      <span className="mfbe-package-file-cover">
+                        {t('package.sidebar.statusCover')}
+                      </span>
                     ) : null}
                   </span>
                 </button>
@@ -121,7 +124,7 @@ export function PackageFilesSidebar() {
                   {...tip(t('tip.package.removeFile'))}
                   onClick={() => void services.packages.removeEntry(ctx, entry.entryId)}
                 >
-                  &times;
+                  {'\u00D7'}
                 </button>
               </li>
             );

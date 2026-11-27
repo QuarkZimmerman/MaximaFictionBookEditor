@@ -18,7 +18,9 @@ import { RpcError, type RpcClient } from '@/rpc/client';
 
 const TEMP_COVER_ID = '__pkg_cover_tmp';
 
-export function canonicalCoverId(contentType: string | undefined | null): 'cover.png' | 'cover.jpg' {
+export function canonicalCoverId(
+  contentType: string | undefined | null,
+): 'cover.png' | 'cover.jpg' {
   return (contentType ?? '').toLowerCase() === 'image/png' ? 'cover.png' : 'cover.jpg';
 }
 

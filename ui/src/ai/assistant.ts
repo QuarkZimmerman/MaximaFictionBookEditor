@@ -1078,7 +1078,8 @@ class RequestRun {
     };
     this.sessionRpc = sessionRpc;
     const isPackage = state.editorMode === 'package';
-    const sourceEditor = !isPackage && state.activeView === 'source' ? getSourceEditor(store) : null;
+    const sourceEditor =
+      !isPackage && state.activeView === 'source' ? getSourceEditor(store) : null;
     let selection = options.selection;
     // The text's own report when the text path starts on a well-formed text (its baseline).
     let textReport: ValidationReport | null = null;

@@ -246,7 +246,9 @@ export async function importDescription(ctx: CommandContext): Promise<boolean> {
           map.set(firstHref, `#${importedCover.id}`);
         } else {
           for (const b of before.binaries) {
-            await rpc.call('binary.remove', { docId, id: b.id, force: true }).catch(() => undefined);
+            await rpc
+              .call('binary.remove', { docId, id: b.id, force: true })
+              .catch(() => undefined);
           }
           clearExistingCover = true;
         }

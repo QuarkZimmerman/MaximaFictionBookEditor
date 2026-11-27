@@ -2466,7 +2466,8 @@ export type PackageArchiveErrorReason =
   | 'fbdParseError'
   | 'fbdNotFictionBook';
 
-export type PackageSaveErrorReason = 'emptyPackage' | 'sourceMissing' | 'sourceUnreadable' | 'ioError';
+export type PackageSaveErrorReason =
+  'emptyPackage' | 'sourceMissing' | 'sourceUnreadable' | 'ioError';
 
 export interface PackageEntryDto {
   entryId: string;

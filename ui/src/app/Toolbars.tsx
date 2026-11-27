@@ -374,7 +374,9 @@ export function CommandsToolbar() {
     <CustomizableToolbarView
       toolbar="commands"
       scriptButtons={NO_SCRIPTS}
-      renderButton={(id) => (id === 'file.new' ? <NewSplitButton /> : <ToolbarButton commandId={id} />)}
+      renderButton={(id) =>
+        id === 'file.new' ? <NewSplitButton /> : <ToolbarButton commandId={id} />
+      }
     />
   );
 }

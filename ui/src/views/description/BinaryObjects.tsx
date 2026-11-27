@@ -171,7 +171,9 @@ export function BinaryObjects() {
           onClick={() =>
             void (isPackage ? pickAndSetPackageCover(ctx) : runCommand('insert.binary'))
           }
-          disabled={isPackage ? !rpc || !connected || readOnly || binaries.length >= 1 : !addState.enabled}
+          disabled={
+            isPackage ? !rpc || !connected || readOnly || binaries.length >= 1 : !addState.enabled
+          }
           title={isPackage ? t('package.dialogs.addCover') : t('descriptionForm.binaries.add')}
         >
           {`+ ${isPackage ? t('package.dialogs.addCover') : t('descriptionForm.binaries.add')}`}

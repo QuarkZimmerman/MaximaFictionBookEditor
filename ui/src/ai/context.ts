@@ -495,7 +495,8 @@ export function buildWorkingContext(input: WorkingContextInput): WorkingContext 
     if (caretParagraph && 'text' in input.caret) caret.paragraph = input.caret.text;
   }
   const isPackage = input.mode === 'package';
-  const sourceMode = !isPackage && input.activeView === 'source' && input.sourceWellFormed === false;
+  const sourceMode =
+    !isPackage && input.activeView === 'source' && input.sourceWellFormed === false;
   const context: WorkingContext = {
     catalogueVersion: CATALOGUE_VERSION,
     editor: { name: EDITOR_NAME, version: input.version },

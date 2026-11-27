@@ -143,7 +143,9 @@ export function hasNonEmptyDescription(doc: Document): boolean {
  * added with an untouched empty description.
  */
 export function shouldConfirmRemoveEntry(entry: FbdPackageUiEntry): boolean {
-  return entry.originatedFromZip || entry.descriptionModified || hasNonEmptyDescription(entry.document);
+  return (
+    entry.originatedFromZip || entry.descriptionModified || hasNonEmptyDescription(entry.document)
+  );
 }
 
 /**
@@ -152,10 +154,7 @@ export function shouldConfirmRemoveEntry(entry: FbdPackageUiEntry): boolean {
  * - Unsaved 1-file package -> `<stem>.zip`
  * - Unsaved multi-file package -> `<defaultMultiName>.zip` (localized, e.g. `package.zip`)
  */
-export function proposedPackageSavePath(
-  pkg: FbdPackageUiState,
-  defaultMultiName: string,
-): string {
+export function proposedPackageSavePath(pkg: FbdPackageUiState, defaultMultiName: string): string {
   if (pkg.zipPath) return pkg.zipPath;
   if (pkg.entries.length === 1 && pkg.entries[0]!.stem.trim().length > 0) {
     return `${pkg.entries[0]!.stem}.zip`;
@@ -174,7 +173,10 @@ export function syncActiveEntryDocument(
   const idx = pkg.entries.findIndex((e) => e.entryId === pkg.activeEntryId);
   if (idx < 0) return pkg;
   const current = pkg.entries[idx]!;
-  if (current.document === document && (!markModified || (pkg.modified && current.descriptionModified))) {
+  if (
+    current.document === document &&
+    (!markModified || (pkg.modified && current.descriptionModified))
+  ) {
     return pkg;
   }
   const entries = pkg.entries.slice();

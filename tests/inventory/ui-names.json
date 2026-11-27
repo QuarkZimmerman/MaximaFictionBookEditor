@@ -180,6 +180,11 @@
       "tooltip": "New",
       "description": "Create a new document"
     },
+    "file.newPackage": {
+      "label": "New &Package",
+      "tooltip": "New Package",
+      "description": "Start a new FBD ZIP package for non-FB2 book files"
+    },
     "file.open": {
       "label": "&Open...",
       "tooltip": "Open",
@@ -937,6 +942,11 @@
       "tooltip": "Новый",
       "description": "Создать новый документ"
     },
+    "file.newPackage": {
+      "label": "Создать паке&т",
+      "tooltip": "Создать пакет",
+      "description": "Создать новый FBD ZIP-пакет для книг в форматах, отличных от FB2"
+    },
     "file.open": {
       "label": "&Открыть...",
       "tooltip": "Открыть",
@@ -1693,6 +1703,11 @@
       "label": "&Створити",
       "tooltip": "Створити",
       "description": "Створити новий документ"
+    },
+    "file.newPackage": {
+      "label": "Створити паке&т",
+      "tooltip": "Створити пакет",
+      "description": "Створити новий FBD ZIP-пакет для книг у форматах, відмінних від FB2"
     },
     "file.open": {
       "label": "&Відкрити...",

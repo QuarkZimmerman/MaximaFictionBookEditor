@@ -11,7 +11,12 @@ import type { FileFeature } from '@/features/file/fileCommands';
 import type { Document } from '@/model/document';
 import { actions, emptyConversation, isRunLocked, type AppStore } from '@/model/store';
 import { RpcError } from '@/rpc/client';
-import { RpcErrorCode, type FileFilter, type PackageEntryDto, type PackageRejectedFileDto } from '@/rpc/types';
+import {
+  RpcErrorCode,
+  type FileFilter,
+  type PackageEntryDto,
+  type PackageRejectedFileDto,
+} from '@/rpc/types';
 import { resetSourceSession } from '@/views/source/sourceSession';
 
 import {
@@ -60,7 +65,10 @@ function saveZipFilters(ctx: CommandContext): FileFilter[] {
   return [{ name: ctx.t('package.dialogs.zipPackages'), extensions: ['zip'] }];
 }
 
-function formatRejectedFiles(ctx: CommandContext, rejected: readonly PackageRejectedFileDto[]): string {
+function formatRejectedFiles(
+  ctx: CommandContext,
+  rejected: readonly PackageRejectedFileDto[],
+): string {
   const lines = rejected.map((item) => {
     const name = item.fileName || packageFileName(item.path);
     return ctx.t(`package.errors.${item.reason}`, {
@@ -522,10 +530,7 @@ export class PackageFeature {
     if (!saveAs && pkg.zipPath) {
       targetPath = pkg.zipPath;
     } else {
-      const defaultPath = proposedPackageSavePath(
-        pkg,
-        ctx.t('package.defaultMultiFileZipName'),
-      );
+      const defaultPath = proposedPackageSavePath(pkg, ctx.t('package.defaultMultiFileZipName'));
       const chosen = await rpc.call('dialog.saveFile', {
         title: ctx.t('package.dialogs.saveTitle'),
         filters: saveZipFilters(ctx),

@@ -110,14 +110,14 @@ bool is_forbidden_archive_extension(std::string_view extension);
 
 // Validates a candidate payload file on disk against forbidden types (.fb2, .fbd, archives,
 // renamed archives/FB2 while permitting verified .epub/.docx/.odt) and duplicate stems.
-CandidateFileCheck validate_candidate_payload(const std::filesystem::path& path,
-                                              const std::map<std::string, std::string>& existing_stems);
+CandidateFileCheck validate_candidate_payload(
+    const std::filesystem::path& path, const std::map<std::string, std::string>& existing_stems);
 
 enum class ZipClassification {
-    fb2_archive,      // contains at least one .fb2 entry -> FB2 mode unchanged
-    fbd_package,      // zero .fb2, >=1 top-level .fbd AND >=1 valid top-level non-FB2 payload
-    standalone_fbd,   // zero .fb2, >=1 .fbd, zero valid top-level non-FB2 payload -> FB2 mode
-    no_book,          // zero .fb2 and zero .fbd -> archive.noBook
+    fb2_archive,     // contains at least one .fb2 entry -> FB2 mode unchanged
+    fbd_package,     // zero .fb2, >=1 top-level .fbd AND >=1 valid top-level non-FB2 payload
+    standalone_fbd,  // zero .fb2, >=1 .fbd, zero valid top-level non-FB2 payload -> FB2 mode
+    no_book,         // zero .fb2 and zero .fbd -> archive.noBook
 };
 
 struct InspectedPackagePair {

@@ -89,7 +89,7 @@ export function NewSplitButton({ size = 24 }: { size?: 16 | 24 }) {
         onClick={openDropdown}
       >
         <span className="mfbe-toolbar-split-arrow" aria-hidden="true">
-          &#x25BE;
+          {'\u25BE'}
         </span>
       </button>
       {menuAt ? (
