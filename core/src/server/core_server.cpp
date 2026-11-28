@@ -407,6 +407,7 @@ struct CoreServer::Impl : rpc::Notifier {
         server::register_pdf_import_handlers(router, *services);
         server::register_txt_handlers(router, *services);
         server::register_mobi_handlers(router, *services);
+        server::register_docx_handlers(router, *services);
         server::register_batch_handlers(router, *services);
         server::register_resources_handlers(router, *services);
         server::register_ocr_handlers(router, *services);

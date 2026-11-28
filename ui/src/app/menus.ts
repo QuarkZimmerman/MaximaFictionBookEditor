@@ -107,6 +107,7 @@ export const MAIN_MENU: readonly MenuSpec[] = [
           cmd('file.importPdf'),
           cmd('file.importTxt'),
           cmd('file.importMobi'),
+          cmd('file.importDocx'),
         ],
       },
       {
@@ -122,6 +123,7 @@ export const MAIN_MENU: readonly MenuSpec[] = [
           cmd('file.exportPdf'),
           cmd('file.exportTxt'),
           cmd('file.exportMobi'),
+          cmd('file.exportDocx'),
         ],
       },
       sep,

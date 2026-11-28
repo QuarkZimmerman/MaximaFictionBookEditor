@@ -123,6 +123,10 @@ export const RpcErrorCode = {
   packageInvalidFile: 1122,
   packageInvalidArchive: 1123,
   packageSaveFailed: 1124,
+  /** Feature 023: DOCX export/import errors (`docx.write.*`, `docxImport.*`). */
+  docxRefused: 1125,
+  docxWriteFailed: 1126,
+  docxUnknownToken: 1127,
   spellDictionaryUnavailable: 1020,
   scriptNotFound: 1030,
   scriptInvalidManifest: 1031,
@@ -305,6 +309,20 @@ export type MobiTocPlacement = 'afterTitle' | 'end' | 'none';
 export type MobiSeriesInTitle = 'off' | 'numberBefore' | 'seriesAndNumber';
 export type MobiOpenAt = 'titlePage' | 'mainText';
 
+export type DocxFontFamilyPreset =
+  | 'Georgia'
+  | 'Times New Roman'
+  | 'Cambria'
+  | 'Garamond'
+  | 'Noto Serif'
+  | 'DejaVu Serif'
+  | 'Liberation Serif'
+  | 'Calibri'
+  | 'Arial'
+  | 'custom';
+export type DocxTocPlacement = 'afterTitle' | 'end' | 'none';
+export type DocxNotesPlacement = 'footnotes' | 'endnotes';
+
 /** Feature 018 (contracts/rpc-api.md §4): multi-select dropdown inside `dialog.saveFile`. */
 export interface SaveFileSelectChoice {
   value: string;
@@ -432,6 +450,18 @@ export interface Settings {
     seriesInTitle: MobiSeriesInTitle;
     openAt: MobiOpenAt;
     kf8PopupFootnotes: boolean;
+    zip: boolean;
+  };
+  /** Feature 023 (contracts/settings.md): the DOCX export's defaults. */
+  docx?: {
+    defaultPageSize: PdfPageSizeId;
+    margins: 'narrow' | 'standard' | 'wide' | 'custom';
+    customMargin: number;
+    fontFamily: DocxFontFamilyPreset;
+    customFontFamily: string;
+    textSizePt: number;
+    tocPlacement: DocxTocPlacement;
+    notesPlacement: DocxNotesPlacement;
     zip: boolean;
   };
   /** Feature 020 (data-model.md §1.1): per-format import defaults (Settings -> Imports). */
@@ -1749,6 +1779,69 @@ export interface RpcMethods {
     };
   };
   'mobi.write.abort': { params: { token: string }; result: Record<string, never> };
+  /** Feature 023 (contracts/rpc-api.md §3–§4): DOCX export & import sessions. */
+  'docx.write.begin': {
+    params: { docId: string; path: string; zip: boolean };
+    result: { token: string };
+  };
+  'docx.write.picture': {
+    params: { token: string; binaryId: string; mediaName: string };
+    result:
+      | { missing: true }
+      | { unreadable: true }
+      | {
+          mediaName: string;
+          contentType: 'image/jpeg' | 'image/png';
+          width: number;
+          height: number;
+          bytes: number;
+          sha256: string;
+          converted: boolean;
+        };
+  };
+  'docx.write.commit': {
+    params: { token: string; document?: Document };
+    result: MaybeJob<{ path: string; bytes: number; zip: boolean }>;
+  };
+  'docx.write.abort': { params: { token: string }; result: { ok: true } };
+  'docxImport.begin': {
+    params: { path: string; entry?: string };
+    result:
+      | { archive: true; entries: string[]; fbdEntries: string[] }
+      | {
+          token: string;
+          entries: string[];
+          strayMacros: string[];
+          outside: string[];
+          fromArchive: boolean;
+          archiveEntry?: string;
+          fbdEntries: string[];
+          siblingFbdPath?: string;
+        };
+  };
+  'docxImport.picture': {
+    params: {
+      token: string;
+      docId: string;
+      entry: string;
+      binaryId: string;
+      jpegQuality?: number;
+    };
+    result:
+      | {
+          ok: true;
+          binary: BinaryMeta;
+          contentType: 'image/jpeg' | 'image/png';
+          bytes: number;
+          converted: boolean;
+        }
+      | { ok: false; reason: 'unsupported' | 'tooLarge' | 'unreadable' };
+  };
+  'docxImport.extractFbd': {
+    params: { token: string; fbdEntry: string };
+    result: { path: string };
+  };
+  'docxImport.end': { params: { token: string }; result: { ok: true } };
   'mobiImport.begin': {
     params: { path: string; entry?: string };
     result:
@@ -2306,7 +2399,7 @@ export interface RpcMethods {
       direction: 'fb2ToExport' | 'importToFb2';
       sourceDir: string;
       includeSubfolders: boolean;
-      formats?: ('epub' | 'mobi' | 'pdf' | 'txt' | 'markdown')[];
+      formats?: ('epub' | 'mobi' | 'pdf' | 'txt' | 'markdown' | 'docx')[];
     };
     result: MaybeJob<{
       runId: string;
@@ -2316,7 +2409,7 @@ export interface RpcMethods {
         sourcePath: string;
         relativeDir: string;
         displayPath: string;
-        format: 'fb2' | 'epub' | 'mobi' | 'pdf' | 'txt' | 'markdown';
+        format: 'fb2' | 'epub' | 'mobi' | 'pdf' | 'txt' | 'markdown' | 'docx';
         archiveEntry?: string;
         archiveMultiBook: boolean;
         archiveStem?: string;
@@ -2372,7 +2465,7 @@ export interface RpcMethods {
       itemId: string;
       archivePath: string;
       entry: string;
-      format: 'epub' | 'markdown';
+      format: 'epub' | 'markdown' | 'docx';
       fbdEntry?: string;
     };
     result: MaybeJob<{
@@ -2727,6 +2820,7 @@ export interface BatchPersistedExportSettings {
   txt?: NonNullable<Settings['txt']>;
   mobi?: NonNullable<Settings['mobi']>;
   markdown?: NonNullable<Settings['markdown']>;
+  docx?: NonNullable<Settings['docx']>;
   [section: string]: Record<string, unknown> | undefined;
 }
 
@@ -2734,9 +2828,9 @@ export interface BatchPersistedExportSettings {
 export interface BatchPersistedSettings {
   schemaVersion?: number;
   direction: 'fb2ToExport' | 'importToFb2';
-  exportFormat: 'epub' | 'mobi' | 'pdf' | 'txt' | 'markdown';
+  exportFormat: 'epub' | 'mobi' | 'pdf' | 'txt' | 'markdown' | 'docx';
   importAll: boolean;
-  importFormats: Record<'epub' | 'mobi' | 'pdf' | 'txt' | 'markdown', boolean>;
+  importFormats: Record<'epub' | 'mobi' | 'pdf' | 'txt' | 'markdown' | 'docx', boolean>;
   sourceDir: string;
   destinationDir: string;
   includeSubfolders: boolean;

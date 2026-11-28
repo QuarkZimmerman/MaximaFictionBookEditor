@@ -13,6 +13,7 @@
 #include <mfbe/core_server.hpp>
 #include <mfbe/dialog_provider.hpp>
 #include <mfbe/document_session.hpp>
+#include <mfbe/docx.hpp>
 #include <mfbe/epub.hpp>
 #include <mfbe/exclusions.hpp>
 #include <mfbe/fbd_package.hpp>
@@ -138,6 +139,29 @@ struct Services {
         bool cleaned = false;
     } mobi;
 
+    // Feature 023 (docx.write.* and docxImport.*): active DOCX export and import sessions.
+    struct DocxWriteSession {
+        std::mutex mutex;
+        std::unique_ptr<docx::DocxPackageWriter> writer;
+        std::string doc_id;
+        std::filesystem::path work_dir;
+    };
+    struct DocxImportSession {
+        std::mutex mutex;
+        std::filesystem::path source_path;
+        std::optional<std::filesystem::path> archive_path;
+        std::optional<std::string> archive_entry;
+        std::filesystem::path folder;
+        std::optional<docx::DocxOpenedArchive> opened;
+        std::vector<std::string> fbd_entries;
+    };
+    struct DocxState {
+        std::mutex mutex;
+        std::map<std::string, std::shared_ptr<DocxWriteSession>> writers;
+        std::map<std::string, std::shared_ptr<DocxImportSession>> imports;
+        bool cleaned = false;
+    } docx;
+
     // Feature 019 (batch.*): per-run target locks and temporary extraction directories.
     batch::BatchState batch;
     // Feature 022 (package.*): active FBD ZIP package sessions and entry metadata.
@@ -241,6 +265,8 @@ void register_pdf_import_handlers(rpc::RpcRouter& router, Services& services);
 void register_txt_handlers(rpc::RpcRouter& router, Services& services);
 // Feature 018: mobi.write.* and mobiImport.* (mobi_handlers.cpp).
 void register_mobi_handlers(rpc::RpcRouter& router, Services& services);
+// Feature 023: docx.write.* and docxImport.* (docx_handlers.cpp).
+void register_docx_handlers(rpc::RpcRouter& router, Services& services);
 // Feature 019: batch.* (batch_handlers.cpp).
 void register_batch_handlers(rpc::RpcRouter& router, Services& services);
 // Feature 017 (D13): the FBD of the book `doc_id`, the description of `params["document"]`, written

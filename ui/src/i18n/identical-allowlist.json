@@ -34,6 +34,7 @@
     "exports.settings.formats.markdown",
     "exports.settings.formats.txt",
     "exports.settings.formats.mobi",
+    "exports.settings.formats.docx",
     "mobi.formats.mobi7",
     "mobi.formats.kf8",
     "mobi.saveFormats.joint",

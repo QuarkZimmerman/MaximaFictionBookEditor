@@ -131,7 +131,17 @@ TEST_CASE("settings: defaults are exactly resource-formats.md section 6", "[sett
     // Feature 022: Package mode automatic cover import defaults.
     CHECK(d["package"] ==
           json{{"autoCoverPdf", true}, {"autoCoverEpub", true}, {"autoCoverMobi", true}});
-    CHECK(d.size() == 14);
+    // Feature 023 (contracts/settings.md): DOCX export settings defaults.
+    CHECK(d["docx"] == json{{"defaultPageSize", "a4"},
+                            {"margins", "standard"},
+                            {"customMargin", 22},
+                            {"fontFamily", "Georgia"},
+                            {"customFontFamily", ""},
+                            {"textSizePt", 12},
+                            {"tocPlacement", "afterTitle"},
+                            {"notesPlacement", "footnotes"},
+                            {"zip", false}});
+    CHECK(d.size() == 15);
 }
 
 TEST_CASE(

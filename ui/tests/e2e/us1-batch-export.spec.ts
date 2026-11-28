@@ -67,7 +67,7 @@ test.describe('US1: Batch export FB2 to export formats @platform', () => {
       .getByTestId('batch-export-format')
       .locator('option')
       .evaluateAll((opts) => opts.map((o) => o.getAttribute('value')));
-    expect(formatOptions).toEqual(['epub', 'mobi', 'pdf', 'txt', 'markdown']);
+    expect(formatOptions).toEqual(['epub', 'mobi', 'pdf', 'txt', 'markdown', 'docx']);
 
     await expect(page.getByTestId('batch-zip-output')).toBeDisabled();
     await expect(page.getByTestId('batch-zip-output')).not.toBeChecked();

@@ -1,0 +1,169 @@
+{
+  "$comment": "DOCX export and import (feature 023): File > Export > Export as DOCX..., File > Import > DOCX File..., File > Open refusal, Save dialog & fallback options, Settings > Exports > DOCX, archive/FBD prompts, refusals, progress, and summaries.",
+  "menu": {
+    "file": {
+      "exportDocx": "Export as &DOCX...",
+      "importDocx": "D&OCX File..."
+    }
+  },
+  "cmd": {
+    "file": {
+      "exportDocx": {
+        "tooltip": "Export as DOCX",
+        "description": "Write the book as a standalone Microsoft Word (.docx) document with page layout, table of contents, footnotes or endnotes, and optional ZIP + FBD archive"
+      },
+      "importDocx": {
+        "tooltip": "Import DOCX",
+        "description": "Make a new book from a standalone Microsoft Word (.docx) document or a ZIP archive holding one; the editor's own exports round-trip cleanly"
+      }
+    }
+  },
+  "exports": {
+    "settings": {
+      "formats": {
+        "docx": "DOCX"
+      }
+    }
+  },
+  "docx": {
+    "filterDocx": "Word documents (*.docx)",
+    "filterZip": "ZIP archives (*.zip)",
+    "filterImportAll": "Word documents and ZIP archives (*.docx, *.zip)",
+    "filterAnyFile": "All files",
+    "pageSizeLabel": "Page size:",
+    "zipChoice": "Save in ZIP archive",
+    "exportTitle": "Export as DOCX",
+    "exportCaption": "DOCX export",
+    "optionsCaption": "DOCX export options",
+    "exporting": "Exporting as DOCX…",
+    "exportDone": "Exported to {{path}}: {{sections}} sections, {{pictures}} pictures, {{tables}} tables, {{notes}} notes.",
+    "exportCancelled": "The DOCX export was cancelled; no file was written.",
+    "exportFailed": "{{path}} was not written: {{detail}}",
+    "exportSummaryIntro": "Not everything was carried over as written:",
+    "summaryMore": "… and {{count}} more",
+    "exportSummary": {
+      "repairedTitle": "Filled in the exported file only: book title ({{detail}})",
+      "brokenInternalLink": "Link written as text (missing target): {{detail}}",
+      "missingPicture": "Missing picture left out: {{detail}}",
+      "remotePicture": "Remote picture not fetched: {{detail}}",
+      "convertedPicture": "Picture converted to JPEG or PNG: {{detail}}",
+      "duplicateId": "Duplicate id made unique in the exported file: {{detail}}",
+      "strippedControlChars": "Unsupported control characters removed: {{detail}}",
+      "unsupportedCssRule": "Unsupported stylesheet rule left out: {{detail}}",
+      "nonCssStylesheet": "Non-CSS stylesheet left out: {{detail}}"
+    },
+    "writeFailed": {
+      "targetIsSource": "it is the book's own file, or the archive it was opened from.",
+      "badPageSize": "the requested page size is not recognised.",
+      "badPart": "a required part of the document could not be staged ({{detail}}).",
+      "checkFailed": "the finished DOCX failed its own XML check ({{detail}}).",
+      "ioError": "the file could not be written ({{detail}}).",
+      "unknownToken": "the export session was no longer known to the core."
+    },
+    "openRefused": "{{path}} is a Microsoft Word (.docx) document. File > Open takes FictionBook (FB2) books, FBD files and ZIP archives holding FB2 books or FBD packages; import a DOCX document with File > Import > DOCX File....",
+    "openRefusedInArchive": "{{path}} holds a Word (.docx) document but no FictionBook book. Import it with File > Import > DOCX File....",
+    "openTitle": "Import a DOCX document",
+    "importCaption": "DOCX import",
+    "importing": "Importing the DOCX document…",
+    "importDone": "Imported from DOCX: {{sections}} sections, {{pictures}} pictures, {{tables}} tables, {{notes}} notes.",
+    "importCancelled": "The DOCX import was cancelled; the book in the window is unchanged.",
+    "importFailed": "{{path}} could not be imported: {{reason}}",
+    "importSummaryIntro": "Not everything came over as written:",
+    "importSummary": {
+      "fbdApplied": "Book description loaded from companion FBD: {{detail}}",
+      "externallyModified": "The DOCX was modified outside the editor; your text and picture edits were kept along with the saved FB2 description.",
+      "mfbeDamagedFallback": "The editor's round-trip metadata could not be read; imported as a standard DOCX document.",
+      "skippedDeletions": "Tracked deletions omitted: {{detail}}",
+      "skippedComments": "Word comments dropped: {{detail}}",
+      "equationsAsText": "Word equations converted to plain text: {{detail}}",
+      "svgRasterized": "Embedded SVG pictures converted to PNG/JPEG: {{detail}}",
+      "droppedStyling": "Custom Word fonts, colors, or borders omitted for clean FB2 output ({{detail}})",
+      "droppedUnsupportedDrawings": "Unsupported drawings, charts, or WMF/EMF graphics omitted: {{detail}}",
+      "droppedHeadersFooters": "Headers, footers, or page numbers omitted: {{detail}}",
+      "droppedOleOrMedia": "Embedded objects, audio, or video omitted: {{detail}}",
+      "droppedRemoteImages": "Remote linked pictures not fetched: {{detail}}",
+      "strayMacrosIgnored": "Embedded macro data ignored and never executed: {{detail}}",
+      "flattenedNestedTables": "Nested tables flattened for FB2 compatibility: {{detail}}",
+      "brokenInternalLink": "Internal link target missing, kept as text: {{detail}}",
+      "strippedControlChars": "Unsupported control characters removed: {{detail}}",
+      "outsideArchiveEntry": "Unsafe path inside archive ignored: {{detail}}"
+    },
+    "refused": {
+      "notDocx": "it is not a valid Word (.docx) document.",
+      "encrypted": "password-protected or encrypted DOCX documents cannot be imported.",
+      "legacyDoc": "legacy Word 97–2003 (.doc) files are not supported; save the document as .docx first.",
+      "macroEnabled": "macro-enabled Word (.docm) files are not supported; save the document as standard .docx first.",
+      "tooLarge": "the file is larger than the editor allows for DOCX import.",
+      "tooManyEntries": "the archive contains too many entries.",
+      "zipBomb": "the unpacked document exceeds safe size or compression limits.",
+      "damaged": "the DOCX document is damaged or unreadable.",
+      "empty": "the DOCX document contains no importable text, tables, or images.",
+      "fictionBook": "it is already a FictionBook file; open it with File > Open.",
+      "noDocxInArchive": "the ZIP archive contains no DOCX document.",
+      "otherArchive": "only ZIP archives are supported.",
+      "archiveEncrypted": "the ZIP archive is password-protected.",
+      "archiveTooLarge": "the ZIP archive exceeds safe size limits.",
+      "archiveDamaged": "the ZIP archive is damaged or unreadable."
+    },
+    "archive": {
+      "chooseBookTitle": "Choose a DOCX document from the archive",
+      "chooseBookPrompt": "{{path}} holds more than one DOCX document. Choose which one to import:",
+      "chooseFbdTitle": "Use an FBD description from the archive?",
+      "chooseFbdPrompt": "Choose an FBD description from {{path}} to apply to the imported book, or keep the document's own metadata:",
+      "fbdNone": "Do not use an FBD (keep DOCX metadata)",
+      "fbdConflictTitle": "Archive FBD differs from DOCX description",
+      "fbdConflictPrompt": "{{fbd}} in the archive differs from the FB2 description stored inside the DOCX. Which description should be kept?",
+      "keepDocxDescription": "Keep DOCX description",
+      "useArchiveFbd": "Use archive FBD"
+    },
+    "settings": {
+      "pageSize": "Default page size:",
+      "margins": "Margins:",
+      "marginPresets": {
+        "narrow": "Narrow",
+        "standard": "Standard",
+        "wide": "Wide",
+        "custom": "Custom"
+      },
+      "customMargin": "Custom margin (mm):",
+      "fontFamily": "Font family:",
+      "fontCustomOption": "Custom…",
+      "customFontFamily": "Custom font name:",
+      "customFontPlaceholder": "e.g. Palatino or Bookerly",
+      "textSizePt": "Text size:",
+      "textSizeValue": "{{pt}} pt",
+      "tocPlacement": "Table of contents:",
+      "tocPlacements": {
+        "afterTitle": "After title page",
+        "end": "At the end",
+        "none": "None"
+      },
+      "notesPlacement": "Notes placement:",
+      "notesPlacements": {
+        "footnotes": "Footnotes (bottom of page)",
+        "endnotes": "Endnotes (end of document)"
+      },
+      "zip": "Save in ZIP archive (DOCX + FBD)",
+      "defaultHint": "Default: {{value}}",
+      "reset": "Reset",
+      "resetAll": "Reset all"
+    }
+  },
+  "tip": {
+    "settings": {
+      "docx": {
+        "pageSize": "Default page size used when exporting a book to DOCX",
+        "margins": "Page margin preset (reuses PDF export proportions) or custom millimetres",
+        "customMargin": "Page margin width in millimetres (5 to 50 mm)",
+        "fontFamily": "Default body font family referenced by name in the DOCX without embedding font files",
+        "customFontFamily": "Custom font family name written into Word styles (falls back to Georgia if blank)",
+        "textSizePt": "Default body text size in points (10 to 14 pt)",
+        "tocPlacement": "Where to place the pre-populated clickable Table of contents in exported DOCX files",
+        "notesPlacement": "Whether referenced FB2 notes become Word footnotes at page bottom or endnotes at document end",
+        "zip": "Pack exported DOCX and companion FBD metadata into a single ZIP archive by default",
+        "reset": "Restore this option to its built-in default",
+        "resetAll": "Restore every DOCX export option to its built-in default"
+      }
+    }
+  }
+}

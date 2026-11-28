@@ -275,6 +275,18 @@ export function validateSettings(
       });
     }
   }
+  if (draft.docx && draft.docx.margins === 'custom') {
+    if (!isIntegerInRange(draft.docx.customMargin, { min: 5, max: 50 })) {
+      errors.push({
+        field: 'docx.customMargin',
+        message: t('dialog.settings.rangeError', {
+          field: stripLabel(t('docx.settings.customMargin')),
+          min: 5,
+          max: 50,
+        }),
+      });
+    }
+  }
   return errors;
 }
 

@@ -43,7 +43,7 @@ function makeConfig(overrides: Partial<BatchJobConfig> = {}): BatchJobConfig {
     direction: 'fb2ToExport',
     exportFormat: 'txt',
     importAll: true,
-    importFormats: { epub: true, mobi: true, pdf: true, txt: true, markdown: true },
+    importFormats: { epub: true, mobi: true, pdf: true, txt: true, markdown: true, docx: true },
     sourceDir: '/books/src',
     destinationDir: '/books/out',
     includeSubfolders: true,

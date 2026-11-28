@@ -11,17 +11,18 @@ import { tip } from '@/app/tooltips';
 import type { CommandContext } from '@/app/commands';
 import type { Settings } from '@/rpc/types';
 
+import { DocxPage } from './DocxPage';
 import { MarkdownPage } from './MarkdownPage';
 import { MobiPage } from './MobiPage';
 import { PdfPage } from './PdfPage';
 import { TxtPage } from './TxtPage';
 
-const FORMATS = ['pdf', 'epub', 'markdown', 'txt', 'mobi'] as const;
+const FORMATS = ['pdf', 'epub', 'markdown', 'txt', 'mobi', 'docx'] as const;
 export type ExportFormat = (typeof FORMATS)[number];
 
 export interface ExportsPageProps {
   draft: Settings;
-  onChange: <S extends 'pdf' | 'markdown' | 'txt' | 'mobi'>(
+  onChange: <S extends 'pdf' | 'markdown' | 'txt' | 'mobi' | 'docx'>(
     section: S,
     patch: Partial<NonNullable<Settings[S]>>,
   ) => void;
@@ -61,6 +62,8 @@ export function ExportsPage({ draft, onChange, ctx, initialFormat = 'pdf' }: Exp
         <TxtPage draft={draft} onChange={(patch) => onChange('txt', patch)} ctx={ctx} />
       ) : format === 'mobi' ? (
         <MobiPage draft={draft} onChange={(patch) => onChange('mobi', patch)} />
+      ) : format === 'docx' ? (
+        <DocxPage draft={draft} onChange={(patch) => onChange('docx', patch)} />
       ) : (
         <p className="mfbe-settings-note" data-testid="settings-exports-none">
           {t('exports.settings.none')}

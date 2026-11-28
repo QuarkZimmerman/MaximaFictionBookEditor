@@ -110,6 +110,11 @@
       "tooltip": "Exit",
       "description": "Quit the application; prompts to save documents"
     },
+    "file.exportDocx": {
+      "label": "Export as &DOCX...",
+      "tooltip": "Export as DOCX",
+      "description": "Write the book as a standalone Microsoft Word (.docx) document with page layout, table of contents, footnotes or endnotes, and optional ZIP + FBD archive"
+    },
     "file.exportEpub": {
       "label": "Export as EP&UB...",
       "tooltip": "Export as EPUB",
@@ -149,6 +154,11 @@
       "label": "&Description from FictionBook file...",
       "tooltip": "Import description",
       "description": "Import the description of another FictionBook file into this document"
+    },
+    "file.importDocx": {
+      "label": "D&OCX File...",
+      "tooltip": "Import DOCX",
+      "description": "Make a new book from a standalone Microsoft Word (.docx) document or a ZIP archive holding one; the editor's own exports round-trip cleanly"
     },
     "file.importEpub": {
       "label": "E&PUB File...",
@@ -872,6 +882,11 @@
       "tooltip": "Выход",
       "description": "Закрыть программу; будет предложено сохранить документ перед закрытием"
     },
+    "file.exportDocx": {
+      "label": "Экспорт в &DOCX...",
+      "tooltip": "Экспорт в DOCX",
+      "description": "Сохранить книгу в автономный документ Microsoft Word (.docx) с размером страницы, оглавлением, сносками и опциональным архивом ZIP + FBD"
+    },
     "file.exportEpub": {
       "label": "Экспорт в EP&UB...",
       "tooltip": "Экспорт в EPUB",
@@ -911,6 +926,11 @@
       "label": "Опис&ание из файла FictionBook...",
       "tooltip": "Импорт описания",
       "description": "Импортировать описание из другого файла FictionBook в этот документ"
+    },
+    "file.importDocx": {
+      "label": "Файл &DOCX...",
+      "tooltip": "Импорт DOCX",
+      "description": "Создать новую книгу из документа Microsoft Word (.docx) или ZIP-архива с ним; экспорты самого редактора восстанавливаются полностью"
     },
     "file.importEpub": {
       "label": "Файл E&PUB...",
@@ -1634,6 +1654,11 @@
       "tooltip": "Вийти",
       "description": "Закрити програму; перед закриттям буде запропоновано зберегти документ"
     },
+    "file.exportDocx": {
+      "label": "Експорт у &DOCX...",
+      "tooltip": "Експорт у DOCX",
+      "description": "Зберегти книгу як автономний документ Microsoft Word (.docx) із розміром сторінки, змістом, виносками та опціональним архівом ZIP + FBD"
+    },
     "file.exportEpub": {
       "label": "Експорт у EP&UB...",
       "tooltip": "Експорт у EPUB",
@@ -1673,6 +1698,11 @@
       "label": "Оп&ис із файлу FictionBook...",
       "tooltip": "Імпорт опису",
       "description": "Імпортувати опис з іншого файлу FictionBook у цей документ"
+    },
+    "file.importDocx": {
+      "label": "Файл &DOCX...",
+      "tooltip": "Імпорт DOCX",
+      "description": "Створити нову книгу з документа Microsoft Word (.docx) або ZIP-архіву з ним; експорти самого редактора відновлюються повністю"
     },
     "file.importEpub": {
       "label": "Файл E&PUB...",

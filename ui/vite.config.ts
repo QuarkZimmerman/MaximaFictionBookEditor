@@ -241,6 +241,35 @@ export function isBatchConverterModule(id: string): boolean {
   return !batchStaticModules.has(path.slice(batchFolder.length));
 }
 
+// Feature 023 (DP-1, FR-003): DOCX export and import are two lazy chunks (`docx-export`,
+// `docx-import`), plus small lazy helpers `docx-shared`. Static entries (`exportCommand.ts`,
+// `importCommand.ts`, `DocxExportOptions.tsx`, `docxSettingsSchema.ts`) and `DocxPage.tsx` stay in
+// the main bundle.
+const docxExportFolder = fileURLToPath(
+  new URL('./src/features/docx/export/', import.meta.url),
+).replace(/\\/g, '/');
+const docxImportFolder = fileURLToPath(
+  new URL('./src/features/docx/import/', import.meta.url),
+).replace(/\\/g, '/');
+const docxSharedFolder = fileURLToPath(
+  new URL('./src/features/docx/shared/', import.meta.url),
+).replace(/\\/g, '/');
+
+/** True for a module of the `docx-export` chunk (exported for the unit test of the rule). */
+export function isDocxExportModule(id: string): boolean {
+  return id.split('?')[0].replace(/\\/g, '/').startsWith(docxExportFolder);
+}
+
+/** True for a module of the `docx-import` chunk (exported for the unit test of the rule). */
+export function isDocxImportModule(id: string): boolean {
+  return id.split('?')[0].replace(/\\/g, '/').startsWith(docxImportFolder);
+}
+
+/** True for a module of the `docx-shared` chunk (exported for the unit test of the rule). */
+export function isDocxSharedModule(id: string): boolean {
+  return id.split('?')[0].replace(/\\/g, '/').startsWith(docxSharedFolder);
+}
+
 // Kept as a plain object (not a callback) so vitest.config.ts can merge it.
 export default defineConfig({
   plugins: [
@@ -376,6 +405,21 @@ export default defineConfig({
             {
               name: 'batch-converter',
               test: isBatchConverterModule,
+              includeDependenciesRecursively: false,
+            },
+            {
+              name: 'docx-export',
+              test: isDocxExportModule,
+              includeDependenciesRecursively: false,
+            },
+            {
+              name: 'docx-import',
+              test: isDocxImportModule,
+              includeDependenciesRecursively: false,
+            },
+            {
+              name: 'docx-shared',
+              test: isDocxSharedModule,
               includeDependenciesRecursively: false,
             },
           ],

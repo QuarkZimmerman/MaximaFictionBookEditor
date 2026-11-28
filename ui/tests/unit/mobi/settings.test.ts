@@ -62,6 +62,7 @@ describe('Settings > Exports > MOBI (feature 018, T036)', () => {
       { value: 'markdown', label: 'Markdown' },
       { value: 'txt', label: 'TXT' },
       { value: 'mobi', label: 'MOBI' },
+      { value: 'docx', label: 'DOCX' },
     ]);
   });
 

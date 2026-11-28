@@ -32,7 +32,7 @@ describe('batch import format filters and output paths (US2)', () => {
       null,
     );
     expect(cfg.importAll).toBe(false);
-    expect(selectedImportFormats(cfg)).toEqual(['mobi', 'pdf', 'txt', 'markdown']);
+    expect(selectedImportFormats(cfg)).toEqual(['mobi', 'pdf', 'txt', 'markdown', 'docx']);
 
     // Re-checking that format restores All supported formats.
     cfg = reduceBatchConfig(

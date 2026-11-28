@@ -205,7 +205,10 @@ export function archiveErrorMessage(t: TFunction, error: unknown, path: string):
           : // Feature 018 (FR-020): and one holding a MOBI/KF8/PalmDOC, to the MOBI import.
             data.reason === 'mobiInArchive'
             ? t('mobi.openRefusedInArchive', { path })
-            : t('archive.msg.noBook', { path });
+            : // Feature 023 (FR-031): and one holding a DOCX without FB2/FBD, to the DOCX import.
+              data.reason === 'docxInArchive'
+              ? t('docx.openRefusedInArchive', { path })
+              : t('archive.msg.noBook', { path });
     case RpcErrorCode.archiveEntryMissing:
       return t('archive.msg.missing', { path, entry: data.entry ?? '' });
     case RpcErrorCode.archiveEntryUnreadable: {
@@ -944,6 +947,8 @@ export class FileFeature {
         const txt = reason === 'txt';
         // Feature 018 (FR-020): and a MOBI / KF8 / PalmDOC, through File > Import > MOBI File.
         const mobi = reason === 'mobi';
+        // Feature 023 (FR-031): and a DOCX, through File > Import > DOCX File.
+        const docx = reason === 'docx';
         await ctx.dialogs.showMessage({
           text: epub
             ? ctx.t('epub.openRefused', { path })
@@ -953,7 +958,9 @@ export class FileFeature {
                 ? ctx.t('txt.openRefused', { path })
                 : mobi
                   ? ctx.t('mobi.openRefused', { path })
-                  : ctx.t('msg.notFictionBook', { path }),
+                  : docx
+                    ? ctx.t('docx.openRefused', { path })
+                    : ctx.t('msg.notFictionBook', { path }),
           caption: ctx.t('dialog.error.caption'),
           icon: 'error',
           testId: epub
@@ -964,7 +971,9 @@ export class FileFeature {
                 ? 'dialog-txt-refused'
                 : mobi
                   ? 'dialog-mobi-refused'
-                  : 'dialog-not-fictionbook',
+                  : docx
+                    ? 'dialog-docx-refused'
+                    : 'dialog-not-fictionbook',
         });
         void this.recent.refresh(rpc);
         return false;

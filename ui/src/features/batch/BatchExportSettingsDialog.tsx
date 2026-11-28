@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 
 import type { CommandContext } from '@/app/commands';
 import { Dialog, type DialogButton } from '@/dialogs/Dialog';
+import { DocxPage } from '@/dialogs/settings/DocxPage';
 import { MarkdownPage } from '@/dialogs/settings/MarkdownPage';
 import { MobiPage } from '@/dialogs/settings/MobiPage';
 import { PdfPage } from '@/dialogs/settings/PdfPage';
@@ -145,6 +146,8 @@ export function BatchExportSettingsDialog({
           ctx={ctx}
           hideZip
         />
+      ) : format === 'docx' ? (
+        <DocxPage draft={draft} onChange={(patch) => updateSection('docx', patch)} hideZip />
       ) : (
         <MarkdownPage draft={draft} onChange={(patch) => updateSection('markdown', patch)} />
       )}

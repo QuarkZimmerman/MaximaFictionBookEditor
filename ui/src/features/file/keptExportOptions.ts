@@ -24,11 +24,16 @@ export interface MobiKept {
   format: MobiFormat;
   zip: boolean;
 }
+export interface DocxKept {
+  pageSize: string;
+  zip: boolean;
+}
 export interface KeptByFormat {
   pdf: PdfKept;
   markdown: MarkdownKept;
   txt: TxtKept;
   mobi: MobiKept;
+  docx: DocxKept;
 }
 export type ExportFormat = keyof KeptByFormat;
 

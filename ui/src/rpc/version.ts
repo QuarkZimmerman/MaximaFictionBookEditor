@@ -7,7 +7,10 @@
 export const RPC_API_VERSION = 1;
 /**
  * Additive contract revision within RPC_API_VERSION (`app.info().apiMinor`; absent = 0). The
- * revision this UI was written for (19 since feature 021: `maximaLibrary` settings and
+ * revision this UI was written for (21 since feature 023: `docx.write.*`, `docxImport.*`, routes
+ * `/docx-write/{token}/parts` and `/docx-import/{token}/part`, `docx.*` settings, Batch `"docx"`,
+ * `doc.open` `docx`/`docxInArchive` refusals, and errors `1125`–`1127`; 20 since feature 022;
+ * 19 since feature 021: `maximaLibrary` settings and
  * `maximaLookup.{status,revealToken,test,saveConfig,search,exists}`; 18 since feature 020: `ocr.report`, `resources.openOcrFolder`,
  * `resources.passedOver` `kind: "ocr"`, `dialog.openFile` `checks`, `pdfImport.inspect` `ocr`,
  * `pdfImport.read` `ocr` summary, `imports.*`/`ocr.*` settings, and `batch.*` OCR persistence;
@@ -42,4 +45,4 @@ export const RPC_API_VERSION = 1;
  * and requires >= 5 since feature 006 (`AI_REQUIRED_API_MINOR` in `ui/src/ai/index.ts`; 4
  * before).
  */
-export const RPC_API_MINOR = 20;
+export const RPC_API_MINOR = 21;

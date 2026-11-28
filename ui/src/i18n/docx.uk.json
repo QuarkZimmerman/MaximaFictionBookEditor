@@ -1,0 +1,169 @@
+{
+  "$comment": "Експорт та імпорт DOCX (функція 023): Файл > Експорт > Експорт у DOCX..., Файл > Імпорт > Файл DOCX..., відмова при відкритті, діалог збереження, Налаштування > Експорт > DOCX, архіви/FBD, повідомлення та підсумки.",
+  "menu": {
+    "file": {
+      "exportDocx": "Експорт у &DOCX...",
+      "importDocx": "Файл &DOCX..."
+    }
+  },
+  "cmd": {
+    "file": {
+      "exportDocx": {
+        "tooltip": "Експорт у DOCX",
+        "description": "Зберегти книгу як автономний документ Microsoft Word (.docx) із розміром сторінки, змістом, виносками та опціональним архівом ZIP + FBD"
+      },
+      "importDocx": {
+        "tooltip": "Імпорт DOCX",
+        "description": "Створити нову книгу з документа Microsoft Word (.docx) або ZIP-архіву з ним; експорти самого редактора відновлюються повністю"
+      }
+    }
+  },
+  "exports": {
+    "settings": {
+      "formats": {
+        "docx": "DOCX"
+      }
+    }
+  },
+  "docx": {
+    "filterDocx": "Документи Word (*.docx)",
+    "filterZip": "Архіви ZIP (*.zip)",
+    "filterImportAll": "Документи Word і архіви ZIP (*.docx, *.zip)",
+    "filterAnyFile": "Усі файли",
+    "pageSizeLabel": "Розмір сторінки:",
+    "zipChoice": "Зберегти у ZIP-архів",
+    "exportTitle": "Експорт у DOCX",
+    "exportCaption": "Експорт у DOCX",
+    "optionsCaption": "Параметри експорту у DOCX",
+    "exporting": "Експорт у DOCX…",
+    "exportDone": "Експортовано до {{path}}: {{sections}} розділів, {{pictures}} ілюстрацій, {{tables}} таблиць, {{notes}} приміток.",
+    "exportCancelled": "Експорт у DOCX скасовано; файл не записано.",
+    "exportFailed": "Файл {{path}} не записано: {{detail}}",
+    "exportSummaryIntro": "Не все вдалося перенести без змін:",
+    "summaryMore": "… і ще {{count}}",
+    "exportSummary": {
+      "repairedTitle": "Заповнено лише в експортованому файлі: назва книги ({{detail}})",
+      "brokenInternalLink": "Посилання записано як текст (ціль відсутня): {{detail}}",
+      "missingPicture": "Відсутню ілюстрацію пропущено: {{detail}}",
+      "remotePicture": "Віддалене зображення не завантажувалося: {{detail}}",
+      "convertedPicture": "Зображення перетворено в JPEG або PNG: {{detail}}",
+      "duplicateId": "Повторюваний ідентифікатор перейменовано в експортованому файлі: {{detail}}",
+      "strippedControlChars": "Видалено непідтримувані керівні символи: {{detail}}",
+      "unsupportedCssRule": "Непідтримуване правило стилів пропущено: {{detail}}",
+      "nonCssStylesheet": "Таблицю стилів не-CSS пропущено: {{detail}}"
+    },
+    "writeFailed": {
+      "targetIsSource": "це власний файл відкритої книги або архів, з якого її відкрито.",
+      "badPageSize": "вказано невідомий розмір сторінки.",
+      "badPart": "не вдалося підготувати частину документа ({{detail}}).",
+      "checkFailed": "готовий файл DOCX не пройшов внутрішню перевірку XML ({{detail}}).",
+      "ioError": "не вдалося записати файл ({{detail}}).",
+      "unknownToken": "сеанс експорту більше не знайдено в ядрі."
+    },
+    "openRefused": "{{path}} — документ Microsoft Word (.docx). Файл > Відкрити приймає книги FictionBook (FB2), файли FBD і ZIP-архіви з книгами FB2 чи пакетами FBD; для імпорту DOCX скористайтеся Файл > Імпорт > Файл DOCX....",
+    "openRefusedInArchive": "{{path}} містить документ Word (.docx), але не книгу FictionBook. Імпортуйте його через Файл > Імпорт > Файл DOCX....",
+    "openTitle": "Імпорт документа DOCX",
+    "importCaption": "Імпорт DOCX",
+    "importing": "Імпорт документа DOCX…",
+    "importDone": "Імпортовано з DOCX: {{sections}} розділів, {{pictures}} ілюстрацій, {{tables}} таблиць, {{notes}} приміток.",
+    "importCancelled": "Імпорт DOCX скасовано; відкрита книга не змінилася.",
+    "importFailed": "Не вдалося імпортувати {{path}}: {{reason}}",
+    "importSummaryIntro": "Не все вдалося перенести без змін:",
+    "importSummary": {
+      "fbdApplied": "Опис книги завантажено із супровідного FBD: {{detail}}",
+      "externallyModified": "Файл DOCX змінювали поза редактором; ваші правки тексту й зображень збережено разом з описом FB2.",
+      "mfbeDamagedFallback": "Не вдалося прочитати службові метадані редактора; файл імпортовано як звичайний DOCX.",
+      "skippedDeletions": "Видалення з режиму виправлень пропущено: {{detail}}",
+      "skippedComments": "Коментарі Word пропущено: {{detail}}",
+      "equationsAsText": "Формули Word перетворено на звичайний текст: {{detail}}",
+      "svgRasterized": "Вбудовані зображення SVG перетворено на PNG/JPEG: {{detail}}",
+      "droppedStyling": "Довільні шрифти, кольори та рамки Word опущено для чистого FB2 ({{detail}})",
+      "droppedUnsupportedDrawings": "Непідтримувані малюнки, діаграми або графіку WMF/EMF пропущено: {{detail}}",
+      "droppedHeadersFooters": "Колонтитули та номери сторінок пропущено: {{detail}}",
+      "droppedOleOrMedia": "Вбудовані об'єкти, аудіо або відео пропущено: {{detail}}",
+      "droppedRemoteImages": "Зовнішні посилання на зображення не завантажувалися: {{detail}}",
+      "strayMacrosIgnored": "Вбудовані макроси проігноровано й не виконувалися: {{detail}}",
+      "flattenedNestedTables": "Вкладені таблиці спрощено для сумісності з FB2: {{detail}}",
+      "brokenInternalLink": "Ціль внутрішнього посилання відсутня, залишено текст: {{detail}}",
+      "strippedControlChars": "Видалено непідтримувані керівні символи: {{detail}}",
+      "outsideArchiveEntry": "Небезпечний шлях усередині архіву проігноровано: {{detail}}"
+    },
+    "refused": {
+      "notDocx": "це не коректний документ Word (.docx).",
+      "encrypted": "захищені паролем або зашифровані файли DOCX не підтримуються.",
+      "legacyDoc": "застарілі файли Word 97–2003 (.doc) не підтримуються; перезбережіть документ у .docx.",
+      "macroEnabled": "документи Word із макросами (.docm) не підтримуються; перезбережіть документ у звичайний .docx.",
+      "tooLarge": "файл перевищує допустимий розмір для імпорту DOCX.",
+      "tooManyEntries": "архів містить занадто багато записів.",
+      "zipBomb": "розпакований документ перевищує безпечні обмеження розміру або стиснення.",
+      "damaged": "документ DOCX пошкоджено або не вдається прочитати.",
+      "empty": "документ DOCX не містить тексту, таблиць або зображень для імпорту.",
+      "fictionBook": "це вже файл FictionBook; відкрийте його через Файл > Відкрити.",
+      "noDocxInArchive": "у ZIP-архіві немає документів DOCX.",
+      "otherArchive": "підтримуються лише ZIP-архіви.",
+      "archiveEncrypted": "ZIP-архів захищено паролем.",
+      "archiveTooLarge": "ZIP-архів перевищує безпечні обмеження розміру.",
+      "archiveDamaged": "ZIP-архів пошкоджено або не вдається прочитати."
+    },
+    "archive": {
+      "chooseBookTitle": "Оберіть документ DOCX з архіву",
+      "chooseBookPrompt": "У {{path}} є кілька документів DOCX. Оберіть, який імпортувати:",
+      "chooseFbdTitle": "Використати опис FBD з архіву?",
+      "chooseFbdPrompt": "Оберіть опис FBD із {{path}} для імпортованої книги або залиште метадані документа:",
+      "fbdNone": "Не використовувати FBD (залишити метадані DOCX)",
+      "fbdConflictTitle": "Опис FBD в архіві відрізняється від опису в DOCX",
+      "fbdConflictPrompt": "Файл {{fbd}} в архіві відрізняється від опису FB2 всередині DOCX. Який опис залишити?",
+      "keepDocxDescription": "Залишити опис із DOCX",
+      "useArchiveFbd": "Узяти FBD з архіву"
+    },
+    "settings": {
+      "pageSize": "Розмір сторінки за замовчуванням:",
+      "margins": "Поля:",
+      "marginPresets": {
+        "narrow": "Вузькі",
+        "standard": "Стандартні",
+        "wide": "Широкі",
+        "custom": "Власні"
+      },
+      "customMargin": "Власні поля (мм):",
+      "fontFamily": "Шрифт:",
+      "fontCustomOption": "Власний…",
+      "customFontFamily": "Назва власного шрифту:",
+      "customFontPlaceholder": "напр. Palatino або Bookerly",
+      "textSizePt": "Розмір тексту:",
+      "textSizeValue": "{{pt}} пт",
+      "tocPlacement": "Зміст:",
+      "tocPlacements": {
+        "afterTitle": "Після титульної сторінки",
+        "end": "Наприкінці",
+        "none": "Немає"
+      },
+      "notesPlacement": "Розташування приміток:",
+      "notesPlacements": {
+        "footnotes": "Виноски (унизу сторінки)",
+        "endnotes": "Кінцеві виноски (наприкінці документа)"
+      },
+      "zip": "Зберігати у ZIP-архів (DOCX + FBD)",
+      "defaultHint": "За замовчуванням: {{value}}",
+      "reset": "Скинути",
+      "resetAll": "Скинути все"
+    }
+  },
+  "tip": {
+    "settings": {
+      "docx": {
+        "pageSize": "Розмір сторінки за замовчуванням під час експорту книги в DOCX",
+        "margins": "Пропорційні поля сторінки (як під час експорту в PDF) або значення в міліметрах",
+        "customMargin": "Ширина полів сторінки в міліметрах (від 5 до 50 мм)",
+        "fontFamily": "Основний шрифт документа DOCX (вказується за назвою без вбудовування файлів шрифту)",
+        "customFontFamily": "Назва власного шрифту для стилів Word (якщо порожньо, використовується Georgia)",
+        "textSizePt": "Розмір основного тексту в пунктах (від 10 до 14 пт)",
+        "tocPlacement": "Де розташовувати попередньо заповнений клікабельний зміст у DOCX",
+        "notesPlacement": "Чи оформляти примітки FB2 як посторінкові виноски чи кінцеві виноски Word",
+        "zip": "Пакувати експортований DOCX і супровідний FBD в один ZIP-архів за замовчуванням",
+        "reset": "Повернути значення за замовчуванням для цього параметра",
+        "resetAll": "Скинути всі параметри експорту DOCX до значень за замовчуванням"
+      }
+    }
+  }
+}

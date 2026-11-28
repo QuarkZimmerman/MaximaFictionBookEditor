@@ -3,6 +3,7 @@
  * Batch Converter dialog.
  */
 
+import { DOCX_DEFAULTS } from '@/features/docx/docxSettingsSchema';
 import type { BatchPersistedExportSettings, Settings } from '@/rpc/types';
 
 import {
@@ -49,6 +50,7 @@ const DEFAULT_EXPORT_SECTIONS: Record<string, Record<string, unknown>> = {
   txt: DEFAULT_TXT_SETTINGS as unknown as Record<string, unknown>,
   mobi: DEFAULT_MOBI_SETTINGS as unknown as Record<string, unknown>,
   markdown: DEFAULT_MARKDOWN_SETTINGS as unknown as Record<string, unknown>,
+  docx: DOCX_DEFAULTS as unknown as Record<string, unknown>,
 };
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -195,6 +197,8 @@ export function defaultZipOutput(
       return Boolean(settings?.txt?.zip);
     case 'mobi':
       return Boolean(settings?.mobi?.zip);
+    case 'docx':
+      return Boolean(settings?.docx?.zip);
   }
 }
 
@@ -209,6 +213,7 @@ export function allImportFormatsRecord(value: boolean): Record<BatchBookFormat, 
     pdf: value,
     txt: value,
     markdown: value,
+    docx: value,
   };
 }
 
@@ -244,6 +249,10 @@ export function normalizeBatchConfig(raw: BatchJobConfig, cpuCores: number): Bat
     pdf: Boolean(raw.importFormats.pdf),
     txt: Boolean(raw.importFormats.txt),
     markdown: Boolean(raw.importFormats.markdown),
+    docx:
+      raw.importFormats.docx === undefined
+        ? Boolean(raw.importAll)
+        : Boolean(raw.importFormats.docx),
   };
   const importAll = BATCH_BOOK_FORMATS.every((fmt) => importFormats[fmt]);
   const zipOutput = isZipOutputSupported(raw.direction, raw.exportFormat)

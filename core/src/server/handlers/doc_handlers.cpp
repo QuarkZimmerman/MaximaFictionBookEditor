@@ -63,6 +63,7 @@
 #include <mfbe/archive.hpp>
 #include <mfbe/atomic_file.hpp>
 #include <mfbe/document_details.hpp>
+#include <mfbe/docx.hpp>
 #include <mfbe/encodings.hpp>
 #include <mfbe/epub.hpp>
 #include <mfbe/fb2_reader.hpp>
@@ -404,6 +405,10 @@ ArchiveChoice choose_entry(const std::string& path, const std::optional<std::str
                 if (mobi::is_mobi_extension(name) && !data.contains("reason")) {
                     data["reason"] = "mobiInArchive";
                 }
+                // Feature 023 (FR-017): a DOCX and no FB2/FBD points to the DOCX import.
+                if (docx::is_docx_extension(name) && !data.contains("reason")) {
+                    data["reason"] = "docxInArchive";
+                }
             }
         }
         throw rpc::RpcError(rpc::codes::kArchiveNoBook, "the archive holds no FictionBook book",
@@ -441,6 +446,11 @@ void refuse_other_archives(const fs::path& file) {
     if (kind == archive::Kind::zip && epub::is_epub(file)) {
         throw not_fictionbook(platform::utf8_from_path(file), "epub");
     }
+    // Feature 023 (FR-017): bare DOCX files are refused before ZIP-of-books handling and come in
+    // through File > Import > DOCX File (ZIP archives pairing DOCX + FBD stay FBD ZIP Packages).
+    if (kind == archive::Kind::zip && docx::is_bare_docx_file(file)) {
+        throw not_fictionbook(platform::utf8_from_path(file), "docx");
+    }
     // Feature 016 (D4): a PDF is not opened either; it comes in through File > Import > PDF File.
     // Its header may follow some bytes of something else (PDF 32000-1 7.5.2): the first kilobyte is
     // looked at.
@@ -458,6 +468,9 @@ void refuse_other_archives(const fs::path& file) {
                    [](unsigned char c) { return std::tolower(c); });
     if (extension == ".txt") {
         throw not_fictionbook(platform::utf8_from_path(file), "txt");
+    }
+    if (extension == ".docx") {
+        throw not_fictionbook(platform::utf8_from_path(file), "docx");
     }
     // Feature 018 (FR-020): MOBI / KF8 / PalmDOC files are refused by extension or PalmDB magic
     // and come in through File > Import > MOBI File.

@@ -176,6 +176,7 @@ const PATCH_SECTIONS = [
   'markdown',
   'txt',
   'mobi',
+  'docx',
   'package',
   'ai',
 ] as const;

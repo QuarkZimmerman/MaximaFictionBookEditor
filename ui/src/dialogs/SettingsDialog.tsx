@@ -117,7 +117,8 @@ type DraftSection =
   | 'ai'
   | 'markdown'
   | 'txt'
-  | 'mobi';
+  | 'mobi'
+  | 'docx';
 
 /**
  * The pre-apply hook (feature 005 R8.8): asked with the validated draft before anything is

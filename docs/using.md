@@ -22,8 +22,9 @@ the backup cannot be made the book is still saved, and the status bar says so.
 A book with validation errors is saved only after a question; when saving opens *Save As*, the
 question comes first, so *No* ends the save without choosing a file. The exports ask the same
 question before their save dialog - *File > Export > Export as Markdown…*, *Export as Markdown
-ZIP…*, *Export as EPUB…*, *Export as PDF…*, *Export as TXT…* and *Export as MOBI…* -, and *No*
-ends the export without choosing a file; *Export as FBD…* asks it about the description it writes.
+ZIP…*, *Export as EPUB…*, *Export as PDF…*, *Export as TXT…*, *Export as MOBI…* and *Export as
+DOCX…* -, and *No* ends the export without choosing a file; *Export as FBD…* asks it about the
+description it writes.
 
 ## Books in ZIP archives
 
@@ -547,9 +548,8 @@ several asks which).
 ### After an import
 
 An import keeps nothing of the file it read: the book is a new one, as *File > New* makes it, and its first
-*Save As* proposes the name made from its description, as for any new book. The Markdown, EPUB, PDF, TXT and
-MOBI imports also take an FBD lying beside a file the editor did not make (the PDF import asks first); the
-editor's own files keep the description they carry.
+*Save As* proposes the name made from its description, as for any new book. The Markdown, EPUB, PDF, TXT, MOBI and DOCX imports also take an FBD lying beside a file the editor
+did not make (the PDF import asks first); the editor's own files keep the description they carry.
 
 ## MOBI and KF8 files
 
@@ -613,14 +613,64 @@ book at*, *Pop-up footnotes (KF8)*, and *Save in ZIP archive*, each showing its 
 the open book for subsequent exports until another book takes the window or the editor restarts. The MOBI
 export and import modules load on demand only when used.
 
+## DOCX files
+
+### Exporting as DOCX
+
+*File > Export > Export as DOCX…* writes the book as a standalone, unencrypted Microsoft Word
+(`.docx`) document offline without requiring Microsoft Word or LibreOffice. The Save dialog offers
+*Page size* (the same nine portrait page sizes as PDF export) and *Save in ZIP archive* (where the
+system dialog cannot show them, a compact options window asks right after).
+
+- **Layout and navigation**: cover page centered within page margins (suppressing an exact-match
+  duplicate leading body cover automatically while preserving a distinct frontispiece), title page,
+  annotation, pre-populated clickable native Word Table of Contents (*After title page*, *At the
+  end*, or *None*, with zero startup "Update fields?" popup), centered footer page numbers suppressed
+  on the cover and title pages, translated FB2 CSS rules, and a revision history colophon.
+- **Notes**: referenced FB2 notes become native Word *Footnotes* (bottom of page) or *Endnotes*
+  (end of document); any unreferenced notes are printed cleanly in a closing *Notes* section.
+- **ZIP archive option**: ticking *Save in ZIP archive* writes `<name>.zip` holding uncompressed
+  `<name>.docx` and compressed `<name>.fbd` side by side.
+- **Reversible round-trip**: editor-exported `.docx` files embed a standard OOXML Custom XML Part
+  with SHA-256 content digests so re-importing an untouched `.docx` restores the full FB2
+  description, stylesheets, FBD Maker roles, Maxima identities, and structure, while editing the
+  `.docx` externally in Word or LibreOffice preserves all text and picture edits alongside the saved
+  FB2 metadata.
+
+### Importing DOCX
+
+*File > Import > DOCX File…* creates a new unsaved FictionBook 2.1 document from a standalone
+`.docx` file or a `.zip` archive holding one (or more, via the archive chooser) and opens directly
+in Body view.
+
+- **Clean semantic FB2 output**: headings 1–6 become nested sections, Word inline emphasis/bold/
+  strikethrough/sub/sup/code and footnotes/endnotes map to clean semantic FB2, tracked insertions are
+  accepted while deletions and comments are omitted and counted, OMML equations become readable plain
+  text, SVG pictures prefer their paired PNG fallback (rasterizing standalone SVGs offline), and
+  arbitrary Word visual formatting is dropped and summarized.
+- **Companion FBD & safety**: legacy `.doc`, encrypted `.docx`, and macro-enabled `.docm` files are
+  refused with clear messages; stray macros inside a `.docx` are stripped and reported. Bare foreign
+  `.docx` files auto-apply a sibling `.fbd`, while `.zip` archives pair `.fbd` files matching the
+  PDF/TXT/MOBI rules (prompting only when an archive `.fbd` differs from an editor-exported `.docx`).
+  *File > Open* refuses bare or unpaired `.docx` files and points to *File > Import > DOCX File…*,
+  while `.zip` archives pairing `.docx` + `.fbd` continue opening in FBD ZIP Package mode.
+
+### DOCX export settings
+
+*Settings > Exports > DOCX* sets the default *Page size*, *Margins* (Narrow / Standard / Wide /
+Custom mm reusing PDF proportions), *Font family* (9 curated cross-platform fonts or *Custom…*,
+written by name without font embedding), *Text size* (10–14 pt), *Table of contents*, *Notes
+placement*, and *Save in ZIP archive*, each with its built-in default, *Reset*, and *Reset all*.
+The DOCX export and import modules load lazily on demand only when used.
+
 ## Batch Converter
 
 *Tools > Batch Converter…* converts whole folders and folder trees of e-books unattended without altering
 the book currently open in the editor, Recent files, or remembered Open/Save As folders. The utility and
 each format converter load on demand only when used.
 
-- **Two direction tabs across five full-book formats** (**EPUB**, **MOBI / KF8**, **PDF**, **TXT**, and
-  **Markdown**; standalone FBD is excluded):
+- **Two direction tabs across six full-book formats** (**EPUB**, **MOBI / KF8**, **PDF**, **TXT**,
+  **Markdown**, and **DOCX**; standalone FBD is excluded):
   - **From FB2**: converts bare `.fb2` files and `.fb2.zip`/`.zip` archives holding FB2 books
     into one chosen target format, using Batch Converter's own persistent copy of export format
     settings (initialized on first open from *Settings > Exports*, shown as a compact summary with
@@ -645,7 +695,7 @@ each format converter load on demand only when used.
     `.fb2.zip` and `.md.zip`); a multi-book `.zip` places its outputs in a subfolder named after the
     archive (mirroring internal subfolders when *Keep folder tree structure* is checked).
   - *Save output in ZIP archive* sits right inside the format area on both tabs: it writes `<name>.fb2.zip`
-    on *To FB2* (off by default), `<name>.zip` with companion `.fbd` for PDF, TXT, and MOBI/KF8
+    on *To FB2* (off by default), `<name>.zip` with companion `.fbd` for PDF, TXT, MOBI/KF8, and DOCX
     (initialized from *Settings > Exports*), `<name>.md.zip` for Markdown (off by default), and is
     disabled and unchecked for EPUB.
 - **Folders, tree layout, in-place, and overwrite**:

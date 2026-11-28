@@ -288,3 +288,23 @@ export function pdfFontUrl(
     '?',
   );
 }
+
+/** Feature 023 (contracts/rpc-api.md §3): batched OOXML XML parts upload (`PUT /docx-write/:token/parts`). */
+export function docxWritePartsUrl(
+  token: string,
+  baseUrl: string = import.meta.env.BASE_URL ?? '/',
+): string {
+  return withToken(`${baseUrl}docx-write/${encodeURIComponent(token)}/parts`, '?');
+}
+
+/** Feature 023 (contracts/rpc-api.md §4): safe OOXML entry fetch (`GET /docx-import/:token/part?name=...`). */
+export function docxImportPartUrl(
+  token: string,
+  name: string,
+  baseUrl: string = import.meta.env.BASE_URL ?? '/',
+): string {
+  return withToken(
+    `${baseUrl}docx-import/${encodeURIComponent(token)}/part?name=${encodeURIComponent(name)}`,
+    '&',
+  );
+}

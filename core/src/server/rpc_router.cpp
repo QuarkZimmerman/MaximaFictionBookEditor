@@ -96,6 +96,12 @@ const char* error_name(int code) {
             return "package.invalidArchive";
         case codes::kPackageSaveFailed:
             return "package.saveFailed";
+        case codes::kDocxRefused:
+            return "docx.refused";
+        case codes::kDocxWriteFailed:
+            return "docx.writeFailed";
+        case codes::kDocxUnknownToken:
+            return "docx.unknownToken";
         default:
             return "";
     }

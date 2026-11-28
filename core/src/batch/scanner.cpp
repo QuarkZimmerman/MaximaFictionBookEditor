@@ -78,6 +78,9 @@ std::optional<std::string> detect_book_format(std::string_view filename, Directi
         allowed.count("markdown") > 0) {
         return std::string("markdown");
     }
+    if (ends_with_ci(filename, ".docx") && allowed.count("docx") > 0) {
+        return std::string("docx");
+    }
     return std::nullopt;
 }
 

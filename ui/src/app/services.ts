@@ -38,6 +38,8 @@ import { registerTxtExportFeature } from '@/features/txt/exportCommand';
 import { registerTxtImportFeature } from '@/features/txt/importCommand';
 import { registerMobiExportFeature } from '@/features/mobi/exportCommand';
 import { registerMobiImportFeature } from '@/features/mobi/importCommand';
+import { registerDocxExportFeature } from '@/features/docx/exportCommand';
+import { registerDocxImportFeature } from '@/features/docx/importCommand';
 import { registerPdfImportFeature } from '@/features/pdf/importCommand';
 import { registerMarkdownImport } from '@/features/markdown/importCommand';
 import { registerBatchFeature } from '@/features/batch';
@@ -129,9 +131,11 @@ export function createAppServices(options: CreateAppServicesOptions = {}): AppSe
   registerPdfFeature(commands);
   registerTxtExportFeature(commands);
   registerMobiExportFeature(commands);
+  registerDocxExportFeature(commands);
   registerPdfImportFeature(commands, files);
   registerTxtImportFeature(commands, files);
   registerMobiImportFeature(commands, files);
+  registerDocxImportFeature(commands, files);
   registerBatchFeature(commands);
   registerViewCommands(commands);
   // Feature modules (editing, source tools, description, tree, spelling, images, words,

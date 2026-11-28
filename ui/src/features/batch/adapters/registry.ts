@@ -23,6 +23,8 @@ export async function loadBatchAdapter(
         return (await import('./fb2ToTxt')).runFb2ToTxt;
       case 'markdown':
         return (await import('./fb2ToMarkdown')).runFb2ToMarkdown;
+      case 'docx':
+        return (await import('./fb2ToDocx')).runFb2ToDocx;
     }
   }
   switch (format) {
@@ -36,5 +38,7 @@ export async function loadBatchAdapter(
       return (await import('./txtToFb2')).runTxtToFb2;
     case 'markdown':
       return (await import('./markdownToFb2')).runMarkdownToFb2;
+    case 'docx':
+      return (await import('./docxToFb2')).runDocxToFb2;
   }
 }

@@ -110,3 +110,21 @@ export function mobiImportFileTypes(t: TFunction): FileFilter[] {
     fileType(t('mobi.filterAnyFile'), ['*']),
   ];
 }
+
+/** Feature 023: File > Export > Export as DOCX... Save dialog filters (DOCX, ZIP). */
+export function docxExportFileTypes(t: TFunction): FileFilter[] {
+  return [
+    { name: t('docx.filterDocx'), extensions: ['docx'] },
+    { name: t('docx.filterZip'), extensions: ['zip'] },
+  ];
+}
+
+/** Feature 023: File > Import > DOCX File... Open dialog filters. */
+export function docxImportFileTypes(t: TFunction): FileFilter[] {
+  return [
+    { name: t('docx.filterImportAll'), extensions: ['docx', 'zip'] },
+    { name: t('docx.filterDocx'), extensions: ['docx'] },
+    { name: t('docx.filterZip'), extensions: ['zip'] },
+    fileType(t('docx.filterAnyFile'), ['*']),
+  ];
+}

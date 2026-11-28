@@ -33,7 +33,8 @@
       "txtUtf8": "Encoding: UTF-8",
       "txtByLang": "Encoding: by book language",
       "txtBom": "with BOM",
-      "mobiSummary": "Format: {{format}}, TOC: {{toc}}, open at: {{openAt}}"
+      "mobiSummary": "Format: {{format}}, TOC: {{toc}}, open at: {{openAt}}",
+      "docxSummary": "Page: {{page}}, font: {{font}} ({{size}}), margins: {{margins}}, notes: {{notes}}"
     },
     "import": {
       "formatsLabel": "Formats to convert:",

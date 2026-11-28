@@ -5,6 +5,7 @@
 
 import type { TFunction } from 'i18next';
 
+import { resolveDocxFontFamily, resolveDocxSettings } from '@/features/docx/docxSettingsSchema';
 import { pdfValues } from '@/features/pdf/printValues';
 import type { Settings } from '@/rpc/types';
 
@@ -82,6 +83,19 @@ export function formatActiveExportSummary(
       return includePictures
         ? t('batch.export.markdownPicturesOn')
         : t('batch.export.markdownPicturesOff');
+    }
+
+    case 'docx': {
+      const docx = resolveDocxSettings(settings?.docx);
+      const page = t(`pdf.sizes.${docx.defaultPageSize}`);
+      const font = resolveDocxFontFamily(docx);
+      const size = t('docx.settings.textSizeValue', { pt: docx.textSizePt });
+      const margins =
+        docx.margins === 'custom'
+          ? `${docx.customMargin} mm`
+          : t(`docx.settings.marginPresets.${docx.margins}`);
+      const notes = t(`docx.settings.notesPlacements.${docx.notesPlacement}`);
+      return t('batch.export.docxSummary', { page, font, size, margins, notes });
     }
   }
 }

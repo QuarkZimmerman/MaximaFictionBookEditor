@@ -6,11 +6,11 @@ import type { BatchPersistedExportSettings, Settings } from '@/rpc/types';
 
 export type BatchDirection = 'fb2ToExport' | 'importToFb2';
 
-/** The five full-book formats supported in both directions (Q2: FBD excluded). */
-export type BatchBookFormat = 'epub' | 'mobi' | 'pdf' | 'txt' | 'markdown';
+/** The six full-book formats supported in both directions (Q2: FBD excluded). */
+export type BatchBookFormat = 'epub' | 'mobi' | 'pdf' | 'txt' | 'markdown' | 'docx';
 
 /** Export formats that expose format-specific options (EPUB has none). */
-export type BatchConfigurableExportFormat = 'mobi' | 'pdf' | 'txt' | 'markdown';
+export type BatchConfigurableExportFormat = 'mobi' | 'pdf' | 'txt' | 'markdown' | 'docx';
 
 /**
  * Per-format export option overrides edited inside Batch Converter's batch-only Export settings
@@ -21,6 +21,7 @@ export interface BatchExportSettingsOverrides {
   txt?: Partial<NonNullable<Settings['txt']>>;
   mobi?: Partial<NonNullable<Settings['mobi']>>;
   markdown?: Partial<NonNullable<Settings['markdown']>>;
+  docx?: Partial<NonNullable<Settings['docx']>>;
   [section: string]: Record<string, unknown> | undefined;
 }
 
@@ -30,6 +31,7 @@ export const BATCH_BOOK_FORMATS: readonly BatchBookFormat[] = [
   'pdf',
   'txt',
   'markdown',
+  'docx',
 ] as const;
 
 export type BatchPhase = 'idle' | 'scanning' | 'converting' | 'cancelling' | 'finished';

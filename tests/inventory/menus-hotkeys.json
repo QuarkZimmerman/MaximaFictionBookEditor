@@ -18,7 +18,8 @@
             "file.importEpub",
             "file.importPdf",
             "file.importTxt",
-            "file.importMobi"
+            "file.importMobi",
+            "file.importDocx"
           ]
         },
         {
@@ -30,7 +31,8 @@
             "file.exportEpub",
             "file.exportPdf",
             "file.exportTxt",
-            "file.exportMobi"
+            "file.exportMobi",
+            "file.exportDocx"
           ]
         },
         "---",

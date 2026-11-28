@@ -100,6 +100,8 @@ void register_pdf_http(LoopbackServer& server, Services& services);
 void register_pdf_import_http(LoopbackServer& server, Services& services);
 // Feature 018: PUT /mobi-write/{token}/{slot} and GET /mobi-import/{token}/... (mobi_handlers.cpp).
 void register_mobi_http(LoopbackServer& server, Services& services);
+// Feature 023: PUT /docx-write/{token}/parts and GET /docx-import/{token}/part (docx_handlers.cpp).
+void register_docx_http(LoopbackServer& server, Services& services);
 // Feature 019: GET /batch/doc/{docId} for parallel Web Worker document fetch (batch_handlers.cpp).
 void register_batch_http(LoopbackServer& server, Services& services);
 // Registers GET/HEAD /scripts/{scriptId}/{file} (scripts_handlers.cpp).

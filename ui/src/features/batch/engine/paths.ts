@@ -94,6 +94,8 @@ export function resolveTargetExtension(
       return config.zipOutput ? '.zip' : '.txt';
     case 'markdown':
       return config.zipOutput ? '.md.zip' : '.md';
+    case 'docx':
+      return config.zipOutput ? '.zip' : '.docx';
   }
 }
 

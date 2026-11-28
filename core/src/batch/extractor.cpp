@@ -108,7 +108,7 @@ ExtractedEntry extract_archive_entry(const fs::path& archive_path, const std::st
                                      const fs::path& dest_dir,
                                      const ExtractCancelFn& is_cancelled) {
     const std::string archive_utf8 = platform::utf8_from_path(archive_path);
-    if (format != "epub" && format != "markdown") {
+    if (format != "epub" && format != "markdown" && format != "docx") {
         throw ExtractError(archive_utf8, "unsupported extraction format: " + format);
     }
 

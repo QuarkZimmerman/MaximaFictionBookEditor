@@ -33,7 +33,8 @@
       "txtUtf8": "Кодировка: UTF-8",
       "txtByLang": "Кодировка: по языку книги",
       "txtBom": "с BOM",
-      "mobiSummary": "Формат: {{format}}, оглавление: {{toc}}, открывать с: {{openAt}}"
+      "mobiSummary": "Формат: {{format}}, оглавление: {{toc}}, открывать с: {{openAt}}",
+      "docxSummary": "Страница: {{page}}, шрифт: {{font}} ({{size}}), поля: {{margins}}, примечания: {{notes}}"
     },
     "import": {
       "formatsLabel": "Форматы для конвертации:",

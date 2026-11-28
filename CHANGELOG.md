@@ -3,6 +3,55 @@
 All notable changes to Maxima Fiction Book Editor. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.0.16 - unreleased
+
+### In short
+
+- Standalone offline DOCX export and import without requiring Microsoft Word
+- Reversible DOCX round-trip restores full FB2 metadata and preserves external Word edits
+- Settings > Exports > DOCX configures page size, margins, fonts, TOC, footnotes, and ZIP+FBD
+- Batch Converter adds DOCX support in both From FB2 and To FB2 directions
+
+### Added
+
+- Standalone offline DOCX export (*File -> Export -> Export as DOCX...*, feature 023) writes valid,
+  unencrypted Microsoft Word (`.docx`) documents or `<name>.zip` archives holding uncompressed
+  `<name>.docx` plus compressed `<name>.fbd` without requiring Microsoft Word, LibreOffice, or any
+  third-party runtime.
+- Exported DOCX documents include centered cover pages (suppressing exact-match duplicate leading
+  main-body covers by ID or SHA-256 while preserving distinct frontispieces), title page,
+  annotation, pre-populated clickable native Word Table of Contents (*After title page*, *At the
+  end*, or *None*, with zero startup update-fields prompt), centered footer page numbers suppressed
+  on front matter, translated FB2 CSS rules with unsupported-rule summary reporting, native Word
+  footnotes or endnotes plus a closing *Notes* section for unreferenced notes, revision history
+  colophon, and standard Dublin Core document properties.
+- Standalone offline DOCX import (*File -> Import -> DOCX File...*) converts bare `.docx` files and
+  `.zip` archives holding `.docx` documents into clean, schema-valid UTF-8 FB2 2.1 books opening
+  directly in Body view, accepting tracked insertions (`w:ins`), omitting and counting tracked
+  deletions (`w:del`) and Word comments, converting OMML equations to readable plain text,
+  preferring paired PNG fallbacks for SVGs (with offline Chromium rasterization for standalone SVGs),
+  flattening nested tables, applying companion `.fbd` metadata (auto-applying sibling `.fbd` on bare
+  foreign `.docx` and archive `.fbd` with conflict prompting when differing from an editor `.docx`),
+  stripping stray macros inside `.docx`, and clearly refusing legacy `.doc`, encrypted `.docx`,
+  macro-enabled `.docm`, and content-empty files.
+- Reversible DOCX round-trip embeds a versioned standard OOXML Custom XML Part with SHA-256 content
+  digests (`bodyDigest`, `notesDigest`, `propsDigest`) so re-importing untouched editor-exported
+  DOCX files restores complete FB2 `<description>`, `<stylesheet>`, FBD Maker roles, Maxima Library
+  identities, skipped covers, notes grouping, and structural hints, while externally edited Word or
+  LibreOffice DOCX files preserve all user text and image edits alongside saved FB2 metadata.
+- *Tools -> Settings -> Exports -> DOCX* configures default page size (all 9 portrait sizes shared
+  with PDF), proportional or custom margins, curated or custom named font family (default Georgia,
+  without font embedding), text size (10–14 pt), Table of Contents placement, footnotes vs endnotes,
+  and *Save in ZIP archive* with built-in defaults, per-field *Reset*, *Reset all*, full *Apply*
+  dirty tracking, and per-book sticky Save dialog options.
+- *Tools -> Batch Converter...* adds full unattended DOCX support in both directions (*From FB2 ->
+  DOCX* bare or ZIP+FBD with batch-only *Export settings...* and parallel Web Worker execution, and
+  *To FB2 <- DOCX* discovering bare and zipped `.docx` files with automatic FBD pairing and warning
+  reporting).
+- *File -> Open* now clearly refuses bare `.docx` files and `.docx`-only `.zip` archives pointing
+  to *File -> Import -> DOCX File...*, while continuing to open `.zip` archives pairing `.docx` +
+  `.fbd` seamlessly in FBD ZIP Package mode.
+
 ## 0.0.15 - 2026-11-27
 
 ### In short

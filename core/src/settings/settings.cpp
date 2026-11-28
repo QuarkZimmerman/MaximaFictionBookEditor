@@ -151,6 +151,19 @@ const std::vector<Field>& schema() {
         enumeration("mobi.openAt", {"titlePage", "mainText"}),
         field("mobi.kf8PopupFootnotes", Kind::boolean),
         field("mobi.zip", Kind::boolean),
+        // Feature 023 (contracts/settings.md): DOCX export defaults.
+        enumeration("docx.defaultPageSize",
+                    {"a4", "b5", "a5", "b6", "a6", "legal", "letter", "executive", "statement"}),
+        enumeration("docx.margins", {"narrow", "standard", "wide", "custom"}),
+        integer("docx.customMargin", 5, 50),
+        enumeration("docx.fontFamily",
+                    {"Georgia", "Times New Roman", "Cambria", "Garamond", "Noto Serif",
+                     "DejaVu Serif", "Liberation Serif", "Calibri", "Arial", "custom"}),
+        text("docx.customFontFamily", 0, 80),
+        integer("docx.textSizePt", 10, 14),
+        enumeration("docx.tocPlacement", {"afterTitle", "end", "none"}),
+        enumeration("docx.notesPlacement", {"footnotes", "endnotes"}),
+        field("docx.zip", Kind::boolean),
         // Feature 020 (data-model.md §1): PDF import OCR defaults and global OCR settings.
         field("imports.pdf.useOcr", Kind::boolean),
         field("ocr.folder", Kind::string),
@@ -760,6 +773,16 @@ json defaults() {
           {"openAt", "titlePage"},
           {"kf8PopupFootnotes", true},
           {"zip", false}}},
+        {"docx",
+         {{"defaultPageSize", "a4"},
+          {"margins", "standard"},
+          {"customMargin", 22},
+          {"fontFamily", "Georgia"},
+          {"customFontFamily", ""},
+          {"textSizePt", 12},
+          {"tocPlacement", "afterTitle"},
+          {"notesPlacement", "footnotes"},
+          {"zip", false}}},
         {"imports", {{"pdf", {{"useOcr", true}}}}},
         {"ocr",
          {{"folder", ""}, {"autoDetect", true}, {"enabledLanguages", json::array({"eng", "rus"})}}},
@@ -1053,7 +1076,7 @@ int SettingsStore::get_int(const std::string& dotted_path, int fallback) const {
 }
 
 const std::vector<std::string>& export_section_names() {
-    static const std::vector<std::string> names = {"pdf", "markdown", "txt", "mobi"};
+    static const std::vector<std::string> names = {"pdf", "markdown", "txt", "mobi", "docx"};
     return names;
 }
 

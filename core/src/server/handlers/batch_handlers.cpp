@@ -54,7 +54,7 @@ batch::Direction parse_direction(const json& params) {
 }
 
 std::vector<std::string> parse_import_formats(const json& params) {
-    static const std::set<std::string> kValid = {"epub", "mobi", "pdf", "txt", "markdown"};
+    static const std::set<std::string> kValid = {"epub", "mobi", "pdf", "txt", "markdown", "docx"};
     std::vector<std::string> formats = rpc::params::string_array_or(params, "formats");
     for (const std::string& fmt : formats) {
         if (kValid.count(fmt) == 0) {
@@ -98,7 +98,8 @@ json scan_error_to_json(const batch::ScanError& err) {
 constexpr int kBatchSettingsSchemaVersion = 1;
 
 bool is_valid_book_format(const std::string& fmt) {
-    return fmt == "epub" || fmt == "mobi" || fmt == "pdf" || fmt == "txt" || fmt == "markdown";
+    return fmt == "epub" || fmt == "mobi" || fmt == "pdf" || fmt == "txt" || fmt == "markdown" ||
+           fmt == "docx";
 }
 
 bool read_bool_or(const json& obj, const char* key, bool fallback) {
@@ -161,7 +162,7 @@ json sanitize_batch_settings(const json& raw, const json& global_settings, bool 
         }
     }
     bool all_selected = true;
-    for (const char* name : {"epub", "mobi", "pdf", "txt", "markdown"}) {
+    for (const char* name : {"epub", "mobi", "pdf", "txt", "markdown", "docx"}) {
         const bool checked = raw_formats != nullptr ? read_bool_or(*raw_formats, name, true) : true;
         import_formats[name] = checked;
         if (!checked) {
@@ -375,8 +376,9 @@ void register_batch_handlers(rpc::RpcRouter& router, Services& services) {
         const std::string format = rpc::params::string(params, "format");
         const std::optional<std::string> fbd_entry = rpc::params::opt_string(params, "fbdEntry");
 
-        if (format != "epub" && format != "markdown") {
-            throw rpc::invalid_params("format must be epub or markdown", json{{"field", "format"}});
+        if (format != "epub" && format != "markdown" && format != "docx") {
+            throw rpc::invalid_params("format must be epub, markdown, or docx",
+                                      json{{"field", "format"}});
         }
 
         fs::path dest_dir;

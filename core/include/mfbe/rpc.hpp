@@ -117,6 +117,10 @@ inline constexpr int kPackageNotFound = 1121;
 inline constexpr int kPackageInvalidFile = 1122;
 inline constexpr int kPackageInvalidArchive = 1123;
 inline constexpr int kPackageSaveFailed = 1124;
+// Feature 023 (docx.write.*, docxImport.*, contracts/rpc-api.md): DOCX export/import errors.
+inline constexpr int kDocxRefused = 1125;
+inline constexpr int kDocxWriteFailed = 1126;
+inline constexpr int kDocxUnknownToken = 1127;
 // Feature 005 (ai.*): the target cannot be resolved to a service the call may contact -
 // {reason: disabled | unknownService | emptyAddress | noModel | noAgreement, id?, service?}.
 inline constexpr int kAiNoService = 1200;
