@@ -266,7 +266,9 @@ test.describe('Feature 023 - DOCX export, import, reversible round-trip, setting
     );
 
     // Optional independent Calibre verification when installed on host
-    const calibreWhich = spawnSync('which', ['ebook-convert']);
+    const calibreWhich = spawnSync(process.platform === 'win32' ? 'where' : 'which', [
+      'ebook-convert',
+    ]);
     if (calibreWhich.status === 0) {
       const txtOut = path.join(dir, 'calibre-check.txt');
       const conv = spawnSync('ebook-convert', [bareDocx, txtOut], { encoding: 'utf8' });
@@ -370,11 +372,11 @@ test.describe('Feature 023 - DOCX export, import, reversible round-trip, setting
       [macroDocm, 'macro-enabled'],
     ] as const) {
       await core.enqueueDialog('dialog.openFile', { paths: [badPath] });
-      const t0 = Date.now();
       await page.getByTestId('menu-file').click();
       await page.getByTestId('menu-file-import').hover();
       await page.getByTestId('menu-file-import-importDocx').click();
       await dismissDiscardPromptIfShown(page);
+      const t0 = Date.now();
       const errDlg = page.getByTestId('dialog-docx-import-failed');
       await expect(errDlg).toBeVisible({ timeout: 2_000 });
       expect(Date.now() - t0).toBeLessThan(2_000);

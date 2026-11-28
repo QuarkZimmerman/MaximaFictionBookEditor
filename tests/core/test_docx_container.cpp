@@ -239,7 +239,9 @@ TEST_CASE("DocxArchiveReader strips stray macros, enforces zip-bomb limits, and 
 
     const auto found_fbd = docx::find_sibling_fbd(with_macro);
     REQUIRE(found_fbd.has_value());
-    CHECK(found_fbd->filename() == sibling_fbd.filename());
+    // Compare by filesystem equivalence: macOS APFS and Windows NTFS resolve `Book.fbd` to
+    // `book.fbd` directly without falling back to a case-folding directory scan.
+    CHECK(fs::equivalent(*found_fbd, sibling_fbd));
 
     // Zip bomb (> 100x compression ratio above 1 MiB floor): 2 MiB of zeroes compresses to ~2 KB.
     const std::string zeros(2 * 1024 * 1024, 'A');
