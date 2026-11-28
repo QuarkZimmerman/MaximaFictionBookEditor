@@ -131,7 +131,7 @@
       "customFontFamily": "Custom font name:",
       "customFontPlaceholder": "e.g. Palatino or Bookerly",
       "textSizePt": "Text size:",
-      "textSizeValue": "{{pt}} pt",
+      "textSizeValue": "{{pt}} points",
       "tocPlacement": "Table of contents:",
       "tocPlacements": {
         "afterTitle": "After title page",

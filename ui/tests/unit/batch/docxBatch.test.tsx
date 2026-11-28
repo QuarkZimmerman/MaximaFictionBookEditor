@@ -66,7 +66,7 @@ describe('Batch Converter DOCX integration', () => {
 
     const summary = formatActiveExportSummary('docx', settings, false, i18next.t);
     expect(summary).toContain('Cambria');
-    expect(summary).toContain('11 pt');
+    expect(summary).toContain('11 points');
   });
 
   it('clones and merges batch-only docx export settings without mutating global Settings', () => {
